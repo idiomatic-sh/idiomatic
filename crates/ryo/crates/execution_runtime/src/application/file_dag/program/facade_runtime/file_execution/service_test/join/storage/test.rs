@@ -39,6 +39,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Observed::Rows {
             rows: 2,
             cells: Cow::Borrowed(&[number(10), number(100), number(10), number(200)]),
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -50,6 +51,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             made_equal: true,
             delivered_equal: (true, true),
             skipped: (0, 0),
+            held: [NOTHING_HELD; 4],
         })),
     },
     Case {
@@ -61,6 +63,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             made_equal: true,
             delivered_equal: (true, true),
             skipped: (0, 0),
+            held: [NOTHING_HELD; 4],
         })),
     },
     Case {
@@ -72,6 +75,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             made_equal: true,
             delivered_equal: (true, true),
             skipped: (0, 0),
+            held: [NOTHING_HELD; 4],
         })),
     },
     Case {
@@ -83,6 +87,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             made_equal: true,
             delivered_equal: (true, true),
             skipped: (0, 0),
+            held: [NOTHING_HELD; 4],
         })),
     },
     Case {
@@ -94,6 +99,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             made_equal: true,
             delivered_equal: (true, true),
             skipped: (0, 0),
+            held: [NOTHING_HELD; 4],
         })),
     },
     Case {
@@ -105,6 +111,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             made_equal: true,
             delivered_equal: (true, true),
             skipped: (0, 0),
+            held: [NOTHING_HELD; 4],
         })),
     },
     Case {
@@ -116,6 +123,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             made_equal: true,
             delivered_equal: (true, true),
             skipped: (0, 0),
+            held: [NOTHING_HELD; 4],
         })),
     },
     Case {
@@ -127,6 +135,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             made_equal: true,
             delivered_equal: (true, true),
             skipped: (0, 0),
+            held: [NOTHING_HELD; 4],
         })),
     },
     Case {
@@ -137,6 +146,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: 2,
             logical: Cow::Borrowed(&[number(1), number(10), number(1), number(11)]),
             joined: Cow::Borrowed(&[number(10), number(11)]),
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -146,6 +156,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Observed::Delivered {
             prefix: Cow::Borrowed(&[number(20), number(21), number(22)]),
             index_cells: 0,
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -156,6 +167,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             error: OperatingError::NotRun,
             prefix: Cow::Borrowed(&[number(20)]),
             index_rows: 4,
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -166,6 +178,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             error: OperatingError::NotRun,
             prefix: Cow::Borrowed(&[]),
             index_rows: 0,
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -176,6 +189,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             error: OperatingError::NotRead,
             prefix: Cow::Borrowed(&[]),
             index_rows: 0,
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -187,6 +201,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Observed::Delivered {
             prefix: Cow::Borrowed(&[number(10), number(11)]),
             index_cells: 0,
+            held: NOTHING_HELD,
         }),
     },
 ];
@@ -218,7 +233,7 @@ fn scalar() -> Observed {
         vec![],
         &[],
     );
-    let actual = made(
+    let (actual, held) = made(
         &op,
         [Rows::Computed(&left), Rows::Computed(&right)],
         &mut Symbols::default(),
@@ -228,6 +243,7 @@ fn scalar() -> Observed {
     Observed::Rows {
         rows: actual.count.0,
         cells: Cow::Owned(actual.cells),
+        held,
     }
 }
 
@@ -349,7 +365,7 @@ fn malformed_storage() -> Observed {
     );
     let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(1))]]);
     let op = operation(&[0], &[0], &[(Side::Right, 1)], vec![], &[]);
-    let out = made(
+    let (out, held) = made(
         &op,
         [Rows::Computed(&left), Rows::Computed(&logical)],
         &mut Symbols::default(),
@@ -360,6 +376,7 @@ fn malformed_storage() -> Observed {
         rows: logical.count.0,
         logical: Cow::Owned(logical.cells),
         joined: Cow::Owned(out.cells),
+        held,
     }
 }
 /// Runs the Join.

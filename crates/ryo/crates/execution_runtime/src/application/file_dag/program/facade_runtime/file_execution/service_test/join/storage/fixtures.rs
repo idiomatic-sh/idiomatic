@@ -31,14 +31,14 @@ pub(super) fn fact_column(values: &[i64]) -> FactColumn {
 /// Compares the Join over `right` with the Join over its computed copy, delivered and not, and
 /// joins an empty primary.
 pub(super) fn parity(op: &Operation, left: &Table, right: Rows<'_>, computed: &Table) -> Parity {
-    let expected = made(
+    let (expected, expected_held) = made(
         op,
         [Rows::Computed(left), Rows::Computed(computed)],
         &mut Symbols::default(),
         b"",
     )
     .unwrap();
-    let actual = made(
+    let (actual, actual_held) = made(
         op,
         [Rows::Computed(left), right.clone()],
         &mut Symbols::default(),
@@ -78,6 +78,7 @@ pub(super) fn parity(op: &Operation, left: &Table, right: Rows<'_>, computed: &T
             delivered.result.as_ref().unwrap().cells == expected.cells,
             in_rows,
         ),
+        held: [expected_held, actual_held, delivered.held, skipped.held],
         skipped: (skipped.result.unwrap().count.0, skipped.work.index_rows),
     }
 }
@@ -122,6 +123,9 @@ pub(super) struct Parity {
     pub(super) delivered_equal: (bool, bool),
     /// An empty primary's output rows and Join index rows.
     pub(super) skipped: (usize, usize),
+    /// What the graph owner held after each run finished: the computed copy made, the stored side made, delivered,
+    /// and the empty primary.
+    pub(super) held: [Held; 4],
 }
 
 /// What the Join answered.
@@ -131,6 +135,7 @@ pub(super) enum Observed {
     Rows {
         rows: usize,
         cells: Cow<'static, [Cell]>,
+        held: Held,
     },
     /// The stored side against its computed copy.
     Parity(Parity),
@@ -139,20 +144,24 @@ pub(super) enum Observed {
         rows: usize,
         logical: Cow<'static, [Cell]>,
         joined: Cow<'static, [Cell]>,
+        held: Held,
     },
     /// The delivered cells and the Join index's cells.
     Delivered {
         prefix: Cow<'static, [Cell]>,
         index_cells: usize,
+        held: Held,
     },
 }
 
-/// A refused Join: the error, the cells delivered before it and the Join index's rows.
+/// A refused Join: the error, the cells delivered before it, the Join index's rows and what the graph owner held
+/// once the file finished.
 #[derive(Debug, PartialEq)]
 pub(super) struct Refused {
     pub(super) error: OperatingError,
     pub(super) prefix: Cow<'static, [Cell]>,
     pub(super) index_rows: usize,
+    pub(super) held: Held,
 }
 
 /// The delivered rows, or the refusal.
@@ -161,11 +170,13 @@ fn delivered(actual: Observation) -> Result<Observed, Refused> {
         None => Ok(Observed::Delivered {
             prefix: Cow::Owned(actual.prefix.concat()),
             index_cells: actual.work.index_cells,
+            held: actual.held,
         }),
         Some(error) => Err(Refused {
             error,
             prefix: Cow::Owned(actual.prefix.concat()),
             index_rows: actual.work.index_rows,
+            held: actual.held,
         }),
     }
 }

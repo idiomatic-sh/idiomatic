@@ -1,4 +1,5 @@
 //! Typed populations, dense bag order, partial provenance and fused reach semantics.
+use super::super::fixtures::execution::NOTHING_HELD;
 use super::fixtures::{Observed, Population, Reach, Refusal, exercise};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -25,7 +26,7 @@ const fn number(value: i64) -> Cell {
 }
 
 /// The composite join's answer on every route: 96 rows, the first place meeting node 1 and the
-/// third place meeting node 3 twice, every place in order.
+/// third place meeting node 3 twice, every place in order, and nothing held once the file finished.
 const COMPOSITE: Observed = Observed::Bag {
     rows: 96,
     first: Cow::Borrowed(&[
@@ -41,6 +42,7 @@ const COMPOSITE: Observed = Observed::Bag {
     ]),
     places_in_order: true,
     affected: Cow::Borrowed(&[]),
+    held: NOTHING_HELD,
 };
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -93,6 +95,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             first: Cow::Borrowed(&[stretch(0, 1), number(0)]),
             last: Cow::Borrowed(&[stretch(4096, 4097), number(15)]),
             places_in_order: true,
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -104,6 +107,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             first: Cow::Borrowed(&[]),
             places_in_order: true,
             affected: Cow::Borrowed(&[Some(FileId(0))]),
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -128,6 +132,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             derived_builds: 2,
             right_admitted: true,
             queue: 0,
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -143,6 +148,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             derived_builds: 0,
             right_admitted: true,
             queue: 0,
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -152,6 +158,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Refusal {
             error: OperatingError::NotRead,
             delivered: 0,
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -161,6 +168,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Refusal {
             error: OperatingError::NotRun,
             delivered: 0,
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -170,6 +178,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Refusal {
             error: OperatingError::NotRun,
             delivered: 0,
+            held: NOTHING_HELD,
         }),
     },
 ];

@@ -68,6 +68,8 @@ pub(super) struct Capability {
     pub(super) witness_calls: usize,
     /// What the real operators answered for the same join.
     pub(super) accepted: Delivered,
+    /// What the graph owner held once each file finished: the witness-refused run's, then the rerun's.
+    pub(super) held: [Held; 2],
 }
 
 /// What a join over an empty left observed.
@@ -79,6 +81,8 @@ pub(super) struct Gate {
     pub(super) reads: [usize; 2],
     pub(super) index: (usize, usize),
     pub(super) prefix_rows: usize,
+    /// What the graph owner held once the file finished.
+    pub(super) held: Held,
 }
 
 /// What a row observed.
@@ -144,6 +148,7 @@ fn checked(
                 prefix_rows: observed.prefix.len(),
                 witness_calls: witness.calls.load(Ordering::Relaxed),
                 accepted: delivered(accepted.result),
+                held: [observed.held, accepted.held],
             });
         }
     }
@@ -240,6 +245,7 @@ fn empty_left(
         reads: actual.reads,
         index: (actual.work.index_rows, actual.work.index_cells),
         prefix_rows: actual.prefix.len(),
+        held: actual.held,
     })
 }
 

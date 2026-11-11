@@ -11,7 +11,8 @@ const fn n(value: i64) -> Cell {
 }
 
 /// The refused first attempt and the replay, delivering the outer rows and publishing
-/// `refused_nested` then `replayed_nested` from the nested join.
+/// `refused_nested` then `replayed_nested` from the nested join; the lookup is called five times
+/// and given no render requests and no source bytes.
 const fn nested(
     refused_delivered: &'static [Cell],
     replayed_delivered: &'static [Cell],
@@ -44,6 +45,7 @@ const fn nested(
             },
         ],
         lookup_calls: 5,
+        lookup_given: (0, 0),
         reads_unchanged_after_release: true,
         builds: 1,
         index_shared: true,

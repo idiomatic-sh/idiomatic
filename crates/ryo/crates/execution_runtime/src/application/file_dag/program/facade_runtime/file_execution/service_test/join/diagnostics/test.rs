@@ -25,10 +25,11 @@ enum Left {
 
 /// What the joins and the diagnostic subscriber observed: each invocation's rows or refusal, the
 /// aggregates emitted, and of those, how many are a `file_indexes` event of file 0 and how many
-/// carry every owner field as a number.
+/// carry every owner field as a number; and what each invocation's graph owner held once its file finished.
 #[derive(Debug, PartialEq)]
 struct Observed {
     invocations: [Result<usize, OperatingError>; 4],
+    held: [Option<Held>; 4],
     aggregates: usize,
     file_index_events: usize,
     numeric_owner_fields: usize,
@@ -53,6 +54,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     // One normal-shutdown aggregate for each opened owner.
     expect: Expect::Value(Observed {
         invocations: [Ok(4), Ok(0), Err(OperatingError::NotRun), Ok(4)],
+        held: [Some(NOTHING_HELD); 4],
         aggregates: 4,
         file_index_events: 4,
         numeric_owner_fields: 4,
@@ -77,8 +79,11 @@ fn subject(invocations: Input) -> Result<Value, Failure> {
     // registered subscribers instead; only `observer` is installed for event delivery.
     let registration = tracing::Dispatch::new(observer.clone());
     let mut answers = [Ok(0), Ok(0), Ok(0), Ok(0)];
+    let mut held = [None; 4];
     tracing::subscriber::with_default(observer, || {
-        for (answer, (left, sink_after)) in answers.iter_mut().zip(invocations) {
+        for ((answer, held), (left, sink_after)) in
+            answers.iter_mut().zip(held.iter_mut()).zip(invocations)
+        {
             let rows = match left {
                 Left::Duplicates => &duplicates,
                 Left::Empty => &empty,
@@ -95,7 +100,10 @@ fn subject(invocations: Input) -> Result<Value, Failure> {
                     ..Faults::default()
                 },
             )
-            .and_then(|actual| actual.result.map(|table| table.count.0));
+            .and_then(|actual| {
+                *held = Some(actual.held);
+                actual.result.map(|table| table.count.0)
+            });
         }
     });
     drop(registration);
@@ -110,6 +118,7 @@ fn subject(invocations: Input) -> Result<Value, Failure> {
     ];
     Ok(Observed {
         invocations: answers,
+        held,
         aggregates: events.len(),
         file_index_events: events
             .iter()

@@ -1,4 +1,5 @@
 //! Independent tree and scalar Join expectations through the compiled owner.
+use super::super::fixtures::execution::{Held, NOTHING_HELD};
 use super::fixtures::{
     edges_to_a_few_named_rows, edges_to_a_second_child, edges_to_children_of_kind_inner,
     elements_covering_one_to_two, elements_whose_text_is_b, joins_the_tree,
@@ -42,9 +43,15 @@ const fn stretch(start: u32, end: u32) -> Cell {
     })
 }
 
+/// The joined cells, row after row, and what the graph owner still held once the file finished.
+#[derive(Debug, PartialEq)]
+struct Joined {
+    cells: Cow<'static, [Cell]>,
+    held: Held,
+}
+
 type Input = Join;
-/// The joined cells, row after row.
-type Value = Cow<'static, [Cell]>;
+type Value = Joined;
 type Failure = OperatingError;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -56,7 +63,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             on: 1,
         },
         // A node joined on the child of the tree finds its parent.
-        expect: Expect::Value(Cow::Borrowed(&[node(2), node(3), node(0), node(1)])),
+        expect: Expect::Value(Joined {
+            cells: Cow::Borrowed(&[node(2), node(3), node(0), node(1)]),
+            held: NOTHING_HELD,
+        }),
     },
     Case {
         name: CaseName("a_node_joined_on_the_parent_of_the_tree_finds_its_children"),
@@ -65,7 +75,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             starts: &[0],
             on: 0,
         },
-        expect: Expect::Value(Cow::Borrowed(&[node(0), node(1), node(0), node(2)])),
+        expect: Expect::Value(Joined {
+            cells: Cow::Borrowed(&[node(0), node(1), node(0), node(2)]),
+            held: NOTHING_HELD,
+        }),
     },
     Case {
         name: CaseName("the_root_has_no_parent"),
@@ -74,7 +87,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             starts: &[0],
             on: 1,
         },
-        expect: Expect::Value(Cow::Borrowed(&[])),
+        expect: Expect::Value(Joined {
+            cells: Cow::Borrowed(&[]),
+            held: NOTHING_HELD,
+        }),
     },
     Case {
         name: CaseName("a_leaf_has_no_children"),
@@ -83,44 +99,55 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             starts: &[3],
             on: 0,
         },
-        expect: Expect::Value(Cow::Borrowed(&[])),
+        expect: Expect::Value(Joined {
+            cells: Cow::Borrowed(&[]),
+            held: NOTHING_HELD,
+        }),
     },
     Case {
         name: CaseName("only_the_elements_a_filter_admits_are_joined_by_their_ids"),
         word: Word::Succeeds,
         input: || Join::ElementsWhoseTextIsB,
-        expect: Expect::Value(Cow::Borrowed(&[node(3), stretch(1, 2)])),
+        expect: Expect::Value(Joined {
+            cells: Cow::Borrowed(&[node(3), stretch(1, 2)]),
+            held: NOTHING_HELD,
+        }),
     },
     Case {
         name: CaseName("only_the_edges_a_filter_admits_are_joined"),
         word: Word::Succeeds,
         input: || Join::EdgesToASecondChild,
-        expect: Expect::Value(Cow::Borrowed(&[node(2)])),
+        expect: Expect::Value(Joined {
+            cells: Cow::Borrowed(&[node(2)]),
+            held: NOTHING_HELD,
+        }),
     },
     Case {
         name: CaseName("the_edges_of_the_children_of_a_kind_are_found_by_the_kind"),
         word: Word::Succeeds,
         input: || Join::EdgesToChildrenOfKindInner,
-        expect: Expect::Value(Cow::Borrowed(&[node(0), node(41)])),
+        expect: Expect::Value(Joined {
+            cells: Cow::Borrowed(&[node(0), node(41)]),
+            held: NOTHING_HELD,
+        }),
     },
     Case {
         name: CaseName("a_few_rows_leave_in_the_order_of_the_edges"),
         word: Word::Succeeds,
         input: || Join::EdgesToAFewNamedRows,
-        expect: Expect::Value(Cow::Borrowed(&[
-            node(5),
-            number(1),
-            node(5),
-            number(3),
-            node(41),
-            number(2),
-        ])),
+        expect: Expect::Value(Joined {
+            cells: Cow::Borrowed(&[node(5), number(1), node(5), number(3), node(41), number(2)]),
+            held: NOTHING_HELD,
+        }),
     },
     Case {
         name: CaseName("the_elements_covering_a_stretch_are_found_by_it_alone"),
         word: Word::Succeeds,
         input: || Join::ElementsCoveringOneToTwo,
-        expect: Expect::Value(Cow::Borrowed(&[node(41), node(42)])),
+        expect: Expect::Value(Joined {
+            cells: Cow::Borrowed(&[node(41), node(42)]),
+            held: NOTHING_HELD,
+        }),
     },
 ];
 
@@ -134,7 +161,10 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Join::EdgesToAFewNamedRows => edges_to_a_few_named_rows(),
         Join::ElementsCoveringOneToTwo => elements_covering_one_to_two(),
     }?;
-    Ok(Cow::Owned(joined.cells))
+    Ok(Joined {
+        cells: Cow::Owned(joined.0.cells),
+        held: joined.1,
+    })
 }
 
 #[test]

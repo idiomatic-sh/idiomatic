@@ -209,7 +209,11 @@ fn reopen(keys: &[Generation]) -> Reopened {
         payloads: calls.len(),
         equality_on_the_right,
         unsupplied,
-        malformed: (actual.result.err(), actual.derived_builds.len()),
+        malformed: (
+            actual.result.err(),
+            actual.derived_builds.len(),
+            actual.held,
+        ),
     }
 }
 
@@ -267,8 +271,9 @@ struct Reopened {
     /// Whether every payload is an equality index on the right key.
     equality_on_the_right: bool,
     unsupplied: Unsupplied,
-    /// The malformed key's refusal on an empty primary, and the derived builds it made.
-    malformed: (Option<OperatingError>, usize),
+    /// The malformed key's refusal on an empty primary, the derived builds it made, and what its graph owner held
+    /// once the file finished.
+    malformed: (Option<OperatingError>, usize, Held),
 }
 
 /// The three generations: a delivery refused after one row, an empty primary, a changed payload.
@@ -352,6 +357,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
         malformed: (
             Some(OperatingError::Table(RowsError::NoSuchColumn { index: 99 })),
             0,
+            NOTHING_HELD,
         ),
     }),
 }];

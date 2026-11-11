@@ -1,7 +1,7 @@
 //! The support of the `direct` cases.
 use super::super::*;
 use crate::application::file_dag::program::facade_runtime::file_execution::service_test::fixtures::*;
-use fixtures::execution::{Faults, Observation, execute, real_port};
+use fixtures::execution::{Faults, Held, Observation, execute, real_port};
 #[cfg(test)]
 use fixtures::provider::*;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -179,6 +179,8 @@ pub(super) struct Attempt {
     pub(super) prefix_rows: usize,
     /// Whether it answered the computed run's cells, or its refusal.
     pub(super) same_answer: bool,
+    /// What the graph owner held once the file finished.
+    pub(super) held: Held,
 }
 
 /// What a valid keying joins: the rows of the computed run, then the stored and compact runs.
@@ -186,6 +188,8 @@ pub(super) struct Attempt {
 pub(super) struct Joined {
     pub(super) rows: Cow<'static, [[Cell; 5]]>,
     pub(super) attempts: [Attempt; 4],
+    /// What the computed run's graph owner held once the file finished.
+    pub(super) held: Held,
 }
 
 /// What an invalid keying refuses with, on the computed and stored runs.
@@ -193,6 +197,8 @@ pub(super) struct Joined {
 pub(super) struct Refused {
     pub(super) error: OperatingError,
     pub(super) attempts: [Attempt; 4],
+    /// What the computed run's graph owner held once the file finished.
+    pub(super) held: Held,
 }
 
 /// The cells of an answer, or its refusal.
@@ -277,7 +283,8 @@ pub(super) fn exercise(keying: Keying) -> Result<Joined, Refused> {
         )
         .unwrap()
     };
-    let oracle = run(RepresentationKind::Computed, false).result;
+    let computed = run(RepresentationKind::Computed, false);
+    let (oracle, held) = (computed.result, computed.held);
     let supplied = if invalid {
         [RepresentationKind::Computed, RepresentationKind::Stored]
     } else {
@@ -299,6 +306,7 @@ pub(super) fn exercise(keying: Keying) -> Result<Joined, Refused> {
                 ),
                 prefix_rows: actual.prefix.len(),
                 same_answer: cells(&actual.result) == cells(&oracle),
+                held: actual.held,
             }
         })
         .collect::<Vec<_>>()
@@ -314,7 +322,12 @@ pub(super) fn exercise(keying: Keying) -> Result<Joined, Refused> {
                     .collect(),
             ),
             attempts,
+            held,
         }),
-        Err(error) => Err(Refused { error, attempts }),
+        Err(error) => Err(Refused {
+            error,
+            attempts,
+            held,
+        }),
     }
 }

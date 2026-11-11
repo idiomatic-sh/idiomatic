@@ -2,7 +2,7 @@
 use super::super::super::cases::fixtures::table_of;
 use super::super::super::*;
 use super::super::fixtures::REFUSAL;
-use super::fixtures::KeepsCalling;
+use super::fixtures::{Driven, KeepsCalling};
 use crate::application::file_dag::program::facade_runtime::file_execution::service_test::fixtures::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 #[cfg(test)]
@@ -17,6 +17,7 @@ use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, Side, StepId, StepScope},
     plans::types::{Operation, PlanStep},
 };
+use std::borrow::Cow;
 use std::sync::Arc;
 /// Where a join of `7` with `(7, 1)` fails while its kernel keeps calling and reports success.
 #[derive(Clone, Copy, Debug)]
@@ -29,17 +30,29 @@ enum Failing {
     Nothing,
 }
 
-/// A refused run: its error, the rows delivered before it, and the instructions it ran in.
+/// A published run: its rows, what the join driver answered each call the operators made of it,
+/// and what the graph owner held once the file finished.
+#[derive(Debug, PartialEq)]
+struct Published {
+    rows: usize,
+    driven: Cow<'static, [Driven]>,
+    held: Held,
+}
+
+/// A refused run: its error, the rows delivered before it, the instructions it ran in, what the
+/// join driver answered each call, and what the graph owner held once the file finished (none when
+/// the run was refused before its file opened).
 #[derive(Debug, PartialEq)]
 struct Refused {
     error: OperatingError,
     delivered: usize,
     instructions: usize,
+    driven: Cow<'static, [Driven]>,
+    held: Option<Held>,
 }
 
 type Input = Failing;
-/// The rows a run published.
-type Value = usize;
+type Value = Published;
 type Failure = Refused;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -47,7 +60,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_join_whose_sink_takes_its_rows_publishes_them"),
         word: Word::Succeeds,
         input: || Failing::Nothing,
-        expect: Expect::Value(2),
+        expect: Expect::Value(Published {
+            rows: 2,
+            driven: Cow::Borrowed(&[Driven::Taken, Driven::Taken]),
+            held: NOTHING_HELD,
+        }),
     },
     Case {
         name: CaseName(
@@ -59,6 +76,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             error: OperatingError::NotRun,
             delivered: 0,
             instructions: 1,
+            driven: Cow::Borrowed(&[Driven::Taken, Driven::Taken]),
+            held: Some(NOTHING_HELD),
         }),
     },
     Case {
@@ -75,6 +94,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             ),
             delivered: 0,
             instructions: 2,
+            driven: Cow::Borrowed(&[Driven::Refused, Driven::Refused, Driven::Refused]),
+            held: Some(NOTHING_HELD),
         }),
     },
 ];
@@ -86,10 +107,24 @@ fn subject(failing: Input) -> Result<Value, Failure> {
         &[CellKind::Number; 2],
         &[&[Cell::Number(Integer(7)), Cell::Number(Integer(1))]],
     );
+    let port = Arc::new(KeepsCalling {
+        refuse_project: matches!(failing, Failing::FusedProject),
+        ..KeepsCalling::default()
+    });
+    let driven = |port: &KeepsCalling| -> Cow<'static, [Driven]> {
+        Cow::Owned(
+            port.driven
+                .lock()
+                .expect("the fake's record is not poisoned")
+                .clone(),
+        )
+    };
     let refused = |error| Refused {
         error,
         delivered: 0,
         instructions: 0,
+        driven: driven(&port),
+        held: None,
     };
     let actual = match failing {
         Failing::Sink | Failing::Nothing => invoke(
@@ -98,9 +133,7 @@ fn subject(failing: Input) -> Result<Value, Failure> {
             &mut Symbols::default(),
             b"",
             true,
-            Arc::new(KeepsCalling {
-                refuse_project: false,
-            }),
+            port.clone(),
             Faults {
                 sink_after: matches!(failing, Failing::Sink).then_some(0),
                 ..Faults::default()
@@ -144,9 +177,7 @@ fn subject(failing: Input) -> Result<Value, Failure> {
                 &mut Symbols::default(),
                 b"",
                 true,
-                Arc::new(KeepsCalling {
-                    refuse_project: true,
-                }),
+                port.clone(),
                 Faults::default(),
             )
             .map_err(refused)?
@@ -154,13 +185,20 @@ fn subject(failing: Input) -> Result<Value, Failure> {
     };
     let delivered = actual.prefix.len();
     let instructions = actual.instructions;
+    let held = actual.held;
     actual
         .result
-        .map(|table| table.count.0)
+        .map(|table| Published {
+            rows: table.count.0,
+            driven: driven(&port),
+            held,
+        })
         .map_err(|error| Refused {
             error,
             delivered,
             instructions,
+            driven: driven(&port),
+            held: Some(held),
         })
 }
 

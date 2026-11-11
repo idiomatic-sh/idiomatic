@@ -122,6 +122,7 @@ fn composite(stored: bool, optional_limit: Option<usize>) -> Observed {
                 first: Cow::Owned(cells.iter().take(9).cloned().collect()),
                 places_in_order: cells == expected,
                 affected: Cow::Owned(actual.affected),
+                held: actual.held,
             }
         }
     }
@@ -158,6 +159,7 @@ fn dense() -> Observed {
         },
     )
     .unwrap();
+    let held = actual.held;
     let table = actual.result.unwrap();
     let last = table.count.0 - 1;
     let row = |at| {
@@ -177,6 +179,7 @@ fn dense() -> Observed {
                 Cell::Number(Integer((place % 16) as i64)),
             ]
         }),
+        held,
     }
 }
 
@@ -210,6 +213,7 @@ fn partial() -> Observed {
         first: Cow::Borrowed(&[]),
         places_in_order: true,
         affected: Cow::Owned(actual.affected),
+        held: actual.held,
     }
 }
 /// The reach Join of a primary to a cyclic right side, and what each run is given.
@@ -254,6 +258,7 @@ pub(super) enum Observed {
         first: Cow<'static, [Cell]>,
         places_in_order: bool,
         affected: Cow<'static, [Option<FileId>]>,
+        held: Held,
     },
     /// The output rows, the first and last rows, and whether every row pairs its place with its
     /// number.
@@ -262,6 +267,7 @@ pub(super) enum Observed {
         first: Cow<'static, [Cell]>,
         last: Cow<'static, [Cell]>,
         places_in_order: bool,
+        held: Held,
     },
     /// The delivered rows, the result's rows, the builds and derived builds, whether the right
     /// source was admitted, and the traversal queue left.
@@ -272,14 +278,16 @@ pub(super) enum Observed {
         derived_builds: usize,
         right_admitted: bool,
         queue: usize,
+        held: Held,
     },
 }
 
-/// A refused Join: the error and the rows delivered before it.
+/// A refused Join: the error, the rows delivered before it and what the graph owner held once the file finished.
 #[derive(Debug, PartialEq)]
 pub(super) struct Refusal {
     pub(super) error: OperatingError,
     pub(super) delivered: usize,
+    pub(super) held: Held,
 }
 
 /// Joins the population.
@@ -356,10 +364,12 @@ fn reached(run: Reach) -> Result<Observed, Refusal> {
             derived_builds: actual.derived_builds.len(),
             right_admitted: actual.attempts.contains(&SourceAttempt::Available(1)),
             queue: actual.work.traversal_queue_len,
+            held: actual.held,
         }),
         Err(error) => Err(Refusal {
             error,
             delivered: actual.prefix.len(),
+            held: actual.held,
         }),
     }
 }

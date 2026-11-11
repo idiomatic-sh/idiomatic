@@ -1,5 +1,5 @@
 //! Every provider kind reaches the required join capability, and empty or failed lefts never build a right index.
-use super::super::super::fixtures::execution::SourceAttempt;
+use super::super::super::fixtures::execution::{NOTHING_HELD, SourceAttempt};
 use super::super::fixtures::REFUSAL;
 use super::fixtures::{Capability, Delivered, Gate, Join, Observed, Supply, exercise};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -12,7 +12,7 @@ type Value = Observed;
 type Failure = OperatingError;
 
 /// A witness-refused run that delivers nothing, asks the witness once, and whose real rerun
-/// delivers `accepted` rows.
+/// delivers `accepted` rows; both leave nothing held.
 const fn refused(delivery: bool, optional_limit: Option<usize>, accepted: usize) -> Capability {
     Capability {
         delivery,
@@ -23,6 +23,7 @@ const fn refused(delivery: bool, optional_limit: Option<usize>, accepted: usize)
         prefix_rows: 0,
         witness_calls: 1,
         accepted: Delivered::Rows(accepted),
+        held: [NOTHING_HELD; 2],
     }
 }
 
@@ -39,7 +40,7 @@ const fn every_run(accepted: usize) -> [Capability; 4] {
 const NUMBER_RUNS: [Capability; 4] = every_run(2);
 const TREE_RUNS: [Capability; 4] = every_run(1);
 
-/// An empty left that delivers no rows, admits both sources and builds no index.
+/// An empty left that delivers no rows, admits both sources, builds no index and leaves nothing held.
 const EMPTY: Gate = Gate {
     delivered: Delivered::Rows(0),
     witness_calls: 0,
@@ -47,9 +48,10 @@ const EMPTY: Gate = Gate {
     reads: [1, 1],
     index: (0, 0),
     prefix_rows: 0,
+    held: NOTHING_HELD,
 };
 
-/// A left that fails before the join: its error, one refused attempt and one read.
+/// A left that fails before the join: its error, one refused attempt and one read, and nothing held.
 const FAILED: Gate = Gate {
     delivered: Delivered::Error(OperatingError::NotRun),
     witness_calls: 0,
@@ -57,6 +59,7 @@ const FAILED: Gate = Gate {
     reads: [1, 0],
     index: (0, 0),
     prefix_rows: 0,
+    held: NOTHING_HELD,
 };
 
 const fn empty_left(left: Option<OperatingError>, delivery: bool) -> Join {
@@ -170,6 +173,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             reads: [4, 1],
             index: (0, 0),
             prefix_rows: 0,
+            held: NOTHING_HELD,
         })),
     },
 ];

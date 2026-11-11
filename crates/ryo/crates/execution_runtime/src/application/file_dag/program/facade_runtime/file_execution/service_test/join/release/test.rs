@@ -1,5 +1,6 @@
 //! Delivery refusal and a semantic refusal release every strategy; the semantic error is primary.
 //! `execute` finishes the owner and asserts the shared ledger, working and owned bytes are zero.
+use super::super::fixtures::execution::NOTHING_HELD;
 use super::fixtures::{Delivered, Refused, Run, exercise};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -29,6 +30,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             meaning_ran: true,
             error: OperatingError::NotRun,
             delivered: 0,
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -39,6 +41,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             meaning_ran: true,
             rows: 2,
             delivered: 2,
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -49,6 +52,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             meaning_ran: true,
             error: OperatingError::Table(RowsError::NoSuchColumn { index: 60001 }),
             delivered: 0,
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -61,6 +65,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             meaning_ran: true,
             error: OperatingError::NotRun,
             delivered: 0,
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -71,6 +76,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             meaning_ran: true,
             rows: 1,
             delivered: 1,
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -81,6 +87,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             meaning_ran: true,
             error: OperatingError::Table(RowsError::NoSuchColumn { index: 60001 }),
             delivered: 0,
+            held: NOTHING_HELD,
         }),
     },
 ];

@@ -55,9 +55,12 @@ impl RowSink for Callback<'_> {
     }
 }
 
+/// A semantic lookup that renders nothing, counting its calls and the render requests and source bytes it was given.
 #[derive(Debug, Default)]
 pub(super) struct DeliveryLookup {
     pub(super) calls: Counter<usize>,
+    pub(super) requests: Counter<usize>,
+    pub(super) source_bytes: Counter<usize>,
 }
 impl ryo_execution_domain::domain::operating::types::SemanticLookup for DeliveryLookup {
     fn render_batch(
@@ -65,9 +68,10 @@ impl ryo_execution_domain::domain::operating::types::SemanticLookup for Delivery
         requests: &[ryo_language::domain::semantics::types::RenderRequest],
         source: ryo_values::domain::files::types::SourceView<'_>,
     ) -> Result<Vec<ryo_language::domain::semantics::types::RenderOutcome>, OperatingError> {
-        assert!(requests.is_empty());
-        assert!(source.0.is_empty());
         self.calls.set(self.calls.get() + 1);
+        self.requests.set(self.requests.get() + requests.len());
+        self.source_bytes
+            .set(self.source_bytes.get() + source.0.len());
         Ok(Vec::new())
     }
 }
@@ -97,6 +101,8 @@ pub(super) struct Attempt {
 pub(super) struct Observed {
     pub(super) attempts: [Attempt; 2],
     pub(super) lookup_calls: usize,
+    /// The render requests and the source bytes the lookup was given over all its calls.
+    pub(super) lookup_given: (usize, usize),
     pub(super) reads_unchanged_after_release: bool,
     pub(super) builds: u64,
     pub(super) index_shared: bool,
@@ -379,6 +385,7 @@ pub(super) fn exercise_nested(single_result: bool) -> Result<Observed, Operating
     }
     // Two callbacks before refusal and three on replay.
     let lookup_calls = lookup.calls.get();
+    let lookup_given = (lookup.requests.get(), lookup.source_bytes.get());
     drop(context);
     drop(kernels);
     let reads_unchanged_after_release = Some(reads.map(|count| count.get())) == published_reads;
@@ -390,6 +397,7 @@ pub(super) fn exercise_nested(single_result: bool) -> Result<Observed, Operating
     Ok(Observed {
         attempts: [first, second],
         lookup_calls,
+        lookup_given,
         reads_unchanged_after_release,
         builds,
         index_shared,

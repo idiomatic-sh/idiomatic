@@ -56,7 +56,23 @@ pub(crate) struct Observation {
     pub(crate) derived_builds: Vec<ryo_derived::domain::request::types::DerivedRequest>,
     pub(crate) instructions: usize,
     pub(crate) affected: Vec<Option<FileId>>,
+    /// What the graph owner still held once the file finished.
+    pub(crate) held: Held,
 }
+/// What the graph owner still held once the file finished: the publication ledger's bytes, the working bytes and
+/// the owned index bytes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Held {
+    pub(crate) ledger: (usize, usize, usize),
+    pub(crate) working: usize,
+    pub(crate) owned: usize,
+}
+/// What a normal finish leaves held: nothing.
+pub(crate) const NOTHING_HELD: Held = Held {
+    ledger: (0, 0, 0),
+    working: 0,
+    owned: 0,
+};
 /// Fixture behavior belongs to real external source/sink dependencies only.
 #[derive(Default)]
 pub(crate) struct Faults {
@@ -280,21 +296,11 @@ pub(crate) fn execute(
     let counts = file.owner.derived().counts();
     let owner = Rc::clone(&file.owner);
     file.finish()?;
-    assert_eq!(
-        owner.derived().publication_ownership_bytes(),
-        (0, 0, 0),
-        "normal finish releases the actual shared physical ledger, including finite raw orders"
-    );
-    assert_eq!(
-        owner.derived().working_bytes(),
-        0,
-        "actual invocation resources released by normal owner shutdown"
-    );
-    assert_eq!(
-        owner.derived().owned_bytes(),
-        0,
-        "finished file releases owned index storage"
-    );
+    let held = Held {
+        ledger: owner.derived().publication_ownership_bytes(),
+        working: owner.derived().working_bytes().0,
+        owned: owner.derived().owned_bytes().0,
+    };
     Ok(Observation {
         result,
         prefix,
@@ -305,6 +311,7 @@ pub(crate) fn execute(
         derived_builds: faults.derived.builds(),
         instructions,
         affected,
+        held,
     })
 }
 pub(crate) fn real_port() -> Arc<dyn crate::outbound::operators::interface::OperatorsPort> {
@@ -315,8 +322,8 @@ pub(crate) fn made(
     rows: [Rows<'_>; 2],
     symbols: &mut Symbols,
     source: &[u8],
-) -> Result<Table, OperatingError> {
-    invoke(
+) -> Result<(Table, Held), OperatingError> {
+    let observed = invoke(
         op,
         rows,
         symbols,
@@ -324,6 +331,6 @@ pub(crate) fn made(
         false,
         real_port(),
         Faults::default(),
-    )?
-    .result
+    )?;
+    Ok((observed.result?, observed.held))
 }

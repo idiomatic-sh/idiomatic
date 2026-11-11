@@ -1,4 +1,5 @@
 //! Direct catalog-relation Join routes retain their real acquired representation.
+use super::super::fixtures::execution::NOTHING_HELD;
 use super::fixtures::{Attempt, Joined, Keying, Refused, exercise};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -23,7 +24,7 @@ const fn row(payload: i64, left: i64, raised: bool, right: i64) -> [Cell; 5] {
     ]
 }
 
-/// A run over `supplied` that answers what the computed run answered.
+/// A run over `supplied` that answers what the computed run answered and leaves nothing held.
 const fn attempt(
     supplied: RepresentationKind,
     delivered: bool,
@@ -38,6 +39,7 @@ const fn attempt(
         index: (index_rows, 0, 0),
         prefix_rows,
         same_answer: true,
+        held: NOTHING_HELD,
     }
 }
 
@@ -98,6 +100,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     9,
                 ),
             ],
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -142,6 +145,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     5,
                 ),
             ],
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -186,6 +190,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     5,
                 ),
             ],
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -245,6 +250,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     20,
                 ),
             ],
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -283,6 +289,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     0,
                 ),
             ],
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -294,6 +301,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Refused {
             error: OperatingError::Table(RowsError::NoSuchColumn { index: 99 }),
             attempts: REFUSED,
+            held: NOTHING_HELD,
         }),
     },
     Case {
@@ -303,6 +311,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Refused {
             error: OperatingError::Table(RowsError::NoSuchColumn { index: 99 }),
             attempts: REFUSED,
+            held: NOTHING_HELD,
         }),
     },
 ];

@@ -136,23 +136,27 @@ pub(super) struct Run {
     pub(super) sink_refuses: bool,
 }
 
-/// A completed run: whether its meaning ran, its rows and the rows delivered.
+/// A completed run: whether its meaning ran, its rows, the rows delivered and what the graph owner held once the
+/// file finished.
 #[derive(Debug, PartialEq)]
 pub(super) struct Delivered {
     pub(super) meaning_ran: bool,
     pub(super) rows: usize,
     pub(super) delivered: usize,
+    pub(super) held: Held,
 }
 
-/// A refused run: whether its meaning ran, the refusal and the rows delivered.
+/// A refused run: whether its meaning ran, the refusal, the rows delivered and what the graph owner held once the
+/// file finished.
 #[derive(Debug, PartialEq)]
 pub(super) struct Refused {
     pub(super) meaning_ran: bool,
     pub(super) error: OperatingError,
     pub(super) delivered: usize,
+    pub(super) held: Held,
 }
 
-/// Runs the strategy; `execute` finishes the owner and asserts the ledger is empty.
+/// Runs the strategy; `execute` finishes the owner and observes what it still held.
 pub(super) fn exercise(run: Run) -> Result<Delivered, Refused> {
     let faults = if run.sink_refuses {
         cancelled()
@@ -179,11 +183,13 @@ pub(super) fn exercise(run: Run) -> Result<Delivered, Refused> {
             meaning_ran: calls > 0,
             rows: table.count.0,
             delivered: actual.prefix.len(),
+            held: actual.held,
         }),
         Err(error) => Err(Refused {
             meaning_ran: calls > 0,
             error,
             delivered: actual.prefix.len(),
+            held: actual.held,
         }),
     }
 }

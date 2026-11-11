@@ -4,10 +4,27 @@ use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
+use std::sync::Mutex;
 
-#[derive(Debug)]
+/// What the join driver answered one call the fake made of it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Driven {
+    /// The driver took the call.
+    Taken,
+    /// The driver refused the call.
+    Refused,
+}
+
+/// Operators that keep calling the join driver after a refusal, recording what it answered each call.
+#[derive(Debug, Default)]
 pub(super) struct KeepsCalling {
     pub(super) refuse_project: bool,
+    pub(super) driven: Mutex<Vec<Driven>>,
+}
+
+/// The driver's answer to one call, as the fake records it.
+fn driven<E>(answer: Result<(), E>) -> Driven {
+    answer.err().map_or(Driven::Taken, |_| Driven::Refused)
 }
 
 impl crate::outbound::operators::interface::OperatorsPort for KeepsCalling {
@@ -25,16 +42,19 @@ impl crate::outbound::operators::interface::OperatorsPort for KeepsCalling {
                 ..
             } => {
                 let driver = driver.join();
+                let mut answers = vec![
+                    driven(driver.emit(&[Cell::Number(Integer(1))])),
+                    driven(driver.emit(&[Cell::Number(Integer(2))])),
+                ];
+                // External delivery begins only after this semantic result commits; it cannot
+                // interrupt this driver retroactively. After a refusal the fake keeps asking.
                 if self.refuse_project {
-                    assert!(driver.emit(&[Cell::Number(Integer(1))]).is_err());
-                    assert!(driver.emit(&[Cell::Number(Integer(2))]).is_err());
-                    assert!(driver.next(&[Cell::Number(Integer(7))]).is_err());
-                } else {
-                    // External delivery begins only after this semantic result
-                    // commits; it cannot interrupt this driver retroactively.
-                    assert!(driver.emit(&[Cell::Number(Integer(1))]).is_ok());
-                    assert!(driver.emit(&[Cell::Number(Integer(2))]).is_ok());
+                    answers.push(driven(driver.next(&[Cell::Number(Integer(7))]).map(|_| ())));
                 }
+                self.driven
+                    .lock()
+                    .expect("the fake's record is not poisoned")
+                    .extend(answers);
                 Ok(OperatorAnswer::Written)
             }
             call => crate::application::file_dag::fixtures::operators().operators(call),
