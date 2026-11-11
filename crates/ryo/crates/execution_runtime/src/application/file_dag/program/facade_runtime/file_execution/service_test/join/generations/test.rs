@@ -6,16 +6,12 @@ use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::file_execution::service_test::fixtures::*;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-#[cfg(test)]
 use fixtures::execution::*;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-#[cfg(test)]
 use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
-#[cfg(test)]
 use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
 use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
-#[cfg(test)]
 use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use ryo_execution_domain::domain::table_model::types::RepresentationKind;
 use ryo_execution_domain::domain::{
@@ -27,14 +23,18 @@ use ryo_execution_store::application::file_dag::relations::types::ReuseEligibili
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Relation, Value as Cell};
+use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{ColumnIndex, Side, StepId},
     stored_facts::types::Digest,
 };
+use std::borrow::Cow;
 use std::cell::Cell as Counter;
 use std::{rc::Rc, sync::Arc};
-fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_changed_payload() {
+/// Runs one prepared request over three generations of the same file, a generation whose right
+/// side is refused, and a malformed key on an empty primary.
+fn reopen(keys: &[Generation]) -> Reopened {
     let left = schema_column(Relation::Entry, CellKind::Number, 0);
     let right = schema_column(Relation::SequenceElement, CellKind::Number, 0);
     let payload = schema_column(Relation::SequenceElement, CellKind::Number, 1);
@@ -67,27 +67,13 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
     ));
     let mut symbols = Symbols::default();
     let mut total_builds = 0;
-    for (
-        generation,
+    let mut generations = Vec::new();
+    for &Generation {
         keys,
         values,
         refuse_after,
-        expected_rows,
-        expected_index_rows,
-        expected_builds,
-    ) in [
-        (
-            0,
-            &[1][..],
-            &[(1, 10), (1, 11)][..],
-            Some(1),
-            vec![10],
-            2,
-            1,
-        ),
-        (1, &[][..], &[(1, 99)][..], None, vec![], 0, 1),
-        (2, &[1][..], &[(1, 99)][..], None, vec![99], 1, 2),
-    ] {
+    } in keys
+    {
         let builds_before = recorded.builds().len();
         let providers = simple(keys, values, RepresentationKind::Stored);
         let reads = [Counter::new(0), Counter::new(0)];
@@ -128,72 +114,43 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
             prefix.push(row.to_vec());
             Ok(())
         });
-        if refuse_after.is_some() {
-            assert!(matches!(result, Err(OperatingError::WrongBinding)));
-        } else {
-            result.expect("actual next generation");
-        }
-        assert_eq!(
-            prefix,
-            expected_rows
-                .into_iter()
-                .map(|n| vec![Cell::Number(Integer(n))])
-                .collect::<Vec<_>>(),
-            "generation{generation} must observe its own provider rows"
-        );
         let work = file.route_observation(RuleIndex(0), StepId(0)).unwrap();
-        assert_eq!(work.index_rows, expected_index_rows);
-        assert_eq!(work.index_cells, 0);
-        assert_eq!(work.index_capacity, 0);
-        assert_eq!(
-            work.index_representation,
-            if keys.is_empty() {
-                None
-            } else {
-                Some(RepresentationKind::Stored)
-            }
-        );
         let counts = file.owner.derived().counts();
         total_builds += counts.0.0;
-        assert_eq!(
-            total_builds, expected_builds,
-            "real constructions accumulate1→1→2 under the same request/services"
-        );
-        assert_eq!(
-            counts.1, 0,
-            "a new file-generation owner cannot hit an old population's index"
-        );
-        if keys.is_empty() {
-            assert!(reads[1].get() > 0, "the declared RHS is still admitted");
-            assert_eq!(
-                recorded.builds().len(),
-                builds_before,
-                "the admitted RHS needs no derived payload when the primary is empty"
-            );
-        }
+        let right_reads = reads[1].get();
+        let payloads = recorded.builds().len() - builds_before;
         let owner = Rc::clone(&file.owner);
         file.finish().unwrap();
-        assert_eq!(owner.derived().working_bytes(), 0);
-        assert_eq!(owner.derived().owned_bytes(), 0);
-        drop(owner);
-        assert!(
-            weak.upgrade().is_none(),
-            "finished generation has no retained execution owner"
+        let bytes = (
+            owner.derived().working_bytes().0,
+            owner.derived().owned_bytes().0,
         );
+        drop(owner);
+        generations.push(Opened {
+            refused: result.err(),
+            rows: Cow::Owned(prefix.concat()),
+            index: (work.index_rows, work.index_cells, work.index_capacity),
+            acquired: work.index_representation,
+            total_builds,
+            old_index_hits: counts.1.0,
+            right_reads,
+            payloads,
+            bytes,
+            owner_retained: weak.upgrade().is_some(),
+        });
     }
-    assert_eq!(total_builds, 2);
     let calls = recorded.builds();
-    assert_eq!(calls.len(), 2);
-    assert!(calls.iter().all(|request| matches!(request,
+    let equality_on_the_right = calls.iter().all(|request| {
+        matches!(request,
         ryo_derived::domain::request::types::DerivedRequest::Equality { columns }
-        if columns == &[ColumnIndex(right)])));
+        if columns == &[ColumnIndex(right)])
+    });
     let providers = simple(&[], &[(1, 99)], RepresentationKind::Stored);
     let right_refusals = Counter::new(0);
     let read = |relation| {
         if relation == providers[0].relation {
             Ok(providers[0].rows())
         } else {
-            assert_eq!(relation, providers[1].relation);
             right_refusals.set(right_refusals.get() + 1);
             Err(OperatingError::NotRead)
         }
@@ -219,21 +176,19 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
     )
     .unwrap();
     let mut rows = vec![];
-    assert!(matches!(
-        file.emit_rows(RuleIndex(0), &read, &mut symbols, &mut |row| {
+    let refused = file
+        .emit_rows(RuleIndex(0), &read, &mut symbols, &mut |row| {
             rows.push(row.to_vec());
             Ok(())
-        }),
-        Err(OperatingError::NotRead)
-    ));
-    assert_eq!(right_refusals.get(), 1);
-    assert!(rows.is_empty());
-    assert_eq!(file.owner.derived().counts().0, 0);
-    assert_eq!(
-        recorded.builds().len(),
-        2,
-        "refused supply cannot trigger a third generation payload"
-    );
+        })
+        .err();
+    let unsupplied = Unsupplied {
+        refused,
+        right_refusals: right_refusals.get(),
+        rows: rows.len(),
+        builds: file.owner.derived().counts().0.0,
+        payloads: recorded.builds().len(),
+    };
     file.finish().unwrap();
     // The required malformed-key declaration still refuses an empty primary,
     // before any equality payload can be acquired.
@@ -249,45 +204,161 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
         Faults::default(),
     )
     .unwrap();
-    assert!(matches!(
-        actual.result,
-        Err(OperatingError::Table(
-            ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: 99 }
-        ))
-    ));
-    assert!(actual.derived_builds.is_empty());
+    Reopened {
+        generations: generations.try_into().unwrap(),
+        payloads: calls.len(),
+        equality_on_the_right,
+        unsupplied,
+        malformed: (actual.result.err(), actual.derived_builds.len()),
+    }
 }
 
-/// The case each row runs: one of the proofs below.
+/// One generation of the file: its right keys, its right (key, payload) rows, and the delivered
+/// row after which the sink refuses.
 #[derive(Clone, Copy, Debug)]
-enum Scenario {
-    OnePreparedRequestReopensSameFileAfterDeliveryFailureEmptySkipAndChangedPayload,
+struct Generation {
+    keys: &'static [i64],
+    values: &'static [(i64, i64)],
+    refuse_after: Option<usize>,
 }
 
-type Input = Scenario;
-type Value = ();
+/// What one generation answered, after its file finished.
+#[derive(Debug, PartialEq)]
+struct Opened {
+    /// The emit's refusal.
+    refused: Option<OperatingError>,
+    /// The rows delivered, one cell each.
+    rows: Cow<'static, [Cell]>,
+    /// The Join index's rows, cells and capacity.
+    index: (usize, usize, usize),
+    /// The Join index's representation.
+    acquired: Option<RepresentationKind>,
+    /// Constructions so far under the one request and service set.
+    total_builds: u64,
+    /// Hits on an earlier population's index.
+    old_index_hits: u64,
+    /// Reads of the right side.
+    right_reads: usize,
+    /// Derived payloads built in this generation.
+    payloads: usize,
+    /// The owner's working and owned bytes after finish.
+    bytes: (usize, usize),
+    /// Whether the finished generation's execution owner is still alive.
+    owner_retained: bool,
+}
+
+/// A generation whose right side is refused.
+#[derive(Debug, PartialEq)]
+struct Unsupplied {
+    refused: Option<OperatingError>,
+    right_refusals: usize,
+    rows: usize,
+    builds: u64,
+    /// Derived payloads built over every generation.
+    payloads: usize,
+}
+
+/// The whole reopened file.
+#[derive(Debug, PartialEq)]
+struct Reopened {
+    generations: [Opened; 3],
+    /// Derived payloads built over the three generations.
+    payloads: usize,
+    /// Whether every payload is an equality index on the right key.
+    equality_on_the_right: bool,
+    unsupplied: Unsupplied,
+    /// The malformed key's refusal on an empty primary, and the derived builds it made.
+    malformed: (Option<OperatingError>, usize),
+}
+
+/// The three generations: a delivery refused after one row, an empty primary, a changed payload.
+const GENERATIONS: &[Generation] = &[
+    Generation {
+        keys: &[1],
+        values: &[(1, 10), (1, 11)],
+        refuse_after: Some(1),
+    },
+    Generation {
+        keys: &[],
+        values: &[(1, 99)],
+        refuse_after: None,
+    },
+    Generation {
+        keys: &[1],
+        values: &[(1, 99)],
+        refuse_after: None,
+    },
+];
+
+type Input = &'static [Generation];
+type Value = Reopened;
 type Failure = String;
 
-/// One row per proof: its name, and the scenario that runs it.
+/// A finished generation that left no bytes, no old-index hits and no retained owner.
+const fn opened(
+    refused: Option<OperatingError>,
+    rows: &'static [Cell],
+    index_rows: usize,
+    acquired: Option<RepresentationKind>,
+    (total_builds, right_reads, payloads): (u64, usize, usize),
+) -> Opened {
+    Opened {
+        refused,
+        rows: Cow::Borrowed(rows),
+        index: (index_rows, 0, 0),
+        acquired,
+        total_builds,
+        old_index_hits: 0,
+        right_reads,
+        payloads,
+        bytes: (0, 0),
+        owner_retained: false,
+    }
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName(
         "one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_changed_payload",
     ),
     word: Word::Succeeds,
-    input: || {
-        Scenario::OnePreparedRequestReopensSameFileAfterDeliveryFailureEmptySkipAndChangedPayload
-    },
-    expect: Expect::Value(()),
+    input: || GENERATIONS,
+    expect: Expect::Value(Reopened {
+        generations: [
+            opened(
+                Some(OperatingError::WrongBinding),
+                &[Cell::Number(Integer(10))],
+                2,
+                Some(RepresentationKind::Stored),
+                (1, 3, 1),
+            ),
+            opened(None, &[], 0, None, (1, 1, 0)),
+            opened(
+                None,
+                &[Cell::Number(Integer(99))],
+                1,
+                Some(RepresentationKind::Stored),
+                (2, 3, 1),
+            ),
+        ],
+        payloads: 2,
+        equality_on_the_right: true,
+        unsupplied: Unsupplied {
+            refused: Some(OperatingError::NotRead),
+            right_refusals: 1,
+            rows: 0,
+            builds: 0,
+            payloads: 2,
+        },
+        malformed: (
+            Some(OperatingError::Table(RowsError::NoSuchColumn { index: 99 })),
+            0,
+        ),
+    }),
 }];
 
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::OnePreparedRequestReopensSameFileAfterDeliveryFailureEmptySkipAndChangedPayload => {
-            one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_changed_payload();
-            Ok(())
-        }
-    }
+/// Reopens the file for each generation.
+fn subject(generations: Input) -> Result<Value, Failure> {
+    Ok(reopen(generations))
 }
 
 #[test]

@@ -1,13 +1,29 @@
 //! The support of the `rule_outputs` cases.
+use super::super::super::super::service::*;
 use super::super::super::fixtures::*;
 use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
     prepared_request::types::{Compiled, ObservationIdentity},
 };
+use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::files::types::FilePath;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Value as Cell;
+use ryo_relations::domain::relations::types::{CellKind, FileId};
 use ryo_values::domain::hosted::types::HostKind;
 use ryo_values::domain::plan_parts::types::HostedNumber;
 use ryo_values::domain::row_texts::types::Cell as HostedCell;
@@ -18,6 +34,7 @@ use ryo_values::domain::{
     runs::types::RuleId,
     stored_facts::types::Digest,
 };
+use std::borrow::Cow;
 use std::sync::Arc;
 
 pub(super) fn output_requests(
@@ -95,4 +112,168 @@ pub(super) fn output_requests(
         })],
     ));
     (prepared, services)
+}
+
+/// The address of a complete root's cells, if it is complete.
+fn pointer(root: &RootOutcome) -> Option<*const Cell> {
+    match root {
+        RootOutcome::Complete(table) => Some(table.cells.as_ptr()),
+        _ => None,
+    }
+}
+
+/// The program a row runs.
+#[derive(Clone, Copy, Debug)]
+pub(super) enum Program {
+    /// Four rules of 4096, 1, 0 and 3 output rows.
+    Sized,
+    /// A rule refused for a missing column, then an independent rule.
+    FailingThenFollowing,
+}
+
+/// One rule's output, after the file finished.
+#[derive(Debug, PartialEq)]
+pub(super) struct Output {
+    /// The output's column kinds.
+    pub(super) kinds: Cow<'static, [CellKind]>,
+    /// The output.
+    pub(super) root: Root,
+    /// Whether the output still holds the allocation it held before the file finished.
+    pub(super) allocation_kept: bool,
+}
+
+impl Output {
+    fn after_finish(root: RootOutcome, before: Option<*const Cell>) -> Self {
+        let kinds = match &root {
+            RootOutcome::Complete(table) => Cow::Owned(table.kinds.clone()),
+            _ => Cow::Borrowed(&[][..]),
+        };
+        Self {
+            kinds,
+            allocation_kept: pointer(&root) == before,
+            root: Root::from(root),
+        }
+    }
+}
+
+/// What the program answered.
+#[derive(Debug, PartialEq)]
+pub(super) enum Observed {
+    /// Each rule's output, in rule order.
+    Owned([Output; 4]),
+    /// The failing rule, the following rule, and the failing rule run again.
+    Isolated {
+        failed: Root,
+        next: Output,
+        repeated: Root,
+    },
+}
+
+/// Runs the program.
+pub(super) fn exercise(program: Program) -> Observed {
+    match program {
+        Program::Sized => owned(),
+        Program::FailingThenFollowing => isolated(),
+    }
+}
+
+/// Runs four rules whose outputs hold 4096, 1, 0 and 3 rows, then finishes the file.
+fn owned() -> Observed {
+    let outputs = [("large", 4096), ("tiny", 1), ("empty", 0), ("small", 3)];
+    let (prepared, services) = output_requests(&outputs, false);
+    let mut symbols = Symbols::default();
+    let mut file = open_file(
+        &prepared,
+        FileId(0),
+        ScopePartials::File {
+            evaluation: &[],
+            publication: &[],
+        },
+        &[FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::Disabled,
+        }; 4],
+        services,
+        ryo_values::domain::files::types::SourceView(b""),
+        ReuseEligibility::Eligible,
+        &mut symbols,
+        None,
+        None,
+    )
+    .unwrap();
+    let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
+    let mut tables = Vec::new();
+    for index in 0..outputs.len() {
+        let outcome = file
+            .rule(
+                RuleIndex(index),
+                RuleDemand {
+                    emit: EmitDemand::Enabled,
+                    observations: ObservationDemand::NotRequired,
+                },
+                &read,
+                &mut symbols,
+            )
+            .unwrap();
+        tables.push(outcome.emit);
+    }
+    let pointers = tables.iter().map(pointer).collect::<Vec<_>>();
+    file.finish().unwrap();
+    Observed::Owned(
+        tables
+            .into_iter()
+            .zip(pointers)
+            .map(|(root, before)| Output::after_finish(root, before))
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap(),
+    )
+}
+
+/// Runs a failing rule, an independent rule, then the failing rule again, and finishes the file.
+fn isolated() -> Observed {
+    let (prepared, services) = output_requests(&[("failing", 2), ("following", 2)], true);
+    let mut symbols = Symbols::default();
+    let mut file = open_file(
+        &prepared,
+        FileId(0),
+        ScopePartials::File {
+            evaluation: &[],
+            publication: &[],
+        },
+        &[FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::Disabled,
+        }; 2],
+        services,
+        ryo_values::domain::files::types::SourceView(b""),
+        ReuseEligibility::Eligible,
+        &mut symbols,
+        None,
+        None,
+    )
+    .unwrap();
+    let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
+    let demand = || RuleDemand {
+        emit: EmitDemand::Enabled,
+        observations: ObservationDemand::NotRequired,
+    };
+    let failed = file
+        .rule(RuleIndex(0), demand(), &read, &mut symbols)
+        .unwrap();
+    let next = file
+        .rule(RuleIndex(1), demand(), &read, &mut symbols)
+        .unwrap();
+    let repeated = file
+        .rule(RuleIndex(0), demand(), &read, &mut symbols)
+        .unwrap();
+    let before = pointer(&next.emit);
+    file.finish().unwrap();
+    Observed::Isolated {
+        failed: Root::from(failed.emit),
+        next: Output::after_finish(next.emit, before),
+        repeated: Root::from(repeated.emit),
+    }
 }

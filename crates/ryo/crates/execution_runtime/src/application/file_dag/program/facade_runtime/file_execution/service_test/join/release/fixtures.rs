@@ -1,5 +1,5 @@
 //! Strategy inputs and the one real semantic dependency whose answers are refused.
-use super::super::capability::fixtures::REFUSAL;
+use super::super::capability::fixtures::{REFUSAL, Witness};
 use super::super::cases::fixtures::{node, table_of, tree_rows, wide_tree};
 use super::super::*;
 #[cfg(test)]
@@ -41,12 +41,6 @@ impl crate::outbound::operators::interface::OperatorsPort for OrderedPort {
         }
         crate::application::file_dag::fixtures::operators().operators(call)
     }
-}
-/// The error every refusing port raises, as the owner reports it.
-pub(super) fn refused() -> OperatingError {
-    OperatingError::Table(ryo_values::domain::rows::errors::RowsError::NoSuchColumn {
-        index: REFUSAL,
-    })
 }
 /// Three source rows whose numbers are 1, 3 and 2, with the strategy fixture's own schema.
 pub(super) fn ordered_sources() -> [Provider<'static>; 2] {
@@ -129,4 +123,67 @@ pub(super) fn ordered(
         port,
         faults,
     )
+}
+
+/// The strategy a row runs and what its meaning and its sink do.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct Run {
+    /// The native tree Join, or the ordered-existence strategy.
+    pub(super) tree: bool,
+    /// Whether the meaning refuses for a missing column.
+    pub(super) meaning_refuses: bool,
+    /// Whether the sink refuses the first row.
+    pub(super) sink_refuses: bool,
+}
+
+/// A completed run: whether its meaning ran, its rows and the rows delivered.
+#[derive(Debug, PartialEq)]
+pub(super) struct Delivered {
+    pub(super) meaning_ran: bool,
+    pub(super) rows: usize,
+    pub(super) delivered: usize,
+}
+
+/// A refused run: whether its meaning ran, the refusal and the rows delivered.
+#[derive(Debug, PartialEq)]
+pub(super) struct Refused {
+    pub(super) meaning_ran: bool,
+    pub(super) error: OperatingError,
+    pub(super) delivered: usize,
+}
+
+/// Runs the strategy; `execute` finishes the owner and asserts the ledger is empty.
+pub(super) fn exercise(run: Run) -> Result<Delivered, Refused> {
+    let faults = if run.sink_refuses {
+        cancelled()
+    } else {
+        Faults::default()
+    };
+    let (actual, calls) = if run.tree {
+        let witness = Arc::new(Witness {
+            refuse: run.meaning_refuses,
+            ..Witness::default()
+        });
+        let actual = tree_join(witness.clone(), faults);
+        (actual, witness.calls.load(Ordering::Relaxed))
+    } else {
+        let port = Arc::new(OrderedPort {
+            refuse: run.meaning_refuses,
+            ..OrderedPort::default()
+        });
+        let actual = ordered(port.clone(), faults).unwrap();
+        (actual, port.calls.load(Ordering::Relaxed))
+    };
+    match actual.result {
+        Ok(table) => Ok(Delivered {
+            meaning_ran: calls > 0,
+            rows: table.count.0,
+            delivered: actual.prefix.len(),
+        }),
+        Err(error) => Err(Refused {
+            meaning_ran: calls > 0,
+            error,
+            delivered: actual.prefix.len(),
+        }),
+    }
 }
