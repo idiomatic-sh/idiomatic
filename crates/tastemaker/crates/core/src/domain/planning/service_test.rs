@@ -29,6 +29,8 @@ enum Question {
     SpecRuleReachingNothing,
     /// A rule entry of the `tastemaker.toml` whose include reaches no file.
     WorkspaceRuleReachingNothing,
+    /// A spec that applies two versions of one rule.
+    TwoVersions,
 }
 
 /// The fixture's workspace with a template entry of its own and no spec.
@@ -56,6 +58,27 @@ fn spec_with_absence_rule() -> String {
         "rules = [\n  { rule = \"p/marker@0.1.0\", include = [\"composition.txt\"], description = \"No composition file.\" },\n]\ntemplates = [",
         1,
     )
+}
+
+/// The fixture's spec, applying the marker rule at two versions, each to its own file.
+fn spec_with_two_versions() -> String {
+    SPEC.replacen(
+        "templates = [",
+        "rules = [\n  { rule = \"p/marker@0.1.0\", include = [\"errors.txt\"], description = \"First version.\" },\n  { rule = \"p/marker@0.2.0\", include = [\"lib.txt\"], description = \"Second version.\" },\n]\ntemplates = [",
+        1,
+    )
+}
+
+/// How many of a plan's rules are the marker rule's, and how many distinct ids they have, in words.
+fn markers(plan: &Plan) -> String {
+    let ids = plan
+        .rules
+        .iter()
+        .map(|rule| &*rule.id.0)
+        .filter(|id| id.starts_with("p/marker"))
+        .collect::<Vec<_>>();
+    let distinct = ids.iter().collect::<std::collections::BTreeSet<_>>();
+    format!("{} rules, {} ids", ids.len(), distinct.len())
 }
 
 /// Whether a plan evaluated the marker rule, and which `#coverage` findings it holds, in words.
@@ -120,6 +143,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Question::WorkspaceRuleReachingNothing,
         expect: Expect::Value(String::new()),
     },
+    Case {
+        name: CaseName("two_versions_of_one_rule_are_two_rules_of_the_lint_call"),
+        word: Word::Succeeds,
+        input: || Question::TwoVersions,
+        expect: Expect::Value(String::new()),
+    },
 ];
 
 fn subject(question: Input) -> Value {
@@ -136,6 +165,11 @@ fn subject(question: Input) -> Value {
         Question::WorkspaceRuleReachingNothing => {
             workspace_of(WORKSPACE_RULE_UNREACHED, SPEC, &["tastemaker.toml"])
         }
+        Question::TwoVersions => workspace_of(
+            WORKSPACE_SPEC_ONLY,
+            &spec_with_two_versions(),
+            &["tastemaker.toml", "src/a/errors.txt", "src/b/lib.txt"],
+        ),
     };
     let placement = placement(&workspace);
     let Ok(plan) = plan(&workspace, &placement, RepoPath::default(), matching()) else {
@@ -192,6 +226,7 @@ fn subject(question: Input) -> Value {
             reach(&plan),
             "evaluated:  | coverage: p/marker#coverage".to_owned(),
         ),
+        Question::TwoVersions => (markers(&plan), "2 rules, 2 ids".to_owned()),
     };
     if said == expected {
         String::new()
