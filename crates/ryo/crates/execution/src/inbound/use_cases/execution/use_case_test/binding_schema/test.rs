@@ -100,10 +100,10 @@ fn execution_boundary(pattern: Pattern) -> Result<Value, Failure> {
         bindings.to_vec(),
         &mut symbols,
     );
-    let invalid_regex = match reached {
-        Err(OperatingError::InvalidRegex { reason }) => Some(Cow::Owned(reason)),
-        Err(other) => return Err(other),
-        Ok(_) => None,
+    let invalid_regex = match reached.err() {
+        Some(OperatingError::InvalidRegex { reason }) => Some(Cow::Owned(reason)),
+        Some(other) => return Err(other),
+        None => None,
     };
     Ok(Lazy {
         schema: Cow::Owned(schema.to_vec()),

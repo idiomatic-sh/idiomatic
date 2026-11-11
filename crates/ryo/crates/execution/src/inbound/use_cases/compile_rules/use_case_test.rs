@@ -188,13 +188,7 @@ fn unknown_kind() -> Result<Compiled, RuleCompilationError> {
         },
         scope: StepScope::PerFile,
     }];
-    let refused = compiled(
-        Arc::new(fake),
-        &[rule(
-            "kinds".to_owned(),
-            QueryBundle::from(QueryText("".into())),
-        )],
-    );
+    let refused = compiled(Arc::new(fake), &[empty_rule("kinds")]);
     refused.map(|compiled| Compiled::Parsed {
         modules: 0,
         plans: compiled.plans().len(),
@@ -205,10 +199,7 @@ fn unknown_kind() -> Result<Compiled, RuleCompilationError> {
 
 /// The rule at `index` of a one-rule request.
 fn past_the_rules(index: usize) -> Result<Compiled, RuleCompilationError> {
-    let rules = [rule(
-        "only".to_owned(),
-        QueryBundle::from(QueryText("".into())),
-    )];
+    let rules = [empty_rule("only")];
     crate::application::rule_compilation::service::named(
         &rules,
         ryo_execution_domain::domain::kind_check::types::RulePlace(index),
@@ -244,6 +235,18 @@ impl SyntaxPort for CountingSyntax {
     fn grammar(&self) -> Grammar {
         self.inner.grammar()
     }
+}
+
+/// A rule `id` of an empty query.
+fn empty_rule(id: &str) -> RuleSpec {
+    rule(id.to_owned(), QueryBundle::from(QueryText("".into())))
+}
+
+/// The real query language over the winnow syntax.
+fn winnow() -> Arc<dyn QueryLanguagePort> {
+    compiler(Arc::new(
+        ryo_query_language::outbound::syntax::factory::winnow(),
+    ))
 }
 
 /// The real query language over `syntax`.
@@ -288,13 +291,7 @@ fn pattern_builds(count: usize) -> Result<Compiled, RuleCompilationError> {
     let patterns: Vec<String> = (0..count).map(|place| format!("p{place}x")).collect();
     let rules: Vec<RuleSpec> = patterns.iter().map(|pattern| matching(pattern)).collect();
     let plans = |rules: &[RuleSpec]| {
-        compiled(
-            compiler(Arc::new(
-                ryo_query_language::outbound::syntax::factory::winnow(),
-            )),
-            rules,
-        )
-        .map(|queries| PreparedMatchers::new(queries.plans()))
+        compiled(winnow(), rules).map(|queries| PreparedMatchers::new(queries.plans()))
     };
     let slots = plans(&rules)?;
     let prepared = slots.builds.load(Ordering::Relaxed);
@@ -374,28 +371,14 @@ fn session_parses(count: usize, module_count: usize) -> Result<Compiled, RuleCom
     let parsed = syntax.modules.load(Ordering::SeqCst);
     modules.push(("query/unused".to_owned(), "not a module".to_owned()));
     let broken = over(modules);
-    let winnow = || {
-        compiler(Arc::new(
-            ryo_query_language::outbound::syntax::factory::winnow(),
-        ))
-    };
-    let refused = match compiled(winnow(), &broken) {
-        Ok(compiled) => {
-            return Ok(Compiled::Parsed {
-                modules: parsed,
-                plans: compiled.plans().len(),
-                refused_rule: Cow::Borrowed(""),
-                as_lone_compile: false,
-            });
-        }
-        Err(refused) => refused,
-    };
+    let refused = compiled(winnow(), &broken).err();
     let lone = winnow().compile(&broken[0].query, &[], &[]).err();
     let (refused_rule, as_lone_compile) = match refused {
-        RuleCompilationError::Query { id, error } => {
+        Some(RuleCompilationError::Query { id, error }) => {
             (id, lone == Some(QueryLanguageError::Refused { error }))
         }
-        other => return Err(other),
+        Some(other) => return Err(other),
+        None => (String::new(), false),
     };
     Ok(Compiled::Parsed {
         modules: parsed,
