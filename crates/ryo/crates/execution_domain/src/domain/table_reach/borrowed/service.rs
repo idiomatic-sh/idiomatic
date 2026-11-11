@@ -1,6 +1,6 @@
 //! The `borrowed` service: free functions named by verb over the domain's types, with no IO and no ports.
 
-use super::types::{IndexedRows, KeyProbe, MatchingRows};
+use super::types::{IndexedRows, KeyProbe};
 #[cfg(feature = "diagnostic-row-progress")]
 use crate::domain::operating::types::{ProgressAmount, ProgressCounter};
 use crate::domain::{table_model::types::SetMembership, table_reach::types::Walk};
@@ -157,10 +157,11 @@ pub(crate) fn next_match(
     None
 }
 
-pub(crate) fn matching<'a>(indexed: &'a IndexedRows<'_>, key: &'a [Value]) -> MatchingRows<'a> {
-    MatchingRows {
-        view: indexed,
-        key,
-        probe: probe(indexed, key),
-    }
+/// The rows whose key cells equal `key`, in the index's chain order.
+pub(crate) fn matching<'a>(
+    indexed: &'a IndexedRows<'a>,
+    key: &'a [Value],
+) -> impl Iterator<Item = RowIndex> + 'a {
+    let mut at = probe(indexed, key);
+    std::iter::from_fn(move || next_match(indexed, key, &mut at))
 }

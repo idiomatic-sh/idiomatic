@@ -4,9 +4,7 @@
 use crate::domain::operating::types::ProgressObserver;
 use crate::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::equality::types::KeyIndex;
-use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::rows::types::RowIndex;
 
 /// Exact typed key lookup prepared by the engine; primitives only probe it.
 ///
@@ -33,21 +31,4 @@ pub struct IndexedRows<'a> {
 pub(crate) struct KeyProbe {
     pub(crate) hash: ryo_derived::domain::key::types::KeyCellsHash,
     pub(crate) at: ryo_derived::domain::key::types::ChainLink,
-}
-
-pub(crate) struct MatchingRows<'a> {
-    pub(crate) view: &'a IndexedRows<'a>,
-    pub(crate) key: &'a [Value],
-    pub(crate) probe: KeyProbe,
-}
-
-impl Iterator for MatchingRows<'_> {
-    type Item = RowIndex;
-    fn next(&mut self) -> Option<RowIndex> {
-        crate::domain::table_reach::borrowed::service::next_match(
-            self.view,
-            self.key,
-            &mut self.probe,
-        )
-    }
 }

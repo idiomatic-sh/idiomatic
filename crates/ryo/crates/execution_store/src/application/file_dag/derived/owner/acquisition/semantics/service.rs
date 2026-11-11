@@ -7,6 +7,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::derived_fault;
 use ryo_execution_domain::domain::operator::contract::failure::types::FailureLatch;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_texts::types::derived_texts::value::DerivedTexts;
 use std::{cell::RefCell, sync::Arc};
 
 use super::semantic_rows::{types::AdmittedRows, types::CanonicalTexts};
@@ -85,7 +86,7 @@ pub(crate) fn build(
                 ryo_derived::domain::contract::types::BuildInputs::Ordered {
                     left: &left,
                     right: &right,
-                    texts,
+                    texts: &DerivedTexts(*texts),
                 },
                 &mut scratch.semantic,
                 recycled,

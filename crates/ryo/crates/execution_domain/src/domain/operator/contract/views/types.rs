@@ -72,45 +72,6 @@ pub enum ClosureViews<'a> {
     Many(&'a dyn ClosureParts),
 }
 
-/// The partitions of a closure, one at a time.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::operator::contract::views::types::ClosureIter;
-/// fn named(_: Option<&ClosureIter<'_>>) {}
-/// ```
-pub struct ClosureIter<'a> {
-    pub views: ClosureViews<'a>,
-    pub at: PartitionIndex,
-}
-
-impl<'a> Iterator for ClosureIter<'a> {
-    type Item =
-        Result<&'a ryo_derived::domain::closure_adjacency::types::ClosurePartition, OperatingError>;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.at.0 >= crate::domain::operator::contract::views::service::len(self.views).0 {
-            return None;
-        }
-        let at = self.at;
-        self.at.0 += 1;
-        Some(crate::domain::operator::contract::views::service::get(
-            self.views, at,
-        ))
-    }
-}
-
-impl<'a> IntoIterator for ClosureViews<'a> {
-    type Item = <ClosureIter<'a> as Iterator>::Item;
-    type IntoIter = ClosureIter<'a>;
-    fn into_iter(self) -> Self::IntoIter {
-        ClosureIter {
-            views: self,
-            at: PartitionIndex(0),
-        }
-    }
-}
-
 /// The evaluator is bound to the prepared contract's exact ordered program.
 /// Its implementation is engine-private; this interface cannot choose predicates,
 /// schemas, cache keys or upstream scheduling.
