@@ -12,8 +12,6 @@ Edited in place: places `unit-cases@0.2.0`, which reads a namespace `*_test.rs` 
 
 Edited in place: the `unit-cases` entry also reads the group tests (`*_test/**/test.rs`), so a namespace `service_test.rs` is judged by its groups' rows (scenario `namespace-service-test-rows-in-its-groups` in concept).
 
-Edited in place: the `language-tastemaker` template is exact (`match = "declarations"`): a manifest declares what the template writes and nothing more, so an entry that adds a key or an exclude the template does not write is reported (scenario `client-entry-with-an-extra-exclude`), where a contains-match let it pass.
-
 # language 0.4.3
 
 Places `benchmark` 0.2.2 (and through it `benchmark-linter` 0.2.2) and holds `benchmark-targets` 0.2.0: a linter's bench and test targets are declared by its own package under `benchmarks/linters/<linter>/`, and refused in the language's `Cargo.toml`.
