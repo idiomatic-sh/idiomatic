@@ -1,5 +1,5 @@
 //! The memory budget stops a later population, and a refused frontier keeps its compiled source.
-use super::super::fixtures::evaluate_rules;
+use super::super::cases::evaluate_rules;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
@@ -52,7 +52,7 @@ impl MemoryPort for GrowingMemory {
     }
 }
 
-pub(in super::super) fn project_budget_stops_a_later_population_after_actual_work_and_releases_the_phase()
+pub(crate) fn project_budget_stops_a_later_population_after_actual_work_and_releases_the_phase()
 -> Result<(), RuleRequestsError> {
     for order in [[0, 1], [1, 0]] {
         let memory = Arc::new(GrowingMemory::default());
@@ -113,7 +113,7 @@ pub(in super::super) fn project_budget_stops_a_later_population_after_actual_wor
     Ok(())
 }
 
-pub(in super::super) fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort()
+pub(crate) fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort()
 -> Result<(), RuleRequestsError> {
     use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
     use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
@@ -147,7 +147,7 @@ pub(in super::super) fn refused_frontier_ordinal_keeps_its_actual_compiled_sourc
         let declared = order.map(RuleIndex);
         let policies =
             declared.map(|rule| partials_for(&MetadataUseCaseImpl, &crossing(&rules).domain, rule));
-        let results = super::super::fixtures::evaluate_all(
+        let results = super::super::cases::evaluate_all(
             &rules,
             &phase,
             &declared,
@@ -194,7 +194,7 @@ impl MemoryPort for ScriptedMemory {
 /// The ordinary phase checks the budget for the first rule before it opens, and for each later occurrence before its preparation:
 /// a refusal stays with its own occurrence, a later occurrence is still prepared and fails on its own, the prepared one is
 /// evaluated and completed, and the phase is released; a refusal of the first rule refuses the whole phase.
-pub(in super::super) fn ordinary_phase_keeps_each_refusal_with_its_occurrence_in_declaration_order()
+pub(crate) fn ordinary_phase_keeps_each_refusal_with_its_occurrence_in_declaration_order()
 -> Result<(), RuleRequestsError> {
     use crate::application::cross_file::errors::CrossFileError;
     use crate::application::cross_file::fixtures::kept_facts;

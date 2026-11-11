@@ -1,6 +1,6 @@
 //! Ordinary project rules share one preparation and refuse another generation.
-use super::super::fixtures::assert_count_findings;
-use super::super::fixtures::evaluate_fixture;
+use super::super::cases::assert_count_findings;
+use super::super::cases::evaluate_fixture;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::fed_steps;
@@ -20,7 +20,7 @@ use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use std::sync::Arc;
 
-pub(in super::super) fn ordinary_project_rules_share_one_preparation_and_reject_another_generation()
+pub(crate) fn ordinary_project_rules_share_one_preparation_and_reject_another_generation()
 -> Result<(), RuleRequestsError> {
     use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
     use std::sync::atomic::Ordering;

@@ -1,7 +1,7 @@
 //! The cases of read-failure demand across runs and across rules.
-use super::super::super::errors::FileAnalysisError;
-use super::super::fixtures::visit::visited_inputs;
-use super::super::fixtures::visit::visited_inputs_with_rule_demands;
+use super::super::errors::FileAnalysisError;
+use super::visit::visited_inputs;
+use super::visit::visited_inputs_with_rule_demands;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
 use crate::outbound::corpus::errors::CorpusError;
@@ -33,7 +33,7 @@ use ryo_values::domain::stored_facts::types::ReadFailure;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-pub(in super::super) fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes()
+pub(crate) fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes()
 -> Result<usize, FileAnalysisError> {
     for fail_at in [0, 1, 2] {
         let corpus = Arc::new(ChangingRead {
@@ -187,8 +187,8 @@ pub(in super::super) fn read_failure_demand_retries_unchanged_metadata_and_clear
     Ok(1)
 }
 
-pub(in super::super) fn read_failure_demand_is_limited_to_governing_rules()
--> Result<usize, FileAnalysisError> {
+pub(crate) fn read_failure_demand_is_limited_to_governing_rules() -> Result<usize, FileAnalysisError>
+{
     use crate::domain::reading::service::read_failure_demanded;
     use ryo_execution::inbound::use_cases::metadata::interface::{Needs, RelationRead};
     let wanted = [Relation::FilesystemReadFailure];
@@ -235,7 +235,7 @@ pub(in super::super) fn read_failure_demand_is_limited_to_governing_rules()
     Ok(1)
 }
 
-pub(in super::super) struct ChangingRead {
+pub(crate) struct ChangingRead {
     reads: AtomicUsize,
     fail_at: usize,
 }

@@ -1,7 +1,7 @@
 //! The cases of resident populations a worker reads more than once.
-use super::super::super::errors::FileAnalysisError;
-use super::super::fixtures::visit::visited_as;
-use super::super::fixtures::visit::visited_as_with_facts;
+use super::super::errors::FileAnalysisError;
+use super::visit::visited_as;
+use super::visit::visited_as_with_facts;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
 use crate::outbound::language::fixtures::fake::LanguageFake;
@@ -12,7 +12,7 @@ use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 /// A legal unaudited worker whose immutable resident alternatives change between reads.
-pub(in super::super) struct UnstableResidentFacts {
+pub(crate) struct UnstableResidentFacts {
     /// Delegate mutation/retained-word operations without promising resident identity.
     inner: Box<dyn ryo_execution_runtime::outbound::facts::interface::FactsWorker>,
     /// Distinguishable same-shape populations selected by read order.
@@ -21,7 +21,7 @@ pub(in super::super) struct UnstableResidentFacts {
     reads: std::sync::atomic::AtomicUsize,
 }
 
-pub(in super::super) fn unstable_same_shape_resident_populations_remain_distinct()
+pub(crate) fn unstable_same_shape_resident_populations_remain_distinct()
 -> Result<usize, FileAnalysisError> {
     use ryo_execution_runtime::outbound::facts::interface::FactsWorker as _;
     use ryo_relations::domain::relations::types::FactColumn;
@@ -70,7 +70,7 @@ pub(in super::super) fn unstable_same_shape_resident_populations_remain_distinct
     Ok(1)
 }
 
-pub(in super::super) fn file_visits_preserve_stable_unstable_and_unread_provider_outcomes()
+pub(crate) fn file_visits_preserve_stable_unstable_and_unread_provider_outcomes()
 -> Result<usize, FileAnalysisError> {
     use crate::domain::render::types::Answering;
     use crate::domain::visit::types::Keeping;

@@ -1,11 +1,11 @@
 //! The cases of captured frontier buckets and the staging of fresh outcomes.
-use super::super::super::errors::FileAnalysisError;
-use super::super::super::service::FileAnalysis;
-use super::super::super::types::RequestVisitSetting;
-use super::super::fixtures::NOTHING_HANDED;
-use super::super::fixtures::NOTHING_STORED;
-use super::super::fixtures::NOTHING_WANTED;
-use super::super::fixtures::prepared_test_program;
+use super::super::errors::FileAnalysisError;
+use super::super::service::FileAnalysis;
+use super::super::types::RequestVisitSetting;
+use super::NOTHING_HANDED;
+use super::NOTHING_STORED;
+use super::NOTHING_WANTED;
+use super::prepared_test_program;
 use crate::domain::visit::types::Keeping;
 use crate::domain::workers::service::tables_for;
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
@@ -46,9 +46,9 @@ use ryo_values::domain::stores::types::Stored;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-pub(in super::super) fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket()
+pub(crate) fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket()
 -> Result<usize, FileAnalysisError> {
-    use super::super::super::types::{FileVisit, Worker};
+    use super::super::types::{FileVisit, Worker};
 
     use crate::domain::visit::types::{Keeping, Noting, RoleRead};
     use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestCounting;
@@ -229,7 +229,7 @@ pub(in super::super) fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_
 }
 
 /// Only post-normalization outcomes can reach the staging boundary; IO failures remain failures.
-pub(in super::super) fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads()
+pub(crate) fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads()
 -> Result<usize, FileAnalysisError> {
     let outcome = FileOutcome::Read(Ran {
         rows: FindingRows::default(),
@@ -290,7 +290,7 @@ pub(in super::super) fn successful_outcomes_stage_once_and_keep_digests_without_
 }
 
 #[derive(Debug, Default)]
-pub(in super::super) struct StagingRead {
+pub(crate) struct StagingRead {
     calls: AtomicUsize,
     fail: bool,
 }

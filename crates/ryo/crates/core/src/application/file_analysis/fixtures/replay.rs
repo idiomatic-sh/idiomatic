@@ -1,13 +1,13 @@
 //! The cases of replayed buckets: selection before any read, and stale proofs refused.
-use super::super::super::errors::FileAnalysisError;
-use super::super::super::service::FileAnalysis;
-use super::super::super::types::RequestVisitSetting;
-use super::super::fixtures::NOTHING_HANDED;
-use super::super::fixtures::NOTHING_STORED;
-use super::super::fixtures::one_capture_plan;
-use super::super::fixtures::prepared_test_program;
-use super::super::fixtures::replay_under;
-use super::super::fixtures::replay_under_capture;
+use super::super::errors::FileAnalysisError;
+use super::super::service::FileAnalysis;
+use super::super::types::RequestVisitSetting;
+use super::NOTHING_HANDED;
+use super::NOTHING_STORED;
+use super::one_capture_plan;
+use super::prepared_test_program;
+use super::replay_under;
+use super::replay_under_capture;
 use crate::domain::visit::types::Keeping;
 use crate::domain::workers::service::tables_for;
 use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
@@ -37,7 +37,7 @@ use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::BucketsWanted;
 use ryo_values::domain::stores::types::KeptRows;
-pub(in super::super) fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read()
+pub(crate) fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read()
 -> Result<usize, FileAnalysisError> {
     use ryo_values::domain::records::types::FrontierCoverage;
     use ryo_values::domain::stored_facts::types::{Bucket, Digest};
@@ -80,9 +80,9 @@ pub(in super::super) fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_
     Ok(1)
 }
 
-pub(in super::super) fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops()
+pub(crate) fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops()
 -> Result<usize, FileAnalysisError> {
-    use super::super::super::types::{FileVisit, Worker};
+    use super::super::types::{FileVisit, Worker};
 
     use crate::domain::visit::types::{Keeping, Noting, RoleRead};
     use crate::domain::workers::types::FileOrder;

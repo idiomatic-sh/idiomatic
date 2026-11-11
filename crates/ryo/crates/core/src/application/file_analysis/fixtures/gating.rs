@@ -1,14 +1,14 @@
 //! The cases of syntax applicability, recovery partials and required project dependencies.
-use super::super::super::errors::FileAnalysisError;
-use super::super::super::parsing::service::recovery_of;
-use super::super::super::service::FileAnalysis;
-use super::super::super::types::RequestVisitSetting;
-use super::super::fixtures::NOTHING_HANDED;
-use super::super::fixtures::NOTHING_STORED;
-use super::super::fixtures::NOTHING_WANTED;
-use super::super::fixtures::assert_accepted_and_missing_applicability;
-use super::super::fixtures::assert_gated_acceptance;
-use super::super::fixtures::prepared_test_program;
+use super::super::errors::FileAnalysisError;
+use super::super::parsing::service::recovery_of;
+use super::super::service::FileAnalysis;
+use super::super::types::RequestVisitSetting;
+use super::NOTHING_HANDED;
+use super::NOTHING_STORED;
+use super::NOTHING_WANTED;
+use super::assert_accepted_and_missing_applicability;
+use super::assert_gated_acceptance;
+use super::prepared_test_program;
 use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
 use crate::outbound::corpus::interface::CorpusPort;
@@ -39,7 +39,7 @@ use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::runs::types::RuleApplicability;
 use ryo_values::domain::runs::types::RuleId;
 use std::sync::Arc;
-pub(in super::super) fn syntax_applicability_skips_only_gated_rules_and_names_the_reason()
+pub(crate) fn syntax_applicability_skips_only_gated_rules_and_names_the_reason()
 -> Result<usize, FileAnalysisError> {
     let plan = Plan {
         observation_inputs: Vec::new(),
@@ -129,7 +129,7 @@ pub(in super::super) fn syntax_applicability_skips_only_gated_rules_and_names_th
     Ok(1)
 }
 
-pub(in super::super) fn only_incomplete_diagnostics_mark_code_relations_as_recovery()
+pub(crate) fn only_incomplete_diagnostics_mark_code_relations_as_recovery()
 -> Result<usize, FileAnalysisError> {
     use crate::outbound::language::types::FileReading;
     use ryo_execution::inbound::use_cases::metadata::interface::Recovery;
@@ -258,7 +258,7 @@ pub(in super::super) fn only_incomplete_diagnostics_mark_code_relations_as_recov
     Ok(1)
 }
 
-pub(in super::super) fn required_dependency_stat_and_read_errors_cannot_disappear()
+pub(crate) fn required_dependency_stat_and_read_errors_cannot_disappear()
 -> Result<usize, FileAnalysisError> {
     for stat in [false, true] {
         let service = FileAnalysis::new(
@@ -288,7 +288,7 @@ pub(in super::super) fn required_dependency_stat_and_read_errors_cannot_disappea
     Ok(1)
 }
 
-pub(in super::super) struct Refuses {
+pub(crate) struct Refuses {
     stat: bool,
 }
 

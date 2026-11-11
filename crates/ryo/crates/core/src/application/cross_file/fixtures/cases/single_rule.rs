@@ -1,5 +1,5 @@
 //! One rule evaluated beside the project: its result, its skipped source and a foreign request.
-use super::super::fixtures::evaluate_outcome;
+use super::super::cases::evaluate_outcome;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
 use crate::application::cross_file::fixtures::frontier_rows;
@@ -14,7 +14,7 @@ use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 
-pub(in super::super) fn current_project_roots_keep_the_original_two_group_four_cell_result()
+pub(crate) fn current_project_roots_keep_the_original_two_group_four_cell_result()
 -> Result<(), RuleRequestsError> {
     use ryo_execution::inbound::use_cases::execution::interface::Partials;
     use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
@@ -47,7 +47,7 @@ pub(in super::super) fn current_project_roots_keep_the_original_two_group_four_c
     Ok(())
 }
 
-pub(in super::super) fn rejected_syntax_blocks_cross_file_complements_without_inventing_partial_diagnostics()
+pub(crate) fn rejected_syntax_blocks_cross_file_complements_without_inventing_partial_diagnostics()
 -> Result<(), RuleRequestsError> {
     use ryo_values::domain::runs::types::{SkipReason, Skipped};
     let mut world = world(counting_plan(0, Vec::new()));

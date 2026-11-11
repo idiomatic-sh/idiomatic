@@ -1,7 +1,7 @@
 //! The cases of discovery failures, primary manifest failures and project entry acquisition.
-use super::super::super::errors::FileAnalysisError;
-use super::super::super::service::FileAnalysis;
-use super::super::fixtures::visit::visited_inputs;
+use super::super::errors::FileAnalysisError;
+use super::super::service::FileAnalysis;
+use super::visit::visited_inputs;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
 use crate::outbound::corpus::errors::CorpusError;
@@ -30,7 +30,7 @@ use ryo_values::domain::files::types::Nanoseconds;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-pub(in super::super) fn discovery_failure_runs_without_parser_bytes_or_permission_invention()
+pub(crate) fn discovery_failure_runs_without_parser_bytes_or_permission_invention()
 -> Result<usize, FileAnalysisError> {
     use crate::domain::{render::types::Answering, visit::types::Keeping};
     use ryo_values::domain::files::types::{CorpusInput, InputReadFailure};
@@ -92,7 +92,7 @@ pub(in super::super) fn discovery_failure_runs_without_parser_bytes_or_permissio
     Ok(1)
 }
 
-pub(in super::super) fn primary_manifest_read_failure_retains_real_metadata_without_empty_project_source()
+pub(crate) fn primary_manifest_read_failure_retains_real_metadata_without_empty_project_source()
 -> Result<usize, FileAnalysisError> {
     use ryo_values::domain::files::types::{
         CorpusEntry, CorpusInput, FileSize, InputReadFailure, Nanoseconds,
@@ -145,7 +145,7 @@ pub(in super::super) fn primary_manifest_read_failure_retains_real_metadata_with
     Ok(1)
 }
 
-pub(in super::super) fn project_entry_acquisition_deduplicates_provider_candidates_before_observing()
+pub(crate) fn project_entry_acquisition_deduplicates_provider_candidates_before_observing()
 -> Result<usize, FileAnalysisError> {
     let observations = Arc::new(AtomicUsize::new(0));
     let corpus = Arc::new(CountingCorpus {
@@ -197,7 +197,7 @@ pub(in super::super) fn project_entry_acquisition_deduplicates_provider_candidat
     Ok(1)
 }
 
-pub(in super::super) struct CountingCorpus {
+pub(crate) struct CountingCorpus {
     inner: CorpusFake,
     observations: Arc<AtomicUsize>,
 }
@@ -273,7 +273,7 @@ impl LanguagePort for Forgetful {
 }
 
 /// A project answer that drops an entry the run observed for it is refused: the project made from it is not the one observed.
-pub(in super::super) fn a_project_answer_that_drops_an_observed_entry_is_refused()
+pub(crate) fn a_project_answer_that_drops_an_observed_entry_is_refused()
 -> Result<usize, FileAnalysisError> {
     let service = FileAnalysis::new(
         Arc::new(CorpusFake::default()),
@@ -301,8 +301,7 @@ pub(in super::super) fn a_project_answer_that_drops_an_observed_entry_is_refused
 }
 
 /// Reads a project whose language names one candidate entry and answers without the observation of it.
-pub(in super::super) fn a_receipt_that_forgets_the_entries_is_refused()
--> Result<usize, FileAnalysisError> {
+pub(crate) fn a_receipt_that_forgets_the_entries_is_refused() -> Result<usize, FileAnalysisError> {
     let service = FileAnalysis::new(
         Arc::new(CorpusFake::default()),
         Arc::new(LanguageFake {

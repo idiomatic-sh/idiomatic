@@ -1,8 +1,8 @@
 //! The helpers of the `interpreter_root_set` group's scenarios.
 
-use super::super::fixtures::assert_count_findings;
-use super::super::fixtures::completed_batch;
-use super::super::fixtures::evaluate_rules;
+use super::super::super::fixtures::cases::assert_count_findings;
+use super::super::super::fixtures::cases::completed_batch;
+use super::super::super::fixtures::cases::evaluate_rules;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::frontier_rows;

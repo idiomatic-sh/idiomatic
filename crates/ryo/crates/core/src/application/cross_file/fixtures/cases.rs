@@ -23,15 +23,15 @@ use ryo_values::domain::rule_requests::service::failed;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::stored_facts::types::Bucket;
-pub(super) mod budget;
-pub(super) mod generation;
-pub(super) mod partials;
-pub(super) mod population;
-pub(super) mod rendering;
-pub(super) mod root_set;
-pub(super) mod single_rule;
+pub(crate) mod budget;
+pub(crate) mod generation;
+pub(crate) mod partials;
+pub(crate) mod population;
+pub(crate) mod rendering;
+pub(crate) mod root_set;
+pub(crate) mod single_rule;
 
-pub(super) fn completed_batch<T>(
+pub(crate) fn completed_batch<T>(
     batch: ProjectBatch<Result<T, PhaseStop<CrossFileError>>, CrossFileError>,
 ) -> Vec<Result<T, PhaseStop<CrossFileError>>> {
     match batch {
@@ -44,7 +44,7 @@ pub(super) fn completed_batch<T>(
 
 /// The declared occurrences `todos` through the production phase call, over one facts port that keeps each rule's rows in that
 /// rule's own first bucket, each outcome completed with the worker its slot reserved.
-pub(super) fn evaluate_rules(
+pub(crate) fn evaluate_rules(
     world: &World,
     phase: &impl ProjectRootExecution,
     todos: &[Todo],
@@ -87,7 +87,7 @@ pub(super) fn evaluate_rules(
 
 /// The one occurrence of `rule` through the production phase call, scoped over `covered` with `rows` kept in the rule's own first
 /// bucket and evaluated with `partials`, its outcome as the engine answered it.
-pub(super) fn evaluate_outcome(
+pub(crate) fn evaluate_outcome(
     world: &World,
     phase: &impl ProjectRootExecution,
     rule: RuleIndex,
@@ -109,7 +109,7 @@ pub(super) fn evaluate_outcome(
 }
 
 /// One occurrence a case scopes over coverage of its own: evaluated through the production phase call, then completed.
-pub(super) fn evaluate_fixture(
+pub(crate) fn evaluate_fixture(
     world: &World,
     todo: &Todo,
     rows: &[(FileId, Table)],
@@ -175,7 +175,7 @@ fn evaluate_one<T>(
 
 /// The declared occurrences of `rules`, in order, through the production phase call, over one facts port that keeps each rule's
 /// `kept` rows in that rule's own first bucket, scoped over `covered`; each outcome handed to `complete`.
-pub(super) fn evaluate_all<T>(
+pub(crate) fn evaluate_all<T>(
     world: &World,
     phase: &impl ProjectRootExecution,
     rules: &[RuleIndex],
@@ -227,7 +227,7 @@ pub(super) fn evaluate_all<T>(
 /// Independent Findings-layout oracle for the authored count emit (no keys or headings).
 /// The grouping input arrives as count 2 then count 1; the rendered presentation
 /// orders subjects numerically, retaining each rule's own header and row identity.
-pub(super) fn assert_count_findings(
+pub(crate) fn assert_count_findings(
     rendered: &crate::domain::render::types::Rendered,
     rule: RuleIndex,
     id: &RuleId,

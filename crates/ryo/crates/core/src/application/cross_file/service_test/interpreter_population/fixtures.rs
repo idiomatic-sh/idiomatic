@@ -1,6 +1,6 @@
 //! The helpers of the `interpreter_population` group's scenarios.
 
-use super::super::fixtures::evaluate_fixture;
+use super::super::super::fixtures::cases::evaluate_fixture;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::frontier_rows;

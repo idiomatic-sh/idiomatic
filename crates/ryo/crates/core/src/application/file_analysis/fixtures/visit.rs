@@ -1,7 +1,7 @@
 //! Visits of files of a fake corpus, the way a lint makes them, for the cases of `file_analysis`.
-use super::super::super::errors::FileAnalysisError;
-use super::super::super::service::FileAnalysis;
-use super::super::super::types::RequestVisitSetting;
+use super::super::errors::FileAnalysisError;
+use super::super::service::FileAnalysis;
+use super::super::types::RequestVisitSetting;
 use super::NOTHING_HANDED;
 use super::NOTHING_STORED;
 use super::NOTHING_WANTED;
@@ -30,10 +30,10 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 /// Visits each file at `paths` of a fake corpus, the way a lint does, with the language `language`: the worker that visited them, and
 /// the language to ask what it was given.
-pub(in super::super) fn visited(
+pub(crate) fn visited(
     paths: &[&str],
     language: LanguageFake,
-) -> Result<(super::super::super::types::Worker, Arc<LanguageFake>), FileAnalysisError> {
+) -> Result<(super::super::types::Worker, Arc<LanguageFake>), FileAnalysisError> {
     let answering =
         crate::domain::render::types::Answering::Rows(crate::domain::render::types::RowsAnswer {
             limit: ryo_values::domain::row_texts::types::RowTotal(0),
@@ -51,13 +51,13 @@ pub(in super::super) fn visited(
 
 /// Visits each file at `paths` as `visited` does, answering as `answering` says, over a store that keeps as `keeping` says and with
 /// the digests `digest`.
-pub(in super::super) fn visited_as(
+pub(crate) fn visited_as(
     paths: &[&str],
     language: LanguageFake,
     answering: &crate::domain::render::types::Answering,
     keeping: crate::domain::visit::types::Keeping,
     digest: Arc<dyn ryo_execution_runtime::outbound::digest::interface::DigestPort>,
-) -> Result<(super::super::super::types::Worker, Arc<LanguageFake>), FileAnalysisError> {
+) -> Result<(super::super::types::Worker, Arc<LanguageFake>), FileAnalysisError> {
     visited_as_with_facts(
         paths,
         language,
@@ -68,14 +68,14 @@ pub(in super::super) fn visited_as(
     )
 }
 
-pub(in super::super) fn visited_as_with_facts(
+pub(crate) fn visited_as_with_facts(
     paths: &[&str],
     language: LanguageFake,
     answering: &crate::domain::render::types::Answering,
     keeping: crate::domain::visit::types::Keeping,
     digest: Arc<dyn ryo_execution_runtime::outbound::digest::interface::DigestPort>,
     facts: Box<dyn ryo_execution_runtime::outbound::facts::interface::FactsWorker>,
-) -> Result<(super::super::super::types::Worker, Arc<LanguageFake>), FileAnalysisError> {
+) -> Result<(super::super::types::Worker, Arc<LanguageFake>), FileAnalysisError> {
     use crate::outbound::corpus::interface::CorpusPort as _;
     use ryo_values::domain::files::types::{CorpusFile, FileBytes};
     let corpus = Arc::new(CorpusFake {
@@ -105,7 +105,7 @@ pub(in super::super) fn visited_as_with_facts(
 }
 
 /// Runs real file admission against injected input observations, retaining the worker for semantic assertions.
-pub(in super::super) fn visited_inputs(
+pub(crate) fn visited_inputs(
     corpus: Arc<dyn crate::outbound::corpus::interface::CorpusPort>,
     files: &[ryo_values::domain::files::types::CorpusInput],
     wanted: &[Relation],
@@ -116,7 +116,7 @@ pub(in super::super) fn visited_inputs(
     facts: Box<dyn ryo_execution_runtime::outbound::facts::interface::FactsWorker>,
     kept: Option<&ryo_values::domain::records::types::Record>,
     repetitions: usize,
-) -> Result<(super::super::super::types::Worker, Arc<LanguageFake>), FileAnalysisError> {
+) -> Result<(super::super::types::Worker, Arc<LanguageFake>), FileAnalysisError> {
     visited_inputs_with_rule_demands(
         corpus,
         files,
@@ -134,7 +134,7 @@ pub(in super::super) fn visited_inputs(
     )
 }
 
-pub(in super::super) fn visited_inputs_with_rule_demands(
+pub(crate) fn visited_inputs_with_rule_demands(
     corpus: Arc<dyn crate::outbound::corpus::interface::CorpusPort>,
     files: &[ryo_values::domain::files::types::CorpusInput],
     wanted: &[Relation],
@@ -148,8 +148,8 @@ pub(in super::super) fn visited_inputs_with_rule_demands(
     ids: &[RuleId],
     needs: &[ryo_execution::inbound::use_cases::metadata::interface::Needs],
     always: Mask,
-) -> Result<(super::super::super::types::Worker, Arc<LanguageFake>), FileAnalysisError> {
-    use super::super::super::types::{FileVisit, Worker};
+) -> Result<(super::super::types::Worker, Arc<LanguageFake>), FileAnalysisError> {
+    use super::super::types::{FileVisit, Worker};
     use crate::domain::visit::types::{Noting, RoleRead};
     use crate::outbound::scheduler::types::JobNumber;
     use ryo_execution::outbound::matching::fixtures::fake::MatchingFake;
@@ -242,7 +242,7 @@ pub(in super::super) fn visited_inputs_with_rule_demands(
 }
 
 /// Visit a real fake file whose injected language emits an invalid node reference.
-pub(in super::super) fn invalid_provider() -> Result<usize, FileAnalysisError> {
+pub(crate) fn invalid_provider() -> Result<usize, FileAnalysisError> {
     let (worker, language) = visited(
         &["invalid-provider.rs"],
         LanguageFake {
@@ -255,7 +255,7 @@ pub(in super::super) fn invalid_provider() -> Result<usize, FileAnalysisError> {
 }
 
 /// Visit a source file, a manifest the language reads and a stray file no language reads: whether the one file left unread is the stray one.
-pub(in super::super) fn manifest_and_stray() -> Result<usize, FileAnalysisError> {
+pub(crate) fn manifest_and_stray() -> Result<usize, FileAnalysisError> {
     let (worker, _) = visited(
         &["a.rs", "project.manifest.fake", "stray.xyz"],
         LanguageFake::default(),
@@ -273,7 +273,7 @@ pub(in super::super) fn manifest_and_stray() -> Result<usize, FileAnalysisError>
 
 /// How many times a run that keeps its findings digests two files read over a store that keeps nothing (tens), and over one that
 /// keeps (ones, at least one): none, then some.
-pub(in super::super) fn digested() -> Result<usize, FileAnalysisError> {
+pub(crate) fn digested() -> Result<usize, FileAnalysisError> {
     let mut counts = Vec::new();
     for keeping in [
         crate::domain::visit::types::Keeping::Discards,

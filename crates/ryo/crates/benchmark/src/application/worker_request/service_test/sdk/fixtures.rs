@@ -101,7 +101,7 @@ pub(super) fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_prov
             .to_string()
             .contains("incomplete candidate")
     ));
-    observed.join("|")
+    observed.join("; ")
 }
 
 pub(super) fn prepared_context_counts_disabled_pairs_and_keeps_the_sibling_rule() -> String {
@@ -220,5 +220,5 @@ pub(super) fn prepared_context_counts_disabled_pairs_and_keeps_the_sibling_rule(
         }
         observed.push(format!("{}", matches!(&report.coverage, CoverageAccounting::Accounted(coverage) if coverage.selected.0 == pairs)));
     }
-    observed.join("|")
+    observed.join("; ")
 }

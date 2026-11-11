@@ -1,7 +1,7 @@
 //! A set of project roots prepares once and delivers in order.
-use super::super::fixtures::assert_count_findings;
-use super::super::fixtures::completed_batch;
-use super::super::fixtures::evaluate_rules;
+use super::super::cases::assert_count_findings;
+use super::super::cases::completed_batch;
+use super::super::cases::evaluate_rules;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::frontier_rows;
@@ -17,7 +17,7 @@ use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use std::sync::Arc;
 
-pub(in super::super) fn project_root_set_prepares_shared_publications_once_before_ordered_delivery()
+pub(crate) fn project_root_set_prepares_shared_publications_once_before_ordered_delivery()
 -> Result<(), RuleRequestsError> {
     use std::sync::atomic::Ordering;
     for order in [[0, 1, 0], [1, 0, 1]] {
@@ -73,7 +73,7 @@ pub(in super::super) fn project_root_set_prepares_shared_publications_once_befor
     Ok(())
 }
 
-pub(in super::super) fn project_root_set_preserves_distinct_actual_population_policy_in_both_orders()
+pub(crate) fn project_root_set_preserves_distinct_actual_population_policy_in_both_orders()
 -> Result<(), RuleRequestsError> {
     use ryo_values::domain::runs::types::{RuleApplicability, SkipReason, Skipped};
     use std::sync::atomic::Ordering;

@@ -43,7 +43,7 @@ fn file_number(partial: Option<&FilePartial>) -> usize {
 }
 
 /// The partials of a rule that reads what the project wrote: the files that cover it, in order.
-pub(in super::super) fn partials_found() -> [usize; 3] {
+pub(crate) fn partials_found() -> [usize; 3] {
     let mut rules = world(counting_plan(1, Vec::new()));
     rules.needs = vec![Needs {
         cross: vec![RelationRead {
@@ -76,7 +76,7 @@ pub(in super::super) fn partials_found() -> [usize; 3] {
     ]
 }
 
-pub(in super::super) fn placing_outcomes() -> [usize; 3] {
+pub(crate) fn placing_outcomes() -> [usize; 3] {
     let table = Table {
         kinds: vec![CellKind::Symbol, CellKind::Number],
         ..Table::default()

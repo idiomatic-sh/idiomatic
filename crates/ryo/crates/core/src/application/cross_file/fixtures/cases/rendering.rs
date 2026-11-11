@@ -14,14 +14,14 @@ use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_values::domain::files::types::CorpusEntry;
 use ryo_values::domain::files::types::FileBytes;
 
-pub(in super::super) fn name(hash: u64, place: u32) -> Cell {
+pub(crate) fn name(hash: u64, place: u32) -> Cell {
     Cell::Name(Name {
         hash: TextHash(hash),
         place: PlaceNumber(place),
     })
 }
 
-pub(in super::super) fn source_text(bytes: &[u8], fails: bool) -> String {
+pub(crate) fn source_text(bytes: &[u8], fails: bool) -> String {
     use crate::outbound::corpus::fixtures::fake::CorpusFake;
     use ryo_values::domain::files::types::CorpusFile;
     use ryo_values::domain::files::types::{FileSize, Nanoseconds};

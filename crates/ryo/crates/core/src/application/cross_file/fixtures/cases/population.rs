@@ -1,6 +1,6 @@
 //! Project populations stay separate by rule, payload and reached region.
-use super::super::fixtures::assert_count_findings;
-use super::super::fixtures::evaluate_fixture;
+use super::super::cases::assert_count_findings;
+use super::super::cases::evaluate_fixture;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
@@ -25,7 +25,7 @@ use ryo_values::domain::plans::types::PlanStep;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use std::sync::Arc;
 
-pub(in super::super) fn ordinary_phase_keeps_valid_rule_populations_and_partiality_separate()
+pub(crate) fn ordinary_phase_keeps_valid_rule_populations_and_partiality_separate()
 -> Result<(), RuleRequestsError> {
     use ryo_values::domain::runs::types::{RuleApplicability, SkipReason, Skipped};
     use std::sync::atomic::Ordering;
@@ -106,7 +106,7 @@ pub(in super::super) fn ordinary_phase_keeps_valid_rule_populations_and_partiali
     Ok(())
 }
 
-pub(in super::super) fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads()
+pub(crate) fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads()
 -> Result<(), RuleRequestsError> {
     use ryo_relations::domain::relations::{service::node_id, types::Position};
     use std::sync::atomic::Ordering;
@@ -131,7 +131,7 @@ pub(in super::super) fn equal_policies_do_not_alias_distinct_admitted_frontier_p
                 rule: RuleIndex(rule),
                 id: rules.ids[rule].clone(),
             };
-            let outcome = super::super::fixtures::evaluate_outcome(
+            let outcome = super::super::cases::evaluate_outcome(
                 &rules,
                 &phase,
                 RuleIndex(rule),
@@ -212,7 +212,7 @@ pub(in super::super) fn equal_policies_do_not_alias_distinct_admitted_frontier_p
     Ok(())
 }
 
-pub(in super::super) fn many_distinct_project_populations_allocate_only_reached_region_state()
+pub(crate) fn many_distinct_project_populations_allocate_only_reached_region_state()
 -> Result<(), RuleRequestsError> {
     use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
     use std::sync::atomic::Ordering;

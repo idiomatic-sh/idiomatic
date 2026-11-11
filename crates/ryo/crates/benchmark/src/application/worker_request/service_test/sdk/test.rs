@@ -17,7 +17,7 @@ enum Given {
 }
 /// What a row is given.
 type Input = Given;
-/// What the scenario observed, each check in order, joined by `|`.
+/// What the scenario observed, each check in order, joined by `; `.
 type Value = &'static str;
 /// A scenario is never refused.
 type Failure = ();
@@ -31,14 +31,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Given::ActualSdkExecutesMissingInputFactsButRefusesUnmodeledProviderUnread,
         expect: Expect::Value(
-            "{RelativePath(\"missing.py\")}|1|RelativePath(\"missing.py\")|0|0|true|true",
+            "{RelativePath(\"missing.py\")}; 1; RelativePath(\"missing.py\"); 0; 0; true; true",
         ),
     },
     Case {
         name: CaseName("prepared_context_counts_disabled_pairs_and_keeps_the_sibling_rule"),
         word: Word::Succeeds,
         input: || Given::PreparedContextCountsDisabledPairsAndKeepsTheSiblingRule,
-        expect: Expect::Value("2|2|true|2|1|true|true|2|1|true|true|2|0|true|2|2|true"),
+        expect: Expect::Value(
+            "2; 2; true; 2; 1; true; true; 2; 1; true; true; 2; 0; true; 2; 2; true",
+        ),
     },
 ];
 

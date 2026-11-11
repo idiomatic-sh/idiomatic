@@ -1,8 +1,8 @@
 //! The prepared programs, the replay and the gating checks the cases of `file_analysis` share.
-use super::super::errors::FileAnalysisError;
-use super::super::service::FileAnalysis;
-use super::super::types::RequestVisitSetting;
-use super::super::types::RuleGate;
+use super::errors::FileAnalysisError;
+use super::service::FileAnalysis;
+use super::types::RequestVisitSetting;
+use super::types::RuleGate;
 use crate::domain::visit::types::Keeping;
 use crate::domain::workers::service::tables_for;
 use crate::domain::workers::types::Gating;
@@ -45,14 +45,14 @@ use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::BucketsWanted;
 use std::sync::Arc;
-pub(super) mod capture;
-pub(super) mod failure;
-pub(super) mod gating;
-pub(super) mod manifest;
-pub(super) mod replay;
-pub(super) mod resident;
-pub(super) mod visit;
-pub(super) fn prepared_test_program(
+pub(crate) mod capture;
+pub(crate) mod failure;
+pub(crate) mod gating;
+pub(crate) mod manifest;
+pub(crate) mod replay;
+pub(crate) mod resident;
+pub(crate) mod visit;
+pub(crate) fn prepared_test_program(
     plans: &[Plan],
     ids: &[RuleId],
     corpus: &[ryo_values::domain::files::types::CorpusInput],
@@ -113,7 +113,7 @@ pub(super) fn prepared_test_program(
 }
 
 /// A plan of one rule that captures one frontier input.
-pub(super) fn one_capture_plan() -> Plan {
+pub(crate) fn one_capture_plan() -> Plan {
     Plan {
         observation_inputs: Vec::new(),
         observations: Vec::new(),
@@ -140,7 +140,7 @@ pub(super) fn one_capture_plan() -> Plan {
 }
 
 /// Replays one handed bucket, kept under `proof`, into a worker of the program of `one_capture_plan`, when the run wants `wanted`.
-pub(super) fn replay_under(
+pub(crate) fn replay_under(
     proof: ryo_values::domain::records::types::FrontierProof,
     wanted: &BucketsWanted,
 ) -> Result<(), FileAnalysisError> {
@@ -148,12 +148,12 @@ pub(super) fn replay_under(
 }
 
 /// As `replay_under`, with the prepared root's capture flag of the bucket's frontier set to `captured`.
-pub(super) fn replay_under_capture(
+pub(crate) fn replay_under_capture(
     proof: ryo_values::domain::records::types::FrontierProof,
     wanted: &BucketsWanted,
     captured: bool,
 ) -> Result<(), FileAnalysisError> {
-    use super::super::types::{FileVisit, Worker};
+    use super::types::{FileVisit, Worker};
     use crate::domain::visit::types::{Keeping, Noting, RoleRead};
     use crate::domain::workers::types::FileOrder;
     use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value, Words};
@@ -258,7 +258,7 @@ pub(super) fn replay_under_capture(
 }
 
 /// Check a rejected or undetermined source without mixing its owner tables with other cases.
-pub(super) fn assert_gated_acceptance(
+pub(crate) fn assert_gated_acceptance(
     setting: &RequestVisitSetting<'_>,
     acceptance: SyntaxAcceptance,
     expected_reason: &str,
@@ -297,7 +297,7 @@ pub(super) fn assert_gated_acceptance(
 }
 
 /// Accepted syntax keeps enabled rules; absent applicability metadata still records unknowns.
-pub(super) fn assert_accepted_and_missing_applicability(setting: &RequestVisitSetting<'_>) {
+pub(crate) fn assert_accepted_and_missing_applicability(setting: &RequestVisitSetting<'_>) {
     let mut tables = tables_for(WorkerNumber(0));
     tables.mask = Mask(vec![0b11]);
     assert_eq!(
@@ -376,14 +376,14 @@ pub(super) fn assert_accepted_and_missing_applicability(setting: &RequestVisitSe
 }
 
 /// What the last run kept, for a run that uses nothing of it.
-pub(super) static NOTHING_STORED: std::sync::LazyLock<ryo_values::domain::stores::types::Stored> =
+pub(crate) static NOTHING_STORED: std::sync::LazyLock<ryo_values::domain::stores::types::Stored> =
     std::sync::LazyLock::new(ryo_values::domain::stores::types::Stored::default);
 
 /// What the files of the last run handed, for a run that uses nothing of it.
-pub(super) static NOTHING_HANDED: std::sync::LazyLock<
+pub(crate) static NOTHING_HANDED: std::sync::LazyLock<
     ryo_values::domain::stores::types::ReadHanded,
 > = std::sync::LazyLock::new(ryo_values::domain::stores::types::ReadHanded::default);
 
 /// No bucket of what the files handed, for a run that reads none.
-pub(super) static NOTHING_WANTED: ryo_values::domain::stores::types::BucketsWanted =
+pub(crate) static NOTHING_WANTED: ryo_values::domain::stores::types::BucketsWanted =
     ryo_values::domain::stores::types::BucketsWanted::These(Vec::new());
