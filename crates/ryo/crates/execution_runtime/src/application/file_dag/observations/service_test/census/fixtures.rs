@@ -11,11 +11,13 @@ use ryo_execution_domain::domain::{
     shared_walk::types::prepared_walk::value::PreparedWalk,
 };
 use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::observations::types::{ObservationBindingName, ObservationColumnName};
 use ryo_values::domain::{
     plan_parts::types::{Input as PlanInput, StepId},
     plans::types::Operation,
 };
+use std::borrow::Cow;
 
 /// The names a declared program binds its two observation inputs and their column with.
 #[derive(Clone, Copy, Debug)]
@@ -54,6 +56,8 @@ pub(super) struct Census {
     pub(super) unions: usize,
     /// How many instructions the program holds in all.
     pub(super) instructions: usize,
+    /// The relations the producers were asked to partition, in order.
+    pub(super) relations_asked: Cow<'static, [Relation]>,
     /// How many logical regions the program holds.
     pub(super) logical_regions: usize,
     /// No consumer is a relation source walk.
@@ -77,10 +81,11 @@ pub(super) fn census(declared: Declared) -> Result<Census, OperatingError> {
         },
     );
     let slots = graph.observations.as_ref().unwrap().slots.clone();
+    let partitions = DeclaredFileProducers::default();
     let program = compile(
         &plans,
         graph,
-        &DeclaredFileProducers,
+        &partitions,
         &operators,
         PatternMatcher(&MatchingUseCaseImpl),
     )?;
@@ -139,6 +144,7 @@ pub(super) fn census(declared: Declared) -> Result<Census, OperatingError> {
         .all(|head| walk.class_for(head).is_none());
     let census = walk.census();
     Ok(Census {
+        relations_asked: Cow::Owned(partitions.asked.borrow().clone()),
         consumers_select_their_bound_observation,
         consumers_are_lone_heads_over_their_slot,
         consumers: observation_consumers.len(),

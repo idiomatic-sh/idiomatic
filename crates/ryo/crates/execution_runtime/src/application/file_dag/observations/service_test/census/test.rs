@@ -3,6 +3,8 @@
 use super::fixtures::{Census, Declared, Routes, census};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_relations::domain::relations::types::Relation;
+use std::borrow::Cow;
 
 type Input = Declared;
 type Value = Census;
@@ -19,6 +21,12 @@ const LEFT_AND_RIGHT: Declared = Declared {
 /// its slot, two synthetic unions, and a census of six instructions whose observation barrier
 /// holds both of each and whose shared walk holds the other two.
 const BOTH_UNIONS: Census = Census {
+    relations_asked: Cow::Borrowed(&[
+        Relation::LanguageTarget,
+        Relation::CompilerFeature,
+        Relation::LanguageTarget,
+        Relation::CompilerFeature,
+    ]),
     consumers_select_their_bound_observation: true,
     consumers_are_lone_heads_over_their_slot: true,
     consumers: 2,

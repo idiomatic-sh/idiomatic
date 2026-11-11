@@ -5,6 +5,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::types::{InputSource, ObservationPlace};
 use ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationProducer;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::records::types::ObservationIndex;
 use std::borrow::Cow;
 
@@ -34,6 +35,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 InputSource::Observation(ObservationPlace(0)),
                 InputSource::Observation(ObservationPlace(1)),
             ],
+            relations_asked: Cow::Borrowed(&[
+                Relation::LanguageTarget,
+                Relation::CompilerFeature,
+                Relation::LanguageTarget,
+                Relation::CompilerFeature,
+            ]),
         }),
     },
     Case {
@@ -46,6 +53,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Refused {
             refusal: Refusal::ObservationIncomplete,
             sibling: Some(InputSource::Observation(ObservationPlace(1))),
+            relations_asked: Cow::Borrowed(&[
+                Relation::LanguageTarget,
+                Relation::CompilerFeature,
+                Relation::LanguageTarget,
+                Relation::CompilerFeature,
+            ]),
         }),
     },
     Case {
@@ -58,6 +71,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Refused {
             refusal: Refusal::ObservationIncomplete,
             sibling: Some(InputSource::Observation(ObservationPlace(1))),
+            relations_asked: Cow::Borrowed(&[
+                Relation::LanguageTarget,
+                Relation::CompilerFeature,
+                Relation::LanguageTarget,
+                Relation::CompilerFeature,
+            ]),
         }),
     },
 ];

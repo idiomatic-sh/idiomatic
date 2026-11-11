@@ -6,6 +6,7 @@ use ryo_execution_domain::domain::{
     observation_schedule::types::ResolvedObservationProducer,
     operating::errors::OperatingError,
 };
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::observations::types::{ObservationBindingName, ObservationColumnName};
 use std::borrow::Cow;
 
@@ -36,6 +37,8 @@ pub(super) struct Compiled {
     pub(super) producers: [Option<ResolvedObservationProducer>; 2],
     /// The first frontier source of rules 2 and 3.
     pub(super) frontiers: [InputSource; 2],
+    /// The relations the producers were asked to partition, in order.
+    pub(super) relations_asked: Cow<'static, [Relation]>,
 }
 
 /// Why rule 2's first frontier is refused.
@@ -49,6 +52,8 @@ pub(super) enum Refusal {
 pub(super) struct Refused {
     pub(super) refusal: Refusal,
     pub(super) sibling: Option<InputSource>,
+    /// The relations the producers were asked to partition, in order.
+    pub(super) relations_asked: Cow<'static, [Relation]>,
 }
 
 /// Compiles the request with its slots and reads rules 2 and 3's first frontier sources.
@@ -74,16 +79,18 @@ pub(super) fn exercise(slots: Slots) -> Result<Compiled, Refused> {
             .and_then(|binding| binding.input.producers.first())
             .cloned()
     });
+    let partitions = DeclaredFileProducers::default();
     let program = compile(
         &plans,
         graph,
-        &DeclaredFileProducers,
+        &partitions,
         &operators,
         ryo_execution_domain::domain::matching::types::PatternMatcher(
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
         ),
     )
     .expect("the request compiles");
+    let relations_asked = Cow::Owned(partitions.asked.borrow().clone());
     let first = program.rules()[2].frontier[0].clone();
     let sibling = program.rules()[3].frontier[0].clone().ok();
     match first {
@@ -91,10 +98,12 @@ pub(super) fn exercise(slots: Slots) -> Result<Compiled, Refused> {
             slot_rules: slot_rules.into(),
             producers,
             frontiers: [first, sibling.expect("rule 3 answers a frontier")],
+            relations_asked,
         }),
         Err(OperatingError::ObservationIncomplete { .. }) => Err(Refused {
             refusal: Refusal::ObservationIncomplete,
             sibling,
+            relations_asked,
         }),
         Err(error) => panic!("unexpected observation refusal: {error:?}"),
     }

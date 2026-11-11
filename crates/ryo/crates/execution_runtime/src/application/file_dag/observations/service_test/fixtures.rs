@@ -26,7 +26,11 @@ use ryo_values::domain::{
     stored_facts::types::Digest,
 };
 
-pub(crate) struct DeclaredFileProducers;
+/// Producers that declare current-file partitions, recording each relation they are asked about.
+#[derive(Default)]
+pub(crate) struct DeclaredFileProducers {
+    pub(crate) asked: std::cell::RefCell<Vec<Relation>>,
+}
 impl ProducerPartitions for DeclaredFileProducers {
     fn hosted(
         &self,
@@ -43,10 +47,7 @@ impl ProducerPartitions for DeclaredFileProducers {
         Err(OperatingError::Unbound)
     }
     fn relation(&self, relation: Relation) -> PartitionRequirement {
-        assert!(matches!(
-            relation,
-            Relation::LanguageTarget | Relation::CompilerFeature
-        ));
+        self.asked.borrow_mut().push(relation);
         PartitionRequirement::CurrentFile
     }
     fn observation(
