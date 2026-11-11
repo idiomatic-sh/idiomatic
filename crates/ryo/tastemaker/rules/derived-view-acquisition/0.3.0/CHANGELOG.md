@@ -6,6 +6,8 @@ Who reaches the derived owner is decided by where the code sits, not by a list: 
 
 Edited in place: scenario inputs name module files `<dir>.rs`, never `<dir>/mod.rs` (owner, 2026-11-11).
 
+Edited in place: the fixtures gate is exact, as in 0.2.1: a fixtures module counts as gated only under `#[cfg(test)]` or `#[cfg(any(test, feature = "fixtures"))]`; a `cfg` that names the feature to negate it, or an `any` whose other arm holds in a production build, is no gate. Scenarios `negated-fixtures-gate-port-build` and `always-true-fixtures-gate-port-build` (refused) are carried from 0.2.1.
+
 ## 0.2.0
 
 Who reaches the derived owner is confined: an identifier of the new required `confined` param (the owner's acquiring entries and the leased views and handles it issues), written in a production file outside the owner tree, is a finding unless the new required `allowed` param lists that `{ file, name }`. It replaces the derived census's text scans of the acquiring entries' callers (`sites`) and of the files that hold a leased view or handle (`Holder::ALL`). Fixtures `listed-holder-and-owner-may-name-the-view` (pass), `unlisted-caller-of-an-acquiring-entry` and `unlisted-holder-of-a-leased-view` (violations). Everything else is as in 0.1.0.

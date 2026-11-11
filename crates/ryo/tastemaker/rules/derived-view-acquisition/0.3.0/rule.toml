@@ -37,7 +37,7 @@ let port-hex = select file from port-users where glob_any(source-tail, "outbound
 let consumer-builds = antijoin(left=port-builds, right=port-hex, left-on=["file"], right-on=["file"]);
 let fixture-rust-files = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "**/*.rs");
 let fixture-all-cfgs = select * from "decorates" where target = "cfg";
-let fixture-cfgs = select * from fixture-all-cfgs where glob_any(arguments, "{test,*(test*,* test*,*feature = ?fixtures?*}") and not glob_any(arguments, "{not(test*,*(not(test*,* not(test*}");
+let fixture-cfgs = select * from fixture-all-cfgs where arguments = "test" or glob_any(arguments, "any(test, feature = ?fixtures?)") or glob_any(arguments, "any(test,feature=?fixtures?)");
 let fixture-declared = select * from "defines" where kind = "namespace";
 let fixture-gated-modules = select r."name" as "name", r."file" as "file" from fixture-cfgs as l join fixture-declared as r on l."declaration" = r."id";
 let fixture-module-places = capture(from=fixture-gated-modules, path="file", pattern="{*dir}/{stem}.rs", captures=["dir", "stem"]);
@@ -294,3 +294,21 @@ given.files.'src/domain/derived.rs' = 'pub mod service;'
 given.files.'src/application/file_dag/derived/owner/acquisition/service.rs' = 'pub struct AcquiredView; pub fn admit_view() -> AcquiredView { AcquiredView }'
 given.files.'src/domain/derived/service.rs' = 'pub fn admit() { let _ = crate::application::file_dag::derived::owner::acquisition::service::admit_view(); }'
 then.findings = [{ path = "src/domain/derived/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "negated-fixtures-gate-port-build"
+scenario = "A recording fake that builds through the port in a fixtures file declared under a cfg that names the fixtures feature only to negate it is production, so it is refused."
+given.files.'src/application/file_dag.rs' = """pub mod derived; pub mod consumer;
+#[cfg(not(feature = "fixtures"))]
+pub mod fixtures;"""
+given.files.'src/application/file_dag/fixtures.rs' = 'use crate::outbound::derived::interface::DerivedPort; pub fn record(port: &dyn DerivedPort) { port.build(); }'
+then.findings = [{ path = "src/application/file_dag/fixtures.rs", line = 1 }]
+
+[[scenarios]]
+id = "always-true-fixtures-gate-port-build"
+scenario = "A recording fake that builds through the port in a fixtures file declared under a cfg whose other arm holds in a production build is production, so it is refused."
+given.files.'src/application/file_dag.rs' = """pub mod derived; pub mod consumer;
+#[cfg(any(feature = "fixtures", unix))]
+pub mod fixtures;"""
+given.files.'src/application/file_dag/fixtures.rs' = 'use crate::outbound::derived::interface::DerivedPort; pub fn record(port: &dyn DerivedPort) { port.build(); }'
+then.findings = [{ path = "src/application/file_dag/fixtures.rs", line = 1 }]
