@@ -9,7 +9,7 @@ use ryo_execution_domain::domain::trust::{
     types::Blocking,
 };
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::expectations::{
-    Fixture, SOURCE, assert_expected,
+    Conformance, Fixture, SOURCE, conformance,
 };
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::values::matrix;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::*;
@@ -45,8 +45,11 @@ enum Boundary {
 /// What one fixture showed.
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Observed {
-    /// The rows delivered, each the fixture's expected row.
-    Delivered { rows: usize },
+    /// The rows delivered, and how they compare with the fixture's expected rows.
+    Delivered {
+        rows: usize,
+        conformance: Conformance,
+    },
     /// The joined rows.
     Rows(Cow<'static, [[Cell; 2]]>),
     /// The schema's refusal, and those the collected and the streamed delivery answered.
@@ -136,9 +139,27 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || (Boundary::Delivered, &[Select, Join, Union]),
         expect: Expect::Value(Cow::Borrowed(&[
-            (Select, Observed::Delivered { rows: 3 }),
-            (Join, Observed::Delivered { rows: 3 }),
-            (Union, Observed::Delivered { rows: 3 }),
+            (
+                Select,
+                Observed::Delivered {
+                    rows: 3,
+                    conformance: Conformance::Conforms,
+                },
+            ),
+            (
+                Join,
+                Observed::Delivered {
+                    rows: 3,
+                    conformance: Conformance::Conforms,
+                },
+            ),
+            (
+                Union,
+                Observed::Delivered {
+                    rows: 3,
+                    conformance: Conformance::Conforms,
+                },
+            ),
         ])),
     },
     Case {
@@ -277,9 +298,9 @@ fn observe(boundary: Boundary, kind: OperationKind) -> Result<Observed, Failure>
     Ok(match boundary {
         Boundary::Delivered => {
             let observed = delivered(&mut case, &operation, None)?;
-            assert_expected(&case.expected, &observed.rows, &case.symbols);
             Observed::Delivered {
                 rows: observed.rows.len(),
+                conformance: conformance(&case.expected, &observed.rows, &case.symbols),
             }
         }
         Boundary::KeyedJoin => {

@@ -6,7 +6,9 @@ use super::super::conformance::test::compare_delivery_with_semantic;
 use super::super::conformance::test::same_rows;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::expectations::SOURCE;
-use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::expectations::assert_expected;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::expectations::{
+    Conformance, conformance,
+};
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::values::KnownSyntax;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::*;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
@@ -65,6 +67,8 @@ struct Class {
     schema_is_collected: bool,
     /// The streamed rows are the collected table's ordered bag.
     same_rows: bool,
+    /// How the delivered rows compare with the fixture's expected rows.
+    conformance: Conformance,
 }
 #[derive(Debug, PartialEq, Eq)]
 enum Observed {
@@ -162,8 +166,8 @@ fn every_registered_class_runs_real_collect_and_stream_with_independent_expectat
                 None
             },
         )?;
-        assert_expected(&case.expected, &observed.rows, &case.symbols);
         let class = Class {
+            conformance: conformance(&case.expected, &observed.rows, &case.symbols),
             fixture: kind_of(&case.operation),
             delivered: Delivered::of(&observed),
             schema_is_collected: observed.schema.as_ref().ok()
@@ -280,7 +284,8 @@ const fn refused(settlement: Settlement, error: &'static str) -> Delivered {
         stream_error: Some(Cow::Borrowed(error)),
     }
 }
-/// A class whose own fixture completed with `rows` rows under its declared schema, streamed as the collected bag.
+/// A class whose own fixture completed with `rows` rows under its declared schema, streamed as the collected bag,
+/// each row the fixture's expected row.
 const fn complete(kind: OperationKind, rows: usize) -> (OperationKind, Class) {
     (
         kind,
@@ -289,6 +294,7 @@ const fn complete(kind: OperationKind, rows: usize) -> (OperationKind, Class) {
             delivered: delivered(rows),
             schema_is_collected: true,
             same_rows: true,
+            conformance: Conformance::Conforms,
         },
     )
 }

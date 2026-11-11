@@ -108,17 +108,4 @@ pub fn conformance(
     Conformance::Conforms
 }
 
-/// Asserts an answer's rows against the expected rows, cell by cell, for the conformance proofs of the crates that
-/// run these fixtures through their own boundary.
-///
-/// # Panics
-///
-/// When the answer does not conform: [`conformance`] answers where it differs.
-pub fn assert_expected(expected: &[Vec<Expected>], actual: &[Vec<Value>], symbols: &Symbols) {
-    assert_eq!(
-        conformance(expected, actual, symbols),
-        Conformance::Conforms
-    );
-}
-
 use ryo_values::domain::rows::types::Table;
