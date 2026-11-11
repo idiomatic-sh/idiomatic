@@ -5,7 +5,7 @@ use super::service::{compare_data, data_declarations};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contracts::service::facts;
 use crate::domain::contracts::types::{
-    DataRow, PartText, RowKey, RowNode, RowPlace, Syntax, SyntaxKind, WrittenValue,
+    DataRow, DeclarationName, PartText, RowKey, RowNode, RowPlace, Syntax, SyntaxKind, WrittenValue,
 };
 use crate::domain::declarations::service::arguments;
 use crate::domain::definitions::types::Exactness;
@@ -286,7 +286,8 @@ fn subject(question: Input) -> Value {
                 exclude: &["x"],
                 more: false,
             };
-            let exact = |found: &Written<'_>, instance_values: Option<&str>| {
+            let variables = DeclarationName("variables".into());
+            let exact = |found: &Written<'_>, instance_values: Option<&DeclarationName>| {
                 compare_data(
                     &facts(&manifest(&template)),
                     &facts(&manifest(found)),
@@ -302,27 +303,27 @@ fn subject(question: Input) -> Value {
             };
             (
                 [
-                    exact(&added, Some("variables")),
+                    exact(&added, Some(&variables)),
                     exact(
                         &Written {
                             exclude: &["x", "y"],
                             ..template
                         },
-                        Some("variables"),
+                        Some(&variables),
                     ),
                     exact(
                         &Written {
                             libraries: &["b"],
                             ..template
                         },
-                        Some("variables"),
+                        Some(&variables),
                     ),
                     exact(
                         &Written {
                             more: true,
                             ..template
                         },
-                        Some("variables"),
+                        Some(&variables),
                     ),
                     exact(&added, None),
                     exact(
@@ -330,7 +331,7 @@ fn subject(question: Input) -> Value {
                             x: &["p", "q"],
                             ..template
                         },
-                        Some("variables"),
+                        Some(&variables),
                     ),
                 ]
                 .join(" "),

@@ -26,25 +26,26 @@ enum Question {
 type Input = Question;
 /// What the row said.
 #[derive(Debug, PartialEq, Eq)]
-enum Value {
+enum Answer {
     /// The standing and accepted findings, and the accepted one's fingerprint.
     Settled(usize, usize, Fingerprint),
     /// The findings of a `tastemaker.toml` and of another file.
     Reported(usize, usize),
 }
+type Value = Answer;
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("suppressed_and_standing_findings_keep_their_identities"),
         word: Word::Succeeds,
         input: || Question::Settled,
-        expect: Expect::Value(Value::Settled(1, 1, Fingerprint(7))),
+        expect: Expect::Value(Answer::Settled(1, 1, Fingerprint(7))),
     },
     Case {
         name: CaseName("a_manifest_adds_values_to_its_variables_and_another_file_may_not"),
         word: Word::Succeeds,
         input: || Question::Variables,
-        expect: Expect::Value(Value::Reported(0, 1)),
+        expect: Expect::Value(Answer::Reported(0, 1)),
     },
 ];
 
@@ -106,7 +107,7 @@ fn subject(question: Input) -> Value {
     match question {
         Question::Settled => settled(),
         Question::Variables => {
-            Value::Reported(reported("demo/tastemaker.toml"), reported("demo/own.toml"))
+            Answer::Reported(reported("demo/tastemaker.toml"), reported("demo/own.toml"))
         }
     }
 }
@@ -139,7 +140,7 @@ fn settled() -> Value {
         line: candidate.line.clone(),
     }));
     let result = fingerprinted(all, identities, &|_| Fingerprint(7));
-    Value::Settled(
+    Answer::Settled(
         result.standing.len(),
         result.accepted.len(),
         result.accepted[0].finding.fingerprint,

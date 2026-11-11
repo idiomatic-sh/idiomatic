@@ -205,7 +205,7 @@ pub(crate) fn compare_data(
     expected: &Facts<'_>,
     found: &Facts<'_>,
     exact: Exactness,
-    instance_values: Option<&str>,
+    instance_values: Option<&DeclarationName>,
 ) -> Vec<Mismatch> {
     let mut wanted = data_declarations(expected);
     let mut made = data_declarations(found);
@@ -312,7 +312,7 @@ pub(crate) fn compare_data(
     let mut mismatches = compare(&wanted, &made, exact);
     if let Some(table) = instance_values {
         // A value within an entry of the instance's table is the instance's: only the entry's name is held exactly.
-        let prefix = format!("{table}{KEY_PATH_SEPARATOR}");
+        let prefix = format!("{}{KEY_PATH_SEPARATOR}", table.0);
         mismatches.retain(|mismatch| match mismatch {
             Mismatch::Extra(declaration) => !declaration
                 .name
