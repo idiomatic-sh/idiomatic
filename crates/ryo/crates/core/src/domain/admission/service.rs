@@ -118,7 +118,7 @@ pub(crate) fn limits_of(elements: &Elements, bytes: &FileBytes, file: FileId) ->
 /// # Errors
 ///
 /// The first cell that is not within the file.
-pub(crate) fn admit_view(view: &ColumnsView<'_>, limits: &Limits) -> Result<(), AdmissionError> {
+pub(crate) fn admit_columns(view: &ColumnsView<'_>, limits: &Limits) -> Result<(), AdmissionError> {
     for (kind, column) in view.kinds.iter().zip(view.columns) {
         admit_column(*kind, &StoredNumbers(&column.0), limits)?;
     }

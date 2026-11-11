@@ -10,7 +10,7 @@ use ryo_relations::domain::relations::types::{
 use ryo_values::domain::files::types::FileBytes;
 
 use super::errors::AdmissionError;
-use super::service::{admit_column, admit_elements, admit_view, limits_of};
+use super::service::{admit_column, admit_columns, admit_elements, limits_of};
 use super::types::{ByteLength, ElementTotal, Limits, StoredNumbers};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
@@ -85,7 +85,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 .iter()
                 .map(|cells| FactColumn(cells.to_vec()))
                 .collect();
-            admit_view(
+            admit_columns(
                 &ColumnsView {
                     kinds,
                     columns: &columns,
