@@ -4,6 +4,7 @@
 use super::service::place;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::applications::fixtures::{matching, workspace_of};
+use crate::domain::findings::service::printed;
 use crate::domain::placement::errors::PlacementError;
 use crate::inbound::use_cases::check::fixtures::{SPEC, WORKSPACE};
 
@@ -30,6 +31,17 @@ const NOT_LAST: &str = "description = \"d\"\nwhy = \"w\"\ntemplates = [{ templat
 
 /// A spec whose entry excludes by a directory capture.
 const IN_SELECTOR: &str = "description = \"d\"\nwhy = \"w\"\ntemplates = [{ template = \"errors\", file = \"errors.txt\", exclude = [\"{part:dir}.txt\"], description = \"e\" }]\n";
+
+/// A spec whose param `own`, the instance's directory name, names the directory its file is named for.
+const PARAMED: &str = "description = \"d\"\nwhy = \"w\"\ntemplates = [{ alias = \"module\", template = \"errors\", file = \"{own:dir}.txt\", count = { min = 0 }, description = \"m\" }]\n\n[params]\nown = { type = \"identifier\", from = \"directory-name\", description = \"o\" }\n";
+
+/// A tree where `src/a/a.txt` has its `a/` beside it and `src/b/b.txt` has no `b/`.
+const PARAMED_TREE: &[&str] = &[
+    "tastemaker.toml",
+    "src/a/a.txt",
+    "src/a/a/x.txt",
+    "src/b/b.txt",
+];
 
 /// A spec whose entry `x` writes more segments out than `y` but takes only a file named for a directory beside it.
 const FALLBACK: &str = "description = \"d\"\nwhy = \"w\"\ntemplates = [\n  { template = \"errors\", file = \"errors.txt\", description = \"e\" },\n  { alias = \"x\", template = \"errors\", file = \"n/{a:dir}.txt\", count = { min = 0 }, description = \"x\" },\n  { alias = \"y\", template = \"errors\", file = \"{*o}/{b}.txt\", count = { min = 0 }, description = \"y\" },\n]\n";
@@ -82,19 +94,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || (&["tastemaker.toml", "src/a/errors.txt"], BROKEN),
         expect: Expect::Refusal(|actual| {
-            if actual
-                == &(PlacementError::Selector {
-                    entry: "p/part/errors".into(),
-                    source: crate::domain::selectors::errors::SelectorsError::Pattern {
-                        pattern: "(".into(),
-                        reason: "regex parse error:\n    (\n    ^\nerror: unclosed group".into(),
-                    },
-                })
-            {
-                crate::cases::Selection::Matches
-            } else {
-                crate::cases::Selection::Differs
-            }
+            refused(
+                actual,
+                "(",
+                "regex parse error:\n    (\n    ^\nerror: unclosed group",
+            )
         }),
     },
     Case {
@@ -226,19 +230,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || (&["tastemaker.toml", "src/a/errors.txt"], NOT_LAST),
         expect: Expect::Refusal(|actual| {
-            if actual
-                == &(PlacementError::Selector {
-                    entry: "p/part/errors".into(),
-                    source: crate::domain::selectors::errors::SelectorsError::Pattern {
-                        pattern: "{part:dir}/errors.txt".into(),
-                        reason: "a `{name:dir}` capture is written only in the last segment of a template entry's `file`, the segment that names the file".into(),
-                    },
-                })
-            {
-                crate::cases::Selection::Matches
-            } else {
-                crate::cases::Selection::Differs
-            }
+            refused(
+                actual,
+                "{part:dir}/errors.txt",
+                "a `{name:dir}` capture is written only in the last segment of a template entry's `file`, the segment that names the file",
+            )
         }),
     },
     Case {
@@ -246,19 +242,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || (&["tastemaker.toml", "src/a/errors.txt"], IN_SELECTOR),
         expect: Expect::Refusal(|actual| {
-            if actual
-                == &(PlacementError::Selector {
-                    entry: "p/part/errors".into(),
-                    source: crate::domain::selectors::errors::SelectorsError::Pattern {
-                        pattern: "{part:dir}.txt".into(),
-                        reason: "a `{name:dir}` capture is written only in a template entry's `file`, never in a selector list, which reads no workspace".into(),
-                    },
-                })
-            {
-                crate::cases::Selection::Matches
-            } else {
-                crate::cases::Selection::Differs
-            }
+            refused(
+                actual,
+                "{part:dir}.txt",
+                "a `{name:dir}` capture is written only in a template entry's `file`, never in a selector list, which reads no workspace",
+            )
         }),
     },
     Case {
@@ -277,7 +265,31 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Value(String::new()),
     },
+    Case {
+        name: CaseName("a_directory_capture_of_a_param_needs_the_directory_its_value_names"),
+        word: Word::Succeeds,
+        input: || (PARAMED_TREE, PARAMED),
+        expect: Expect::Value(String::new()),
+    },
 ];
+
+/// Whether `actual` is the refusal of the entry `p/part/errors`'s `pattern`, for `reason`.
+fn refused(actual: &PlacementError, pattern: &str, reason: &str) -> crate::cases::Selection {
+    let source = crate::domain::selectors::errors::SelectorsError::Pattern {
+        pattern: pattern.into(),
+        reason: reason.into(),
+    };
+    if actual
+        == &(PlacementError::Selector {
+            entry: "p/part/errors".into(),
+            source,
+        })
+    {
+        crate::cases::Selection::Matches
+    } else {
+        crate::cases::Selection::Differs
+    }
+}
 
 /// The scopes, placed files and findings a row's tree and spec are right to give.
 fn expected(files: &[&str], spec: &str) -> &'static str {
@@ -299,6 +311,9 @@ fn expected(files: &[&str], spec: &str) -> &'static str {
         }
         (INTERPOLATED, _) => {
             "2 src/a/a.txt,src/a/errors.txt,src/b/errors.txt closed:src/a/a/x.txt,closed:src/b/b.txt,p/part/errors(own)#count"
+        }
+        (PARAMED, _) => {
+            "2 src/a/a.txt closed:src/a/a/x.txt,closed:src/b/b.txt,p/part/errors(module)#count"
         }
         (FALLBACK, _) => {
             "2 src/a/errors.txt@0,src/a/n/h.txt@2,src/b/errors.txt@0 p/part/errors(x)#count,p/part/errors(x)#count"
@@ -338,11 +353,7 @@ fn subject((files, spec): Input) -> Result<Value, Failure> {
     let mut found = placement
         .findings
         .iter()
-        .map(|finding| {
-            crate::domain::findings::service::printed(&finding.rule)
-                .0
-                .to_string()
-        })
+        .map(|finding| printed(&finding.rule).0.to_string())
         .collect::<Vec<_>>();
     // Which counts are refused is the count queries'; placement leaves each waiting with the number it found, and the
     // missing one found none.
@@ -351,11 +362,7 @@ fn subject((files, spec): Input) -> Result<Value, Failure> {
             .counts
             .iter()
             .filter(|check| check.found == crate::domain::entries::types::Amount(0))
-            .map(|check| {
-                crate::domain::findings::service::printed(&check.rule)
-                    .0
-                    .to_string()
-            }),
+            .map(|check| printed(&check.rule).0.to_string()),
     );
     // Which files of a closed directory are strays is the closed query's; placement leaves the files beneath each closed directory
     // that no template places and no `tastemaker.toml` is.
