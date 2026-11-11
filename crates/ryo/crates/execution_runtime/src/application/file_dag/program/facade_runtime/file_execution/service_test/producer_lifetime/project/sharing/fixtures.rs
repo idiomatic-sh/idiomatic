@@ -1,14 +1,14 @@
 //! The support of the `sharing` cases.
 use super::super::fixtures::{PhaseExit, PreparedCase, prepare_case};
 use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
-use crate::application::file_dag::frontiers::types::DecodeCount;
 use crate::application::file_dag::frontiers::types::FrontierInput;
 use crate::application::file_dag::frontiers::types::FrontierSource;
 use crate::application::file_dag::frontiers::types::PackedFrontier;
 use crate::application::file_dag::program::facade_runtime::project_execution::service::ProjectRoot;
 use crate::application::file_dag::program::facade_runtime::project_execution::service::evaluate_roots;
 use crate::application::file_dag::program::facade_runtime::service::ProjectFrontiers;
-use crate::application::file_dag::program::native_walk::types::RetainedBatches;
+use crate::application::file_dag::program::native_walk::service::project::service::ProjectWalk;
+use crate::application::file_dag::program::native_walk::types::Deliveries;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -18,7 +18,6 @@ use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
 use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 #[cfg(test)]
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
-use ryo_execution_domain::domain::shared_walk::types::WalkCounts;
 use ryo_execution_domain::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
 };
@@ -34,18 +33,24 @@ use ryo_values::domain::{
 };
 use std::sync::Arc;
 
-/// What the project walk did for one batch of four rules over the given source populations.
+/// What the project walk did for one batch of four rules over the given source populations: the
+/// rules delivered, whether the batch was refused, its source passes (and those made before the
+/// second cohort was scheduled, when there is one), the source rows walked, the batches still
+/// retained, and the frontier decodes.
+#[derive(Debug, PartialEq)]
 pub(super) struct Observed {
-    pub(super) counts: WalkCounts,
-    pub(super) retained: RetainedBatches,
     pub(super) delivered: usize,
     pub(super) refused: bool,
-    pub(super) decodes: DecodeCount,
+    pub(super) passes: u64,
+    pub(super) passes_before_second_cohort: Option<u64>,
+    pub(super) source_rows: u64,
+    pub(super) retained: usize,
+    pub(super) decodes: usize,
 }
 
 /// How each rule's source rows reach the project run: decoded already, or packed as the store
 /// keeps them, each rule from its own bucket holding its own copy of the words.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub(super) enum Stored {
     Decoded,
     Packed,
@@ -181,20 +186,45 @@ pub(super) fn exercise(exit: PhaseExit, values: [i64; 4], stored: Stored) -> Obs
         ProjectBatch::Complete(completed) => (completed.len(), false),
         ProjectBatch::Refused { completed, .. } => (completed.len(), true),
     };
-    if values[0] != values[2] {
-        assert_eq!(
-            passes_before_second_cohort,
-            Some(1),
-            "the first population is read once before the second cohort is scheduled"
-        );
-    }
+    let counts = phase.walk_counts();
     let observed = Observed {
-        counts: phase.walk_counts(),
-        retained: phase.walk.retained(),
         delivered,
         refused,
-        decodes: phase.frontier_decodes(),
+        passes: counts.passes.0,
+        passes_before_second_cohort: passes_before_second_cohort.filter(|_| values[0] != values[2]),
+        source_rows: counts.source_rows.0,
+        retained: phase.walk.retained().0,
+        decodes: phase.frontier_decodes().0,
     };
     phase.finish().expect("finish the publication scope");
     observed
+}
+
+/// What the project walk answered when asked to admit the reader's first shared head: before any
+/// rule declared it, while a sibling owes a delivery of it, and after that sibling's last delivery.
+#[derive(Debug, PartialEq)]
+pub(super) struct Admissions {
+    pub(super) undeclared: Option<OperatingError>,
+    pub(super) declared: Option<OperatingError>,
+    pub(super) delivered: Option<OperatingError>,
+}
+
+/// Admits the project reader's first shared head through a fresh walk around one declaration.
+pub(super) fn admissions() -> Result<Admissions, OperatingError> {
+    let PreparedCase { prepared, .. } = prepare_case(PhaseExit::Complete)?;
+    let class = prepared
+        .walk()
+        .class_of(RuleIndex(0))
+        .and_then(|classes| classes.first().copied().flatten())
+        .ok_or(OperatingError::NotRun)?;
+    let walk = ProjectWalk::new();
+    let undeclared = walk.admit(&prepared, class).err();
+    walk.owe(&prepared, RuleIndex(1), Deliveries(1));
+    let declared = walk.admit(&prepared, class).err();
+    walk.delivered(&prepared, RuleIndex(1));
+    Ok(Admissions {
+        undeclared,
+        declared,
+        delivered: walk.admit(&prepared, class).err(),
+    })
 }

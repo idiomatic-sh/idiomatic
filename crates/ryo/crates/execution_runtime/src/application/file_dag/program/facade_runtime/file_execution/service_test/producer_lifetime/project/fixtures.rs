@@ -29,7 +29,6 @@ use ryo_relations::domain::relations::{
     service::kinds,
     types::{FileId, Integer, Value as Cell},
 };
-use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::rows::types::{RowCount, Table};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
@@ -115,7 +114,7 @@ pub(super) fn prepare_case(exit: PhaseExit) -> Result<PreparedCase, OperatingErr
     })
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub(super) enum Delivery {
     Once,
     Replayed,
