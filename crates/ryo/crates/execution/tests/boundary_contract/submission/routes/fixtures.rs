@@ -1,4 +1,5 @@
 //! The support of the `routes` cases and of the groups nested in it.
+use super::super::controls::fixtures::{Probe, probe};
 use super::super::inventory::fixtures::every_intent;
 use crate::boundary_fixture::fixtures::{corpus, engine, prepared_rules};
 use crate::file_intents::fixtures::named_request;
@@ -20,9 +21,11 @@ use ryo_execution_runtime::outbound::facts::interface::FactsPort as _;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::FileId;
+use std::collections::BTreeSet;
 
-/// File route: one intent per prepared rule, for every intent kind, over independent and named programs.
-pub(in super::super) fn file_route() {
+/// File route: one intent per prepared rule, for every intent kind, over independent and named programs; each distinct answer
+/// once, by the number of intents given.
+pub(in super::super) fn file_route() -> Vec<Probe> {
     let engine = engine();
     let programs = [
         prepared_rules(&engine, 2),
@@ -54,35 +57,28 @@ pub(in super::super) fn file_route() {
                 let _ = file.finish();
             })
     };
+    let mut answers = BTreeSet::new();
     for program in &programs {
         for intent in every_intent() {
-            let request = ExecutionUseCaseImpl::new().execution(program, &corpus, None);
-            for length in [0, 1, 3] {
-                assert!(
-                    matches!(
+            // The incomplete and extra sets over one request, the complete set over a fresh one.
+            for lengths in [&[0, 1, 3][..], &[2]] {
+                let request = ExecutionUseCaseImpl::new().execution(program, &corpus, None);
+                for &length in lengths {
+                    answers.insert(probe(
+                        format!("{length} intents of one kind for 2 rules"),
                         open(&request, &vec![intent; length]),
-                        Err(OperatingError::ShapeMismatch)
-                    ),
-                    "{intent:?} x {length} intents must be refused as incomplete or extra"
-                );
+                    ));
+                }
+                request.finish();
             }
-            request.finish();
-            let request = ExecutionUseCaseImpl::new().execution(program, &corpus, None);
-            assert!(
-                !matches!(
-                    open(&request, &[intent, intent]),
-                    Err(OperatingError::ShapeMismatch)
-                ),
-                "{intent:?} x 2 intents is the complete declared set"
-            );
-            request.finish();
         }
     }
+    answers.into_iter().collect()
 }
 
 /// The one-call file route: the same declared intent set as `file_route`, over the worker's facts; an incomplete or extra set
 /// is refused before any rule runs.
-pub(in super::super) fn run_file_route() {
+pub(in super::super) fn run_file_route() -> Vec<Probe> {
     let engine = engine();
     let programs = [
         prepared_rules(&engine, 2),
@@ -122,19 +118,27 @@ pub(in super::super) fn run_file_route() {
             )
             .end
     };
+    let mut answers = BTreeSet::new();
     for program in &programs {
         for intent in every_intent() {
             let request = ExecutionUseCaseImpl::new().execution(program, &corpus, None);
             for length in [0, 1, 3] {
-                assert!(
-                    matches!(
-                        run(&request, &vec![intent; length]),
-                        FileEnd::Refused(FileStop::Operating(OperatingError::ShapeMismatch))
-                    ),
-                    "{intent:?} x {length} intents must be refused as incomplete or extra"
-                );
+                answers.insert(probe(
+                    format!("{length} intents of one kind for 2 rules"),
+                    refusal(run(&request, &vec![intent; length])),
+                ));
             }
             request.finish();
         }
+    }
+    answers.into_iter().collect()
+}
+
+/// The stop a file run ended with; `None` when it finished or was left unfinished.
+fn refusal(end: FileEnd) -> Option<FileStop> {
+    if let FileEnd::Refused(stop) = end {
+        Some(stop)
+    } else {
+        None
     }
 }

@@ -34,10 +34,19 @@ use ryo_execution_runtime::outbound::facts::fixtures::project_phase_negative::No
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
 
+/// One attempt a control made: what it gave the method, and what the method answered, as debug text (the answers are of
+/// several types: a preparation, a phase stop, a file end or an operating error).
+pub(in super::super) type Probe = (String, String);
+
+/// A probe of `what`, answered `answer`.
+pub(in super::super) fn probe(what: impl Into<String>, answer: impl std::fmt::Debug) -> Probe {
+    (what.into(), format!("{answer:?}"))
+}
+
 /// What a method does with a root set: refuse an incomplete, extra or undeclared one, or
 /// accept none at all (its inputs carry no rule, scope or intent to declare).
 pub(in super::super) enum Control {
-    Refuses(fn()),
+    Refuses(fn() -> Vec<Probe>),
     AcceptsNoRoot(&'static str),
 }
 
@@ -65,61 +74,64 @@ pub(in super::super) fn control(method: Method) -> Control {
 
 /// A program is prepared from a plan for each declared rule and no other: a rule set missing a planned rule, or with a rule no
 /// plan answers, is refused.
-pub(in super::super) fn prepare_refuses_an_incomplete_or_extra_rule_set() {
+pub(in super::super) fn prepare_refuses_an_incomplete_or_extra_rule_set() -> Vec<Probe> {
     let engine = engine();
-    assert!(
-        engine.prepare(authored_request(2)).is_ok(),
-        "a complete declared set prepares"
-    );
     let mut incomplete = authored_request(2);
     incomplete.rules.truncate(1);
-    assert!(
-        engine.prepare(incomplete).is_err(),
-        "a planned rule missing from the set is refused"
-    );
     let mut extra = authored_request(2);
     extra.rules.push(authored_request(3).rules.remove(2));
-    assert!(
-        engine.prepare(extra).is_err(),
-        "a rule no plan answers is refused"
-    );
+    vec![
+        probe(
+            "a complete declared set",
+            engine.prepare(authored_request(2)).map(|_| ()),
+        ),
+        probe(
+            "a planned rule missing from the set",
+            engine.prepare(incomplete).map(|_| ()),
+        ),
+        probe("a rule no plan answers", engine.prepare(extra).map(|_| ())),
+    ]
 }
 
-pub(in super::super) fn observations_need_a_named_program() {
+pub(in super::super) fn observations_need_a_named_program() -> Vec<Probe> {
     let engine = engine();
     let corpus = corpus();
     let unnamed = prepared_rules(&engine, 2);
     let request = ExecutionUseCaseImpl::new().execution(&unnamed, &corpus, None);
     let mut arenas = Vec::new();
-    assert!(matches!(
-        request.observations(&mut arenas),
-        Err(OperatingError::NotRun)
-    ));
+    let mut probes = vec![probe(
+        "the stage of an unnamed program",
+        request.observations(&mut arenas).map(|_| ()),
+    )];
     request.finish();
     let named = engine.prepare(named_request()).expect("named request");
     let request = ExecutionUseCaseImpl::new().execution(&named, &corpus, None);
     let mut arenas = Vec::new();
-    let stage = request
-        .observations(&mut arenas)
-        .expect("a named program opens its stage");
-    stage
-        .run_batches(
-            stage_batches(&[], &[], &[], &corpus, &[], &[]),
-            &mut Symbols::default(),
-            |_| Ok::<(), OperatingError>(()),
-            |_| Err(OperatingError::NotRun),
-            |_| Ok(()),
-            |_, _, _, _, _| Ok(()),
-            |_, _| Ok(None),
-        )
-        .expect("a stage with no declared occurrence finishes");
+    let ran = request.observations(&mut arenas).map(|stage| {
+        stage
+            .run_batches(
+                stage_batches(&[], &[], &[], &corpus, &[], &[]),
+                &mut Symbols::default(),
+                |_| Ok::<(), OperatingError>(()),
+                |_| Err(OperatingError::NotRun),
+                |_| Ok(()),
+                |_, _, _, _, _| Ok(()),
+                |_, _| Ok(None),
+            )
+            .map(|_| ())
+    });
+    probes.push(probe(
+        "a stage of a named program with no declared occurrence",
+        ran,
+    ));
     request.finish();
+    probes
 }
 
 /// A phase refuses the occurrence of a rule the program did not declare, and that refusal stays with the occurrence: the declared
 /// occurrences beside it, a repeated rule included, are each evaluated and completed with no reserved worker in declaration order,
 /// and the phase is released once the call returns.
-pub(in super::super) fn occurrence_of_an_undeclared_rule() {
+pub(in super::super) fn occurrence_of_an_undeclared_rule() -> Vec<Probe> {
     with_held(&engine(), Entry::Phase, 3, |_, held, corpus, covered| {
         let Held::Phase(phase) = held else {
             panic!("the phase entry holds a project phase")
@@ -156,28 +168,18 @@ pub(in super::super) fn occurrence_of_an_undeclared_rule() {
         let ProjectBatch::Complete(occurrences) = ran else {
             panic!("no guard refused the batch");
         };
-        assert!(matches!(
-            occurrences.first(),
-            Some(Ok((OccurrenceNumber(0), None)))
-        ));
-        assert!(matches!(
-            occurrences.get(1),
-            Some(Ok((OccurrenceNumber(1), None)))
-        ));
-        assert!(matches!(
-            occurrences.get(2),
-            Some(Err(PhaseStop::Operating(OperatingError::NotRun)))
-        ));
-        assert_eq!(occurrences.len(), 3);
-        assert!(
-            phase.finish().is_ok(),
-            "the phase is released once its occurrences are completed"
-        );
-    });
+        vec![
+            probe("rules 0, 0 and the undeclared 3", occurrences),
+            probe(
+                "the phase, once its occurrences completed",
+                phase.finish().map(|_| ()),
+            ),
+        ]
+    })
 }
 
 /// Every file-session method that takes a RuleIndex refuses a rule the session did not declare.
-pub(in super::super) fn file_session_undeclared_rule() {
+pub(in super::super) fn file_session_undeclared_rule() -> Vec<Probe> {
     let engine = engine();
     let program = prepared_rules(&engine, 2);
     let corpus = corpus();
@@ -209,14 +211,21 @@ pub(in super::super) fn file_session_undeclared_rule() {
         )
         .expect("a complete declared set opens");
     let undeclared = RuleIndex(2);
-    assert!(file.rule(undeclared, demand(), &mut symbols).is_err());
-    assert!(
-        file.emit_rows(undeclared, &mut symbols, &mut |_| Ok(()))
-            .is_err()
-    );
+    let mut probes = vec![
+        probe(
+            "rule of an undeclared rule",
+            file.rule(undeclared, demand(), &mut symbols).map(|_| ()),
+        ),
+        probe(
+            "emit_rows of an undeclared rule",
+            file.emit_rows(undeclared, &mut symbols, &mut |_| Ok(()))
+                .map(|_| ()),
+        ),
+    ];
     let (mut arena, mut places, mut words) = (vec![], vec![], Default::default());
     let bucket = ryo_values::domain::stored_facts::types::Bucket(0);
-    assert!(
+    probes.push(probe(
+        "capture_frontiers of an undeclared rule",
         file.capture_frontiers(
             undeclared,
             bucket,
@@ -228,17 +237,19 @@ pub(in super::super) fn file_session_undeclared_rule() {
                 words: &mut words,
             },
         )
-        .is_err()
-    );
-    assert!(
+        .map(|_| ()),
+    ));
+    probes.push(probe(
+        "commit_frontier of an undeclared rule",
         file.commit_frontier(
             undeclared,
-            ryo_values::domain::plan_parts::types::InputNumber(0)
+            ryo_values::domain::plan_parts::types::InputNumber(0),
         )
-        .is_err()
-    );
+        .map(|_| ()),
+    ));
     let _ = file.finish();
     request.finish();
+    probes
 }
 
 /// What one observation stage of the controls' program reads: `occurrences` over `rules`, with `inapplicable` files by rule.
@@ -270,7 +281,7 @@ pub(super) fn stage_batches<'a>(
 
 /// A stage refuses an occurrence of a rule the program did not declare, and restoration takes the inapplicable files of every rule
 /// or of none: any other count is refused before any occurrence runs.
-pub(in super::super) fn observed_undeclared_rule() {
+pub(in super::super) fn observed_undeclared_rule() -> Vec<Probe> {
     let rules = [RuleIndex(0), RuleIndex(1), RuleIndex(2)];
     let first = [ryo_values::domain::stored_facts::types::Bucket(0); 3];
     let refused = vec![RefusedFiles::default(); 3];
@@ -296,25 +307,19 @@ pub(in super::super) fn observed_undeclared_rule() {
             )
         })
     };
-    assert!(
-        matches!(
-            run(
-                &[BatchOccurrence {
-                    batch: BatchNumber(0),
-                    rule: RuleIndex(3)
-                }],
-                0
-            ),
-            Err(OperatingError::NotRun)
-        ),
-        "an occurrence of an undeclared rule"
-    );
-    for wrong in [1, 2, 4] {
-        assert!(
-            matches!(run(&[], wrong), Err(OperatingError::NotRun)),
-            "{wrong} sets of inapplicable files for 3 rules"
-        );
+    let undeclared = [BatchOccurrence {
+        batch: BatchNumber(0),
+        rule: RuleIndex(3),
+    }];
+    let mut probes = vec![probe(
+        "an occurrence of an undeclared rule",
+        run(&undeclared, 0).map(|_| ()),
+    )];
+    for sets in [1, 2, 4, 0, 3] {
+        probes.push(probe(
+            format!("{sets} sets of inapplicable files for 3 rules"),
+            run(&[], sets).map(|_| ()),
+        ));
     }
-    run(&[], 0).expect("none for the whole run");
-    run(&[], 3).expect("one set per rule");
+    probes
 }
