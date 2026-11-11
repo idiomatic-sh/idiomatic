@@ -6,6 +6,8 @@ A concept's `service_test.rs` is a case table or the namespace of its groups (on
 
 Edited in place: the module file of a directory is `<dir>.rs` beside it, never `<dir>/mod.rs` (owner, 2026-11-11; `mod_module_files` denied by cargo-workspace 0.13.0). A nested part's module file is `<part>.rs` (`part-module`, `nested-part-module`), placed by the new `idiomatic.arch/part-module@0.1.0`, not the group template, and a group's is `service_test/<group>.rs`; each pattern also has a form for any depth below the first, and each leaves `mod.rs` out, so a `mod.rs` is a file of no role (`nested-part-mod-rs-is-closed`). A file at a part's level that is no role file is read as a part's module file and refused by `test-group-namespace` (it declares no module and holds items) where 0.1.2 closed it. `service_test.rs` and a nested part's `service_test.rs` are placed by the new `idiomatic.arch/service-test@0.1.0`, which scaffolds the case-table skeleton, so a scaffolded concept passes its own spec; a nested part has no `test.rs` of its own (its groups sit under `service_test/`).
 
+Edited in place: places `unit-cases@0.2.0`, which reads a namespace `*_test.rs` with the tables of its groups.
+
 # concept 0.1.1
 
 Places the corrected rules (`public-fields@0.2.0`, `constants-once@0.2.0`, `mirrored-types@0.2.0`, `no-json-in-process@0.4.0`) and the specs that place them at their corrected versions, where 0.1.0 named the earlier ones. Nothing else changes.

@@ -19,7 +19,7 @@ rules = [
   { rule = "entry-names", include = ["entry.rs"], description = "An entry's function takes its request (none when the verb has no input) and returns Result<<Verb>Report, <Verb>Error>: a parameter, an answer ending Report and an error ending Error." },
   { rule = "idiomatic.arch/composition-wiring@0.1.0", include = ["composition.rs"], description = "Production builders supply replaceable dependencies; compose and its helpers wire only the supplied choices." },
   { rule = "idiomatic.arch/hollow-services@0.1.0", include = ["composition.rs"], description = "An edge's composition holds `Services` only with a service in it." },
-  { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["*_test.rs"], description = "A part's test has a `succeeds` row, and a `refuses` row where its errors.rs has a variant of its own." },
+  { rule = "idiomatic.arch/unit-cases@0.2.0", include = ["*_test.rs"], description = "A part's test has a `succeeds` row, and a `refuses` row where its errors.rs has a variant of its own." },
   { rule = "idiomatic.arch/schema-name@0.1.0", include = ["schemas.rs"], description = "A schemas.rs names its wire shapes <Name>Schema and their refusals <Name>SchemaError, converts with TryFrom and does nothing else." },
   { rule = "idiomatic.arch/schema-visibility@0.1.0", include = ["schemas.rs"], description = "Nothing in a part's schemas is visible beyond the module that owns them." },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder." },

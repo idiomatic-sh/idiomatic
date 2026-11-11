@@ -4,7 +4,9 @@ Places `benchmark` 0.2.2 (and through it `benchmark-linter` 0.2.2) and holds `be
 
 Edited in place: places `no-runtime-fixtures@0.2.0`, `public-fields@0.3.0`, `io-at-boundary@0.2.0`, where it named their earlier versions, so a product that places it locks one version of each rule: two versions of one rule share its id, and the earlier entries ran the later query.
 
-Edited in place: the `language-tastemaker` template writes `client-at-adapter` with an `include` that leaves the adapters out (`src/*.rs`, `src/domain/**`, `src/application/**`, `src/inbound/**`, `src/settings/**`, `src/outbound/*.rs`, `src/outbound/*/*.rs`, `benchmarks/**`, `tests/**`), where it excluded `**/adapters/**`: a rule that a client lives only in an adapter does not read the adapters, and the manifest needs no carve-out (`manifest-excludes`). Fixtures are test support and are no longer read.
+Edited in place: the `language-tastemaker` template writes `client-at-adapter` as `include = ["**"]` with no `exclude`, where it excluded `**/adapters/**`, `**/factory.rs`, `**/composition.rs`, `**/*_test.rs`, `**/tests/fixtures/**`, `**/tests/allocation.rs` and `**/tests/bdd.rs` (python also `src/fixtures/**`). `client-at-adapter@0.2.0` itself admits a file beneath an outbound port's `adapters/`, a port's `factory.rs` and an edge's `composition.rs`, so the manifest holds no carve-out; tests and fixtures are read, as the rule's contract covers them.
+
+Edited in place: places `unit-cases@0.2.0`, which reads a namespace `*_test.rs` with the tables of its groups.
 
 # language 0.4.2
 
