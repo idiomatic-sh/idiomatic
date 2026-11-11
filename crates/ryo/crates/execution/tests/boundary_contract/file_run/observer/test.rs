@@ -90,8 +90,8 @@ fn a_file_run_answers_the_same_with_or_without_the_counting_observer() {
 #[test]
 fn each_fused_step_is_counted_for_the_rows_it_was_fed() {
     use crate::shared_walk::fixtures::{compared, text, tree};
-    use ryo_execution::inbound::use_cases::execution::interface::FactsPort as _;
     use ryo_execution::inbound::use_cases::execution::interface::ObserverPort as _;
+    use ryo_execution_runtime::outbound::facts::interface::FactsPort as _;
     use ryo_values::domain::plan_parts::types::Test;
     let (engine, _) = crate::shared_walk::fixtures::engine();
     let mut input = authored_request(1);
