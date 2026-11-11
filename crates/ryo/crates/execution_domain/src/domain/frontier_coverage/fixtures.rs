@@ -49,7 +49,7 @@ pub(super) enum Partly {
 }
 
 /// What a file lacks, as a row writes it: none for any row, or the kind column and its kinds.
-pub(super) type Lack = Option<(ColumnIndex, Cow<'static, [Cow<'static, str>]>)>;
+type Lack = Option<(ColumnIndex, Cow<'static, [Cow<'static, str>]>)>;
 
 /// A coverage state as a row writes it.
 #[derive(Clone, Debug, PartialEq)]
@@ -244,4 +244,12 @@ pub(super) fn restored() -> Result<Restoration, OperatingError> {
         in_file_4: coverage(partial_of_lacks(restored_lacks(FileId(4), &affected))),
         restored: coverage(restored),
     })
+}
+
+/// File `file` lacks `variable` rows only.
+pub(super) const fn variable_in(file: u32) -> (Option<FileId>, Lack) {
+    (
+        Some(FileId(file)),
+        Some((KIND, Cow::Borrowed(&[Cow::Borrowed("variable")]))),
+    )
 }

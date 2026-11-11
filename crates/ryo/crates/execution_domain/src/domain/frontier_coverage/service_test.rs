@@ -1,7 +1,7 @@
 //! Physical completeness survives file-frontier conversion.
 use super::fixtures::{
-    Coverage, Frontier, KIND, Lack, Operator, Partly, Place, Restoration, coverage, frontier,
-    restored, through,
+    Coverage, Frontier, KIND, Operator, Partly, Place, Restoration, coverage, frontier, restored,
+    through, variable_in,
 };
 use super::service::file_frontier_coverage;
 use crate::domain::completion::service::partial_any;
@@ -34,14 +34,6 @@ enum Answer {
 type Input = Conversion;
 type Value = Answer;
 type Failure = OperatingError;
-
-/// File `file` lacks `variable` rows only.
-const fn variable_in(file: u32) -> (Option<FileId>, Lack) {
-    (
-        Some(FileId(file)),
-        Some((KIND, Cow::Borrowed(&[Cow::Borrowed("variable")]))),
-    )
-}
 
 /// A partial read of `defines` where only file 1 lacks `variable` rows.
 const ONLY_VARIABLE: Coverage = Coverage::Partial {
