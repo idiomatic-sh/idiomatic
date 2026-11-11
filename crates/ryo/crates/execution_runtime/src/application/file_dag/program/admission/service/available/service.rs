@@ -1,5 +1,5 @@
 //! Source availability: a published input or a first-borrow source inspected once.
-use super::super::{
+use crate::application::file_dag::program::admission::{
     service::AdmittedInput, service::AvailableBody, service::AvailableInput, service::Partition,
     service::ReadProof, types::ProducerRoot,
 };

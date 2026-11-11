@@ -14,7 +14,7 @@ let catalog = select * from named-structs where glob_any(name, "{KernelAdmission
 let issuer-records = select * from named-structs where glob_any(file, "{src,**/src}/application/file_dag/program/runtime/**/service.rs");
 let sealed = union(left=catalog, right=issuer-records);
 let wrong-runtime = select file, span from sealed where name != "AdmittedInput" and name != "BorrowedInput" and not glob_any(file, "{src,**/src}/application/file_dag/program/runtime/**/service.rs");
-let wrong-program-admission = select file, span from sealed where name = "AdmittedInput" and not glob_any(file, "{src,**/src}/application/file_dag/program/admission.rs");
+let wrong-program-admission = select file, span from sealed where name = "AdmittedInput" and not glob_any(file, "{src,**/src}/application/file_dag/program/admission/service.rs");
 let wrong-relation-admission = select file, span from sealed where name = "BorrowedInput" and not glob_any(file, "{src,**/src}/application/file_dag/relations/admission/service.rs");
 let wrong-admission = union(left=wrong-program-admission, right=wrong-relation-admission);
 let lists = select r.child as list from sealed as l join "syntax-child" as r on l.id = r.parent;
@@ -75,7 +75,8 @@ pub(in crate::application::file_dag::program) struct KernelPermit { region: usiz
 fn issue() -> KernelAdmission { KernelAdmission { execution: (), region: 0 } }
 '''
 files.'src/application/file_dag/program/runtime/types.rs' = 'pub(super) struct WorkCount(pub usize);'
-files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct AdmittedInput { proof: () }'
+files.'src/application/file_dag/program/admission.rs' = 'pub(super) mod service;'
+files.'src/application/file_dag/program/admission/service.rs' = 'pub(crate) struct AdmittedInput { proof: () }'
 files.'src/application/file_dag/program/runtime.rs' = 'pub(super) mod types; pub(super) mod service;'
 files.'src/application/file_dag/program/kernel_session.rs' = 'fn consume(_: &super::runtime::service::KernelPermit) {}'
 
@@ -104,8 +105,8 @@ then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs",
 [[scenarios]]
 id = "input-field-public-is-not-private"
 scenario = "A public admitted proof would bypass the sealed record."
-given.files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct AdmittedInput { pub proof: () }'
-then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }]
+given.files.'src/application/file_dag/program/admission/service.rs' = 'pub(crate) struct AdmittedInput { pub proof: () }'
+then.findings = [{ path = "src/application/file_dag/program/admission/service.rs", line = 1 }]
 
 [[scenarios]]
 id = "state-field-super-is-not-private"
@@ -318,28 +319,28 @@ given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) 
 [[scenarios]]
 id = "program-proof-alias-cannot-regain-parent-fields"
 scenario = "The qualified program-proof alias path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
-given.files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct AdmittedInput { pub(super) root: usize }'
-given.files.'src/application/file_dag/program.rs' = 'mod runtime; mod admission; mod kernel_session; use self::admission::AdmittedInput as Authority; fn forge(value: Authority) -> Authority { Authority { root: 0, ..value } }'
-then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }]
+given.files.'src/application/file_dag/program/admission/service.rs' = 'pub(crate) struct AdmittedInput { pub(super) root: usize }'
+given.files.'src/application/file_dag/program.rs' = 'mod runtime; mod admission; mod kernel_session; use self::admission::service::AdmittedInput as Authority; fn forge(value: Authority) -> Authority { Authority { root: 0, ..value } }'
+then.findings = [{ path = "src/application/file_dag/program/admission/service.rs", line = 1 }]
 
 [[scenarios]]
 id = "program-proof-self-cannot-regain-parent-fields"
 scenario = "The qualified program-proof self path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
-given.files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct AdmittedInput { pub(super) root: usize }'
-given.files.'src/application/file_dag/program.rs' = 'mod runtime; mod admission; mod kernel_session; use self::admission::AdmittedInput as Authority; impl Authority { fn forge(value: Self) -> Self { Self { root: 0, ..value } } }'
-then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }]
+given.files.'src/application/file_dag/program/admission/service.rs' = 'pub(crate) struct AdmittedInput { pub(super) root: usize }'
+given.files.'src/application/file_dag/program.rs' = 'mod runtime; mod admission; mod kernel_session; use self::admission::service::AdmittedInput as Authority; impl Authority { fn forge(value: Self) -> Self { Self { root: 0, ..value } } }'
+then.findings = [{ path = "src/application/file_dag/program/admission/service.rs", line = 1 }]
 
 [[scenarios]]
 id = "program-proof-retarget-cannot-regain-parent-fields"
 scenario = "The qualified program-proof retarget path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
-given.files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct AdmittedInput { pub(super) root: usize }'
-given.files.'src/application/file_dag/program.rs' = 'mod runtime; mod admission; mod kernel_session; use self::admission::AdmittedInput as Authority; fn retarget(value: &mut Authority) { value.root = 0; }'
-then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }]
+given.files.'src/application/file_dag/program/admission/service.rs' = 'pub(crate) struct AdmittedInput { pub(super) root: usize }'
+given.files.'src/application/file_dag/program.rs' = 'mod runtime; mod admission; mod kernel_session; use self::admission::service::AdmittedInput as Authority; fn retarget(value: &mut Authority) { value.root = 0; }'
+then.findings = [{ path = "src/application/file_dag/program/admission/service.rs", line = 1 }]
 
 [[scenarios]]
 id = "program-proof-issuer-alias-and-self-remain-private"
 scenario = "The actual qualified issuer may construct and retarget its private representation through aliases and Self."
-given.files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct AdmittedInput { root: usize } use self::AdmittedInput as Authority; impl Authority { fn issue(value: Self) -> Self { Self { root: 0, ..value } } } fn retarget(value: &mut Authority) { value.root = 0; }'
+given.files.'src/application/file_dag/program/admission/service.rs' = 'pub(crate) struct AdmittedInput { root: usize } use self::AdmittedInput as Authority; impl Authority { fn issue(value: Self) -> Self { Self { root: 0, ..value } } } fn retarget(value: &mut Authority) { value.root = 0; }'
 
 [[scenarios]]
 id = "relation-proof-alias-cannot-regain-parent-fields"

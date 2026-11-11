@@ -1,5 +1,5 @@
 //! Generation, request and partition identity: what a partition supplies and who it matches.
-use super::super::{
+use crate::application::file_dag::program::admission::{
     service::ApplicabilityProof, service::FileGeneration, service::Partition, types::Agreement,
     types::PartitionSupply, types::RequiredPartitions,
 };

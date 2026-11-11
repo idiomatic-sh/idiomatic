@@ -1,5 +1,5 @@
 //! The admitted input: identity, rows, coverage and generation validation.
-use super::super::{
+use crate::application::file_dag::program::admission::{
     service::AdmittedInput, service::AdmittedWalkSource, service::Partition,
     service::PopulationProof, service::ReadProof, types::Agreement, types::ObservationReadiness,
     types::PartitionSupply, types::ProducerRoot,

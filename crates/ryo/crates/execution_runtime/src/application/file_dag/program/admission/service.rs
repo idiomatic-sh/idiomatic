@@ -1,5 +1,9 @@
 //! The `admission` application operation.
 
+mod admitted;
+mod available;
+mod partitions;
+
 use super::types::{AliasMember, AliasSlot, PartitionSupply, ProducerRoot, RequiredPartitions};
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
@@ -55,11 +59,11 @@ pub(super) struct PopulationProof {
 
 #[derive(Clone)]
 pub(crate) struct AdmittedInput {
-    pub(super) proof: PopulationProof,
-    pub(super) root: ProducerRoot,
-    pub(super) partition: Partition,
-    pub(super) readiness: ryo_execution_domain::domain::completion::types::CoverageState,
-    pub(super) publication: Publication,
+    proof: PopulationProof,
+    root: ProducerRoot,
+    partition: Partition,
+    readiness: ryo_execution_domain::domain::completion::types::CoverageState,
+    publication: Publication,
 }
 
 /// Source availability does not authorize a kernel or expose a deferred geometry refusal.
