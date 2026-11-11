@@ -1,7 +1,5 @@
-//! Generation-local sharing, exact identity and bounded admission through the real owner.
-use crate::cases::{Case, CaseName, Expect, Word, run};
-
-use super::super::super::fixtures::{ENDPOINTS, SOURCE, rows};
+//! The asks of the `sharing` cases and what each observed.
+use crate::application::file_dag::derived::owner::graphs::fixtures::{ENDPOINTS, SOURCE, rows};
 use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
 use crate::application::file_dag::derived::owner::{
     fixtures::graph::GraphFixture, index::service::LIMIT,
@@ -13,109 +11,93 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput};
 use std::borrow::Cow;
 use std::sync::Arc;
 
-/// The source a graph is asked over, and what the owner does around the asks.
-#[derive(Clone, Copy, Debug)]
-enum Asked {
-    /// The edges 1 -> 2, 2 -> 3 (twice) and 90 -> 91, acquired twice and once reversed, and
-    /// reached from 1 each time.
-    Repeated,
-    /// The edges 1 -> 2 -> 3 under no budget, then under a graph-less owner.
-    WithoutBudget,
-    /// A partial population, a ragged one, then two generations of different facts.
-    Unusable,
-    /// The edges 1 -> 2 -> 3 -> 4 -> 5 while an index on its first column is live, then dormant.
-    BesideAnIndex,
-    /// The edges 1 -> 2 -> 3 and the identifiers {3}, then the owner retires its caches.
-    Retired,
-}
-
 /// What repeated asks of one source observed.
 #[derive(Debug, PartialEq)]
-struct Repeated {
-    reached: Cow<'static, [CellValue]>,
-    first: (u64, u64, u64),
-    one_graph: bool,
-    one_answer: bool,
-    shared: (u64, u64, u64, u64),
-    reverse: Orientation,
-    reverse_one_graph: bool,
-    within_limit: bool,
+pub(super) struct Repeated {
+    pub(super) reached: Cow<'static, [CellValue]>,
+    pub(super) first: (u64, u64, u64),
+    pub(super) one_graph: bool,
+    pub(super) one_answer: bool,
+    pub(super) shared: (u64, u64, u64, u64),
+    pub(super) reverse: Orientation,
+    pub(super) reverse_one_graph: bool,
+    pub(super) within_limit: bool,
 }
 
 /// What asks under no budget observed.
 #[derive(Debug, PartialEq)]
-struct Unbudgeted {
-    sharing: GraphSharing,
-    graphs: usize,
-    optional_bytes_unchanged: bool,
-    backings: usize,
-    answered: bool,
-    walked: usize,
-    refusals: u64,
-    backings_after_drop: usize,
-    graphless_acquired: bool,
-    graphless_graphs: usize,
+pub(super) struct Unbudgeted {
+    pub(super) sharing: GraphSharing,
+    pub(super) graphs: usize,
+    pub(super) optional_bytes_unchanged: bool,
+    pub(super) backings: usize,
+    pub(super) answered: bool,
+    pub(super) walked: usize,
+    pub(super) refusals: u64,
+    pub(super) backings_after_drop: usize,
+    pub(super) graphless_acquired: bool,
+    pub(super) graphless_graphs: usize,
 }
 
 /// What asks of unusable populations and changed generations observed.
 #[derive(Debug, PartialEq)]
-struct Unusable {
-    partial_acquired: bool,
-    ragged_acquired: bool,
-    one_graph_across_generations: bool,
-    builds: u64,
-    reuses: u64,
-    same_vertices: bool,
+pub(super) struct Unusable {
+    pub(super) partial_acquired: bool,
+    pub(super) ragged_acquired: bool,
+    pub(super) one_graph_across_generations: bool,
+    pub(super) builds: u64,
+    pub(super) reuses: u64,
+    pub(super) same_vertices: bool,
 }
 
 /// What asks beside an index observed.
 #[derive(Debug, PartialEq)]
-struct BesideAnIndex {
-    graph_costs: bool,
-    indexes: usize,
-    index_retains_view_bytes: bool,
-    while_live: GraphSharing,
-    indexes_while_live: usize,
-    pinned_refusals: u64,
-    backings_while_live: usize,
-    once_dormant: GraphSharing,
-    indexes_once_dormant: usize,
-    capacity_kept: bool,
-    reclaimed_indexes: u64,
-    retained_view_bytes: usize,
-    reclaimed_the_view: bool,
-    optional_within_limit: bool,
-    one_graph: bool,
-    same_vertices: bool,
-    same_forward: bool,
-    same_backward: bool,
-    builds: u64,
+pub(super) struct BesideAnIndex {
+    pub(super) graph_costs: bool,
+    pub(super) indexes: usize,
+    pub(super) index_retains_view_bytes: bool,
+    pub(super) while_live: GraphSharing,
+    pub(super) indexes_while_live: usize,
+    pub(super) pinned_refusals: u64,
+    pub(super) backings_while_live: usize,
+    pub(super) once_dormant: GraphSharing,
+    pub(super) indexes_once_dormant: usize,
+    pub(super) capacity_kept: bool,
+    pub(super) reclaimed_indexes: u64,
+    pub(super) retained_view_bytes: usize,
+    pub(super) reclaimed_the_view: bool,
+    pub(super) optional_within_limit: bool,
+    pub(super) one_graph: bool,
+    pub(super) same_vertices: bool,
+    pub(super) same_forward: bool,
+    pub(super) same_backward: bool,
+    pub(super) builds: u64,
 }
 
 /// What asks after the owner retired its caches observed.
 #[derive(Debug, PartialEq)]
-struct Retired {
-    graphs: usize,
-    domains: usize,
-    required_leased: bool,
-    graphs_retired: usize,
-    domains_retired: usize,
-    retained_view_bytes: usize,
-    optional_bytes: usize,
-    held_still_charged: bool,
-    metadata_released: bool,
-    only_required_left: bool,
-    graph_still_read: bool,
-    domain_still_read: bool,
-    reach: Option<OperatingError>,
-    nearest: Option<OperatingError>,
-    required_after_drop: usize,
-    unique_after_drop: usize,
+pub(super) struct Retired {
+    pub(super) graphs: usize,
+    pub(super) domains: usize,
+    pub(super) required_leased: bool,
+    pub(super) graphs_retired: usize,
+    pub(super) domains_retired: usize,
+    pub(super) retained_view_bytes: usize,
+    pub(super) optional_bytes: usize,
+    pub(super) held_still_charged: bool,
+    pub(super) metadata_released: bool,
+    pub(super) only_required_left: bool,
+    pub(super) graph_still_read: bool,
+    pub(super) domain_still_read: bool,
+    pub(super) reach: Option<OperatingError>,
+    pub(super) nearest: Option<OperatingError>,
+    pub(super) required_after_drop: usize,
+    pub(super) unique_after_drop: usize,
 }
 
 /// What the asks observed.
 #[derive(Debug, PartialEq)]
-enum Observed {
+pub(super) enum Observed {
     Repeated(Repeated),
     Unbudgeted(Unbudgeted),
     Unusable(Unusable),
@@ -123,123 +105,7 @@ enum Observed {
     Retired(Retired),
 }
 
-type Input = Asked;
-type Value = Observed;
-type Failure = OperatingError;
-
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("shared_adjacency_builds_once_and_sparse_root_memo_avoids_retraversal"),
-        word: Word::Succeeds,
-        input: || Asked::Repeated,
-        expect: Expect::Value(Observed::Repeated(Repeated {
-            reached: Cow::Borrowed(&[CellValue::Number(Integer(2)), CellValue::Number(Integer(3))]),
-            first: (1, 1, 3),
-            one_graph: true,
-            one_answer: true,
-            shared: (1, 1, 1, 1),
-            reverse: Orientation::Reverse,
-            reverse_one_graph: true,
-            within_limit: true,
-        })),
-    },
-    Case {
-        name: CaseName("budget_refusal_keeps_complete_local_graph_without_retaining_handles"),
-        word: Word::Succeeds,
-        input: || Asked::WithoutBudget,
-        expect: Expect::Value(Observed::Unbudgeted(Unbudgeted {
-            sharing: GraphSharing::Local,
-            graphs: 0,
-            optional_bytes_unchanged: true,
-            backings: 1,
-            answered: false,
-            walked: 2,
-            refusals: 1,
-            backings_after_drop: 0,
-            graphless_acquired: false,
-            graphless_graphs: 0,
-        })),
-    },
-    Case {
-        name: CaseName("physical_partiality_ragged_views_and_next_generation_never_hit_old_graphs"),
-        word: Word::Succeeds,
-        input: || Asked::Unusable,
-        expect: Expect::Value(Observed::Unusable(Unusable {
-            partial_acquired: false,
-            ragged_acquired: false,
-            one_graph_across_generations: false,
-            builds: 1,
-            reuses: 0,
-            same_vertices: false,
-        })),
-    },
-    Case {
-        name: CaseName(
-            "adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_is_live",
-        ),
-        word: Word::Succeeds,
-        input: || Asked::BesideAnIndex,
-        expect: Expect::Value(Observed::BesideAnIndex(BesideAnIndex {
-            graph_costs: true,
-            indexes: 1,
-            index_retains_view_bytes: true,
-            while_live: GraphSharing::Local,
-            indexes_while_live: 1,
-            pinned_refusals: 1,
-            backings_while_live: 1,
-            once_dormant: GraphSharing::Shared,
-            indexes_once_dormant: 0,
-            capacity_kept: true,
-            reclaimed_indexes: 1,
-            retained_view_bytes: 0,
-            reclaimed_the_view: true,
-            optional_within_limit: true,
-            one_graph: true,
-            same_vertices: true,
-            same_forward: true,
-            same_backward: true,
-            builds: 1,
-        })),
-    },
-    Case {
-        name: CaseName(
-            "retired_immutable_handles_keep_their_lease_but_cannot_authorize_new_demands",
-        ),
-        word: Word::Succeeds,
-        input: || Asked::Retired,
-        expect: Expect::Value(Observed::Retired(Retired {
-            graphs: 1,
-            domains: 1,
-            required_leased: true,
-            graphs_retired: 0,
-            domains_retired: 0,
-            retained_view_bytes: 0,
-            optional_bytes: 0,
-            held_still_charged: true,
-            metadata_released: true,
-            only_required_left: true,
-            graph_still_read: true,
-            domain_still_read: true,
-            reach: Some(OperatingError::NotRead),
-            nearest: Some(OperatingError::NotRead),
-            required_after_drop: 0,
-            unique_after_drop: 0,
-        })),
-    },
-];
-
-/// Asks the owner for the graph as the input says.
-fn subject(input: Input) -> Result<Value, Failure> {
-    Ok(match input {
-        Asked::Repeated => Observed::Repeated(repeated()?),
-        Asked::WithoutBudget => Observed::Unbudgeted(unbudgeted()?),
-        Asked::Unusable => Observed::Unusable(unusable()?),
-        Asked::BesideAnIndex => Observed::BesideAnIndex(beside_an_index()?),
-        Asked::Retired => Observed::Retired(retired()?),
-    })
-}
-
-fn repeated() -> Result<Repeated, OperatingError> {
+pub(super) fn repeated() -> Result<Repeated, OperatingError> {
     let columns = [FactColumn(vec![1, 2, 1, 90]), FactColumn(vec![2, 3, 2, 91])];
     let rows = rows(&columns);
     let fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
@@ -289,7 +155,7 @@ fn repeated() -> Result<Repeated, OperatingError> {
     })
 }
 
-fn unbudgeted() -> Result<Unbudgeted, OperatingError> {
+pub(super) fn unbudgeted() -> Result<Unbudgeted, OperatingError> {
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
     let rows = rows(&columns);
     let fixture = GraphFixture::new(&[Relation::Function], &[], 0);
@@ -322,7 +188,7 @@ fn unbudgeted() -> Result<Unbudgeted, OperatingError> {
     })
 }
 
-fn unusable() -> Result<Unusable, OperatingError> {
+pub(super) fn unusable() -> Result<Unusable, OperatingError> {
     use ryo_execution_domain::domain::coverage::types::{Lacking, LackingKind, Partial};
     use ryo_values::domain::stored_facts::types::PartialCause;
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
@@ -360,7 +226,7 @@ fn unusable() -> Result<Unusable, OperatingError> {
     })
 }
 
-fn beside_an_index() -> Result<BesideAnIndex, OperatingError> {
+pub(super) fn beside_an_index() -> Result<BesideAnIndex, OperatingError> {
     use ryo_derived::domain::vertices::types::EdgeDirection;
     let columns = [FactColumn(vec![1, 2, 3, 4]), FactColumn(vec![2, 3, 4, 5])];
     let rows = rows(&columns);
@@ -408,7 +274,7 @@ fn beside_an_index() -> Result<BesideAnIndex, OperatingError> {
     })
 }
 
-fn retired() -> Result<Retired, OperatingError> {
+pub(super) fn retired() -> Result<Retired, OperatingError> {
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
     let edges = rows(&columns);
     let fixture = GraphFixture::new(&[Relation::Function, Relation::Identifier], &[], LIMIT);
@@ -470,9 +336,4 @@ fn retired() -> Result<Retired, OperatingError> {
         required_after_drop: released.required_bytes,
         unique_after_drop: released.unique_bytes,
     })
-}
-
-#[test]
-fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
 }

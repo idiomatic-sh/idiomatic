@@ -1,7 +1,10 @@
 //! Actual view acquisition consumes one immutable proof and refuses stale/mismatched publications.
 use super::super::super::service::*;
 use super::super::super::types::*;
-use super::fixtures::{context, owner, table, use_};
+use super::fixtures::{
+    Answered, Held, TwoRights, TwoViews, context, equality_on_first, ordered_key, owner, table,
+    use_,
+};
 use crate::application::file_dag::derived::owner::service::ViewContext;
 use crate::application::file_dag::derived::owner::types::BuildCount;
 use crate::application::file_dag::relations::handle::service::Publication;
@@ -19,76 +22,10 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use std::rc::Rc;
 
-/// What a workspace holds when a one-number input is admitted or its views acquired.
-#[derive(Clone, Copy, Debug)]
-enum Held {
-    /// No publications captured; a raw table is admitted.
-    Nothing,
-    /// One slot with no publication; a raw table is admitted.
-    EmptySlot,
-    /// The captured publication of the table `7`; its resolved rows are admitted.
-    Captured,
-    /// The captured publication; the raw table, not its resolved rows, is admitted.
-    Unpublished,
-    /// The captured publication after its population was released; its rows are admitted.
-    Released,
-    /// The publication of `3, 1, 3` and its equality and membership views, read 16 times.
-    TwoViews(usize),
-    /// A left publication and two right publications of `(9, 0)` then `(4, 0)`, each joined by
-    /// ordered keys; then an unpublished right table.
-    TwoRights([i64; 2]),
-    /// A ragged `LanguageTarget` source, normalized; then a transformed table and an empty slot.
-    Normalized,
-    /// Publications of `9` then `4`, each captured in turn.
-    Recaptured([i64; 2]),
-}
-
-/// What two views of one admitted input observed.
-#[derive(Debug, PartialEq)]
-struct TwoViews {
-    index_rows: usize,
-    membership_values: usize,
-    inspections: u64,
-    expired: Option<OperatingError>,
-    built_after_expiry: bool,
-}
-
-/// What two right publications observed.
-#[derive(Debug, PartialEq)]
-struct TwoRights {
-    right_keys: [Option<CellValue>; 2],
-    distinct_views: bool,
-    retained_keys: [Option<CellValue>; 2],
-    builds: BuildCount,
-    unpublished: Option<OperatingError>,
-}
-
-/// What the workspace answered.
-#[derive(Debug, PartialEq)]
-enum Answered {
-    /// The admitted input's relation and kinds.
-    Admitted {
-        relation: Option<Relation>,
-        kinds: [CellKind; 1],
-    },
-    TwoViews(TwoViews),
-    TwoRights(TwoRights),
-    /// The rows the normalized input's index holds against the normalized count, and the
-    /// refusals of a transformed table and of an empty slot.
-    Normalized {
-        indexes_every_row: bool,
-        transformed: Option<OperatingError>,
-        empty_slot: Option<OperatingError>,
-    },
-    /// Whether the two captures' views are distinct storages, and the builds.
-    Recaptured {
-        distinct: bool,
-        builds: BuildCount,
-    },
-}
-
 type Input = Held;
+
 type Value = Answered;
+
 type Failure = OperatingError;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -180,32 +117,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-fn equality_on_first(width: usize) -> contract::value::PreparedViewUse {
-    let kinds = vec![CellKind::Number; width];
-    use_(
-        DerivedKind::Equality,
-        ViewRequest::Equality {
-            columns: vec![ColumnIndex(0)],
-        },
-        &[&kinds],
-        1,
-    )
-}
-
-fn ordered_key(
-    view: &crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
-) -> Option<CellValue> {
-    let DerivedView::OrderedKeys(rows) = view.view().ok()? else {
-        return None;
-    };
-    match rows.right[0].keys[0] {
-        ryo_derived::domain::ordered::types::OwnedOrderedKey::Value(value) => Some(value),
-        _ => None,
-    }
-}
-
 /// Builds the workspace the input holds and admits or acquires through it.
-fn subject(input: Input) -> Result<Value, Failure> {
+fn subject(input: Held) -> Result<Answered, OperatingError> {
     let owner = owner();
     let mut workspace = InvocationWorkspace::new(Rc::clone(&owner));
     let (mut symbols, mut scratch, mut memo) = (Symbols::default(), Default::default(), vec![]);

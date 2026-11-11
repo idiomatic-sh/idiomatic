@@ -116,11 +116,7 @@ const fn counted(
 
 /// The id as a row states it: ids beyond 32 bits are allocation addresses.
 fn id(id: usize) -> Id {
-    if u32::try_from(id).is_ok() {
-        Id::Named(id)
-    } else {
-        Id::Allocated
-    }
+    u32::try_from(id).map_or(Id::Allocated, |_| Id::Named(id))
 }
 
 /// A counted key as a row states it.

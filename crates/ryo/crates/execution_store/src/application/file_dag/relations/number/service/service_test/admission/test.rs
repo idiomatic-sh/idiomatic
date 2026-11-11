@@ -15,7 +15,7 @@ use ryo_relations::domain::relations::{
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
 use std::sync::Arc;
-/// The producers, populations and sources the owner's numbers and releases are asked about.
+/// The producers, populations and sources whose numbers and releases the owner is asked about.
 #[derive(Clone, Copy, Debug)]
 enum Asked {
     /// A stored `SourceLocation` source bound to producer 7: its number asked by producer 7 and

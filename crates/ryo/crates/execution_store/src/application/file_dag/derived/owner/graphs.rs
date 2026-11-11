@@ -7,5 +7,3 @@ pub mod types;
 
 #[cfg(test)]
 mod fixtures;
-#[cfg(test)]
-mod service_test;
