@@ -1,4 +1,8 @@
 //! Shared inbound contract rows for pure metadata decisions.
+#[cfg(test)]
+use super::interface::{Bearing, Blocking, KindOrigin};
+#[cfg(test)]
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::descriptions::types::KindVocabularies;
 use ryo_values::domain::descriptions::types::KindVocabulary;
@@ -17,6 +21,10 @@ use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::plans::types::PlanStep;
+#[cfg(test)]
+use ryo_values::domain::query_operators::types::QueryOperator;
+#[cfg(test)]
+use std::borrow::Cow;
 
 pub mod contract;
 
@@ -87,4 +95,69 @@ pub fn example_unknown_relations(example: &str) -> usize {
                 && relation_named(NameRef(quoted)).is_none()
         })
         .count()
+}
+/// What a metadata question answers.
+#[cfg(test)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum Expected {
+    /// The operators, those the contract described, those whose description lacks a name, a
+    /// summary or an example, and the relations their examples name that the catalog lacks.
+    Catalog {
+        operators: Cow<'static, [QueryOperator]>,
+        described: usize,
+        incomplete: usize,
+        unknown_relations: usize,
+    },
+    /// The kinds asked, whether the plan is refused, and whether a first unknown kind is found.
+    KnownKind {
+        asked: usize,
+        refused: bool,
+        unknown: bool,
+    },
+    /// The globs placed, the rules governing before and after the unplace, and whether the file is governed.
+    Placement {
+        globs: Cow<'static, [Cow<'static, str>]>,
+        before: usize,
+        after: usize,
+        governed: bool,
+    },
+    /// The relations read in part.
+    Recovery(Cow<'static, [Relation]>),
+    /// The relations read, the observed reads, how the failed read bears and blocks, and each
+    /// unknown's path and rule and whether its message is the file's unknown message.
+    Trust {
+        reads: Cow<'static, [Relation]>,
+        observed: usize,
+        bearing: Bearing,
+        blocking: Blocking,
+        unknowns: Cow<'static, [(Cow<'static, str>, Cow<'static, str>, bool)]>,
+    },
+    /// The step's work, the rows fed to the select and to the relation, and whether the feature
+    /// catalog lists the select.
+    Features {
+        work: u64,
+        select: u64,
+        relation: u64,
+        catalogued: bool,
+    },
+    /// The affected file ordinals.
+    Affected(Cow<'static, [usize]>),
+}
+/// What a metadata question is refused with.
+#[cfg(test)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum Refusal {
+    /// The refusal's message and origin, the first unknown's rule and word, and whether the
+    /// refusal is the unknown kind message.
+    Kind {
+        message: Cow<'static, str>,
+        origin: KindOrigin,
+        rule: usize,
+        word: Cow<'static, str>,
+        as_message: bool,
+    },
+    /// An observation's incompleteness, with its reason.
+    Incomplete(Cow<'static, str>),
+    /// Any other coverage refusal.
+    Coverage(OperatingError),
 }

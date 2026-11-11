@@ -303,10 +303,12 @@ fn pattern_builds(count: usize) -> Result<Compiled, RuleCompilationError> {
     let mut matched = 0;
     for _file in 0..2 {
         for pattern in &patterns {
-            matched += usize::from(matches!(
-                slots.regex(TextView(pattern), matcher),
-                Some(Ok(_))
-            ));
+            matched += usize::from(
+                slots
+                    .regex(TextView(pattern), matcher)
+                    .and_then(Result::ok)
+                    .is_some(),
+            );
         }
     }
     let oversized = "(?:[a-z]{1000}){1000}";
