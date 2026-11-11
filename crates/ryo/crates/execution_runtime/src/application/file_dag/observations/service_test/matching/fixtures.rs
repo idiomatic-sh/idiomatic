@@ -1,18 +1,15 @@
 //! The support of the `matching` cases.
 use super::super::fixtures::{self, DeclaredFileProducers, Fixture, FrontierSlots, Names};
-#[cfg(test)]
-use crate::cases::{Case, CaseName, Expect, Word};
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     executable_program::{
         service::compile,
-        types::{InputSource, ObservationPlace},
+        types::InputSource,
     },
     observation_schedule::types::ResolvedObservationProducer,
     operating::errors::OperatingError,
 };
 use ryo_values::domain::observations::types::{ObservationBindingName, ObservationColumnName};
-use ryo_values::domain::records::types::ObservationIndex;
 use std::borrow::Cow;
 
 pub(super) fn fixture(frontier: FrontierSlots) -> Fixture {
@@ -29,24 +26,20 @@ pub(super) fn fixture(frontier: FrontierSlots) -> Fixture {
 /// The request's frontier slots, and the rule the first declared slot is moved to when it is.
 #[derive(Clone, Copy)]
 pub(super) struct Slots {
-    frontier: FrontierSlots,
-    moved_first_slot: Option<usize>,
+    pub(super) frontier: FrontierSlots,
+    pub(super) moved_first_slot: Option<usize>,
 }
-
-pub(crate) type Input = Slots;
 
 /// What the observation metadata and the compiled program state about the two local inputs.
 #[derive(Debug, PartialEq)]
 pub(super) struct Compiled {
     /// The rule of each request-qualified slot.
-    slot_rules: Cow<'static, [usize]>,
+    pub(super) slot_rules: Cow<'static, [usize]>,
     /// The first producer of rules 2 and 3's first binding.
-    producers: [Option<ResolvedObservationProducer>; 2],
+    pub(super) producers: [Option<ResolvedObservationProducer>; 2],
     /// The first frontier source of rules 2 and 3.
-    frontiers: [InputSource; 2],
+    pub(super) frontiers: [InputSource; 2],
 }
-
-pub(crate) type Value = Compiled;
 
 /// Why rule 2's first frontier is refused.
 #[derive(Debug, PartialEq)]
@@ -57,64 +50,13 @@ pub(super) enum Refusal {
 /// A refused rule 2 frontier, and the frontier source rule 3 still answers.
 #[derive(Debug, PartialEq)]
 pub(super) struct Refused {
-    refusal: Refusal,
-    sibling: Option<InputSource>,
+    pub(super) refusal: Refusal,
+    pub(super) sibling: Option<InputSource>,
 }
 
-pub(crate) type Failure = Refused;
-
-const fn output(rule: usize) -> Option<ResolvedObservationProducer> {
-    Some(ResolvedObservationProducer::Output {
-        rule: RuleIndex(rule),
-        output: ObservationIndex(0),
-    })
-}
-
-pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("two_local_zero_inputs_keep_their_distinct_request_producers"),
-        word: Word::Succeeds,
-        input: || Slots {
-            frontier: FrontierSlots::Declared,
-            moved_first_slot: None,
-        },
-        expect: Expect::Value(Compiled {
-            slot_rules: Cow::Borrowed(&[2, 3]),
-            producers: [output(0), output(1)],
-            frontiers: [
-                InputSource::Observation(ObservationPlace(0)),
-                InputSource::Observation(ObservationPlace(1)),
-            ],
-        }),
-    },
-    Case {
-        name: CaseName("undeclared_frontier_ordinal_is_a_typed_refusal"),
-        word: Word::Refuses,
-        input: || Slots {
-            frontier: FrontierSlots::UndeclaredFirst,
-            moved_first_slot: None,
-        },
-        expect: Expect::Error(Refused {
-            refusal: Refusal::ObservationIncomplete,
-            sibling: Some(InputSource::Observation(ObservationPlace(1))),
-        }),
-    },
-    Case {
-        name: CaseName("declared_local_input_without_its_qualified_slot_is_a_typed_refusal"),
-        word: Word::Refuses,
-        input: || Slots {
-            frontier: FrontierSlots::Declared,
-            moved_first_slot: Some(99),
-        },
-        expect: Expect::Error(Refused {
-            refusal: Refusal::ObservationIncomplete,
-            sibling: Some(InputSource::Observation(ObservationPlace(1))),
-        }),
-    },
-];
 
 /// Compiles the request with its slots and reads rules 2 and 3's first frontier sources.
-pub(crate) fn subject(slots: Input) -> Result<Value, Failure> {
+pub(super) fn exercise(slots: Slots) -> Result<Compiled, Refused> {
     let Fixture {
         plans,
         mut graph,

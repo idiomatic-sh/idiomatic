@@ -277,63 +277,26 @@ pub(in super::super) enum Refusal {
     MissingSubmission,
 }
 
-pub(crate) type Input = Submission;
-
 /// What runtime admission served: the dispatches, the distinct obligations, the ready heads,
 /// and the submissions the adapter omitted.
 #[derive(Debug, PartialEq)]
 pub(in super::super) struct Admitted {
-    dispatches: usize,
-    obligations: usize,
-    heads: usize,
-    skipped: usize,
+    pub(in super::super) dispatches: usize,
+    pub(in super::super) obligations: usize,
+    pub(in super::super) heads: usize,
+    pub(in super::super) skipped: usize,
 }
-
-pub(crate) type Value = Admitted;
 
 /// The refusal, what was admitted, and how many obligations were never served.
 #[derive(Debug, PartialEq)]
 pub(in super::super) struct Unserved {
-    refusal: Refusal,
-    admitted: Admitted,
-    unserved: usize,
+    pub(in super::super) refusal: Refusal,
+    pub(in super::super) admitted: Admitted,
+    pub(in super::super) unserved: usize,
 }
 
-pub(crate) type Failure = Unserved;
-
-pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("runtime obligations precede actual ready callbacks and equivalent replay"),
-        word: Word::Succeeds,
-        input: || Submission::Actual,
-        expect: Expect::Value(Admitted {
-            dispatches: 2,
-            obligations: 4,
-            heads: 5,
-            skipped: 0,
-        }),
-    },
-    Case {
-        name: CaseName(
-            "omitting one actual ready submission preserves its obligation while other dispatches continue",
-        ),
-        word: Word::Rejects,
-        input: || Submission::Omitted,
-        expect: Expect::Error(Unserved {
-            refusal: Refusal::MissingSubmission,
-            admitted: Admitted {
-                dispatches: 2,
-                obligations: 4,
-                heads: 5,
-                skipped: 1,
-            },
-            unserved: 1,
-        }),
-    },
-];
-
 /// Admits the corpus through the ready adapter and compares the obligations with those served.
-pub(crate) fn subject(submission: Input) -> Result<Value, Failure> {
+pub(in super::super) fn exercise(submission: Submission) -> Result<Admitted, Unserved> {
     let observed = observe(matches!(submission, Submission::Omitted));
     let admitted = Admitted {
         dispatches: observed.dispatches,

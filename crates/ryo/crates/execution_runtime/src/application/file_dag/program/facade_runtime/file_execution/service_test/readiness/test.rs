@@ -1,22 +1,53 @@
 //! The omission falsifier runs the actual runtime and all other KernelSession calls.
-use crate::cases::{Case, Word, run};
-/// The input, value and failure of a row, as the group's fixtures state them.
-type Input = super::fixtures::rows::Input;
-type Value = super::fixtures::rows::Value;
-type Failure = super::fixtures::rows::Failure;
+use super::fixtures::Submission;
+use super::fixtures::rows::{Admitted, Refusal, Unserved, exercise};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 
-/// The group's rows, stated with its fixtures.
-const CASES: &[Case<Input, Value, Failure>] = super::fixtures::rows::CASES;
+type Input = Submission;
+type Value = Admitted;
+type Failure = Unserved;
 
-/// Runs one row through the scenario its fixtures build.
-fn subject(input: Input) -> Result<Value, Failure> {
-    super::fixtures::rows::subject(input)
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("runtime obligations precede actual ready callbacks and equivalent replay"),
+        word: Word::Succeeds,
+        input: || Submission::Actual,
+        expect: Expect::Value(Admitted {
+            dispatches: 2,
+            obligations: 4,
+            heads: 5,
+            skipped: 0,
+        }),
+    },
+    Case {
+        name: CaseName(
+            "omitting one actual ready submission preserves its obligation while other dispatches continue",
+        ),
+        word: Word::Rejects,
+        input: || Submission::Omitted,
+        expect: Expect::Error(Unserved {
+            refusal: Refusal::MissingSubmission,
+            admitted: Admitted {
+                dispatches: 2,
+                obligations: 4,
+                heads: 5,
+                skipped: 1,
+            },
+            unserved: 1,
+        }),
+    },
+];
+
+/// Admits the corpus through the ready adapter and compares its obligations with those served.
+fn subject(submission: Input) -> Result<Value, Failure> {
+    exercise(submission)
 }
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
 #[test]
 fn rejects() {
     run(CASES, Word::Rejects, subject);

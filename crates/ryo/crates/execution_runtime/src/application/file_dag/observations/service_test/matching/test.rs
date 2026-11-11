@@ -1,24 +1,77 @@
 //! Request-qualified observation slots and the complete synthetic instruction census.
-#[cfg(test)]
-use crate::cases::{Case, Word, run};
+use super::fixtures::{Compiled, Refusal, Refused, Slots, exercise};
+use super::super::fixtures::FrontierSlots;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::executable_program::types::{InputSource, ObservationPlace};
+use ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationProducer;
+use ryo_values::domain::records::types::ObservationIndex;
+use std::borrow::Cow;
 
-/// The input, value and failure of a row, as the group's fixtures state them.
-type Input = super::fixtures::Input;
-type Value = super::fixtures::Value;
-type Failure = super::fixtures::Failure;
+type Input = Slots;
+type Value = Compiled;
+type Failure = Refused;
 
-/// The group's rows, stated with its fixtures.
-const CASES: &[Case<Input, Value, Failure>] = super::fixtures::CASES;
+const fn output(rule: usize) -> Option<ResolvedObservationProducer> {
+    Some(ResolvedObservationProducer::Output {
+        rule: RuleIndex(rule),
+        output: ObservationIndex(0),
+    })
+}
 
-/// Runs one row through the scenario its fixtures build.
-fn subject(input: Input) -> Result<Value, Failure> {
-    super::fixtures::subject(input)
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("two_local_zero_inputs_keep_their_distinct_request_producers"),
+        word: Word::Succeeds,
+        input: || Slots {
+            frontier: FrontierSlots::Declared,
+            moved_first_slot: None,
+        },
+        expect: Expect::Value(Compiled {
+            slot_rules: Cow::Borrowed(&[2, 3]),
+            producers: [output(0), output(1)],
+            frontiers: [
+                InputSource::Observation(ObservationPlace(0)),
+                InputSource::Observation(ObservationPlace(1)),
+            ],
+        }),
+    },
+    Case {
+        name: CaseName("undeclared_frontier_ordinal_is_a_typed_refusal"),
+        word: Word::Refuses,
+        input: || Slots {
+            frontier: FrontierSlots::UndeclaredFirst,
+            moved_first_slot: None,
+        },
+        expect: Expect::Error(Refused {
+            refusal: Refusal::ObservationIncomplete,
+            sibling: Some(InputSource::Observation(ObservationPlace(1))),
+        }),
+    },
+    Case {
+        name: CaseName("declared_local_input_without_its_qualified_slot_is_a_typed_refusal"),
+        word: Word::Refuses,
+        input: || Slots {
+            frontier: FrontierSlots::Declared,
+            moved_first_slot: Some(99),
+        },
+        expect: Expect::Error(Refused {
+            refusal: Refusal::ObservationIncomplete,
+            sibling: Some(InputSource::Observation(ObservationPlace(1))),
+        }),
+    },
+];
+
+/// Compiles the request with its slots and reads rules 2 and 3's first frontier sources.
+fn subject(slots: Input) -> Result<Value, Failure> {
+    exercise(slots)
 }
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);

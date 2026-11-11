@@ -25,7 +25,6 @@ use self::adapter::ReadyAdapter;
 use self::events::Events;
 use super::super::fixtures::*;
 use crate::application::file_dag::program::kernel_session::service::KernelSession;
-use crate::cases::{Case, CaseName, Expect, Word};
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 use std::cell::Cell as Counter;
 use std::collections::{BTreeMap, BTreeSet};
