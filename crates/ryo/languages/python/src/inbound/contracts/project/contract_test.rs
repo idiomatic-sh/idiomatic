@@ -184,7 +184,7 @@ const SCENARIOS: &[Case<Scenario, &'static str, ()>] = &[
         name: CaseName("module_identity_only_preserves_inputs_without_projecting_or_validating"),
         word: Word::Succeeds,
         input: || Scenario::ModuleIdentityOnly,
-        expect: Expect::Value("1|true|true|true|true"),
+        expect: Expect::Value("1|(1, 1)|0|true|true|true|true"),
     },
     Case {
         name: CaseName("metadata_rejection_and_dependency_refusal_have_independent_applicability"),

@@ -36,6 +36,7 @@ fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes
         let corpus = Arc::new(ChangingRead {
             reads: AtomicUsize::new(0),
             fail_at,
+            dirty_starts: AtomicUsize::new(0),
         });
         let entry = CorpusEntry {
             executable: Default::default(),
@@ -74,6 +75,7 @@ fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes
         .unwrap();
         seen.push(format!("{:?}", worker.failure.is_none()));
         seen.push(format!("{:?}", corpus.reads.load(Ordering::Relaxed)));
+        seen.push(format!("{:?}", corpus.dirty_starts.load(Ordering::Relaxed)));
         seen.push(format!("{:?}", language.parses.load(Ordering::Relaxed)));
         if fail_at == 2 {
             seen.push(format!("{:?}", worker.tables.bytes.0.is_empty()));
@@ -116,6 +118,7 @@ fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes
             let excluded = Arc::new(ChangingRead {
                 reads: AtomicUsize::new(0),
                 fail_at: usize::MAX,
+                dirty_starts: AtomicUsize::new(0),
             });
             let needs = [
                 Needs::default(),
@@ -146,10 +149,12 @@ fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes
             .unwrap();
             seen.push(format!("{:?}", replayed.failure.is_none()));
             seen.push(format!("{:?}", excluded.reads.load(Ordering::Relaxed)));
+            seen.push(format!("{:?}", excluded.dirty_starts.load(Ordering::Relaxed)));
 
             let included = Arc::new(ChangingRead {
                 reads: AtomicUsize::new(0),
                 fail_at: usize::MAX,
+                dirty_starts: AtomicUsize::new(0),
             });
             let (fresh, _) = visited_inputs_with_rule_demands(
                 included.clone(),
@@ -169,6 +174,7 @@ fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes
             .unwrap();
             seen.push(format!("{:?}", fresh.failure.is_none()));
             seen.push(format!("{:?}", included.reads.load(Ordering::Relaxed)));
+            seen.push(format!("{:?}", included.dirty_starts.load(Ordering::Relaxed)));
         }
     }
     Ok(seen.join("|"))
@@ -246,7 +252,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Given::ReadFailureDemandRetriesUnchangedMetadataAndClearsReusedWorkerBytes,
         expect: Expect::Value(
-            "true|3|2|true|1|[FilePath(\"same.rs\")]|2|true|0|true|1|true|3|2|true|1|[FilePath(\"same.rs\")]|2|true|3|2|true|true|true|true|1|[FilePath(\"same.rs\")]|2",
+            "true|3|0|2|true|1|[FilePath(\"same.rs\")]|2|true|0|0|true|1|0|true|3|0|2|true|1|[FilePath(\"same.rs\")]|2|true|3|0|2|true|true|true|true|1|[FilePath(\"same.rs\")]|2",
         ),
     },
     Case {

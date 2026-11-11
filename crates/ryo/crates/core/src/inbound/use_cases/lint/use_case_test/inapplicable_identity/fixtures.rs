@@ -71,6 +71,27 @@ pub(super) enum Warm {
     Evaluated,
 }
 
+/// What a scenario's two runs answered, each beside what the same request answers over a store that keeps nothing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct Answer {
+    /// The cold run's rows are the oracle's.
+    pub cold_rows: bool,
+    /// The cold run's undecided files are the oracle's.
+    pub cold_undecided: bool,
+    /// The cold run's skipped files are the oracle's.
+    pub cold_skipped: bool,
+    /// The warm run's rows are the oracle's.
+    pub warm_rows: bool,
+    /// The warm run's undecided files are the oracle's.
+    pub warm_undecided: bool,
+    /// The warm run's skipped files are the oracle's.
+    pub warm_skipped: bool,
+    /// The warm run left no file undecided.
+    pub nothing_undecided_warm: bool,
+    /// Whether the warm run reused what the cold run kept.
+    pub warm: Warm,
+}
+
 struct Queries;
 
 fn count_columns() -> Vec<ObservationColumn> {
@@ -244,8 +265,8 @@ fn lint_once(
 }
 
 /// A cold run, then another of the same files over the store the cold run kept: each answers what the same request answers over a
-/// store that keeps nothing. Answers whether the second run reused or evaluated again.
-pub(super) fn observe(scenario: Scenario) -> Warm {
+/// store that keeps nothing. Answers what each run agreed with and whether the second run reused or evaluated again.
+pub(super) fn observe(scenario: Scenario) -> Answer {
     let directory = tempfile::tempdir().expect("a directory");
     let kind = match scenario.kept {
         Kept::Memory => "memory",
@@ -266,23 +287,20 @@ pub(super) fn observe(scenario: Scenario) -> Warm {
         Arc::clone(&kept_in),
     );
     let warm = lint_once(scenario.skipping, then, kept_in);
-    assert_eq!(cold.rows, cold_oracle.rows, "{scenario:?}: cold rows");
-    assert_eq!(warm.rows, warm_oracle.rows, "{scenario:?}: warm rows");
-    for (made, oracle, run) in [(&cold, &cold_oracle, "cold"), (&warm, &warm_oracle, "warm")] {
-        assert_eq!(
-            made.undecided, oracle.undecided,
-            "{scenario:?}: {run} undecided"
-        );
-        assert_eq!(made.skipped, oracle.skipped, "{scenario:?}: {run} skipped");
-    }
     // A producer that skips the rejected file leaves both rules undecided on it, cold and warm alike: that is the Phase 1 poisoning
     // (a syntax-rejected sibling makes every rule unknown on its file) and it is the same for a store that keeps nothing.
-    if scenario.skipping == Skipping::Consumer {
-        assert_eq!(warm.undecided, "[]", "{scenario:?}: nothing undecided warm");
-    }
-    if warm.parses == 0 && warm.fed == 0 {
-        Warm::Reused
-    } else {
-        Warm::Evaluated
+    Answer {
+        cold_rows: cold.rows == cold_oracle.rows,
+        cold_undecided: cold.undecided == cold_oracle.undecided,
+        cold_skipped: cold.skipped == cold_oracle.skipped,
+        warm_rows: warm.rows == warm_oracle.rows,
+        warm_undecided: warm.undecided == warm_oracle.undecided,
+        warm_skipped: warm.skipped == warm_oracle.skipped,
+        nothing_undecided_warm: warm.undecided == "[]",
+        warm: if warm.parses == 0 && warm.fed == 0 {
+            Warm::Reused
+        } else {
+            Warm::Evaluated
+        },
     }
 }

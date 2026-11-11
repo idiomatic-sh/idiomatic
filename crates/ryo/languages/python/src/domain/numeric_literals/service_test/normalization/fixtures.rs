@@ -37,9 +37,10 @@ pub(super) fn literals(source: &'static str) -> Vec<NumericLiteral> {
                 },
             }),
             NumericClassification::NotNumeric => None,
-            NumericClassification::MissingPayload => {
-                panic!("the parser supplied a numeric payload")
-            }
+            NumericClassification::MissingPayload => Some(NumericLiteral {
+                kind: "MissingPayload",
+                value: "MissingPayload".to_owned(),
+            }),
         })
         .collect()
 }

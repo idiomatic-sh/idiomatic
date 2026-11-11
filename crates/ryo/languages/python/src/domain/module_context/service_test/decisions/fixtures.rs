@@ -117,15 +117,17 @@ pub(super) fn root_basename_preserves_contiguous_boundary_and_namespace_prefix()
             ("/boundary/namespace/pkg.root/__init__.py".into(), true),
             ("/boundary/namespace/__init__.py".into(), false),
         ]));
-        let ModuleDecision::Known(Some(module)) = disk(Path::new(source), &markers) else {
-            panic!("the complete contiguous ancestry has a module identity");
-        };
-        observed.push(format!("{:?}", module.package_root_name.0));
-        observed.push(format!(
-            "{}",
-            module.path.0.starts_with("pkg.root.sub.name.")
-        ));
-        observed.push(format!("{}", !module.path.0.contains("namespace")));
+        match disk(Path::new(source), &markers) {
+            ModuleDecision::Known(Some(module)) => {
+                observed.push(format!("{:?}", module.package_root_name.0));
+                observed.push(format!(
+                    "{}",
+                    module.path.0.starts_with("pkg.root.sub.name.")
+                ));
+                observed.push(format!("{}", !module.path.0.contains("namespace")));
+            }
+            other => observed.push(format!("{other:?}")),
+        }
     }
     observed.join("|")
 }

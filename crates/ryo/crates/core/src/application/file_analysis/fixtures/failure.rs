@@ -12,6 +12,8 @@ use std::sync::atomic::Ordering;
 pub(crate) struct ChangingRead {
     pub(crate) reads: AtomicUsize,
     pub(crate) fail_at: usize,
+    /// How many reads started with bytes already in the buffer: earlier source or a partial error's bytes.
+    pub(crate) dirty_starts: AtomicUsize,
 }
 
 impl CorpusPort for ChangingRead {
@@ -31,10 +33,9 @@ impl CorpusPort for ChangingRead {
         unreachable!("no dependency lookup")
     }
     fn read(&self, entry: &CorpusEntry, bytes: &mut FileBytes) -> Result<(), CorpusError> {
-        assert!(
-            bytes.0.is_empty(),
-            "each real attempt starts without earlier source or partial error bytes"
-        );
+        if !bytes.0.is_empty() {
+            let _previous = self.dirty_starts.fetch_add(1, Ordering::Relaxed);
+        }
         let at = self.reads.fetch_add(1, Ordering::Relaxed);
         if at == self.fail_at {
             bytes.0.extend_from_slice(b"partial failed bytes");
