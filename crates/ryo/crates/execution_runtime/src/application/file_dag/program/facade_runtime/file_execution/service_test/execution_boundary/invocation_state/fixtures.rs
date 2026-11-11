@@ -88,7 +88,7 @@ pub(super) fn exercise(program: Program) -> Observed {
 
 /// Runs a hosted, select, project chain whose sink records the memo length at each row.
 fn chained() -> Observed {
-    let mut plan = plan(Scenario::ProjectRetry);
+    let mut plan = plan(PlanShape::ProjectRetry);
     plan.steps = vec![
         PlanStep {
             scope: StepScope::PerFile,

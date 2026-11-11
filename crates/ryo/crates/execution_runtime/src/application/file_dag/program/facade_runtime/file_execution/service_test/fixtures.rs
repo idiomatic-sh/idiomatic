@@ -1,50 +1,22 @@
-//! The plans, rules, sinks and the exercise harness that file execution's case groups share.
-use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+//! The plans, rules, row helpers and the forwarding harness that file execution's case groups share.
+use super::super::service::*;
 use crate::application::file_dag::program::admission::service::Inputs;
-use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
-use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use crate::application::file_dag::program::runtime::service::InvocationOutcome;
-use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
-#[cfg(test)]
-use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
-#[cfg(test)]
-use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
-#[cfg(test)]
-use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
-#[cfg(test)]
-use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
-#[cfg(test)]
-use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
-#[cfg(test)]
-use ryo_execution_domain::domain::operator::types::OperatorContext;
-#[cfg(test)]
-use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 #[cfg(test)]
 use crate::application::file_dag::program::facade_runtime::source_admission::service::SourceInputs;
-use super::super::*;
-use super::super::service::*;
-use crate::application::file_dag::execution::service::CommonOperatorEngine;
-use crate::application::file_dag::program::runtime::types::AttemptCheckpoint;
-use crate::application::file_dag::program::runtime::types::DependencyCheckpoint;
+use crate::application::file_dag::program::runtime::service::InvocationOutcome;
 #[cfg(test)]
-use ryo_execution_domain::domain::table_cells::fixtures::{SMALL_SOURCE, SmallTree, small_tree};
-use ryo_execution_domain::domain::{
-    observation_schedule::types::RuleSchedule,
-    operator::types::Emit as RowSink,
-    prepared_request::types::{Compiled, ObservationIdentity},
-    table_cells::types::{TreeForm, TreeRows},
-};
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::types::Emit as RowSink;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
-use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::{kinds, node_id},
     types::{CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as Cell},
 };
 use ryo_values::domain::{
-    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{
         ColumnIndex, Input as PlanInput, JoinColumn, ReachLookup, RepeatedRows, Side, StepId,
         StepScope,
@@ -53,20 +25,19 @@ use ryo_values::domain::{
     query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     rows::types::{RowCount, Table},
     runs::types::{RuleApplicability, RuleId},
-    stored_facts::types::Digest,
 };
-use std::{rc::Rc, sync::Arc};
+use std::rc::Rc;
 
-/// The plan a file runs: a reach over duplicated left rows, or a project or union whose first
-/// delivery a sink refuses before the retry.
+/// The shape of the plan a file runs: a reach over duplicated left rows, or a project or union
+/// whose first delivery a sink refuses before the retry.
 #[derive(Clone, Copy, Debug)]
-pub(super) enum Scenario {
+pub(super) enum PlanShape {
     ReachDuplicate,
     ProjectRetry,
     UnionRetry,
 }
 
-pub(super) fn plan(scenario: Scenario) -> Plan {
+pub(super) fn plan(scenario: PlanShape) -> Plan {
     let mut steps = vec![PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::Select {
@@ -76,7 +47,7 @@ pub(super) fn plan(scenario: Scenario) -> Plan {
         },
     }];
     let operation = match scenario {
-        Scenario::ReachDuplicate => Operation::Join {
+        PlanShape::ReachDuplicate => Operation::Join {
             left: PlanInput::Step(StepId(0)),
             right: PlanInput::Relation(Relation::SyntaxChild),
             left_on: vec![ColumnIndex(0)],
@@ -94,12 +65,12 @@ pub(super) fn plan(scenario: Scenario) -> Plan {
                 columns: vec![ColumnIndex(0), ColumnIndex(1)],
             }),
         },
-        Scenario::ProjectRetry => Operation::Project {
+        PlanShape::ProjectRetry => Operation::Project {
             from: PlanInput::Step(StepId(0)),
             columns: vec![ColumnIndex(0)],
             distinct: RepeatedRows::Dropped,
         },
-        Scenario::UnionRetry => Operation::Union {
+        PlanShape::UnionRetry => Operation::Union {
             left: PlanInput::Step(StepId(0)),
             right: PlanInput::Step(StepId(0)),
         },
@@ -174,22 +145,8 @@ pub(super) fn nodes(rows: &[Cell]) -> Vec<u64> {
         .collect()
 }
 
-pub(super) struct RefusingSink {
-    reject: bool,
-    rows: Vec<Vec<Cell>>,
-}
-impl RowSink for RefusingSink {
-    fn row(&mut self, _: &mut OperatorContext<'_>, row: &[Cell]) -> Result<(), OperatingError> {
-        if self.reject {
-            self.reject = false;
-            return Err(OperatingError::WrongBinding);
-        }
-        self.rows.push(row.to_vec());
-        Ok(())
-    }
-}
-pub(super) fn forward<'a, 'service, 'facts>(
-    file: &mut FileRun<'a>,
+pub(super) fn forward<'facts>(
+    file: &mut FileRun<'_>,
     read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
     symbols: &mut Symbols,
     sink: &mut dyn RowSink,
@@ -238,136 +195,6 @@ pub(super) fn forward<'a, 'service, 'facts>(
     sources.replay(input, &mut context, sink)?;
     Ok(outcome)
 }
-pub(super) fn exercise(
-    scenario: Scenario,
-    derived: Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>,
-    operators: Arc<dyn crate::outbound::operators::interface::OperatorsPort>,
-) -> Result<Vec<u64>, OperatingError> {
-    let SmallTree {
-        elements,
-        mut symbols,
-    } = small_tree();
-    let prepared = crate::application::file_dag::program::preparation::service::prepare(
-        Compiled {
-            schedule: RuleSchedule::Independent,
-            observations: vec![vec![]],
-            plans: vec![plan(scenario)],
-            bindings: vec![vec![]],
-        },
-        &[rule()],
-        &[Digest([0; 16])],
-        &[],
-        Arc::clone(&derived),
-        ObservationIdentity::Independent,
-    )?;
-    let engine = Arc::new(CommonOperatorEngine::new(operators));
-    let services = Arc::new(ProgramServices::new(
-        engine,
-        derived,
-        &[CorpusInput::Available(CorpusEntry {
-            executable: ExecutablePermission::Unknown,
-            path: FilePath("distinct-integration.py".into()),
-            size: FileSize(SMALL_SOURCE.len() as u64),
-            modified: Nanoseconds(0),
-        })],
-    ));
-    let mut file = open_file(
-        &prepared,
-        FileId(0),
-        ScopePartials::File {
-            evaluation: &[],
-            publication: &[],
-        },
-        &[FileRuleIntent::Run {
-            diagnostic: DiagnosticDelivery::Collected,
-            observations: ObservationDemand::NotRequired,
-            capture: CaptureIntent::Disabled,
-        }],
-        services,
-        ryo_values::domain::files::types::SourceView(SMALL_SOURCE),
-        ReuseEligibility::Eligible,
-        &mut symbols,
-        None,
-        None,
-    )?;
-    let function = function_rows(match scenario {
-        Scenario::ReachDuplicate => &[0, 0],
-        _ => &[0, 0, 2],
-    });
-    let read = |relation| match relation {
-        Relation::Function => Ok(Rows::Computed(&function)),
-        Relation::SyntaxChild => Ok(Rows::Tree(TreeRows {
-            elements: &elements,
-            file: FileId(0),
-            form: TreeForm::Edges,
-        })),
-        _ => Err(OperatingError::NotRead),
-    };
-    match scenario {
-        Scenario::ReachDuplicate => {
-            let result = file.rule(
-                RuleIndex(0),
-                RuleDemand {
-                    emit: EmitDemand::Enabled,
-                    observations: ObservationDemand::NotRequired,
-                },
-                &read,
-                &mut symbols,
-            )?;
-            let RootOutcome::Complete(table) = result.emit else {
-                return Err(OperatingError::NotRun);
-            };
-            Ok(nodes(&table.cells))
-        }
-        Scenario::ProjectRetry | Scenario::UnionRetry => {
-            let root = file
-                .program
-                .rule_metadata(RuleIndex(0))?
-                .emit_root
-                .clone()?;
-            let before = file
-                .execution
-                .retry_checkpoint(file.execution.file_state(), root)?;
-            assert_eq!(before.attempt, AttemptCheckpoint::Dormant);
-            assert_eq!(before.dependencies, DependencyCheckpoint::Pending);
-            let mut fail = RefusingSink {
-                reject: true,
-                rows: vec![],
-            };
-            assert!(matches!(
-                forward(&mut file, &read, &mut symbols, &mut fail),
-                Err(OperatingError::WrongBinding)
-            ));
-            assert!(
-                fail.rows.is_empty(),
-                "the first sink refuses before publishing a row"
-            );
-            let refused = file
-                .execution
-                .retry_checkpoint(file.execution.file_state(), root)?;
-            assert_eq!(refused.attempt, AttemptCheckpoint::Published);
-            assert_eq!(refused.dependencies, DependencyCheckpoint::Consumed);
-            assert_eq!(
-                refused.remaining, before.remaining,
-                "delivery refusal retains the already completed publication"
-            );
-            let mut accept = RefusingSink {
-                reject: false,
-                rows: vec![],
-            };
-            assert!(matches!(
-                forward(&mut file, &read, &mut symbols, &mut accept),
-                Ok(InvocationOutcome::Published(_))
-            ));
-            let complete = file
-                .execution
-                .retry_checkpoint(file.execution.file_state(), root)?;
-            assert_eq!(complete.attempt, AttemptCheckpoint::Published);
-            assert_eq!(complete.dependencies, DependencyCheckpoint::Consumed);
-            Ok(accept.rows.iter().flat_map(|row| nodes(row)).collect())
-        }
-    }
-}
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 
 /// What a root answered, in the terms a case's expected value states: a table's cells and rows,
@@ -383,10 +210,10 @@ pub(super) enum Root {
         rows: usize,
     },
     Skipped,
-    Unknown(ryo_execution_domain::domain::operating::errors::OperatingError),
+    Unknown(OperatingError),
     /// Unknown because the semantics are incomplete, for this reason.
     SemanticIncomplete(std::borrow::Cow<'static, str>),
-    Failed(ryo_execution_domain::domain::operating::errors::OperatingError),
+    Failed(OperatingError),
     NoQuery,
     Deferred(StepScope),
 }
@@ -402,7 +229,9 @@ impl Root {
 }
 
 impl From<crate::application::file_dag::program::rule_outcome::types::RootOutcome> for Root {
-    fn from(outcome: crate::application::file_dag::program::rule_outcome::types::RootOutcome) -> Self {
+    fn from(
+        outcome: crate::application::file_dag::program::rule_outcome::types::RootOutcome,
+    ) -> Self {
         use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
         match outcome {
             RootOutcome::Complete(table) => Self::Complete {
@@ -414,11 +243,9 @@ impl From<crate::application::file_dag::program::rule_outcome::types::RootOutcom
                 rows: table.count.0,
             },
             RootOutcome::Skipped(_) => Self::Skipped,
-            RootOutcome::Unknown(
-                ryo_execution_domain::domain::operating::errors::OperatingError::SemanticIncomplete {
-                    reason,
-                },
-            ) => Self::SemanticIncomplete(std::borrow::Cow::Owned(reason)),
+            RootOutcome::Unknown(OperatingError::SemanticIncomplete { reason }) => {
+                Self::SemanticIncomplete(std::borrow::Cow::Owned(reason))
+            }
             RootOutcome::Unknown(error) => Self::Unknown(error),
             RootOutcome::Failed(error) => Self::Failed(error),
             RootOutcome::NoQuery => Self::NoQuery,

@@ -95,7 +95,7 @@ pub(crate) fn invoke(
         scope: StepScope::PerFile,
         operation,
     });
-    let mut request = plan(Scenario::ProjectRetry);
+    let mut request = plan(PlanShape::ProjectRetry);
     request.steps = steps;
     request.emit.step = StepId(target as u32);
     execute(

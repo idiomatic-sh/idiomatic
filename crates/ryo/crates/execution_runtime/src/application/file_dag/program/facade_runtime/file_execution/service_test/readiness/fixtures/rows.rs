@@ -53,7 +53,7 @@ pub(crate) fn observe(omit: bool) -> Coverage {
         let mut plans = Vec::new();
         let mut rules = Vec::new();
         for index in 0..5 {
-            let mut authored = plan(Scenario::ProjectRetry);
+            let mut authored = plan(PlanShape::ProjectRetry);
             authored.steps.truncate(1);
             authored.emit.step = StepId(0);
             let relation = if index == 3 {

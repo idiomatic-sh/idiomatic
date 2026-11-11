@@ -9,7 +9,6 @@ use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_execution_store::outbound::derived::interface::DerivedPort;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};

@@ -61,7 +61,7 @@ pub(crate) fn execute(
     host: HostRelation,
     symbols: &mut Symbols,
 ) -> (Result<Table, OperatingError>, ExecutionObservation) {
-    let mut plan = plan(Scenario::ProjectRetry);
+    let mut plan = plan(PlanShape::ProjectRetry);
     plan.steps[0].operation = Operation::Hosted {
         relation: HostedNumber(0),
     };

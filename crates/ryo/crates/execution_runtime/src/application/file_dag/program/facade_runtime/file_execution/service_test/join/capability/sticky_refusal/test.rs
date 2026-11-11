@@ -42,7 +42,9 @@ type Failure = Refused;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("sink_failure_wins_after_a_kernel_commits_multiple_rows_and_reports_success"),
+        name: CaseName(
+            "sink_failure_wins_after_a_kernel_commits_multiple_rows_and_reports_success",
+        ),
         word: Word::Refuses,
         input: || Failing::Sink,
         expect: Expect::Error(Refused {
@@ -125,7 +127,7 @@ fn subject(failing: Input) -> Result<Value, Failure> {
                     distinct: RepeatedRows::Kept,
                 },
             });
-            let mut request = plan(Scenario::ProjectRetry);
+            let mut request = plan(PlanShape::ProjectRetry);
             request.emit.step = StepId((steps.len() - 1) as u32);
             request.steps = steps;
             execute(
@@ -144,11 +146,14 @@ fn subject(failing: Input) -> Result<Value, Failure> {
     };
     let delivered = actual.prefix.len();
     let instructions = actual.instructions;
-    actual.result.map(|table| table.count.0).map_err(|error| Refused {
-        error,
-        delivered,
-        instructions,
-    })
+    actual
+        .result
+        .map(|table| table.count.0)
+        .map_err(|error| Refused {
+            error,
+            delivered,
+            instructions,
+        })
 }
 
 #[test]

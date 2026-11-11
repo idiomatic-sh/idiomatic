@@ -1,5 +1,4 @@
 //! The support of the `lifecycle` cases.
-use std::borrow::Cow;
 use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::cases::fixtures::table_of;
@@ -51,6 +50,7 @@ use ryo_values::domain::{
     runs::types::RuleId,
     stored_facts::types::Digest,
 };
+use std::borrow::Cow;
 use std::cell::Cell as Counter;
 use std::{rc::Rc, sync::Arc};
 
@@ -148,7 +148,7 @@ pub(super) fn exercise_nested(single_result: bool) -> Result<Observed, Operating
         &mut steps,
     );
     let request = |output| {
-        let mut request = plan(Scenario::ProjectRetry);
+        let mut request = plan(PlanShape::ProjectRetry);
         request.steps = steps.clone();
         let mut join = operation(&[0], &[0], &[(Side::Right, output)], vec![], &[]);
         let Operation::Join { left, right, .. } = &mut join else {
@@ -404,15 +404,12 @@ pub(super) fn exercise_nested(single_result: bool) -> Result<Observed, Operating
     let lookup_calls = lookup.calls.get();
     drop(context);
     drop(kernels);
-    let reads_unchanged_after_release =
-        Some(reads.map(|count| count.get())) == published_reads;
+    let reads_unchanged_after_release = Some(reads.map(|count| count.get())) == published_reads;
     // One equality index for the actual shared admitted RHS; the nested consumer shares it.
     let builds = owner.derived().counts().0.0;
     let index_shared = owner.derived().counts().1.0 > 0;
     file.finish()?;
-    let [first, second]: [Attempt; 2] = attempts
-        .try_into()
-        .map_err(|_| OperatingError::NotRun)?;
+    let [first, second]: [Attempt; 2] = attempts.try_into().map_err(|_| OperatingError::NotRun)?;
     Ok(Observed {
         attempts: [first, second],
         lookup_calls,

@@ -1,13 +1,16 @@
 //! Refusal and physical-route controls through the real compiled owner.
-use super::super::fixtures::*;
+use super::super::fixtures::{PlanShape, Root, plan};
 use super::fixtures::ordered_strategy_fixture;
 use super::fixtures::{MeaningCalls, run as run_file};
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::{Lacking, Partial};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::{
     service::{kinds, node_id},
-    types::{CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as Cell},
+    types::{
+        CellKind, FileId, Flag, Integer, NodeId, Offset, Position, Relation, Span, Value as Cell,
+    },
 };
 use ryo_values::domain::stored_facts::types::PartialCause;
 use ryo_values::domain::{
@@ -15,11 +18,191 @@ use ryo_values::domain::{
     plans::types::{Operation, PlanStep},
     rows::types::{RowCount, Table},
 };
+use std::borrow::Cow;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-fn partial_positive_rows_survive_but_partial_absence_is_refused() {
+
+/// The plan a row routes through one file.
+#[derive(Clone, Copy, Debug)]
+enum Route {
+    /// Selects the partial relation's rows, which are positive.
+    PartialPositive,
+    /// Subtracts the partial relation from the complete syntax tree: an absence over it.
+    PartialAbsence,
+    /// The ordered strategy fixture's dominated projection, as an authored root.
+    Dominated,
+    /// The ordered strategy fixture's root, with an extra consumer of its projection and a
+    /// downstream extension, or without them.
+    Ordered { downstream: bool, extra: bool },
+}
+
+/// What the routed root answered: its cell kinds, its outcome, the files a partial root names,
+/// and the set, ordered-existence and join meanings it entered.
+#[derive(Debug, PartialEq)]
+struct Routed {
+    kinds: Cow<'static, [CellKind]>,
+    root: Root,
+    affected: Cow<'static, [Option<FileId>]>,
+    sets: usize,
+    ordered: usize,
+    joins: usize,
+}
+
+type Input = Route;
+type Value = Routed;
+type Failure = OperatingError;
+
+const fn routed(
+    kinds: &'static [CellKind],
+    root: Root,
+    affected: &'static [Option<FileId>],
+    (sets, ordered, joins): (usize, usize, usize),
+) -> Routed {
+    Routed {
+        kinds: Cow::Borrowed(kinds),
+        root,
+        affected: Cow::Borrowed(affected),
+        sets,
+        ordered,
+        joins,
+    }
+}
+
+/// The node at this position of file 0, whose id is its position.
+const fn node(at: u64) -> Cell {
+    Cell::Node(NodeId(at))
+}
+
+/// The ordered fixture's schema: a node, its file and span, and six numbers.
+const SCHEMA: &[CellKind] = &[
+    CellKind::Node,
+    CellKind::File,
+    CellKind::Span,
+    CellKind::Number,
+    CellKind::Number,
+    CellKind::Number,
+    CellKind::Number,
+    CellKind::Number,
+    CellKind::Number,
+];
+
+/// The ordered root's one row, the source row whose numbers are 3, reached through these set,
+/// ordered-existence and join meanings.
+const fn ordered(calls: (usize, usize, usize)) -> Routed {
+    routed(
+        SCHEMA,
+        Root::complete(
+            &[
+                Cell::Node(NodeId(0)),
+                Cell::File(FileId(0)),
+                Cell::Span(Span {
+                    start: Offset(0),
+                    end: Offset(0),
+                }),
+                Cell::Number(Integer(3)),
+                Cell::Number(Integer(3)),
+                Cell::Number(Integer(3)),
+                Cell::Number(Integer(3)),
+                Cell::Number(Integer(3)),
+                Cell::Number(Integer(3)),
+            ],
+            1,
+        ),
+        &[],
+        calls,
+    )
+}
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("partial_positive_rows_survive_but_partial_absence_is_refused"),
+        word: Word::Succeeds,
+        input: || Route::PartialPositive,
+        expect: Expect::Value(routed(
+            &[CellKind::Node],
+            Root::Partial {
+                cells: Cow::Borrowed(&[node(2), node(1), node(2)]),
+                rows: 3,
+            },
+            &[Some(FileId(0))],
+            (0, 0, 0),
+        )),
+    },
+    Case {
+        name: CaseName(
+            "an_absence_over_a_partial_relation_stays_partial_without_entering_set_meaning",
+        ),
+        word: Word::Succeeds,
+        input: || Route::PartialAbsence,
+        expect: Expect::Value(routed(
+            &[
+                CellKind::Node,
+                CellKind::Symbol,
+                CellKind::Symbol,
+                CellKind::File,
+                CellKind::Span,
+            ],
+            Root::Partial {
+                cells: Cow::Borrowed(&[]),
+                rows: 0,
+            },
+            &[Some(FileId(0))],
+            (0, 0, 0),
+        )),
+    },
+    Case {
+        name: CaseName("the_ordered_fixture_s_dominated_projection_keeps_its_two_numbers"),
+        word: Word::Succeeds,
+        input: || Route::Dominated,
+        expect: Expect::Value(routed(
+            &[CellKind::Number],
+            Root::complete(&[Cell::Number(Integer(1)), Cell::Number(Integer(2))], 2),
+            &[],
+            (0, 0, 3),
+        )),
+    },
+    Case {
+        name: CaseName("ordered_strategy_and_real_extra_consumer_decline_preserve_the_same_root"),
+        word: Word::Succeeds,
+        input: || Route::Ordered {
+            downstream: false,
+            extra: false,
+        },
+        expect: Expect::Value(ordered((3, 1, 0))),
+    },
+    Case {
+        name: CaseName("an_extra_consumer_declines_the_ordered_strategy_for_the_same_root"),
+        word: Word::Succeeds,
+        input: || Route::Ordered {
+            downstream: false,
+            extra: true,
+        },
+        expect: Expect::Value(ordered((3, 0, 3))),
+    },
+    Case {
+        name: CaseName("a_downstream_extension_keeps_the_ordered_strategy_and_the_same_root"),
+        word: Word::Succeeds,
+        input: || Route::Ordered {
+            downstream: true,
+            extra: false,
+        },
+        expect: Expect::Value(ordered((3, 1, 0))),
+    },
+    Case {
+        name: CaseName("an_extra_consumer_and_a_downstream_extension_decline_the_ordered_strategy"),
+        word: Word::Succeeds,
+        input: || Route::Ordered {
+            downstream: true,
+            extra: true,
+        },
+        expect: Expect::Value(ordered((3, 0, 3))),
+    },
+];
+
+/// Three semantic syntax rows at positions 2, 1 and 2 of file 0.
+fn semantic_rows() -> Table {
     let relation = Relation::SemanticSyntax;
-    let source = Table {
+    Table {
         kinds: kinds(relation).to_vec(),
         count: RowCount(3),
         cells: [2, 1, 2]
@@ -39,75 +222,16 @@ fn partial_positive_rows_survive_but_partial_absence_is_refused() {
                 })
             })
             .collect(),
-    };
-    assert_eq!(
-        source.cells.len(),
-        source.kinds.len() * 3,
-        "canonical provider shape"
-    );
-    let mut positive = plan(Scenario::ProjectRetry);
-    positive.steps.truncate(1);
-    positive.emit.step = StepId(0);
-    positive.steps[0].operation = Operation::Select {
-        from: PlanInput::Relation(relation),
-        comparisons: vec![],
-        kept: vec![ColumnIndex(0)],
-    };
-    let partials = [Partial {
-        relation,
-        cause: PartialCause("partial provider fixture".into()),
-        lacking: Lacking::Any,
-        at: ryo_execution_domain::domain::coverage::types::PartialPlace::Repository,
-    }];
-    let RootOutcome::Partial { table, affected } = run_file(
-        positive,
-        &[(relation, source.clone())],
-        &partials,
-        Arc::new(MeaningCalls::default()),
-    ) else {
-        panic!("usable positive partial rows")
-    };
-    assert_eq!(table.count, RowCount(3));
-    assert_eq!(
-        table.cells,
-        [2, 1, 2].map(|at| Cell::Node(node_id(FileId(0), Position(at))))
-    );
-    assert_eq!(affected, vec![Some(FileId(0))]);
-    let mut absent = plan(Scenario::ProjectRetry);
-    absent.steps.truncate(1);
-    absent.emit.step = StepId(0);
-    absent.steps[0].operation = Operation::Difference {
-        left: PlanInput::Relation(Relation::SyntaxTree),
-        right: PlanInput::Relation(relation),
-    };
-    let calls = Arc::new(MeaningCalls::default());
-    let RootOutcome::Partial { table, affected } = run_file(
-        absent,
-        &[(relation, source.clone()), (Relation::SyntaxTree, source)],
-        &partials,
-        Arc::clone(&calls),
-    ) else {
-        panic!("incomplete absence must remain partial")
-    };
-    assert_eq!(table.count, RowCount(0));
-    assert_eq!(affected, vec![Some(FileId(0))]);
-    assert_eq!(
-        calls.sets.load(Ordering::Relaxed),
-        0,
-        "absence never enters row meaning on incomplete RHS"
-    );
+    }
 }
-fn ordered_strategy_and_real_extra_consumer_decline_preserve_the_same_root() {
-    let (request, schema) = ordered_strategy_fixture();
-    let number = schema
-        .iter()
-        .position(|kind| *kind == CellKind::Number)
-        .unwrap();
-    let rows = [1, 3, 2].map(|number| {
-        schema
-            .iter()
-            .map(|kind| match kind {
-                CellKind::Node => Cell::Node(ryo_relations::domain::relations::types::NodeId(0)),
+
+/// The ordered fixture's source: three rows whose numbers are 1, 3 and 2.
+fn ordered_rows(schema: &[CellKind]) -> Table {
+    let cells = [1, 3, 2]
+        .into_iter()
+        .flat_map(|number| {
+            schema.iter().map(move |kind| match kind {
+                CellKind::Node => Cell::Node(NodeId(0)),
                 CellKind::Symbol => Cell::Symbol(ryo_relations::domain::terms::types::Symbol(0)),
                 CellKind::File => Cell::File(FileId(0)),
                 CellKind::Span => Cell::Span(Span {
@@ -117,113 +241,95 @@ fn ordered_strategy_and_real_extra_consumer_decline_preserve_the_same_root() {
                 CellKind::Number => Cell::Number(Integer(number)),
                 CellKind::Flag => Cell::Flag(Flag::Raised),
             })
-            .collect::<Vec<_>>()
-    });
-    let source = Table {
-        kinds: schema.clone(),
-        cells: rows.iter().flatten().copied().collect(),
+        })
+        .collect();
+    Table {
+        kinds: schema.to_vec(),
+        cells,
         count: RowCount(3),
-    };
-    // The earlier internal-demand case observed this Project's two dominated
-    // numbers. Make it an authored root to retain the assertion under the real protocol.
-    let mut dominated = request.clone();
-    dominated.emit.step = StepId(3);
-    let RootOutcome::Complete(table) = run_file(
-        dominated,
-        &[(Relation::SourceLocation, source.clone())],
-        &[],
-        Arc::new(MeaningCalls::default()),
-    ) else {
-        panic!("dominated projection is complete")
-    };
-    assert_eq!(table.kinds, vec![CellKind::Number]);
-    assert_eq!(
-        table.cells,
-        vec![Cell::Number(Integer(1)), Cell::Number(Integer(2))]
-    );
-    assert_eq!(table.count, RowCount(2));
-    for downstream in [false, true] {
-        for extra in [false, true] {
-            let mut request = request.clone();
-            if extra {
-                request.frontier.push(PlanInput::Step(StepId(3)));
+    }
+}
+
+/// Builds the route's plan and sources, runs it through one file and reads what it answered.
+fn subject(route: Input) -> Result<Value, Failure> {
+    let relation = Relation::SemanticSyntax;
+    let partials = [Partial {
+        relation,
+        cause: PartialCause("partial provider fixture".into()),
+        lacking: Lacking::Any,
+        at: ryo_execution_domain::domain::coverage::types::PartialPlace::Repository,
+    }];
+    let calls = Arc::new(MeaningCalls::default());
+    let outcome = match route {
+        Route::PartialPositive | Route::PartialAbsence => {
+            let mut request = plan(PlanShape::ProjectRetry);
+            request.steps.truncate(1);
+            request.emit.step = StepId(0);
+            request.steps[0].operation = if matches!(route, Route::PartialPositive) {
+                Operation::Select {
+                    from: PlanInput::Relation(relation),
+                    comparisons: vec![],
+                    kept: vec![ColumnIndex(0)],
+                }
+            } else {
+                Operation::Difference {
+                    left: PlanInput::Relation(Relation::SyntaxTree),
+                    right: PlanInput::Relation(relation),
+                }
+            };
+            let sources = if matches!(route, Route::PartialPositive) {
+                vec![(relation, semantic_rows())]
+            } else {
+                vec![
+                    (relation, semantic_rows()),
+                    (Relation::SyntaxTree, semantic_rows()),
+                ]
+            };
+            run_file(request, &sources, &partials, Arc::clone(&calls))
+        }
+        Route::Dominated | Route::Ordered { .. } => {
+            let (mut request, schema) = ordered_strategy_fixture();
+            match route {
+                Route::Ordered { downstream, extra } => {
+                    if extra {
+                        request.frontier.push(PlanInput::Step(StepId(3)));
+                    }
+                    if downstream {
+                        request.steps.push(PlanStep {
+                            scope: StepScope::PerFile,
+                            operation: Operation::Extend {
+                                from: PlanInput::Step(StepId(4)),
+                                values: vec![],
+                            },
+                        });
+                        request.emit.step = StepId(5);
+                    }
+                }
+                // The earlier internal-demand case observed this Project's two dominated
+                // numbers; as an authored root it is observed under the real protocol.
+                _ => request.emit.step = StepId(3),
             }
-            if downstream {
-                request.steps.push(PlanStep {
-                    scope: StepScope::PerFile,
-                    operation: Operation::Extend {
-                        from: PlanInput::Step(StepId(4)),
-                        values: vec![],
-                    },
-                });
-                request.emit.step = StepId(5);
-            }
-            let calls = Arc::new(MeaningCalls::default());
-            let RootOutcome::Complete(table) = run_file(
+            run_file(
                 request,
-                &[(Relation::SourceLocation, source.clone())],
+                &[(Relation::SourceLocation, ordered_rows(&schema))],
                 &[],
                 Arc::clone(&calls),
-            ) else {
-                panic!("complete ordered root")
-            };
-            assert_eq!(table.kinds, schema);
-            assert_eq!(table.count, RowCount(1));
-            assert_eq!(table.cells, rows[1]);
-            assert_eq!(table.cells[number], Cell::Number(Integer(3)));
-            assert_eq!(
-                calls.ordered.load(Ordering::Relaxed) > 0,
-                !extra,
-                "actual ordered meaning entered only for eligible strategy"
-            );
-            assert_eq!(
-                calls.joins.load(Ordering::Relaxed) > 0,
-                extra,
-                "real extra reader selects ordinary Join"
-            );
+            )
         }
-    }
-}
-
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Proof {
-    PartialPositiveRowsSurviveButPartialAbsenceIsRefused,
-    OrderedStrategyAndRealExtraConsumerDeclinePreserveTheSameRoot,
-}
-
-type Input = Proof;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("partial_positive_rows_survive_but_partial_absence_is_refused"),
-        word: Word::Succeeds,
-        input: || Proof::PartialPositiveRowsSurviveButPartialAbsenceIsRefused,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("ordered_strategy_and_real_extra_consumer_decline_preserve_the_same_root"),
-        word: Word::Succeeds,
-        input: || Proof::OrderedStrategyAndRealExtraConsumerDeclinePreserveTheSameRoot,
-        expect: Expect::Value(()),
-    },
-];
-
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Proof::PartialPositiveRowsSurviveButPartialAbsenceIsRefused => {
-            partial_positive_rows_survive_but_partial_absence_is_refused();
-            Ok(())
-        }
-        Proof::OrderedStrategyAndRealExtraConsumerDeclinePreserveTheSameRoot => {
-            ordered_strategy_and_real_extra_consumer_decline_preserve_the_same_root();
-            Ok(())
-        }
-    }
+    };
+    let (kinds, affected) = match &outcome {
+        RootOutcome::Complete(table) => (table.kinds.clone(), vec![]),
+        RootOutcome::Partial { table, affected } => (table.kinds.clone(), affected.clone()),
+        _ => (vec![], vec![]),
+    };
+    Ok(Routed {
+        kinds: Cow::Owned(kinds),
+        root: Root::from(outcome),
+        affected: Cow::Owned(affected),
+        sets: calls.sets.load(Ordering::Relaxed),
+        ordered: calls.ordered.load(Ordering::Relaxed),
+        joins: calls.joins.load(Ordering::Relaxed),
+    })
 }
 
 #[test]

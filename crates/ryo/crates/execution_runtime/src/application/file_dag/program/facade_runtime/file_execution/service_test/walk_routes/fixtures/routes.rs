@@ -295,15 +295,6 @@ pub(crate) enum Combine {
     Difference,
     Antijoin,
 }
-impl Combine {
-    pub(crate) const ALL: [Self; 5] = [
-        Self::Join,
-        Self::Union,
-        Self::Intersection,
-        Self::Difference,
-        Self::Antijoin,
-    ];
-}
 /// What one input of a combining operation delivers.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Feed {

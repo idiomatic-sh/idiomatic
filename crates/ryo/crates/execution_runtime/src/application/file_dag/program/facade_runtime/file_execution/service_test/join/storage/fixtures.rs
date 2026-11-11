@@ -240,7 +240,7 @@ pub(super) fn malformed_provider() -> Result<Observed, Refused> {
         scope: StepScope::PerFile,
         operation: join,
     });
-    let mut request = plan(Scenario::ProjectRetry);
+    let mut request = plan(PlanShape::ProjectRetry);
     request.steps = steps;
     request.emit.step = StepId(2);
     let actual = execute(

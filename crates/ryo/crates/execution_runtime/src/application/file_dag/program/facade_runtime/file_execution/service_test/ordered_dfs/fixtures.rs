@@ -143,7 +143,7 @@ pub(crate) fn compute(
     };
     *from = PlanInput::Step(StepId(0));
     *input_edges = PlanInput::Step(StepId(1));
-    let mut plan = plan(Scenario::ProjectRetry);
+    let mut plan = plan(PlanShape::ProjectRetry);
     plan.steps = [
         Operation::Hosted {
             relation: HostedNumber(0),
@@ -309,7 +309,7 @@ pub(crate) fn hosted_plan(mut op: Operation, roots: u32, edges: u32) -> Plan {
         }
         _ => panic!("DFS fixture operation"),
     }
-    let mut request = plan(Scenario::ProjectRetry);
+    let mut request = plan(PlanShape::ProjectRetry);
     request.steps = [
         Operation::Hosted {
             relation: HostedNumber(roots),

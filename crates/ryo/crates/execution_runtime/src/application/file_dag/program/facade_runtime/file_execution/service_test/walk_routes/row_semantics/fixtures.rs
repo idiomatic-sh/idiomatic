@@ -1,14 +1,13 @@
 //! The support of the `row_semantics` cases.
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use super::super::super::super::*;
 use super::super::super::super::service::*;
+use super::super::super::fixtures::Root;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::routes::RowRoute;
 use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, demand};
-use super::super::super::fixtures::Root;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::fusion::types::Fusibility;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::plans::service::kind_of;
 use std::sync::Arc;
@@ -61,11 +60,11 @@ pub(super) fn exercise(route: RowRoute) -> Result<Observed, OperatingError> {
     let mut symbols = Symbols::default();
     let mut file = program.open(&mut symbols)?;
     let read = |relation| program.read(relation);
-    let head = |file: &mut FileRun, symbols: &mut Symbols| {
+    let head = |file: &mut FileRun<'_>, symbols: &mut Symbols| {
         file.rule(RuleIndex(0), demand(), &read, symbols)
             .map(|outcome| Root::from(outcome.emit))
     };
-    let routed = |file: &mut FileRun, symbols: &mut Symbols| {
+    let routed = |file: &mut FileRun<'_>, symbols: &mut Symbols| {
         file.rule(RuleIndex(1), demand(), &read, symbols)
             .map(|outcome| Root::from(outcome.emit))
     };

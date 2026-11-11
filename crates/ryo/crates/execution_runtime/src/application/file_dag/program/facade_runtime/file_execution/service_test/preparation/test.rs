@@ -152,7 +152,7 @@ fn subject(request: Input) -> Result<Value, Failure> {
         let mut authored = rule();
         authored.id = RuleId(format!("opening-{literal}").into());
         rules.push(authored);
-        let mut producer = plan(Scenario::ProjectRetry);
+        let mut producer = plan(PlanShape::ProjectRetry);
         producer.steps = vec![
             producer.steps[0].clone(),
             PlanStep {

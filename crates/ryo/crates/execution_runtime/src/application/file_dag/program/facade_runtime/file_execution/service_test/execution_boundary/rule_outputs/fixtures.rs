@@ -64,7 +64,7 @@ pub(super) fn output_requests(
         .iter()
         .enumerate()
         .map(|(index, _)| {
-            let mut plan = plan(Scenario::ProjectRetry);
+            let mut plan = plan(PlanShape::ProjectRetry);
             plan.steps[0].operation = Operation::Hosted {
                 relation: HostedNumber(index as u32),
             };

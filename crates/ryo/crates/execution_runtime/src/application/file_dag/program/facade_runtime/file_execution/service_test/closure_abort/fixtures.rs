@@ -1,29 +1,29 @@
 //! The support of the `closure_abort` cases.
-use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
-use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use super::super::super::service::*;
+use super::super::super::*;
+use super::super::fixtures::*;
+use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 #[cfg(test)]
-use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
-#[cfg(test)]
-use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
-#[cfg(test)]
-use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 #[cfg(test)]
 use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
 #[cfg(test)]
-use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
-use super::super::super::*;
-use super::super::super::service::*;
-use super::super::fixtures::*;
-use crate::application::file_dag::execution::service::CommonOperatorEngine;
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
     prepared_request::types::{Compiled, ObservationIdentity},
 };
+use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::{FileId, Integer, Value as Cell};
@@ -93,7 +93,7 @@ pub(super) struct Observed {
 /// Runs a closure over three keyed partitions whose select fails on the second (a bad pattern)
 /// or whose sink refuses the first row, fused with its select or not.
 pub(super) fn exercise(refusal: Refusal, fused: bool) -> Observed {
-    let mut plan = plan(Scenario::ProjectRetry);
+    let mut plan = plan(PlanShape::ProjectRetry);
     plan.steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
@@ -285,13 +285,15 @@ pub(super) fn exercise(refusal: Refusal, fused: bool) -> Observed {
     let calls = recorded.builds();
     let order_first_on_keys = matches!(calls.first(), Some(ryo_derived::domain::request::types::DerivedRequest::PartitionOrder { keys })
         if keys == &[ColumnIndex(2), ColumnIndex(3)]);
-    let rest_are_adjacency = calls.iter().skip(1).all(|request| matches!(
-        request,
-        ryo_derived::domain::request::types::DerivedRequest::ClosureAdjacency {
-            source: ColumnIndex(0),
-            destination: ColumnIndex(1)
-        }
-    ));
+    let rest_are_adjacency = calls.iter().skip(1).all(|request| {
+        matches!(
+            request,
+            ryo_derived::domain::request::types::DerivedRequest::ClosureAdjacency {
+                source: ColumnIndex(0),
+                destination: ColumnIndex(1)
+            }
+        )
+    });
     // A failed invocation releases its current partition backing.
     let backing_released = last_backing.upgrade().is_none();
     file.finish().unwrap();

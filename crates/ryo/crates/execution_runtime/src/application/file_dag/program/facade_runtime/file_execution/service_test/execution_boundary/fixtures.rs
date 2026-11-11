@@ -35,7 +35,7 @@ use ryo_values::domain::{
 };
 use std::sync::Arc;
 pub(crate) fn source(rows: Rows<'_>) -> Result<Table, OperatingError> {
-    let mut plan = plan(Scenario::ProjectRetry);
+    let mut plan = plan(PlanShape::ProjectRetry);
     plan.steps.truncate(1);
     plan.emit.step = StepId(0);
     plan.steps[0].operation = Operation::Select {

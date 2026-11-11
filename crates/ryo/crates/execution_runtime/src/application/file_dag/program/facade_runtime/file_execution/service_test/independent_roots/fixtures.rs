@@ -1,6 +1,6 @@
 //! The support of the `independent_roots` cases.
 use super::super::super::service::*;
-use super::super::fixtures::{Root, Scenario, function_rows, plan, rule};
+use super::super::fixtures::{PlanShape, Root, function_rows, plan, rule};
 use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
@@ -122,7 +122,7 @@ pub(super) fn exercise(failing: Failing) -> Observed {
     {
         let failed_emit = failing == Failing::Emit;
         let output_columns = columns(failed_emit);
-        let mut producer = plan(Scenario::ProjectRetry);
+        let mut producer = plan(PlanShape::ProjectRetry);
         producer.steps = vec![
             PlanStep {
                 scope: StepScope::PerFile,
@@ -156,7 +156,7 @@ pub(super) fn exercise(failing: Failing) -> Observed {
             columns: output_columns.clone(),
             scope: StepScope::PerFile,
         });
-        let mut consumer = plan(Scenario::ProjectRetry);
+        let mut consumer = plan(PlanShape::ProjectRetry);
         consumer.steps.truncate(1);
         consumer.emit.step = StepId(0);
         consumer.steps[0].operation = Operation::Select {

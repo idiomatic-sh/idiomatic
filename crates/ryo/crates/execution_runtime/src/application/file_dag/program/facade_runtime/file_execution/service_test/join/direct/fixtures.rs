@@ -104,7 +104,7 @@ pub(crate) fn table(relation: Relation, rows: &[Vec<(u32, Cell)>]) -> Table {
 }
 
 pub(crate) fn request(left: &[u32], right: &[u32], output: &[(Side, u32)]) -> Plan {
-    let mut request = plan(Scenario::ProjectRetry);
+    let mut request = plan(PlanShape::ProjectRetry);
     request.steps = vec![PlanStep {
         scope: StepScope::PerFile,
         operation: operation(left, right, output, vec![], &[]),
