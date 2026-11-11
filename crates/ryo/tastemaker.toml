@@ -169,8 +169,6 @@ templates = [
   { template = "idiomatic.ryo/application-part", file = "crates/core/src/application/file_analysis/service_test/visit_test.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.arch/types", file = "crates/core/src/application/cross_file/completion/types.rs", params = { kind = "concept", part = "completion" }, description = "A part's own types: plain data with public fields and derives, no constructor and no inherent impl." },
   { template = "idiomatic.arch/constants", file = "crates/core/src/application/cross_file/completion/constants.rs", description = "A part's constants: the constants the part's code uses: no literal sits in code." },
-  { alias = "values-cases-test", template = "idiomatic.arch/unit-test", file = "crates/values/src/cases_test.rs", params = { kind = "concept", part = "cases" }, description = "The case runner runs every row of a word: a table with a red first and a red third row reports both, and a word no row has still fails." },
-  { alias = "benchmark-cases-test", template = "idiomatic.arch/unit-test", file = "crates/benchmark/src/cases_test.rs", params = { kind = "concept", part = "cases" }, description = "The case runner runs every row of a word: a table with a red first and a red third row reports both, and a word no row has still fails." },
 ]
 specs = [
   { spec = "idiomatic.arch/crate", include = ["crates/matching"], params = { package = "idiomatic-sh-ryo-matching", library = "ryo_matching", binary = "absent", distribution = "absent" } },
