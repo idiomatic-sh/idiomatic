@@ -4,7 +4,7 @@
 
 Receipts and profile variants that no code or pinned manifest reads were pruned after `a6e880e1d7`; that commit keeps them, and `python3 verify_profiles.py --full-inventory` regenerates current results.
 
-**Current engine:** full run185 recorded 411 PASS / 2 FAIL. On `f0738752d`, targeted run195 passes RUF100 (27/27 cases); B008 still fails its 120-second aggregate timeout. A new full 413-rule pass and full-Django performance acceptance remain unproven. See the [contract evidence](../../../../../docs/contracts/README.md).
+**Current engine:** full run185 recorded 411 PASS / 2 FAIL. On `f0738752d`, targeted run195 passes RUF100 (27/27 cases); B008 still fails its 120-second aggregate timeout. A new full 413-rule pass and full-Django performance acceptance remain unproven.
 
 Run the current inventory from this directory with the shared runner:
 
@@ -19,7 +19,7 @@ Without `--worker`, the adapter builds and seals one. Positional rule IDs select
 
 Explicit `--prepared` and `--profile` select historical authoring profiles. Their frozen source seals can correctly reject this evolved tree. Current acceptance uses the shared full-inventory route. `verify-reference-cases` checks pinned Ruff observations only; candidate correctness requires `verify-cases` or the full inventory.
 
-The [historical report](results/report.md) keeps earlier correctness, split native, memory, and performance observations distinct. Their immutable evidence includes the 324-rule replay, [151-rule split proof](results/native151-supplement-2026-11-02/summary.json), memory observation, and [earlier proof refresh](results/current-proof-refresh-2026-11-01/summary.json). Those results retain their original source and worker scope. The [engine ownership checklist](../../../../../docs/contracts/README.md) tracks current responsibilities and open gates.
+The [historical report](results/report.md) keeps earlier correctness, split native, memory, and performance observations distinct. Their immutable evidence includes the 324-rule replay, [151-rule split proof](results/native151-supplement-2026-11-02/summary.json), memory observation, and [earlier proof refresh](results/current-proof-refresh-2026-11-01/summary.json). Those results retain their original source and worker scope.
 
 The active pinned phase registry distinguishes the 413 shipped defaults from registered nondefault cohort definitions. Code-to-variant evidence now points to Ruff 0.16.5 `crates/ruff_linter/src/codes.rs`; the earlier active metadata mislabeled that evidence as `settings/mod.rs`. Historical receipts remain unchanged. All 413 existing phase/applicability values are preserved; supplemental registrations add no inventory credit.
 

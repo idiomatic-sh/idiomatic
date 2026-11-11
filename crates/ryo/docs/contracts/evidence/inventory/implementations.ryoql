@@ -1,2 +1,0 @@
-let impls = select * from "inherits" where glob_any(file, "crates/*/src/**/*.rs") and not glob_any(file, "**/*_test.rs") and not glob_any(file, "**/*_test/**") and not glob_any(file, "**/test.rs") and not glob_any(file, "**/tests/**") and not glob_any(file, "**/fixtures/**") and not glob_any(file, "**/fixtures.rs");
-emit impls subject file key(occurrence);

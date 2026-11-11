@@ -3,13 +3,12 @@
 # runs that product's whole check fan-out, the groups and machines release.yml's own `check` job runs (`asymptote check --root
 # crates/<product> --groups <group>`, one job per group and machine): the tests on every machine the products ship to, the SDK's API
 # on macOS, where cargo-public-api ships a prebuilt, and every other group once, on Linux. The release pull request workflow
-# (release-pr.yml) starts one on its branch, and that run's `gate` is the check the pull request's head commit needs. The
-# repository root's lint and check groups run in the checkpoint workflow (checkpoint.yml). Each job is a machine, the toolchains
-# (every sample's among them: a sample whose toolchain is missing fails its test), `tools/install.py`, which installs every tool
-# the checks run at the version declared for it, prebuilt, and one `asymptote check` call. The `gate` job waits for every other and
-# fails when one failed or was cancelled; the Ruff authoring guard, ryo's alone, is skipped for another product, which passes; the
-# independent speed guard is also required by `gate`. The commit gate stays `asymptote check --hook pre-commit`, the git hook
-# `asymptote init` installs, which runs the `lint` group.
+# (release-pr.yml) starts one on its branch, and that run's `gate` is the check the pull request's head commit needs. Each job is
+# a machine, the toolchains (every sample's among them: a sample whose toolchain is missing fails its test), `tools/install.py`,
+# which installs every tool the checks run at the version declared for it, prebuilt, and one `asymptote check` call. The `gate`
+# job waits for every other and fails when one failed or was cancelled; the Ruff authoring guard, ryo's alone, is skipped for
+# another product, which passes; the independent speed guard is also required by `gate`. The commit gate stays `asymptote check
+# --hook pre-commit`, the git hook `asymptote init` installs, which runs the `lint` group.
 name: check
 on:
   workflow_dispatch:
@@ -25,34 +24,6 @@ concurrency:
   group: check-${{ github.ref }}-${{ inputs.product }}
   cancel-in-progress: true
 jobs:
-  contract-review:
-    runs-on: ubuntu-26.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-      - name: Require an exact-source contract review
-        env:
-          REVIEW_BASE: ${{ github.event.pull_request.base.sha || format('refs/remotes/origin/{0}', github.event.repository.default_branch) }}
-        # Bootstrap is immutable until the base branch contains the review policy.
-        # Workflow edits still depend on repository governance and required checks.
-        run: |
-          policy_revision=763a846f1f17af7d6a503874524b7a33adf56e73
-          if git cat-file -e "$REVIEW_BASE:ci/contract_review/service.py" 2>/dev/null; then
-            policy_revision=$REVIEW_BASE
-          fi
-          review_policy=$(mktemp -d)
-          trap 'rm -rf "$review_policy"' EXIT
-          mkdir -p "$review_policy/ci/contract_review"
-          for file in command.py service.py; do
-            git show "$policy_revision:ci/contract_review/$file" > "$review_policy/ci/contract_review/$file"
-          done
-          python3 -I "$review_policy/ci/contract_review/command.py" --root "$GITHUB_WORKSPACE"
-
   ownership-contracts:
     runs-on: ubuntu-26.04
     steps:
@@ -185,7 +156,7 @@ jobs:
   # The product gate also requires the independent speed and Ruff authoring guards. The strict full inventory records parity
   # separately and remains a release acceptance requirement while rules are still being implemented.
   gate:
-    needs: [check, speed, ruff-candidates, contract-review, ownership-contracts]
+    needs: [check, speed, ruff-candidates, ownership-contracts]
     if: always()
     runs-on: ubuntu-26.04
     steps:

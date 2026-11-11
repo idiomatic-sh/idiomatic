@@ -50,9 +50,6 @@ extend-ignore-re = ['"[^"\n]*(\n[^"\n]*){0,6}"', '\bp[0-9in]\b']
 [files]
 extend-exclude = [
   "crates/ryo/languages/*/tests/fixtures/standard/**",
-  # The modularity inventory's raw query answers keep each `use` path's source text with its spaces taken out
-  # (`FileRootDemand as DemandRoot` is `FileRootDemandasDemandRoot`), which reads as a misspelling of "demands".
-  "crates/ryo/docs/contracts/evidence/inventory/raw/**",
   # A language's pinned suite is its test files byte for byte.
   "crates/ryo/languages/*/tests/fixtures/suite/**",
   # A refusal fixture's manifest is unreadable on purpose.

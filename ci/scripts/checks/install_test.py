@@ -267,17 +267,17 @@ def test_benchmark_collector_selects_only_one_matching_executable(tmp_path) -> N
 
 
 PYTEST_LISTING = (
-    "pytest v9.1.1 [with: pyyaml==6.0.3, tree-sitter==0.26.1, tree-sitter-rust==0.24.2] [CPython 3.12.11]\n- py.test\n- pytest\n"
+    "pytest v9.1.1 [with: pyyaml==6.0.3] [CPython 3.12.11]\n- py.test\n- pytest\n"
     "ruff v0.16.5 [CPython 3.13.5]\n- ruff\n"
 )
-PYTEST = {"package": "pytest", "version": "9.1.1", "python": "3.12", "with": ["pyyaml==6.0.3", "tree-sitter==0.26.1", "tree-sitter-rust==0.24.2"]}
+PYTEST = {"package": "pytest", "version": "9.1.1", "python": "3.12", "with": ["pyyaml==6.0.3"]}
 
 
 def test_a_python_tool_whose_with_list_changed_is_reinstalled(monkeypatch) -> None:
-    listing = PYTEST_LISTING.replace(", tree-sitter==0.26.1, tree-sitter-rust==0.24.2", "")
+    listing = PYTEST_LISTING.replace("[with: pyyaml==6.0.3]", "[with: pyyaml==6.0.2]")
     monkeypatch.setattr(install, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, listing, ""))
     have = install.installed_python()
-    assert install.stale_tool(PYTEST, have) == "installed with pyyaml==6.0.3, declared with pyyaml==6.0.3, tree-sitter==0.26.1, tree-sitter-rust==0.24.2"
+    assert install.stale_tool(PYTEST, have) == "installed with pyyaml==6.0.2, declared with pyyaml==6.0.3"
     assert install.stale_tool({"package": "ruff", "version": "0.16.5"}, have) is None
 
 
