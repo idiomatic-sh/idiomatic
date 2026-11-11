@@ -115,7 +115,7 @@ pub(crate) trait Occurrences {
     /// Visits each match of `regex` in `text`, stopping when `each` breaks.
     fn matches(
         &self,
-        regex: &ryo_matching::inbound::use_cases::matching::types::CompiledRegex,
+        regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
         text: ryo_matching::inbound::use_cases::matching::types::SearchText<'_>,
         each: &mut dyn FnMut(
             ryo_matching::inbound::use_cases::matching::types::TextSpan,
@@ -128,7 +128,7 @@ pub(crate) trait Occurrences {
     /// `MissingCapture` when the matcher has no group of that name.
     fn captures(
         &self,
-        regex: &ryo_matching::inbound::use_cases::matching::types::CompiledRegex,
+        regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
         text: ryo_matching::inbound::use_cases::matching::types::SearchText<'_>,
         group: ryo_matching::inbound::use_cases::matching::types::GroupName<'_>,
         each: &mut dyn FnMut(

@@ -1,10 +1,10 @@
 //! Pure matching orchestration without cache ownership or engine dependencies.
 
+use super::compiled::{CompiledGlobs, CompiledRegex, CompiledTextGlobs};
 use super::errors::MatchingError;
 use super::interface::MatchingUseCase;
 use super::types::{
-    CompiledGlobs, CompiledRegex, CompiledTextGlobs, GlobHits, GlobPattern, GroupName,
-    MatchOutcome, RegexSource, SearchText, TextSpan,
+    GlobHits, GlobPattern, GroupName, MatchOutcome, RegexSource, SearchText, TextSpan,
 };
 use crate::domain::matching::service;
 use crate::domain::matching::types::{

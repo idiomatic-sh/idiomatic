@@ -304,7 +304,7 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
 impl crate::domain::contract::types::Occurrences for OperatorsUseCaseImpl {
     fn matches(
         &self,
-        regex: &ryo_matching::inbound::use_cases::matching::types::CompiledRegex,
+        regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
         text: SearchText<'_>,
         each: &mut dyn FnMut(TextSpan) -> std::ops::ControlFlow<()>,
     ) -> std::ops::ControlFlow<()> {
@@ -312,7 +312,7 @@ impl crate::domain::contract::types::Occurrences for OperatorsUseCaseImpl {
     }
     fn captures(
         &self,
-        regex: &ryo_matching::inbound::use_cases::matching::types::CompiledRegex,
+        regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
         text: SearchText<'_>,
         group: GroupName<'_>,
         each: &mut dyn FnMut(TextSpan, TextSpan) -> std::ops::ControlFlow<()>,

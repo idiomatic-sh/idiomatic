@@ -1,9 +1,9 @@
 //! What matching promises callers without granting execution authority.
 
+use super::compiled::{CompiledGlobs, CompiledRegex, CompiledTextGlobs};
 use super::errors::MatchingError;
 use super::types::{
-    CompiledGlobs, CompiledRegex, CompiledTextGlobs, GlobHits, GlobPattern, GroupName,
-    MatchOutcome, RegexSource, SearchText, TextSpan,
+    GlobHits, GlobPattern, GroupName, MatchOutcome, RegexSource, SearchText, TextSpan,
 };
 
 /// Pure regex and glob semantics over caller-owned values.

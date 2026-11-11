@@ -4,7 +4,7 @@ use ryo_execution_domain::domain::operator::contract::types::{PrimitiveWorkspace
 use ryo_execution_domain::domain::table_scratch::types::{
     LazyScratch, OperatorScratch, SelectScratch,
 };
-use ryo_matching::inbound::use_cases::matching::types::CompiledRegex;
+use ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex;
 
 /// The working allocations of one invocation, each borrowed apart from the others: a view of the workspace, never
 /// a second owner of them. The admitted publications are not lent.

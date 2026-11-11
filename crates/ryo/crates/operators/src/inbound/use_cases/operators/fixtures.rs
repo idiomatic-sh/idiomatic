@@ -6,7 +6,7 @@ use crate::domain::contract::errors::ContractError;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::source_matches::types::TextRowDriver;
 use ryo_matching::inbound::use_cases::matching::{
-    interface::MatchingUseCase, types::CompiledRegex, types::RegexSource,
+    compiled::CompiledRegex, interface::MatchingUseCase, types::RegexSource,
     use_case::MatchingUseCaseImpl,
 };
 use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value as Cell};
