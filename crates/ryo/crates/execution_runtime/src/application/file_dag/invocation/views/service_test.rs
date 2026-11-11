@@ -8,13 +8,52 @@ use ryo_execution_store::application::file_dag::relations::interface::RelationsP
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::Table;
+use std::borrow::Cow;
 use std::sync::Arc;
 use {
     ryo_execution_domain::domain::derived_views::types::*,
     ryo_execution_domain::domain::operation_schema::types::InputShape,
     ryo_values::domain::rows::service::push_row,
 };
-fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storage() {
+/// What the cycle lease answered: its entity values, and whether it borrows the acquired view's storage.
+#[derive(Debug, PartialEq)]
+struct Lease {
+    values: Cow<'static, [i64]>,
+    borrowed: bool,
+}
+
+/// The request of the view acquired over the one-row edge table `(1, 2)`.
+type Input = ViewRequest;
+type Value = Lease;
+type Failure = OperatingError;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storage",
+        ),
+        word: Word::Succeeds,
+        input: || ViewRequest::CycleAdjacency {
+            source: ColumnIndex(0),
+            destination: ColumnIndex(1),
+        },
+        expect: Expect::Value(Lease {
+            values: Cow::Borrowed(&[1, 2]),
+            borrowed: true,
+        }),
+    },
+    Case {
+        name: CaseName("a_cycle_lease_of_an_equality_view_is_refused"),
+        word: Word::Refuses,
+        input: || ViewRequest::Equality {
+            columns: vec![ColumnIndex(0)],
+        },
+        expect: Expect::Error(OperatingError::WrongOperation),
+    },
+];
+
+/// Acquires the requested view over the edge table and takes the cycle lease of it.
+fn subject(request: Input) -> Result<Value, Failure> {
     let mut table = Table {
         kinds: vec![CellKind::Number; 2],
         ..Default::default()
@@ -25,128 +64,58 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     );
     let plan = Arc::new(
         ryo_execution_store::application::file_dag::derived::prepare::service::view(
-            (Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
-                as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
-            &ViewRequest::CycleAdjacency {
-                source: ColumnIndex(0),
-                destination: ColumnIndex(1),
-            },
+            Arc::new(ryo_execution_store::application::file_dag::fixtures::derived()),
+            &request,
             &[InputShape {
                 kinds: &table.kinds,
                 tree: None,
             }],
-        )
-        .unwrap(),
+        )?,
     );
     let owner = ryo_execution_store::application::file_dag::relations::service::RelationOwner::fixture(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
-            as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
+        Arc::new(ryo_execution_store::application::file_dag::fixtures::derived()),
     );
-    let publication = owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Computed(table.clone())).unwrap();
-    let held = owner
-        .rows(&publication, &|_| Err(OperatingError::NotRead))
-        .unwrap();
+    let publication = owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Computed(table.clone()))?;
+    let held = owner.rows(&publication, &|_| Err(OperatingError::NotRead))?;
     let rows = RepresentationInput::from(&held);
     let proof = owner
         .admit(&publication, rows)
-        .and_then(|admitted| admitted)
-        .unwrap();
-    let acquired = owner
-        .derived()
-        .acquire_stored(
-            &plan,
-            &owner
-                .derived()
-                .admit_view(&plan, &owner, &[&proof])
-                .unwrap(),
-            ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
-            DerivedInputs::Rows(&[rows]),
-            &mut DerivedScratch::default(),
-            None,
-        )
-        .unwrap();
-    let DerivedView::CycleAdjacency(built) = acquired.view().unwrap() else {
-        panic!("actual cycle builder");
+        .and_then(|admitted| admitted)?;
+    let acquired = owner.derived().acquire_stored(
+        &plan,
+        &owner.derived().admit_view(&plan, &owner, &[&proof])?,
+        ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
+        DerivedInputs::Rows(&[rows]),
+        &mut DerivedScratch::default(),
+        None,
+    )?;
+    let built = match acquired.view()? {
+        DerivedView::CycleAdjacency(built) => Some(built.values.as_ptr()),
+        _ => None,
     };
-    let pointer = built.values.as_ptr();
-    let graph = InvocationResources::cycles_view(Some(&acquired))
-        .unwrap()
-        .unwrap();
-    assert_eq!(
-        graph.values,
-        [Cell::Number(Integer(1)), Cell::Number(Integer(2))]
-    );
-    assert_eq!(
-        pointer,
-        graph.values.as_ptr(),
-        "the semantic lease borrows the owned graph"
-    );
-    let equality = Arc::new(
-        ryo_execution_store::application::file_dag::derived::prepare::service::view(
-            (Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
-                as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
-            &ViewRequest::Equality {
-                columns: vec![ColumnIndex(0)],
-            },
-            &[InputShape {
-                kinds: &table.kinds,
-                tree: None,
-            }],
-        )
-        .unwrap(),
-    );
-    let wrong = owner
-        .derived()
-        .acquire_stored(
-            &equality,
-            &owner
-                .derived()
-                .admit_view(&equality, &owner, &[&proof])
-                .unwrap(),
-            ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
-            DerivedInputs::Rows(&[rows]),
-            &mut DerivedScratch::default(),
-            None,
-        )
-        .unwrap();
-    assert!(matches!(
-        InvocationResources::cycles_view(Some(&wrong)),
-        Err(OperatingError::WrongOperation)
-    ));
-}
-
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    ProductionCycleLeaseBorrowsActualTraitOutputAndRefusesForeignStorage,
-}
-
-type Input = Scenario;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
-const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName(
-        "production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storage",
-    ),
-    word: Word::Succeeds,
-    input: || Scenario::ProductionCycleLeaseBorrowsActualTraitOutputAndRefusesForeignStorage,
-    expect: Expect::Value(()),
-}];
-
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::ProductionCycleLeaseBorrowsActualTraitOutputAndRefusesForeignStorage => {
-            production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storage();
-            Ok(())
-        }
-    }
+    let Some(graph) = InvocationResources::cycles_view(Some(&acquired))? else {
+        return Err(OperatingError::NotRead);
+    };
+    Ok(Lease {
+        values: graph
+            .values
+            .iter()
+            .map(|cell| match cell {
+                Cell::Number(Integer(value)) => *value,
+                other => panic!("a number cell, not {other:?}"),
+            })
+            .collect(),
+        borrowed: built == Some(graph.values.as_ptr()),
+    })
 }
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

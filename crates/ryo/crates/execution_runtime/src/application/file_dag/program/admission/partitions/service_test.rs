@@ -25,92 +25,99 @@ fn corpus() -> Vec<CorpusInput> {
         .to_vec()
 }
 
-fn identities_that_differ_only_in_the_inapplicable_files_are_one_identity_and_keep_their_sets() {
-    let files = corpus();
-    let request = Arc::new(RequestIdentity::new(&files));
-    let without = RequiredPartitions::from_request(&request, &files, &[], &[], &[], &[]).unwrap();
-    let with =
-        RequiredPartitions::from_request(&request, &files, &[], &[], &[FileId(1)], &[]).unwrap();
-    assert!(
-        without.inapplicable() != with.inapplicable(),
-        "each identity keeps its own evidence"
-    );
-    assert!(without == with, "equality never reads the inapplicable set");
-    assert_eq!(
-        without.same_request(&with),
-        Agreement::Same,
-        "the frontier cache finds one acquisition for both"
-    );
-    assert_eq!(
-        Partition::Project(without.clone()).supplies(&Partition::Project(with.clone())),
-        PartitionSupply::Supplies,
-        "a shared execution supplies either"
-    );
-    assert!(
-        with.identity() == without,
-        "the shared identity holds no rule's evidence"
-    );
-    assert!(with.identity().inapplicable().is_empty());
-}
-
-fn identities_of_two_requests_are_never_one_identity() {
-    let files = corpus();
-    let first = Arc::new(RequestIdentity::new(&files));
-    let later = Arc::new(RequestIdentity::new(&files));
-    let one =
-        RequiredPartitions::from_request(&first, &files, &[], &[], &[FileId(1)], &[]).unwrap();
-    let other =
-        RequiredPartitions::from_request(&later, &files, &[], &[], &[FileId(1)], &[]).unwrap();
-    assert_eq!(
-        one.same_request(&other),
-        Agreement::Different,
-        "the same inapplicable files do not make two runs one identity"
-    );
-}
-
-/// The case each row runs: one of the proofs below.
+/// Two identities over the same corpus: whether they come from one request, and each one's inapplicable files.
 #[derive(Clone, Copy, Debug)]
-enum Scenario {
-    IdentitiesThatDifferOnlyInTheInapplicableFilesAreOneIdentityAndKeepTheirSets,
-    IdentitiesOfTwoRequestsAreNeverOneIdentity,
+struct Pair {
+    one_request: bool,
+    left: &'static [u32],
+    right: &'static [u32],
 }
 
-type Input = Scenario;
-type Value = ();
+/// How the two identities compare.
+#[derive(Debug, PartialEq)]
+struct Compared {
+    /// Whether the two inapplicable sets are equal.
+    same_inapplicable: bool,
+    /// Whether the identities are equal.
+    equal: bool,
+    /// What the frontier cache lookup answers.
+    agreement: Agreement,
+    /// Whether a project execution of the left supplies the right.
+    supply: PartitionSupply,
+    /// Whether the right one's shared identity equals the left one.
+    shared_identity_is_left: bool,
+    /// Whether the right one's shared identity holds no inapplicable file.
+    shared_identity_bare: bool,
+}
+
+type Input = Pair;
+type Value = Compared;
 type Failure = String;
 
-/// One row per proof: its name, and the scenario that runs it.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(
             "identities_that_differ_only_in_the_inapplicable_files_are_one_identity_and_keep_their_sets",
         ),
         word: Word::Succeeds,
-        input: || {
-            Scenario::IdentitiesThatDifferOnlyInTheInapplicableFilesAreOneIdentityAndKeepTheirSets
+        input: || Pair {
+            one_request: true,
+            left: &[],
+            right: &[1],
         },
-        expect: Expect::Value(()),
+        expect: Expect::Value(Compared {
+            same_inapplicable: false,
+            equal: true,
+            agreement: Agreement::Same,
+            supply: PartitionSupply::Supplies,
+            shared_identity_is_left: true,
+            shared_identity_bare: true,
+        }),
     },
     Case {
         name: CaseName("identities_of_two_requests_are_never_one_identity"),
         word: Word::Succeeds,
-        input: || Scenario::IdentitiesOfTwoRequestsAreNeverOneIdentity,
-        expect: Expect::Value(()),
+        input: || Pair {
+            one_request: false,
+            left: &[1],
+            right: &[1],
+        },
+        expect: Expect::Value(Compared {
+            same_inapplicable: true,
+            equal: false,
+            agreement: Agreement::Different,
+            supply: PartitionSupply::Lacks,
+            shared_identity_is_left: false,
+            shared_identity_bare: true,
+        }),
     },
 ];
 
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::IdentitiesThatDifferOnlyInTheInapplicableFilesAreOneIdentityAndKeepTheirSets => {
-            identities_that_differ_only_in_the_inapplicable_files_are_one_identity_and_keep_their_sets();
-            Ok(())
-        }
-        Scenario::IdentitiesOfTwoRequestsAreNeverOneIdentity => {
-            identities_of_two_requests_are_never_one_identity();
-            Ok(())
-        }
-    }
+fn ids(files: &[u32]) -> Vec<FileId> {
+    files.iter().map(|file| FileId(*file)).collect()
+}
+
+/// Builds both identities and compares them by every check that reads them.
+fn subject(pair: Input) -> Result<Value, Failure> {
+    let files = corpus();
+    let first = Arc::new(RequestIdentity::new(&files));
+    let later = if pair.one_request {
+        Arc::clone(&first)
+    } else {
+        Arc::new(RequestIdentity::new(&files))
+    };
+    let left = RequiredPartitions::from_request(&first, &files, &[], &[], &ids(pair.left), &[])
+        .map_err(|error| format!("{error:?}"))?;
+    let right = RequiredPartitions::from_request(&later, &files, &[], &[], &ids(pair.right), &[])
+        .map_err(|error| format!("{error:?}"))?;
+    Ok(Compared {
+        same_inapplicable: left.inapplicable() == right.inapplicable(),
+        equal: left == right,
+        agreement: left.same_request(&right),
+        supply: Partition::Project(left.clone()).supplies(&Partition::Project(right.clone())),
+        shared_identity_is_left: right.identity() == left,
+        shared_identity_bare: right.identity().inapplicable().is_empty(),
+    })
 }
 
 #[test]

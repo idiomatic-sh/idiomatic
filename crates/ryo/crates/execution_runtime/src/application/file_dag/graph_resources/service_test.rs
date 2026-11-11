@@ -1,5 +1,10 @@
 //! Behavioral controls retained from the former application resource constructors.
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::operator::contract::views::types::{
+    ClosureParts, PartitionCount, PartitionIndex,
+};
+use ryo_values::domain::rows::types::Table;
+use std::borrow::Cow;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_relations::domain::relations::types::{CellKind, Value as Cell};
@@ -17,8 +22,7 @@ fn prepare_cycles(
 ) -> Result<ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView, OperatingError>{
     let owner = ryo_execution_store::application::file_dag::relations::service::RelationOwner::fixture(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
-            as std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
+        std::sync::Arc::new(ryo_execution_store::application::file_dag::fixtures::derived()),
     );
     let RepresentationInput::Computed(table) = input else {
         panic!("computed fixture")
@@ -57,9 +61,9 @@ fn prepare_closure(
 ) -> Result<crate::application::file_dag::invocation::service::AcquiredPartitions, OperatingError> {
     let owner = std::rc::Rc::new(ryo_execution_store::application::file_dag::relations::service::RelationOwner::fixture(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(
+        std::sync::Arc::new(
             ryo_execution_store::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
+        ),
     ));
     let RepresentationInput::Computed(table) = input else {
         return Err(OperatingError::WrongOperation);
@@ -101,120 +105,159 @@ fn table(width: ColumnCount, rows: &[&[Integer]]) -> Table {
     }
     table
 }
-fn adjacency_keeps_parallel_edges_and_first_entity_numbering() -> Result<(), OperatingError> {
-    let input = table(
-        ColumnCount(2),
-        &[
-            &[Integer(9), Integer(1)],
-            &[Integer(9), Integer(1)],
-            &[Integer(1), Integer(9)],
-            &[Integer(7), Integer(7)],
-        ],
-    );
-    let graph = prepare_cycles(
-        RepresentationInput::Computed(&input),
-        ColumnIndex(0),
-        ColumnIndex(1),
-    )
-    .unwrap();
-    let ryo_derived::domain::contract::types::DerivedView::CycleAdjacency(graph) = graph.view()?
-    else {
-        return Err(OperatingError::WrongOperation);
-    };
-    assert_eq!(
-        graph.values,
-        vec![number(Integer(9)), number(Integer(1)), number(Integer(7))]
-    );
-    assert_eq!(graph.starts.0, vec![0, 2, 3, 4]);
-    assert_eq!(graph.leaving.0, vec![1, 1, 0, 2]);
-    Ok(())
-}
-fn closure_preparation_preserves_clustered_partition_order_and_sorts_sources()
--> Result<(), OperatingError> {
-    let input = table(
-        ColumnCount(3),
-        &[
-            &[Integer(9), Integer(4), Integer(3)],
-            &[Integer(9), Integer(2), Integer(4)],
-            &[Integer(1), Integer(7), Integer(8)],
-        ],
-    );
-    let partitions = prepare_closure(
-        RepresentationInput::Computed(&input),
-        &[ColumnIndex(0)],
-        ColumnIndex(1),
-        ColumnIndex(2),
-    )
-    .unwrap();
-    use ryo_execution_domain::domain::operator::contract::views::types::ClosureParts;
-    assert_eq!(
-        ClosureParts::len(&partitions),
-        ryo_execution_domain::domain::operator::contract::views::types::PartitionCount(2)
-    );
-    let first = ClosureParts::get(
-        &partitions,
-        ryo_execution_domain::domain::operator::contract::views::types::PartitionIndex(0),
-    )?;
-    let second = ClosureParts::get(
-        &partitions,
-        ryo_execution_domain::domain::operator::contract::views::types::PartitionIndex(1),
-    )?;
-    assert_eq!(first.key, vec![number(Integer(9))]);
-    assert_eq!(first.sources, vec![number(Integer(2)), number(Integer(4))]);
-    assert_eq!(
-        first.table.cells,
-        vec![
-            number(Integer(4)),
-            number(Integer(3)),
-            number(Integer(2)),
-            number(Integer(4))
-        ]
-    );
-    assert_eq!(second.key, vec![number(Integer(1))]);
-    Ok(())
-}
-
-use ryo_values::domain::rows::types::Table;
-
-/// The case each row runs: one of the proofs below.
+/// The graph resource a request prepares over a table's columns.
 #[derive(Clone, Copy, Debug)]
-enum Scenario {
-    AdjacencyKeepsParallelEdgesAndFirstEntityNumbering,
-    ClosurePreparationPreservesClusteredPartitionOrderAndSortsSources,
+enum Request {
+    /// The cycle adjacency from the source to the destination column.
+    Cycles { source: u32, destination: u32 },
+    /// The closure partitions keyed by one column, from the source to the destination column.
+    Closure {
+        key: u32,
+        source: u32,
+        destination: u32,
+    },
 }
 
-type Input = Scenario;
-type Value = ();
-type Failure = String;
+/// A request over number rows.
+#[derive(Clone, Copy, Debug)]
+struct Graph {
+    width: usize,
+    rows: &'static [&'static [i64]],
+    request: Request,
+}
 
-/// One row per proof: its name, and the scenario that runs it.
+/// One closure partition: its key, its sorted sources and its cells.
+#[derive(Clone, Debug, PartialEq)]
+struct Partition {
+    key: Cow<'static, [i64]>,
+    sources: Cow<'static, [i64]>,
+    cells: Cow<'static, [i64]>,
+}
+
+/// What the prepared resource holds.
+#[derive(Debug, PartialEq)]
+enum Prepared {
+    /// The adjacency: entity values in numbering order, each entity's first edge, each edge's target.
+    Adjacency {
+        values: Cow<'static, [i64]>,
+        starts: Cow<'static, [usize]>,
+        leaving: Cow<'static, [usize]>,
+    },
+    /// The closure partitions in order.
+    Partitions(Cow<'static, [Partition]>),
+}
+
+type Input = Graph;
+type Value = Prepared;
+type Failure = OperatingError;
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("adjacency_keeps_parallel_edges_and_first_entity_numbering"),
         word: Word::Succeeds,
-        input: || Scenario::AdjacencyKeepsParallelEdgesAndFirstEntityNumbering,
-        expect: Expect::Value(()),
+        input: || Graph {
+            width: 2,
+            rows: &[&[9, 1], &[9, 1], &[1, 9], &[7, 7]],
+            request: Request::Cycles {
+                source: 0,
+                destination: 1,
+            },
+        },
+        expect: Expect::Value(Prepared::Adjacency {
+            values: Cow::Borrowed(&[9, 1, 7]),
+            starts: Cow::Borrowed(&[0, 2, 3, 4]),
+            leaving: Cow::Borrowed(&[1, 1, 0, 2]),
+        }),
     },
     Case {
         name: CaseName("closure_preparation_preserves_clustered_partition_order_and_sorts_sources"),
         word: Word::Succeeds,
-        input: || Scenario::ClosurePreparationPreservesClusteredPartitionOrderAndSortsSources,
-        expect: Expect::Value(()),
+        input: || Graph {
+            width: 3,
+            rows: &[&[9, 4, 3], &[9, 2, 4], &[1, 7, 8]],
+            request: Request::Closure {
+                key: 0,
+                source: 1,
+                destination: 2,
+            },
+        },
+        expect: Expect::Value(Prepared::Partitions(Cow::Borrowed(&[
+            Partition {
+                key: Cow::Borrowed(&[9]),
+                sources: Cow::Borrowed(&[2, 4]),
+                cells: Cow::Borrowed(&[4, 3, 2, 4]),
+            },
+            Partition {
+                key: Cow::Borrowed(&[1]),
+                sources: Cow::Borrowed(&[7]),
+                cells: Cow::Borrowed(&[7, 8]),
+            },
+        ]))),
     },
 ];
 
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::AdjacencyKeepsParallelEdgesAndFirstEntityNumbering => {
-            adjacency_keeps_parallel_edges_and_first_entity_numbering()
-                .map(|_| ())
-                .map_err(|error| format!("{error:?}"))
+fn integers(cells: &[Cell]) -> Cow<'static, [i64]> {
+    cells
+        .iter()
+        .map(|cell| match cell {
+            Cell::Number(Integer(value)) => *value,
+            other => panic!("a number cell, not {other:?}"),
+        })
+        .collect()
+}
+
+/// Prepares the requested graph resource over the rows.
+fn subject(graph: Input) -> Result<Value, Failure> {
+    let rows: Vec<Vec<Integer>> = graph
+        .rows
+        .iter()
+        .map(|row| row.iter().copied().map(Integer).collect())
+        .collect();
+    let refs: Vec<&[Integer]> = rows.iter().map(Vec::as_slice).collect();
+    let input = table(ColumnCount(graph.width), &refs);
+    match graph.request {
+        Request::Cycles {
+            source,
+            destination,
+        } => {
+            let acquired = prepare_cycles(
+                RepresentationInput::Computed(&input),
+                ColumnIndex(source),
+                ColumnIndex(destination),
+            )?;
+            let ryo_derived::domain::contract::types::DerivedView::CycleAdjacency(adjacency) =
+                acquired.view()?
+            else {
+                return Err(OperatingError::WrongOperation);
+            };
+            Ok(Prepared::Adjacency {
+                values: integers(&adjacency.values),
+                starts: adjacency.starts.0.clone().into(),
+                leaving: adjacency.leaving.0.clone().into(),
+            })
         }
-        Scenario::ClosurePreparationPreservesClusteredPartitionOrderAndSortsSources => {
-            closure_preparation_preserves_clustered_partition_order_and_sorts_sources()
-                .map(|_| ())
-                .map_err(|error| format!("{error:?}"))
+        Request::Closure {
+            key,
+            source,
+            destination,
+        } => {
+            let parts = prepare_closure(
+                RepresentationInput::Computed(&input),
+                &[ColumnIndex(key)],
+                ColumnIndex(source),
+                ColumnIndex(destination),
+            )?;
+            let PartitionCount(count) = ClosureParts::len(&parts);
+            let mut partitions = Vec::new();
+            for index in 0..count {
+                let part = ClosureParts::get(&parts, PartitionIndex(index))?;
+                partitions.push(Partition {
+                    key: integers(&part.key),
+                    sources: integers(&part.sources),
+                    cells: integers(&part.table.cells),
+                });
+            }
+            Ok(Prepared::Partitions(partitions.into()))
         }
     }
 }

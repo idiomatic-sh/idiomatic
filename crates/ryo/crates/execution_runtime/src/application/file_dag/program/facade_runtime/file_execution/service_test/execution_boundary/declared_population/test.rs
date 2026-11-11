@@ -7,83 +7,84 @@ use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::kinds,
-    types::{Relation, Value as Cell},
+    types::{NodeId, Relation, Value as Cell},
 };
 use ryo_values::domain::{
     plan_parts::types::{Input as PlanInput, RepeatedRows, StepId},
     plans::types::Operation,
     rows::types::{RowCount, Table},
 };
-fn malformed_declared_population_is_refused_not_silently_shortened() {
-    let table = Table {
-        kinds: kinds(Relation::SyntaxTree).to_vec(),
-        cells: vec![Cell::Node(ryo_relations::domain::relations::types::NodeId(
-            0,
-        ))],
-        count: RowCount(2),
-    };
-    assert!(matches!(
-        source(Rows::Computed(&table)),
-        Err(OperatingError::ShapeMismatch)
-    ));
-}
-fn zero_width_bags_keep_their_declared_population() {
-    let (result, _) = execute(
-        Operation::Project {
-            from: PlanInput::Step(StepId(0)),
-            columns: vec![],
-            distinct: RepeatedRows::Kept,
-        },
-        hosted(&[], vec![vec![], vec![], vec![]]),
-        &mut Symbols::default(),
-    );
-    let output = result.unwrap();
-    assert_eq!(output.count.0, 3);
-    assert!(output.cells.is_empty());
-}
-
-/// The case each row runs: one of the proofs below.
+/// A declared population and the path it is read through.
 #[derive(Clone, Copy, Debug)]
-enum Scenario {
-    MalformedDeclaredPopulationIsRefusedNotSilentlyShortened,
-    ZeroWidthBagsKeepTheirDeclaredPopulation,
+enum Population {
+    /// A syntax-tree table of `nodes` node cells declaring `count` rows, read as a source.
+    SyntaxTree { nodes: u64, count: usize },
+    /// `rows` zero-width hosted rows, projected to no columns.
+    ZeroWidth { rows: usize },
 }
 
-type Input = Scenario;
-type Value = ();
-type Failure = String;
+/// The table the read answers: its row count and its cell count.
+#[derive(Debug, PartialEq)]
+struct Kept {
+    count: usize,
+    cells: usize,
+}
 
-/// One row per proof: its name, and the scenario that runs it.
+type Input = Population;
+type Value = Kept;
+type Failure = OperatingError;
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("malformed_declared_population_is_refused_not_silently_shortened"),
-        word: Word::Succeeds,
-        input: || Scenario::MalformedDeclaredPopulationIsRefusedNotSilentlyShortened,
-        expect: Expect::Value(()),
+        word: Word::Refuses,
+        input: || Population::SyntaxTree { nodes: 1, count: 2 },
+        expect: Expect::Error(OperatingError::ShapeMismatch),
     },
     Case {
         name: CaseName("zero_width_bags_keep_their_declared_population"),
         word: Word::Succeeds,
-        input: || Scenario::ZeroWidthBagsKeepTheirDeclaredPopulation,
-        expect: Expect::Value(()),
+        input: || Population::ZeroWidth { rows: 3 },
+        expect: Expect::Value(Kept { count: 3, cells: 0 }),
     },
 ];
 
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::MalformedDeclaredPopulationIsRefusedNotSilentlyShortened => {
-            malformed_declared_population_is_refused_not_silently_shortened();
-            Ok(())
+/// Reads the population through its path and answers the table's shape.
+fn subject(population: Input) -> Result<Value, Failure> {
+    let output = match population {
+        Population::SyntaxTree { nodes, count } => {
+            let table = Table {
+                kinds: kinds(Relation::SyntaxTree).to_vec(),
+                cells: (0..nodes).map(|node| Cell::Node(NodeId(node))).collect(),
+                count: RowCount(count),
+            };
+            source(Rows::Computed(&table))?
         }
-        Scenario::ZeroWidthBagsKeepTheirDeclaredPopulation => {
-            zero_width_bags_keep_their_declared_population();
-            Ok(())
+        Population::ZeroWidth { rows } => {
+            execute(
+                Operation::Project {
+                    from: PlanInput::Step(StepId(0)),
+                    columns: vec![],
+                    distinct: RepeatedRows::Kept,
+                },
+                hosted(&[], vec![vec![]; rows]),
+                &mut Symbols::default(),
+            )
+            .0?
         }
-    }
+    };
+    Ok(Kept {
+        count: output.count.0,
+        cells: output.cells.len(),
+    })
 }
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }
