@@ -3,7 +3,7 @@ use crate::cases::{Case, CaseName, Expect, Word};
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::family::fixtures::{
-    Scenario, exercise,
+    Departure, exercise,
 };
 
 pub(crate) type Input = DerivedKind;
@@ -70,5 +70,5 @@ pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 pub(crate) fn subject(kind: DerivedKind) -> Result<DerivedKind, OperatingError> {
-    exercise(kind, Scenario::Succeeds)
+    exercise(kind, Departure::Succeeds)
 }

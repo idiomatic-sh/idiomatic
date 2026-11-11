@@ -5,7 +5,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::family::fixtures::{
-    Leaked, Scenario, exercise, exercise_forgetful,
+    Leaked, Departure, exercise, exercise_forgetful,
     route::{exit::Exit, leave},
 };
 use std::borrow::Cow;
@@ -13,13 +13,13 @@ use std::borrow::Cow;
 /// How every family is acquired and left.
 #[derive(Clone, Copy, Debug)]
 enum Route {
-    /// Through the stored owner, leaving by this scenario.
-    Stored(Scenario),
+    /// Through the stored owner, leaving by this departure.
+    Stored(Departure),
     /// Through the entry production acquires the family with, leaving by this exit; the ledger is
     /// asserted inside `leave`.
     Production(Exit),
-    /// Through the stored owner by this scenario, with an exit that never releases its lease.
-    Forgetful(Scenario),
+    /// Through the stored owner by this departure, with an exit that never releases its lease.
+    Forgetful(Departure),
 }
 
 /// What one family answered on the route.
@@ -95,19 +95,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("every_family_releases_its_last_consumer_on_success_cancellation_and_error"),
         word: Word::Succeeds,
-        input: || Route::Stored(Scenario::Succeeds),
+        input: || Route::Stored(Departure::Succeeds),
         expect: Expect::Value(Cow::Borrowed(EVERY_FAMILY_READ)),
     },
     Case {
         name: CaseName("every_family_releases_its_last_consumer_on_cancellation"),
         word: Word::Succeeds,
-        input: || Route::Stored(Scenario::Cancelled),
+        input: || Route::Stored(Departure::Cancelled),
         expect: Expect::Value(Cow::Borrowed(EVERY_FAMILY_READ)),
     },
     Case {
         name: CaseName("every_family_refuses_a_retargeted_descriptor"),
         word: Word::Succeeds,
-        input: || Route::Stored(Scenario::RetargetedDescriptor),
+        input: || Route::Stored(Departure::RetargetedDescriptor),
         expect: Expect::Value(Cow::Borrowed(&[
             (
                 DerivedKind::Equality,
@@ -150,7 +150,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("every_family_answers_its_build_failure"),
         word: Word::Succeeds,
-        input: || Route::Stored(Scenario::BuildFails),
+        input: || Route::Stored(Departure::BuildFails),
         expect: Expect::Value(Cow::Borrowed(&[
             (
                 DerivedKind::Equality,
@@ -193,7 +193,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("every_stored_lease_survives_retirement_while_a_new_demand_refuses"),
         word: Word::Succeeds,
-        input: || Route::Stored(Scenario::Held),
+        input: || Route::Stored(Departure::Held),
         expect: Expect::Value(Cow::Borrowed(EVERY_FAMILY_READ)),
     },
     Case {
@@ -256,13 +256,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an_exit_that_forgets_to_release_its_lease_fails_the_control"),
         word: Word::Succeeds,
-        input: || Route::Forgetful(Scenario::Succeeds),
+        input: || Route::Forgetful(Departure::Succeeds),
         expect: Expect::Value(Cow::Borrowed(EVERY_PINNED_FAMILY_LEAKS)),
     },
     Case {
         name: CaseName("a_cancelled_exit_that_forgets_to_release_its_lease_fails_the_control"),
         word: Word::Succeeds,
-        input: || Route::Forgetful(Scenario::Cancelled),
+        input: || Route::Forgetful(Departure::Cancelled),
         expect: Expect::Value(Cow::Borrowed(EVERY_PINNED_FAMILY_LEAKS)),
     },
 ];
@@ -270,10 +270,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// Runs every family along the route, in the authoritative order.
 fn subject(route: Input) -> Result<Value, Failure> {
     let answer = |kind| match route {
-        Route::Stored(scenario) => read(exercise(kind, scenario)),
+        Route::Stored(departure) => read(exercise(kind, departure)),
         Route::Production(exit) => read(leave(kind, exit)),
-        Route::Forgetful(scenario) => {
-            exercise_forgetful(kind, scenario).map_or(Answer::Released, Answer::Leaked)
+        Route::Forgetful(departure) => {
+            exercise_forgetful(kind, departure).map_or(Answer::Released, Answer::Leaked)
         }
     };
     Ok(DerivedKind::ALL

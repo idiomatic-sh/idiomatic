@@ -10,49 +10,75 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, Table};
 
-/// What the contract asks of the port.
+/// How far an equality request is taken across the port.
 #[derive(Clone, Copy, Debug)]
-pub enum Scenario {
-    /// An equality request on a present column keeps its schema.
-    PresentColumn,
-    /// An equality request on an absent column is refused on validation.
-    AbsentColumn,
-    /// An equality request builds a payload from rows.
-    Builds,
-    /// A built equality payload is viewed as its index.
-    ViewsIndex,
-    /// Inputs of another kind than the request's are the wrong operation.
-    BuildsFromAnotherKind,
+pub enum Stage {
+    /// Prepared and validated.
+    Prepared,
+    /// Built from the two rows.
+    BuiltFromRows,
+    /// Built from native edges, another kind of input than the request's.
+    BuiltFromEdges,
+    /// Built from the two rows, then viewed.
+    Viewed,
 }
 
-type Input = Scenario;
-type Value = usize;
+/// An equality request on `column`, taken to `stage`.
+#[derive(Clone, Copy, Debug)]
+pub struct Request {
+    /// The column the request looks up.
+    pub column: ColumnIndex,
+    /// How far the request is taken.
+    pub stage: Stage,
+}
+
+/// What the stage answers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Answer {
+    /// The number of schemas the prepared request keeps.
+    Schemas(usize),
+    /// Whether the build produced a payload.
+    Built(bool),
+    /// The number of rows the viewed index holds.
+    IndexRows(usize),
+}
+
+type Input = Request;
+type Value = Answer;
 type Failure = DerivedFault;
+
+/// An equality request on column `column`, taken to `stage`.
+const fn request(column: u32, stage: Stage) -> Request {
+    Request {
+        column: ColumnIndex(column),
+        stage,
+    }
+}
 
 /// Observable schema, build and view of an equality request, and the refusals across the port.
 pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_request_on_a_present_column_keeps_its_schema"),
         word: Word::Succeeds,
-        input: || Scenario::PresentColumn,
-        expect: Expect::Value(1),
+        input: || request(0, Stage::Prepared),
+        expect: Expect::Value(Answer::Schemas(1)),
     },
     Case {
         name: CaseName("an_equality_request_builds_a_payload"),
         word: Word::Succeeds,
-        input: || Scenario::Builds,
-        expect: Expect::Value(1),
+        input: || request(0, Stage::BuiltFromRows),
+        expect: Expect::Value(Answer::Built(true)),
     },
     Case {
         name: CaseName("an_equality_payload_is_viewed_as_its_index"),
         word: Word::Succeeds,
-        input: || Scenario::ViewsIndex,
-        expect: Expect::Value(2),
+        input: || request(0, Stage::Viewed),
+        expect: Expect::Value(Answer::IndexRows(2)),
     },
     Case {
         name: CaseName("a_request_on_an_absent_column_is_refused_on_validation"),
         word: Word::Refuses,
-        input: || Scenario::AbsentColumn,
+        input: || request(3, Stage::Prepared),
         expect: Expect::Error(DerivedFault::NoSuchColumn {
             column: ColumnIndex(3),
         }),
@@ -60,7 +86,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("inputs_of_another_kind_are_the_wrong_operation"),
         word: Word::Refuses,
-        input: || Scenario::BuildsFromAnotherKind,
+        input: || request(0, Stage::BuiltFromEdges),
         expect: Expect::Error(DerivedFault::WrongOperation),
     },
 ];
@@ -71,34 +97,27 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 ///
 /// When the implementation changes the schema it keeps, what it builds or views, or its refusals.
 pub fn check(adapter: &impl DerivedPort) {
-    let subject = |scenario: Input| {
+    let subject = |request: Input| {
         let rows = Table {
             kinds: vec![CellKind::Number],
             cells: [4, 5].map(|cell| Cell::Number(Integer(cell))).to_vec(),
             count: RowCount(2),
         };
-        let column = match scenario {
-            Scenario::AbsentColumn => ColumnIndex(3),
-            Scenario::PresentColumn
-            | Scenario::Builds
-            | Scenario::ViewsIndex
-            | Scenario::BuildsFromAnotherKind => ColumnIndex(0),
-        };
         let prepared = adapter.prepare(
             DerivedRequest::Equality {
-                columns: vec![column],
+                columns: vec![request.column],
             },
             vec![vec![CellKind::Number]],
         );
         prepared.validate()?;
         let mut room = BuildWorkspace::default();
-        match scenario {
-            Scenario::PresentColumn | Scenario::AbsentColumn => Ok(prepared.schemas().len()),
-            Scenario::Builds => {
+        match request.stage {
+            Stage::Prepared => Ok(Answer::Schemas(prepared.schemas().len())),
+            Stage::BuiltFromRows => {
                 let built = adapter.build(&prepared, BuildInputs::Rows(&rows), &mut room, None)?;
-                Ok(usize::from(matches!(built, BuildOutcome::Built(_))))
+                Ok(Answer::Built(matches!(built, BuildOutcome::Built(_))))
             }
-            Scenario::ViewsIndex => {
+            Stage::Viewed => {
                 let BuildOutcome::Built(payload) =
                     adapter.build(&prepared, BuildInputs::Rows(&rows), &mut room, None)?
                 else {
@@ -107,16 +126,16 @@ pub fn check(adapter: &impl DerivedPort) {
                 let DerivedView::Equality(index) = adapter.view(&prepared, &payload)? else {
                     return Err(DerivedFault::WrongOperation);
                 };
-                Ok(index.rows.len())
+                Ok(Answer::IndexRows(index.rows.len()))
             }
-            Scenario::BuildsFromAnotherKind => {
+            Stage::BuiltFromEdges => {
                 let built = adapter.build(
                     &prepared,
                     BuildInputs::Native(ryo_derived::domain::native::types::NativeForm::Edges),
                     &mut room,
                     None,
                 )?;
-                Ok(usize::from(matches!(built, BuildOutcome::Built(_))))
+                Ok(Answer::Built(matches!(built, BuildOutcome::Built(_))))
             }
         }
     };

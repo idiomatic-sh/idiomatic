@@ -4,10 +4,10 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::family::fixtures::{
-    Scenario, exercise,
+    Departure, exercise,
 };
 
-type Input = (DerivedKind, Scenario);
+type Input = (DerivedKind, Departure);
 type Value = DerivedKind;
 type Failure = OperatingError;
 
@@ -17,224 +17,224 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("every_family_refuses_every_mismatched_capability"),
         word: Word::Refuses,
-        input: || (DerivedKind::Equality, Scenario::Stale),
+        input: || (DerivedKind::Equality, Departure::Stale),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_equality_family_refuses_another_plan"),
         word: Word::Refuses,
-        input: || (DerivedKind::Equality, Scenario::OtherPlan),
+        input: || (DerivedKind::Equality, Departure::OtherPlan),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("the_equality_family_refuses_another_population"),
         word: Word::Refuses,
-        input: || (DerivedKind::Equality, Scenario::OtherPopulation),
+        input: || (DerivedKind::Equality, Departure::OtherPopulation),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_equality_family_refuses_a_retargeted_descriptor"),
         word: Word::Refuses,
-        input: || (DerivedKind::Equality, Scenario::RetargetedDescriptor),
+        input: || (DerivedKind::Equality, Departure::RetargetedDescriptor),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("the_adjacency_family_refuses_a_stale_generation"),
         word: Word::Refuses,
-        input: || (DerivedKind::Adjacency, Scenario::Stale),
+        input: || (DerivedKind::Adjacency, Departure::Stale),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_adjacency_family_refuses_another_plan"),
         word: Word::Refuses,
-        input: || (DerivedKind::Adjacency, Scenario::OtherPlan),
+        input: || (DerivedKind::Adjacency, Departure::OtherPlan),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("the_adjacency_family_refuses_another_population"),
         word: Word::Refuses,
-        input: || (DerivedKind::Adjacency, Scenario::OtherPopulation),
+        input: || (DerivedKind::Adjacency, Departure::OtherPopulation),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_adjacency_family_refuses_a_retargeted_descriptor"),
         word: Word::Refuses,
-        input: || (DerivedKind::Adjacency, Scenario::RetargetedDescriptor),
+        input: || (DerivedKind::Adjacency, Departure::RetargetedDescriptor),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("the_membership_family_refuses_a_stale_generation"),
         word: Word::Refuses,
-        input: || (DerivedKind::Membership, Scenario::Stale),
+        input: || (DerivedKind::Membership, Departure::Stale),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_membership_family_refuses_another_plan"),
         word: Word::Refuses,
-        input: || (DerivedKind::Membership, Scenario::OtherPlan),
+        input: || (DerivedKind::Membership, Departure::OtherPlan),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("the_membership_family_refuses_another_population"),
         word: Word::Refuses,
-        input: || (DerivedKind::Membership, Scenario::OtherPopulation),
+        input: || (DerivedKind::Membership, Departure::OtherPopulation),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_membership_family_refuses_a_retargeted_descriptor"),
         word: Word::Refuses,
-        input: || (DerivedKind::Membership, Scenario::RetargetedDescriptor),
+        input: || (DerivedKind::Membership, Departure::RetargetedDescriptor),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("the_partition_order_family_refuses_a_stale_generation"),
         word: Word::Refuses,
-        input: || (DerivedKind::PartitionOrder, Scenario::Stale),
+        input: || (DerivedKind::PartitionOrder, Departure::Stale),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_partition_order_family_refuses_another_plan"),
         word: Word::Refuses,
-        input: || (DerivedKind::PartitionOrder, Scenario::OtherPlan),
+        input: || (DerivedKind::PartitionOrder, Departure::OtherPlan),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("the_partition_order_family_refuses_another_population"),
         word: Word::Refuses,
-        input: || (DerivedKind::PartitionOrder, Scenario::OtherPopulation),
+        input: || (DerivedKind::PartitionOrder, Departure::OtherPopulation),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_partition_order_family_refuses_a_retargeted_descriptor"),
         word: Word::Refuses,
-        input: || (DerivedKind::PartitionOrder, Scenario::RetargetedDescriptor),
+        input: || (DerivedKind::PartitionOrder, Departure::RetargetedDescriptor),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("the_closure_adjacency_family_refuses_a_stale_generation"),
         word: Word::Refuses,
-        input: || (DerivedKind::ClosureAdjacency, Scenario::Stale),
+        input: || (DerivedKind::ClosureAdjacency, Departure::Stale),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_closure_adjacency_family_refuses_another_plan"),
         word: Word::Refuses,
-        input: || (DerivedKind::ClosureAdjacency, Scenario::OtherPlan),
+        input: || (DerivedKind::ClosureAdjacency, Departure::OtherPlan),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("the_closure_adjacency_family_refuses_another_population"),
         word: Word::Refuses,
-        input: || (DerivedKind::ClosureAdjacency, Scenario::OtherPopulation),
+        input: || (DerivedKind::ClosureAdjacency, Departure::OtherPopulation),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_closure_adjacency_family_refuses_a_retargeted_descriptor"),
         word: Word::Refuses,
-        input: || (DerivedKind::ClosureAdjacency, Scenario::RetargetedDescriptor),
+        input: || (DerivedKind::ClosureAdjacency, Departure::RetargetedDescriptor),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("the_cycle_adjacency_family_refuses_a_stale_generation"),
         word: Word::Refuses,
-        input: || (DerivedKind::CycleAdjacency, Scenario::Stale),
+        input: || (DerivedKind::CycleAdjacency, Departure::Stale),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_cycle_adjacency_family_refuses_another_plan"),
         word: Word::Refuses,
-        input: || (DerivedKind::CycleAdjacency, Scenario::OtherPlan),
+        input: || (DerivedKind::CycleAdjacency, Departure::OtherPlan),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("the_cycle_adjacency_family_refuses_another_population"),
         word: Word::Refuses,
-        input: || (DerivedKind::CycleAdjacency, Scenario::OtherPopulation),
+        input: || (DerivedKind::CycleAdjacency, Departure::OtherPopulation),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_cycle_adjacency_family_refuses_a_retargeted_descriptor"),
         word: Word::Refuses,
-        input: || (DerivedKind::CycleAdjacency, Scenario::RetargetedDescriptor),
+        input: || (DerivedKind::CycleAdjacency, Departure::RetargetedDescriptor),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("the_ordered_keys_family_refuses_a_stale_generation"),
         word: Word::Refuses,
-        input: || (DerivedKind::OrderedKeys, Scenario::Stale),
+        input: || (DerivedKind::OrderedKeys, Departure::Stale),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_ordered_keys_family_refuses_another_plan"),
         word: Word::Refuses,
-        input: || (DerivedKind::OrderedKeys, Scenario::OtherPlan),
+        input: || (DerivedKind::OrderedKeys, Departure::OtherPlan),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("the_ordered_keys_family_refuses_another_population"),
         word: Word::Refuses,
-        input: || (DerivedKind::OrderedKeys, Scenario::OtherPopulation),
+        input: || (DerivedKind::OrderedKeys, Departure::OtherPopulation),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_ordered_keys_family_refuses_a_retargeted_descriptor"),
         word: Word::Refuses,
-        input: || (DerivedKind::OrderedKeys, Scenario::RetargetedDescriptor),
+        input: || (DerivedKind::OrderedKeys, Departure::RetargetedDescriptor),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("the_ordered_dfs_family_refuses_a_stale_generation"),
         word: Word::Refuses,
-        input: || (DerivedKind::OrderedDfs, Scenario::Stale),
+        input: || (DerivedKind::OrderedDfs, Departure::Stale),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_ordered_dfs_family_refuses_another_plan"),
         word: Word::Refuses,
-        input: || (DerivedKind::OrderedDfs, Scenario::OtherPlan),
+        input: || (DerivedKind::OrderedDfs, Departure::OtherPlan),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("the_ordered_dfs_family_refuses_another_population"),
         word: Word::Refuses,
-        input: || (DerivedKind::OrderedDfs, Scenario::OtherPopulation),
+        input: || (DerivedKind::OrderedDfs, Departure::OtherPopulation),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_ordered_dfs_family_refuses_a_retargeted_descriptor"),
         word: Word::Refuses,
-        input: || (DerivedKind::OrderedDfs, Scenario::RetargetedDescriptor),
+        input: || (DerivedKind::OrderedDfs, Departure::RetargetedDescriptor),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("the_native_lookup_family_refuses_a_stale_generation"),
         word: Word::Refuses,
-        input: || (DerivedKind::NativeLookup, Scenario::Stale),
+        input: || (DerivedKind::NativeLookup, Departure::Stale),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_native_lookup_family_refuses_another_plan"),
         word: Word::Refuses,
-        input: || (DerivedKind::NativeLookup, Scenario::OtherPlan),
+        input: || (DerivedKind::NativeLookup, Departure::OtherPlan),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("the_native_lookup_family_refuses_another_population"),
         word: Word::Refuses,
-        input: || (DerivedKind::NativeLookup, Scenario::OtherPopulation),
+        input: || (DerivedKind::NativeLookup, Departure::OtherPopulation),
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("the_native_lookup_family_refuses_a_retargeted_descriptor"),
         word: Word::Refuses,
-        input: || (DerivedKind::NativeLookup, Scenario::RetargetedDescriptor),
+        input: || (DerivedKind::NativeLookup, Departure::RetargetedDescriptor),
         expect: Expect::Error(OperatingError::WrongOperation),
     },
 ];
 
 /// Acquires the family's view with the mismatched capability.
-fn subject((kind, scenario): Input) -> Result<Value, Failure> {
-    exercise(kind, scenario)
+fn subject((kind, departure): Input) -> Result<Value, Failure> {
+    exercise(kind, departure)
 }
 
 #[test]

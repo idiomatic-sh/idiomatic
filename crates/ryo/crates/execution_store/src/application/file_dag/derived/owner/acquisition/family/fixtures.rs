@@ -27,10 +27,10 @@ use ryo_values::domain::{
 };
 use std::{rc::Rc, sync::Arc};
 
-/// How the last consumer of one family leaves: each scenario ends with the owner generation
+/// How the last consumer of one family leaves: each departure ends with the owner generation
 /// retired, and `exercise` asserts that no required, optional or unique byte remains charged.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Scenario {
+pub enum Departure {
     /// The view is acquired, read and dropped.
     Succeeds,
     /// The demand is withdrawn after admission and before any acquisition.
@@ -73,36 +73,36 @@ enum Release {
     /// A fake exit that releases nothing; the control that proves a leak is detected.
     Forgetful,
 }
-/// Runs one acquisition family's scenario and answers the kind it acquired.
+/// Runs one acquisition family's departure and answers the kind it acquired.
 ///
 /// # Errors
 ///
-/// The production refusal the scenario drives the family into, or the first refusal of its setup.
+/// The production refusal the departure drives the family into, or the first refusal of its setup.
 ///
 /// # Panics
 ///
-/// When the production exit leaves a lease charged, or a scenario's assertion about the owner fails.
-pub fn exercise(kind: DerivedKind, scenario: Scenario) -> Result<DerivedKind, OperatingError> {
-    let (actual, leaked) = drive(kind, scenario, Release::Production);
+/// When the production exit leaves a lease charged, or a departure's assertion about the owner fails.
+pub fn exercise(kind: DerivedKind, departure: Departure) -> Result<DerivedKind, OperatingError> {
+    let (actual, leaked) = drive(kind, departure, Release::Production);
     assert_eq!(
         leaked, None,
-        "{kind:?} {scenario:?}: the production exit itself releases the lease, before the generation retires"
+        "{kind:?} {departure:?}: the production exit itself releases the lease, before the generation retires"
     );
     actual
 }
 /// The negative control: the same exit with a release that never happens must be observed as a
 /// leak by the ledger before the fixture retires the generation. `None` means the exit was not
-/// reached (a scenario that retires the generation first) or nothing stayed charged.
-pub fn exercise_forgetful(kind: DerivedKind, scenario: Scenario) -> Option<Leaked> {
-    drive(kind, scenario, Release::Forgetful).1
+/// reached (a departure that retires the generation first) or nothing stayed charged.
+pub fn exercise_forgetful(kind: DerivedKind, departure: Departure) -> Option<Leaked> {
+    drive(kind, departure, Release::Forgetful).1
 }
 fn drive(
     kind: DerivedKind,
-    scenario: Scenario,
+    departure: Departure,
     release: Release,
 ) -> (Result<DerivedKind, OperatingError>, Option<Leaked>) {
     let port: Arc<dyn crate::outbound::derived::interface::DerivedPort> =
-        if scenario == Scenario::BuildFails {
+        if departure == Departure::BuildFails {
             Arc::new(refusing::RefusingBuild)
         } else {
             program_derived_port()
@@ -112,18 +112,18 @@ fn drive(
         port,
     ));
     let mut leaked = None;
-    let actual = acquire(kind, scenario, Rc::clone(&owner), release, &mut leaked);
+    let actual = acquire(kind, departure, Rc::clone(&owner), release, &mut leaked);
     owner.release_population();
     assert_eq!(
         owner.derived().publication_ownership_bytes(),
         (0, 0, 0),
-        "{kind:?} {scenario:?}: every lease retires with the owner generation"
+        "{kind:?} {departure:?}: every lease retires with the owner generation"
     );
     (actual, leaked)
 }
 fn acquire(
     kind: DerivedKind,
-    scenario: Scenario,
+    departure: Departure,
     owner: Rc<RelationOwner>,
     release: Release,
     leaked: &mut Option<Leaked>,
@@ -145,8 +145,8 @@ fn acquire(
         let keys = [ColumnIndex(2)];
         let (source, destination) = (ColumnIndex(0), ColumnIndex(1));
         if matches!(
-            scenario,
-            Scenario::Succeeds | Scenario::Cancelled | Scenario::Held
+            departure,
+            Departure::Succeeds | Departure::Cancelled | Departure::Held
         ) {
             let mut cursor = crate::application::file_dag::closure_partitions::service::prepare(
                 &crate::application::file_dag::relations::handle::service::Publication::of(
@@ -163,9 +163,9 @@ fn acquire(
                 crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced
             );
             assert_eq!(cursor.current()?.key, &[Value::Number(Integer(0))]);
-            match scenario {
-                Scenario::Cancelled => {}
-                Scenario::Held => {
+            match departure {
+                Departure::Cancelled => {}
+                Departure::Held => {
                     owner.release_population();
                     assert_eq!(
                         cursor.current()?.key,
@@ -177,12 +177,12 @@ fn acquire(
                         "the next partition is a new demand on a retired generation"
                     );
                 }
-                Scenario::Succeeds
-                | Scenario::Stale
-                | Scenario::OtherPlan
-                | Scenario::OtherPopulation
-                | Scenario::RetargetedDescriptor
-                | Scenario::BuildFails => {
+                Departure::Succeeds
+                | Departure::Stale
+                | Departure::OtherPlan
+                | Departure::OtherPopulation
+                | Departure::RetargetedDescriptor
+                | Departure::BuildFails => {
                     assert_eq!(cursor.advance()?, crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced, "the second actual partition rebuilds the scoped acquired view");
                     assert_eq!(cursor.current()?.key, &[Value::Number(Integer(1))]);
                     assert_eq!(cursor.advance()?, crate::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted);
@@ -210,7 +210,7 @@ fn acquire(
         let admitted = owner
             .derived()
             .admit_view(&partition_plan, &owner, &[&first])?;
-        let ordered_plan = if scenario == Scenario::RetargetedDescriptor {
+        let ordered_plan = if departure == Departure::RetargetedDescriptor {
             Arc::new((*partition_plan).clone())
         } else {
             Arc::clone(&partition_plan)
@@ -226,18 +226,18 @@ fn acquire(
         let other = owner.computed(numbers())?;
         let resolved = owner.resolve(other.as_ref(), &|_| Err(OperatingError::NotRead))?;
         let second = owner.admit(other.as_ref(), RepresentationInput::from(&resolved))?;
-        if scenario == Scenario::Stale {
+        if departure == Departure::Stale {
             owner.release_population();
         }
-        let (plan, proof) = match scenario {
-            Scenario::OtherPlan => (&partition_plan, &first),
-            Scenario::OtherPopulation => (&closure_plan, &second),
-            Scenario::Succeeds
-            | Scenario::Cancelled
-            | Scenario::Held
-            | Scenario::Stale
-            | Scenario::RetargetedDescriptor
-            | Scenario::BuildFails => (&closure_plan, &first),
+        let (plan, proof) = match departure {
+            Departure::OtherPlan => (&partition_plan, &first),
+            Departure::OtherPopulation => (&closure_plan, &second),
+            Departure::Succeeds
+            | Departure::Cancelled
+            | Departure::Held
+            | Departure::Stale
+            | Departure::RetargetedDescriptor
+            | Departure::BuildFails => (&closure_plan, &first),
         };
         return owner
             .derived()
@@ -283,17 +283,17 @@ fn acquire(
     let admitted = owner
         .derived()
         .admit_view(&plan, &owner, &proofs[..shapes.len()])?;
-    let presented = match scenario {
-        Scenario::OtherPlan => Arc::new(owner.derived().prepare_view(&request(kind), shapes)?),
-        Scenario::RetargetedDescriptor => Arc::new((*plan).clone()),
-        Scenario::Succeeds
-        | Scenario::Cancelled
-        | Scenario::Held
-        | Scenario::Stale
-        | Scenario::OtherPopulation
-        | Scenario::BuildFails => Arc::clone(&plan),
+    let presented = match departure {
+        Departure::OtherPlan => Arc::new(owner.derived().prepare_view(&request(kind), shapes)?),
+        Departure::RetargetedDescriptor => Arc::new((*plan).clone()),
+        Departure::Succeeds
+        | Departure::Cancelled
+        | Departure::Held
+        | Departure::Stale
+        | Departure::OtherPopulation
+        | Departure::BuildFails => Arc::clone(&plan),
     };
-    let presented_rows = if scenario == Scenario::OtherPopulation {
+    let presented_rows = if departure == Departure::OtherPopulation {
         [rows[1], rows[0]]
     } else {
         rows
@@ -309,25 +309,25 @@ fn acquire(
     owner.pin_derived(other.as_ref());
     // A real lease exists before every exit that is not a success.
     let held = if matches!(
-        scenario,
-        Scenario::Cancelled
-            | Scenario::Stale
-            | Scenario::OtherPlan
-            | Scenario::OtherPopulation
-            | Scenario::RetargetedDescriptor
+        departure,
+        Departure::Cancelled
+            | Departure::Stale
+            | Departure::OtherPlan
+            | Departure::OtherPopulation
+            | Departure::RetargetedDescriptor
     ) {
         Some(demand(kind, &owner, &plan, &admitted, rows, &mut symbols)?)
     } else {
         None
     };
-    match scenario {
-        Scenario::Cancelled => {
+    match departure {
+        Departure::Cancelled => {
             drop(held);
             *leaked = leave(&owner, producers, baseline, release).err();
             return Ok(kind);
         }
-        Scenario::Stale => owner.release_population(),
-        Scenario::Held => {
+        Departure::Stale => owner.release_population(),
+        Departure::Held => {
             let held = demand(kind, &owner, &plan, &admitted, rows, &mut symbols)?;
             owner.release_population();
             assert_eq!(
@@ -342,11 +342,11 @@ fn acquire(
             );
             return Ok(kind);
         }
-        Scenario::Succeeds
-        | Scenario::OtherPlan
-        | Scenario::OtherPopulation
-        | Scenario::RetargetedDescriptor
-        | Scenario::BuildFails => {}
+        Departure::Succeeds
+        | Departure::OtherPlan
+        | Departure::OtherPopulation
+        | Departure::RetargetedDescriptor
+        | Departure::BuildFails => {}
     }
     let result = demand(
         kind,
@@ -358,7 +358,7 @@ fn acquire(
     )
     .and_then(|view| observed(&view));
     drop(held);
-    if scenario != Scenario::Stale {
+    if departure != Departure::Stale {
         *leaked = leave(&owner, producers, baseline, release).err();
     }
     result

@@ -18,8 +18,9 @@ use ryo_values::domain::{
 };
 use std::sync::Arc;
 
+/// The acquisition attempted: what is reused, foreign, expired or substituted.
 #[derive(Clone, Copy, Debug)]
-enum Scenario {
+enum Acquisition {
     Reuse,
     ForeignOwner,
     ExpiredAdmission,
@@ -29,57 +30,91 @@ enum Scenario {
     ExpiredView,
     CloneKeepsLease,
 }
-type Input = Scenario;
-type Value = ();
+
+/// What a completed acquisition shows.
+#[derive(Debug, PartialEq, Eq)]
+enum Acquired {
+    /// A second acquisition: whether it reached the first's storage, how it was built, and the first view's row order.
+    Reused {
+        same_storage: bool,
+        construction: Construction,
+        order: [usize; 3],
+    },
+    /// The row order a view still reads after its population is released.
+    Held { order: [usize; 3] },
+    /// The required bytes before, while one view is held, after it drops with a clone alive (and
+    /// the order the clone reads), and after the clone drops.
+    Leased {
+        before: usize,
+        held: usize,
+        cloned: usize,
+        read: [usize; 3],
+        released: usize,
+    },
+}
+
+type Input = Acquisition;
+type Value = Acquired;
 type Failure = OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("actual_publication_reuses_same_physical_view"),
         word: Word::Succeeds,
-        input: || Input::Reuse,
-        expect: Expect::Value(()),
+        input: || Acquisition::Reuse,
+        // Keys 2, 1, 2: key 2 hashes below key 1 under the derived key hash (one `FxHasher` step), so its rows come first.
+        expect: Expect::Value(Acquired::Reused {
+            same_storage: true,
+            construction: Construction::Reused,
+            order: [0, 2, 1],
+        }),
     },
     Case {
         name: CaseName("another_owner_cannot_adopt_source_admission"),
         word: Word::Refuses,
-        input: || Input::ForeignOwner,
+        input: || Acquisition::ForeignOwner,
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("source_admission_expires_with_its_generation"),
         word: Word::Refuses,
-        input: || Input::ExpiredAdmission,
+        input: || Acquisition::ExpiredAdmission,
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("equivalent_descriptor_does_not_retarget_capability"),
         word: Word::Refuses,
-        input: || Input::ForeignDescriptor,
+        input: || Acquisition::ForeignDescriptor,
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
         name: CaseName("equal_values_do_not_substitute_physical_source"),
         word: Word::Refuses,
-        input: || Input::SubstitutedRows,
+        input: || Acquisition::SubstitutedRows,
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("dense_domain_requires_actual_parent_graph"),
         word: Word::Refuses,
-        input: || Input::UnprovedDense,
+        input: || Acquisition::UnprovedDense,
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("held_payload_remains_immutable_under_its_required_lease"),
         word: Word::Succeeds,
-        input: || Input::ExpiredView,
-        expect: Expect::Value(()),
+        input: || Acquisition::ExpiredView,
+        expect: Expect::Value(Acquired::Held { order: [0, 2, 1] }),
     },
     Case {
         name: CaseName("acquired_view_clone_keeps_the_required_lease_until_the_last_drops"),
         word: Word::Succeeds,
-        input: || Input::CloneKeepsLease,
-        expect: Expect::Value(()),
+        input: || Acquisition::CloneKeepsLease,
+        expect: Expect::Value(Acquired::Leased {
+            before: 401,
+            held: 545,
+            cloned: 545,
+            read: [0, 2, 1],
+            released: 401,
+        }),
     },
 ];
 fn table() -> Table {
@@ -93,7 +128,8 @@ fn table() -> Table {
         count: RowCount(3),
     }
 }
-fn subject(input: Input) -> Result<(), Failure> {
+/// Admits a computed publication, plans its view, and runs the acquisition.
+fn subject(input: Input) -> Result<Value, Failure> {
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         program_derived_port(),
@@ -102,16 +138,16 @@ fn subject(input: Input) -> Result<(), Failure> {
     let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let proof = owner.admit(publication.as_ref(), RepresentationInput::from(&rows))?;
     let request = match input {
-        Input::UnprovedDense => ViewRequest::Membership {
+        Acquisition::UnprovedDense => ViewRequest::Membership {
             column: ColumnIndex(0),
         },
-        Scenario::Reuse
-        | Scenario::ForeignOwner
-        | Scenario::ExpiredAdmission
-        | Scenario::ForeignDescriptor
-        | Scenario::SubstitutedRows
-        | Scenario::ExpiredView
-        | Scenario::CloneKeepsLease => ViewRequest::PartitionOrder {
+        Acquisition::Reuse
+        | Acquisition::ForeignOwner
+        | Acquisition::ExpiredAdmission
+        | Acquisition::ForeignDescriptor
+        | Acquisition::SubstitutedRows
+        | Acquisition::ExpiredView
+        | Acquisition::CloneKeepsLease => ViewRequest::PartitionOrder {
             keys: vec![ColumnIndex(0)],
         },
     };
@@ -126,7 +162,7 @@ fn subject(input: Input) -> Result<(), Failure> {
     let mut scratch = DerivedScratch::default();
     let original = [proof.rows()];
     match input {
-        Input::ForeignOwner => {
+        Acquisition::ForeignOwner => {
             let foreign = RelationOwner::new(
                 crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
                 program_derived_port(),
@@ -141,9 +177,9 @@ fn subject(input: Input) -> Result<(), Failure> {
                     &mut scratch,
                     None,
                 )
-                .map(|_| ())
+                .and_then(|view| held(&view))
         }
-        Input::ExpiredAdmission => {
+        Acquisition::ExpiredAdmission => {
             owner.release_population();
             owner
                 .derived()
@@ -155,9 +191,9 @@ fn subject(input: Input) -> Result<(), Failure> {
                     &mut scratch,
                     None,
                 )
-                .map(|_| ())
+                .and_then(|view| held(&view))
         }
-        Input::ForeignDescriptor => owner
+        Acquisition::ForeignDescriptor => owner
             .derived()
             .acquire_stored(
                 &Arc::new((*plan).clone()),
@@ -167,8 +203,8 @@ fn subject(input: Input) -> Result<(), Failure> {
                 &mut scratch,
                 None,
             )
-            .map(|_| ()),
-        Input::SubstitutedRows => owner
+            .and_then(|view| held(&view)),
+        Acquisition::SubstitutedRows => owner
             .derived()
             .acquire_stored(
                 &plan,
@@ -178,8 +214,8 @@ fn subject(input: Input) -> Result<(), Failure> {
                 &mut scratch,
                 None,
             )
-            .map(|_| ()),
-        Input::UnprovedDense => owner
+            .and_then(|view| held(&view)),
+        Acquisition::UnprovedDense => owner
             .derived()
             .acquire_stored(
                 &plan,
@@ -192,8 +228,8 @@ fn subject(input: Input) -> Result<(), Failure> {
                 &mut scratch,
                 None,
             )
-            .map(|_| ()),
-        Input::CloneKeepsLease => {
+            .and_then(|view| held(&view)),
+        Acquisition::CloneKeepsLease => {
             let required = || owner.derived().ledger.borrow().snapshot().required_bytes;
             let before = required();
             let first = owner.derived().acquire_stored(
@@ -205,16 +241,20 @@ fn subject(input: Input) -> Result<(), Failure> {
                 None,
             )?;
             let held = required();
-            assert!(held > before, "an acquired view holds a required lease");
             let clone = first.clone();
             drop(first);
-            assert_eq!(required(), held, "a clone alone keeps the lease");
-            clone.view()?;
+            let cloned = required();
+            let read = order(&clone)?;
             drop(clone);
-            assert_eq!(required(), before, "the last drop releases the lease");
-            Ok(())
+            Ok(Acquired::Leased {
+                before: before.0,
+                held: held.0,
+                cloned: cloned.0,
+                read,
+                released: required().0,
+            })
         }
-        Input::ExpiredView | Input::Reuse => {
+        Acquisition::ExpiredView | Acquisition::Reuse => {
             let first: AcquiredView = owner.derived().acquire_stored(
                 &plan,
                 &admitted,
@@ -223,9 +263,9 @@ fn subject(input: Input) -> Result<(), Failure> {
                 &mut scratch,
                 None,
             )?;
-            if matches!(input, Input::ExpiredView) {
+            if matches!(input, Acquisition::ExpiredView) {
                 owner.release_population();
-                return first.view().map(|_| ());
+                return held(&first);
             }
             let second = owner.derived().acquire_stored(
                 &plan,
@@ -235,19 +275,34 @@ fn subject(input: Input) -> Result<(), Failure> {
                 &mut scratch,
                 None,
             )?;
-            assert_eq!(first.storage_identity(), second.storage_identity());
-            assert_eq!(second.construction(), Construction::Reused);
-            let ryo_derived::domain::contract::types::DerivedView::PartitionOrder(order) =
-                first.view()?
-            else {
-                return Err(OperatingError::WrongOperation);
-            };
-            // Keys 2, 1, 2: key 2 hashes below key 1 under the derived key hash (one `FxHasher` step), so its rows come first.
-            assert_eq!(order.iter().map(|row| row.0).collect::<Vec<_>>(), [0, 2, 1]);
-            Ok(())
+            Ok(Acquired::Reused {
+                same_storage: first.storage_identity() == second.storage_identity(),
+                construction: second.construction(),
+                order: order(&first)?,
+            })
         }
     }
 }
+
+/// The row order a partition-order view reads.
+fn order(view: &AcquiredView) -> Result<[usize; 3], OperatingError> {
+    let ryo_derived::domain::contract::types::DerivedView::PartitionOrder(order) = view.view()?
+    else {
+        return Err(OperatingError::WrongOperation);
+    };
+    order
+        .iter()
+        .map(|row| row.0)
+        .collect::<Vec<_>>()
+        .try_into()
+        .map_err(|_| OperatingError::WrongOperation)
+}
+
+/// The view as held: the row order it reads.
+fn held(view: &AcquiredView) -> Result<Acquired, OperatingError> {
+    order(view).map(|order| Acquired::Held { order })
+}
+
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
