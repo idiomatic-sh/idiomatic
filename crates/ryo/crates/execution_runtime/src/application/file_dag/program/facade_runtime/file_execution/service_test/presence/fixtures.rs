@@ -9,6 +9,7 @@ use crate::application::file_dag::program::facade_runtime::types::RegionProbe;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::application::file_dag::service_test::operators::fixtures::NO_TEXT;
+use routing::{Observed, Outcome};
 use ryo_execution_domain::domain::coverage::types::{Partial, RuleIndex};
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::observation_schedule::types::RuleSchedule;
@@ -39,6 +40,7 @@ use ryo_values::domain::rows::types::{RowCount, Table};
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
 use ryo_values::domain::stored_facts::types::Digest;
+use std::borrow::Cow;
 use std::sync::Arc;
 
 /// The fixture file's source text: no name reads it, every text is derived.
@@ -257,26 +259,16 @@ pub(super) fn run_intent() -> FileRuleIntent {
     }
 }
 
-/// What one file run answered and left behind.
-pub(super) struct Ran {
-    pub(super) outcomes: Vec<Result<RootOutcome, OperatingError>>,
-    pub(super) fed: Vec<Vec<u64>>,
-    pub(super) probes: Vec<RegionProbe>,
-    pub(super) presence_absent: u64,
-    pub(super) again: Vec<Result<(), OperatingError>>,
-    pub(super) cleanup: Result<(), OperatingError>,
-    pub(super) dormant: usize,
-    pub(super) finished: Result<(), OperatingError>,
-}
-
-/// Runs every rule of `prepared` on one file in rule order, then probes `regions` and finishes the file.
-pub(super) fn run(
+/// Runs every rule of `prepared` on one file in rule order, probes `regions`, finishes the file,
+/// and adds what it observed to `runs`.
+pub(super) fn run_into(
+    runs: &mut Vec<Observed>,
     prepared: &Arc<PreparedProgram>,
     facts: &mut Facts,
     intents: &[FileRuleIntent],
     partial: &[Partial],
     regions: &[RegionId],
-) -> Ran {
+) {
     let Facts {
         symbols,
         comment,
@@ -313,8 +305,8 @@ pub(super) fn run(
     let mut fed = Vec::new();
     for (rule, intent) in intents.iter().enumerate() {
         if !matches!(intent, FileRuleIntent::Run { .. }) {
-            outcomes.push(Err(OperatingError::NotRun));
-            fed.push(Vec::new());
+            outcomes.push(Outcome::Refused(Cow::Borrowed("NotRun")));
+            fed.push(Cow::Borrowed(&[][..]));
             continue;
         }
         let outcome = file.rule(
@@ -326,35 +318,49 @@ pub(super) fn run(
             &read,
             symbols,
         );
-        fed.push(
+        fed.push(Cow::Owned(
             file.collected_counts(RuleIndex(rule))
                 .map(|counts| counts.fed.iter().map(|each| each.0.iter().sum()).collect())
                 .unwrap_or_default(),
-        );
-        outcomes.push(outcome.map(|outcome| outcome.emit));
+        ));
+        let printed = |error: OperatingError| Cow::Owned(format!("{error:?}"));
+        outcomes.push(outcome.map_or_else(
+            |error| Outcome::Refused(printed(error)),
+            |outcome| match outcome.emit {
+                RootOutcome::Complete(table) => {
+                    Outcome::Rows(table.count.0, Cow::Owned(table.kinds))
+                }
+                RootOutcome::Partial { table, .. } => Outcome::Partial(table.count.0),
+                RootOutcome::Skipped(_) => Outcome::Skipped,
+                RootOutcome::Failed(error) => Outcome::Failed(printed(error)),
+                RootOutcome::Unknown(error) => Outcome::Unknown(printed(error)),
+                RootOutcome::NoQuery => Outcome::NoQuery,
+                RootOutcome::Deferred { .. } => Outcome::Deferred,
+            },
+        ));
     }
     let probes = regions
         .iter()
         .map(|region| file.region_probe(*region))
         .collect();
     let presence_absent = file.readiness_counts().presence_absent.0;
-    let cleanup = file.cleanup_status();
+    let cleanup = file.cleanup_status().err();
     let again = regions
         .iter()
-        .map(|region| file.retire_again(*region))
+        .map(|region| file.retire_again(*region).err())
         .collect();
     let dormant = file.state_counts().dormant_obligations.0;
-    let finished = file.finish().map(|_| ());
-    Ran {
-        outcomes,
-        fed,
+    let finished = file.finish().err();
+    runs.push(Observed {
+        outcomes: Cow::Owned(outcomes),
+        fed: Cow::Owned(fed),
         probes,
         presence_absent,
         again,
         cleanup,
         dormant,
         finished,
-    }
+    });
 }
 
 /// The region each step of a rule runs in.
@@ -368,13 +374,4 @@ pub(super) fn regions_of(prepared: &PreparedProgram, rule: usize) -> Vec<RegionI
             program.logical_regions()[origin.logical.0]
         })
         .collect()
-}
-
-pub(super) fn rows(
-    outcome: &Result<RootOutcome, OperatingError>,
-) -> Option<(usize, Vec<CellKind>)> {
-    match outcome {
-        Ok(RootOutcome::Complete(table)) => Some((table.count.0, table.kinds.clone())),
-        _ => None,
-    }
 }
