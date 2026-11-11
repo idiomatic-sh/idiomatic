@@ -1,6 +1,4 @@
 //! The private owner reports once at normal file shutdown, including failure/empty roots.
-use super::super::super::super::service::*;
-use super::super::super::super::*;
 use super::super::cases::fixtures::table_of;
 use super::super::*;
 use super::fixtures::JoinDiagnostics;
@@ -14,11 +12,57 @@ use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
-use ryo_values::domain::{plan_parts::types::Side, rows::types::RowCount};
+use ryo_values::domain::plan_parts::types::Side;
 
-fn file_index_diagnostic_is_one_aggregate_per_owner_never_per_probe_or_hit() {
+/// The left rows of one join invocation against the right rows `(1, 10), (1, 11), (2, 20)`.
+#[derive(Clone, Copy, Debug)]
+enum Left {
+    /// `1, 1, 9`.
+    Duplicates,
+    /// No rows.
+    Empty,
+}
+
+/// What the joins and the diagnostic subscriber observed: each invocation's rows or refusal, the
+/// aggregates emitted, and of those, how many are a `file_indexes` event of file 0 and how many
+/// carry every owner field as a number.
+#[derive(Debug, PartialEq)]
+struct Observed {
+    invocations: [Result<usize, OperatingError>; 4],
+    aggregates: usize,
+    file_index_events: usize,
+    numeric_owner_fields: usize,
+}
+
+/// The invocations, each its left rows and the row after which its sink refuses.
+type Input = [(Left, Option<usize>); 4];
+type Value = Observed;
+type Failure = OperatingError;
+
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("file_index_diagnostic_is_one_aggregate_per_owner_never_per_probe_or_hit"),
+    word: Word::Succeeds,
+    input: || {
+        [
+            (Left::Duplicates, None),
+            (Left::Empty, None),
+            (Left::Duplicates, Some(0)),
+            (Left::Duplicates, None),
+        ]
+    },
+    // One normal-shutdown aggregate for each opened owner.
+    expect: Expect::Value(Observed {
+        invocations: [Ok(4), Ok(0), Err(OperatingError::NotRun), Ok(4)],
+        aggregates: 4,
+        file_index_events: 4,
+        numeric_owner_fields: 4,
+    }),
+}];
+
+/// Invokes the joins under a subscriber that records the file index diagnostics.
+fn subject(invocations: Input) -> Result<Value, Failure> {
     let n = |n| Cell::Number(Integer(n));
-    let left = table_of(&[CellKind::Number], &[&[n(1)], &[n(1)], &[n(9)]]);
+    let duplicates = table_of(&[CellKind::Number], &[&[n(1)], &[n(1)], &[n(9)]]);
     let empty = table_of(&[CellKind::Number], &[]);
     let columns = [FactColumn(vec![1, 1, 2]), FactColumn(vec![10, 11, 20])];
     let right = Rows::Stored(ColumnsView {
@@ -32,14 +76,14 @@ fn file_index_diagnostic_is_one_aggregate_per_owner_never_per_probe_or_hit() {
     // libtest thread may have none. A second live registration makes callsite interest consult the
     // registered subscribers instead; only `observer` is installed for event delivery.
     let registration = tracing::Dispatch::new(observer.clone());
+    let mut answers = [Ok(0), Ok(0), Ok(0), Ok(0)];
     tracing::subscriber::with_default(observer, || {
-        for (rows, sink_after, expected) in [
-            (&left, None, 4),
-            (&empty, None, 0),
-            (&left, Some(0), 0),
-            (&left, None, 4),
-        ] {
-            let actual = invoke(
+        for (answer, (left, sink_after)) in answers.iter_mut().zip(invocations) {
+            let rows = match left {
+                Left::Duplicates => &duplicates,
+                Left::Empty => &empty,
+            };
+            *answer = invoke(
                 &op,
                 [Rows::Computed(rows), right.clone()],
                 &mut Symbols::default(),
@@ -51,68 +95,41 @@ fn file_index_diagnostic_is_one_aggregate_per_owner_never_per_probe_or_hit() {
                     ..Faults::default()
                 },
             )
-            .unwrap();
-            if sink_after.is_some() {
-                assert!(matches!(actual.result, Err(OperatingError::NotRun)));
-            } else {
-                assert_eq!(actual.result.unwrap().count, RowCount(expected));
-            }
+            .and_then(|actual| actual.result.map(|table| table.count.0));
         }
     });
     drop(registration);
-    let events = captured.lock().unwrap();
-    assert_eq!(
-        events.len(),
-        4,
-        "one normal-shutdown aggregate for each opened owner: {events:?}"
-    );
-    for event in events.iter() {
-        assert_eq!(event.get("event").map(String::as_str), Some("file_indexes"));
-        assert_eq!(event.get("file").map(String::as_str), Some("0"));
-        for field in [
-            "entries",
-            "eligible_relations",
-            "retained_bytes",
-            "physical_builds",
-            "reuses",
-            "refusals",
-        ] {
-            assert!(
-                event
-                    .get(field)
-                    .is_some_and(|value| value.parse::<u64>().is_ok()),
-                "owner field {field}: {event:?}"
-            );
-        }
-    }
-}
-
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    FileIndexDiagnosticIsOneAggregatePerOwnerNeverPerProbeOrHit,
-}
-
-type Input = Scenario;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
-const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("file_index_diagnostic_is_one_aggregate_per_owner_never_per_probe_or_hit"),
-    word: Word::Succeeds,
-    input: || Scenario::FileIndexDiagnosticIsOneAggregatePerOwnerNeverPerProbeOrHit,
-    expect: Expect::Value(()),
-}];
-
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::FileIndexDiagnosticIsOneAggregatePerOwnerNeverPerProbeOrHit => {
-            file_index_diagnostic_is_one_aggregate_per_owner_never_per_probe_or_hit();
-            Ok(())
-        }
-    }
+    let events = captured.lock().map_err(|_| OperatingError::NotRun)?;
+    let owner_fields = [
+        "entries",
+        "eligible_relations",
+        "retained_bytes",
+        "physical_builds",
+        "reuses",
+        "refusals",
+    ];
+    Ok(Observed {
+        invocations: answers,
+        aggregates: events.len(),
+        file_index_events: events
+            .iter()
+            .filter(|event| {
+                event.get("event").map(String::as_str) == Some("file_indexes")
+                    && event.get("file").map(String::as_str) == Some("0")
+            })
+            .count(),
+        numeric_owner_fields: events
+            .iter()
+            .filter(|event| {
+                owner_fields.iter().all(|field| {
+                    event
+                        .get(*field)
+                        .and_then(|value| value.parse::<u64>().ok())
+                        .is_some()
+                })
+            })
+            .count(),
+    })
 }
 
 #[test]

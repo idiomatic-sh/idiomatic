@@ -1,109 +1,101 @@
 //! A derived operation consumes a shared source head and never joins its class.
-use super::super::super::super::service::*;
-use super::super::super::super::*;
+use super::super::super::fixtures::Root;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, demand};
 use crate::application::file_dag::program::native_walk::types::RetainedBatches;
-use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_values::domain::rows::types::RowCount;
 use std::sync::Arc;
 
-fn derived_group_count_barrier_follows_a_shared_head_without_a_second_pass() {
+/// What a grouped rule and its plain sibling over one shared head observed.
+#[derive(Debug, PartialEq)]
+struct Observed {
+    /// Whether equal authored predicates make one class across both rules.
+    one_class: bool,
+    /// Whether the derived GroupCount after the head is a source-walk class.
+    group_count_in_a_class: bool,
+    counted_rows: Option<usize>,
+    plain_rows: Option<usize>,
+    passes: u64,
+    source_rows: u64,
+    predicate_tests: u64,
+    retained: RetainedBatches,
+}
+
+/// The source population and its residency.
+type Input = (Population, Residency);
+type Value = Observed;
+type Failure = OperatingError;
+
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("derived_group_count_barrier_follows_a_shared_head_without_a_second_pass"),
+    word: Word::Succeeds,
+    input: || (Population::Three, Residency::Stable),
+    expect: Expect::Value(Observed {
+        one_class: true,
+        group_count_in_a_class: false,
+        // Authored rows 2 and 3 pass the predicate, one group each.
+        counted_rows: Some(2),
+        plain_rows: Some(2),
+        // Both consumers share one source pass.
+        passes: 1,
+        source_rows: 3,
+        predicate_tests: 3,
+        // Both consumers delivered, so the batch retired.
+        retained: RetainedBatches(0),
+    }),
+}];
+
+fn rows(root: Root) -> Option<usize> {
+    match root {
+        Root::Complete { rows, .. } => Some(rows),
+        _ => None,
+    }
+}
+
+/// Runs a grouped rule and a plain sibling over one authored head.
+fn subject((population, residency): Input) -> Result<Value, Failure> {
     let program = Program::new(
         Authored::grouped(),
-        Population::Three,
-        Residency::Stable,
+        population,
+        residency,
         Arc::new(Meanings::default()),
         Arc::new(Derived::new()),
-    )
-    .unwrap();
-    let grouped = program
-        .head_class(RuleIndex(0))
-        .expect("the authored head of the grouped rule is a shared source class");
-    assert_eq!(
-        grouped,
-        program.head_class(RuleIndex(1)).unwrap(),
-        "equal authored predicates make one class across both rules"
-    );
+    )?;
+    let grouped = program.head_class(RuleIndex(0))?;
+    let one_class = grouped == program.head_class(RuleIndex(1))?;
     let tail = program.prepared.program().rules()[0].original_steps[1]
         .as_ref()
-        .unwrap()
+        .map_err(Clone::clone)?
         .logical;
     let region = program.prepared.program().logical_regions()[tail.0];
     let instruction = program.prepared.program().regions()[region.0]
         .instructions()
         .iter()
         .find(|instruction| instruction.logical() == tail)
-        .unwrap();
-    assert!(
-        program.prepared.walk_class(instruction).is_none(),
-        "a derived GroupCount is a barrier, never a source-walk class"
-    );
+        .ok_or(OperatingError::NotRun)?;
+    let group_count_in_a_class = program.prepared.walk_class(instruction).is_some();
     let mut symbols = Symbols::default();
-    let mut file = program.open(&mut symbols).unwrap();
+    let mut file = program.open(&mut symbols)?;
     let read = |relation| program.read(relation);
-    let RootOutcome::Complete(counted) = file
-        .rule(RuleIndex(0), demand(), &read, &mut symbols)
-        .unwrap()
-        .emit
-    else {
-        panic!("the derived consumer must complete over the shared head")
-    };
-    assert_eq!(
-        counted.count,
-        RowCount(2),
-        "authored rows 2 and 3 pass the predicate, one group each"
-    );
-    let RootOutcome::Complete(plain) = file
-        .rule(RuleIndex(1), demand(), &read, &mut symbols)
-        .unwrap()
-        .emit
-    else {
-        panic!("the plain sibling must complete from the same class")
-    };
-    assert_eq!(plain.count, RowCount(2));
+    let counted = Root::from(file.rule(RuleIndex(0), demand(), &read, &mut symbols)?.emit);
+    let plain = Root::from(file.rule(RuleIndex(1), demand(), &read, &mut symbols)?.emit);
     let work = file.walk_counts();
-    assert_eq!(work.passes.0, 1, "both consumers share one source pass");
-    assert_eq!(work.source_rows.0, 3);
-    assert_eq!(work.predicate_tests.0, 3);
-    assert_eq!(
-        file.walk.retained(),
-        RetainedBatches(0),
-        "both consumers delivered, so the batch retired"
-    );
-    file.finish().unwrap();
-}
-
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    DerivedGroupCountBarrierFollowsASharedHeadWithoutASecondPass,
-}
-
-type Input = Scenario;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
-const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("derived_group_count_barrier_follows_a_shared_head_without_a_second_pass"),
-    word: Word::Succeeds,
-    input: || Scenario::DerivedGroupCountBarrierFollowsASharedHeadWithoutASecondPass,
-    expect: Expect::Value(()),
-}];
-
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::DerivedGroupCountBarrierFollowsASharedHeadWithoutASecondPass => {
-            derived_group_count_barrier_follows_a_shared_head_without_a_second_pass();
-            Ok(())
-        }
-    }
+    let retained = file.walk.retained();
+    file.finish()?;
+    Ok(Observed {
+        one_class,
+        group_count_in_a_class,
+        counted_rows: rows(counted),
+        plain_rows: rows(plain),
+        passes: work.passes.0,
+        source_rows: work.source_rows.0,
+        predicate_tests: work.predicate_tests.0,
+        retained,
+    })
 }
 
 #[test]

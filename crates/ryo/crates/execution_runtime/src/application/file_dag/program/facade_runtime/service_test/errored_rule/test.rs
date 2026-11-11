@@ -14,14 +14,45 @@ use ryo_values::domain::observations::types::{
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
 use ryo_values::domain::plans::types::PlanStep;
 
-fn only_the_rule_with_an_errored_step_is_refused_on_its_roots() {
+/// What preparing a sound rule beside a rule whose last step names a missing column observed.
+#[derive(Debug, PartialEq)]
+struct Observed {
+    /// The sound sibling's emit root error, if it lost its root.
+    sibling_emit_root_error: Option<String>,
+    /// Whether the errored rule's emit root is an error, though its emit step is sound.
+    errored_emit_root_refused: bool,
+    /// The errored rule's named outputs, and of those, the ones whose source is that same error.
+    named_outputs: usize,
+    outputs_with_the_emit_error: usize,
+}
+
+/// The column the errored rule's last step projects.
+type Input = u32;
+type Value = Observed;
+type Failure = String;
+
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("only_the_rule_with_an_errored_step_is_refused_on_its_roots"),
+    word: Word::Succeeds,
+    input: || 99,
+    expect: Expect::Value(Observed {
+        sibling_emit_root_error: None,
+        errored_emit_root_refused: true,
+        // The named output is kept.
+        named_outputs: 1,
+        outputs_with_the_emit_error: 1,
+    }),
+}];
+
+/// Prepares the sound rule and the rule whose last step projects the missing column.
+fn subject(missing: Input) -> Result<Value, Failure> {
     let sound = plan(Scenario::Words);
     let mut errored = plan(Scenario::Words);
     // The step after the emit step names a column the select does not keep: the origin is errored, the emit step is sound.
     errored.steps.push(PlanStep {
         operation: Operation::Project {
             from: PlanInput::Step(StepId(0)),
-            columns: vec![ColumnIndex(99)],
+            columns: vec![ColumnIndex(missing)],
             distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
         },
         scope: StepScope::PerFile,
@@ -51,7 +82,7 @@ fn only_the_rule_with_an_errored_step_is_refused_on_its_roots() {
         .zip(&rules)
         .map(|(plan, rule)| ryo_values::domain::rule_requests::service::bind(plan, rule))
         .collect::<Result<Vec<_>, _>>()
-        .expect("both written rules bind their parameters");
+        .map_err(|error| format!("{error:?}"))?;
     let compiled = Compiled {
         schedule: RuleSchedule::Independent,
         observations: vec![vec![], vec![]],
@@ -59,6 +90,7 @@ fn only_the_rule_with_an_errored_step_is_refused_on_its_roots() {
         bindings,
     };
     let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
+    // An errored rule does not refuse the request: it is refused on its own roots.
     let prepared = prepare(
         compiled,
         &rules,
@@ -67,57 +99,32 @@ fn only_the_rule_with_an_errored_step_is_refused_on_its_roots() {
         Arc::clone(&derived),
         ObservationIdentity::Independent,
     )
-    .expect("an errored rule does not refuse the request: it is refused on its own roots");
+    .map_err(|error| format!("{error:?}"))?;
     let sibling = prepared
         .rule_metadata(RuleIndex(0))
-        .expect("the sound rule has metadata");
-    assert!(
-        sibling.emit_root.is_ok(),
-        "the sibling rule keeps its emit root"
-    );
+        .map_err(|error| format!("{error:?}"))?;
     let refused = prepared
         .rule_metadata(RuleIndex(1))
-        .expect("the errored rule has metadata");
-    let error = refused
-        .emit_root
-        .clone()
-        .expect_err("the errored rule's emit root is its error, though its emit step is sound");
-    assert_eq!(refused.observations.len(), 1, "the named output is kept");
-    for output in refused.observations.iter() {
-        assert_eq!(
-            output.source,
-            Err::<InputSource, _>(error.clone()),
-            "the named output's source is the same error"
-        );
-    }
-}
-
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Proof {
-    OnlyTheRuleWithAnErroredStepIsRefusedOnItsRoots,
-}
-
-type Input = Proof;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
-const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("only_the_rule_with_an_errored_step_is_refused_on_its_roots"),
-    word: Word::Succeeds,
-    input: || Proof::OnlyTheRuleWithAnErroredStepIsRefusedOnItsRoots,
-    expect: Expect::Value(()),
-}];
-
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Proof::OnlyTheRuleWithAnErroredStepIsRefusedOnItsRoots => {
-            only_the_rule_with_an_errored_step_is_refused_on_its_roots();
-            Ok(())
-        }
-    }
+        .map_err(|error| format!("{error:?}"))?;
+    let error = refused.emit_root.clone().err();
+    Ok(Observed {
+        sibling_emit_root_error: sibling
+            .emit_root
+            .as_ref()
+            .err()
+            .map(|error| format!("{error:?}")),
+        errored_emit_root_refused: error.is_some(),
+        named_outputs: refused.observations.len(),
+        outputs_with_the_emit_error: refused
+            .observations
+            .iter()
+            .filter(|output| {
+                error
+                    .as_ref()
+                    .is_some_and(|error| output.source == Err::<InputSource, _>(error.clone()))
+            })
+            .count(),
+    })
 }
 
 #[test]
