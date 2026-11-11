@@ -68,7 +68,7 @@ rules = [
   # composition root, main.rs, a build script, tests, benches and test fixtures.
   # A command's and an SDK function's service calls are the methods of the interfaces they can reach, in any crate.
   # Rules that cross a namespace and its parts cannot be a spec's: a spec's rule reads only the files its own instance owns.
-  { rule = "idiomatic.arch/collection-members", include = ["languages/*/src/**/collections.rs", "languages/*/src/**/collections/**"], description = "A collection is whole: its list, its module file, its interface and its items, named apart from its neighbours." },
+  { rule = "idiomatic.arch/collection-members", include = ["languages/*/src/**/collections.rs", "languages/*/src/**/collections/**"], exclude = ["languages/*/src/domain/relations/collections.rs", "languages/*/src/domain/relations/collections/**", "languages/*/src/domain/manifests/collections.rs", "languages/*/src/domain/manifests/collections/**", "languages/*/src/domain/links/collections.rs", "languages/*/src/domain/links/collections/**"], description = "A collection is whole: its list, its module file, its interface and its items, named apart from its neighbours. Excepted are the collections of a language's relations, manifests and links: ryo owns the shape of their items, which a language implements and never defines, so they have no interface of their own." },
   { rule = "idiomatic.arch/interface-present-unless-item-trait", include = ["**/src/**/collections/*/interface.rs", "**/src/**/collections/*/*/item.rs"], description = "A collection has an interface.rs exactly when its items import it: a collection whose items implement a trait of another crate (its pair in `item-trait`) has none. Held here, over the workspace: a collection spec's rules cannot see the files of the item instances nested in it." },
   { rule = "idiomatic.arch/item-contract", include = ["languages/*/src/**/collections/**"], description = "Each item's test runs its collection's shared cases when the collection has a fixtures/contract.rs." },
   { rule = "idiomatic.arch/item-fixtures", include = ["crates/core/**", "languages/**"], description = "Each relation and operator item has fixtures: an input and the expected rows, which the allocation and call-count tests read. A language whose relations are not written yet has the findings as its work list." },
@@ -197,12 +197,9 @@ specs = [
     { path = "ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl" },
     { path = "ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new" },
     { path = "ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase" },
-    { path = "ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new" },
-    { path = "ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase" },
     { path = "ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase" },
     { path = "ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl" },
     { path = "ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl::new" },
-    { path = "ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl" },
   ], apart = "languages", allowed-paths = [
     "**/constants.rs",
     "**/errors.rs",
