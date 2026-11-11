@@ -1,5 +1,7 @@
 //! The `request` application operation.
 
+use super::super::owner::service::DerivedAccess;
+use super::super::prepare::service::view;
 use super::identity::types::StaticRequest;
 use super::types::InputPositions;
 use ryo_derived::domain::request::types::DerivedKind;
@@ -17,7 +19,7 @@ use ryo_execution_domain::domain::{
         types::OperatorContract,
     },
 };
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, InputNumber};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Input, InputNumber};
 use std::sync::Arc;
 
 /// The derived views a request's operators bind, prepared once for the request.
@@ -30,10 +32,10 @@ use std::sync::Arc;
 /// ```
 #[derive(Debug)]
 pub struct RequestViews {
-    semantic: crate::application::file_dag::derived::owner::service::DerivedAccess,
+    semantic: DerivedAccess,
     plans: Vec<Arc<DerivedContract>>,
     bindings: Vec<Arc<PreparedViewUse>>,
-    logical: Vec<ryo_values::domain::plan_parts::types::Input>,
+    logical: Vec<Input>,
 }
 
 impl RequestViews {
@@ -44,9 +46,7 @@ impl RequestViews {
     /// ```
     /// use ryo_execution_store::application::file_dag::derived::request::service::RequestViews;
     /// ```
-    pub fn new(
-        semantic: impl Into<crate::application::file_dag::derived::owner::service::DerivedAccess>,
-    ) -> Self {
+    pub fn new(semantic: impl Into<DerivedAccess>) -> Self {
         Self {
             semantic: semantic.into(),
             plans: Vec::new(),
@@ -297,11 +297,7 @@ impl RequestViews {
         {
             return Err(OperatingError::WrongOperation);
         }
-        let plan = if let Some(error) = missing {
-            self.intern_missing(&request, &schemas, error)?
-        } else {
-            self.intern(&request, &schemas)?
-        };
+        let plan = self.intern(&request, &schemas, missing)?;
         let mut inputs = [InputNumber(0); 2];
         for (input, position) in inputs.iter_mut().zip(positions) {
             *input = InputNumber(*position);
@@ -311,11 +307,8 @@ impl RequestViews {
                 .get(at)
                 .and_then(|position| self.logical.get(*position))
                 .and_then(|input| match input {
-                    ryo_values::domain::plan_parts::types::Input::Relation(relation) => {
-                        Some(*relation)
-                    }
-                    ryo_values::domain::plan_parts::types::Input::Step(_)
-                    | ryo_values::domain::plan_parts::types::Input::BoundObservation(_) => None,
+                    Input::Relation(relation) => Some(*relation),
+                    Input::Step(_) | Input::BoundObservation(_) => None,
                 })
         });
         let binding = self.bindings.iter().find(|binding| {
@@ -352,15 +345,19 @@ impl RequestViews {
         });
         Ok(())
     }
-    fn intern_missing(
+    /// The plan prepared for `request` over `schemas`, prepared now when none is yet. A plan of an input that is
+    /// missing keeps that refusal as its metadata, and is only ever the plan of that refusal.
+    fn intern(
         &mut self,
         request: &ViewRequest,
         schemas: &[InputShape<'_>],
-        error: OperatingError,
+        missing: Option<OperatingError>,
     ) -> Result<Arc<DerivedContract>, OperatingError> {
         if let Some(plan) = self.plans.iter().find(|plan| {
             StaticRequest(&plan.request) == StaticRequest(request)
-                && plan.metadata == Err(error.clone())
+                && missing
+                    .as_ref()
+                    .is_none_or(|error| plan.metadata == Err(error.clone()))
                 && plan.schemas.len() == schemas.len()
                 && plan
                     .schemas
@@ -368,37 +365,14 @@ impl RequestViews {
                     .zip(schemas)
                     .all(|(prepared, actual)| prepared == actual.kinds)
         }) {
-            return Ok((plan).clone());
+            return Ok(Arc::clone(plan));
         }
-        let mut plan =
-            super::super::prepare::service::view(self.semantic.clone(), request, schemas)?;
-        plan.metadata = Err(error);
+        let mut plan = view(self.semantic.clone(), request, schemas)?;
+        if let Some(error) = missing {
+            plan.metadata = Err(error);
+        }
         let plan = Arc::new(plan);
-        self.plans.push((plan).clone());
-        Ok(plan)
-    }
-    pub(crate) fn intern(
-        &mut self,
-        request: &ViewRequest,
-        schemas: &[InputShape<'_>],
-    ) -> Result<Arc<DerivedContract>, OperatingError> {
-        if let Some(plan) = self.plans.iter().find(|plan| {
-            StaticRequest(&plan.request) == StaticRequest(request)
-                && plan.schemas.len() == schemas.len()
-                && plan
-                    .schemas
-                    .iter()
-                    .zip(schemas)
-                    .all(|(prepared, actual)| prepared == actual.kinds)
-        }) {
-            return Ok((plan).clone());
-        }
-        let plan = Arc::new(super::super::prepare::service::view(
-            self.semantic.clone(),
-            request,
-            schemas,
-        )?);
-        self.plans.push((plan).clone());
+        self.plans.push(Arc::clone(&plan));
         Ok(plan)
     }
     #[cfg(test)]
