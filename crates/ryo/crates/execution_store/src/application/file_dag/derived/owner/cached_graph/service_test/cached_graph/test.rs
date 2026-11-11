@@ -10,137 +10,169 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
 
-fn an_unprepared_owner_refuses_graph_demand_with_a_typed_error() {
-    let owner = RelationOwner::new(
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        crate::application::file_dag::fixtures::program_derived_port(),
-    );
-    assert!(matches!(
-        owner.derived().graph_cache(),
-        Err(OperatingError::NotRun)
-    ));
-}
-
-fn a_retired_owner_refuses_graph_demand_instead_of_traversing() {
-    let fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
-    assert!(matches!(fixture.cache_ready(), Ok(())));
-    fixture.retire();
-    assert!(matches!(fixture.cache_ready(), Err(OperatingError::NotRun)));
-}
-
-fn a_prepared_owner_answers_graph_demand_through_its_cache() {
-    let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
-    let rows = Rows::Stored(ColumnsView {
-        kinds: &[CellKind::Number; 2],
-        columns: &columns,
-    });
-    let fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
-    assert!(matches!(fixture.cache_ready(), Ok(())));
-    let graph = fixture
-        .acquire(SOURCE, &rows, ENDPOINTS, &[])
-        .unwrap()
-        .expect("the owner route answers");
-    assert_eq!(graph.graph().vertices().len(), 3);
-    assert_eq!(fixture.snapshot().counts.builds, 1);
-}
-
-fn a_project_owner_declines_the_graph_so_its_axis_walks_its_tables() {
-    let owner = std::rc::Rc::new(RelationOwner::new(
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        crate::application::file_dag::fixtures::program_derived_port(),
-    ));
-    // Before it serves the project, an owner with no cache refuses the graph, as a file owner before its preparation does.
-    assert!(matches!(graph_of(&owner), Err(OperatingError::NotRun)));
-    assert!(matches!(owner.derived().serve_project(), Ok(())));
-    assert!(matches!(graph_of(&owner), Ok(false)));
-    // A retirement of its population leaves it the project's.
-    owner.release_population();
-    assert!(matches!(graph_of(&owner), Ok(false)));
-}
-
-fn a_file_owner_cannot_serve_the_project() {
-    let fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
-    assert!(matches!(
-        fixture.owner.derived().serve_project(),
-        Err(OperatingError::WrongOperation)
-    ));
-}
-
-/// The case each row runs: one of the proofs below.
+/// The owner a graph demand reaches, and what it is asked.
 #[derive(Clone, Copy, Debug)]
-enum Scenario {
-    AnUnpreparedOwnerRefusesGraphDemandWithATypedError,
-    ARetiredOwnerRefusesGraphDemandInsteadOfTraversing,
-    APreparedOwnerAnswersGraphDemandThroughItsCache,
-    AProjectOwnerDeclinesTheGraphSoItsAxisWalksItsTables,
-    AFileOwnerCannotServeTheProject,
+enum Demand {
+    /// A file owner never prepared is asked for its graph cache.
+    Unprepared,
+    /// A prepared file owner is asked whether its cache is ready.
+    Prepared,
+    /// A prepared file owner, retired, is asked whether its cache is ready.
+    Retired,
+    /// A prepared file owner is asked for the graph over the edges 1 -> 2 -> 3.
+    Graph,
+    /// A project owner is asked for an axis's graph before it serves the project.
+    ProjectBeforeServing,
+    /// A project owner serving the project is asked for an axis's graph.
+    Project,
+    /// A project owner serving the project, its population retired, is asked again.
+    ProjectRetired,
+    /// A file owner is asked to serve the project.
+    FileServingProject,
 }
 
-type Input = Scenario;
-type Value = ();
-type Failure = String;
+/// What the demand answered.
+#[derive(Debug, PartialEq)]
+enum Answer {
+    /// The cache is ready.
+    Ready,
+    /// A graph with this many vertices, after this many builds.
+    Graph { vertices: usize, builds: u64 },
+    /// The owner prepared a graph for the axis.
+    Prepared,
+    /// The owner prepared no graph for the axis: the axis walks its tables.
+    Declined,
+}
 
-/// One row per proof: its name, and the scenario that runs it.
+type Input = Demand;
+type Value = Answer;
+type Failure = OperatingError;
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an_unprepared_owner_refuses_graph_demand_with_a_typed_error"),
+        word: Word::Refuses,
+        input: || Demand::Unprepared,
+        expect: Expect::Error(OperatingError::NotRun),
+    },
+    Case {
+        name: CaseName("a_prepared_owner_has_its_cache_ready"),
         word: Word::Succeeds,
-        input: || Scenario::AnUnpreparedOwnerRefusesGraphDemandWithATypedError,
-        expect: Expect::Value(()),
+        input: || Demand::Prepared,
+        expect: Expect::Value(Answer::Ready),
     },
     Case {
         name: CaseName("a_retired_owner_refuses_graph_demand_instead_of_traversing"),
-        word: Word::Succeeds,
-        input: || Scenario::ARetiredOwnerRefusesGraphDemandInsteadOfTraversing,
-        expect: Expect::Value(()),
+        word: Word::Refuses,
+        input: || Demand::Retired,
+        expect: Expect::Error(OperatingError::NotRun),
     },
     Case {
         name: CaseName("a_prepared_owner_answers_graph_demand_through_its_cache"),
         word: Word::Succeeds,
-        input: || Scenario::APreparedOwnerAnswersGraphDemandThroughItsCache,
-        expect: Expect::Value(()),
+        input: || Demand::Graph,
+        expect: Expect::Value(Answer::Graph {
+            vertices: 3,
+            builds: 1,
+        }),
+    },
+    Case {
+        name: CaseName("a_project_owner_refuses_the_graph_before_it_serves_the_project"),
+        word: Word::Refuses,
+        input: || Demand::ProjectBeforeServing,
+        expect: Expect::Error(OperatingError::NotRun),
     },
     Case {
         name: CaseName("a_project_owner_declines_the_graph_so_its_axis_walks_its_tables"),
         word: Word::Succeeds,
-        input: || Scenario::AProjectOwnerDeclinesTheGraphSoItsAxisWalksItsTables,
-        expect: Expect::Value(()),
+        input: || Demand::Project,
+        expect: Expect::Value(Answer::Declined),
+    },
+    Case {
+        name: CaseName("a_project_owner_still_declines_the_graph_after_its_population_retires"),
+        word: Word::Succeeds,
+        input: || Demand::ProjectRetired,
+        expect: Expect::Value(Answer::Declined),
     },
     Case {
         name: CaseName("a_file_owner_cannot_serve_the_project"),
-        word: Word::Succeeds,
-        input: || Scenario::AFileOwnerCannotServeTheProject,
-        expect: Expect::Value(()),
+        word: Word::Refuses,
+        input: || Demand::FileServingProject,
+        expect: Expect::Error(OperatingError::WrongOperation),
     },
 ];
 
-/// Runs one scenario; its assertions are the case's expectation.
+fn project_owner() -> std::rc::Rc<RelationOwner> {
+    std::rc::Rc::new(RelationOwner::new(
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::fixtures::program_derived_port(),
+    ))
+}
+
+fn axis_graph(owner: &std::rc::Rc<RelationOwner>) -> Result<Answer, OperatingError> {
+    graph_of(owner).map(|prepared| {
+        if prepared {
+            Answer::Prepared
+        } else {
+            Answer::Declined
+        }
+    })
+}
+
+/// Builds the owner in the demanded state and asks it.
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
-        Scenario::AnUnpreparedOwnerRefusesGraphDemandWithATypedError => {
-            an_unprepared_owner_refuses_graph_demand_with_a_typed_error();
-            Ok(())
+        Demand::Unprepared => project_owner().derived().graph_cache().map(|_| Answer::Ready),
+        Demand::Prepared => GraphFixture::new(&[Relation::Function], &[], LIMIT)
+            .cache_ready()
+            .map(|()| Answer::Ready),
+        Demand::Retired => {
+            let fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
+            fixture.retire();
+            fixture.cache_ready().map(|()| Answer::Ready)
         }
-        Scenario::ARetiredOwnerRefusesGraphDemandInsteadOfTraversing => {
-            a_retired_owner_refuses_graph_demand_instead_of_traversing();
-            Ok(())
+        Demand::Graph => {
+            let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
+            let rows = Rows::Stored(ColumnsView {
+                kinds: &[CellKind::Number; 2],
+                columns: &columns,
+            });
+            let fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
+            let graph = fixture
+                .acquire(SOURCE, &rows, ENDPOINTS, &[])?
+                .expect("the owner route answers");
+            Ok(Answer::Graph {
+                vertices: graph.graph().vertices().len(),
+                builds: fixture.snapshot().counts.builds,
+            })
         }
-        Scenario::APreparedOwnerAnswersGraphDemandThroughItsCache => {
-            a_prepared_owner_answers_graph_demand_through_its_cache();
-            Ok(())
+        Demand::ProjectBeforeServing => axis_graph(&project_owner()),
+        Demand::Project => {
+            let owner = project_owner();
+            owner.derived().serve_project()?;
+            axis_graph(&owner)
         }
-        Scenario::AProjectOwnerDeclinesTheGraphSoItsAxisWalksItsTables => {
-            a_project_owner_declines_the_graph_so_its_axis_walks_its_tables();
-            Ok(())
+        Demand::ProjectRetired => {
+            let owner = project_owner();
+            owner.derived().serve_project()?;
+            // A retirement of its population leaves it the project's.
+            owner.release_population();
+            axis_graph(&owner)
         }
-        Scenario::AFileOwnerCannotServeTheProject => {
-            a_file_owner_cannot_serve_the_project();
-            Ok(())
-        }
+        Demand::FileServingProject => GraphFixture::new(&[Relation::Function], &[], LIMIT)
+            .owner
+            .derived()
+            .serve_project()
+            .map(|()| Answer::Ready),
     }
 }
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

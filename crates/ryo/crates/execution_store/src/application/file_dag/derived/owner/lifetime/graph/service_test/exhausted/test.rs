@@ -2,98 +2,145 @@
 use super::super::fixtures::{ENDPOINTS, SOURCE, number, rows};
 use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
 use crate::application::file_dag::derived::owner::*;
+use crate::application::file_dag::derived::ledger::types::ByteCount;
+use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
+use crate::application::file_dag::derived::population::service::PopulationId;
+use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
+use crate::application::file_dag::derived::owner::footprint::service::storage_bytes;
+use rustc_hash::FxHashMap;
+use ryo_execution_domain::domain::{
+    derived_views::types::{contract::value::DerivedContract, *},
+    operating::errors::OperatingError,
+};
+use std::{
+    cell::RefCell,
+    sync::{Arc, Weak},
+};
+use crate::application::file_dag::derived::owner::types::{
+    AdmissionOrder, BuildCount, BuildCounts, EntryLimit, FilePreparation, HitCount,
+    IdentityCompatibility, MembershipOrder, MemoBudget, PinCount, PinState, PopulationCount,
+    ReclaimOutlook, RefusalCount, ReleasedEntries, Room, ScopeId, ViewCount,
+};
+use crate::application::file_dag::derived::owner::graph_key::{GraphRequirement, GraphViewIdentity, RequirementIdentity};
+use ryo_derived::domain::request::types::DerivedKind;
+use crate::application::file_dag::derived::owner::service::*;
+use crate::application::file_dag::derived::owner::types::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use fixtures::graph::GraphFixture;
 use ryo_execution_domain::domain::stored_graph::types::{GraphWalk, Orientation};
-use ryo_relations::domain::relations::types::{FactColumn, Integer, Relation};
+use ryo_relations::domain::relations::types::{FactColumn, Integer, Relation, Value as Cell};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput};
-fn exhausted_domain_identity_uses_local_membership_without_retained_duplicates() {
+
+/// The edges a graph is acquired over, the domain rows asked for, and the vertex each of the two
+/// walks starts at.
+#[derive(Debug)]
+struct Walks {
+    edges: [&'static [u64]; 2],
+    domain: [&'static [u64]; 2],
+    from: i64,
+}
+
+/// What the two walks observed: the graph's sharing, per walk whether the domain carried a membership
+/// identity and the nearest vertex reached, and what the owner retained.
+#[derive(Debug, PartialEq)]
+struct Observed {
+    sharing: GraphSharing,
+    identities: [bool; 2],
+    nearest: [Option<Cell>; 2],
+    graphs: usize,
+    domains: usize,
+    retained_nearest: usize,
+    builds: u64,
+}
+
+type Input = Walks;
+type Value = Observed;
+type Failure = String;
+
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("exhausted_domain_identity_uses_local_membership_without_retained_duplicates"),
+    word: Word::Succeeds,
+    input: || Walks {
+        edges: [&[1, 2], &[2, 3]],
+        domain: [&[2, 3], &[0, 0]],
+        from: 1,
+    },
+    expect: Expect::Value(Observed {
+        sharing: GraphSharing::Shared,
+        identities: [false, false],
+        nearest: [
+            Some(Cell::Number(Integer(2))),
+            Some(Cell::Number(Integer(2))),
+        ],
+        graphs: 1,
+        domains: 0,
+        retained_nearest: 0,
+        builds: 1,
+    }),
+}];
+
+/// Acquires the graph under an exhausted source identity, asks for the domain and walks it
+/// twice, and reads what the owner retained.
+fn subject(input: Input) -> Result<Value, Failure> {
     let fixture = GraphFixture::with_identity(
         &[Relation::Function, Relation::Identifier],
         &[],
-        crate::application::file_dag::derived::owner::index::service::LIMIT,
+        index::service::LIMIT,
         true,
         1,
     );
-    let edges = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
+    let edges = input.edges.map(|column| FactColumn(column.to_vec()));
     let graph = fixture
         .acquire(SOURCE, &rows(&edges), ENDPOINTS, &[])
-        .unwrap()
-        .unwrap();
-    assert_eq!(graph.sharing(), GraphSharing::Shared);
-    let domain_columns = [FactColumn(vec![2, 3]), FactColumn(vec![0, 0])];
-    let input = rows(&domain_columns);
+        .map_err(|error| format!("{error:?}"))?
+        .ok_or("no graph")?;
+    let domain_columns = input.domain.map(|column| FactColumn(column.to_vec()));
+    let domain_rows = rows(&domain_columns);
     let mut walk = GraphWalk::default();
     let mut local = Vec::new();
-    for _ in 0..2 {
+    let mut identities = [true; 2];
+    let mut nearest = [None; 2];
+    for pass in 0..2 {
         let domain = fixture
             .domain(
                 &graph,
                 PlanInput::Relation(Relation::Identifier),
-                &input,
+                &domain_rows,
                 ColumnIndex(0),
             )
-            .unwrap()
-            .unwrap();
-        assert!(
-            domain.raw_domain().identity.is_none(),
-            "an exhausted source publication cannot grant stable membership identity"
-        );
-        let nearest = fixture
+            .map_err(|error| format!("{error:?}"))?
+            .ok_or("no domain")?;
+        identities[pass] = domain.raw_domain().identity.is_some();
+        let start = graph
+            .graph()
+            .vertex(
+                ryo_derived::domain::vertices::types::PartitionId(0),
+                number(Integer(input.from)),
+            )
+            .ok_or("no start vertex")?
+            .0;
+        let at = fixture
             .nearest(
                 &graph,
                 &domain,
-                graph
-                    .graph()
-                    .vertex(
-                        ryo_derived::domain::vertices::types::PartitionId(0),
-                        number(Integer(1)),
-                    )
-                    .unwrap()
-                    .0,
+                start,
                 Orientation::Forward,
                 &mut local,
                 &mut walk,
             )
-            .unwrap();
-        assert_eq!(
-            nearest.map(|at| graph.graph().vertices()[usize::try_from(at).unwrap()]),
-            Some(number(Integer(2)))
-        );
+            .map_err(|error| format!("{error:?}"))?;
+        nearest[pass] = at.map(|at| graph.graph().vertices()[usize::try_from(at).unwrap()]);
     }
     let observed = fixture.snapshot();
-    assert_eq!(observed.graphs, 1);
-    assert_eq!(observed.domains, 0);
-    assert_eq!(observed.nearest, 0);
-    assert_eq!(observed.counts.builds, 1);
-}
-
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    ExhaustedDomainIdentityUsesLocalMembershipWithoutRetainedDuplicates,
-}
-
-type Input = Scenario;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
-const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("exhausted_domain_identity_uses_local_membership_without_retained_duplicates"),
-    word: Word::Succeeds,
-    input: || Scenario::ExhaustedDomainIdentityUsesLocalMembershipWithoutRetainedDuplicates,
-    expect: Expect::Value(()),
-}];
-
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::ExhaustedDomainIdentityUsesLocalMembershipWithoutRetainedDuplicates => {
-            exhausted_domain_identity_uses_local_membership_without_retained_duplicates();
-            Ok(())
-        }
-    }
+    Ok(Observed {
+        sharing: graph.sharing(),
+        identities,
+        nearest,
+        graphs: observed.graphs,
+        domains: observed.domains,
+        retained_nearest: observed.nearest,
+        builds: observed.counts.builds,
+    })
 }
 
 #[test]

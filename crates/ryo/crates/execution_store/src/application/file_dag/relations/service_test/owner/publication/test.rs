@@ -7,179 +7,227 @@ use ryo_relations::domain::relations::{
     service::kinds,
     types::{CellKind, ColumnsView, Integer, Relation, Value as CellValue},
 };
+use crate::application::file_dag::relations::types::{CheckCount, Liveness, Sameness};
+use std::borrow::Cow;
 use std::sync::Arc;
 
-fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
-    let owner = RelationOwner::new(
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
-    );
-    let relation = Relation::SourceLocation;
-    let schema = kinds(relation);
-    let mut physical = columns(schema);
-    physical[1].0.pop();
-    let source = ColumnsView {
-        kinds: schema,
-        columns: &physical,
-    };
-    let publication = owner.source(relation, &Rows::Stored(source)).unwrap();
-    let consumer = publication.clone();
-    let weak = Arc::downgrade(publication.record());
-    assert_eq!(
-        owner.checks.get(),
-        crate::application::file_dag::relations::types::CheckCount(0),
-        "publication does not inspect undemanded source rows"
-    );
-    assert!(publication.as_ref().normalized.get().is_none());
-    assert_eq!(owner.derived.publication_ownership_bytes().1, 0);
-    let normalized_address;
-    {
-        let Rows::Computed(table) = owner.normalize(&publication, Rows::Stored(source)).unwrap()
-        else {
-            panic!("readable physical fallback must normalize")
-        };
-        normalized_address = std::ptr::from_ref(table);
-        assert_eq!(read(&Rows::Computed(table)), [row(schema, 0)]);
-    }
-    let charged = owner.derived.publication_ownership_bytes();
-    assert!(charged.0 > 0);
-    assert_eq!(charged.1, 0);
-    assert_eq!(charged.0, charged.2);
-    drop(publication);
-    assert!(weak.upgrade().is_some());
-    let Rows::Computed(table) = owner.normalize(&consumer, Rows::Stored(source)).unwrap() else {
-        panic!("same demanded fallback")
-    };
-    assert_eq!(normalized_address, std::ptr::from_ref(table));
-    assert_eq!(
-        owner.checks.get(),
-        crate::application::file_dag::relations::types::CheckCount(1)
-    );
-    assert_eq!(
-        owner.derived.publication_ownership_bytes(),
-        charged,
-        "alias does not charge normalization again"
-    );
-    drop(consumer);
-    assert!(weak.upgrade().is_none());
-    assert_eq!(owner.derived.publication_ownership_bytes(), (0, 0, 0));
-}
-
-fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_generation() {
-    use ryo_values::domain::rows::types::{RowCount, Table};
-    let owner = RelationOwner::new(
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        crate::application::file_dag::fixtures::program_derived_port(),
-    );
-    let generation = owner.current_generation();
-    let publication = owner
-        .computed(Table {
-            kinds: vec![CellKind::Number],
-            cells: vec![
-                CellValue::Number(Integer(41)),
-                CellValue::Number(Integer(43)),
-            ],
-            count: RowCount(2),
-        })
-        .unwrap();
-    let record = Arc::downgrade(publication.record());
-    let alias = publication.clone();
-    assert_eq!(
-        alias.same_record(&publication),
-        crate::application::file_dag::relations::types::Sameness::Same
-    );
-    let charged = owner.derived.publication_ownership_bytes();
-    assert!(
-        charged.0 > 0,
-        "actual computed publication has required backing"
-    );
-    assert_eq!(charged.1, 0, "publication is not optional retention");
-    assert_eq!(charged.0, charged.2, "one physical required backing charge");
-    drop(publication);
-    assert!(record.upgrade().is_some());
-    assert_eq!(owner.derived.publication_ownership_bytes(), charged);
-    {
-        let rows = owner
-            .resolve(alias.as_ref(), &|_| Err(OperatingError::NotRead))
-            .unwrap();
-        assert_eq!(
-            read(&rows),
-            [
-                vec![CellValue::Number(Integer(41))],
-                vec![CellValue::Number(Integer(43))]
-            ]
-        );
-        assert_eq!(owner.derived.publication_ownership_bytes(), charged);
-    }
-    assert_eq!(
-        owner.matches_generation(&generation),
-        crate::application::file_dag::relations::types::Sameness::Same
-    );
-    assert_eq!(
-        owner.current_generation().is_live(),
-        crate::application::file_dag::relations::types::Liveness::Live
-    );
-    drop(alias);
-    assert!(
-        record.upgrade().is_none(),
-        "last leased handle releases the actual record"
-    );
-    assert_eq!(owner.derived.publication_ownership_bytes(), (0, 0, 0));
-    assert_eq!(
-        owner.matches_generation(&generation),
-        crate::application::file_dag::relations::types::Sameness::Same,
-        "release did not rely on retiring the generation"
-    );
-    assert_eq!(
-        owner.current_generation().is_live(),
-        crate::application::file_dag::relations::types::Liveness::Live
-    );
-}
-
-/// The case each row runs: one of the proofs below.
+/// The publication two consumers hold.
 #[derive(Clone, Copy, Debug)]
-enum Scenario {
-    LazySourceNormalizationIsSharedAndLivesUntilTheLastConsumer,
-    ComputedPublicationClonesKeepRequiredBackingUntilLastHandleInLiveGeneration,
+enum Published {
+    /// A source of `SourceLocation` rows whose second column is one row short, so its stored
+    /// view is not readable as is and the owner normalizes it on demand.
+    LazySource,
+    /// A computed table of the numbers 41 and 43.
+    Computed([i64; 2]),
 }
 
-type Input = Scenario;
-type Value = ();
-type Failure = String;
+/// The owner's publication charge: required, optional and unique bytes.
+type Charge = (usize, usize, usize);
 
-/// One row per proof: its name, and the scenario that runs it.
+/// What the normalized source's consumers observed.
+#[derive(Debug, PartialEq)]
+struct Normalized {
+    checks_before_demand: CheckCount,
+    normalized_before_demand: bool,
+    optional_before_demand: usize,
+    reads_the_first_source_row_alone: bool,
+    charged_required: bool,
+    charged_optional: usize,
+    required_is_unique: bool,
+    alive_after_first_consumer: bool,
+    alias_reads_same_table: bool,
+    checks_after_alias: CheckCount,
+    alias_charged_again: bool,
+    alive_after_last_consumer: bool,
+    charge_after_last_consumer: Charge,
+}
+
+/// What the computed publication's consumers observed.
+#[derive(Debug, PartialEq)]
+struct Kept {
+    alias: Sameness,
+    charged_required: bool,
+    charged_optional: usize,
+    required_is_unique: bool,
+    alive_after_first_consumer: bool,
+    charge_kept: bool,
+    rows: Cow<'static, [Cow<'static, [CellValue]>]>,
+    charge_kept_while_read: bool,
+    generation: Sameness,
+    live: Liveness,
+    alive_after_last_consumer: bool,
+    charge_after_last_consumer: Charge,
+    generation_after_release: Sameness,
+    live_after_release: Liveness,
+}
+
+/// What the consumers observed.
+#[derive(Debug, PartialEq)]
+enum Observed {
+    Normalized(Normalized),
+    Kept(Kept),
+}
+
+type Input = Published;
+type Value = Observed;
+type Failure = OperatingError;
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("lazy_source_normalization_is_shared_and_lives_until_the_last_consumer"),
         word: Word::Succeeds,
-        input: || Scenario::LazySourceNormalizationIsSharedAndLivesUntilTheLastConsumer,
-        expect: Expect::Value(()),
+        input: || Published::LazySource,
+        expect: Expect::Value(Observed::Normalized(Normalized {
+            checks_before_demand: CheckCount(0),
+            normalized_before_demand: false,
+            optional_before_demand: 0,
+            reads_the_first_source_row_alone: true,
+            charged_required: true,
+            charged_optional: 0,
+            required_is_unique: true,
+            alive_after_first_consumer: true,
+            alias_reads_same_table: true,
+            checks_after_alias: CheckCount(1),
+            alias_charged_again: false,
+            alive_after_last_consumer: false,
+            charge_after_last_consumer: (0, 0, 0),
+        })),
     },
     Case {
         name: CaseName(
             "computed_publication_clones_keep_required_backing_until_last_handle_in_live_generation",
         ),
         word: Word::Succeeds,
-        input: || {
-            Scenario::ComputedPublicationClonesKeepRequiredBackingUntilLastHandleInLiveGeneration
-        },
-        expect: Expect::Value(()),
+        input: || Published::Computed([41, 43]),
+        expect: Expect::Value(Observed::Kept(Kept {
+            alias: Sameness::Same,
+            charged_required: true,
+            charged_optional: 0,
+            required_is_unique: true,
+            alive_after_first_consumer: true,
+            charge_kept: true,
+            rows: Cow::Borrowed(&[
+                Cow::Borrowed(&[CellValue::Number(Integer(41))]),
+                Cow::Borrowed(&[CellValue::Number(Integer(43))]),
+            ]),
+            charge_kept_while_read: true,
+            generation: Sameness::Same,
+            live: Liveness::Live,
+            alive_after_last_consumer: false,
+            charge_after_last_consumer: (0, 0, 0),
+            generation_after_release: Sameness::Same,
+            live_after_release: Liveness::Live,
+        })),
     },
 ];
 
-/// Runs one scenario; its assertions are the case's expectation.
+/// Publishes the input, has a consumer and its alias read it in turn, and drops them.
 fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::LazySourceNormalizationIsSharedAndLivesUntilTheLastConsumer => {
-            lazy_source_normalization_is_shared_and_lives_until_the_last_consumer();
-            Ok(())
-        }
-        Scenario::ComputedPublicationClonesKeepRequiredBackingUntilLastHandleInLiveGeneration => {
-            computed_publication_clones_keep_required_backing_until_last_handle_in_live_generation(
-            );
-            Ok(())
-        }
-    }
+    Ok(match input {
+        Published::LazySource => Observed::Normalized(normalized()?),
+        Published::Computed(numbers) => Observed::Kept(kept(numbers)?),
+    })
+}
+
+fn normalized() -> Result<Normalized, OperatingError> {
+    let owner = RelationOwner::new(
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        Arc::new(crate::application::file_dag::fixtures::derived()),
+    );
+    let relation = Relation::SourceLocation;
+    let schema = kinds(relation);
+    let mut physical = columns(schema);
+    drop(physical[1].0.pop());
+    let source = ColumnsView {
+        kinds: schema,
+        columns: &physical,
+    };
+    let publication = owner.source(relation, &Rows::Stored(source))?;
+    let consumer = publication.clone();
+    let weak = Arc::downgrade(publication.record());
+    let checks_before_demand = owner.checks.get();
+    let normalized_before_demand = publication.as_ref().normalized.get().is_some();
+    let optional_before_demand = owner.derived.publication_ownership_bytes().1;
+    let Rows::Computed(table) = owner.normalize(&publication, Rows::Stored(source))? else {
+        panic!("readable physical fallback must normalize")
+    };
+    let normalized_address = std::ptr::from_ref(table);
+    let reads_the_first_source_row_alone = read(&Rows::Computed(table)) == [row(schema, 0)];
+    let charged = owner.derived.publication_ownership_bytes();
+    drop(publication);
+    let alive_after_first_consumer = weak.upgrade().is_some();
+    let Rows::Computed(table) = owner.normalize(&consumer, Rows::Stored(source))? else {
+        panic!("same demanded fallback")
+    };
+    let alias_reads_same_table = normalized_address == std::ptr::from_ref(table);
+    let checks_after_alias = owner.checks.get();
+    let alias_charged_again = owner.derived.publication_ownership_bytes() != charged;
+    drop(consumer);
+    Ok(Normalized {
+        checks_before_demand,
+        normalized_before_demand,
+        optional_before_demand,
+        reads_the_first_source_row_alone,
+        charged_required: charged.0 > 0,
+        charged_optional: charged.1,
+        required_is_unique: charged.0 == charged.2,
+        alive_after_first_consumer,
+        alias_reads_same_table,
+        checks_after_alias,
+        alias_charged_again,
+        alive_after_last_consumer: weak.upgrade().is_some(),
+        charge_after_last_consumer: owner.derived.publication_ownership_bytes(),
+    })
+}
+
+fn kept(numbers: [i64; 2]) -> Result<Kept, OperatingError> {
+    use ryo_values::domain::rows::types::{RowCount, Table};
+    let owner = RelationOwner::new(
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::fixtures::program_derived_port(),
+    );
+    let generation = owner.current_generation();
+    let publication = owner.computed(Table {
+        kinds: vec![CellKind::Number],
+        cells: numbers
+            .iter()
+            .map(|&number| CellValue::Number(Integer(number)))
+            .collect(),
+        count: RowCount(2),
+    })?;
+    let record = Arc::downgrade(publication.record());
+    let alias = publication.clone();
+    let sameness = alias.same_record(&publication);
+    let charged = owner.derived.publication_ownership_bytes();
+    drop(publication);
+    let alive_after_first_consumer = record.upgrade().is_some();
+    let charge_kept = owner.derived.publication_ownership_bytes() == charged;
+    let (rows, charge_kept_while_read) = {
+        let rows = owner.resolve(alias.as_ref(), &|_| Err(OperatingError::NotRead))?;
+        (
+            Cow::Owned(read(&rows).into_iter().map(Cow::Owned).collect()),
+            owner.derived.publication_ownership_bytes() == charged,
+        )
+    };
+    let generation_before = owner.matches_generation(&generation);
+    let live = owner.current_generation().is_live();
+    drop(alias);
+    Ok(Kept {
+        alias: sameness,
+        charged_required: charged.0 > 0,
+        charged_optional: charged.1,
+        required_is_unique: charged.0 == charged.2,
+        alive_after_first_consumer,
+        charge_kept,
+        rows,
+        charge_kept_while_read,
+        generation: generation_before,
+        live,
+        alive_after_last_consumer: record.upgrade().is_some(),
+        charge_after_last_consumer: owner.derived.publication_ownership_bytes(),
+        generation_after_release: owner.matches_generation(&generation),
+        live_after_release: owner.current_generation().is_live(),
+    })
 }
 
 #[test]
