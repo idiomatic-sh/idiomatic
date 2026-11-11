@@ -125,7 +125,8 @@ pub(super) fn capture_left(at: Template<'_>) -> Option<CaptureName> {
         .into_iter()
         .find_map(|piece| match piece {
             crate::domain::captures::types::PatternPiece::Capture(name)
-            | crate::domain::captures::types::PatternPiece::Span(name) => {
+            | crate::domain::captures::types::PatternPiece::Span(name)
+            | crate::domain::captures::types::PatternPiece::Directory(name) => {
                 Some(CaptureName(name.0.into()))
             }
             crate::domain::captures::types::PatternPiece::Literal(_)

@@ -128,7 +128,9 @@ pub(super) fn answer(
         let instance: String = pieces(Template(&at.0))
             .into_iter()
             .map(|piece| match piece {
-                PatternPiece::Capture(name) | PatternPiece::Span(name) => format!("<{}>", name.0),
+                PatternPiece::Capture(name)
+                | PatternPiece::Span(name)
+                | PatternPiece::Directory(name) => format!("<{}>", name.0),
                 PatternPiece::Literal(character) => character.0.to_string(),
                 PatternPiece::Star => "*".to_owned(),
                 PatternPiece::Question => "?".to_owned(),
