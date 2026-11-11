@@ -1,9 +1,10 @@
 //! The submission of a caller-built root set through the crate-private root evaluation of a phase or a stage.
 use super::{Entry, corpus, covered, prepare_for, program};
-use crate::application::file_dag::program::observation_stage::types::ObservationStage;
+use crate::application::file_dag::program::observation_stage::service::ObservationStage;
 use crate::application::file_dag::program::project_phase::interface::ProjectStage as _;
+use crate::application::file_dag::program::project_phase::service::ProjectPhase;
 use crate::application::file_dag::program::project_phase::types::{
-    PhaseScope, ProjectInput, ProjectPhase, ProjectTask,
+    PhaseScope, ProjectInput, ProjectTask,
 };
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use crate::application::file_dag::program::rule_outcome::types::{

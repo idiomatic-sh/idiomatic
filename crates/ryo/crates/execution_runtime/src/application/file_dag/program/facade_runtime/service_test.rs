@@ -7,7 +7,7 @@ use fixtures::request::{plan, rule};
 use fixtures::scenario::Scenario;
 
 use crate::application::file_dag::execution::CommonOperatorEngine;
-use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
+use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 #[cfg(test)]
 use ryo_execution_domain::domain::table_cells::fixtures::{
     SMALL_SOURCE, SmallTree, rows_over, small_tree,

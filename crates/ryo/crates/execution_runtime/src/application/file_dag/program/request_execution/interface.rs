@@ -1,13 +1,13 @@
 //! What a request execution offers a caller.
+#[cfg(any(test, feature = "fixtures"))]
+use crate::application::file_dag::program::file_session::service::FileSession;
 use crate::application::file_dag::program::file_session::types::CaptureContext;
 #[cfg(any(test, feature = "fixtures"))]
 use crate::application::file_dag::program::file_session::types::FileInput;
 use crate::application::file_dag::program::file_session::types::FileRules;
 use crate::application::file_dag::program::file_session::types::FileRunInput;
-#[cfg(any(test, feature = "fixtures"))]
-use crate::application::file_dag::program::file_session::types::FileSession;
-use crate::application::file_dag::program::observation_stage::types::ObservationStage;
-use crate::application::file_dag::program::project_phase::types::ProjectPhase;
+use crate::application::file_dag::program::observation_stage::service::ObservationStage;
+use crate::application::file_dag::program::project_phase::service::ProjectPhase;
 use crate::outbound::facts::interface::FactsWorker;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;

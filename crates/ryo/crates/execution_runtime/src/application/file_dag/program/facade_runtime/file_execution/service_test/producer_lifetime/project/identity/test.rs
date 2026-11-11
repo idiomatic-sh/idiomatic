@@ -4,7 +4,7 @@ use super::super::fixtures::{PhaseExit, PreparedCase, prepare_case};
 use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::frontiers::types::FrontierInput;
 use crate::application::file_dag::frontiers::types::FrontierSource;
-use crate::application::file_dag::program::facade_runtime::types::ProjectFrontiers;
+use crate::application::file_dag::program::facade_runtime::service::ProjectFrontiers;
 use ryo_execution_domain::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
 };

@@ -2,15 +2,16 @@
 //! Deciding which of a file's roots and reached regions cannot have a row or a row error there: each formula is evaluated
 //! lazily over the file's own rows, each relation's pending tests in one pass, and the answers are kept for the file.
 use crate::application::file_dag::program::facade_runtime::file_execution::FileRun;
+use crate::application::file_dag::program::facade_runtime::service::FilePresence;
 use crate::application::file_dag::program::facade_runtime::types::{
-    FilePresence, PresenceGate, RootCandidate, Truth,
+    PresenceGate, RootCandidate, Truth,
 };
-use ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRegions;
 use ryo_execution_domain::domain::executable_program::presence::types::{
     FormulaId, PresenceFormula, PresenceTable, RegionPresence, SpanCheck, TestId,
 };
 use ryo_execution_domain::domain::executable_program::types::RegionCount;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::executable_program::types::absent_regions::value::AbsentRegions;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::contract::views::validate_spans;
 use ryo_execution_domain::domain::table_model::types::Rows;

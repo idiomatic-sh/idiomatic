@@ -64,7 +64,8 @@ impl AdmittedInput {
     /// The population the input was admitted under.
     pub(crate) fn admitted_population(
         &self,
-    ) -> ryo_execution_store::application::file_dag::derived::population::types::PopulationId {
+    ) -> ryo_execution_store::application::file_dag::derived::population::service::PopulationId
+    {
         self.proof.population
     }
     /// The generation the input was admitted under.
@@ -77,7 +78,7 @@ impl AdmittedInput {
         &self,
         owner: &Rc<RelationOwner>,
     ) -> Result<
-        ryo_execution_store::application::file_dag::derived::population::types::PopulationId,
+        ryo_execution_store::application::file_dag::derived::population::service::PopulationId,
         OperatingError,
     > {
         self.publication(owner)?;

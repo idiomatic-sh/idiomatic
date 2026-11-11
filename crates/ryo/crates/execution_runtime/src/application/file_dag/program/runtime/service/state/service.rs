@@ -187,7 +187,7 @@ impl ProgramExecution {
     pub(crate) fn activate_file_roots(
         &self,
         readers: &[RegionId],
-        absent: ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRoots,
+        absent: ryo_execution_domain::domain::executable_program::types::absent_roots::value::AbsentRoots,
     ) -> Result<(), OperatingError> {
         if !matches!(self.partition, Partition::File(_)) || self.touched() == Touch::Touched {
             return Err(OperatingError::NotRun);
@@ -249,7 +249,7 @@ impl ProgramExecution {
     /// The regions found absent at admission: interior regions of admitted rules whose skip formula fails on the file.
     pub(crate) fn mark_interior(
         &self,
-        interior: ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRegions,
+        interior: ryo_execution_domain::domain::executable_program::types::absent_regions::value::AbsentRegions,
     ) {
         *self.file_state.interior.borrow_mut() = interior;
     }
@@ -272,7 +272,7 @@ impl ProgramExecution {
     }
     pub(crate) fn project_state(
         &self,
-        id: ryo_execution_store::application::file_dag::derived::population::types::PopulationId,
+        id: ryo_execution_store::application::file_dag::derived::population::service::PopulationId,
     ) -> std::rc::Rc<RuntimeState> {
         let mut states = self.project_states.borrow_mut();
         if let Some(project) = states.iter().find(|project| project.population == id) {

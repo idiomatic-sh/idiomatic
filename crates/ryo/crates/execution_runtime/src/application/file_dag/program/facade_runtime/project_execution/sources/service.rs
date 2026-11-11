@@ -3,7 +3,7 @@ use crate::application::file_dag::frontiers::types::FrontierInput;
 use crate::application::file_dag::program::admission::AvailableInput;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::admission::ProducerRoot;
-use crate::application::file_dag::program::facade_runtime::types::PublicationScope;
+use crate::application::file_dag::program::facade_runtime::service::PublicationScope;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::project_population::types::BoundKey;
 use crate::application::file_dag::program::project_population::types::ProjectFrontierPayload;
@@ -128,7 +128,7 @@ impl PublicationScope {
         rule: RuleIndex,
         policy: CompletionPolicy,
     ) -> Result<
-        ryo_execution_store::application::file_dag::derived::population::types::PopulationId,
+        ryo_execution_store::application::file_dag::derived::population::service::PopulationId,
         OperatingError,
     > {
         let mut bindings = Vec::new();

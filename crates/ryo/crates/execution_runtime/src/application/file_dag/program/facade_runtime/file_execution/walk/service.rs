@@ -18,8 +18,8 @@ use crate::application::file_dag::program::facade_runtime::types::{
 use crate::application::file_dag::program::native_walk::Deliveries;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRoots;
 use ryo_execution_domain::domain::executable_program::presence::types::RegionPresence;
+use ryo_execution_domain::domain::executable_program::types::absent_roots::value::AbsentRoots;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
@@ -80,9 +80,9 @@ impl FileRun<'_> {
                         CaptureIntent::DiagnosticAndObservations => FrontierSelection::All,
                     },
                 },
-                _ => FileDemand::NONE,
+                _ => ryo_execution_domain::domain::executable_program::file_demand::constants::NO_FILE_DEMAND,
             };
-            if selected != FileDemand::NONE {
+            if selected != ryo_execution_domain::domain::executable_program::file_demand::constants::NO_FILE_DEMAND {
                 demanded.push(rule);
             }
             if let FileRuleIntent::Run {
@@ -102,7 +102,7 @@ impl FileRun<'_> {
             }
             let plan = compiled.selected(selected);
             readers.extend_from_slice(&plan.readers);
-            if (selected != FileDemand::NONE
+            if (selected != ryo_execution_domain::domain::executable_program::file_demand::constants::NO_FILE_DEMAND
                 || matches!(
                     intent,
                     FileRuleIntent::Skipped(_) | FileRuleIntent::Refused(_)

@@ -1,5 +1,5 @@
 //! The interpreter's shared-walk counters of one file session.
-use ryo_execution_runtime::application::file_dag::program::file_session::types::FileSession;
+use ryo_execution::inbound::use_cases::execution::interface::FileSession;
 
 /// The file's walk made `passes` passes over `rows` source rows.
 pub(crate) fn counts(file: &FileSession<'_, '_>, passes: u64, rows: u64) {

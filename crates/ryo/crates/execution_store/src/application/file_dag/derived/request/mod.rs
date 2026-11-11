@@ -21,7 +21,7 @@ use types::InputPositions;
 /// The derived views a request's operators bind, prepared once for the request.
 #[derive(Debug)]
 pub struct RequestViews {
-    semantic: crate::application::file_dag::derived::owner::types::DerivedAccess,
+    semantic: crate::application::file_dag::derived::owner::service::DerivedAccess,
     plans: Vec<Arc<DerivedContract>>,
     bindings: Vec<Arc<PreparedViewUse>>,
     logical: Vec<ryo_values::domain::plan_parts::types::Input>,
@@ -29,7 +29,7 @@ pub struct RequestViews {
 impl RequestViews {
     /// The views of one request, prepared through `semantic`.
     pub fn new(
-        semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+        semantic: impl Into<crate::application::file_dag::derived::owner::service::DerivedAccess>,
     ) -> Self {
         Self {
             semantic: semantic.into(),

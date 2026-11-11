@@ -18,17 +18,12 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::runs::types::Skipped;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
-/// One project-phase publication/interpreter and symbol generation, shared across rules.
-pub struct ProjectPhase<'a> {
-    pub(crate) request: &'a RequestExecution,
-    pub(crate) publication:
-        std::rc::Rc<crate::application::file_dag::program::facade_runtime::types::PublicationScope>,
-}
 /// The files one occurrence's rule reads in its phase, sharing the phase's publication: crate-private, as the scoping is.
 pub(crate) struct PhaseScope {
     pub(crate) required: crate::application::file_dag::program::admission::RequiredPartitions,
-    pub(crate) publication:
-        std::rc::Rc<crate::application::file_dag::program::facade_runtime::types::PublicationScope>,
+    pub(crate) publication: std::rc::Rc<
+        crate::application::file_dag::program::facade_runtime::service::PublicationScope,
+    >,
 }
 /// The prepared inputs of one project task: crate-private, as the root evaluation that takes them is.
 pub(crate) struct ProjectInput<'a> {

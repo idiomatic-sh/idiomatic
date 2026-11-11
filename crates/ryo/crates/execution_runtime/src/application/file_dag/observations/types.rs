@@ -18,7 +18,7 @@ pub(crate) enum CrossRoot {
         publication:
             ryo_execution_store::application::file_dag::relations::handle::service::Publication,
         admitted:
-            crate::application::file_dag::program::observed_publication::types::ObservedPublication,
+            crate::application::file_dag::program::observed_publication::service::ObservedPublication,
         arenas: Vec<WorkerNumber>,
     },
     Unavailable,

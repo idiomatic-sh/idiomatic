@@ -75,9 +75,9 @@ fn input_of(
 fn content_equal_words_are_decoded_once_and_relabelled_for_each_root() {
     use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::plan_parts::types::Input;
-    let decodes = super::types::FrontierDecodes::new(std::sync::Arc::new(
-        crate::outbound::digest::fixtures::fake::DigestFake,
-    ));
+    let decodes = crate::application::file_dag::frontiers::decodes::service::FrontierDecodes::new(
+        std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
+    );
     let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
     let first = decodes.admit(
         packed(Input::Relation(Relation::Function), number_words(&[1, 2])),
@@ -118,9 +118,9 @@ fn content_equal_words_are_decoded_once_and_relabelled_for_each_root() {
 fn other_words_another_shape_or_another_symbol_generation_decode_again() {
     use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::plan_parts::types::{Input, StepId};
-    let decodes = super::types::FrontierDecodes::new(std::sync::Arc::new(
-        crate::outbound::digest::fixtures::fake::DigestFake,
-    ));
+    let decodes = crate::application::file_dag::frontiers::decodes::service::FrontierDecodes::new(
+        std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
+    );
     let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
     let _ = decodes.admit(
         packed(Input::Relation(Relation::Function), number_words(&[1, 2])),
@@ -164,9 +164,9 @@ fn other_words_another_shape_or_another_symbol_generation_decode_again() {
 fn a_decode_releases_its_packed_words_and_an_equal_second_root_decodes_nothing() {
     use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::plan_parts::types::Input;
-    let decodes = super::types::FrontierDecodes::new(std::sync::Arc::new(
-        crate::outbound::digest::fixtures::fake::DigestFake,
-    ));
+    let decodes = crate::application::file_dag::frontiers::decodes::service::FrontierDecodes::new(
+        std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
+    );
     let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
     let words = number_words(&[1, 2]);
     let held = std::sync::Arc::downgrade(&words);

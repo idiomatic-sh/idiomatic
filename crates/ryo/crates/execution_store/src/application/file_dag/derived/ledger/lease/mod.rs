@@ -1,10 +1,9 @@
 //! The lifetime of one resource lease: folding a request, sizing the lease, releasing it.
 use super::{
     constants,
-    types::{
-        Backing, BackingKey, ByteCount, HoldCount, LeaseClass, Measured, ResourceLease, SlotCount,
-    },
+    types::{Backing, BackingKey, ByteCount, HoldCount, LeaseClass, Measured, SlotCount},
 };
+use crate::application::file_dag::derived::ledger::service::ResourceLease;
 use rustc_hash::FxHashMap;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 

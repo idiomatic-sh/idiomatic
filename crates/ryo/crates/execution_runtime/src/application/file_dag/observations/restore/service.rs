@@ -172,8 +172,8 @@ pub(crate) fn restore_frontiers(
     program: &std::sync::Arc<
         crate::application::file_dag::program::preparation::types::PreparedProgram,
     >,
-    services: &crate::application::file_dag::program::facade_runtime::types::ProgramServices,
-    publication: &crate::application::file_dag::program::facade_runtime::types::PublicationScope,
+    services: &crate::application::file_dag::program::facade_runtime::service::ProgramServices,
+    publication: &crate::application::file_dag::program::facade_runtime::service::PublicationScope,
     facts: &dyn crate::outbound::facts::interface::FactsFinish,
     corpus: &[ryo_values::domain::files::types::CorpusInput],
     covered: &[ryo_execution_domain::domain::coverage::types::Covered],

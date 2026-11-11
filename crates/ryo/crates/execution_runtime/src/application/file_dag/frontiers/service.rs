@@ -8,9 +8,11 @@ use super::constants::{
 };
 use super::errors::PreparationError;
 use super::types::{
-    FileAccounting, FrontierCache, FrontierDecodes, FrontierInput, FrontierSource, InputReadiness,
-    PackedFrontier, PreparedFrontiers, ProviderAddress, Providers,
+    FileAccounting, FrontierInput, FrontierSource, InputReadiness, PackedFrontier,
+    PreparedFrontiers, ProviderAddress, Providers,
 };
+use crate::application::file_dag::frontiers::cache::service::FrontierCache;
+use crate::application::file_dag::frontiers::decodes::service::FrontierDecodes;
 use crate::outbound::facts::interface::{FactsFinish, FactsWorker};
 use ryo_execution_store::application::file_dag::derived::constants::TARGET_LIFECYCLE_MEMORY;
 use ryo_language::domain::symbols::{service::places_mut, types::Symbols};

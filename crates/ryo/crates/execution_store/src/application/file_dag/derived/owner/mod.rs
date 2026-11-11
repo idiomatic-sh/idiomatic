@@ -1,7 +1,8 @@
 //! Central acquisition, mandatory working ownership and optional retained capacity.
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
-use crate::application::file_dag::derived::population::types::PopulationId;
+use crate::application::file_dag::derived::owner::service::DerivedAccess;
+use crate::application::file_dag::derived::population::service::PopulationId;
 use acquisition::semantics::storage::DerivedStorage;
 use footprint::service::storage_bytes;
 use rustc_hash::FxHashMap;
@@ -29,6 +30,7 @@ mod graph_policy;
 mod graph_retention;
 mod leases;
 mod lifetime;
+pub mod service;
 mod setup;
 pub mod types;
 
@@ -66,7 +68,7 @@ struct Key {
 }
 struct OwnedView {
     storage: Arc<DerivedStorage>,
-    _lease: Arc<super::ledger::types::ResourceLease>,
+    _lease: Arc<super::ledger::service::ResourceLease>,
 }
 struct Entry {
     admission: AdmissionOrder,
@@ -75,7 +77,7 @@ struct Entry {
     required: Option<OwnedView>,
     retained: Option<OwnedView>,
     backings: Arc<[super::ledger::types::Backing]>,
-    lease: Weak<super::ledger::types::ResourceLease>,
+    lease: Weak<super::ledger::service::ResourceLease>,
     bytes: ByteCount,
     working: ByteCount,
     backend: ByteCount,
@@ -102,11 +104,11 @@ struct State {
 /// The file-local owner of derived views: it acquires, retains, accounts for and releases them.
 pub struct DerivedOwner {
     identity: Arc<()>,
-    semantic: types::DerivedAccess,
+    semantic: crate::application::file_dag::derived::owner::service::DerivedAccess,
     next_scope: std::cell::Cell<ScopeId>,
     #[cfg(any(test, feature = "fixtures"))]
     last_scoped_storage: RefCell<Weak<DerivedStorage>>,
-    ledger: std::rc::Rc<RefCell<super::ledger::types::Ledger>>,
+    ledger: std::rc::Rc<RefCell<super::ledger::service::Ledger>>,
     backend: RefCell<Option<CacheBackend>>,
     file_prepared: std::cell::Cell<FilePreparation>,
     state: RefCell<State>,
@@ -132,7 +134,7 @@ impl DerivedOwner {
 
     pub(crate) fn new(
         max_entries: EntryLimit,
-        semantic: impl Into<types::DerivedAccess>,
+        semantic: impl Into<crate::application::file_dag::derived::owner::service::DerivedAccess>,
         routes: crate::application::file_dag::route_counts::profile::service::RouteProfile,
     ) -> Self {
         Self {
@@ -141,7 +143,7 @@ impl DerivedOwner {
             next_scope: std::cell::Cell::new(ScopeId(0)),
             #[cfg(any(test, feature = "fixtures"))]
             last_scoped_storage: RefCell::new(Weak::new()),
-            ledger: std::rc::Rc::new(RefCell::new(super::ledger::types::Ledger::default())),
+            ledger: std::rc::Rc::new(RefCell::new(super::ledger::service::Ledger::default())),
             state: RefCell::new(State::default()),
             backend: RefCell::new(None),
             file_prepared: std::cell::Cell::new(FilePreparation::Unprepared),

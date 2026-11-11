@@ -120,7 +120,7 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
     use ryo_execution_domain::domain::executable_program::file_demand::types::{
         FileDemand, FrontierSelection, RootSelection,
     };
-    assert_eq!(roots.selected(FileDemand::NONE).readers.len(), 0);
+    assert_eq!(roots.selected(ryo_execution_domain::domain::executable_program::file_demand::constants::NO_FILE_DEMAND).readers.len(), 0);
     assert_eq!(
         roots
             .selected(FileDemand {
@@ -148,7 +148,7 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
         roots
             .selected(FileDemand {
                 capture: FrontierSelection::Observations,
-                ..FileDemand::NONE
+                ..ryo_execution_domain::domain::executable_program::file_demand::constants::NO_FILE_DEMAND
             })
             .roots
             .len(),
@@ -159,7 +159,7 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
         roots
             .selected(FileDemand {
                 capture: FrontierSelection::Observations,
-                ..FileDemand::NONE
+                ..ryo_execution_domain::domain::executable_program::file_demand::constants::NO_FILE_DEMAND
             })
             .observations
             .is_empty()

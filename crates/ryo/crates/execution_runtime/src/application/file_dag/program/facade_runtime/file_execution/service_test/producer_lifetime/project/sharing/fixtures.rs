@@ -8,7 +8,7 @@ use crate::application::file_dag::frontiers::types::FrontierSource;
 use crate::application::file_dag::frontiers::types::PackedFrontier;
 use crate::application::file_dag::program::facade_runtime::project_execution::ProjectRoot;
 use crate::application::file_dag::program::facade_runtime::project_execution::evaluate_roots;
-use crate::application::file_dag::program::facade_runtime::types::ProjectFrontiers;
+use crate::application::file_dag::program::facade_runtime::service::ProjectFrontiers;
 use crate::application::file_dag::program::native_walk::RetainedBatches;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution_domain::domain::shared_walk::types::WalkCounts;

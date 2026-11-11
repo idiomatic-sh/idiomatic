@@ -4,9 +4,9 @@ use super::relations::{
     RelationOwner,
     types::{PinnedViewCount, ReuseEligibility},
 };
-pub(crate) mod types;
+pub(crate) mod permit;
+use permit::service::ScopePermit;
 use std::{rc::Rc, sync::Arc};
-use types::ScopePermit;
 
 /// The partial facts a scope evaluates and publishes under: a file's, or the project's.
 #[derive(Debug)]
@@ -30,7 +30,7 @@ pub enum ScopePartials<'a> {
 /// The one outer owner factory. Kernels have no way to acquire this permit.
 pub fn open_program_owner(
     producers: crate::application::file_dag::relations::types::ProducerCapacity,
-    derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+    derived: impl Into<crate::application::file_dag::derived::owner::service::DerivedAccess>,
     reuse: ReuseEligibility,
     routes: crate::application::file_dag::route_counts::profile::service::RouteProfile,
 ) -> Rc<RelationOwner> {

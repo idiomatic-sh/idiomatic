@@ -1,7 +1,8 @@
 //! The support of the `presence` cases.
 use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::file_execution::{FileRun, open_file};
-use crate::application::file_dag::program::facade_runtime::types::{ProgramServices, RegionProbe};
+use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
+use crate::application::file_dag::program::facade_runtime::types::RegionProbe;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::application::file_dag::service_test::operators::fixtures::NO_TEXT;

@@ -1,6 +1,6 @@
 //! Publication bodies and records contain data, never mutable owner workflows.
 use crate::application::file_dag::derived::ledger::types::BackingAddress;
-use crate::application::file_dag::derived::population::types::PopulationId;
+use crate::application::file_dag::derived::population::service::PopulationId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_model::{
     types::PublishedRelation,

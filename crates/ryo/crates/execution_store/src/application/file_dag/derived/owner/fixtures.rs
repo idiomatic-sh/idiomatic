@@ -27,7 +27,7 @@ pub(crate) fn walks(relation: Relation) -> super::super::prepared::RuleDerivedNe
     reason = "a fixture: preparing a view of a real request over its own rows cannot fail, and a failure fails the proof"
 )]
 pub(crate) fn prepare_view(
-    semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+    semantic: impl Into<crate::application::file_dag::derived::owner::service::DerivedAccess>,
     request: ViewRequest,
     rows: &Rows<'_>,
 ) -> Arc<DerivedContract> {

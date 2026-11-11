@@ -1,5 +1,7 @@
 //! Accounting for physical payloads held by derived resource handles.
 //! Admission policy, cache selection and scheduling stay with the caller.
+use crate::application::file_dag::derived::ledger::service::Ledger;
+use crate::application::file_dag::derived::ledger::service::ResourceLease;
 use rustc_hash::FxHashMap;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::{cell::RefCell, rc::Rc};
@@ -9,15 +11,13 @@ pub(crate) mod capacity;
 mod constants;
 mod credit;
 pub(crate) mod lease;
+pub(crate) mod service;
 mod snapshot;
 #[cfg(test)]
 mod test;
 pub mod types;
 
-use types::{
-    Backing, ByteCount, HoldCount, LeaseClass, Ledger, LedgerEntry, ResourceLease, SlotCount,
-    UnitCount,
-};
+use types::{Backing, ByteCount, HoldCount, LeaseClass, LedgerEntry, SlotCount, UnitCount};
 #[cfg(any(test, feature = "fixtures"))]
 use types::{BackingCount, BackingTag};
 

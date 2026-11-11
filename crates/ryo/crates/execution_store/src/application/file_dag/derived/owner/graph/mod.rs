@@ -3,7 +3,7 @@ use super::*;
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::{CacheBackend, GraphAdmission};
 use crate::application::file_dag::{
-    derived::owner::cached_graph::types::CachedGraph, workspace::InvocationWorkspace,
+    derived::owner::cached_graph::service::CachedGraph, workspace::InvocationWorkspace,
 };
 use ryo_execution_domain::domain::{
     operator::contract::{
@@ -218,7 +218,7 @@ impl DerivedOwner {
         backings: &[super::super::ledger::types::Backing],
         cost: ByteCount,
         memo: MemoBudget,
-    ) -> Result<Option<Arc<super::super::ledger::types::ResourceLease>>, OperatingError> {
+    ) -> Result<Option<Arc<super::super::ledger::service::ResourceLease>>, OperatingError> {
         if self.graph_room(cache, cost, memo) == Room::Full {
             return Ok(None);
         }

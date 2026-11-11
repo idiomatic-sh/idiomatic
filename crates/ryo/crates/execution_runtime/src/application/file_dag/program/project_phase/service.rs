@@ -14,9 +14,9 @@ use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::project_phase::types::PhaseStop;
 use crate::application::file_dag::program::project_phase::types::PreparedOccurrence;
 use crate::application::file_dag::program::project_phase::types::ProjectInput;
-use crate::application::file_dag::program::project_phase::types::ProjectPhase;
 use crate::application::file_dag::program::project_phase::types::ProjectTask;
 use crate::application::file_dag::program::project_phase::types::ReadyOccurrence;
+use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
@@ -221,7 +221,7 @@ impl ProjectPhase<'_> {
     /// ```
     /// // A project phase exists only inside a running project phase: the call's types, checked.
     /// use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
-    /// use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;
+    /// use ryo_execution_runtime::application::file_dag::program::project_phase::service::ProjectPhase;
     /// fn readiness(phase: &ProjectPhase<'_>) -> ReadinessCounts {
     ///     phase.fixture_readiness_counts()
     /// }
@@ -237,7 +237,7 @@ impl ProjectPhase<'_> {
     /// ```
     /// // A project phase exists only inside a running project phase: the call's types, checked.
     /// use ryo_execution_domain::domain::readiness::types::InvocationStateCounts;
-    /// use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;
+    /// use ryo_execution_runtime::application::file_dag::program::project_phase::service::ProjectPhase;
     /// fn states(phase: &ProjectPhase<'_>) -> InvocationStateCounts {
     ///     phase.fixture_state_counts()
     /// }
@@ -348,4 +348,12 @@ impl ProjectPhase<'_> {
             slot: occurrence.slot,
         })
     }
+}
+
+/// One project-phase publication/interpreter and symbol generation, shared across rules.
+pub struct ProjectPhase<'a> {
+    pub(crate) request: &'a RequestExecution,
+    pub(crate) publication: std::rc::Rc<
+        crate::application::file_dag::program::facade_runtime::service::PublicationScope,
+    >,
 }

@@ -62,14 +62,3 @@ pub(crate) struct CacheBackend {
     /// Eligible requests whose index could not be retained within the bound.
     pub(in crate::application::file_dag::derived::owner) refusals: RefusalCount,
 }
-
-impl CacheBackend {
-    pub(crate) fn observe_graph_walk(
-        &mut self,
-        expanded: ExpandedVertices,
-        examined: ExaminedVertices,
-    ) {
-        self.graph_counts.expanded.0 += expanded.0;
-        self.graph_counts.examined.0 += examined.0;
-    }
-}

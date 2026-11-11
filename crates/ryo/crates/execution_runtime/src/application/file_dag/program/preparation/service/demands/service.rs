@@ -3,10 +3,9 @@ use crate::application::file_dag::program::preparation::types::{
     ObservationMetadata, RuleMetadata,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::file_demand::types::{
-    FileRuleDemand, ObservationDemandSource,
-};
+use ryo_execution_domain::domain::executable_program::file_demand::types::ObservationDemandSource;
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
+use ryo_execution_domain::domain::executable_program::types::file_rule_demand::value::FileRuleDemand;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_values::domain::records::types::ObservationIndex;
 

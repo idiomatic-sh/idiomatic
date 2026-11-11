@@ -1,5 +1,5 @@
 //! Graph demand of one invocation, answered only through the cache of the file's owner.
-pub(crate) mod service;
+pub mod service;
 pub mod types;
 
 #[cfg(test)]

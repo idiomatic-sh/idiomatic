@@ -6,8 +6,8 @@ use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::constants::{
     FILE_OWNER_FINISH, PRODUCER_COVERAGE_INCOMPLETE,
 };
+use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 use crate::application::file_dag::program::facade_runtime::source_admission::table_of;
-use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
 use crate::application::file_dag::program::facade_runtime::types::{
     FileRoot, FrontierCommit, ObservationKey, PreparedNamed, WalkPreparation,
 };
@@ -77,7 +77,7 @@ pub(crate) struct FileRun<'a> {
     walk: super::super::native_walk::FileWalk,
     walk_prepared: WalkPreparation,
     routes: ryo_execution_store::application::file_dag::route_counts::profile::service::FileScope,
-    presence: super::types::FilePresence,
+    presence: crate::application::file_dag::program::facade_runtime::service::FilePresence,
     source: SourceView<'a>,
     /// The file's selected roots, bound before any region is touched: presence reads the file's rows, so it runs when the
     /// first entry point admits a source, never when the file opens.
@@ -151,7 +151,7 @@ pub(crate) fn open_file<'a>(
         context: super::super::context::RunContext::file(
             &services, source, symbols, semantic, kinds,
         ),
-        presence: super::types::FilePresence {
+        presence: crate::application::file_dag::program::facade_runtime::service::FilePresence {
             gate: super::types::PresenceGate::On,
             tests: Vec::new(),
             formulas: Vec::new(),

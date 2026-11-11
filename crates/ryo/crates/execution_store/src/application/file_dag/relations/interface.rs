@@ -5,7 +5,7 @@ use super::handle::service::Publication;
 use super::number::service::AdmittedNumber;
 use super::publication::types::{ProducerScope, PublicationBody};
 use super::types::ProducerId;
-use crate::application::file_dag::derived::population::types::PopulationId;
+use crate::application::file_dag::derived::population::service::PopulationId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement;
 use ryo_execution_domain::domain::table_model::types::{RepresentationInput, Rows};
@@ -54,7 +54,7 @@ pub(crate) mod sealed {
 /// use ryo_execution_domain::domain::operating::errors::OperatingError;
 /// use ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement;
 /// use ryo_execution_domain::domain::table_model::types::{RepresentationInput, Rows};
-/// use ryo_execution_store::application::file_dag::derived::population::types::PopulationId;
+/// use ryo_execution_store::application::file_dag::derived::population::service::PopulationId;
 /// use ryo_execution_store::application::file_dag::relations::{
 ///     admission::service::BorrowedInput, generation::service::ResidentGeneration, handle::service::Publication,
 ///     interface::RelationStore, number::service::AdmittedNumber,

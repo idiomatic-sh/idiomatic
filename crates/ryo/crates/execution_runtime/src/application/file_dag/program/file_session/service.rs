@@ -2,8 +2,8 @@
 use crate::application::file_dag::program::file_session::interface::FileExecution;
 use crate::application::file_dag::program::file_session::types::CaptureContext;
 use crate::application::file_dag::program::file_session::types::FileFinished;
-use crate::application::file_dag::program::file_session::types::FileSession;
 use crate::application::file_dag::program::file_session::types::FinishedReadiness;
+use crate::application::file_dag::program::file_session::types::SessionParts;
 use crate::application::file_dag::program::file_session::types::SourceRows;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
@@ -152,7 +152,7 @@ impl FileSession<'_, '_> {
     /// ```
     /// // A file session exists only inside a running file evaluation, its fields crate-private: the call's types, checked.
     /// use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
-    /// use ryo_execution_runtime::application::file_dag::program::file_session::types::FileSession;
+    /// use ryo_execution_runtime::application::file_dag::program::file_session::service::FileSession;
     /// fn readiness(session: &FileSession<'_, '_>) -> ReadinessCounts {
     ///     session.fixture_readiness_counts()
     /// }
@@ -170,7 +170,7 @@ impl FileSession<'_, '_> {
     /// ```
     /// // A file session exists only inside a running file evaluation, its fields crate-private: the call's types, checked.
     /// use ryo_execution_domain::domain::shared_walk::types::WalkCounts;
-    /// use ryo_execution_runtime::application::file_dag::program::file_session::types::FileSession;
+    /// use ryo_execution_runtime::application::file_dag::program::file_session::service::FileSession;
     /// fn walks(session: &FileSession<'_, '_>) -> WalkCounts {
     ///     session.fixture_walk_counts()
     /// }
@@ -190,7 +190,7 @@ impl FileSession<'_, '_> {
     /// use ryo_execution_domain::domain::coverage::types::RuleIndex;
     /// use ryo_execution_domain::domain::operator::types::LogicalCounts;
     /// use ryo_execution_domain::domain::operating::errors::OperatingError;
-    /// use ryo_execution_runtime::application::file_dag::program::file_session::types::FileSession;
+    /// use ryo_execution_runtime::application::file_dag::program::file_session::service::FileSession;
     /// fn fed(session: &FileSession<'_, '_>) -> Result<LogicalCounts, OperatingError> {
     ///     session.fixture_counts(RuleIndex(0))
     /// }
@@ -212,4 +212,8 @@ impl FileSession<'_, '_> {
     pub(crate) fn observe(&self, rule: RuleIndex) -> Result<(), OperatingError> {
         self.parts.inner.observe(rule)
     }
+}
+
+pub struct FileSession<'a, 'facts> {
+    pub(crate) parts: SessionParts<'a, 'facts>,
 }

@@ -12,7 +12,7 @@ use ryo_values::domain::stored_facts::types::Bucket;
 /// The intent supplied at file start is immutable throughout this session.
 /// Applicability cannot be changed after another rule has started the shared walk.
 /// ```compile_fail,E0599
-/// use ryo_execution_runtime::application::file_dag::program::file_session::{interface::FileExecution, types::FileSession};
+/// use ryo_execution_runtime::application::file_dag::program::file_session::{interface::FileExecution, service::FileSession};
 /// use ryo_execution_domain::domain::coverage::types::RuleIndex;
 /// use ryo_execution_domain::domain::rule_intent::types::ApplicabilityReason;
 /// fn late_skip(file: &mut FileSession<'_, '_>) {
@@ -21,7 +21,7 @@ use ryo_values::domain::stored_facts::types::Bucket;
 /// ```
 /// The interpreter's counters and the rows its steps were fed are not the seam's: a caller cannot read its readiness counters,
 /// ```compile_fail,E0599
-/// use ryo_execution_runtime::application::file_dag::program::file_session::{interface::FileExecution, types::FileSession};
+/// use ryo_execution_runtime::application::file_dag::program::file_session::{interface::FileExecution, service::FileSession};
 /// use ryo_execution_domain::domain::coverage::types::RuleIndex;
 /// fn readiness(file: &FileSession<'_, '_>) {
 ///     let _ = file.readiness_counts();
@@ -29,7 +29,7 @@ use ryo_values::domain::stored_facts::types::Bucket;
 /// ```
 /// its walk counters,
 /// ```compile_fail,E0599
-/// use ryo_execution_runtime::application::file_dag::program::file_session::{interface::FileExecution, types::FileSession};
+/// use ryo_execution_runtime::application::file_dag::program::file_session::{interface::FileExecution, service::FileSession};
 /// use ryo_execution_domain::domain::coverage::types::RuleIndex;
 /// fn walk(file: &FileSession<'_, '_>) {
 ///     let _ = file.walk_counts();
@@ -37,7 +37,7 @@ use ryo_values::domain::stored_facts::types::Bucket;
 /// ```
 /// nor the rows a rule's steps were fed.
 /// ```compile_fail,E0599
-/// use ryo_execution_runtime::application::file_dag::program::file_session::{interface::FileExecution, types::FileSession};
+/// use ryo_execution_runtime::application::file_dag::program::file_session::{interface::FileExecution, service::FileSession};
 /// use ryo_execution_domain::domain::coverage::types::RuleIndex;
 /// fn fed(file: &FileSession<'_, '_>) {
 ///     let _ = file.counts(RuleIndex(0));

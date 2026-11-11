@@ -1,8 +1,9 @@
 //! The counters of the ledger as a value, and the peaks they have reached.
 use super::{
     capacity::table,
-    types::{BackingKey, ByteCount, Ledger, LedgerEntry, LedgerSnapshot, SlotCount},
+    types::{BackingKey, ByteCount, LedgerEntry, LedgerSnapshot, SlotCount},
 };
+use crate::application::file_dag::derived::ledger::service::Ledger;
 
 impl Ledger {
     pub(crate) fn snapshot(&self) -> LedgerSnapshot {

@@ -1,5 +1,5 @@
 //! One file generation owns representation descriptors and lazy admission proofs.
-use super::derived::population::types::PopulationId;
+use super::derived::population::service::PopulationId;
 
 use rustc_hash::FxHashMap;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -93,9 +93,9 @@ impl RelationOwner {
     }
 
     pub(super) fn for_scope(
-        permit: super::service::types::ScopePermit,
+        permit: super::service::permit::service::ScopePermit,
         views: PinnedViewCount,
-        semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+        semantic: impl Into<crate::application::file_dag::derived::owner::service::DerivedAccess>,
         routes: super::route_counts::profile::service::RouteProfile,
     ) -> Self {
         Self::with_limits(ReuseEligibility::from(permit), views, semantic, routes)
@@ -104,7 +104,7 @@ impl RelationOwner {
     #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn new(
         stable: ReuseEligibility,
-        semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+        semantic: impl Into<crate::application::file_dag::derived::owner::service::DerivedAccess>,
     ) -> Self {
         Self::with_limits(stable, PinnedViewCount(1024), semantic, Default::default())
     }
@@ -112,7 +112,7 @@ impl RelationOwner {
     #[cfg(test)]
     pub(crate) fn recording(
         stable: ReuseEligibility,
-        semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+        semantic: impl Into<crate::application::file_dag::derived::owner::service::DerivedAccess>,
         routes: super::route_counts::profile::service::RouteProfile,
     ) -> Self {
         Self::with_limits(stable, PinnedViewCount(1024), semantic, routes)
@@ -121,14 +121,14 @@ impl RelationOwner {
     pub(crate) fn for_request(
         stable: ReuseEligibility,
         views: PinnedViewCount,
-        semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+        semantic: impl Into<crate::application::file_dag::derived::owner::service::DerivedAccess>,
     ) -> Self {
         Self::with_limits(stable, views, semantic, Default::default())
     }
     fn with_limits(
         stable: ReuseEligibility,
         max_views: PinnedViewCount,
-        semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+        semantic: impl Into<crate::application::file_dag::derived::owner::service::DerivedAccess>,
         routes: super::route_counts::profile::service::RouteProfile,
     ) -> Self {
         let max_derived = super::derived::owner::types::EntryLimit(
@@ -168,7 +168,7 @@ impl RelationOwner {
     #[must_use]
     pub fn fixture(
         reuse: ReuseEligibility,
-        derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+        derived: impl Into<crate::application::file_dag::derived::owner::service::DerivedAccess>,
     ) -> Self {
         Self::with_limits(reuse, PinnedViewCount(1024), derived, Default::default())
     }

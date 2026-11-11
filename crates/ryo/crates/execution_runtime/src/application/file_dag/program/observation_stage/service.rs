@@ -5,11 +5,11 @@ use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::frontiers::types::ReadinessProof;
 use crate::application::file_dag::observations::types::RuleSelection;
 use crate::application::file_dag::program::observation_stage::interface::ObservationExecution;
-use crate::application::file_dag::program::observation_stage::types::ObservationStage;
 use crate::application::file_dag::program::observation_stage::types::{
     AdmittedOutput, BatchOccurrence, Install, ObservationBatches,
 };
 use crate::application::file_dag::program::project_phase::interface::ProjectStage;
+use crate::application::file_dag::program::project_phase::service::ProjectPhase;
 use crate::application::file_dag::program::project_phase::service::reserved;
 use crate::application::file_dag::program::project_phase::types::{
     FrontierDemand, OccurrenceNumber, PhaseOccurrence, PhaseOccurrences, PhasePartials, PhaseStop,
@@ -299,4 +299,11 @@ pub(crate) struct OccurrenceBinding {
     ready: ReadinessProof,
     slot: PublicationSlot,
     bound: Vec<BoundInput>,
+}
+
+/// One project publication generation shared by every ready batch.
+pub struct ObservationStage<'a> {
+    pub(crate) phase: ProjectPhase<'a>,
+    pub(crate) publications:
+        crate::application::file_dag::observations::types::CrossPublications<'a>,
 }

@@ -1,4 +1,5 @@
 //! Request-wide file root demand compilation.
+pub mod constants;
 pub mod service;
 pub mod types;
 

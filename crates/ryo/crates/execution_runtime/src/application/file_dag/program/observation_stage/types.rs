@@ -1,5 +1,5 @@
 //! One project publication generation shared by every ready batch, and what a caller hands it and is handed.
-use crate::application::file_dag::program::project_phase::types::ProjectPhase;
+use crate::application::file_dag::program::project_phase::service::ProjectPhase;
 use crate::outbound::facts::interface::FactsFinish;
 use crate::outbound::facts::interface::FactsWorker;
 use ryo_execution_domain::domain::coverage::types::Covered;
@@ -13,12 +13,6 @@ use ryo_values::domain::records::types::CrossPublicationTransfer;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::runs::types::Skipped;
 use ryo_values::domain::stored_facts::types::Bucket;
-/// One project publication generation shared by every ready batch.
-pub struct ObservationStage<'a> {
-    pub(crate) phase: ProjectPhase<'a>,
-    pub(crate) publications:
-        crate::application::file_dag::observations::types::CrossPublications<'a>,
-}
 /// One output of a rule with the admitted publication it delivers.
 ///
 /// # Examples
@@ -34,7 +28,7 @@ pub struct ObservationStage<'a> {
 pub struct AdmittedOutput {
     pub output: ObservationIndex,
     pub publication:
-        crate::application::file_dag::program::observed_publication::types::ObservedPublication,
+        crate::application::file_dag::program::observed_publication::service::ObservedPublication,
 }
 /// One ready batch of the program, by its place among the batches.
 ///

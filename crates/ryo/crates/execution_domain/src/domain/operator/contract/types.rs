@@ -322,10 +322,24 @@ pub struct WorkTotals(pub [FoundRows; 3]);
 pub struct FoundRows(pub u64);
 
 /// The engine constructs and releases this borrow; a primitive owns no service state.
-/// Borrowed logical work counters; storage belongs to the invocation owner.
+/// Borrowed logical work counters; storage belongs to the invocation owner, and no caller outside
+/// the domain sets them.
+///
+/// ```compile_fail,E0423
+/// use ryo_execution_domain::domain::operator::contract::types::WorkCounters;
+/// let forged = WorkCounters(Default::default());
+/// ```
 #[derive(Default, Debug)]
 pub struct WorkCounters(pub(super) [std::cell::Cell<u64>; 3]);
-/// The borrowed context one primitive evaluation reaches its capabilities through.
+/// The borrowed context one primitive evaluation reaches its capabilities through. Only the
+/// engine leases one: no caller outside the domain reads its predicate, semantics or counters.
+///
+/// ```compile_fail,E0451
+/// use ryo_execution_domain::domain::operator::contract::types::PrimitiveLease;
+/// fn semantics(lease: PrimitiveLease<'_>) {
+///     let PrimitiveLease { semantics, .. } = lease;
+/// }
+/// ```
 pub struct PrimitiveLease<'a> {
     pub(crate) views: PrimitiveViews<'a>,
     pub(crate) workspace: &'a mut PrimitiveWorkspace,

@@ -11,7 +11,7 @@ use ryo_execution_domain::domain::{
 /// None in practice: a schema the semantic capability refuses is recorded in the contract, which its validation
 /// returns.
 pub fn view(
-    semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+    semantic: impl Into<crate::application::file_dag::derived::owner::service::DerivedAccess>,
     request: &ryo_execution_domain::domain::derived_views::types::ViewRequest,
     schemas: &[InputShape<'_>],
 ) -> Result<
@@ -78,7 +78,7 @@ pub fn view(
             view: view.clone(),
         },
     };
-    let access: crate::application::file_dag::derived::owner::types::DerivedAccess =
+    let access: crate::application::file_dag::derived::owner::service::DerivedAccess =
         semantic.into();
     let prepared = access.prepare(
         meaning,

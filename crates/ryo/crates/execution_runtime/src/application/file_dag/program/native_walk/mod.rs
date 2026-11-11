@@ -12,7 +12,7 @@ use ryo_execution_domain::domain::{
     step_classes::types::ClassPlace,
     table_model::types::Rows,
 };
-use ryo_execution_store::application::file_dag::derived::population::types::PopulationId;
+use ryo_execution_store::application::file_dag::derived::population::service::PopulationId;
 
 use super::runtime::types::Submission;
 use rustc_hash::FxHashMap;

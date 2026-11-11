@@ -6,7 +6,7 @@ use super::super::super::fixtures::{corpus, covered, prepare_for, program};
 use super::fixtures::root;
 use crate::application::file_dag::frontiers::errors::PreparationError;
 use crate::application::file_dag::program::project_phase::interface::ProjectStage as _;
-use crate::application::file_dag::program::project_phase::types::ProjectPhase;
+use crate::application::file_dag::program::project_phase::service::ProjectPhase;
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use crate::application::file_dag::program::request_execution::service::begin;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;

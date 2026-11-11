@@ -33,9 +33,9 @@ impl PreparedProgram {
         &self,
         rule: RuleIndex,
     ) -> Result<
-        &ryo_execution_domain::domain::executable_program::file_demand::types::FileRuleDemand,
+        &ryo_execution_domain::domain::executable_program::types::file_rule_demand::value::FileRuleDemand,
         OperatingError,
-    > {
+    >{
         self.file_demands.get(rule.0).ok_or(OperatingError::NotRun)
     }
     pub(crate) fn file_frontier_outputs(
@@ -213,10 +213,12 @@ pub(crate) fn prepare(
     rules: &[RuleSpec],
     rule_digests: &[ryo_values::domain::stored_facts::types::Digest],
     hosted: &[HostRelation],
-    derived: impl Into<ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess>,
+    derived: impl Into<
+        ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess,
+    >,
     identity: ObservationIdentity,
 ) -> Result<Arc<PreparedProgram>, OperatingError> {
-    let derived: ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess =
+    let derived: ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess =
         derived.into();
     if rule_digests.len() != rules.len() {
         return Err(OperatingError::WrongOperation);

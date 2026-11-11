@@ -1,12 +1,4 @@
 //! Opt-in diagnostic accounting; never participates in execution or admission decisions.
-use crate::application::file_dag::route_counts::ids::service::RouteFileIndex;
-use crate::application::file_dag::route_counts::ids::service::RouteLabel;
-use crate::application::file_dag::route_counts::ids::service::RouteNodeIndex;
-use crate::application::file_dag::route_counts::ids::service::RouteRuleIndex;
-use crate::application::file_dag::route_counts::profile::service::CapturedOrigin;
-use crate::application::file_dag::route_counts::profile::service::FileScope;
-use crate::application::file_dag::route_counts::profile::service::OriginScope;
-use crate::application::file_dag::route_counts::profile::service::RouteProfile;
 mod constants;
 pub mod ids;
 pub mod profile;
@@ -22,7 +14,11 @@ use std::collections::HashMap;
 use ryo_values::domain::runs::types::RuleId;
 
 use constants::MAX_KEYS;
+use ids::service::{RouteFileIndex, RouteLabel, RouteNodeIndex, RouteRuleIndex};
+#[cfg(feature = "diagnostic-row-progress")]
+use profile::service::CapturedOrigin;
 use profile::service::with_state;
+use profile::service::{FileScope, OriginScope, RouteProfile};
 use schemas::document;
 #[cfg(feature = "diagnostic-row-progress")]
 use types::RouteProgressState;

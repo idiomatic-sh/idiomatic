@@ -26,7 +26,7 @@ use {
 impl<'a> CrossPublications<'a> {
     pub(crate) fn new(
         metadata: &'a ObservationMetadata,
-        scope: &crate::application::file_dag::program::facade_runtime::types::PublicationScope,
+        scope: &crate::application::file_dag::program::facade_runtime::service::PublicationScope,
         arenas: &'a mut Vec<ArenaBytes>,
     ) -> Self {
         let inherited = arenas.len();

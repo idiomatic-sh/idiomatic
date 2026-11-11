@@ -12,11 +12,10 @@ use crate::application::file_dag::program::facade_runtime::project_execution::{
 use crate::application::file_dag::program::facade_runtime::project_execution::{
     ProjectRun, open_project,
 };
+use crate::application::file_dag::program::facade_runtime::service::ProjectFrontiers;
+use crate::application::file_dag::program::facade_runtime::service::PublicationScope;
 use crate::application::file_dag::program::facade_runtime::service::{
     publication_owner, required_partitions,
-};
-use crate::application::file_dag::program::facade_runtime::types::{
-    ProjectFrontiers, PublicationScope,
 };
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;

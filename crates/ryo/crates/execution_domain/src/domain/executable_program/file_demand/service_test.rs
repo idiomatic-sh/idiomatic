@@ -1,5 +1,7 @@
 //! File root activation preserves a reader multiset and independent intent masks.
 use super::{service::compile, types::*};
+use crate::domain::executable_program::types::absent_regions::value::AbsentRegions;
+use crate::domain::executable_program::types::absent_roots::value::AbsentRoots;
 use crate::domain::operator::types::ReaderMultiplicity;
 use crate::domain::rule_intent::types::FrontierPurpose;
 use crate::domain::{
@@ -335,10 +337,15 @@ fn deferred_sources() -> Result<(), OperatingError> {
         ],
         &[FrontierPurpose::Diagnostic],
     )?;
-    assert!(prepared.selected(FileDemand::NONE).roots.is_empty());
+    assert!(
+        prepared
+            .selected(super::constants::NO_FILE_DEMAND)
+            .roots
+            .is_empty()
+    );
     let named = prepared.selected(FileDemand {
         observations: RootSelection::Required,
-        ..FileDemand::NONE
+        ..super::constants::NO_FILE_DEMAND
     });
     assert!(matches!(
         &named.roots[..],

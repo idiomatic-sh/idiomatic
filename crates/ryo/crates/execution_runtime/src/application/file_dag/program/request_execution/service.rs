@@ -3,15 +3,15 @@ use crate::application::file_dag::frontiers::errors::PreparationError;
 use crate::application::file_dag::frontiers::service::PreparationPolicy;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::facade_runtime;
-use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
+use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 use crate::application::file_dag::program::file_session::interface::FileExecution;
+use crate::application::file_dag::program::file_session::service::FileSession;
 use crate::application::file_dag::program::file_session::types::CaptureContext;
 use crate::application::file_dag::program::file_session::types::EmittedRoot;
 use crate::application::file_dag::program::file_session::types::FileEnd;
 use crate::application::file_dag::program::file_session::types::FileInput;
 use crate::application::file_dag::program::file_session::types::FileRules;
 use crate::application::file_dag::program::file_session::types::FileRunInput;
-use crate::application::file_dag::program::file_session::types::FileSession;
 use crate::application::file_dag::program::file_session::types::FileStop;
 use crate::application::file_dag::program::file_session::types::KindSupport;
 use crate::application::file_dag::program::file_session::types::RanRule;
@@ -21,12 +21,12 @@ use crate::application::file_dag::program::file_session::types::SemanticSupport;
 use crate::application::file_dag::program::file_session::types::SessionParts;
 use crate::application::file_dag::program::file_session::types::SourceLanguage;
 use crate::application::file_dag::program::file_session::types::SourceRows;
-use crate::application::file_dag::program::observation_stage::types::ObservationStage;
+use crate::application::file_dag::program::observation_stage::service::ObservationStage;
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use crate::application::file_dag::program::project_phase::service::ProjectPhase;
 use crate::application::file_dag::program::project_phase::types::FrontierDemand;
 use crate::application::file_dag::program::project_phase::types::FrontierRequest;
 use crate::application::file_dag::program::project_phase::types::ProjectInput;
-use crate::application::file_dag::program::project_phase::types::ProjectPhase;
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
@@ -181,7 +181,7 @@ impl RequestExecution {
         symbols: &mut Symbols,
     ) -> Result<facade_runtime::project_execution::ProjectRun<'a>, OperatingError> {
         let frontiers =
-            crate::application::file_dag::program::facade_runtime::types::ProjectFrontiers {
+            crate::application::file_dag::program::facade_runtime::service::ProjectFrontiers {
                 publication: &input.scope.publication,
                 ordinary: input.ordinary,
                 bound_inputs: input.bound,
@@ -394,7 +394,7 @@ pub fn begin(
             )
             .observed(observer),
         ),
-        frontiers: crate::application::file_dag::frontiers::types::FrontierCache::new(),
+        frontiers: crate::application::file_dag::frontiers::cache::service::FrontierCache::new(),
         digest: Arc::clone(&program.parts.digest),
     }
 }

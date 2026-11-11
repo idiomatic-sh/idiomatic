@@ -5,7 +5,7 @@ use crate::application::file_dag::program::facade_runtime::project_execution::Pr
 use crate::application::file_dag::program::facade_runtime::source_admission::ProjectSources;
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 use crate::application::file_dag::program::facade_runtime::source_admission::table_of;
-use crate::application::file_dag::program::observed_publication::types::ObservedPublication;
+use crate::application::file_dag::program::observed_publication::service::ObservedPublication;
 use crate::application::file_dag::program::rule_outcome::types::ProjectObservation;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;

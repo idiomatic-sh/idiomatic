@@ -19,7 +19,7 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 /// ```
 /// nor reserve one by hand,
 /// ```compile_fail,E0624
-/// use ryo_execution_runtime::application::file_dag::program::observation_stage::types::ObservationStage;
+/// use ryo_execution_runtime::application::file_dag::program::observation_stage::service::ObservationStage;
 /// use ryo_execution_domain::domain::coverage::types::RuleIndex;
 /// fn reserve(stage: &mut ObservationStage<'_>) {
 ///     let _slot = stage.reserve(RuleIndex(0));
@@ -27,7 +27,7 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 /// ```
 /// nor evaluate its occurrences unbound, past the bindings `run_batches` makes.
 /// ```compile_fail,E0599
-/// use ryo_execution_runtime::application::file_dag::program::observation_stage::types::ObservationStage;
+/// use ryo_execution_runtime::application::file_dag::program::observation_stage::service::ObservationStage;
 /// use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProjectRootExecution;
 /// use ryo_execution_runtime::application::file_dag::program::project_phase::types::{PhasePartials, PhaseRules};
 /// use ryo_execution_domain::domain::operating::errors::OperatingError;

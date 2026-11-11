@@ -1,7 +1,9 @@
 //! Preparation and rows of the graph demand; the owner cache is required for both.
-use super::types::{AxisGraph, CachedGraph, KeyPosition, PartitionWidth, ReachGraph};
+use super::types::{KeyPosition, PartitionWidth};
 use crate::application::file_dag::derived::owner::DerivedOwner;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
+use crate::application::file_dag::derived::owner::graphs::types::handles::service::DomainHandle;
+use crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle;
 use crate::application::file_dag::derived::owner::graphs::types::roots::value::DemandAnswers;
 use ryo_derived::domain::vertices::types::VertexId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -318,4 +320,35 @@ impl AxisGraph {
             destinations: &self.destinations,
         })
     }
+}
+
+/// The graph an axis or reach operator reads, cached for its invocation.
+#[derive(Debug)]
+pub enum CachedGraph {
+    Reach(ReachGraph),
+    Axis(AxisGraph),
+}
+
+/// A cached reachability graph.
+#[derive(Debug)]
+pub struct ReachGraph {
+    pub(super) access: GraphHandle,
+    pub(super) left_on: Vec<ColumnIndex>,
+    pub(super) bindings: Vec<KeyPosition>,
+    pub(super) partition_width: PartitionWidth,
+    pub(super) key: Vec<Value>,
+    pub(super) request: Vec<Value>,
+    pub(super) destinations: Vec<Value>,
+    pub(super) walk: GraphWalk,
+}
+
+/// A cached axis graph.
+#[derive(Debug)]
+pub struct AxisGraph {
+    pub(super) access: GraphHandle,
+    pub(super) domain: DomainHandle,
+    pub(super) id: ColumnIndex,
+    pub(super) direction: Direction,
+    pub(super) destinations: Vec<Value>,
+    pub(super) walk: GraphWalk,
 }

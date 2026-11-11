@@ -44,7 +44,7 @@ fn input<'f>(
 /// Resources are prepared once, after the scheduler's static/empty/first-row gates.
 /// Regex resources are acquired separately after the checked physical/text row gates.
 pub(crate) struct InvocationResources<'f> {
-    pub(crate) cached_graph: Option<ryo_execution_store::application::file_dag::derived::owner::cached_graph::types::CachedGraph>,
+    pub(crate) cached_graph: Option<ryo_execution_store::application::file_dag::derived::owner::cached_graph::service::CachedGraph>,
     pub(crate) inputs: InvocationInputs<'f>,
 }
 

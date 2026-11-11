@@ -214,7 +214,7 @@ impl<'a> GraphInput<'a> {
     /// The population the graph input was admitted under.
     pub(crate) fn population(
         &self,
-    ) -> Result<super::derived::population::types::PopulationId, OperatingError> {
+    ) -> Result<super::derived::population::service::PopulationId, OperatingError> {
         self.proof.backing_population(self.owner)
     }
     /// The source relation of the graph input, when it came from one.

@@ -5,7 +5,7 @@ use crate::application::file_dag::relations::types::ReuseEligibility;
 /// RelationOwner directly. Only the outer scope constructor mints it; the owner
 /// reads the reuse eligibility it carries.
 pub(crate) struct ScopePermit {
-    pub(super) reuse: ReuseEligibility,
+    pub(in super::super) reuse: ReuseEligibility,
 }
 
 impl From<ScopePermit> for ReuseEligibility {

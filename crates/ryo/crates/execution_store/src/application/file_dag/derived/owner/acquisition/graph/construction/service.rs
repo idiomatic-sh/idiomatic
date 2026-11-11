@@ -10,7 +10,7 @@ use crate::application::file_dag::derived::owner::acquisition::population::types
 use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
 use crate::application::file_dag::derived::{
     owner::DerivedOwner, owner::cache::types::CacheBackend,
-    owner::graphs::types::handles::service::GraphHandle, population::types::PopulationId,
+    owner::graphs::types::handles::service::GraphHandle, population::service::PopulationId,
 };
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError,

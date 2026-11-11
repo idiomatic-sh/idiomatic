@@ -1,5 +1,4 @@
 //! Validation of admitted protocol handovers; no scheduling or dependency acquisition.
-use super::types::ObservedPublication;
 use crate::application::file_dag::program::admission::{AdmittedInput, ReadProof};
 use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -19,7 +18,8 @@ impl ObservedPublication {
     /// The population the publication was admitted under.
     pub(crate) fn population(
         &self,
-    ) -> ryo_execution_store::application::file_dag::derived::population::types::PopulationId {
+    ) -> ryo_execution_store::application::file_dag::derived::population::service::PopulationId
+    {
         self.population
     }
     /// How completely the publication's rows were read.
@@ -70,4 +70,18 @@ impl ObservedPublication {
             }),
         }
     }
+}
+
+/// Opaque application handover of the actual admitted population: what was read and how completely, its producer root, the
+/// publication and the population and generation it was admitted under. Packed bytes may accompany it, but never substitute for
+/// this evidence.
+#[derive(Clone)]
+pub struct ObservedPublication {
+    pub(crate) proof: crate::application::file_dag::program::admission::ReadProof,
+    pub(crate) root: crate::application::file_dag::program::admission::ProducerRoot,
+    pub(crate) publication:
+        ryo_execution_store::application::file_dag::relations::handle::service::Publication,
+    pub(crate) population:
+        ryo_execution_store::application::file_dag::derived::population::service::PopulationId,
+    pub(crate) generation: ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
 }

@@ -76,7 +76,7 @@ impl<'a> BorrowedInput<'a> {
         &self,
         owner: &RelationOwner,
     ) -> Result<
-        crate::application::file_dag::relations::admission::types::AdmissionIdentity,
+        crate::application::file_dag::relations::admission::service::AdmissionIdentity,
         OperatingError,
     > {
         if owner.matches_generation(&self.origin.generation) == Sameness::Different {
@@ -86,7 +86,7 @@ impl<'a> BorrowedInput<'a> {
             return Err(OperatingError::ShapeMismatch);
         }
         Ok(
-            crate::application::file_dag::relations::admission::types::AdmissionIdentity {
+            crate::application::file_dag::relations::admission::service::AdmissionIdentity {
                 population: self.origin.population,
                 relation: self.origin.relation,
             },
