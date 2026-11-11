@@ -4,7 +4,7 @@ use crate::application::file_dag::program::admission::service::AdmittedInput;
 use crate::application::file_dag::program::admission::service::FileGeneration;
 #[cfg(test)]
 use crate::application::file_dag::program::admission::service::Inputs;
-use crate::application::file_dag::program::admission::types::Partition;
+use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::constants::{
     FILE_OWNER_FINISH, PRODUCER_COVERAGE_INCOMPLETE,
 };

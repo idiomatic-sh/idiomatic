@@ -1,8 +1,8 @@
 //! The `restored` application operation.
 
 use super::super::admission::service::AdmittedInput;
+use super::super::admission::service::Partition;
 use super::super::admission::service::ReadProof;
-use super::super::admission::types::Partition;
 use super::super::admission::types::ProducerRoot;
 use super::super::admission::types::RequiredPartitions;
 use super::super::facade_runtime::service::PublicationScope;

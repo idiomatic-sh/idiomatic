@@ -1,7 +1,7 @@
 //! Binding intents and preparing the shared walk of one file.
 use crate::application::file_dag::program::admission::service::ApplicabilityProof;
 use crate::application::file_dag::program::admission::service::Inputs;
-use crate::application::file_dag::program::admission::types::Partition;
+use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::constants::{EXECUTION_TARGET, PRESENCE_FILE};
 use crate::application::file_dag::program::constants::{
     METADATA_UNAVAILABLE, PRODUCER_COVERAGE_INCOMPLETE, SOURCE_FACTS_INCOMPLETE,

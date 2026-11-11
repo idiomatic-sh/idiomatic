@@ -1,9 +1,8 @@
 //! The `project_execution` application operation.
 
 use super::super::super::project_population::types::ProjectFrontierPopulation;
-use super::types::ProjectRoot;
 use crate::application::file_dag::program::admission::service::AvailableInput;
-use crate::application::file_dag::program::admission::types::Partition;
+use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::admission::types::RequiredPartitions;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 use crate::application::file_dag::program::facade_runtime::service::ProjectFrontiers;
@@ -341,4 +340,14 @@ pub(crate) fn evaluate_roots<E>(
         completed.push(result);
     }
     crate::application::file_dag::program::rule_outcome::types::ProjectBatch::Complete(completed)
+}
+
+/// Cohort binding never reads source geometry. Exact immutable source/policy identity
+/// selects a shared state; the existing interpreter remains the only evaluator.
+/// A declared root travels with its own run, so a submission cannot omit or add a
+/// run without also omitting or adding its declaration.
+pub(crate) struct ProjectRoot<'a> {
+    pub(crate) rule: RuleIndex,
+    pub(crate) demand: RuleDemand,
+    pub(crate) run: Result<ProjectRun<'a>, OperatingError>,
 }

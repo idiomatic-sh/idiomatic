@@ -7,5 +7,4 @@ pub(crate) mod index;
 mod observation;
 mod prepared_use;
 pub(crate) mod service;
-pub(crate) mod types;
 mod views;

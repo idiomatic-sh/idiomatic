@@ -2,4 +2,3 @@
 mod deliver;
 pub(crate) mod service;
 mod sources;
-pub(crate) mod types;

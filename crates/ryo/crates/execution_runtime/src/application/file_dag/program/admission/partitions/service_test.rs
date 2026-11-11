@@ -2,7 +2,7 @@
 //! them are one identity to every check, among them the lookup of the frontier cache (`same_request`), and each keeps its own set.
 use super::super::super::request_identity::service::RequestIdentity;
 use super::super::{
-    types::Agreement, types::Partition, types::PartitionSupply, types::RequiredPartitions,
+    service::Partition, types::Agreement, types::PartitionSupply, types::RequiredPartitions,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_language::domain::files::types::FilePath;

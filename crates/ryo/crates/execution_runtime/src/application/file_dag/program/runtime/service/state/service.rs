@@ -2,7 +2,7 @@
 use super::super::{
     ProgramExecution, ProjectState, RetirementWork, RootReaders, RuntimeState, Slot, State,
 };
-use crate::application::file_dag::program::admission::types::Partition;
+use crate::application::file_dag::program::admission::service::Partition;
 #[cfg(test)]
 use crate::application::file_dag::program::runtime::types::CallCount;
 #[cfg(test)]

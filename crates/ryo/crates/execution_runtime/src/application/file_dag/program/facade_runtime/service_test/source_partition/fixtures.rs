@@ -2,7 +2,7 @@
 pub(super) mod phase;
 use super::super::*;
 use crate::application::file_dag::program::admission::{
-    service::FileGeneration, service::contributed_proof, types::Partition,
+    service::FileGeneration, service::Partition, service::contributed_proof,
 };
 use crate::application::file_dag::program::context::service::RunContext;
 use crate::application::file_dag::program::facade_runtime::service::required_partitions;

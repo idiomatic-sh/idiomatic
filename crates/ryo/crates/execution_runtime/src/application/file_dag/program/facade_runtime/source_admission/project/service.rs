@@ -1,7 +1,7 @@
 //! Project-wide source lookup for the project population.
 use super::super::{service::observation_slot, types::ProjectSources};
 use crate::application::file_dag::program::admission::service::AvailableInput;
-use crate::application::file_dag::program::admission::types::Partition;
+use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::constants::BOUND_PRODUCER_UNAVAILABLE;
 use crate::application::file_dag::program::facade_runtime::types::{
     CachedInput, OrdinaryPlace, Provision,

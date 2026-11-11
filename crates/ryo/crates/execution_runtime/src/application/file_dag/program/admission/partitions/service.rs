@@ -1,6 +1,6 @@
 //! Generation, request and partition identity: what a partition supplies and who it matches.
 use super::super::{
-    service::ApplicabilityProof, service::FileGeneration, types::Agreement, types::Partition,
+    service::ApplicabilityProof, service::FileGeneration, service::Partition, types::Agreement,
     types::PartitionSupply, types::RequiredPartitions,
 };
 use ryo_execution_domain::domain::{

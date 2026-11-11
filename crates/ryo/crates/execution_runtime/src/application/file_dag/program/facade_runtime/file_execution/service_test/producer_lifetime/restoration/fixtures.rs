@@ -9,10 +9,10 @@ use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::frontiers::types::{BoundInput, BoundMember};
 use crate::application::file_dag::program::admission::types::RequiredPartitions;
 use crate::application::file_dag::program::facade_runtime::project_execution::{
-    service::ProjectRun, service::open_project,
+    service::ProjectRoot, service::evaluate_roots,
 };
 use crate::application::file_dag::program::facade_runtime::project_execution::{
-    service::evaluate_roots, types::ProjectRoot,
+    service::ProjectRun, service::open_project,
 };
 use crate::application::file_dag::program::facade_runtime::service::ProjectFrontiers;
 use crate::application::file_dag::program::facade_runtime::service::PublicationScope;

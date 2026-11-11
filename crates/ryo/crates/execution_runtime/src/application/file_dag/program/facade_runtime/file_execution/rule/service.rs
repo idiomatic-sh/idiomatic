@@ -1,5 +1,5 @@
 //! Evaluation of one rule over the prepared file.
-use crate::application::file_dag::program::admission::types::Partition;
+use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::constants::{
     FILE_RULE_CONSUMER, SOURCE_FACTS_INCOMPLETE,
 };

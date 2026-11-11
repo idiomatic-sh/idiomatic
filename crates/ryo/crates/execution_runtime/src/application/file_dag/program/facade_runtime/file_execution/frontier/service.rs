@@ -1,5 +1,5 @@
 //! Capture and commit of one file's observation frontiers.
-use crate::application::file_dag::program::admission::types::Partition;
+use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::facade_runtime::file_execution::service::FileRun;
 use crate::application::file_dag::program::facade_runtime::source_admission::service::SourceInputs;
 use crate::application::file_dag::program::facade_runtime::source_admission::service::table_of;

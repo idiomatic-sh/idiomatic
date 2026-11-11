@@ -1,8 +1,8 @@
 //! Compiled program lifecycle proof with a real owner.
 use crate::application::file_dag::program::admission::service::AdmittedInput;
 use crate::application::file_dag::program::admission::service::Inputs;
+use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::admission::types::Emptiness;
-use crate::application::file_dag::program::admission::types::Partition;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;

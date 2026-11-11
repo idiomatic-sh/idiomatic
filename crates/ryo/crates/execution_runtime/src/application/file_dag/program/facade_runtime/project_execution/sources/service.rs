@@ -1,7 +1,7 @@
 //! Deferred frontier sources of one project phase: their populations and invocation identity.
 use crate::application::file_dag::frontiers::types::FrontierInput;
 use crate::application::file_dag::program::admission::service::AvailableInput;
-use crate::application::file_dag::program::admission::types::Partition;
+use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::admission::types::ProducerRoot;
 use crate::application::file_dag::program::facade_runtime::service::PublicationScope;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;

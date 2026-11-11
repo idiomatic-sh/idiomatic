@@ -4,8 +4,6 @@ use super::super::*;
 
 use super::super::service::*;
 
-use super::super::types::*;
-
 impl InvocationResources<'_> {
     #[cfg(test)]
     pub(crate) fn observe(

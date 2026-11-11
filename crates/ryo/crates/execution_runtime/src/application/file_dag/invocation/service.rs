@@ -3,7 +3,6 @@
 use super::groups::service::groups;
 use super::index::{service::IndexResource, types::EmptyInput};
 use super::prepared_use::service::prepared;
-use super::types::InvocationInputs;
 use crate::application::file_dag::axis_resources::service::prepare_axis;
 use crate::application::file_dag::resources::service::appended_values;
 use ryo_execution_domain::domain::operator::contract::{
@@ -11,11 +10,15 @@ use ryo_execution_domain::domain::operator::contract::{
     types::OperatorContract,
     views::types::NativeJoin,
 };
+use ryo_execution_domain::domain::table_groups::types::Group;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_texts::types::Texts;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError, operator::types::OperatorContext,
 };
+use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
+use ryo_relations::domain::relations::types::Value;
+use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::{service::parameter_in, types::InputNumber};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
@@ -316,8 +319,6 @@ pub(crate) fn prepare<'f>(
     Ok(resources)
 }
 
-use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
-
 pub(super) fn input<'f>(
     inputs: &[RepresentationInput<'f>],
     at: InputNumber,
@@ -446,4 +447,29 @@ impl ryo_execution_domain::domain::operator::contract::views::types::ClosurePart
             _ => Err(OperatingError::WrongOperation),
         }
     }
+}
+
+/// The invocation binds these acquired handles once. Primitives see only the
+/// immutable reader implemented for this value, never the owner or scheduler.
+pub(crate) struct InvocationInputs<'f> {
+    pub(crate) index: Option<IndexResource<'f>>,
+    pub(crate) appended: Option<Vec<Value>>,
+    pub(crate) rank_layers: Option<Vec<Vec<LiteralText>>>,
+    pub(crate) native_join: Option<NativeJoin<'f>>,
+    pub(crate) native_storage: Option<AcquiredView>,
+    pub(crate) cycles: Option<AcquiredView>,
+    pub(crate) closure: AcquiredPartitions,
+    pub(crate) partitioned_closure: Option<
+        ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure<
+            'f,
+        >,
+    >,
+    pub(crate) ordered: Option<AcquiredView>,
+    pub(crate) dfs: Option<AcquiredView>,
+    pub(crate) axis: Option<super::super::axis_resources::view::service::AxisResource<'f>>,
+    pub(crate) groups: Option<Vec<Group>>,
+    /// The file's profile, the observer the lent indexes report their probes to.
+    #[cfg(feature = "diagnostic-row-progress")]
+    pub(crate) progress:
+        ryo_execution_store::application::file_dag::route_counts::profile::service::RouteProfile,
 }

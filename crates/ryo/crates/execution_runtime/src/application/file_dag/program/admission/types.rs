@@ -1,15 +1,8 @@
 //! The types of the `admission` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use super::service::{AdmittedInput, FileGeneration};
-use ryo_execution_domain::domain::{
-    executable_program::types::{InputSource, RegionId},
-    operating::errors::OperatingError,
-};
-use ryo_execution_store::application::file_dag::relations::{
-    handle::service::Publication, service::RelationOwner,
-};
+use ryo_execution_domain::domain::executable_program::types::{InputSource, RegionId};
 use ryo_relations::domain::relations::types::FileId;
-use std::{rc::Rc, sync::Arc};
+use std::sync::Arc;
 
 /// Whether two admitted identities are the same.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -42,13 +35,6 @@ impl PartialEq for RequiredPartitions {
 
 impl Eq for RequiredPartitions {}
 
-#[derive(Clone)]
-pub(crate) enum Partition {
-    RequestInvariant,
-    File(FileGeneration),
-    Project(RequiredPartitions),
-}
-
 /// Whether an admitted input has no rows in a given representation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Emptiness {
@@ -61,17 +47,6 @@ pub(crate) enum Emptiness {
 pub(crate) enum ProducerRoot {
     Input(InputSource),
     Region(RegionId),
-}
-
-#[derive(Clone)]
-pub(super) enum AvailableBody {
-    Published(AdmittedInput),
-    Source {
-        owner: Rc<RelationOwner>,
-        publication: Publication,
-        partition: Partition,
-        admission: Result<AdmittedInput, OperatingError>,
-    },
 }
 
 /// Whether a partition covers the partition a consumer requires.

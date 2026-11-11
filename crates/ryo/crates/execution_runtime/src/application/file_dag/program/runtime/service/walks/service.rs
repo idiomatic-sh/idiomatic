@@ -2,7 +2,7 @@
 use super::super::KernelPermit;
 use crate::application::file_dag::program::admission::service::AdmittedWalkSource;
 use crate::application::file_dag::program::admission::service::FileGeneration;
-use crate::application::file_dag::program::admission::types::Partition;
+use crate::application::file_dag::program::admission::service::Partition;
 use ryo_execution_domain::domain::executable_program::types::InputId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 

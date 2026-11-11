@@ -3,8 +3,8 @@ use super::super::service::SourceInputs;
 use crate::application::file_dag::program::admission::service::AdmittedInput;
 use crate::application::file_dag::program::admission::service::AvailableInput;
 use crate::application::file_dag::program::admission::service::Inputs;
+use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::admission::service::ReadProof;
-use crate::application::file_dag::program::admission::types::Partition;
 use crate::application::file_dag::program::admission::types::ProducerRoot;
 use crate::application::file_dag::program::constants::{
     OBSERVATION_UNAVAILABLE, PRODUCER_COVERAGE_INCOMPLETE, PRODUCER_ROOT_INCOMPLETE,

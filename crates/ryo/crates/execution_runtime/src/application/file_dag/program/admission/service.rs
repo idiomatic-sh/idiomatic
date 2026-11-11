@@ -1,8 +1,6 @@
 //! The `admission` application operation.
 
-use super::types::{
-    AliasMember, AliasSlot, AvailableBody, Partition, PartitionSupply, ProducerRoot,
-};
+use super::types::{AliasMember, AliasSlot, PartitionSupply, ProducerRoot, RequiredPartitions};
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{InputSource, RegionId},
@@ -282,4 +280,22 @@ pub(crate) fn alias_observation(
         ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot.0),
     ));
     Ok(alias)
+}
+
+#[derive(Clone)]
+pub(crate) enum Partition {
+    RequestInvariant,
+    File(FileGeneration),
+    Project(RequiredPartitions),
+}
+
+#[derive(Clone)]
+pub(super) enum AvailableBody {
+    Published(AdmittedInput),
+    Source {
+        owner: Rc<RelationOwner>,
+        publication: Publication,
+        partition: Partition,
+        admission: Result<AdmittedInput, OperatingError>,
+    },
 }
