@@ -1,5 +1,5 @@
 //! Forged metadata never gains authority it was not issued.
-use super::super::super::super::RelationOwner;
+use super::super::super::super::service::RelationOwner;
 use super::super::fixtures::columns;
 use super::fixtures::Forged;
 use crate::application::file_dag::relations::types::CheckCount;

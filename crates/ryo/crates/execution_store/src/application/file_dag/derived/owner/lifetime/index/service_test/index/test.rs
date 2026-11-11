@@ -1,29 +1,7 @@
 //! Actual shared-index acquisition, owner aliases, eviction and final consumer release.
 use super::fixtures::{fixture, hold, reclaim};
+use crate::application::file_dag::derived::owner::types::Room;
 use crate::application::file_dag::derived::owner::*;
-use crate::application::file_dag::derived::ledger::types::ByteCount;
-use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
-use crate::application::file_dag::derived::population::service::PopulationId;
-use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
-use crate::application::file_dag::derived::owner::footprint::service::storage_bytes;
-use rustc_hash::FxHashMap;
-use ryo_execution_domain::domain::{
-    derived_views::types::{contract::value::DerivedContract, *},
-    operating::errors::OperatingError,
-};
-use std::{
-    cell::RefCell,
-    sync::{Arc, Weak},
-};
-use crate::application::file_dag::derived::owner::types::{
-    AdmissionOrder, BuildCount, BuildCounts, EntryLimit, FilePreparation, HitCount,
-    IdentityCompatibility, MembershipOrder, MemoBudget, PinCount, PinState, PopulationCount,
-    ReclaimOutlook, RefusalCount, ReleasedEntries, Room, ScopeId, ViewCount,
-};
-use crate::application::file_dag::derived::owner::graph_key::{GraphRequirement, GraphViewIdentity, RequirementIdentity};
-use ryo_derived::domain::request::types::DerivedKind;
-use crate::application::file_dag::derived::owner::service::*;
-use crate::application::file_dag::derived::owner::types::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use fixtures::resources::ResourceFixture;
 use ryo_derived::domain::contract::types::DerivedView;
@@ -109,7 +87,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-fn ledger(fixture: &ResourceFixture) -> crate::application::file_dag::derived::ledger::types::LedgerSnapshot {
+fn ledger(
+    fixture: &ResourceFixture,
+) -> crate::application::file_dag::derived::ledger::types::LedgerSnapshot {
     fixture.owner().derived().ledger.borrow().snapshot()
 }
 

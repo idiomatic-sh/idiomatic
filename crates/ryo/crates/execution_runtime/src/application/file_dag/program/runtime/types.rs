@@ -20,7 +20,7 @@ pub(crate) enum InvocationFailure {
 #[derive(Default)]
 pub(crate) struct KernelScratch {
     pub workspace:
-        Option<ryo_execution_store::application::file_dag::workspace::InvocationWorkspace>,
+        Option<ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace>,
     pub ordered_row: Vec<Value>,
     pub ordered: ryo_operators::domain::ordered_existence::types::OrderedExistenceScratch,
 }

@@ -72,7 +72,8 @@ pub(crate) enum RuleSelection {
 /// One invocation extends the existing arena vector; stable slot indices never move during execution.
 pub(crate) struct CrossPublications<'a> {
     pub(crate) metadata: &'a ObservationMetadata,
-    pub(crate) owner: Rc<ryo_execution_store::application::file_dag::relations::RelationOwner>,
+    pub(crate) owner:
+        Rc<ryo_execution_store::application::file_dag::relations::service::RelationOwner>,
     pub(crate) arenas: &'a mut Vec<ArenaBytes>,
     pub(crate) inherited: ArenaCount,
     pub(crate) references: Vec<ReferenceCount>,

@@ -1,5 +1,5 @@
 //! The support of the `cached_graph` cases.
-use crate::application::file_dag::relations::RelationOwner;
+use crate::application::file_dag::relations::service::RelationOwner;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
@@ -60,12 +60,12 @@ pub(super) fn graph_of(owner: &std::rc::Rc<RelationOwner>) -> Result<bool, Opera
         &[],
         ryo_values::domain::plan_parts::types::StepScope::PerFile,
     )?;
-    crate::application::file_dag::derived::request::RequestViews::new(
+    crate::application::file_dag::derived::request::service::RequestViews::new(
         owner.derived().semantic.clone(),
     )
     .bind(&mut contract)?;
     let contract = &contract;
-    let workspace = crate::application::file_dag::workspace::InvocationWorkspace::new(
+    let workspace = crate::application::file_dag::workspace::service::InvocationWorkspace::new(
         std::rc::Rc::clone(owner),
     );
     owner

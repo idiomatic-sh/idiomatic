@@ -5,7 +5,7 @@ use super::super::{
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_execution_store::application::file_dag::relations::{
-    RelationOwner, handle::service::Publication,
+    handle::service::Publication, service::RelationOwner,
 };
 use std::rc::Rc;
 

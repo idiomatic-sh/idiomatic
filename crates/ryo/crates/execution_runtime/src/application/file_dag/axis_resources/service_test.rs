@@ -55,7 +55,7 @@ fn acquired(
     rows: RepresentationInput<'_>,
 ) -> AcquiredView {
     let plan = Arc::new(
-        ryo_execution_store::application::file_dag::derived::prepare::view(
+        ryo_execution_store::application::file_dag::derived::prepare::service::view(
             (std::sync::Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
                 as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
             &request,
@@ -68,7 +68,7 @@ fn acquired(
         )
         .unwrap(),
     );
-    let owner = ryo_execution_store::application::file_dag::relations::RelationOwner::fixture(
+    let owner = ryo_execution_store::application::file_dag::relations::service::RelationOwner::fixture(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Ineligible,
         (std::sync::Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
             as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
@@ -102,7 +102,7 @@ fn acquired(
                 .derived()
                 .admit_view(&plan, &owner, &[&proof])
                 .unwrap(),
-            ryo_execution_store::application::file_dag::derived::owner::ViewContext::default(),
+            ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
             data,
             &mut DerivedScratch::default(),
             None,

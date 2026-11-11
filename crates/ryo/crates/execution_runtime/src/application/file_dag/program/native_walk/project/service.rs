@@ -19,7 +19,7 @@ use ryo_execution_domain::domain::{
     step_classes::types::ClassPlace,
     table_model::types::Rows,
 };
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::StepScope;
 use std::rc::Rc;

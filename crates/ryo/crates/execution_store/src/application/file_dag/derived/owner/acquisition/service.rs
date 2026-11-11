@@ -1,9 +1,18 @@
 //! Entry points that acquire one population-scoped derived view.
-use super::super::*;
+use super::super::service::*;
 use super::admission::service::{AcquiredView, AcquisitionLifetime, AdmittedViewInputs};
 use super::population::types::StoredColumns;
 use super::population::types::{Acquisition, Construction, OptionalRetention, StoredObservation};
+use crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
+use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
+use crate::application::file_dag::derived::owner::graph_key::service::RequirementIdentity;
 use crate::application::file_dag::route_counts::{self, types::BuildRoute};
+use ryo_derived::domain::request::types::DerivedKind;
+use ryo_execution_domain::domain::{
+    derived_views::types::{contract::value::DerivedContract, *},
+    operating::errors::OperatingError,
+};
+use std::sync::Arc;
 
 impl DerivedOwner {
     /// Acquires the stored view `plan` names over admitted inputs, building it or reusing a retained one.

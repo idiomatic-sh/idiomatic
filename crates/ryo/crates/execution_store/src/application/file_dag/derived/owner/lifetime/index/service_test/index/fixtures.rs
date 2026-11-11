@@ -1,7 +1,11 @@
 //! The support of the `index` cases.
+use crate::application::file_dag::derived::owner::service::*;
+use crate::application::file_dag::derived::owner::types::Room;
 use crate::application::file_dag::derived::owner::*;
 use fixtures::resources::ResourceFixture;
 use ryo_derived::domain::contract::types::DerivedView;
+use ryo_derived::domain::request::types::DerivedKind;
+use ryo_execution_domain::domain::derived_views::types::*;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
@@ -10,12 +14,7 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub(super) const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Number];
 
 pub(super) fn fixture(columns: &[FactColumn]) -> ResourceFixture {
-    let fixture = ResourceFixture::new(
-        &[Relation::Function],
-        &[],
-        crate::application::file_dag::derived::owner::index::service::LIMIT,
-    )
-    .unwrap();
+    let fixture = ResourceFixture::new(&[Relation::Function], &[], index::service::LIMIT).unwrap();
     let input = Rows::Stored(ColumnsView {
         kinds: KINDS,
         columns,
@@ -46,7 +45,7 @@ pub(super) fn fixture(columns: &[FactColumn]) -> ResourceFixture {
 pub(super) fn hold(
     fixture: &ResourceFixture,
     columns: &[FactColumn],
-) -> crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView {
+) -> acquisition::admission::service::AcquiredView {
     let owner = fixture.owner();
     let rows = RepresentationInput::Stored(ColumnsView {
         kinds: KINDS,

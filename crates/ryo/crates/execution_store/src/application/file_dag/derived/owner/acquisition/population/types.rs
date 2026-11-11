@@ -1,5 +1,5 @@
 //! What one population-scoped acquisition decides and reports, as named answers.
-use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
+use crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
 
 /// Whether the view was constructed by this acquisition or found already built.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

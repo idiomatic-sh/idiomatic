@@ -2,7 +2,7 @@
 use super::admission::service::BorrowedInput;
 use super::generation::service::ResidentGeneration;
 use super::handle::service::Publication;
-use super::number::service::AdmittedNumber;
+use super::number::service::service::AdmittedNumber;
 use super::publication::types::{ProducerScope, PublicationBody};
 use super::types::ProducerId;
 use crate::application::file_dag::derived::population::service::PopulationId;

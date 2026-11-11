@@ -24,7 +24,7 @@ use ryo_execution_domain::domain::operator::types::LogicalCounts;
 use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_execution_store::application::file_dag::derived::constants::TARGET_RESOURCE_ROUTES;
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_execution_store::application::file_dag::service::open_program_owner;

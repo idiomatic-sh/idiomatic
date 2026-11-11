@@ -32,11 +32,13 @@ pub(crate) fn new(
             eligible.push(*relation);
         }
     }
-    let bytes =
-        crate::application::file_dag::derived::ledger::capacity::headed::<CacheBackend, Relation>(
-            crate::application::file_dag::derived::ledger::types::SlotCount(eligible.capacity()),
-        )?
-        .0;
+    let bytes = crate::application::file_dag::derived::ledger::capacity::service::headed::<
+        CacheBackend,
+        Relation,
+    >(
+        crate::application::file_dag::derived::ledger::types::SlotCount(eligible.capacity()),
+    )?
+    .0;
     (bytes <= limit.0).then_some(CacheBackend {
         graph_enabled:
             crate::application::file_dag::derived::owner::cache::types::GraphAdmission::Disabled,

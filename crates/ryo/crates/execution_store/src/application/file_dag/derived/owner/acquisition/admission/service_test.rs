@@ -1,7 +1,9 @@
 //! Real publication admissions bind owner, generation, descriptor and semantic source.
 use super::service::AcquiredView;
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
-use crate::application::file_dag::{fixtures::program_derived_port, relations::RelationOwner};
+use crate::application::file_dag::{
+    fixtures::program_derived_port, relations::service::RelationOwner,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{

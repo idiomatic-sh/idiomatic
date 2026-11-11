@@ -5,12 +5,15 @@ use crate::application::file_dag::derived::owner::graphs::types::handles::servic
 #[cfg(test)]
 use crate::application::file_dag::derived::owner::graphs::{
     service::slot,
-    types::{handles::service::RootAnswer, roots::value::DemandAnswers},
+    types::{handles::service::RootAnswer, roots::value::service::DemandAnswers},
 };
-use crate::application::file_dag::derived::owner::*;
+#[cfg(test)]
+use crate::application::file_dag::derived::owner::service::ViewContext;
+#[cfg(test)]
+use crate::application::file_dag::derived::owner::types::Room;
 use crate::application::file_dag::{
-    relations::{RelationOwner, handle::service::PublishedInput},
-    workspace::InvocationWorkspace,
+    relations::{handle::service::PublishedInput, service::RelationOwner},
+    workspace::service::InvocationWorkspace,
 };
 #[cfg(test)]
 use ryo_derived::domain::vertices::types::VertexId;
@@ -18,15 +21,17 @@ use ryo_derived::domain::vertices::types::VertexId;
 use ryo_execution_domain::domain::stored_graph::types::{GraphWalk, Orientation};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{coverage::types::Partial, table_model::types::Rows};
+use ryo_execution_domain::domain::{
+    derived_views::types::{contract::value::DerivedContract, *},
+    operating::errors::OperatingError,
+};
 use ryo_relations::domain::relations::types::Relation;
 #[cfg(test)]
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::InputNumber;
-use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Direction, Input, StepId, StepScope},
-    plans::types::{Emit, Operation, Plan, PlanStep},
-};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// A derived owner over a fake port, with the graph acquisitions a proof drives.
 pub(crate) struct GraphFixture {
@@ -54,7 +59,7 @@ impl GraphFixture {
                     crate::application::file_dag::relations::types::ReuseEligibility::Ineligible
                 },
                 crate::application::file_dag::relations::types::PinnedViewCount(max_views),
-                std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
+                Arc::new(crate::application::file_dag::fixtures::derived()),
             )),
             wanted: wanted.to_vec(),
             partials: partials.to_vec(),

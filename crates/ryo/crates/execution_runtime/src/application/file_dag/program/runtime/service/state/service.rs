@@ -142,7 +142,7 @@ impl RuntimeState {
     }
     pub(crate) fn bind(
         &self,
-        owner: &ryo_execution_store::application::file_dag::relations::RelationOwner,
+        owner: &ryo_execution_store::application::file_dag::relations::service::RelationOwner,
         root: crate::application::file_dag::program::admission::ProducerRoot,
         publication: &ryo_execution_store::application::file_dag::relations::handle::service::Publication,
     ) -> Result<(), OperatingError> {
@@ -162,7 +162,9 @@ impl ProgramExecution {
     pub(crate) fn open(
         program: Arc<ExecutableProgram>,
         partition: Partition,
-        owner: std::rc::Rc<ryo_execution_store::application::file_dag::relations::RelationOwner>,
+        owner: std::rc::Rc<
+            ryo_execution_store::application::file_dag::relations::service::RelationOwner,
+        >,
     ) -> Self {
         let generation = owner.generation();
         let file_state = RuntimeState::new(

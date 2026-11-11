@@ -1,7 +1,7 @@
 //! The support of the `partitions` cases.
-use super::super::super::PartitionedClosure;
 use super::super::super::constants::LIVE_PARTITION_VIEW;
 use super::super::super::fixtures::working_capacity;
+use super::super::super::service::PartitionedClosure;
 use ryo_derived::domain::key::types::{ChainLink, HashedRow, KeyCellsHash};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::rows::types::RowIndex;
@@ -47,11 +47,14 @@ pub(super) fn ordering_bytes(closure: &PartitionedClosure<'_>) -> usize {
 }
 
 #[cfg(test)]
-pub(super) fn scope() -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
-    std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        crate::application::file_dag::fixtures::program_derived_port(),
-    ))
+pub(super) fn scope() -> std::rc::Rc<crate::application::file_dag::relations::service::RelationOwner>
+{
+    std::rc::Rc::new(
+        crate::application::file_dag::relations::service::RelationOwner::new(
+            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+            crate::application::file_dag::fixtures::program_derived_port(),
+        ),
+    )
 }
 
 #[cfg(test)]

@@ -1,23 +1,29 @@
 //! Pure derived-owner fixtures; no operator evaluator or legacy transport.
 #[cfg(test)]
-use crate::application::file_dag::derived::owner::*;
+use crate::application::file_dag::derived::owner::service::*;
 #[cfg(test)]
-use crate::application::file_dag::relations::RelationOwner;
+use crate::application::file_dag::relations::service::RelationOwner;
 use crate::outbound::derived::interface::DerivedPort;
 #[cfg(test)]
 use ryo_derived::domain::equality::types::KeyIndex;
 #[cfg(test)]
+use ryo_execution_domain::domain::derived_views::types::{
+    DerivedInputs, DerivedScratch, ViewRequest,
+};
+#[cfg(test)]
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+#[cfg(test)]
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 #[cfg(test)]
-use ryo_execution_domain::domain::{
-    coverage::types::Partial, operating::errors::OperatingError, table_model::types::Rows,
-};
+use ryo_execution_domain::domain::{coverage::types::Partial, table_model::types::Rows};
 #[cfg(test)]
 use ryo_relations::domain::relations::types::Relation;
 #[cfg(test)]
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 #[cfg(test)]
 use std::rc::Rc;
+#[cfg(test)]
+use std::sync::{Arc, Weak};
 /// What a resource fixture's owner holds and counted.
 #[derive(Clone, Copy, Debug)]
 pub struct Snapshot {
@@ -125,8 +131,8 @@ impl ResourceFixture {
 pub(crate) fn weak_storage(
     view: &crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
 ) -> Weak<
-    crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage,
-> {
+    crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage,
+>{
     Arc::downgrade(view.storage())
 }
 

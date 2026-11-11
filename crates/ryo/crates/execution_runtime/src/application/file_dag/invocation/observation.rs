@@ -4,7 +4,7 @@ impl InvocationResources<'_> {
     #[cfg(test)]
     pub(crate) fn observe(
         &self,
-        workspace: &mut ryo_execution_store::application::file_dag::workspace::InvocationWorkspace,
+        workspace: &mut ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace,
     ) {
         #[cfg(feature = "diagnostic-row-progress")]
         let view = self

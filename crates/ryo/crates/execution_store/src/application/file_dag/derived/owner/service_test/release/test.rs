@@ -1,33 +1,16 @@
 //! Release drops only the required views of the released population.
-use super::super::super::*;
-use crate::application::file_dag::derived::ledger::types::ByteCount;
-use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
-use crate::application::file_dag::derived::population::service::PopulationId;
-use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
-use crate::application::file_dag::derived::owner::footprint::service::storage_bytes;
-use rustc_hash::FxHashMap;
-use ryo_execution_domain::domain::{
-    derived_views::types::{contract::value::DerivedContract, *},
-    operating::errors::OperatingError,
-};
-use std::{
-    cell::RefCell,
-    sync::{Arc, Weak},
-};
-use crate::application::file_dag::derived::owner::types::{
-    AdmissionOrder, BuildCount, BuildCounts, EntryLimit, FilePreparation, HitCount,
-    IdentityCompatibility, MembershipOrder, MemoBudget, PinCount, PinState, PopulationCount,
-    ReclaimOutlook, RefusalCount, ReleasedEntries, Room, ScopeId, ViewCount,
-};
-use crate::application::file_dag::derived::owner::graph_key::{GraphRequirement, GraphViewIdentity, RequirementIdentity};
-use ryo_derived::domain::request::types::DerivedKind;
 use super::super::super::service::*;
-use super::super::super::types::*;
 use super::super::fixtures::{acquire, acquire_pair, owner, pair_plan, plan, population, source};
+use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::index::service as indexes;
 use crate::application::file_dag::derived::owner::index::types::ByteLimit;
+use crate::application::file_dag::derived::owner::types::{
+    BuildCount, BuildCounts, EntryLimit, HitCount, RefusalCount, ReleasedEntries,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::derived_views::types::*;
 use ryo_relations::domain::relations::types::{Integer, Value as CellValue};
+use std::sync::Arc;
 
 /// How the required views depend on the pinned populations.
 #[derive(Clone, Copy, Debug)]
@@ -126,8 +109,12 @@ fn subject(input: Input) -> Result<Value, Failure> {
 fn own_views() -> OwnViews {
     let relation_owner = owner(EntryLimit(0));
     let owner = relation_owner.derived();
-    let first_publication = relation_owner.computed(source()).expect("a computed source");
-    let second_publication = relation_owner.computed(source()).expect("a computed source");
+    let first_publication = relation_owner
+        .computed(source())
+        .expect("a computed source");
+    let second_publication = relation_owner
+        .computed(source())
+        .expect("a computed source");
     let first_population = population(&relation_owner, &first_publication);
     let second_population = population(&relation_owner, &second_publication);
     owner.pin(first_population);
@@ -186,7 +173,9 @@ fn shared_view(rounds: u64) -> SharedView {
         relation_owner
             .computed(ordered_source.clone())
             .expect("a computed source"),
-        relation_owner.computed(ordered_source).expect("a computed source"),
+        relation_owner
+            .computed(ordered_source)
+            .expect("a computed source"),
     ];
     let populations = [
         population(&relation_owner, &publications[0]),

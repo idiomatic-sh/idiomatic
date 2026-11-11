@@ -8,7 +8,7 @@ use crate::application::file_dag::program::facade_runtime::types::{
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 use std::rc::Rc;
 
 impl ProjectSources<'_> {

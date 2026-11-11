@@ -1,7 +1,7 @@
 //! Capacity accounting must include reserved room, not merely logical lengths.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
-use super::{arc_bytes, vector};
+use super::service::{arc_bytes, vector};
 
 fn vector_accounting_charges_unused_capacity_and_arc_header() {
     let mut values = Vec::<u32>::with_capacity(19);
@@ -21,7 +21,7 @@ fn compact_table_accounting_charges_header_and_reserved_vectors() {
     .unwrap();
     let table = admitted.table;
     assert!(
-        super::compact_table(&table).0
+        super::service::compact_table(&table).0
             >= size_of::<types::CompactTable>()
                 + table.row_offsets.capacity() * size_of::<types::FrameOffset>()
     );

@@ -22,7 +22,7 @@ use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_domain::domain::table_model::service::count_of;
 use ryo_execution_domain::domain::table_model::service::materialize;
 use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::rows::types::Table;
 use std::rc::Rc;

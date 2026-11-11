@@ -1,6 +1,6 @@
 //! The working capacity of the partitioned closure cursor, which its proofs and the engine's observations read.
-use super::PartitionedClosure;
 use super::constants::LIVE_PARTITION_VIEW;
+use super::service::PartitionedClosure;
 
 /// Reserved Value buffers; shared ordering remains charged independently.
 ///

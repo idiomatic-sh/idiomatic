@@ -9,8 +9,8 @@ use ryo_execution_domain::domain::operator::contract::failure::FailureLatch;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use std::{cell::RefCell, sync::Arc};
 
-use super::semantic_rows::{AdmittedRows, CanonicalTexts};
-use super::storage::DerivedStorage;
+use super::semantic_rows::{types::AdmittedRows, types::CanonicalTexts};
+use super::storage::service::DerivedStorage;
 use super::types::InputPosition;
 
 fn first<'a>(

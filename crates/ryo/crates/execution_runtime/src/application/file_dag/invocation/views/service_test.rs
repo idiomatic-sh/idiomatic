@@ -22,7 +22,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
         &[Cell::Number(Integer(1)), Cell::Number(Integer(2))],
     );
     let plan = Arc::new(
-        ryo_execution_store::application::file_dag::derived::prepare::view(
+        ryo_execution_store::application::file_dag::derived::prepare::service::view(
             (std::sync::Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
                 as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
             &ViewRequest::CycleAdjacency {
@@ -36,7 +36,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
         )
         .unwrap(),
     );
-    let owner = ryo_execution_store::application::file_dag::relations::RelationOwner::fixture(
+    let owner = ryo_execution_store::application::file_dag::relations::service::RelationOwner::fixture(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
             as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
@@ -58,7 +58,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
                 .derived()
                 .admit_view(&plan, &owner, &[&proof])
                 .unwrap(),
-            ryo_execution_store::application::file_dag::derived::owner::ViewContext::default(),
+            ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
             DerivedInputs::Rows(&[rows]),
             &mut DerivedScratch::default(),
             None,
@@ -81,7 +81,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
         "the semantic lease borrows the owned graph"
     );
     let equality = Arc::new(
-        ryo_execution_store::application::file_dag::derived::prepare::view(
+        ryo_execution_store::application::file_dag::derived::prepare::service::view(
             (std::sync::Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
                 as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
             &ViewRequest::Equality {
@@ -102,7 +102,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
                 .derived()
                 .admit_view(&equality, &owner, &[&proof])
                 .unwrap(),
-            ryo_execution_store::application::file_dag::derived::owner::ViewContext::default(),
+            ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
             DerivedInputs::Rows(&[rows]),
             &mut DerivedScratch::default(),
             None,

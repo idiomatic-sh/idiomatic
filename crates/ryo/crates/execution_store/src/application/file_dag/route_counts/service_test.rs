@@ -162,8 +162,8 @@ fn owner_identity_distinguishes_live_population_keys_and_rules_are_named_once() 
 }
 
 fn owner_routes_count_each_physical_equality_build_once() {
-    use crate::application::file_dag::derived::owner::ViewContext;
-    use crate::application::file_dag::relations::RelationOwner;
+    use crate::application::file_dag::derived::owner::service::ViewContext;
+    use crate::application::file_dag::relations::service::RelationOwner;
     use ryo_execution_domain::domain::table_model::types::RepresentationInput;
     use ryo_execution_domain::domain::{
         derived_views::types::*, operation_schema::types::InputShape,
@@ -178,7 +178,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
     };
     let on = [ColumnIndex(0)];
     let plan = Arc::new(
-        crate::application::file_dag::derived::prepare::view(
+        crate::application::file_dag::derived::prepare::service::view(
             crate::application::file_dag::fixtures::program_derived_port(),
             &ViewRequest::Equality {
                 columns: on.to_vec(),

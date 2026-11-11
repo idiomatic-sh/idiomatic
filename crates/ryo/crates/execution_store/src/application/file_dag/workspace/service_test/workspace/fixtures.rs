@@ -1,16 +1,15 @@
 //! The support of the `workspace` cases.
-use super::super::super::*;
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::{
-    derived_views::types::{contract::value::PreparedViewUse, *},
-    operation_schema::types::InputShape,
-    operator::types::OperatorContext,
+    derived_views::types::contract::value::PreparedViewUse, operator::types::OperatorContext,
 };
+use ryo_execution_domain::domain::{derived_views::types::*, operation_schema::types::InputShape};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::rows::types::RowCount;
 use ryo_values::domain::rows::types::Table;
-use std::{rc::Rc, sync::Arc};
+use std::rc::Rc;
+use std::sync::Arc;
 
 pub(super) fn table(values: &[i64], width: usize) -> Table {
     Table {
@@ -35,8 +34,8 @@ pub(super) fn use_(
         .collect::<Vec<_>>();
     PreparedViewUse {
         plan: {
-            let plan = crate::application::file_dag::derived::prepare::view(
-                std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
+            let plan = crate::application::file_dag::derived::prepare::service::view(
+                Arc::new(crate::application::file_dag::fixtures::derived()),
                 &request,
                 &schemas,
             )
@@ -76,9 +75,11 @@ pub(super) fn context<'a>(
     }
 }
 
-pub(super) fn owner() -> Rc<crate::application::file_dag::relations::RelationOwner> {
-    Rc::new(crate::application::file_dag::relations::RelationOwner::new(
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
-    ))
+pub(super) fn owner() -> Rc<crate::application::file_dag::relations::service::RelationOwner> {
+    Rc::new(
+        crate::application::file_dag::relations::service::RelationOwner::new(
+            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+            Arc::new(crate::application::file_dag::fixtures::derived()),
+        ),
+    )
 }

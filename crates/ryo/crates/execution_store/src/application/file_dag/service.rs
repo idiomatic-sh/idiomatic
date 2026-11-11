@@ -1,7 +1,7 @@
 //! The store's one operation: explicit outer scope creation over one required request schedule, which opens a file
 //! generation's relation owner. Inner operators/observation adapters receive its executor; they cannot mint owners.
 use super::relations::{
-    RelationOwner,
+    service::RelationOwner,
     types::{PinnedViewCount, ReuseEligibility},
 };
 pub(crate) mod permit;

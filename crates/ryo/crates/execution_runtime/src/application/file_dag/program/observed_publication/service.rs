@@ -29,7 +29,9 @@ impl ObservedPublication {
     /// The admitted input again, over `owner`: its rows admitted under the owner's current generation.
     pub(crate) fn readmitted(
         &self,
-        owner: &std::rc::Rc<ryo_execution_store::application::file_dag::relations::RelationOwner>,
+        owner: &std::rc::Rc<
+            ryo_execution_store::application::file_dag::relations::service::RelationOwner,
+        >,
     ) -> Result<AdmittedInput, OperatingError> {
         let unavailable = |_| Err(OperatingError::NotRead);
         let rows = owner.rows(&self.publication, &unavailable)?;

@@ -2,7 +2,7 @@
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_execution_store::application::file_dag::{
     derived::population::service::PopulationId,
-    relations::{RelationOwner, handle::service::Publication},
+    relations::{handle::service::Publication, service::RelationOwner},
 };
 
 mod admitted;

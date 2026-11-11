@@ -15,7 +15,7 @@ fn prepare_cycles(
     source: ColumnIndex,
     destination: ColumnIndex,
 ) -> Result<ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView, OperatingError>{
-    let owner = ryo_execution_store::application::file_dag::relations::RelationOwner::fixture(
+    let owner = ryo_execution_store::application::file_dag::relations::service::RelationOwner::fixture(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
             as std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
@@ -43,7 +43,7 @@ fn prepare_cycles(
     owner.derived().acquire_stored(
         &plan,
         &admitted,
-        ryo_execution_store::application::file_dag::derived::owner::ViewContext::default(),
+        ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
         DerivedInputs::Rows(&[proof.rows()]),
         &mut DerivedScratch::default(),
         None,
@@ -55,7 +55,7 @@ fn prepare_closure(
     source: ColumnIndex,
     destination: ColumnIndex,
 ) -> Result<crate::application::file_dag::invocation::AcquiredPartitions, OperatingError> {
-    let owner = std::rc::Rc::new(ryo_execution_store::application::file_dag::relations::RelationOwner::fixture(
+    let owner = std::rc::Rc::new(ryo_execution_store::application::file_dag::relations::service::RelationOwner::fixture(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_execution_store::application::file_dag::fixtures::derived(),

@@ -1,10 +1,10 @@
 //! Preparation and rows of the graph demand; the owner cache is required for both.
 use super::types::{KeyPosition, PartitionWidth};
-use crate::application::file_dag::derived::owner::DerivedOwner;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::owner::graphs::types::handles::service::DomainHandle;
 use crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle;
-use crate::application::file_dag::derived::owner::graphs::types::roots::value::DemandAnswers;
+use crate::application::file_dag::derived::owner::graphs::types::roots::value::service::DemandAnswers;
+use crate::application::file_dag::derived::owner::service::DerivedOwner;
 use ryo_derived::domain::vertices::types::VertexId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::contract::{
@@ -25,7 +25,7 @@ impl CachedGraph {
     /// owner cache is required and never decides the route.
     pub(crate) fn prepare(
         contract: &ryo_execution_domain::domain::operator::contract::types::OperatorContract,
-        admission: &crate::application::file_dag::workspace::InvocationWorkspace,
+        admission: &crate::application::file_dag::workspace::service::InvocationWorkspace,
         program: &ResourceProgram,
         original_inputs: &[Rows<'_>],
         cache: &mut CacheBackend,

@@ -55,7 +55,7 @@ pub(crate) fn prepare<'f>(
     inputs: &[RepresentationInput<'f>],
     context: &mut OperatorContext<'_>,
     originals: &[ryo_execution_domain::domain::table_model::types::Rows<'f>],
-    admission: &ryo_execution_store::application::file_dag::workspace::InvocationWorkspace,
+    admission: &ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace,
     semantics: &crate::application::file_dag::execution::PrimitiveSemanticsBridge<'_>,
 ) -> Result<InvocationResources<'f>, OperatingError> {
     InvocationResources::validate_row_metadata(contract, inputs)?;
@@ -239,8 +239,8 @@ pub(crate) fn prepare<'f>(
             };
             resources.inputs.ordered = Some(admitted.acquire_derived(
                 use_,
-                ryo_execution_store::application::file_dag::derived::owner::ViewContext::default(),
-                ryo_execution_store::application::file_dag::workspace::ViewInputs::Text(&texts),
+                ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
+                ryo_execution_store::application::file_dag::workspace::types::ViewInputs::Text(&texts),
             )?);
         }
         ResourceProgram::Dfs(_) => {
@@ -248,8 +248,8 @@ pub(crate) fn prepare<'f>(
             let use_ = prepared(contract, DerivedKind::OrderedDfs)?;
             resources.inputs.dfs = Some(admitted.acquire_derived(
                 use_,
-                ryo_execution_store::application::file_dag::derived::owner::ViewContext::default(),
-                ryo_execution_store::application::file_dag::workspace::ViewInputs::Dfs {
+                ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
+                ryo_execution_store::application::file_dag::workspace::types::ViewInputs::Dfs {
                     symbols: &mut context.symbols,
                     source: context.source,
                     paths: context.paths,
@@ -288,10 +288,10 @@ pub(crate) fn prepare<'f>(
                             .ok_or(OperatingError::NotRun)?
                             .primary
                             .as_ref(),
-                        ryo_execution_store::application::file_dag::derived::owner::ViewContext::ordered(
+                        ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::ordered(
                             ryo_execution_store::application::file_dag::derived::owner::types::MembershipOrder(1),
                         ),
-                        ryo_execution_store::application::file_dag::workspace::ViewInputs::MembershipNative,
+                        ryo_execution_store::application::file_dag::workspace::types::ViewInputs::MembershipNative,
                     )?,
                 ),
                 AxisMode::Indexed { .. } => Some(
@@ -301,8 +301,8 @@ pub(crate) fn prepare<'f>(
                             .ok_or(OperatingError::NotRun)?
                             .primary
                             .as_ref(),
-                        ryo_execution_store::application::file_dag::derived::owner::ViewContext::default(),
-                        ryo_execution_store::application::file_dag::workspace::ViewInputs::MembershipValues,
+                        ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
+                        ryo_execution_store::application::file_dag::workspace::types::ViewInputs::MembershipValues,
                     )?,
                 ),
             };

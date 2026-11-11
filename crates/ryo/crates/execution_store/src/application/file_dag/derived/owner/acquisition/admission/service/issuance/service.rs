@@ -1,7 +1,6 @@
 //! Only this private issuer binds actual source proofs and owner admission.
 use super::super::*;
-use crate::application::file_dag::derived::owner::DerivedOwner;
-use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
+use crate::application::file_dag::derived::owner::service::DerivedOwner;
 impl AcquisitionOrigin {
     pub(crate) fn validate(
         &self,
@@ -67,8 +66,9 @@ impl AdmittedViewInputs<'_> {
                 .into_iter()
                 .zip(admitted_rows)
                 .all(|(actual, admitted)| {
-                    crate::application::file_dag::relations::same_admitted_rows(actual, *admitted)
-                        == crate::application::file_dag::relations::types::Sameness::Same
+                    crate::application::file_dag::relations::service::same_admitted_rows(
+                        actual, *admitted,
+                    ) == crate::application::file_dag::relations::types::Sameness::Same
                 })
         {
             return Err(OperatingError::NotRead);
@@ -87,7 +87,7 @@ impl DerivedOwner {
     pub fn admit_view<'a>(
         &self,
         plan: &Arc<DerivedContract>,
-        owner: &crate::application::file_dag::relations::RelationOwner,
+        owner: &crate::application::file_dag::relations::service::RelationOwner,
         proofs: &[&crate::application::file_dag::relations::admission::service::BorrowedInput<
             'a,
         >],
@@ -113,7 +113,7 @@ impl DerivedOwner {
     pub(crate) fn admit_partition<'a>(
         &self,
         plan: &Arc<DerivedContract>,
-        owner: &crate::application::file_dag::relations::RelationOwner,
+        owner: &crate::application::file_dag::relations::service::RelationOwner,
         proof: &crate::application::file_dag::relations::admission::service::BorrowedInput<'a>,
         parent: &AcquiredView,
     ) -> Result<AdmittedViewInputs<'a>, OperatingError> {
@@ -136,7 +136,7 @@ impl DerivedOwner {
     fn graph_sources<'a>(
         &self,
         plan: &Arc<DerivedContract>,
-        input: &crate::application::file_dag::workspace::GraphInput<'a>,
+        input: &crate::application::file_dag::workspace::service::GraphInput<'a>,
     ) -> Result<AdmittedViewInputs<'a>, OperatingError> {
         let mut admitted = input.admission(plan)?;
         admitted.origin.populations = vec![input.population()?];
@@ -150,7 +150,7 @@ impl DerivedOwner {
     pub(crate) fn admit_graph<'a>(
         &self,
         plan: &Arc<DerivedContract>,
-        input: &crate::application::file_dag::workspace::GraphInput<'a>,
+        input: &crate::application::file_dag::workspace::service::GraphInput<'a>,
     ) -> Result<AdmittedViewInputs<'a>, OperatingError> {
         if plan.kind != DerivedKind::Adjacency {
             return Err(OperatingError::WrongOperation);
@@ -160,7 +160,7 @@ impl DerivedOwner {
     pub(crate) fn admit_domain<'a>(
         &self,
         plan: &Arc<DerivedContract>,
-        input: &crate::application::file_dag::workspace::GraphInput<'a>,
+        input: &crate::application::file_dag::workspace::service::GraphInput<'a>,
         parent: &AcquiredView,
     ) -> Result<AdmittedViewInputs<'a>, OperatingError> {
         if plan.kind != DerivedKind::Membership {

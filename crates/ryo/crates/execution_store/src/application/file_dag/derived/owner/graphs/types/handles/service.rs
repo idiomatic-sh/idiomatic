@@ -7,7 +7,7 @@ use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::ledger::service::ResourceLease;
 use crate::application::file_dag::derived::ledger::types::Backing;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
-use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
+use crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
 use crate::application::file_dag::derived::owner::graphs::types::retained::types::ReachedVertices;
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 use ryo_derived::domain::positions::types::DenseMarks;
@@ -24,7 +24,7 @@ pub(crate) struct GraphHandle {
 }
 impl GraphHandle {
     pub(crate) fn new(
-        owner: &crate::application::file_dag::derived::owner::DerivedOwner,
+        owner: &crate::application::file_dag::derived::owner::service::DerivedOwner,
         acquired: AcquiredView,
         orientation: Orientation,
         sharing: GraphSharing,
@@ -68,7 +68,7 @@ impl GraphHandle {
     }
     pub(crate) fn validate_owner(
         &self,
-        owner: &crate::application::file_dag::derived::owner::DerivedOwner,
+        owner: &crate::application::file_dag::derived::owner::service::DerivedOwner,
     ) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
         self.acquired.validate_owner(owner)
     }
@@ -83,7 +83,7 @@ pub(crate) struct DomainHandle {
 }
 impl DomainHandle {
     pub(crate) fn new(
-        owner: &crate::application::file_dag::derived::owner::DerivedOwner,
+        owner: &crate::application::file_dag::derived::owner::service::DerivedOwner,
         parent: &GraphHandle,
         acquired: AcquiredView,
         domain: Arc<GraphDomain>,
@@ -121,7 +121,7 @@ impl DomainHandle {
     }
     pub(crate) fn validate_owner(
         &self,
-        owner: &crate::application::file_dag::derived::owner::DerivedOwner,
+        owner: &crate::application::file_dag::derived::owner::service::DerivedOwner,
         graph: &GraphHandle,
     ) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
         self.acquired.validate_owner(owner)?;

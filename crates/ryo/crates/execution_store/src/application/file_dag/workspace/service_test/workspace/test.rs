@@ -1,18 +1,20 @@
 //! Actual view acquisition consumes one immutable proof and refuses stale/mismatched publications.
-use super::super::super::*;
+use super::super::super::service::*;
+use super::super::super::types::*;
 use super::fixtures::{context, owner, table, use_};
-use crate::application::file_dag::derived::owner::ViewContext;
+use crate::application::file_dag::derived::owner::service::ViewContext;
 use crate::application::file_dag::relations::handle::service::Publication;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_derived::domain::contract::types::DerivedView;
-use ryo_execution_domain::domain::{
-    derived_views::types::*, operating::errors::OperatingError, table_model::types::Rows,
-};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::{derived_views::types::*, table_model::types::Rows};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value as CellValue,
 };
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::plan_parts::types::InputNumber;
 use std::rc::Rc;
 
 fn admission_requires_a_live_matching_publication_in_test_builds_too() {

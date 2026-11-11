@@ -21,7 +21,7 @@ use ryo_relations::domain::relations::types::Relation;
 /// What a presence test reads: the file's rows, the texts its comparisons resolve, and the request's prepared matchers.
 struct PresenceRead<'r, 'facts> {
     read: &'r dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
-    owner: &'r ryo_execution_store::application::file_dag::relations::RelationOwner,
+    owner: &'r ryo_execution_store::application::file_dag::relations::service::RelationOwner,
     execution: &'r crate::application::file_dag::program::runtime::service::ProgramExecution,
     texts: &'r ryo_execution_domain::domain::table_texts::types::Texts<'r>,
     matchers: &'r ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers,

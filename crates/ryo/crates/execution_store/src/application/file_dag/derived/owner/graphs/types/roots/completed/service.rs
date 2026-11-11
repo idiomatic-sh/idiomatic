@@ -5,10 +5,10 @@ use super::super::super::{
 };
 use crate::application::file_dag::derived::{
     ledger::{
-        capacity::{arc_bytes, vector},
+        capacity::{service::arc_bytes, service::vector},
         types::{Backing, BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount},
     },
-    owner::DerivedOwner,
+    owner::service::DerivedOwner,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::sync::Arc;

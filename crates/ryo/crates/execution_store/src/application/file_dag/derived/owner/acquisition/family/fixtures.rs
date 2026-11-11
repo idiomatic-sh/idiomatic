@@ -7,7 +7,9 @@ use self::demand::demand;
 use self::request::{observed, request};
 use crate::application::file_dag::relations::publication::types::ProducerScope;
 use crate::application::file_dag::relations::types::ProducerId;
-use crate::application::file_dag::{fixtures::program_derived_port, relations::RelationOwner};
+use crate::application::file_dag::{
+    fixtures::program_derived_port, relations::service::RelationOwner,
+};
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{

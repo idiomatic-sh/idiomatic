@@ -1,5 +1,19 @@
 //! Source custody: publishing supplied inputs as owner-issued publications.
+use crate::application::file_dag::relations::handle::service::PublishedInput;
+use crate::application::file_dag::relations::publication::types::RelationBody;
+use crate::application::file_dag::relations::publication::types::RelationResult;
+use crate::application::file_dag::relations::service::*;
+use crate::application::file_dag::relations::types::*;
 use crate::application::file_dag::relations::*;
+use rustc_hash::FxHashMap;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::table_model::types::PhysicalShape;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::{service::registered, types::Rows};
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::rows::types::Table;
+use std::sync::Arc;
+use std::sync::OnceLock;
 impl RelationOwner {
     /// Publishes the rows of a source relation.
     pub(crate) fn source(
@@ -18,10 +32,10 @@ impl RelationOwner {
             other => other,
         };
         if let Some(found) = self.sources.borrow().get(&relation) {
-            if identity::matches(&found.population, population) == Sameness::Different {
+            if identity::service::matches(&found.population, population) == Sameness::Different {
                 return Err(OperatingError::NotRead);
             }
-            if let Some(view) = found.views.get(&identity::describe(relation, raw)) {
+            if let Some(view) = found.views.get(&identity::service::describe(relation, raw)) {
                 return Ok(view.clone());
             }
         }
@@ -31,7 +45,7 @@ impl RelationOwner {
             producer_scope: OnceLock::new(),
             generation: Arc::clone(&self.generation.borrow()),
 
-            body: RelationBody::Source(identity::describe(relation, raw)),
+            body: RelationBody::Source(identity::service::describe(relation, raw)),
             inspected: OnceLock::new(),
             normalized: OnceLock::new(),
         });
@@ -41,7 +55,7 @@ impl RelationOwner {
             let entry = match sources.entry(relation) {
                 std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
                 std::collections::hash_map::Entry::Vacant(entry) => entry.insert(SourceViews {
-                    population: identity::describe(relation, population),
+                    population: identity::service::describe(relation, population),
                     // Graph aliases share a separate admitted ID. Pinning a
                     // graph source must not promote unrelated ordinary views
                     // keyed by the raw relation's primary population.
@@ -51,12 +65,8 @@ impl RelationOwner {
             };
             entry
                 .views
-                .insert(identity::describe(relation, raw), result.clone());
-            self.views.set(
-                crate::application::file_dag::relations::types::PinnedViewCount(
-                    self.views.get().0 + 1,
-                ),
-            );
+                .insert(identity::service::describe(relation, raw), result.clone());
+            self.views.set(PinnedViewCount(self.views.get().0 + 1));
         }
         Ok(result)
     }

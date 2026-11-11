@@ -1,6 +1,11 @@
 //! Test-only observations of actual owner backing and selection state.
-use crate::application::file_dag::derived::owner::*;
+use crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
+use crate::application::file_dag::derived::owner::service::*;
+use crate::application::file_dag::derived::population::service::PopulationId;
+use ryo_derived::domain::request::types::DerivedKind;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::Relation;
+use std::sync::{Arc, Weak};
 /// What a proof observes of the owner's invocation indexes.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct IndexObservation {

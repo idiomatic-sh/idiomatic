@@ -32,7 +32,10 @@ pub(crate) enum IndexResource<'f> {
 impl<'f> IndexResource<'f> {
     pub(super) fn acquired(
         contract: &OperatorContract,
-        admission: &ryo_execution_store::application::file_dag::workspace::InputAdmissions<'_, 'f>,
+        admission: &ryo_execution_store::application::file_dag::workspace::service::InputAdmissions<
+            '_,
+            'f,
+        >,
         context: &mut OperatorContext<'_>,
         empty: EmptyInput,
     ) -> Result<Self, OperatingError> {

@@ -22,7 +22,7 @@ pub(crate) fn slot<T>(entries: &Vec<T>) -> Option<Reserve<T>> {
     {
         return None;
     }
-    let metadata = crate::application::file_dag::derived::ledger::capacity::checked::<T>(
+    let metadata = crate::application::file_dag::derived::ledger::capacity::service::checked::<T>(
         SlotCount(replacement.capacity().checked_sub(entries.capacity())?),
     )?;
     Some(Reserve {

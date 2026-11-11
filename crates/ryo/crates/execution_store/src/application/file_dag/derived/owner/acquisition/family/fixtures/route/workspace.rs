@@ -9,10 +9,10 @@ use crate::application::file_dag::derived::owner::acquisition::family::fixtures:
     SmallTree, numbers, small_tree,
 };
 use crate::application::file_dag::{
-    derived::owner::{ViewContext, acquisition::admission::service::AcquiredView},
+    derived::owner::{acquisition::admission::service::AcquiredView, service::ViewContext},
     fixtures::program_derived_port,
-    relations::RelationOwner,
-    workspace::{InputAdmissions, InvocationWorkspace, ViewInputs},
+    relations::service::RelationOwner,
+    workspace::{service::InputAdmissions, service::InvocationWorkspace, types::ViewInputs},
 };
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::table_cells::fixtures::SMALL_SOURCE;

@@ -85,7 +85,7 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
 pub(super) fn evaluate(
     semantics: &dyn ryo_execution_domain::domain::operating::types::PrimitiveSemantics,
     shape: &ryo_execution_domain::domain::executable_program::types::OrderedExistence,
-    admitted: &ryo_execution_store::application::file_dag::relations::number::service::AdmittedNumber<'_>,
+    admitted: &ryo_execution_store::application::file_dag::relations::number::service::service::AdmittedNumber<'_>,
     rows: RepresentationInput<'_>,
     context: &mut ryo_execution_domain::domain::operator::types::OperatorContext<'_>,
     row: &mut Vec<Value>,

@@ -58,3 +58,186 @@ impl<T: DerivedPort + 'static> From<Arc<T>> for DerivedAccess {
         Self { port }
     }
 }
+
+use super::acquisition::semantics::storage::service::DerivedStorage;
+#[cfg(test)]
+use super::types::ReleasedEntries;
+use super::types::{
+    BuildCounts, Entry, EntryLimit, FilePreparation, Key, MembershipOrder, PinCount, ScopeId,
+    State, ViewCount,
+};
+use crate::application::file_dag::derived::ledger::types::ByteCount;
+use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
+use crate::application::file_dag::derived::population::service::PopulationId;
+use ryo_execution_domain::domain::{
+    derived_views::types::{contract::value::DerivedContract, *},
+    operating::errors::OperatingError,
+};
+use std::{cell::RefCell, sync::Weak};
+
+/// Runtime semantic dependencies that are not columns: candidate filter and exact dense ordering.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+pub struct ViewContext {
+    pub(crate) candidate: Option<super::graph_key::service::PreparedIdentity>,
+    pub(crate) literals: Option<Arc<[ryo_values::domain::plan_parts::types::LiteralText]>>,
+    pub(crate) membership_order: Option<MembershipOrder>,
+}
+
+impl ViewContext {
+    /// The context of a membership view whose members keep the dense order `order`.
+    pub fn ordered(order: MembershipOrder) -> Self {
+        Self {
+            membership_order: Some(order),
+            ..Self::default()
+        }
+    }
+    #[cfg(test)]
+    pub(crate) fn for_predicate(plan: &Arc<DerivedContract>) -> Self {
+        Self {
+            candidate: Some(super::graph_key::service::PreparedIdentity::new(plan)),
+            ..Self::default()
+        }
+    }
+}
+
+/// The file-local owner of derived views: it acquires, retains, accounts for and releases them.
+pub struct DerivedOwner {
+    pub(super) identity: Arc<()>,
+    pub(super) semantic: DerivedAccess,
+    pub(super) next_scope: std::cell::Cell<ScopeId>,
+    #[cfg(any(test, feature = "fixtures"))]
+    pub(super) last_scoped_storage: RefCell<Weak<DerivedStorage>>,
+    pub(super) ledger: std::rc::Rc<RefCell<super::super::ledger::service::Ledger>>,
+    pub(super) backend: RefCell<Option<CacheBackend>>,
+    pub(super) file_prepared: std::cell::Cell<FilePreparation>,
+    pub(super) state: RefCell<State>,
+    pub(super) max_entries: EntryLimit,
+    /// The route profile its relation owner hands down.
+    pub(super) routes: crate::application::file_dag::route_counts::profile::service::RouteProfile,
+}
+
+impl DerivedOwner {
+    /// Prepares the contract of a view request against its input schemas.
+    ///
+    /// # Errors
+    ///
+    /// None in practice: preparation records a schema the semantic capability refuses in the contract, which its
+    /// validation returns.
+    #[cfg(any(test, feature = "fixtures"))]
+    pub fn prepare_view(
+        &self,
+        request: &ViewRequest,
+        schemas: &[ryo_execution_domain::domain::operation_schema::types::InputShape<'_>],
+    ) -> Result<DerivedContract, OperatingError> {
+        super::super::prepare::service::view(self.semantic.clone(), request, schemas)
+    }
+
+    pub(crate) fn new(
+        max_entries: EntryLimit,
+        semantic: impl Into<DerivedAccess>,
+        routes: crate::application::file_dag::route_counts::profile::service::RouteProfile,
+    ) -> Self {
+        Self {
+            identity: Arc::new(()),
+            semantic: semantic.into(),
+            next_scope: std::cell::Cell::new(ScopeId(0)),
+            #[cfg(any(test, feature = "fixtures"))]
+            last_scoped_storage: RefCell::new(Weak::new()),
+            ledger: std::rc::Rc::new(RefCell::new(
+                super::super::ledger::service::Ledger::default(),
+            )),
+            state: RefCell::new(State::default()),
+            backend: RefCell::new(None),
+            file_prepared: std::cell::Cell::new(FilePreparation::Unprepared),
+            max_entries,
+            routes,
+        }
+    }
+    /// How many views were built, reused and refused.
+    pub fn counts(&self) -> BuildCounts {
+        let state = self.state.borrow();
+        BuildCounts(state.builds, state.hits, state.refusals)
+    }
+    /// The working bytes the owner's views hold now.
+    pub fn working_bytes(&self) -> ByteCount {
+        self.state.borrow().required_bytes
+    }
+    pub(crate) fn peak_working_bytes(&self) -> ByteCount {
+        self.state.borrow().peak_required_bytes
+    }
+    /// The bytes the owner retains across invocations.
+    pub fn retained_bytes(&self) -> ByteCount {
+        self.state.borrow().retained_bytes
+    }
+    pub(crate) fn required_backend_overlap(&self) -> ByteCount {
+        self.state.borrow().required_backend_bytes
+    }
+    pub(crate) fn peak_required_views(&self) -> ViewCount {
+        self.state.borrow().peak_required_views
+    }
+    /// The bytes the owner holds in all.
+    pub fn owned_bytes(&self) -> ByteCount {
+        let state = self.state.borrow();
+        ByteCount(
+            state
+                .required_bytes
+                .saturating_add(state.retained_bytes)
+                .0
+                .saturating_sub(state.overlap_bytes.0),
+        )
+    }
+    pub(crate) fn metadata_bytes(&self) -> ByteCount {
+        use crate::application::file_dag::derived::ledger::{
+            capacity::{service::saturating, service::table},
+            types::SlotCount,
+        };
+        let state = self.state.borrow();
+        let plans = state
+            .entries
+            .keys()
+            .map(|key| key.plan.metadata_bytes().0)
+            .sum::<usize>();
+        let spare = state
+            .spare_dependencies
+            .iter()
+            .map(|keys| saturating::<Key>(SlotCount(keys.capacity())).0)
+            .sum::<usize>();
+        let dependent_keys = state
+            .dependents
+            .values()
+            .map(|keys| saturating::<Key>(SlotCount(keys.capacity())).0)
+            .sum::<usize>();
+        ByteCount(
+            plans
+                + table::<(Key, Entry)>(SlotCount(state.entries.capacity()))
+                    .0
+                    .saturating_mul(2)
+                + table::<(PopulationId, PinCount)>(SlotCount(state.pins.capacity()))
+                    .0
+                    .saturating_mul(2)
+                + table::<(PopulationId, Vec<Key>)>(SlotCount(state.dependents.capacity()))
+                    .0
+                    .saturating_mul(2)
+                + dependent_keys
+                + saturating::<Vec<Key>>(SlotCount(state.spare_dependencies.capacity())).0
+                + spare,
+        )
+    }
+}
+
+#[cfg(test)]
+impl DerivedOwner {
+    pub(crate) fn released_entries(&self) -> ReleasedEntries {
+        self.state.borrow().released_entries
+    }
+}
+
+pub(super) fn link(state: &mut State, key: Key, populations: &[PopulationId]) {
+    for &population in populations {
+        state
+            .dependents
+            .entry(population)
+            .or_insert_with(|| state.spare_dependencies.pop().unwrap_or_default())
+            .push(key.clone());
+    }
+}

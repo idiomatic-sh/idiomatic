@@ -15,8 +15,8 @@ use ryo_execution_domain::domain::{
     source_partitions::types::{PartitionRequirement, ProducerPartitions},
     table_model::types::Rows,
 };
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
+use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 use ryo_relations::domain::{
     relations::{
         service::kinds,

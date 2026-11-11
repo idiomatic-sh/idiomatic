@@ -4,7 +4,7 @@ use super::fixtures::{ENDPOINTS, SOURCE, graph_of};
 use crate::application::file_dag::derived::owner::{
     fixtures::graph::GraphFixture, index::service::LIMIT,
 };
-use crate::application::file_dag::relations::RelationOwner;
+use crate::application::file_dag::relations::service::RelationOwner;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_model::types::Rows;
@@ -122,7 +122,10 @@ fn axis_graph(owner: &std::rc::Rc<RelationOwner>) -> Result<Answer, OperatingErr
 /// Builds the owner in the demanded state and asks it.
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
-        Demand::Unprepared => project_owner().derived().graph_cache().map(|_| Answer::Ready),
+        Demand::Unprepared => project_owner()
+            .derived()
+            .graph_cache()
+            .map(|_| Answer::Ready),
         Demand::Prepared => GraphFixture::new(&[Relation::Function], &[], LIMIT)
             .cache_ready()
             .map(|()| Answer::Ready),

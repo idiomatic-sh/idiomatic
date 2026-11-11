@@ -9,7 +9,13 @@ use crate::application::file_dag::derived::owner::acquisition::admission::servic
 use crate::application::file_dag::derived::owner::acquisition::population::types::{
     Construction, InvocationStorage,
 };
-use crate::application::file_dag::derived::owner::*;
+use crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
+use crate::application::file_dag::derived::owner::service::*;
+use ryo_execution_domain::domain::{
+    derived_views::types::{contract::value::DerivedContract, *},
+    operating::errors::OperatingError,
+};
+use std::sync::Arc;
 
 impl DerivedOwner {
     pub(crate) fn scoped_build(
@@ -48,13 +54,16 @@ impl DerivedOwner {
             ryo_derived::domain::footprint::service::working_bytes(&scratch.semantic)
                 .map_err(ryo_execution_domain::domain::operating::service::derived_fault)?
                 .0;
-        let scratch_bytes = crate::application::file_dag::derived::ledger::capacity::checked::<
-            ryo_relations::domain::relations::types::Value,
-        >(
-            crate::application::file_dag::derived::ledger::types::SlotCount(scratch.row.capacity()),
-        )
-        .and_then(|bytes| bytes.0.checked_add(semantic_bytes))
-        .ok_or(OperatingError::ShapeMismatch)?;
+        let scratch_bytes =
+            crate::application::file_dag::derived::ledger::capacity::service::checked::<
+                ryo_relations::domain::relations::types::Value,
+            >(
+                crate::application::file_dag::derived::ledger::types::SlotCount(
+                    scratch.row.capacity(),
+                ),
+            )
+            .and_then(|bytes| bytes.0.checked_add(semantic_bytes))
+            .ok_or(OperatingError::ShapeMismatch)?;
         backings.push(Backing {
             key: BackingKey {
                 tag: BackingTag(16),
@@ -90,9 +99,10 @@ impl DerivedOwner {
             construction,
         } = build()?;
         let mut required =
-            crate::application::file_dag::derived::owner::backings::view(&storage)?.to_vec();
+            crate::application::file_dag::derived::owner::backings::service::view(&storage)?
+                .to_vec();
         for backing in backings {
-            crate::application::file_dag::derived::ledger::lease::append_backing(
+            crate::application::file_dag::derived::ledger::lease::service::append_backing(
                 &mut required,
                 *backing,
             )?;

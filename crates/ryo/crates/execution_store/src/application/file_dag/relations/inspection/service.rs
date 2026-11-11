@@ -1,6 +1,21 @@
 //! ResidentGeneration checks, identity matches, resolution and physical inspection of publications.
+use crate::application::file_dag::relations::handle::service::PublishedInput;
+use crate::application::file_dag::relations::publication::types::RelationBody;
+use crate::application::file_dag::relations::publication::types::RelationResult;
+use crate::application::file_dag::relations::service::*;
 use crate::application::file_dag::relations::types::NormalizationCharge;
+use crate::application::file_dag::relations::types::{CheckCount, Sameness};
 use crate::application::file_dag::relations::*;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::table_model::types::PhysicalShape;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::{
+    service::{materialize, registered},
+    types::{PublishedRelation, Rows},
+};
+use ryo_relations::domain::relations::types::{CellKind, Relation};
+use ryo_values::domain::rows::types::Table;
+use std::sync::Arc;
 impl RelationOwner {
     /// The cell kinds of a publication.
     pub(crate) fn publication_kinds<'a>(
@@ -49,7 +64,7 @@ impl RelationOwner {
             return Sameness::Same;
         }
         match &result.body {
-            RelationBody::Source(source) => identity::matches(source, input),
+            RelationBody::Source(source) => identity::service::matches(source, input),
             RelationBody::Computed(table) => {
                 if matches!(input, RepresentationInput::Computed(actual) if std::ptr::eq(actual, table.as_ref()))
                 {
@@ -81,7 +96,7 @@ impl RelationOwner {
         match &result.body {
             RelationBody::Source(source) => {
                 let rows = read(source.relation)?;
-                if identity::matches(source, RepresentationInput::from(&rows))
+                if identity::service::matches(source, RepresentationInput::from(&rows))
                     == Sameness::Different
                 {
                     return Err(OperatingError::NotRead);
@@ -133,14 +148,12 @@ impl RelationOwner {
                     entry
                         .views
                         .retain(|_, view| !std::ptr::eq(view.as_ref(), result));
-                    self.views.set(
-                        crate::application::file_dag::relations::types::PinnedViewCount(
-                            self.views
-                                .get()
-                                .0
-                                .saturating_sub(before - entry.views.len()),
-                        ),
-                    );
+                    self.views.set(types::PinnedViewCount(
+                        self.views
+                            .get()
+                            .0
+                            .saturating_sub(before - entry.views.len()),
+                    ));
                 }
             }
         }

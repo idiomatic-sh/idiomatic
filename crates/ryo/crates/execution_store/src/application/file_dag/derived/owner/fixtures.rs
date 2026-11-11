@@ -32,7 +32,7 @@ pub(crate) fn prepare_view(
     rows: &Rows<'_>,
 ) -> Arc<DerivedContract> {
     Arc::new(
-        super::super::prepare::view(
+        super::super::prepare::service::view(
             semantic,
             &request,
             &[InputShape {

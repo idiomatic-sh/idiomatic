@@ -1,30 +1,12 @@
 //! Required sharing and optional retention are independent ownership decisions.
-use super::super::super::*;
-use crate::application::file_dag::derived::ledger::types::ByteCount;
-use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
-use crate::application::file_dag::derived::population::service::PopulationId;
-use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
-use crate::application::file_dag::derived::owner::footprint::service::storage_bytes;
-use rustc_hash::FxHashMap;
-use ryo_execution_domain::domain::{
-    derived_views::types::{contract::value::DerivedContract, *},
-    operating::errors::OperatingError,
-};
-use std::{
-    cell::RefCell,
-    sync::{Arc, Weak},
-};
-use crate::application::file_dag::derived::owner::types::{
-    AdmissionOrder, BuildCount, BuildCounts, EntryLimit, FilePreparation, HitCount,
-    IdentityCompatibility, MembershipOrder, MemoBudget, PinCount, PinState, PopulationCount,
-    ReclaimOutlook, RefusalCount, ReleasedEntries, Room, ScopeId, ViewCount,
-};
-use crate::application::file_dag::derived::owner::graph_key::{GraphRequirement, GraphViewIdentity, RequirementIdentity};
-use ryo_derived::domain::request::types::DerivedKind;
 use super::super::super::service::*;
-use super::super::super::types::*;
 use super::super::fixtures::{acquire, owner, plan, population, source};
+use crate::application::file_dag::derived::owner::types::{
+    BuildCount, BuildCounts, EntryLimit, HitCount, MembershipOrder, RefusalCount,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::derived_views::types::*;
+use std::sync::Arc;
 
 use crate::application::file_dag::derived::owner::index::service as indexes;
 use crate::application::file_dag::derived::owner::index::types::ByteLimit;
@@ -144,11 +126,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(input: Input) -> Result<Value, Failure> {
     let plan = plan();
     let mut scratch = DerivedScratch::default();
-    let computed = |relation_owner: &crate::application::file_dag::relations::RelationOwner| {
-        relation_owner
-            .computed(source())
-            .map_err(|error| format!("{error:?}"))
-    };
+    let computed =
+        |relation_owner: &crate::application::file_dag::relations::service::RelationOwner| {
+            relation_owner
+                .computed(source())
+                .map_err(|error| format!("{error:?}"))
+        };
     Ok(match input {
         Acquired::TwicePinned => {
             let relation_owner = owner(EntryLimit(0));
@@ -159,9 +142,23 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let mut cache = indexes::new(&[], &[], ByteLimit(4096)).ok_or("no index cache")?;
             cache.limit.0 = 0;
             drop(owner.backend.borrow_mut().replace(cache));
-            let first = acquire(&relation_owner, &plan, &publication, ViewContext::default(), &mut scratch);
-            let second = acquire(&relation_owner, &plan, &publication, ViewContext::default(), &mut scratch);
-            let DerivedView::PartitionOrder(rows) = first.view().map_err(|error| format!("{error:?}"))? else {
+            let first = acquire(
+                &relation_owner,
+                &plan,
+                &publication,
+                ViewContext::default(),
+                &mut scratch,
+            );
+            let second = acquire(
+                &relation_owner,
+                &plan,
+                &publication,
+                ViewContext::default(),
+                &mut scratch,
+            );
+            let DerivedView::PartitionOrder(rows) =
+                first.view().map_err(|error| format!("{error:?}"))?
+            else {
                 return Err("not a prepared ordering view".to_owned());
             };
             let mut order = [usize::MAX; 3];
@@ -192,11 +189,23 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let relation_owner = owner(EntryLimit(1));
             let owner = relation_owner.derived();
             let publication = computed(&relation_owner)?;
-            let first = acquire(&relation_owner, &plan, &publication, ViewContext::default(), &mut scratch);
+            let first = acquire(
+                &relation_owner,
+                &plan,
+                &publication,
+                ViewContext::default(),
+                &mut scratch,
+            );
             let weak = Arc::downgrade(first.storage());
             drop(first);
             let alive_before = weak.upgrade().is_some();
-            let second = acquire(&relation_owner, &plan, &publication, ViewContext::default(), &mut scratch);
+            let second = acquire(
+                &relation_owner,
+                &plan,
+                &publication,
+                ViewContext::default(),
+                &mut scratch,
+            );
             let replaced = Observed::Replaced {
                 alive_before,
                 alive_after: weak.upgrade().is_some(),
@@ -213,7 +222,13 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let initial_metadata = owner.metadata_bytes();
             for _ in 0..publications {
                 let publication = computed(&relation_owner)?;
-                drop(acquire(&relation_owner, &plan, &publication, ViewContext::default(), &mut scratch));
+                drop(acquire(
+                    &relation_owner,
+                    &plan,
+                    &publication,
+                    ViewContext::default(),
+                    &mut scratch,
+                ));
             }
             let state = owner.state.borrow();
             Observed::Missed {
@@ -230,8 +245,20 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let second_publication = computed(&relation_owner)?;
             owner.pin(population(&relation_owner, &first_publication));
             owner.pin(population(&relation_owner, &second_publication));
-            let first = acquire(&relation_owner, &plan, &first_publication, ViewContext::default(), &mut scratch);
-            let other_population = acquire(&relation_owner, &plan, &second_publication, ViewContext::default(), &mut scratch);
+            let first = acquire(
+                &relation_owner,
+                &plan,
+                &first_publication,
+                ViewContext::default(),
+                &mut scratch,
+            );
+            let other_population = acquire(
+                &relation_owner,
+                &plan,
+                &second_publication,
+                ViewContext::default(),
+                &mut scratch,
+            );
             let other_context = acquire(
                 &relation_owner,
                 &plan,

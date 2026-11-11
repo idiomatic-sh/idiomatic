@@ -1,7 +1,7 @@
 //! Sole source-capability issuer; every field is private to this module.
 use crate::application::file_dag::derived::ledger::service::ResourceLease;
 use crate::application::file_dag::derived::ledger::types::Backing;
-use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
+use crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
 use crate::application::file_dag::derived::population::service::PopulationId;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::request::types::DerivedKind;
@@ -117,7 +117,7 @@ pub(crate) struct AcquisitionOrigin {
     owner: Arc<()>,
     live: Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
     plan: Arc<DerivedContract>,
-    populations: Vec<crate::application::file_dag::derived::population::service::PopulationId>,
+    populations: Vec<PopulationId>,
     lifetime: AcquisitionLifetime,
 }
 /// Only acquisition admission binds actual immutable sources to their owner and descriptor.

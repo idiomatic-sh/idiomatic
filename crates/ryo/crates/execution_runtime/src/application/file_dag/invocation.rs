@@ -54,7 +54,9 @@ pub(crate) struct InvocationInputs<'f> {
     pub(crate) cycles: Option<AcquiredView>,
     pub(crate) closure: AcquiredPartitions,
     pub(crate) partitioned_closure: Option<
-        ryo_execution_store::application::file_dag::closure_partitions::PartitionedClosure<'f>,
+        ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure<
+            'f,
+        >,
     >,
     pub(crate) ordered: Option<AcquiredView>,
     pub(crate) dfs: Option<AcquiredView>,
@@ -125,10 +127,13 @@ impl<'f> InvocationResources<'f> {
 fn partitioned<'f>(
     contract: &OperatorContract,
     input: RepresentationInput<'f>,
-    admitted: &ryo_execution_store::application::file_dag::workspace::InputAdmissions<'_, 'f>,
+    admitted: &ryo_execution_store::application::file_dag::workspace::service::InputAdmissions<
+        '_,
+        'f,
+    >,
     context: &mut OperatorContext<'_>,
 ) -> Result<
-    ryo_execution_store::application::file_dag::closure_partitions::PartitionedClosure<'f>,
+    ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure<'f>,
     OperatingError,
 > {
     use ryo_derived::domain::request::types::DerivedKind;

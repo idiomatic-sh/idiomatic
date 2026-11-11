@@ -32,7 +32,9 @@ pub(crate) fn prepare_with_schemas<'s>(
     >,
 ) -> Result<RequestOperators, OperatingError> {
     let mut views =
-        ryo_execution_store::application::file_dag::derived::request::RequestViews::new(semantic);
+        ryo_execution_store::application::file_dag::derived::request::service::RequestViews::new(
+            semantic,
+        );
     ryo_execution_domain::domain::file_program::service::operators::prepare(
         plans,
         bindings,

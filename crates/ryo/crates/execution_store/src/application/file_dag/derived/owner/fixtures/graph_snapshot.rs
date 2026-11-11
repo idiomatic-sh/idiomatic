@@ -1,7 +1,7 @@
 //! The observed state of the owner and its cache after a fixture's actions.
 use super::graph::GraphFixture;
 #[cfg(test)]
-use crate::application::file_dag::derived::owner::*;
+use ryo_execution_domain::domain::derived_views::types::ViewRequest;
 #[cfg(test)]
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 

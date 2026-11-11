@@ -204,3 +204,56 @@ impl PartialOrd<usize> for ByteCount {
         self.0.partial_cmp(other)
     }
 }
+use super::acquisition::semantics::storage::service::DerivedStorage;
+use super::graph_key::service::RequirementIdentity;
+use super::service::ViewContext;
+use crate::application::file_dag::derived::population::service::PopulationId;
+use rustc_hash::FxHashMap;
+use ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract;
+use std::sync::{Arc, Weak};
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(super) struct Key {
+    pub(crate) plan: RequirementIdentity,
+    pub(crate) populations: [PopulationId; 2],
+    pub(crate) len: PopulationCount,
+    pub(crate) context: ViewContext,
+}
+
+pub(super) struct OwnedView {
+    pub(crate) storage: Arc<DerivedStorage>,
+    pub(crate) _lease: Arc<super::super::ledger::service::ResourceLease>,
+}
+
+pub(super) struct Entry {
+    pub(crate) admission: AdmissionOrder,
+    pub(crate) _plan: Arc<DerivedContract>,
+    pub(crate) weak: Weak<DerivedStorage>,
+    pub(crate) required: Option<OwnedView>,
+    pub(crate) retained: Option<OwnedView>,
+    pub(crate) backings: Arc<[super::super::ledger::types::Backing]>,
+    pub(crate) lease: Weak<super::super::ledger::service::ResourceLease>,
+    pub(crate) bytes: ByteCount,
+    pub(crate) working: ByteCount,
+    pub(crate) backend: ByteCount,
+}
+
+#[derive(Default)]
+pub(super) struct State {
+    pub(crate) next_admission: AdmissionOrder,
+    pub(crate) entries: hashbrown::HashMap<Key, Entry>,
+    pub(crate) pins: FxHashMap<PopulationId, PinCount>,
+    pub(crate) dependents: FxHashMap<PopulationId, Vec<Key>>,
+    pub(crate) spare_dependencies: Vec<Vec<Key>>,
+    pub(crate) released_entries: ReleasedEntries,
+    pub(crate) builds: BuildCount,
+    pub(crate) hits: HitCount,
+    pub(crate) refusals: RefusalCount,
+    pub(crate) required_bytes: ByteCount,
+    pub(crate) peak_required_bytes: ByteCount,
+    pub(crate) retained_bytes: ByteCount,
+    pub(crate) overlap_bytes: ByteCount,
+    pub(crate) required_views: ViewCount,
+    pub(crate) peak_required_views: ViewCount,
+    pub(crate) required_backend_bytes: ByteCount,
+}

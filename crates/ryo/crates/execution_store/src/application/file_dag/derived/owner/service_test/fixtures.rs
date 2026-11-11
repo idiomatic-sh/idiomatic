@@ -1,13 +1,20 @@
 //! The owner, its sources, plans and populations that the owner's case groups share.
+use super::super::service::*;
 use super::super::*;
-use crate::application::file_dag::derived::owner::index::service as indexes;
-use crate::application::file_dag::derived::owner::index::types::ByteLimit;
-use crate::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
-use ryo_derived::domain::contract::types::DerivedView;
+use crate::application::file_dag::derived::owner::types::EntryLimit;
+use crate::application::file_dag::derived::population::service::PopulationId;
+use crate::application::file_dag::relations::{
+    handle::service::PublishedInput, service::RelationOwner,
+};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::{
+    derived_views::types::{contract::value::DerivedContract, *},
+    operating::errors::OperatingError,
+};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::Table;
+use std::sync::Arc;
 use {
     ryo_execution_domain::domain::operation_schema::types::InputShape,
     ryo_values::domain::rows::service::push_row,
@@ -26,8 +33,8 @@ pub(super) fn source() -> Table {
 
 pub(super) fn plan() -> Arc<DerivedContract> {
     Arc::new(
-        crate::application::file_dag::derived::prepare::view(
-            std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
+        crate::application::file_dag::derived::prepare::service::view(
+            Arc::new(crate::application::file_dag::fixtures::derived()),
             &ViewRequest::PartitionOrder {
                 keys: vec![ColumnIndex(0)],
             },
@@ -63,7 +70,7 @@ pub(super) fn population(owner: &RelationOwner, publication: &PublishedInput) ->
 
 pub(super) fn pair_plan() -> Arc<DerivedContract> {
     Arc::new(
-        crate::application::file_dag::derived::prepare::view(
+        crate::application::file_dag::derived::prepare::service::view(
             crate::application::file_dag::fixtures::program_derived_port(),
             &ViewRequest::OrderedKeys {
                 left_on: vec![ColumnIndex(0)],

@@ -1,7 +1,7 @@
 //! Physical graph kernels publish completed immutable storage to the common owner.
 use super::types::{BuiltDomain, BuiltGraph};
 use crate::application::file_dag::derived::constants;
-use crate::application::file_dag::derived::ledger::lease::append_backing;
+use crate::application::file_dag::derived::ledger::lease::service::append_backing;
 use crate::application::file_dag::derived::ledger::types::{
     BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
 };
@@ -9,8 +9,8 @@ use crate::application::file_dag::derived::owner::acquisition::admission::servic
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
 use crate::application::file_dag::derived::{
-    owner::DerivedOwner, owner::cache::types::CacheBackend,
-    owner::graphs::types::handles::service::GraphHandle, population::service::PopulationId,
+    owner::cache::types::CacheBackend, owner::graphs::types::handles::service::GraphHandle,
+    owner::service::DerivedOwner, population::service::PopulationId,
 };
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError,

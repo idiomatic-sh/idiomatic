@@ -1,5 +1,6 @@
 //! Catalog-wide physical access and owner-only admission, independent of semantic completeness.
-use super::super::super::RelationOwner;
+use super::super::super::service::RelationOwner;
+use crate::application::file_dag::relations::publication::types::RelationResult;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
@@ -12,9 +13,213 @@ use ryo_relations::domain::relations::{
     types::{CellKind, ColumnsView, FileId, Integer, Relation, Value as CellValue},
 };
 use ryo_values::domain::stored_facts::types::PartialCause;
-use std::{cell::Cell, mem::size_of, sync::Arc};
+use std::{cell::Cell, sync::Arc};
 
-fn compact_publications_share_backing_accounting_and_expire_with_generation() {
+use super::fixtures::{columns, group, read, row};
+use crate::application::file_dag::relations::types::{CheckCount, Sameness};
+use std::borrow::Cow;
+
+/// The populations the owner publishes and is asked to admit, resolve and read.
+#[derive(Clone, Copy, Debug)]
+enum Published {
+    /// One compact table of the numbers 4 and 5, published twice, then its population released.
+    Compact,
+    /// Two stored rows of every catalog relation.
+    Catalog,
+    /// `FilesystemLineCount` rows whose buffer is reused for the next population.
+    ReusedBuffer,
+    /// `Function` rows the file's partials mark partial, published twice.
+    Partial,
+    /// `SourceLocation` rows whose second column is one row short, normalized twice.
+    Ragged,
+}
+
+/// What two publications of one compact table observed.
+#[derive(Debug, PartialEq)]
+struct Compact {
+    names: usize,
+    shape: ryo_values::domain::table_words::types::TableShape,
+    records: Sameness,
+    second_adds_only_its_record: bool,
+    first_charges_backing_once: bool,
+    rows: Cow<'static, [Cow<'static, [CellValue]>]>,
+    optional_bytes: usize,
+    backing_alive: [bool; 2],
+    released_first: Option<OperatingError>,
+    released_second: Option<OperatingError>,
+    consumer_keeps_backing: bool,
+    consumer_charged: bool,
+    backing_after_consumer: [bool; 2],
+    charge_after_consumer: (usize, usize, usize),
+}
+
+/// What publishing every catalog relation observed.
+#[derive(Debug, PartialEq)]
+struct Catalog {
+    complete: usize,
+    complete_again: usize,
+    asked_its_relation: usize,
+    read_its_rows: usize,
+    groups: [usize; 3],
+    checks: CheckCount,
+    reuses: CheckCount,
+}
+
+/// What a reused buffer observed across populations.
+#[derive(Debug, PartialEq)]
+struct Epoch {
+    original: Result<PhysicalShape, OperatingError>,
+    same_buffer: bool,
+    old_inspected: Option<OperatingError>,
+    old_resolved: Option<OperatingError>,
+    provider_reads: usize,
+    fresh_record: Sameness,
+    fresh: Result<PhysicalShape, OperatingError>,
+    checks: CheckCount,
+    reads_the_new_numbers: bool,
+    other_owner: Option<OperatingError>,
+}
+
+/// What a partial population observed.
+#[derive(Debug, PartialEq)]
+struct PartialPopulation {
+    record: Sameness,
+    shapes: [Result<PhysicalShape, OperatingError>; 2],
+    checks: CheckCount,
+    eligible: bool,
+}
+
+/// What normalizing a ragged population observed.
+#[derive(Debug, PartialEq)]
+struct Normalized {
+    one_table: bool,
+    reads_the_first_row_alone: bool,
+    second_reads_the_same: bool,
+    checks: CheckCount,
+}
+
+/// What the owner observed.
+#[derive(Debug, PartialEq)]
+enum Observed {
+    Compact(Compact),
+    Catalog(Catalog),
+    Epoch(Epoch),
+    Partial(PartialPopulation),
+    Normalized(Normalized),
+}
+
+type Input = Published;
+type Value = Observed;
+type Failure = OperatingError;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "compact_publications_share_backing_accounting_and_expire_with_generation",
+        ),
+        word: Word::Succeeds,
+        input: || Published::Compact,
+        expect: Expect::Value(Observed::Compact(Compact {
+            names: 0,
+            shape: ryo_values::domain::table_words::types::TableShape::Rectangular,
+            records: Sameness::Different,
+            second_adds_only_its_record: true,
+            first_charges_backing_once: true,
+            rows: Cow::Borrowed(&[
+                Cow::Borrowed(&[CellValue::Number(Integer(4))]),
+                Cow::Borrowed(&[CellValue::Number(Integer(5))]),
+            ]),
+            optional_bytes: 0,
+            backing_alive: [true, true],
+            released_first: Some(OperatingError::NotRead),
+            released_second: Some(OperatingError::NotRead),
+            consumer_keeps_backing: true,
+            consumer_charged: true,
+            backing_after_consumer: [false, false],
+            charge_after_consumer: (0, 0, 0),
+        })),
+    },
+    Case {
+        name: CaseName(
+            "every_catalog_relation_is_admitted_resolved_and_read_with_its_actual_schema",
+        ),
+        word: Word::Succeeds,
+        input: || Published::Catalog,
+        expect: Expect::Value(Observed::Catalog(Catalog {
+            complete: 69,
+            complete_again: 69,
+            asked_its_relation: 69,
+            read_its_rows: 69,
+            // 69 catalog relations, separately from five physical representations.
+            groups: [57, 8, 4],
+            checks: CheckCount(69),
+            reuses: CheckCount(69),
+        })),
+    },
+    Case {
+        name: CaseName(
+            "population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reused",
+        ),
+        word: Word::Succeeds,
+        input: || Published::ReusedBuffer,
+        expect: Expect::Value(Observed::Epoch(Epoch {
+            original: Ok(PhysicalShape::Complete),
+            same_buffer: true,
+            old_inspected: Some(OperatingError::NotRead),
+            old_resolved: Some(OperatingError::NotRead),
+            provider_reads: 0,
+            fresh_record: Sameness::Different,
+            fresh: Ok(PhysicalShape::Complete),
+            checks: CheckCount(2),
+            reads_the_new_numbers: true,
+            other_owner: Some(OperatingError::NotRead),
+        })),
+    },
+    Case {
+        name: CaseName(
+            "stable_partial_population_reuses_structure_without_proving_semantic_absence",
+        ),
+        word: Word::Succeeds,
+        input: || Published::Partial,
+        expect: Expect::Value(Observed::Partial(PartialPopulation {
+            record: Sameness::Same,
+            shapes: [Ok(PhysicalShape::Complete), Ok(PhysicalShape::Complete)],
+            checks: CheckCount(1),
+            eligible: false,
+        })),
+    },
+    Case {
+        name: CaseName("normalization_reuses_one_owned_fallback_without_promoting_missing_rows"),
+        word: Word::Succeeds,
+        input: || Published::Ragged,
+        expect: Expect::Value(Observed::Normalized(Normalized {
+            one_table: true,
+            reads_the_first_row_alone: true,
+            second_reads_the_same: true,
+            checks: CheckCount(1),
+        })),
+    },
+];
+
+fn fresh_owner() -> RelationOwner {
+    RelationOwner::new(
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        Arc::new(crate::application::file_dag::fixtures::derived()),
+    )
+}
+
+/// Publishes the input to a fresh owner and asks it as the input says.
+fn subject(input: Input) -> Result<Value, Failure> {
+    Ok(match input {
+        Published::Compact => Observed::Compact(compact()?),
+        Published::Catalog => Observed::Catalog(catalog()?),
+        Published::ReusedBuffer => Observed::Epoch(epoch()?),
+        Published::Partial => Observed::Partial(partial()?),
+        Published::Ragged => Observed::Normalized(normalized()?),
+    })
+}
+
+fn compact() -> Result<Compact, OperatingError> {
     use ryo_relations::domain::relations::types::Words;
     use ryo_values::domain::table_words::{
         service,
@@ -42,89 +247,82 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
         &mut Vec::new(),
         DecodeMode::Complete,
     )
-    .unwrap();
-    assert!(names.is_empty());
-    assert_eq!(
-        ryo_values::domain::compact_table::service::compact_rectangular(&compact),
-        ryo_values::domain::table_words::types::TableShape::Rectangular
-    );
+    .expect("a complete compact table");
+    let shape = ryo_values::domain::compact_table::service::compact_rectangular(&compact);
     let compact = Arc::new(compact);
     let compact_weak = Arc::downgrade(&compact);
-    let owner = RelationOwner::new(
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
-    );
-    let first = owner.source_compact(Arc::clone(&compact)).unwrap();
-    owner
-        .admit(first.as_ref(), RepresentationInput::Compact(&compact))
-        .unwrap();
+    let owner = fresh_owner();
+    let first = owner.source_compact(Arc::clone(&compact))?;
+    owner.admit(first.as_ref(), RepresentationInput::Compact(&compact))?;
     let first_unique = owner.derived.publication_ownership_bytes().2;
-    let second = owner.source_compact(Arc::clone(&compact)).unwrap();
-    owner
-        .admit(second.as_ref(), RepresentationInput::Compact(&compact))
-        .unwrap();
-    assert_eq!(
-        first.same_record(&second),
-        crate::application::file_dag::relations::types::Sameness::Different
-    );
+    let second = owner.source_compact(Arc::clone(&compact))?;
+    owner.admit(second.as_ref(), RepresentationInput::Compact(&compact))?;
+    let records = first.same_record(&second);
     // A second publication of the same immutable Compact and word buffer
     // adds only its own record. Shared backing allocations are not charged
     // again to the owner ledger.
-    assert_eq!(
-        owner.derived.publication_ownership_bytes().2,
-        first_unique + size_of::<super::super::super::RelationResult>() + 2 * size_of::<usize>()
-    );
-    assert_eq!(
-        first_unique,
-        crate::application::file_dag::derived::ledger::capacity::compact_table(&compact).0
-            + size_of::<ryo_values::domain::stored_facts::types::KeptWords>()
+    let second_adds_only_its_record = owner.derived.publication_ownership_bytes().2
+        == first_unique + size_of::<RelationResult>() + 2 * size_of::<usize>();
+    let first_charges_backing_once = first_unique
+        == crate::application::file_dag::derived::ledger::capacity::service::compact_table(&compact).0
+            + size_of::<KeptWords>()
             + 2 * size_of::<usize>()
             + words.0.0.capacity()
-            + size_of::<super::super::super::RelationResult>()
-            + 2 * size_of::<usize>(),
-    );
+            + size_of::<RelationResult>()
+            + 2 * size_of::<usize>();
     let unread = |_| Err(OperatingError::NotRead);
-    let resolved = owner.resolve(first.as_ref(), &unread).unwrap();
-    assert_eq!(
-        read(&resolved),
-        [
-            vec![CellValue::Number(Integer(4))],
-            vec![CellValue::Number(Integer(5))]
-        ]
-    );
-    drop(resolved);
+    let rows = {
+        let resolved = owner.resolve(first.as_ref(), &unread)?;
+        Cow::Owned(read(&resolved).into_iter().map(Cow::Owned).collect())
+    };
     let consumer = first.clone();
-    assert_eq!(owner.derived.publication_ownership_bytes().1, 0);
+    let optional_bytes = owner.derived.publication_ownership_bytes().1;
     drop(compact);
     drop(words);
-    assert!(compact_weak.upgrade().is_some());
-    assert!(words_weak.upgrade().is_some());
+    let backing_alive = [
+        compact_weak.upgrade().is_some(),
+        words_weak.upgrade().is_some(),
+    ];
     owner.release_population();
-    assert!(matches!(
-        owner.resolve(first.as_ref(), &unread),
-        Err(OperatingError::NotRead)
-    ));
-    assert!(matches!(
-        owner.resolve(second.as_ref(), &unread),
-        Err(OperatingError::NotRead)
-    ));
+    let released_first = owner.resolve(first.as_ref(), &unread).err();
+    let released_second = owner.resolve(second.as_ref(), &unread).err();
     drop(first);
     drop(second);
-    assert!(compact_weak.upgrade().is_some());
-    assert!(owner.derived.publication_ownership_bytes().0 > 0);
+    let consumer_keeps_backing = compact_weak.upgrade().is_some();
+    let consumer_charged = owner.derived.publication_ownership_bytes().0 > 0;
     drop(consumer);
-    assert!(compact_weak.upgrade().is_none());
-    assert!(words_weak.upgrade().is_none());
-    assert_eq!(owner.derived.publication_ownership_bytes(), (0, 0, 0));
+    Ok(Compact {
+        names: names.len(),
+        shape,
+        records,
+        second_adds_only_its_record,
+        first_charges_backing_once,
+        rows,
+        optional_bytes,
+        backing_alive,
+        released_first,
+        released_second,
+        consumer_keeps_backing,
+        consumer_charged,
+        backing_after_consumer: [
+            compact_weak.upgrade().is_some(),
+            words_weak.upgrade().is_some(),
+        ],
+        charge_after_consumer: owner.derived.publication_ownership_bytes(),
+    })
 }
-use super::fixtures::{columns, group, read, row};
 
-fn every_catalog_relation_is_admitted_resolved_and_read_with_its_actual_schema() {
-    let owner = RelationOwner::new(
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
-    );
-    let mut groups = [0; 3];
+fn catalog() -> Result<Catalog, OperatingError> {
+    let owner = fresh_owner();
+    let mut observed = Catalog {
+        complete: 0,
+        complete_again: 0,
+        asked_its_relation: 0,
+        read_its_rows: 0,
+        groups: [0; 3],
+        checks: CheckCount(0),
+        reuses: CheckCount(0),
+    };
     for relation in all() {
         let schema = kinds(*relation);
         let physical = columns(schema);
@@ -133,64 +331,42 @@ fn every_catalog_relation_is_admitted_resolved_and_read_with_its_actual_schema()
             columns: &physical,
         };
         let rows = Rows::Stored(source);
-        let publication = owner.source(*relation, &rows).unwrap();
-        assert_eq!(
-            owner.inspect(publication.as_ref(), RepresentationInput::from(&rows)),
-            Ok(PhysicalShape::Complete),
-            "{relation:?}"
-        );
-        assert_eq!(
-            owner.inspect(publication.as_ref(), RepresentationInput::from(&rows)),
-            Ok(PhysicalShape::Complete),
-            "{relation:?}"
-        );
-        let resolved = owner
-            .resolve(publication.as_ref(), &|asked| {
-                assert_eq!(asked, *relation);
-                Ok(Rows::Stored(source))
-            })
-            .unwrap();
-        assert_eq!(
-            read(&resolved),
-            [row(schema, 0), row(schema, 1)],
-            "{relation:?}"
-        );
-        groups[group(*relation)] += 1;
+        let publication = owner.source(*relation, &rows)?;
+        let complete = || {
+            usize::from(
+                owner.inspect(publication.as_ref(), RepresentationInput::from(&rows))
+                    == Ok(PhysicalShape::Complete),
+            )
+        };
+        observed.complete += complete();
+        observed.complete_again += complete();
+        let asked_its_relation = Cell::new(true);
+        let resolved = owner.resolve(publication.as_ref(), &|asked| {
+            asked_its_relation.set(asked_its_relation.get() && asked == *relation);
+            Ok(Rows::Stored(source))
+        })?;
+        observed.asked_its_relation += usize::from(asked_its_relation.get());
+        observed.read_its_rows += usize::from(read(&resolved) == [row(schema, 0), row(schema, 1)]);
+        observed.groups[group(*relation)] += 1;
     }
-    assert_eq!(
-        groups,
-        [57, 8, 4],
-        "69 catalog relations, separately from five physical representations"
-    );
-    assert_eq!(
-        owner.checks.get(),
-        crate::application::file_dag::relations::types::CheckCount(69)
-    );
-    assert_eq!(
-        owner.reuses.get(),
-        crate::application::file_dag::relations::types::CheckCount(69)
-    );
+    observed.checks = owner.checks.get();
+    observed.reuses = owner.reuses.get();
+    Ok(observed)
 }
 
-fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reused() {
+fn epoch() -> Result<Epoch, OperatingError> {
     let relation = Relation::FilesystemLineCount;
     let schema = kinds(relation);
     let mut physical = columns(schema);
-    let owner = RelationOwner::new(
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
-    );
-    let original = {
+    let owner = fresh_owner();
+    let (original, original_shape) = {
         let rows = Rows::Stored(ColumnsView {
             kinds: schema,
             columns: &physical,
         });
-        let publication = owner.source(relation, &rows).unwrap();
-        assert_eq!(
-            owner.inspect(publication.as_ref(), RepresentationInput::from(&rows)),
-            Ok(PhysicalShape::Complete)
-        );
-        publication
+        let publication = owner.source(relation, &rows)?;
+        let shape = owner.inspect(publication.as_ref(), RepresentationInput::from(&rows));
+        (publication, shape)
     };
     let address = physical[1].0.as_ptr();
     owner.release_population();
@@ -199,61 +375,49 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
         to_bits(CellValue::Number(Integer(200))).0,
         to_bits(CellValue::Number(Integer(201))).0,
     ]);
-    assert_eq!(address, physical[1].0.as_ptr());
-    assert_eq!(physical[1].0.len(), 2);
+    let same_buffer = address == physical[1].0.as_ptr() && physical[1].0.len() == 2;
     let source = ColumnsView {
         kinds: schema,
         columns: &physical,
     };
     let rows = Rows::Stored(source);
-    assert!(matches!(
-        owner.inspect(original.as_ref(), RepresentationInput::from(&rows)),
-        Err(OperatingError::NotRead)
-    ));
+    let old_inspected = owner
+        .inspect(original.as_ref(), RepresentationInput::from(&rows))
+        .err();
     let reads = Cell::new(0);
-    assert!(matches!(
-        owner.resolve(original.as_ref(), &|_| {
+    let old_resolved = owner
+        .resolve(original.as_ref(), &|_| {
             reads.set(reads.get() + 1);
             Ok(Rows::Stored(source))
-        }),
-        Err(OperatingError::NotRead)
-    ));
-    assert_eq!(
-        reads.get(),
-        0,
-        "old epoch is refused before provider access"
-    );
-    let fresh = owner.source(relation, &rows).unwrap();
-    assert_eq!(
-        original.same_record(&fresh),
-        crate::application::file_dag::relations::types::Sameness::Different
-    );
-    assert_eq!(
-        owner.inspect(fresh.as_ref(), RepresentationInput::from(&rows)),
-        Ok(PhysicalShape::Complete)
-    );
-    assert_eq!(
-        owner.checks.get(),
-        crate::application::file_dag::relations::types::CheckCount(2)
-    );
-    let resolved = owner
-        .resolve(fresh.as_ref(), &|_| Ok(Rows::Stored(source)))
-        .unwrap();
+        })
+        .err();
+    let fresh = owner.source(relation, &rows)?;
+    let fresh_record = original.same_record(&fresh);
+    let fresh_shape = owner.inspect(fresh.as_ref(), RepresentationInput::from(&rows));
+    let checks = owner.checks.get();
+    let resolved = owner.resolve(fresh.as_ref(), &|_| Ok(Rows::Stored(source)))?;
     let mut expected = [row(schema, 0), row(schema, 1)];
     expected[0][1] = CellValue::Number(Integer(200));
     expected[1][1] = CellValue::Number(Integer(201));
-    assert_eq!(read(&resolved), expected);
-    let other = RelationOwner::new(
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
-    );
-    assert!(matches!(
-        other.inspect(fresh.as_ref(), RepresentationInput::from(&rows)),
-        Err(OperatingError::NotRead)
-    ));
+    let reads_the_new_numbers = read(&resolved) == expected;
+    let other_owner = fresh_owner()
+        .inspect(fresh.as_ref(), RepresentationInput::from(&rows))
+        .err();
+    Ok(Epoch {
+        original: original_shape,
+        same_buffer,
+        old_inspected,
+        old_resolved,
+        provider_reads: reads.get(),
+        fresh_record,
+        fresh: fresh_shape,
+        checks,
+        reads_the_new_numbers,
+        other_owner,
+    })
 }
 
-fn stable_partial_population_reuses_structure_without_proving_semantic_absence() {
+fn partial() -> Result<PartialPopulation, OperatingError> {
     let relation = Relation::Function;
     let physical = columns(kinds(relation));
     let rows = Rows::Stored(ColumnsView {
@@ -266,152 +430,53 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
         lacking: Lacking::Any,
         at: ryo_execution_domain::domain::coverage::types::PartialPlace::File(FileId(9)),
     }];
-    let owner = RelationOwner::new(
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
-    );
-    let first = owner.source(relation, &rows).unwrap();
-    let second = owner.source(relation, &rows).unwrap();
-    assert_eq!(
-        first.same_record(&second),
-        crate::application::file_dag::relations::types::Sameness::Same
-    );
-    for publication in [&first, &second] {
-        assert_eq!(
-            owner.inspect(publication.as_ref(), RepresentationInput::from(&rows)),
-            Ok(PhysicalShape::Complete)
-        );
-    }
-    assert_eq!(
-        owner.checks.get(),
-        crate::application::file_dag::relations::types::CheckCount(1)
-    );
+    let owner = fresh_owner();
+    let first = owner.source(relation, &rows)?;
+    let second = owner.source(relation, &rows)?;
+    let record = first.same_record(&second);
+    let shapes = [&first, &second]
+        .map(|publication| owner.inspect(publication.as_ref(), RepresentationInput::from(&rows)));
+    let checks = owner.checks.get();
     let prepared =
         crate::application::file_dag::derived::prepared::RequestDerived::new(Box::new([
             crate::application::file_dag::derived::owner::fixtures::reads(relation),
         ]));
-    owner
-        .derived
-        .prepare_program_file(
-            &prepared,
-            &[ryo_execution_domain::domain::coverage::types::RuleIndex(0)],
-            &partials,
-        )
-        .unwrap();
-    assert!(
-        !owner.derived.relation_eligible(relation),
-        "physical completeness cannot erase a partial relation"
-    );
+    owner.derived.prepare_program_file(
+        &prepared,
+        &[ryo_execution_domain::domain::coverage::types::RuleIndex(0)],
+        &partials,
+    )?;
+    Ok(PartialPopulation {
+        record,
+        shapes,
+        checks,
+        // Physical completeness cannot erase a partial relation.
+        eligible: owner.derived.relation_eligible(relation),
+    })
 }
 
-fn normalization_reuses_one_owned_fallback_without_promoting_missing_rows() {
+fn normalized() -> Result<Normalized, OperatingError> {
     let relation = Relation::SourceLocation;
     let schema = kinds(relation);
     let mut physical = columns(schema);
-    physical[1].0.pop();
+    drop(physical[1].0.pop());
     let source = ColumnsView {
         kinds: schema,
         columns: &physical,
     };
-    let owner = RelationOwner::new(
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
-    );
-    let publication = owner
-        .source(Relation::Function, &Rows::Stored(source))
-        .unwrap();
-    let first = owner.normalize(&publication, Rows::Stored(source)).unwrap();
-    let second = owner.normalize(&publication, Rows::Stored(source)).unwrap();
+    let owner = fresh_owner();
+    let publication = owner.source(Relation::Function, &Rows::Stored(source))?;
+    let first = owner.normalize(&publication, Rows::Stored(source))?;
+    let second = owner.normalize(&publication, Rows::Stored(source))?;
     let (Rows::Computed(first_table), Rows::Computed(second_table)) = (&first, &second) else {
         panic!("ragged input needs an owned normalized population")
     };
-    assert!(std::ptr::eq(*first_table, *second_table));
-    assert_eq!(read(&first), [row(schema, 0)]);
-    assert_eq!(read(&second), read(&first));
-    assert_eq!(
-        owner.checks.get(),
-        crate::application::file_dag::relations::types::CheckCount(1)
-    );
-}
-
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    CompactPublicationsShareBackingAccountingAndExpireWithGeneration,
-    EveryCatalogRelationIsAdmittedResolvedAndReadWithItsActualSchema,
-    PopulationEpochInvalidatesProofsEvenWhenSameBufferAndCountAreReused,
-    StablePartialPopulationReusesStructureWithoutProvingSemanticAbsence,
-    NormalizationReusesOneOwnedFallbackWithoutPromotingMissingRows,
-}
-
-type Input = Scenario;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("compact_publications_share_backing_accounting_and_expire_with_generation"),
-        word: Word::Succeeds,
-        input: || Scenario::CompactPublicationsShareBackingAccountingAndExpireWithGeneration,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(
-            "every_catalog_relation_is_admitted_resolved_and_read_with_its_actual_schema",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::EveryCatalogRelationIsAdmittedResolvedAndReadWithItsActualSchema,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(
-            "population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reused",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::PopulationEpochInvalidatesProofsEvenWhenSameBufferAndCountAreReused,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(
-            "stable_partial_population_reuses_structure_without_proving_semantic_absence",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::StablePartialPopulationReusesStructureWithoutProvingSemanticAbsence,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("normalization_reuses_one_owned_fallback_without_promoting_missing_rows"),
-        word: Word::Succeeds,
-        input: || Scenario::NormalizationReusesOneOwnedFallbackWithoutPromotingMissingRows,
-        expect: Expect::Value(()),
-    },
-];
-
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::CompactPublicationsShareBackingAccountingAndExpireWithGeneration => {
-            compact_publications_share_backing_accounting_and_expire_with_generation();
-            Ok(())
-        }
-        Scenario::EveryCatalogRelationIsAdmittedResolvedAndReadWithItsActualSchema => {
-            every_catalog_relation_is_admitted_resolved_and_read_with_its_actual_schema();
-            Ok(())
-        }
-        Scenario::PopulationEpochInvalidatesProofsEvenWhenSameBufferAndCountAreReused => {
-            population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reused();
-            Ok(())
-        }
-        Scenario::StablePartialPopulationReusesStructureWithoutProvingSemanticAbsence => {
-            stable_partial_population_reuses_structure_without_proving_semantic_absence();
-            Ok(())
-        }
-        Scenario::NormalizationReusesOneOwnedFallbackWithoutPromotingMissingRows => {
-            normalization_reuses_one_owned_fallback_without_promoting_missing_rows();
-            Ok(())
-        }
-    }
+    Ok(Normalized {
+        one_table: std::ptr::eq(*first_table, *second_table),
+        reads_the_first_row_alone: read(&first) == [row(schema, 0)],
+        second_reads_the_same: read(&second) == read(&first),
+        checks: owner.checks.get(),
+    })
 }
 
 #[test]

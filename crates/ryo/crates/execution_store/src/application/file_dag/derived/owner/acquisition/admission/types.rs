@@ -8,5 +8,5 @@ pub(crate) struct PartitionCapacity(pub usize);
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct StorageIdentity(
-    pub *const crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage,
+    pub *const crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage,
 );

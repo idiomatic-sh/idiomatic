@@ -3,7 +3,9 @@ use crate::application::file_dag::derived::owner::acquisition::family::fixtures:
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{
     Exit, released,
 };
-use crate::application::file_dag::{fixtures::program_derived_port, relations::RelationOwner};
+use crate::application::file_dag::{
+    fixtures::program_derived_port, relations::service::RelationOwner,
+};
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;

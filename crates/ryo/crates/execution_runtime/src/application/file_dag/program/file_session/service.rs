@@ -134,7 +134,8 @@ impl FileSession<'_, '_> {
     #[must_use]
     pub fn owner_lifetime(
         &self,
-    ) -> std::rc::Weak<ryo_execution_store::application::file_dag::relations::RelationOwner> {
+    ) -> std::rc::Weak<ryo_execution_store::application::file_dag::relations::service::RelationOwner>
+    {
         self.parts.inner.owner_lifetime()
     }
     /// The derived owner's resource counts of this file.

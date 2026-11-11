@@ -64,3 +64,14 @@ pub struct ProducerId(pub usize);
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ProducerCapacity(pub usize);
+
+use super::super::derived::population::service::PopulationId;
+use super::handle::service::PublishedInput;
+use super::publication::types::SourceDescriptor;
+use rustc_hash::FxHashMap;
+
+pub(super) struct SourceViews {
+    pub(crate) population: SourceDescriptor,
+    pub(crate) canonical_population: PopulationId,
+    pub(crate) views: FxHashMap<SourceDescriptor, PublishedInput>,
+}

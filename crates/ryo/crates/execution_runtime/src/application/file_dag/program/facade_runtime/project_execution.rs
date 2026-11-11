@@ -19,7 +19,7 @@ use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
 use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_store::application::file_dag::derived::population::service::PopulationId;
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use std::rc::Rc;
 use std::sync::Arc;

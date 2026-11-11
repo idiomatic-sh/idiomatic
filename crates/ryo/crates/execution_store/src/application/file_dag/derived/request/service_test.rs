@@ -1,8 +1,16 @@
+use super::service::*;
 use super::types::PlanCount;
-use super::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::operator::contract::resources::{AxisResources, JoinResources};
+use ryo_execution_domain::domain::{
+    derived_views::types::{contract::value::DerivedSlots, *},
+    operating::errors::OperatingError,
+    operator::contract::resources::{IndexColumns, ResourceProgram},
+};
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, InputNumber};
+use std::sync::Arc;
 
 fn kinds() -> Vec<Vec<CellKind>> {
     vec![
@@ -13,11 +21,9 @@ fn kinds() -> Vec<Vec<CellKind>> {
 }
 
 fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
-    let mut views = RequestViews::new(std::sync::Arc::new(
-        crate::application::file_dag::fixtures::derived(),
-    ));
+    let mut views = RequestViews::new(Arc::new(crate::application::file_dag::fixtures::derived()));
     let program = ResourceProgram::Index {
-        input: ryo_values::domain::plan_parts::types::InputNumber(1),
+        input: InputNumber(1),
         columns: IndexColumns::Whole,
     };
     let first = views.bind_resources(&program, &kinds()[..1]).unwrap();
@@ -52,9 +58,7 @@ fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
 }
 
 fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
-    let mut views = RequestViews::new(std::sync::Arc::new(
-        crate::application::file_dag::fixtures::derived(),
-    ));
+    let mut views = RequestViews::new(Arc::new(crate::application::file_dag::fixtures::derived()));
     let kinds = kinds();
     let join = ResourceProgram::Join(JoinResources {
         left_on: vec![ColumnIndex(0)],
@@ -136,14 +140,12 @@ fn family_slots_hold_compact_shared_binding_handles() {
         size_of::<DerivedSlots>(),
         DerivedKind::ALL.len() * size_of::<usize>()
     );
-    let mut views = RequestViews::new(std::sync::Arc::new(
-        crate::application::file_dag::fixtures::derived(),
-    ));
+    let mut views = RequestViews::new(Arc::new(crate::application::file_dag::fixtures::derived()));
     let schema = kinds();
     let first = views
         .bind_resources(
             &ResourceProgram::Index {
-                input: ryo_values::domain::plan_parts::types::InputNumber(1),
+                input: InputNumber(1),
                 columns: IndexColumns::Columns(vec![ColumnIndex(0)]),
             },
             &schema,
@@ -152,7 +154,7 @@ fn family_slots_hold_compact_shared_binding_handles() {
     let second = views
         .bind_resources(
             &ResourceProgram::Index {
-                input: ryo_values::domain::plan_parts::types::InputNumber(1),
+                input: InputNumber(1),
                 columns: IndexColumns::Columns(vec![ColumnIndex(0)]),
             },
             &schema,

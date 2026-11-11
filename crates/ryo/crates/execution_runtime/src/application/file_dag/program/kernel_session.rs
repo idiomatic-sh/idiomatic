@@ -10,7 +10,7 @@ use ryo_execution_domain::domain::{
     executable_program::types::instruction::value::Instruction, operating::errors::OperatingError,
     table_model::types::Rows,
 };
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 use ryo_relations::domain::relations::types::Relation;
 use std::rc::Rc;
 
