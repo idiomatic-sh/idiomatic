@@ -18,4 +18,4 @@ error[E0046]: not all trait items implemented, missing: `function`
 33 | impl ParseUseCase for Missing {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `function` in implementation
    |
-   = help: implement the missing item: `fn function(&self) -> Support<Reader<ryo_relations::domain::relations::collections::relations::function::item::Function, <Self as ParseUseCase>::FileModel>> { todo!() }`
+   = help: implement the missing item: `fn function(&self) -> Support<Reader<ryo_relations::domain::relations::fixtures::Function, <Self as ParseUseCase>::FileModel>> { todo!() }`

@@ -20,3 +20,9 @@ pub fn node_id(file: FileId, position: Position) -> NodeId {
 pub fn to_bits(value: Value) -> Bits {
     service::to_bits(value)
 }
+
+/// The `function` relation's reader type and row, which a test language's allocation double answers by hand.
+pub use crate::domain::relations::collections::relations::function::item::{Function, FunctionRow};
+
+/// The catalog, handed to a callback macro, for a test double that answers every relation the same way.
+pub use crate::each_relation;
