@@ -9,7 +9,7 @@ fn three_rules_over_three_files_answer_the_recorded_file_rules() {
     use std::fmt::Write as _;
     let engine = engine();
     let mut input = authored_request(3);
-    let plans = crate::boundary_fixture::plans(&mut input);
+    let plans = crate::boundary_fixture::fixtures::plans(&mut input);
     plans[1].steps.push(PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::GroupCount {
@@ -45,7 +45,7 @@ fn three_rules_over_three_files_answer_the_recorded_file_rules() {
             observations: ObservationDemand::NotRequired,
             capture: CaptureIntent::DiagnosticAndObservations,
         };
-        let (ran, end) = crate::file_intents::ran_file(
+        let (ran, end) = crate::file_intents::fixtures::ran_file(
             &request,
             FileId(file),
             &[run, run, run],

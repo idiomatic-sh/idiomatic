@@ -1,6 +1,6 @@
 //! Dormant declarations cannot allocate cohort scratch or retained result slots.
-use super::super::{fixtures::*, no_catalog};
-use crate::boundary_fixture::{authored_request, corpus, demand};
+use super::super::{fixtures::no_catalog, fixtures::*};
+use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
@@ -22,7 +22,7 @@ fn only_admitted_classes_allocate_scratch_and_result_slots() {
     for declarations in [1, 257] {
         let (engine, semantics) = engine();
         let mut authored = authored_request(declarations);
-        let (plans, bindings) = crate::boundary_fixture::authored_parts(&mut authored);
+        let (plans, bindings) = crate::boundary_fixture::fixtures::authored_parts(&mut authored);
         for (index, plan) in plans.iter_mut().enumerate() {
             let (relation, comparisons) = if index == 0 {
                 (Relation::SyntaxTree, selection(Selector::Kind("word")))
@@ -82,7 +82,7 @@ fn only_admitted_classes_allocate_scratch_and_result_slots() {
 fn a_failed_dependency_does_not_prepare_a_later_class_of_the_same_rule() {
     let (engine, semantics) = engine();
     let mut authored = authored_request(1);
-    crate::boundary_fixture::plans(&mut authored)[0].steps = vec![
+    crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Select {
@@ -107,7 +107,9 @@ fn a_failed_dependency_does_not_prepare_a_later_class_of_the_same_rule() {
             },
         },
     ];
-    crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(2);
+    crate::boundary_fixture::fixtures::plans(&mut authored)[0]
+        .emit
+        .step = StepId(2);
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
@@ -138,7 +140,7 @@ fn a_failed_dependency_does_not_prepare_a_later_class_of_the_same_rule() {
 fn later_cohorts_add_only_the_new_class_and_aliases_replay_both_results() {
     let (engine, semantics) = engine();
     let mut authored = authored_request(2);
-    for plan in crate::boundary_fixture::plans(&mut authored) {
+    for plan in crate::boundary_fixture::fixtures::plans(&mut authored) {
         plan.steps = vec![
             PlanStep {
                 scope: StepScope::PerFile,
@@ -196,7 +198,7 @@ fn full_rule_count_shares_source_decoding_and_ordered_predicate_prefixes() {
     const RULES: usize = 413;
     let (engine, semantics) = engine();
     let mut authored = authored_request(RULES);
-    let (plans, bindings) = crate::boundary_fixture::authored_parts(&mut authored);
+    let (plans, bindings) = crate::boundary_fixture::fixtures::authored_parts(&mut authored);
     for (index, plan) in plans.iter_mut().enumerate() {
         let mut comparisons = selection(Selector::Kind("word"));
         comparisons.push(compared(
@@ -248,7 +250,7 @@ fn shared_prefixes_preserve_distinct_parameter_bindings_and_first_errors() {
     };
     let (engine, semantics) = engine();
     let mut authored = authored_request(3);
-    let (plans, bindings) = crate::boundary_fixture::authored_parts(&mut authored);
+    let (plans, bindings) = crate::boundary_fixture::fixtures::authored_parts(&mut authored);
     for (index, plan) in plans.iter_mut().enumerate() {
         plan.parameters.push(PlanParameter {
             name: ParameterName("pattern".into()),

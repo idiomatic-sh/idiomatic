@@ -1,7 +1,7 @@
 //! Shared tree positions keep native join projection refusal and replay, and pure projections share one scan.
-use crate::boundary_fixture::{authored_request, corpus, demand};
+use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
+use crate::shared_walk::fixtures::no_catalog;
 use crate::shared_walk::fixtures::*;
-use crate::shared_walk::no_catalog;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
@@ -88,7 +88,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
             } else {
                 1
             };
-            crate::boundary_fixture::plans(&mut authored)[0].steps = vec![
+            crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
                 PlanStep {
                     scope: StepScope::PerFile,
                     operation: Operation::Select {
@@ -120,7 +120,9 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                     },
                 },
             ];
-            crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(1);
+            crate::boundary_fixture::fixtures::plans(&mut authored)[0]
+                .emit
+                .step = StepId(1);
             let program = engine.prepare(authored).unwrap();
             let corpus = corpus();
             let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
@@ -207,7 +209,7 @@ fn direct_pure_projections_share_source_scan_including_zero_columns_and_repeats(
     use ryo_values::domain::plan_parts::types::RepeatedRows;
     let (engine, semantics) = engine();
     let mut authored = authored_request(3);
-    for (plan, columns) in crate::boundary_fixture::plans(&mut authored)
+    for (plan, columns) in crate::boundary_fixture::fixtures::plans(&mut authored)
         .iter_mut()
         .zip([
             vec![ColumnIndex(2), ColumnIndex(2)],

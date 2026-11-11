@@ -1,9 +1,29 @@
 //! A deferred project root feeds nothing at file scope, and its file frontier walks the source once.
-use super::super::*;
+use crate::boundary_fixture::fixtures::{corpus, demand, engine, source};
+use crate::project_phase::fixtures::mixed_program;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution_domain::domain::row_emission::types::RowEmission;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_values::domain::plan_parts::types::InputNumber;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{FileId, Relation};
+use ryo_relations::domain::relations::types::{Words, WorkerNumber};
+use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::{plan_parts::types::InputNumber, stored_facts::types::Bucket};
+use std::cell::Cell;
 
 #[test]
 fn a_deferred_project_root_feeds_no_file_step_and_its_frontier_walks_the_source_once() {

@@ -1,6 +1,10 @@
 //! The support of the `cases` cases.
 use super::super::super::super::*;
 use super::super::*;
+#[cfg(test)]
+use fixtures::execution::*;
+#[cfg(test)]
+use fixtures::provider::*;
 use ryo_execution_domain::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::symbols::types::Symbols;

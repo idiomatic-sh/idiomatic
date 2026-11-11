@@ -1,5 +1,5 @@
 //! One project submission through the public phase, with the roots its guard was asked about.
-use crate::boundary_fixture::corpus;
+use crate::boundary_fixture::fixtures::corpus;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
@@ -82,7 +82,7 @@ fn program(
     entry: Entry,
     rule_count: usize,
 ) -> PreparedExecutionProgram {
-    let mut authored = crate::boundary_fixture::authored_request(rule_count);
+    let mut authored = crate::boundary_fixture::fixtures::authored_request(rule_count);
     if matches!(entry, Entry::Stage) {
         // A named request needs a dependency schedule: rule 0 declares one closed empty binding.
         let columns = vec![ObservationColumn {
@@ -94,14 +94,14 @@ fn program(
             columns: columns.clone(),
             producers: vec![],
         });
-        crate::boundary_fixture::plans(&mut authored)[0]
+        crate::boundary_fixture::fixtures::plans(&mut authored)[0]
             .observation_inputs
             .push(BoundObservationInput {
                 name: ObservationBindingName("codes".into()),
                 columns,
                 scope: StepScope::CrossFile,
             });
-        crate::boundary_fixture::plans(&mut authored)[0].steps = vec![PlanStep {
+        crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![PlanStep {
             scope: StepScope::CrossFile,
             operation: Operation::Select {
                 from: Input::BoundObservation(ObservationBindingId(0)),
@@ -109,7 +109,7 @@ fn program(
                 kept: vec![],
             },
         }];
-        crate::boundary_fixture::plans(&mut authored)[0].frontier =
+        crate::boundary_fixture::fixtures::plans(&mut authored)[0].frontier =
             vec![Input::BoundObservation(ObservationBindingId(0))];
         authored.observations =
             ObservationIdentity::Named(ObservationReadinessLayout(Digest([7; 16])));

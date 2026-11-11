@@ -1,12 +1,32 @@
 //! S12: a project region's inputs, one read in part and one not applicable, merge into a partial answer.
-use super::super::*;
+use crate::boundary_fixture::fixtures::{authored_request, corpus, engine, source};
+use crate::project_phase::source_facts::fixtures::{CapturedFacts, ProjectFacts};
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_language::domain::files::types::FilePath;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::{
+    fixtures::kinds,
+    types::{CellKind, FileId, Relation, Value},
+};
+use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::{
     files::types::CorpusInput,
     runs::types::{RuleApplicability, SkipReason, Skipped},
 };
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+};
+use std::sync::atomic::AtomicUsize;
 
 /// One row of `relation` in file 0, every cell of its kind.
 fn one_row(relation: Relation) -> ryo_values::domain::rows::types::Table {
@@ -71,7 +91,7 @@ fn a_partial_input_and_an_inapplicable_input_merge_into_a_partial_answer() {
             kept: vec![ColumnIndex(file_of(relation))],
         },
     };
-    crate::boundary_fixture::plans(&mut authored)[0].steps = vec![
+    crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
         select(Relation::Function),
         select(Relation::Comment),
         PlanStep {
@@ -82,9 +102,11 @@ fn a_partial_input_and_an_inapplicable_input_merge_into_a_partial_answer() {
             },
         },
     ];
-    crate::boundary_fixture::plans(&mut authored)[0].frontier =
+    crate::boundary_fixture::fixtures::plans(&mut authored)[0].frontier =
         vec![Input::Step(StepId(0)), Input::Step(StepId(1))];
-    crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(2);
+    crate::boundary_fixture::fixtures::plans(&mut authored)[0]
+        .emit
+        .step = StepId(2);
     let prepared = engine.prepare(authored).unwrap();
     let mut corpus = corpus();
     let mut second = corpus[0].clone();
@@ -113,7 +135,7 @@ fn a_partial_input_and_an_inapplicable_input_merge_into_a_partial_answer() {
         let mut symbols = Symbols::default();
         let publication: &[_] = if read_in_part { &partial } else { &[] };
         let stored = Buckets(
-            super::super::captured_in_file_0(&request, &rows, publication, &mut symbols)
+            super::super::fixtures::captured_in_file_0(&request, &rows, publication, &mut symbols)
                 .into_iter()
                 .map(|capture| CapturedFacts {
                     captures: vec![(FileId(0), capture)],
@@ -129,7 +151,7 @@ fn a_partial_input_and_an_inapplicable_input_merge_into_a_partial_answer() {
         let project = ProjectFacts::new(Relation::ModuleIdentity);
         let project_symbols = Symbols::default();
         let phase = request.project_phase().unwrap();
-        let outcome = crate::boundary_fixture::project_root(
+        let outcome = crate::boundary_fixture::fixtures::project_root(
             &phase,
             PhaseRules {
                 rules: &[RuleIndex(0)],

@@ -1,8 +1,8 @@
 //! Native heads keep their projected columns and source row order, and unused intents evaluate nothing.
-use crate::boundary_fixture::{authored_request, corpus, demand};
+use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
 use crate::interpreter::shared_walk::fixtures::counts;
+use crate::shared_walk::fixtures::no_catalog;
 use crate::shared_walk::fixtures::*;
-use crate::shared_walk::no_catalog;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
@@ -45,7 +45,7 @@ fn distinct_native_heads_keep_reordered_duplicate_columns_and_source_row_order()
             ],
         ),
     ] {
-        crate::boundary_fixture::plans(&mut authored)[index].steps[0].operation =
+        crate::boundary_fixture::fixtures::plans(&mut authored)[index].steps[0].operation =
             Operation::Select {
                 from: Input::Relation(Relation::SyntaxTree),
                 comparisons: selection(Selector::Kind(kind)),
@@ -111,7 +111,7 @@ fn fused_select_reads_projected_ordinals_and_forwards_exact_rows_in_source_order
     for (pattern, positions) in [("{a,c}", &[1_u32, 3][..]), ("c", &[3_u32][..])] {
         let (engine, _semantics) = engine();
         let mut authored = authored_request(1);
-        crate::boundary_fixture::plans(&mut authored)[0].steps = vec![
+        crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
             PlanStep {
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
@@ -129,7 +129,9 @@ fn fused_select_reads_projected_ordinals_and_forwards_exact_rows_in_source_order
                 },
             },
         ];
-        crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(1);
+        crate::boundary_fixture::fixtures::plans(&mut authored)[0]
+            .emit
+            .step = StepId(1);
         let program = engine.prepare(authored).unwrap();
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);

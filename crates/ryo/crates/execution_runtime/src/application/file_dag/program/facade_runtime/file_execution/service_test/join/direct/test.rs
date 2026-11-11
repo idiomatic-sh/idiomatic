@@ -2,6 +2,9 @@
 use super::super::super::super::*;
 use super::super::*;
 use super::fixtures::{encoded, request, schema_column, simple, table};
+#[cfg(test)]
+use fixtures::execution::*;
+use ryo_execution_domain::domain::table_model::types::RepresentationKind;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Flag, Integer, Relation, Value as Cell};
 use ryo_relations::domain::relations::{service::from_bits, types::Bits};

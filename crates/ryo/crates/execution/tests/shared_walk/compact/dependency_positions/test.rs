@@ -1,6 +1,6 @@
 //! A grouped dependency and the original source join in both input positions.
 use super::super::super::fixtures::{complete, input};
-use crate::boundary_fixture::{authored_request, corpus, demand, engine};
+use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
@@ -26,7 +26,7 @@ fn grouped_dependency_and_original_source_join_in_both_input_positions() {
         let engine = engine();
         let mut authored = authored_request(1);
         let source = Input::Relation(Relation::LanguageTarget);
-        crate::boundary_fixture::plans(&mut authored)[0].steps = vec![
+        crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
             PlanStep {
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
@@ -82,8 +82,10 @@ fn grouped_dependency_and_original_source_join_in_both_input_positions() {
                 },
             },
         ];
-        crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(3);
-        crate::boundary_fixture::plans(&mut authored)[0]
+        crate::boundary_fixture::fixtures::plans(&mut authored)[0]
+            .emit
+            .step = StepId(3);
+        crate::boundary_fixture::fixtures::plans(&mut authored)[0]
             .emit
             .subject = ColumnIndex(0);
         let program = engine.prepare(authored).unwrap();

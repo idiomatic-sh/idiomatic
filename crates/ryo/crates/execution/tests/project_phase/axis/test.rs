@@ -2,11 +2,16 @@
 //! answer in each file; the owner of the project phase holds no graph cache, so neither asks it for one. An anti-join over
 //! the self-join of syntax-child ordinals is no ordered existence, as the ordinals are read from the tree, and answers its
 //! rows.
-use super::super::*;
 use super::fixtures::rows;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ComparisonOrigin, Direction, LiteralText, Operand, PlanComparison, QueryLiteral, ReachLookup,
     RepeatedRows, Test,
+};
+use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
 };
 
 /// The files every proof runs over.

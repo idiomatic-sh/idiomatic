@@ -1,5 +1,5 @@
 //! A selected join shares work, keeps counts and exports owned frontiers.
-use crate::boundary_fixture::{authored_request, corpus, demand, engine};
+use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine};
 use crate::shared_walk::compact::selected_frontiers::test::{functions, selected_join};
 use crate::shared_walk::fixtures::{complete, input};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
@@ -30,7 +30,8 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
         for stored in [false, true] {
             let engine = engine();
             let mut authored = authored_request(2);
-            *crate::boundary_fixture::plans(&mut authored) = vec![selected_join(distinct); 2];
+            *crate::boundary_fixture::fixtures::plans(&mut authored) =
+                vec![selected_join(distinct); 2];
             let program = engine.prepare(authored).unwrap();
             let corpus = corpus();
             let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);

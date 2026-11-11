@@ -1,6 +1,6 @@
 //! Actual public file-owner readiness bounds and terminal failure replay.
-use super::super::{fixtures::*, no_catalog};
-use crate::boundary_fixture::{authored_request, corpus, demand};
+use super::super::{fixtures::no_catalog, fixtures::*};
+use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
@@ -72,11 +72,11 @@ pub(crate) fn readiness_hosted() -> HostRelation {
 }
 pub(crate) fn readiness_budget(request: &PrepareRequest) -> (u64, u64) {
     use ryo_values::domain::plans::fixtures::{inputs_of, named};
-    let nodes = crate::boundary_fixture::plans_of(&request)
+    let nodes = crate::boundary_fixture::fixtures::plans_of(&request)
         .iter()
         .map(|plan| u64::try_from(plan.steps.len()).expect("a step count fits in u64"))
         .sum();
-    let edges = crate::boundary_fixture::plans_of(&request)
+    let edges = crate::boundary_fixture::fixtures::plans_of(&request)
         .iter()
         .flat_map(|plan| &plan.steps)
         .map(|step| {
@@ -111,7 +111,7 @@ fn exercise_readiness_chain(empty: bool) {
     let (engine, _) = engine();
     let mut authored = authored_request(3);
     let steps = readiness_chain();
-    for (index, plan) in crate::boundary_fixture::plans(&mut authored)
+    for (index, plan) in crate::boundary_fixture::fixtures::plans(&mut authored)
         .iter_mut()
         .enumerate()
     {
@@ -178,7 +178,7 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
         comparisons: vec![],
         kept: vec![],
     };
-    for (index, plan) in crate::boundary_fixture::plans(&mut authored)[..2]
+    for (index, plan) in crate::boundary_fixture::fixtures::plans(&mut authored)[..2]
         .iter_mut()
         .enumerate()
     {
@@ -196,7 +196,7 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
         });
         plan.emit.step = StepId(u32::try_from(plan.steps.len() - 1).unwrap());
     }
-    crate::boundary_fixture::plans(&mut authored)[2].steps = vec![PlanStep {
+    crate::boundary_fixture::fixtures::plans(&mut authored)[2].steps = vec![PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::Hosted {
             relation: HostedNumber(0),

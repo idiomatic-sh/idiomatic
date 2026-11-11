@@ -1,7 +1,28 @@
 //! S11: a binding fed by two producers routes each member to its own producer, in the project and in a file.
-use super::super::*;
+use crate::boundary_fixture::fixtures::{authored_request, corpus, engine, source};
+use crate::project_phase::source_facts::fixtures::{CapturedFacts, ProjectFacts};
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::interface::{
     BatchNumber, BatchOccurrence, ObservationBatches,
+};
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::{
+    fixtures::kinds,
+    types::{CellKind, FileId, Relation, Value},
 };
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
@@ -9,7 +30,14 @@ use ryo_values::domain::observations::types::{
 };
 use ryo_values::domain::plan_parts::types::ObservationBindingId;
 use ryo_values::domain::records::types::ObservationReadinessLayout;
+use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::Digest;
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+    rows::types::RowCount,
+};
+use std::sync::atomic::AtomicUsize;
 
 /// S11: a binding fed by two producers routes each member to its own producer's publication: the consumer reads both producers'
 /// rows, each once.
@@ -34,7 +62,7 @@ fn each_member_of_a_binding_reads_its_own_producer() {
         },
     ];
     for (producer, code) in [(0, "A"), (1, "B")] {
-        let plan = &mut crate::boundary_fixture::plans(&mut authored)[producer];
+        let plan = &mut crate::boundary_fixture::fixtures::plans(&mut authored)[producer];
         plan.steps = vec![
             PlanStep {
                 scope: StepScope::CrossFile,
@@ -68,7 +96,7 @@ fn each_member_of_a_binding_reads_its_own_producer() {
             output: ObservationName("files".into()),
         })
         .to_vec();
-    let consumer = &mut crate::boundary_fixture::plans(&mut authored)[2];
+    let consumer = &mut crate::boundary_fixture::fixtures::plans(&mut authored)[2];
     consumer.steps = vec![PlanStep {
         scope: StepScope::CrossFile,
         operation: Operation::Select {
@@ -173,7 +201,7 @@ fn each_member_of_a_file_binding_reads_its_own_producer() {
         },
     ];
     for (producer, code) in [(0, "A"), (1, "B")] {
-        let plan = &mut crate::boundary_fixture::plans(&mut authored)[producer];
+        let plan = &mut crate::boundary_fixture::fixtures::plans(&mut authored)[producer];
         plan.steps.push(PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Extend {
@@ -197,7 +225,7 @@ fn each_member_of_a_file_binding_reads_its_own_producer() {
             output: ObservationName("nodes".into()),
         })
         .to_vec();
-    let consumer = &mut crate::boundary_fixture::plans(&mut authored)[2];
+    let consumer = &mut crate::boundary_fixture::fixtures::plans(&mut authored)[2];
     consumer.steps = vec![PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::Select {
@@ -232,7 +260,7 @@ fn each_member_of_a_file_binding_reads_its_own_producer() {
         capture: CaptureIntent::Disabled,
     };
     let intents = [produce, produce, consume];
-    let (consumed, _) = crate::file_intents::answered_rule(
+    let (consumed, _) = crate::file_intents::fixtures::answered_rule(
         &prepared,
         &[(Relation::Function, source())],
         (&[], &[]),

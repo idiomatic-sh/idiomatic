@@ -4,6 +4,11 @@ use super::super::super::cases::fixtures::table_of;
 use super::super::super::*;
 use super::super::fixtures::refusal;
 use super::fixtures::KeepsCalling;
+use crate::application::file_dag::program::facade_runtime::file_execution::service_test::fixtures::*;
+#[cfg(test)]
+use fixtures::execution::*;
+#[cfg(test)]
+use fixtures::provider::*;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::{

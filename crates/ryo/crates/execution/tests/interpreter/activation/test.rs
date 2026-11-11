@@ -1,5 +1,5 @@
 //! A file whose every rule is undemanded opens without a readiness evaluation.
-use crate::boundary_fixture::{corpus, engine, prepared_rules};
+use crate::boundary_fixture::fixtures::{corpus, engine, prepared_rules};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;

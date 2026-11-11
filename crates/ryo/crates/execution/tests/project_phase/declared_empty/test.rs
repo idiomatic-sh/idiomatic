@@ -1,14 +1,36 @@
 //! Closed empty declarations remain typed populations; absent declarations remain refusals.
-use super::super::*;
+use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine};
+use crate::project_phase::source_facts::fixtures::{CapturedFacts, ProjectFacts};
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIntentError;
 use ryo_execution::inbound::use_cases::execution::interface::{
     BatchNumber, BatchOccurrence, ObservationBatches,
 };
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{CellKind, FileId, Relation};
+use ryo_relations::domain::relations::types::{Words, WorkerNumber};
+use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::{
     observations::types::{
         BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
@@ -18,6 +40,13 @@ use ryo_values::domain::{
     runs::types::RuleId,
     stored_facts::types::Digest,
 };
+use ryo_values::domain::{
+    plan_parts::types::{Input, StepScope},
+    plans::types::{Operation, PlanStep},
+    rows::types::RowCount,
+};
+use std::cell::Cell;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 fn declared() -> PrepareRequest {
     let mut input = authored_request(1);
@@ -30,14 +59,14 @@ fn declared() -> PrepareRequest {
         columns: columns.clone(),
         producers: vec![],
     });
-    crate::boundary_fixture::plans(&mut input)[0]
+    crate::boundary_fixture::fixtures::plans(&mut input)[0]
         .observation_inputs
         .push(BoundObservationInput {
             name: ObservationBindingName("codes".into()),
             columns,
             scope: StepScope::CrossFile,
         });
-    crate::boundary_fixture::plans(&mut input)[0].steps = vec![PlanStep {
+    crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![PlanStep {
         scope: StepScope::CrossFile,
         operation: Operation::Select {
             from: Input::BoundObservation(ObservationBindingId(0)),
@@ -45,7 +74,7 @@ fn declared() -> PrepareRequest {
             kept: vec![],
         },
     }];
-    crate::boundary_fixture::plans(&mut input)[0].frontier =
+    crate::boundary_fixture::fixtures::plans(&mut input)[0].frontier =
         vec![Input::BoundObservation(ObservationBindingId(0))];
     input.observations = ObservationIdentity::Named(
         ryo_values::domain::records::types::ObservationReadinessLayout(Digest([9; 16])),
@@ -257,11 +286,12 @@ fn missing_declarations_outputs_and_mismatched_schemas_are_not_closed_empty() {
         Err(OperatingError::ShapeMismatch)
     ));
     let mut missing_slot = declared();
-    crate::boundary_fixture::plans(&mut missing_slot)[0].steps[0].operation = Operation::Select {
-        from: Input::BoundObservation(ObservationBindingId(1)),
-        comparisons: vec![],
-        kept: vec![],
-    };
+    crate::boundary_fixture::fixtures::plans(&mut missing_slot)[0].steps[0].operation =
+        Operation::Select {
+            from: Input::BoundObservation(ObservationBindingId(1)),
+            comparisons: vec![],
+            kept: vec![],
+        };
     assert!(matches!(
         engine.prepare(missing_slot),
         Err(OperatingError::ObservationConfiguration(
@@ -269,8 +299,8 @@ fn missing_declarations_outputs_and_mismatched_schemas_are_not_closed_empty() {
         ))
     ));
     let mut mismatch = declared();
-    crate::boundary_fixture::plans(&mut mismatch)[0].observation_inputs[0].columns[0].kind =
-        CellKind::Number;
+    crate::boundary_fixture::fixtures::plans(&mut mismatch)[0].observation_inputs[0].columns[0]
+        .kind = CellKind::Number;
     project_refuses(
         mismatch,
         "observation does not match its actual consumer declaration",
@@ -290,10 +320,10 @@ fn missing_declarations_outputs_and_mismatched_schemas_are_not_closed_empty() {
     let mut missing_output = declared();
     let other = authored_request(2);
     missing_output.rules.push(other.rules[1].clone());
-    crate::boundary_fixture::plans(&mut missing_output)
-        .push(crate::boundary_fixture::plans_of(&other)[1].clone());
+    crate::boundary_fixture::fixtures::plans(&mut missing_output)
+        .push(crate::boundary_fixture::fixtures::plans_of(&other)[1].clone());
     missing_output.digests.push(other.digests[1]);
-    crate::boundary_fixture::bindings(&mut missing_output).push(vec![]);
+    crate::boundary_fixture::fixtures::bindings(&mut missing_output).push(vec![]);
     missing_output.rules[0].observations[0].producers = vec![ObservationProducer::Output {
         rule: missing_output.rules[1].id.clone(),
         output: ObservationName("codes".into()),

@@ -1,10 +1,18 @@
 //! The support of the `direct` cases.
 use super::super::super::super::*;
 use super::super::*;
+use crate::application::file_dag::program::facade_runtime::file_execution::service_test::fixtures::*;
+#[cfg(test)]
+use fixtures::provider::*;
+use ryo_execution_domain::domain::table_model::types::RepresentationKind;
 use ryo_relations::domain::relations::{
     service::kinds,
     types::{CellKind, Integer, Relation, Value as Cell},
 };
+use ryo_relations::domain::relations::{service::to_bits, types::FactColumn};
+use ryo_values::domain::stored_facts::types::KeptWords;
+use ryo_values::domain::table_words::service::{encode_table, pack};
+use ryo_values::domain::table_words::types::{DecodeMode, WordSlice};
 use ryo_values::domain::{
     plan_parts::types::{Side, StepId, StepScope},
     plans::types::{Plan, PlanStep},

@@ -1,5 +1,33 @@
 //! Named function selection replays without running project steps or hiding absence.
-use super::super::*;
+use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine};
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{FileId, Relation, Value};
+use ryo_relations::domain::relations::types::{Words, WorkerNumber};
+use ryo_values::domain::stored_facts::types::Bucket;
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+    rows::types::RowCount,
+};
+use std::cell::Cell;
 
 /// The former per-file, missing-input and shared-pool scenarios use one prepared program.
 #[test]
@@ -37,10 +65,12 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
                 distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
             },
         };
-        crate::boundary_fixture::plans(&mut input)[0].steps =
+        crate::boundary_fixture::fixtures::plans(&mut input)[0].steps =
             vec![selected.clone(), projected.clone()];
-        crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(1);
-        crate::boundary_fixture::plans(&mut input)[1].steps = vec![
+        crate::boundary_fixture::fixtures::plans(&mut input)[0]
+            .emit
+            .step = StepId(1);
+        crate::boundary_fixture::fixtures::plans(&mut input)[1].steps = vec![
             selected,
             projected,
             PlanStep {
@@ -52,8 +82,11 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
                 },
             },
         ];
-        crate::boundary_fixture::plans(&mut input)[1].frontier = vec![Input::Step(StepId(1))];
-        crate::boundary_fixture::plans(&mut input)[1].emit.step = StepId(2);
+        crate::boundary_fixture::fixtures::plans(&mut input)[1].frontier =
+            vec![Input::Step(StepId(1))];
+        crate::boundary_fixture::fixtures::plans(&mut input)[1]
+            .emit
+            .step = StepId(2);
         let program = engine.prepare(input).expect("compile both plans together");
         let mut corpus = corpus();
         if let ryo_values::domain::files::types::CorpusInput::Available(entry) = &mut corpus[0] {
@@ -61,7 +94,7 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
         }
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
         let mut symbols = Symbols::default();
-        let table = crate::boundary_fixture::named_functions(&mut symbols);
+        let table = crate::boundary_fixture::fixtures::named_functions(&mut symbols);
         let reads = Cell::new(0);
         let read = |relation| {
             assert_eq!(relation, Relation::Function);

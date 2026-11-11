@@ -1,11 +1,12 @@
 //! Delivery never selects a different Axis dependency contract.
-use super::super::*;
+use crate::mode_order::fixtures::*;
+use crate::*;
 
 #[test]
 fn empty_axis_has_identical_admission_for_both_delivery_apis() {
     let authored = || {
         let mut input = authored_request(1);
-        crate::boundary_fixture::plans(&mut input)[0].steps = vec![
+        crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
             step(select(Relation::Function)),
             step(axis(
                 Input::Step(StepId(0)),
@@ -13,8 +14,11 @@ fn empty_axis_has_identical_admission_for_both_delivery_apis() {
                 98,
             )),
         ];
-        crate::boundary_fixture::plans(&mut input)[0].frontier = vec![Input::Step(StepId(0))];
-        crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(1);
+        crate::boundary_fixture::fixtures::plans(&mut input)[0].frontier =
+            vec![Input::Step(StepId(0))];
+        crate::boundary_fixture::fixtures::plans(&mut input)[0]
+            .emit
+            .step = StepId(1);
         input
     };
     let empty = Table {
@@ -56,22 +60,29 @@ fn axis_error_order_is_identical_for_both_delivery_apis_and_source_shapes() {
     for domain_step in [false, true] {
         let authored = || {
             let mut input = authored_request(1);
-            crate::boundary_fixture::plans(&mut input)[0].steps =
+            crate::boundary_fixture::fixtures::plans(&mut input)[0].steps =
                 vec![step(select(Relation::Function))];
             let domain = if domain_step {
-                crate::boundary_fixture::plans(&mut input)[0]
+                crate::boundary_fixture::fixtures::plans(&mut input)[0]
                     .steps
                     .push(step(select(Relation::Defines)));
                 Input::Step(StepId(1))
             } else {
                 Input::Relation(Relation::Defines)
             };
-            crate::boundary_fixture::plans(&mut input)[0]
+            crate::boundary_fixture::fixtures::plans(&mut input)[0]
                 .steps
                 .push(step(axis(Input::Step(StepId(0)), domain, 0)));
-            crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(
-                u32::try_from(crate::boundary_fixture::plans(&mut input)[0].steps.len() - 1)
-                    .expect("a step number fits in u32"),
+            crate::boundary_fixture::fixtures::plans(&mut input)[0]
+                .emit
+                .step = StepId(
+                u32::try_from(
+                    crate::boundary_fixture::fixtures::plans(&mut input)[0]
+                        .steps
+                        .len()
+                        - 1,
+                )
+                .expect("a step number fits in u32"),
             );
             input
         };

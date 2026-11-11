@@ -2,6 +2,8 @@
 use super::super::super::super::super::*;
 use super::super::super::*;
 use super::super::fixtures::{Witness, refusal};
+#[cfg(test)]
+use fixtures::execution::*;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::plans::types::Operation;
 use std::sync::Arc;

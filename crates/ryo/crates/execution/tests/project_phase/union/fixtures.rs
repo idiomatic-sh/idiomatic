@@ -1,10 +1,10 @@
 //! The operator port the union proof counts its semantic set calls through.
-use super::super::*;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Debug, Default)]
 pub(super) struct UnionSemanticCalls(pub(super) AtomicUsize);

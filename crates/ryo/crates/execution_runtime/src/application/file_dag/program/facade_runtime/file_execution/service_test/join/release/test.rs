@@ -5,6 +5,8 @@ use super::super::capability::fixtures::Witness;
 use super::super::*;
 use super::fixtures::{OrderedPort, refused};
 use super::fixtures::{cancelled, ordered, tree_join};
+#[cfg(test)]
+use fixtures::execution::*;
 use ryo_values::domain::rows::types::RowCount;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;

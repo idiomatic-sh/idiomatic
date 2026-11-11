@@ -1,5 +1,5 @@
 //! Hosted ordered dependencies use the same scheduler for both delivery modes.
-use crate::boundary_fixture::{authored_request, corpus, demand, engine};
+use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
@@ -42,7 +42,7 @@ pub(crate) fn ordered() -> PrepareRequest {
                 .collect(),
         })
         .collect();
-    for plan in crate::boundary_fixture::plans(&mut authored) {
+    for plan in crate::boundary_fixture::fixtures::plans(&mut authored) {
         plan.steps = vec![
             PlanStep {
                 scope: StepScope::PerFile,

@@ -1,5 +1,36 @@
 //! Project grouping reads only the function names actually captured.
-use super::super::*;
+use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine};
+use crate::project_phase::source_facts::fixtures::{CapturedFacts, ProjectFacts};
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value};
+use ryo_relations::domain::relations::types::{Words, WorkerNumber};
+use ryo_values::domain::stored_facts::types::Bucket;
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+    rows::types::RowCount,
+};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Migration control for the old pipeline proof's invalid schema and arbitrary cross-file hashes.
 /// Every grouped name below is obtained from a real captured Function population.
@@ -10,7 +41,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
     use ryo_values::domain::stored_facts::types::ArenaBytes;
     let engine = engine();
     let mut input = authored_request(1);
-    crate::boundary_fixture::plans(&mut input)[0].steps = vec![
+    crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Select {
@@ -28,8 +59,10 @@ fn project_grouping_reads_only_actual_captured_function_names() {
             },
         },
     ];
-    crate::boundary_fixture::plans(&mut input)[0].frontier = vec![Input::Step(StepId(0))];
-    crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(1);
+    crate::boundary_fixture::fixtures::plans(&mut input)[0].frontier = vec![Input::Step(StepId(0))];
+    crate::boundary_fixture::fixtures::plans(&mut input)[0]
+        .emit
+        .step = StepId(1);
     let program = engine
         .prepare(input)
         .expect("prepare actual mixed-phase count");
@@ -51,7 +84,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
     let other_hash = hash_of(ByteSlice(b"other"));
     for file_id in [FileId(0), FileId(1)] {
         let mut symbols = Symbols::default();
-        let mut table = crate::boundary_fixture::named_functions(&mut symbols);
+        let mut table = crate::boundary_fixture::fixtures::named_functions(&mut symbols);
         let width = table.kinds.len();
         if file_id == FileId(0) {
             table.cells.truncate(width);
@@ -140,7 +173,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
     let mut symbols = Symbols::default();
     let partials = Partials::default();
     let arenas = [ArenaBytes(arena)];
-    let outcome = crate::boundary_fixture::project_root(
+    let outcome = crate::boundary_fixture::fixtures::project_root(
         &phase,
         PhaseRules {
             rules: &[RuleIndex(0)],

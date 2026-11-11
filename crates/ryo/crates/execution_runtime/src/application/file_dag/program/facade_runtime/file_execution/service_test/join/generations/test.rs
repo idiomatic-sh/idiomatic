@@ -3,6 +3,10 @@ use super::super::super::super::*;
 use super::super::direct::fixtures::{request, schema_column, simple};
 use super::super::*;
 use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::application::file_dag::program::facade_runtime::file_execution::service_test::fixtures::*;
+#[cfg(test)]
+use fixtures::execution::*;
+use ryo_execution_domain::domain::table_model::types::RepresentationKind;
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
     prepared_request::types::{Compiled, ObservationIdentity},
@@ -16,6 +20,7 @@ use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Side, StepId},
     stored_facts::types::Digest,
 };
+use std::cell::Cell as Counter;
 use std::{rc::Rc, sync::Arc};
 #[test]
 fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_changed_payload() {

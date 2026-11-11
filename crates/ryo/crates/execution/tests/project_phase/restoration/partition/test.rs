@@ -1,23 +1,49 @@
 //! Actual two-file named restoration and absence publication, including a
 //! downstream projection that would erase the completeness key if fused early.
-use super::super::super::*;
 use super::fixtures::Mode;
 use super::fixtures::authored;
-use crate::boundary_fixture::Observed as _;
+use crate::boundary_fixture::fixtures::Observed as _;
+use crate::boundary_fixture::fixtures::{corpus, engine, source};
+use crate::project_phase::source_facts::fixtures::{CapturedFacts, ProjectFacts};
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::Partial;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::interface::{
     BatchNumber, BatchOccurrence, ObservationBatches, OccurrenceNumber, PhasePartials,
 };
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectObservation;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::files::types::FilePath;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::{FileId, Relation, Value};
+use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::records::types::ProducerReadiness;
+use ryo_values::domain::rows::types::RowCount;
 use ryo_values::domain::runs::types::SkipReason;
 use ryo_values::domain::runs::types::Skipped;
+use ryo_values::domain::stored_facts::types::Bucket;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub(super) fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mode) {
     exercise_with(empty, project_away_file, stale_complete, mode, &[]);

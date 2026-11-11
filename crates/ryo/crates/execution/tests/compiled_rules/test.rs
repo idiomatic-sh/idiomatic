@@ -44,7 +44,7 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
     let engine = engine();
     let raw = authored_request(2);
     let compiler = compiling_with(Arc::new(AuthoredQueryProvider(
-        crate::boundary_fixture::plans_of(&raw)[0].clone(),
+        crate::boundary_fixture::fixtures::plans_of(&raw)[0].clone(),
     )));
     let compiled = compiler
         .compile_rules(CompileRequest {
@@ -151,7 +151,7 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
     for populated in [false, true] {
         let engine = engine();
         let mut input = authored_request(1);
-        crate::boundary_fixture::plans(&mut input)[0].steps = vec![
+        crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
             PlanStep {
                 scope: StepScope::PerFile,
                 operation: Operation::Hosted {
@@ -168,7 +168,9 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
                 },
             },
         ];
-        crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(1);
+        crate::boundary_fixture::fixtures::plans(&mut input)[0]
+            .emit
+            .step = StepId(1);
         input.hosted = vec![HostRelation {
             name: HostName("partitioned-edges".into()),
             columns: ["from", "to", "key"]
@@ -297,30 +299,32 @@ fn independent_compilation_preserves_unused_steps_and_original_frontier_order() 
     use ryo_values::domain::plan_parts::types::RepeatedRows;
     let engine = engine();
     let mut raw = authored_request(1);
-    crate::boundary_fixture::plans(&mut raw)[0].steps.extend([
-        PlanStep {
-            scope: StepScope::PerFile,
-            operation: Operation::Project {
-                from: Input::Step(StepId(0)),
-                columns: vec![ColumnIndex(0)],
-                distinct: RepeatedRows::Kept,
+    crate::boundary_fixture::fixtures::plans(&mut raw)[0]
+        .steps
+        .extend([
+            PlanStep {
+                scope: StepScope::PerFile,
+                operation: Operation::Project {
+                    from: Input::Step(StepId(0)),
+                    columns: vec![ColumnIndex(0)],
+                    distinct: RepeatedRows::Kept,
+                },
             },
-        },
-        PlanStep {
-            scope: StepScope::PerFile,
-            operation: Operation::Project {
-                from: Input::Relation(Relation::Function),
-                columns: vec![ColumnIndex(1)],
-                distinct: RepeatedRows::Kept,
+            PlanStep {
+                scope: StepScope::PerFile,
+                operation: Operation::Project {
+                    from: Input::Relation(Relation::Function),
+                    columns: vec![ColumnIndex(1)],
+                    distinct: RepeatedRows::Kept,
+                },
             },
-        },
-    ]);
-    crate::boundary_fixture::plans(&mut raw)[0].frontier = vec![
+        ]);
+    crate::boundary_fixture::fixtures::plans(&mut raw)[0].frontier = vec![
         Input::Step(StepId(2)),
         Input::Step(StepId(0)),
         Input::Step(StepId(2)),
     ];
-    let original = crate::boundary_fixture::plans(&mut raw)[0].clone();
+    let original = crate::boundary_fixture::fixtures::plans(&mut raw)[0].clone();
     let compiler = compiling_with(Arc::new(AuthoredQueryProvider(original.clone())));
     let compiled = compiler
         .compile_rules(CompileRequest {

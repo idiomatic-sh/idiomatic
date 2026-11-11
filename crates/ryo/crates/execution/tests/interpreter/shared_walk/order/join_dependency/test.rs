@@ -1,8 +1,8 @@
 //! The shared walk uses one join dependency contract for callback delivery and shares one source walk.
-use crate::boundary_fixture::{authored_request, corpus, demand};
+use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
 use crate::interpreter::shared_walk::fixtures::counts;
+use crate::shared_walk::fixtures::no_catalog;
 use crate::shared_walk::fixtures::*;
-use crate::shared_walk::no_catalog;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
@@ -25,7 +25,7 @@ fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
     let (engine, _) = engine();
     let mut authored = authored_request(2);
-    crate::boundary_fixture::plans(&mut authored)[0].steps = vec![
+    crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Select {
@@ -59,12 +59,15 @@ fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
             },
         },
     ];
-    crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(2);
-    crate::boundary_fixture::plans(&mut authored)[1].steps[0].operation = Operation::Select {
-        from: Input::Relation(Relation::SyntaxTree),
-        comparisons: selection(Selector::Kind("other")),
-        kept: vec![],
-    };
+    crate::boundary_fixture::fixtures::plans(&mut authored)[0]
+        .emit
+        .step = StepId(2);
+    crate::boundary_fixture::fixtures::plans(&mut authored)[1].steps[0].operation =
+        Operation::Select {
+            from: Input::Relation(Relation::SyntaxTree),
+            comparisons: selection(Selector::Kind("other")),
+            kept: vec![],
+        };
     let program = engine.prepare(authored).unwrap();
     for diagnostic in [DiagnosticDelivery::Collected, DiagnosticDelivery::Forwarded] {
         for independent_first in [false, true] {
@@ -141,7 +144,7 @@ fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
 }
 #[test]
 fn independent_semantic_relation_selectors_share_one_source_walk() {
-    use crate::boundary_fixture::named_functions;
+    use crate::boundary_fixture::fixtures::named_functions;
     use ryo_relations::domain::relations::{
         fixtures::node_id,
         types::{CellKind, Position, Value},
@@ -149,7 +152,7 @@ fn independent_semantic_relation_selectors_share_one_source_walk() {
     let (engine, semantics) = engine();
     let mut authored = authored_request(2);
     for (index, name) in ["main", "other"].iter().enumerate() {
-        crate::boundary_fixture::plans(&mut authored)[index].steps[0].operation =
+        crate::boundary_fixture::fixtures::plans(&mut authored)[index].steps[0].operation =
             Operation::Select {
                 from: Input::Relation(Relation::Function),
                 comparisons: vec![compared(Test::Equal, 1, text(name))],

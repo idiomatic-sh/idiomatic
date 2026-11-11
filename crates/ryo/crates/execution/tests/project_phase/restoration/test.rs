@@ -1,18 +1,40 @@
 //! Named restoration retains partition-qualified physical coverage despite cached readiness.
-use super::super::*;
-use crate::boundary_fixture::Observed as _;
+use crate::boundary_fixture::fixtures::Observed as _;
+use crate::boundary_fixture::fixtures::{corpus, engine, source};
+use crate::project_phase::source_facts::fixtures::{CapturedFacts, ProjectFacts};
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::errors::FactsError;
 use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
 use ryo_execution_runtime::outbound::facts::types::KeptBucket;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::files::types::FilePath;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{FileId, Relation, Value};
+use ryo_relations::domain::relations::types::{Words, WorkerNumber};
+use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::{
     files::types::CorpusInput,
     runs::types::{RuleApplicability, SkipReason, Skipped},
 };
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[test]
 fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_readiness() {
@@ -21,7 +43,7 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
     };
     for rejected in [false, true] {
         let engine = engine();
-        let mut authored = crate::file_intents::named_request();
+        let mut authored = crate::file_intents::fixtures::named_request();
         authored.rules[0].applicability = RuleApplicability::AcceptedSyntax;
         let producer_id = authored.rules[0].id.clone();
         let prepared = engine.prepare(authored).unwrap();

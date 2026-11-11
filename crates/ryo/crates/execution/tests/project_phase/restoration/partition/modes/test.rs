@@ -1,8 +1,8 @@
 //! Each mode of the partition controls through the owner: partial, rekeyed and current publications.
-use super::super::super::super::*;
 use super::super::fixtures::Mode;
 use super::super::test::exercise;
 use super::super::test::exercise_with;
+use ryo_relations::domain::relations::types::FileId;
 
 #[test]
 fn named_absence_keeps_good_file_bags_and_orders_while_bad_file_stays_unknown() {

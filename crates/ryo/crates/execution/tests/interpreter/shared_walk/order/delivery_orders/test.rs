@@ -1,8 +1,8 @@
 //! Frontier and callback delivery share one atomic failure and one dependency contract in both orders.
-use crate::boundary_fixture::{authored_request, corpus};
+use crate::boundary_fixture::fixtures::{authored_request, corpus};
 use crate::interpreter::shared_walk::fixtures::counts;
+use crate::shared_walk::fixtures::no_catalog;
 use crate::shared_walk::fixtures::*;
-use crate::shared_walk::no_catalog;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
@@ -23,12 +23,14 @@ fn frontier_and_callback_share_the_same_atomic_semantic_failure() {
     for capture_first in [true, false] {
         let (engine, _) = engine();
         let mut authored = authored_request(1);
-        crate::boundary_fixture::plans(&mut authored)[0].steps[0].operation = Operation::Select {
-            from: Input::Relation(Relation::SyntaxTree),
-            comparisons: selection(Selector::DynamicRegex),
-            kept: vec![],
-        };
-        crate::boundary_fixture::plans(&mut authored)[0].frontier = vec![Input::Step(StepId(0))];
+        crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps[0].operation =
+            Operation::Select {
+                from: Input::Relation(Relation::SyntaxTree),
+                comparisons: selection(Selector::DynamicRegex),
+                kept: vec![],
+            };
+        crate::boundary_fixture::fixtures::plans(&mut authored)[0].frontier =
+            vec![Input::Step(StepId(0))];
         let program = engine.prepare(authored).unwrap();
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);

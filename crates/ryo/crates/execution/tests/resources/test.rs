@@ -1,7 +1,7 @@
 //! S9: an operation that acquires its resources at its first row acquires none for an input with no row, so a resource it could
 //! not acquire refuses only an input with a row.
-use crate::boundary_fixture::{authored_request, engine};
-use crate::file_intents::answered;
+use crate::boundary_fixture::fixtures::{authored_request, engine};
+use crate::file_intents::fixtures::answered;
 use ryo_execution::inbound::use_cases::execution::interface::{OperatingError, RootOutcome};
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_values::domain::hosted::types::{
@@ -29,7 +29,7 @@ fn unbound_rank(names: &[&str]) -> RootOutcome {
             .map(|name| HostRow(vec![Cell::Text((*name).into())]))
             .collect(),
     });
-    let plan = &mut crate::boundary_fixture::plans(&mut input)[0];
+    let plan = &mut crate::boundary_fixture::fixtures::plans(&mut input)[0];
     plan.parameters.push(PlanParameter {
         name: ParameterName("sets".into()),
         kind: ParameterType::TextSets,

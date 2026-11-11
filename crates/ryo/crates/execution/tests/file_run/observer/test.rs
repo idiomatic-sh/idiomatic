@@ -8,7 +8,7 @@ fn a_file_run_answers_the_same_with_or_without_the_counting_observer() {
     use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, Test};
     let engine = engine();
     let mut input = authored_request(1);
-    let plan = &mut crate::boundary_fixture::plans(&mut input)[0];
+    let plan = &mut crate::boundary_fixture::fixtures::plans(&mut input)[0];
     plan.steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
@@ -43,7 +43,7 @@ fn a_file_run_answers_the_same_with_or_without_the_counting_observer() {
         let worker = super::super::fixtures::function_rows(&facts, FileId(0), &[1, 2, 3]);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let mut symbols = Symbols::default();
-        let (ran, _) = crate::file_intents::ran_file(
+        let (ran, _) = crate::file_intents::fixtures::ran_file(
             &request,
             FileId(0),
             &[FileRuleIntent::Run {
@@ -95,7 +95,7 @@ fn each_fused_step_is_counted_for_the_rows_it_was_fed() {
     use ryo_values::domain::plan_parts::types::Test;
     let (engine, _) = crate::shared_walk::fixtures::engine();
     let mut input = authored_request(1);
-    let plan = &mut crate::boundary_fixture::plans(&mut input)[0];
+    let plan = &mut crate::boundary_fixture::fixtures::plans(&mut input)[0];
     plan.steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
@@ -127,7 +127,7 @@ fn each_fused_step_is_counted_for_the_rows_it_was_fed() {
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let facts = ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake::default();
     let worker = facts.worker().expect("a fake worker");
-    let (ran, _) = crate::file_intents::ran_file(
+    let (ran, _) = crate::file_intents::fixtures::ran_file(
         &request,
         FileId(0),
         &[FileRuleIntent::Run {

@@ -1,7 +1,9 @@
 //! Deferred roots do not hide owning-phase faults or renumber file frontier refusals.
 use super::super::super::source_facts::fixtures::ProjectFacts;
 use super::super::fixtures::NoFileFrontiers;
-use crate::boundary_fixture::{authored_request, corpus, demand, engine, prepared, source};
+use crate::boundary_fixture::fixtures::{
+    authored_request, corpus, demand, engine, prepared, source,
+};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
@@ -52,7 +54,7 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
     let mut symbols = Symbols::default();
     let project_symbols = Symbols::default();
     let partials = Partials::default();
-    let result = crate::boundary_fixture::project_root(
+    let result = crate::boundary_fixture::fixtures::project_root(
         &phase,
         PhaseRules {
             rules: &[RuleIndex(0)],
@@ -134,7 +136,7 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
             .unwrap(),
     )
     .unwrap();
-    crate::boundary_fixture::plans(&mut input)[0].steps = vec![
+    crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Select {
@@ -160,12 +162,14 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
             },
         },
     ];
-    crate::boundary_fixture::plans(&mut input)[0].frontier = vec![
+    crate::boundary_fixture::fixtures::plans(&mut input)[0].frontier = vec![
         Input::Step(StepId(0)),
         Input::Relation(Relation::ModuleIdentity),
         Input::Step(StepId(1)),
     ];
-    crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(2);
+    crate::boundary_fixture::fixtures::plans(&mut input)[0]
+        .emit
+        .step = StepId(2);
     let prepared = engine
         .prepare(input)
         .expect("retain each frontier's independent refusal");

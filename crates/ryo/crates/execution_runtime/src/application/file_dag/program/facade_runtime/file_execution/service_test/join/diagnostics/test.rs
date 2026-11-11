@@ -3,8 +3,13 @@ use super::super::super::super::*;
 use super::super::cases::fixtures::table_of;
 use super::super::*;
 use super::fixtures::JoinDiagnostics;
+#[cfg(test)]
+use fixtures::execution::*;
+#[cfg(test)]
+use fixtures::provider::*;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
+use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::{plan_parts::types::Side, rows::types::RowCount};
 
 #[test]

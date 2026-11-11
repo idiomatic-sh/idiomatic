@@ -4,6 +4,10 @@ use super::super::capability::fixtures::REFUSAL;
 use super::super::cases::fixtures::{node, table_of, tree_rows, wide_tree};
 use super::super::*;
 use crate::outbound::operators::interface::OperatorsPort as _;
+#[cfg(test)]
+use fixtures::execution::*;
+#[cfg(test)]
+use fixtures::provider::*;
 use ryo_execution_domain::domain::table_cells::types::TreeForm;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
@@ -14,6 +18,7 @@ use ryo_relations::domain::relations::{
     service::kinds,
     types::{CellKind, FileId, Flag, Integer, Offset, Relation, Span, Value as Cell},
 };
+use ryo_relations::{domain::relations::types::NodeId, domain::terms::types::Symbol};
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::rows::types::{RowCount, Table};
 use std::sync::Arc;

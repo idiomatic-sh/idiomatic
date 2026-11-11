@@ -1,5 +1,5 @@
 //! Real relation, region, observation and member roots, including direct bound capture.
-use crate::boundary_fixture::{authored_request, corpus, engine, source};
+use crate::boundary_fixture::fixtures::{authored_request, corpus, engine, source};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
@@ -44,19 +44,20 @@ pub(crate) fn named() -> PrepareRequest {
         name: ObservationColumnName("node".into()),
         kind: CellKind::Node,
     }];
-    crate::boundary_fixture::plans(&mut authored)[0].observations = vec![PlanObservation {
-        name: ObservationName("nodes".into()),
-        source: Input::Step(StepId(0)),
-        columns: columns.clone(),
-        scope: StepScope::PerFile,
-    }];
-    crate::boundary_fixture::plans(&mut authored)[1].observation_inputs =
+    crate::boundary_fixture::fixtures::plans(&mut authored)[0].observations =
+        vec![PlanObservation {
+            name: ObservationName("nodes".into()),
+            source: Input::Step(StepId(0)),
+            columns: columns.clone(),
+            scope: StepScope::PerFile,
+        }];
+    crate::boundary_fixture::fixtures::plans(&mut authored)[1].observation_inputs =
         vec![BoundObservationInput {
             name: ObservationBindingName("nodes".into()),
             columns: columns.clone(),
             scope: StepScope::PerFile,
         }];
-    crate::boundary_fixture::plans(&mut authored)[1].steps = vec![PlanStep {
+    crate::boundary_fixture::fixtures::plans(&mut authored)[1].steps = vec![PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::Union {
             left: Input::BoundObservation(ObservationBindingId(0)),
@@ -67,7 +68,7 @@ pub(crate) fn named() -> PrepareRequest {
     // canonical export contract uses Step roots. Keep the per-file union as a
     // real export; a separately demanded cross-file step reads the bound input
     // directly, making that Observation source an actual file frontier.
-    crate::boundary_fixture::plans(&mut authored)[1]
+    crate::boundary_fixture::fixtures::plans(&mut authored)[1]
         .steps
         .push(PlanStep {
             scope: StepScope::CrossFile,
@@ -76,7 +77,7 @@ pub(crate) fn named() -> PrepareRequest {
                 right: Input::BoundObservation(ObservationBindingId(0)),
             },
         });
-    crate::boundary_fixture::plans(&mut authored)[1].observations = vec![
+    crate::boundary_fixture::fixtures::plans(&mut authored)[1].observations = vec![
         PlanObservation {
             name: ObservationName("forwarded".into()),
             source: Input::Step(StepId(0)),
@@ -90,7 +91,7 @@ pub(crate) fn named() -> PrepareRequest {
             scope: StepScope::CrossFile,
         },
     ];
-    crate::boundary_fixture::plans(&mut authored)[2].observation_inputs = vec![
+    crate::boundary_fixture::fixtures::plans(&mut authored)[2].observation_inputs = vec![
         BoundObservationInput {
             name: ObservationBindingName("forwarded".into()),
             columns: columns.clone(),
@@ -102,7 +103,7 @@ pub(crate) fn named() -> PrepareRequest {
             scope: StepScope::CrossFile,
         },
     ];
-    crate::boundary_fixture::plans(&mut authored)[2].steps = vec![PlanStep {
+    crate::boundary_fixture::fixtures::plans(&mut authored)[2].steps = vec![PlanStep {
         scope: StepScope::CrossFile,
         operation: Operation::Union {
             left: Input::BoundObservation(ObservationBindingId(0)),

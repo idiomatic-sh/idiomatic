@@ -1,17 +1,51 @@
 //! The files, the function rows of each and the run through the owner that the rewrite proofs compare plans by.
-use super::super::*;
+use crate::boundary_fixture::fixtures::{authored_request, demand, engine};
+use crate::project_phase::source_facts::fixtures::ProjectFacts;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::errors::FactsError;
 use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution_runtime::outbound::facts::types::{BucketSource, KeptBucket};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::domain::symbols::{fixtures::intern, types::ByteSlice};
 use ryo_relations::domain::relations::fixtures::node_id;
 use ryo_relations::domain::relations::types::{Offset, Position, Span};
+use ryo_relations::domain::relations::types::{Words, WorkerNumber};
+use ryo_relations::domain::relations::{
+    fixtures::kinds,
+    types::{CellKind, FileId, Relation, Value},
+};
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
 };
 use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, KeptWords, PackedWords};
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+    rows::types::RowCount,
+};
+use std::sync::Arc;
 
 /// The text of every file: the two names its functions take.
 const SOURCE: &[u8] = b"mainother";
@@ -138,7 +172,7 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
     let crossing = steps.iter().any(|step| step.scope == StepScope::CrossFile);
     let engine = engine();
     let mut input = authored_request(1);
-    let plan = &mut crate::boundary_fixture::plans(&mut input)[0];
+    let plan = &mut crate::boundary_fixture::fixtures::plans(&mut input)[0];
     plan.frontier =
         ryo_query_language::inbound::use_cases::compile::fixtures::rewrites::frontier(&steps);
     plan.steps = steps;
@@ -255,7 +289,7 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
         let mut symbols = Symbols::default();
         let partials = Partials::default();
         let arenas = [ArenaBytes(arena)];
-        let RootOutcome::Complete(table) = crate::boundary_fixture::project_root(
+        let RootOutcome::Complete(table) = crate::boundary_fixture::fixtures::project_root(
             &phase,
             PhaseRules {
                 rules: &[RuleIndex(0)],

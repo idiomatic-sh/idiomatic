@@ -1,6 +1,10 @@
 //! Captured name frames keep their own place numbers across publications.
-use super::super::*;
+use crate::*;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 
 #[test]
 fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
@@ -26,7 +30,7 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
     ] {
         let engine = engine();
         let mut input = authored_request(1);
-        crate::boundary_fixture::plans(&mut input)[0]
+        crate::boundary_fixture::fixtures::plans(&mut input)[0]
             .steps
             .push(PlanStep {
                 scope: StepScope::PerFile,
@@ -36,7 +40,8 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
                     distinct: RepeatedRows::Kept,
                 },
             });
-        crate::boundary_fixture::plans(&mut input)[0].frontier = vec![Input::Step(StepId(1))];
+        crate::boundary_fixture::fixtures::plans(&mut input)[0].frontier =
+            vec![Input::Step(StepId(1))];
         let program = engine.prepare(input).expect("valid symbol frontier");
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);

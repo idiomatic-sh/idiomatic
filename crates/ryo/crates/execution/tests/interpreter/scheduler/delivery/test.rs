@@ -1,5 +1,5 @@
 //! Sink refusal retries terminal delivery, while a new owner must admit a new population.
-use crate::boundary_fixture::{authored_request, corpus, demand, engine, source};
+use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine, source};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
@@ -28,7 +28,7 @@ use std::cell::Cell;
 fn sink_refusal_replays_delivery_without_restarting_the_shared_dependency_graph() {
     let engine = engine();
     let mut authored = authored_request(2);
-    for plan in crate::boundary_fixture::plans(&mut authored) {
+    for plan in crate::boundary_fixture::fixtures::plans(&mut authored) {
         plan.steps.push(PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Union {
@@ -143,11 +143,12 @@ fn sink_refusal_replays_delivery_without_restarting_the_shared_dependency_graph(
 fn an_unbound_rule_cannot_schedule_an_independent_provider_after_a_failed_sibling() {
     let engine = engine();
     let mut authored = authored_request(2);
-    crate::boundary_fixture::plans(&mut authored)[1].steps[0].operation = Operation::Select {
-        from: Input::Relation(Relation::Identifier),
-        comparisons: vec![],
-        kept: vec![ColumnIndex(0)],
-    };
+    crate::boundary_fixture::fixtures::plans(&mut authored)[1].steps[0].operation =
+        Operation::Select {
+            from: Input::Relation(Relation::Identifier),
+            comparisons: vec![],
+            kept: vec![ColumnIndex(0)],
+        };
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);

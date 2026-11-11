@@ -1,6 +1,6 @@
 //! Blocked regions, empty publications and merged coverage, through the public file session.
-use crate::boundary_fixture::{authored_request, engine, source};
-use crate::file_intents::{answered, partial};
+use crate::boundary_fixture::fixtures::{authored_request, engine, source};
+use crate::file_intents::fixtures::{answered, partial};
 use ryo_execution::inbound::use_cases::execution::interface::{
     PreparedExecutionProgram, RootOutcome,
 };
@@ -22,7 +22,7 @@ fn functions_without_comments() -> PreparedExecutionProgram {
             kept: vec![ColumnIndex(0)],
         },
     };
-    crate::boundary_fixture::plans(&mut input)[0].steps = vec![
+    crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
         select(Relation::Function),
         select(Relation::Comment),
         PlanStep {
@@ -35,7 +35,9 @@ fn functions_without_comments() -> PreparedExecutionProgram {
             },
         },
     ];
-    crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(2);
+    crate::boundary_fixture::fixtures::plans(&mut input)[0]
+        .emit
+        .step = StepId(2);
     engine().prepare(input).expect("prepare an antijoin")
 }
 
@@ -83,7 +85,7 @@ fn a_region_reading_a_partial_relation_is_blocked_before_it_reads() {
 /// antijoin's left input is a step, so an empty left settles it at its empty-result gate.
 fn functions_without_comment_relation() -> PreparedExecutionProgram {
     let mut input = authored_request(1);
-    crate::boundary_fixture::plans(&mut input)[0].steps = vec![
+    crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Select {
@@ -102,7 +104,9 @@ fn functions_without_comment_relation() -> PreparedExecutionProgram {
             },
         },
     ];
-    crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(1);
+    crate::boundary_fixture::fixtures::plans(&mut input)[0]
+        .emit
+        .step = StepId(1);
     engine()
         .prepare(input)
         .expect("prepare an antijoin of a step and a relation")
@@ -235,7 +239,7 @@ fn first_of_each_line_plan(
             right_on: vec![ColumnIndex(0)],
         },
     ];
-    let plan = &mut crate::boundary_fixture::plans(&mut input)[0];
+    let plan = &mut crate::boundary_fixture::fixtures::plans(&mut input)[0];
     plan.steps = steps
         .into_iter()
         .map(|operation| PlanStep {

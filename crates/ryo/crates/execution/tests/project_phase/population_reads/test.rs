@@ -1,5 +1,35 @@
 //! Two declared roots of one population read the provider once.
-use super::super::*;
+use crate::boundary_fixture::fixtures::{corpus, demand, engine, source};
+use crate::project_phase::fixtures::*;
+use crate::project_phase::source_facts::fixtures::{CapturedFacts, ProjectFacts};
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution_domain::domain::row_emission::types::RowEmission;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value};
+use ryo_relations::domain::relations::types::{Words, WorkerNumber};
+use ryo_values::domain::{plan_parts::types::InputNumber, stored_facts::types::Bucket};
+use ryo_values::domain::{plan_parts::types::StepScope, rows::types::RowCount};
+use std::cell::Cell;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[test]
 fn two_declared_roots_of_one_population_read_the_provider_once() {
@@ -168,7 +198,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         };
         // The production sequence: one call with two declared occurrences of one population. The phase prepares every occurrence
         // before it evaluates any, so the second reuses the first's acquisition while nothing outside the engine holds it.
-        let mut outcomes = crate::boundary_fixture::project_roots(
+        let mut outcomes = crate::boundary_fixture::fixtures::project_roots(
             &phase,
             occurrences(&pair),
             &partials,
@@ -191,7 +221,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             assert_eq!(table.cells, [Value::File(FileId(0))]);
         }
         // A later call holds nothing from the earlier ones: its two occurrences share one new acquisition.
-        let later = crate::boundary_fixture::project_roots(
+        let later = crate::boundary_fixture::fixtures::project_roots(
             &phase,
             occurrences(&pair),
             &partials,
@@ -258,7 +288,7 @@ fn an_observed_population_is_a_separate_acquisition_with_the_same_answer() {
     let first = [Bucket(0), Bucket(1)];
     let partials = Partials::default();
     let phase = request.project_phase().unwrap();
-    let ordinary = crate::boundary_fixture::project_root(
+    let ordinary = crate::boundary_fixture::fixtures::project_root(
         &phase,
         PhaseRules {
             rules: &[RuleIndex(0)],

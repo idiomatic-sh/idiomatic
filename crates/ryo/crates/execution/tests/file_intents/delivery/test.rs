@@ -1,7 +1,14 @@
 //! Observation capture and diagnostic delivery are bound before admission.
-use super::super::*;
-use crate::boundary_fixture::Observed as _;
+use crate::boundary_fixture::fixtures::Observed as _;
+use crate::file_intents::fixtures::*;
+use crate::*;
+use ryo_execution::inbound::use_cases::execution::interface::Demand;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_values::domain::runs::types::ApplicabilityRefusal;
 
 #[test]

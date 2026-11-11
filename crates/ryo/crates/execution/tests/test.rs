@@ -38,7 +38,7 @@ use ryo_values::domain::{
 use std::{cell::Cell, sync::Arc};
 #[cfg(test)]
 mod boundary_fixture;
-use boundary_fixture::{
+use boundary_fixture::fixtures::{
     authored_request, corpus, demand, engine, prepared, prepared_rules, source,
 };
 
@@ -98,7 +98,7 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
         Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     let mut input = authored_request(1);
-    crate::boundary_fixture::plans(&mut input)[0]
+    crate::boundary_fixture::fixtures::plans(&mut input)[0]
         .steps
         .push(PlanStep {
             scope: StepScope::PerFile,
@@ -108,7 +108,9 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
                 distinct: None,
             },
         });
-    crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(1);
+    crate::boundary_fixture::fixtures::plans(&mut input)[0]
+        .emit
+        .step = StepId(1);
     let program = engine.prepare(input).expect("prepare real count");
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
@@ -180,7 +182,7 @@ fn a_refused_sink_is_retried_from_the_publication_without_another_evaluation() {
         Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     let mut input = authored_request(1);
-    crate::boundary_fixture::plans(&mut input)[0]
+    crate::boundary_fixture::fixtures::plans(&mut input)[0]
         .steps
         .push(PlanStep {
             scope: StepScope::PerFile,
@@ -190,7 +192,9 @@ fn a_refused_sink_is_retried_from_the_publication_without_another_evaluation() {
                 distinct: None,
             },
         });
-    crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(1);
+    crate::boundary_fixture::fixtures::plans(&mut input)[0]
+        .emit
+        .step = StepId(1);
     let program = engine.prepare(input).expect("prepare a count");
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);

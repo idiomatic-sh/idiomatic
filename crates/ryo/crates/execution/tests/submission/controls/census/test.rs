@@ -1,5 +1,11 @@
 //! Each entry trait method runs its refusal control, over intent inventories that list every variant.
-use super::super::*;
+use crate::submission::controls::fixtures::*;
+use crate::submission::inventory::fixtures::{
+    CAPTURES, DELIVERIES, DEMANDS, REASONS, REFUSALS, assert_inventory, capture_place,
+    delivery_place, demand_place, every_intent, intent_place, reason_place, refusal_place,
+};
+use crate::submission::witness::fixtures::{ALL, Witness, implements_every_entry_trait};
+use std::collections::BTreeSet;
 
 #[test]
 pub(super) fn every_entry_method_refuses_an_incomplete_extra_or_undeclared_root() {

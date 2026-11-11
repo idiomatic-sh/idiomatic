@@ -3,8 +3,18 @@ use super::super::super::super::*;
 use super::super::cases::fixtures::table_of;
 use super::super::*;
 use super::fixtures::{assert_representation_parity, fact_column};
+use crate::application::file_dag::program::facade_runtime::file_execution::service_test::fixtures::*;
+#[cfg(test)]
+use fixtures::execution::*;
+#[cfg(test)]
+use fixtures::provider::*;
+use ryo_execution_domain::domain::table_model::service::materialize;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Flag, Integer, Value as Cell};
+use ryo_relations::domain::relations::{
+    service::to_bits,
+    types::{ColumnsView, FactColumn},
+};
 use ryo_values::domain::rows::service::push_row;
 use ryo_values::domain::rows::service::row_in;
 use ryo_values::domain::{

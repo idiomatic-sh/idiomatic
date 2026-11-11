@@ -1,9 +1,30 @@
 //! One project observation union: its members feed the semantic calls, a refused frontier prevents them, and hosted text joins by spelling.
-use super::super::*;
 use super::fixtures::UnionSemanticCalls;
+use crate::boundary_fixture::fixtures::{authored_request, corpus};
+use crate::project_phase::source_facts::fixtures::{CapturedFacts, ProjectFacts};
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::interface::{
     BatchNumber, BatchOccurrence, ObservationBatches,
+};
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectObservation;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::{
+    fixtures::kinds,
+    types::{CellKind, FileId, Relation, Value},
 };
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
@@ -13,6 +34,17 @@ use ryo_values::domain::plan_parts::types::ObservationBindingId;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::records::types::ObservationReadinessLayout;
 use ryo_values::domain::stored_facts::types::Digest;
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+    rows::types::RowCount,
+};
+use ryo_values::domain::{
+    plan_parts::types::{JoinColumn, Side},
+    stored_facts::types::Bucket,
+};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[test]
 fn project_observation_union_semantic_calls_use_members_without_a_restored_union() {
@@ -48,7 +80,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         name: ObservationColumnName("file".into()),
         kind: CellKind::File,
     }];
-    crate::boundary_fixture::plans(&mut authored)[0].steps = vec![PlanStep {
+    crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![PlanStep {
         scope: StepScope::CrossFile,
         operation: Operation::Select {
             from: Input::Relation(relation),
@@ -61,7 +93,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             name: ObservationColumnName("code".into()),
             kind: CellKind::Symbol,
         });
-        crate::boundary_fixture::plans(&mut authored)[0]
+        crate::boundary_fixture::fixtures::plans(&mut authored)[0]
             .steps
             .push(PlanStep {
                 scope: StepScope::CrossFile,
@@ -75,7 +107,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
                 },
             });
     }
-    crate::boundary_fixture::plans(&mut authored)[0]
+    crate::boundary_fixture::fixtures::plans(&mut authored)[0]
         .observations
         .push(PlanObservation {
             name: ObservationName("files".into()),
@@ -83,7 +115,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             columns: columns.clone(),
             scope: StepScope::CrossFile,
         });
-    crate::boundary_fixture::plans(&mut authored)[1].steps = vec![PlanStep {
+    crate::boundary_fixture::fixtures::plans(&mut authored)[1].steps = vec![PlanStep {
         scope: StepScope::CrossFile,
         operation: Operation::Select {
             from: Input::BoundObservation(ObservationBindingId(0)),
@@ -91,7 +123,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             kept: vec![],
         },
     }];
-    crate::boundary_fixture::plans(&mut authored)[1]
+    crate::boundary_fixture::fixtures::plans(&mut authored)[1]
         .observation_inputs
         .push(BoundObservationInput {
             name: ObservationBindingName("files".into()),
@@ -113,7 +145,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
                 ryo_values::domain::row_texts::types::Cell::Text(selected.into()),
             ])],
         });
-        crate::boundary_fixture::plans(&mut authored)[1]
+        crate::boundary_fixture::fixtures::plans(&mut authored)[1]
             .steps
             .extend([
                 PlanStep {
@@ -139,7 +171,9 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
                     },
                 },
             ]);
-        crate::boundary_fixture::plans(&mut authored)[1].emit.step = StepId(2);
+        crate::boundary_fixture::fixtures::plans(&mut authored)[1]
+            .emit
+            .step = StepId(2);
     }
     let producer = authored.rules[0].id.clone();
     authored.rules[1].observations.push(ObservationBinding {

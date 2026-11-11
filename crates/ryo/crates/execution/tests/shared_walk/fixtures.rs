@@ -1,5 +1,5 @@
 //! Completed source data and authored requests; every execution enters the public owner.
-use crate::boundary_fixture::authored_request;
+use crate::boundary_fixture::fixtures::authored_request;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
@@ -122,19 +122,20 @@ pub(crate) fn prepared(
 ) -> PreparedExecutionProgram {
     let mut input = authored_request(selectors.len());
     for (index, selector) in selectors.iter().copied().enumerate() {
-        crate::boundary_fixture::plans(&mut input)[index].steps[0].operation = Operation::Select {
-            from: Input::Relation(Relation::SyntaxTree),
-            comparisons: selection(selector),
-            kept: vec![],
-        };
+        crate::boundary_fixture::fixtures::plans(&mut input)[index].steps[0].operation =
+            Operation::Select {
+                from: Input::Relation(Relation::SyntaxTree),
+                comparisons: selection(selector),
+                kept: vec![],
+            };
         if let Selector::Parameter(value) = selector {
-            crate::boundary_fixture::plans(&mut input)[index]
+            crate::boundary_fixture::fixtures::plans(&mut input)[index]
                 .parameters
                 .push(PlanParameter {
                     name: ParameterName("name".into()),
                     kind: ParameterType::Text,
                 });
-            crate::boundary_fixture::bindings(&mut input)[index] =
+            crate::boundary_fixture::fixtures::bindings(&mut input)[index] =
                 vec![ParameterBinding::Text(LiteralText(value.into()))];
         }
     }
@@ -237,4 +238,8 @@ pub(crate) fn regex_error(pattern: &str) -> OperatingError {
         .expect("intentionally malformed regular expression");
     let (MatchingError::InvalidRegex { reason } | MatchingError::BadGlob { reason, .. }) = error;
     OperatingError::InvalidRegex { reason }
+}
+
+pub(crate) fn no_catalog(_: Relation) -> Result<SourceRows<'static>, OperatingError> {
+    panic!("completed SyntaxTree is supplied by the public file input")
 }

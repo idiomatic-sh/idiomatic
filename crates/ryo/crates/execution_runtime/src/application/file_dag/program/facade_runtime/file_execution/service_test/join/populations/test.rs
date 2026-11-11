@@ -3,10 +3,18 @@ use super::super::super::super::*;
 use super::super::cases::fixtures::{node, stretch, table_of};
 use super::super::*;
 use super::fixtures::functions;
+#[cfg(test)]
+use fixtures::execution::*;
+#[cfg(test)]
+use fixtures::provider::*;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::kinds,
     types::{CellKind, FileId, Integer, Relation, Value as Cell},
+};
+use ryo_relations::domain::relations::{
+    service::to_bits,
+    types::{ColumnsView, FactColumn},
 };
 use ryo_values::domain::rows::service::row_in;
 use ryo_values::domain::{

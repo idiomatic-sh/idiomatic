@@ -5,6 +5,7 @@ use ryo_relations::domain::relations::{
     service::kinds,
     types::{FileId, Relation, Value as Cell},
 };
+use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::rows::service::push_row;
 use ryo_values::domain::rows::types::Table;
 

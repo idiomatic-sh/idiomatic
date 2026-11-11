@@ -4,10 +4,19 @@ use super::super::super::cases::fixtures::{node, table_of, tree_rows, wide_tree}
 use super::super::super::*;
 use super::super::fixtures::Witness;
 use super::fixtures::checked_refusal;
+#[cfg(test)]
+use fixtures::execution::*;
+#[cfg(test)]
+use fixtures::provider::*;
 use ryo_execution_domain::domain::table_cells::types::TreeForm;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
+use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
+use ryo_values::domain::compact_table::service::admit_compact;
 use ryo_values::domain::plan_parts::types::Side;
+use ryo_values::domain::stored_facts::types::KeptWords;
+use ryo_values::domain::table_words::service::{encode_table, pack};
+use ryo_values::domain::table_words::types::{DecodeMode, WordSlice};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 #[test]

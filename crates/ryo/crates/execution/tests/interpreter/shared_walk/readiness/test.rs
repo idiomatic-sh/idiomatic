@@ -1,9 +1,9 @@
 //! Actual public file-owner readiness bounds and terminal failure replay.
-use crate::boundary_fixture::{authored_request, corpus, demand};
+use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
 use crate::shared_walk::readiness::test::{
     readiness_budget, readiness_chain, readiness_expected, readiness_hosted, readiness_intent,
 };
-use crate::shared_walk::{fixtures::*, no_catalog};
+use crate::shared_walk::{fixtures::no_catalog, fixtures::*};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
@@ -28,7 +28,7 @@ fn exercise_readiness_chain(empty: bool) {
     let (engine, _) = engine();
     let mut authored = authored_request(3);
     let steps = readiness_chain();
-    for (index, plan) in crate::boundary_fixture::plans(&mut authored)
+    for (index, plan) in crate::boundary_fixture::fixtures::plans(&mut authored)
         .iter_mut()
         .enumerate()
     {
@@ -125,7 +125,7 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
         comparisons: vec![],
         kept: vec![],
     };
-    for (index, plan) in crate::boundary_fixture::plans(&mut authored)[..2]
+    for (index, plan) in crate::boundary_fixture::fixtures::plans(&mut authored)[..2]
         .iter_mut()
         .enumerate()
     {
@@ -143,7 +143,7 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
         });
         plan.emit.step = StepId(u32::try_from(plan.steps.len() - 1).unwrap());
     }
-    crate::boundary_fixture::plans(&mut authored)[2].steps = vec![PlanStep {
+    crate::boundary_fixture::fixtures::plans(&mut authored)[2].steps = vec![PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::Hosted {
             relation: HostedNumber(0),

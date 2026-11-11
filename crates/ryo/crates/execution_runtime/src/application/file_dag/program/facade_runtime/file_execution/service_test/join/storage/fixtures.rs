@@ -2,8 +2,11 @@
 use super::super::super::super::*;
 use super::super::cases::fixtures::table_of;
 use super::super::*;
+#[cfg(test)]
+use fixtures::execution::*;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
+use ryo_relations::domain::relations::{service::to_bits, types::FactColumn};
 use ryo_values::domain::{plans::types::Operation, rows::types::Table};
 
 pub(super) fn fact_column(values: &[i64]) -> FactColumn {

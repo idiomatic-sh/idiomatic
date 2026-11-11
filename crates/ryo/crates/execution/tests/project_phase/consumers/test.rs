@@ -1,10 +1,26 @@
 //! Same producer proof, distinct resolved input slots, one project batch protocol.
-use super::super::*;
+use crate::boundary_fixture::fixtures::{corpus, engine};
+use crate::project_phase::source_facts::fixtures::{CapturedFacts, ProjectFacts};
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::interface::{
     BatchNumber, BatchOccurrence, ObservationBatches,
 };
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectObservation;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value};
+use ryo_values::domain::rows::types::RowCount;
+use ryo_values::domain::stored_facts::types::Bucket;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[test]
 fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_orders() {

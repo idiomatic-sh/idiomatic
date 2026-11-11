@@ -1,20 +1,51 @@
 //! The native trees of the files and the run through the owner that the walk proofs compare plans by.
-use super::super::*;
+use crate::boundary_fixture::fixtures::{authored_request, demand, engine};
+use crate::project_phase::source_facts::fixtures::ProjectFacts;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::errors::FactsError;
 use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution_runtime::outbound::facts::types::{BucketSource, KeptBucket};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::domain::{
     builders::fixtures as builders, completion::fixtures as completion, elements::types::Elements,
     symbols::types::ByteSlice,
 };
+use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_relations::domain::relations::types::{KindBits, Offset};
+use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
 };
 use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, KeptWords, PackedWords};
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, StepId, StepScope},
+    plans::types::PlanStep,
+};
+use std::sync::Arc;
 
 /// The text of every file: two tokens under one root, at ordinals 0 and 1.
 const SOURCE: &[u8] = b"x\nx\n";
@@ -103,7 +134,7 @@ pub(super) fn rows(
     let crossing = steps.iter().any(|step| step.scope == StepScope::CrossFile);
     let engine = engine();
     let mut input = authored_request(1);
-    let plan = &mut crate::boundary_fixture::plans(&mut input)[0];
+    let plan = &mut crate::boundary_fixture::fixtures::plans(&mut input)[0];
     plan.frontier =
         ryo_query_language::inbound::use_cases::compile::fixtures::rewrites::frontier(&steps);
     plan.steps = steps;
@@ -215,7 +246,7 @@ pub(super) fn rows(
         let mut symbols = Symbols::default();
         let partials = Partials::default();
         let arenas = [ArenaBytes(arena)];
-        let outcome = crate::boundary_fixture::project_root(
+        let outcome = crate::boundary_fixture::fixtures::project_root(
             &phase,
             PhaseRules {
                 rules: &[RuleIndex(0)],

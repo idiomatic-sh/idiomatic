@@ -1,5 +1,5 @@
 //! S15: through the store port, a publication is readable while its generation lives and refused once the store releases it.
-use crate::boundary_fixture::source;
+use crate::boundary_fixture::fixtures::source;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_store::application::file_dag::relations::interface::RelationStore;
 use ryo_execution_store::application::file_dag::relations::publication::types::{
@@ -9,7 +9,7 @@ use ryo_execution_store::application::file_dag::relations::types::ProducerId;
 
 #[test]
 fn a_publication_is_read_while_its_generation_lives_and_refused_after_release() {
-    let owner = super::super::store();
+    let owner = super::super::fixtures::store();
     let publication = owner
         .publish(PublicationBody::Computed(source()))
         .expect("the store publishes a computed table");

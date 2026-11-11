@@ -1,6 +1,6 @@
 //! S2: a schema-first operation refuses its schema before any input's physical admission.
-use crate::boundary_fixture::{authored_request, engine, source};
-use crate::file_intents::answered;
+use crate::boundary_fixture::fixtures::{authored_request, engine, source};
+use crate::file_intents::fixtures::answered;
 use ryo_execution::inbound::use_cases::execution::interface::{
     OperatingError, PreparedExecutionProgram, RootOutcome,
 };
@@ -14,7 +14,7 @@ use ryo_values::domain::rows::types::RowCount;
 /// A projection of `column` of Function.
 fn projection(column: u32) -> PreparedExecutionProgram {
     let mut input = authored_request(1);
-    crate::boundary_fixture::plans(&mut input)[0].steps = vec![PlanStep {
+    crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::Project {
             from: Input::Relation(Relation::Function),

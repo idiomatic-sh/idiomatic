@@ -3,7 +3,13 @@ use super::super::super::super::*;
 use super::super::cases::fixtures::table_of;
 use super::super::*;
 use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::application::file_dag::program::facade_runtime::file_execution::service_test::fixtures::*;
+#[cfg(test)]
+use fixtures::execution::*;
+#[cfg(test)]
+use fixtures::provider::*;
 use ryo_execution_domain::domain::operating::types::Memo;
+use ryo_execution_domain::domain::table_model::service::materialize;
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
     operator::types::Emit as RowSink,
@@ -12,6 +18,7 @@ use ryo_execution_domain::domain::{
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value as Cell};
+use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
@@ -21,6 +28,7 @@ use ryo_values::domain::{
     runs::types::RuleId,
     stored_facts::types::Digest,
 };
+use std::cell::Cell as Counter;
 use std::{rc::Rc, sync::Arc};
 
 pub(super) struct Callback<'a>(

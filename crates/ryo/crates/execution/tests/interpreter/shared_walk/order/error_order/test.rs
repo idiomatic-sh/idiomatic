@@ -1,8 +1,8 @@
 //! Earlier semantic errors are never hidden by later ones and are terminal for every retry.
-use crate::boundary_fixture::{authored_request, corpus, demand};
+use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
 use crate::interpreter::shared_walk::fixtures::counts;
+use crate::shared_walk::fixtures::no_catalog;
 use crate::shared_walk::fixtures::*;
-use crate::shared_walk::no_catalog;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
@@ -92,7 +92,7 @@ fn an_earlier_false_kind_test_still_short_circuits_the_later_invalid_regex() {
 fn a_fused_child_error_precedes_a_later_head_error_and_is_terminal() {
     let (engine, _semantics) = engine();
     let mut authored = authored_request(1);
-    crate::boundary_fixture::plans(&mut authored)[0].steps = vec![
+    crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Select {
@@ -110,7 +110,9 @@ fn a_fused_child_error_precedes_a_later_head_error_and_is_terminal() {
             },
         },
     ];
-    crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(1);
+    crate::boundary_fixture::fixtures::plans(&mut authored)[0]
+        .emit
+        .step = StepId(1);
     let program = engine
         .prepare(authored)
         .expect("prepare actual fused head and child");
