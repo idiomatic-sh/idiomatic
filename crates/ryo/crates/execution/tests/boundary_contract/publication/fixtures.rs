@@ -50,3 +50,34 @@ pub(crate) fn store() -> impl ryo_execution::inbound::use_cases::execution::inte
         Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
     )
 }
+
+/// A read of the function relation that answers `table`.
+pub(crate) fn function_rows<'t>(
+    table: &'t Table,
+) -> impl Fn(Relation) -> Result<SourceRows<'t>, OperatingError> {
+    move |relation| {
+        assert_eq!(relation, Relation::Function);
+        Ok(SourceRows::Computed(table))
+    }
+}
+
+/// Recognized file 0 of the source `abc`, opened with `intents` and reading through `read`.
+pub(crate) fn abc_file<'a, 'facts>(
+    intents: &'a [FileRuleIntent],
+    elements: &'a ryo_language::domain::elements::types::Elements,
+    read: &'a dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
+) -> FileInput<'a, 'facts> {
+    FileInput {
+        language: SourceLanguage::Recognized,
+        resident_stability: ryo_execution_runtime::outbound::facts::types::ResidentStability::Stable,
+        file: FileId(0),
+        evaluation: &[],
+        publication: &[],
+        intents,
+        source: ryo_values::domain::files::types::SourceView(b"abc"),
+        elements,
+        read,
+        semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+        kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+    }
+}

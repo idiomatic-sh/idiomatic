@@ -45,8 +45,7 @@ fn collected_empty_rank_and_span_bounds_keep_layout_without_demanding_row_errors
             crate::boundary_fixture::fixtures::plans(&mut input)[0]
                 .emit
                 .step = StepId(1);
-            let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
-            let outcome = evaluate(input, &read);
+            let outcome = evaluate(input, &unread);
             if populated {
                 if rank {
                     assert!(matches!(

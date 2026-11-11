@@ -1,9 +1,8 @@
 //! Publication policy is enforced by fresh public delivery, never a pre-collected root.
 use super::super::*;
-use super::fixtures::{program, rows};
+use super::fixtures::{abc_file, function_rows, program, rows};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 
 #[test]
 fn semantic_failure_discards_every_after_success_row() {
@@ -15,10 +14,7 @@ fn semantic_failure_discards_every_after_success_row() {
             let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
             let table = rows(second);
             let elements = ryo_language::domain::elements::types::Elements::default();
-            let read = |relation| {
-                assert_eq!(relation, Relation::Function);
-                Ok(SourceRows::Computed(&table))
-            };
+            let read = function_rows(&table);
             let mut symbols = Symbols::default();
             let intents = [FileRuleIntent::Run {
                 diagnostic: if forwarded {
@@ -30,22 +26,7 @@ fn semantic_failure_discards_every_after_success_row() {
                 capture: CaptureIntent::Disabled,
             }];
             let mut file = request
-                .open_file(
-                    FileInput {
-                        language: SourceLanguage::Recognized,
-                        resident_stability: ResidentStability::Stable,
-                        file: FileId(0),
-                        evaluation: &[],
-                        publication: &[],
-                        intents: &intents,
-                        source: ryo_values::domain::files::types::SourceView(b"abc"),
-                        elements: &elements,
-                        read: &read,
-                        semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                        kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
-                    },
-                    &mut symbols,
-                )
+                .open_file(abc_file(&intents, &elements, &read), &mut symbols)
                 .expect("open actual file");
             if forwarded {
                 let mut exposed = Vec::new();
@@ -84,10 +65,7 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
         let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
         let table = rows((1, 2));
         let elements = ryo_language::domain::elements::types::Elements::default();
-        let read = |relation| {
-            assert_eq!(relation, Relation::Function);
-            Ok(SourceRows::Computed(&table))
-        };
+        let read = function_rows(&table);
         let mut symbols = Symbols::default();
         let intents = [FileRuleIntent::Run {
             diagnostic,
@@ -95,22 +73,7 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
             capture: CaptureIntent::Disabled,
         }];
         let mut file = request
-            .open_file(
-                FileInput {
-                    language: SourceLanguage::Recognized,
-                    resident_stability: ResidentStability::Stable,
-                    file: FileId(0),
-                    evaluation: &[],
-                    publication: &[],
-                    intents: &intents,
-                    source: ryo_values::domain::files::types::SourceView(b"abc"),
-                    elements: &elements,
-                    read: &read,
-                    semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                    kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
-                },
-                &mut symbols,
-            )
+            .open_file(abc_file(&intents, &elements, &read), &mut symbols)
             .expect("open actual file");
         if diagnostic == DiagnosticDelivery::Collected {
             let RootOutcome::Complete(retained) = file

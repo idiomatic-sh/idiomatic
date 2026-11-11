@@ -257,3 +257,19 @@ pub(crate) fn named_request() -> PrepareRequest {
         ObservationIdentity::Named(ObservationReadinessLayout(Digest([91; 16])));
     authored
 }
+
+/// Runs `capture` with a capture context of worker 0 over empty arena, places and words.
+pub(crate) fn with_capture<R>(capture: impl FnOnce(CaptureContext<'_>) -> R) -> R {
+    let (mut arena, mut places, mut words) = (vec![], vec![], Words::default());
+    capture(CaptureContext {
+        worker: WorkerNumber(0),
+        arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+        places: &mut places,
+        words: &mut words,
+    })
+}
+
+/// A read that answers `table` for any relation.
+pub(crate) fn computed(table: &Table) -> Result<SourceRows<'_>, OperatingError> {
+    Ok(SourceRows::Computed(table))
+}

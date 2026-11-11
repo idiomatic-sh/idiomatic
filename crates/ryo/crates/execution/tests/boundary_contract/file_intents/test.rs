@@ -1,11 +1,9 @@
 //! File-start declarations are enforced through every public execution route.
 use super::super::*;
-use super::fixtures::input;
+use super::fixtures::{computed, input, with_capture};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
-use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_values::domain::runs::types::ApplicabilityRefusal;
 
 #[test]
@@ -57,21 +55,13 @@ fn absent_skipped_and_refused_rules_cannot_acquire_any_root() {
             file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| panic!("no delivery")),
             Err(OperatingError::NotRun)
         ));
-        let (mut arena, mut places, mut words) = (vec![], vec![], Words::default());
         assert!(matches!(
-            file.capture_frontiers(
+            with_capture(|context| file.capture_frontiers(
                 RuleIndex(0),
                 ryo_values::domain::stored_facts::types::Bucket(0),
                 &mut symbols,
-                CaptureContext {
-                    worker: WorkerNumber(0),
-                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
-                        &mut arena
-                    ),
-                    places: &mut places,
-                    words: &mut words
-                },
-            ),
+                context,
+            )),
             Err(OperatingError::NotRun)
         ));
         assert!(matches!(
@@ -98,7 +88,7 @@ fn rule_demand_is_immutable_and_capture_cannot_be_added_after_open() {
     let read = |relation| {
         assert_eq!(relation, Relation::Function);
         reads.set(reads.get() + 1);
-        Ok(SourceRows::Computed(&table))
+        computed(&table)
     };
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
@@ -124,19 +114,13 @@ fn rule_demand_is_immutable_and_capture_cannot_be_added_after_open() {
             Err(OperatingError::NotRun)
         ));
     }
-    let (mut arena, mut places, mut words) = (vec![], vec![], Words::default());
     assert!(matches!(
-        file.capture_frontiers(
+        with_capture(|context| file.capture_frontiers(
             RuleIndex(0),
             ryo_values::domain::stored_facts::types::Bucket(0),
             &mut symbols,
-            CaptureContext {
-                worker: WorkerNumber(0),
-                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
-                places: &mut places,
-                words: &mut words
-            },
-        ),
+            context,
+        )),
         Err(OperatingError::NotRun)
     ));
     assert_eq!(reads.get(), 0, "refused root changes do not admit a source");

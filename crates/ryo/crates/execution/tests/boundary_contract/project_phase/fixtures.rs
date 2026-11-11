@@ -255,3 +255,31 @@ pub(crate) fn captured_in_file_0(
         .map(|capture| capture.outcome.expect("a kept frontier"))
         .collect()
 }
+
+/// Recognized file 0 whose syntax was rejected: its one rule is skipped, and it reads no semantic rows.
+pub(crate) fn rejected_syntax<'a, 'facts>(
+    elements: &'a ryo_language::domain::elements::types::Elements,
+) -> FileInput<'a, 'facts> {
+    FileInput {
+        language: SourceLanguage::Recognized,
+        resident_stability: ResidentStability::Stable,
+        file: ryo_relations::domain::relations::types::FileId(0),
+        evaluation: &[],
+        publication: &[],
+        intents: &[FileRuleIntent::Skipped(
+            ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason::SyntaxRejected,
+        )],
+        source: ryo_values::domain::files::types::SourceView(b"def broken(:"),
+        elements,
+        read: &no_semantic_rows,
+        semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+        kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+    }
+}
+
+/// The read of a file whose syntax was rejected: it has no semantic rows to read.
+fn no_semantic_rows<'facts>(
+    _: ryo_relations::domain::relations::types::Relation,
+) -> Result<SourceRows<'facts>, OperatingError> {
+    panic!("rejected syntax has no semantic rows")
+}

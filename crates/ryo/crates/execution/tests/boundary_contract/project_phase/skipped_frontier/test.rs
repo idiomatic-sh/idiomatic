@@ -1,5 +1,6 @@
 //! A wholly skipped frontier is unavailable, with no fabricated schema or rows.
 use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine};
+use crate::project_phase::fixtures::rejected_syntax;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
@@ -12,13 +13,9 @@ use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecu
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::CapturedFacts;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::ProjectFacts;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Relation};
@@ -56,26 +53,8 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let mut symbols = Symbols::default();
     let elements = ryo_language::domain::elements::types::Elements::default();
-    let read = |_| -> Result<SourceRows<'_>, OperatingError> {
-        panic!("rejected syntax has no semantic rows")
-    };
     let mut file = request
-        .open_file(
-            FileInput {
-                language: SourceLanguage::Recognized,
-                resident_stability: ResidentStability::Stable,
-                file: FileId(0),
-                evaluation: &[],
-                publication: &[],
-                intents: &[FileRuleIntent::Skipped(ApplicabilityReason::SyntaxRejected)],
-                source: ryo_values::domain::files::types::SourceView(b"def broken(:"),
-                elements: &elements,
-                read: &read,
-                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
-            },
-            &mut symbols,
-        )
+        .open_file(rejected_syntax(&elements), &mut symbols)
         .unwrap();
     assert!(matches!(
         file.rule(RuleIndex(0), demand(), &mut symbols),

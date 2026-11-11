@@ -13,6 +13,11 @@ use ryo_values::domain::{
     rows::errors::RowsError,
 };
 
+/// A read that finds no relation.
+pub(super) fn unread<'facts>(_: Relation) -> Result<SourceRows<'facts>, OperatingError> {
+    Err(OperatingError::NotRead)
+}
+
 pub(super) fn evaluate<'facts>(
     input: PrepareRequest,
     read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
