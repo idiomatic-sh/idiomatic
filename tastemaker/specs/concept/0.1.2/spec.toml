@@ -19,44 +19,45 @@ templates = [
   { alias = "collection-module", template = "idiomatic.arch/collection@0.1.0", file = "collections/{collection}.rs", count = { min = 0 }, params = { item-trait = { param = "item-trait" } }, description = "One collection of the part: its interface and its items in order." },
   { alias = "fixture-files", template = "concept-fixtures", file = "fixtures/{*fixture}", count = { min = 0 }, description = "A file of the concept's test support beneath `fixtures/`." },
   { alias = "group-module", template = "idiomatic.arch/test-group-module@0.1.0", file = "service_test/{*group}/mod.rs", count = { min = 0 }, description = "The module file of one group of the service's cases." },
-  { alias = "group-test", template = "part", file = "service_test/{*group}/test.rs", count = { min = 0 }, description = "One group of the service's cases." },
+  { alias = "group-test", template = "idiomatic.arch/unit-test@0.1.0", file = "service_test/{*group}/test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "One group of the service's cases." },
   { alias = "group-fixtures", template = "concept-fixtures", file = "service_test/{*group}/fixtures.rs", count = { min = 0 }, description = "The test support of one group of the service's cases." },
   { alias = "part-module", template = "part", file = "{*part}/mod.rs", count = { min = 0 }, description = "The module file of a nested part, holding its items." },
   { alias = "part-service", template = "service", file = "{*part}/service.rs", count = { min = 0 }, description = "A nested part's free functions." },
   { alias = "part-types", template = "idiomatic.arch/types@0.1.0", file = "{*part}/types.rs", count = { min = 0 }, params = { kind = "concept" }, description = "A nested part's own data." },
   { alias = "part-constants", template = "idiomatic.arch/constants@0.1.0", file = "{*part}/constants.rs", count = { min = 0 }, description = "A nested part's constants." },
-  { alias = "part-errors", template = "part", file = "{*part}/errors.rs", count = { min = 0 }, description = "A nested part's failures." },
-  { alias = "part-interface", template = "part", file = "{*part}/interface.rs", count = { min = 0 }, description = "The trait a nested part offers the rest of the concept." },
-  { alias = "part-schemas", template = "part", file = "{*part}/schemas.rs", count = { min = 0 }, description = "The wire shapes a nested part reads or writes." },
+  { alias = "part-errors", template = "idiomatic.arch/errors@0.1.0", file = "{*part}/errors.rs", count = { min = 0 }, params = { kind = "concept" }, description = "A nested part's failures." },
+  { alias = "part-interface", template = "idiomatic.arch/interface@0.1.0", file = "{*part}/interface.rs", count = { min = 0 }, params = { kind = "port", exposed = [] }, description = "The trait a nested part offers the rest of the concept." },
+  { alias = "part-schemas", template = "idiomatic.arch/schemas@0.1.0", file = "{*part}/schemas.rs", count = { min = 0 }, params = { kind = "adapter" }, description = "The wire shapes a nested part reads or writes." },
+  { alias = "part-schemas-test", template = "idiomatic.arch/schemas-test@0.1.0", file = "{*part}/schemas_test.rs", count = { min = 0 }, params = { kind = "adapter" }, description = "The proof of a nested part's schemas, beside them." },
   { alias = "part-fixtures", template = "concept-fixtures", file = "{*part}/fixtures.rs", count = { min = 0 }, description = "A nested part's test support." },
   { alias = "part-fixture-files", template = "concept-fixtures", file = "{*part}/fixtures/{*fixture}", count = { min = 0 }, description = "A file of a nested part's test support beneath its `fixtures/`." },
-  { alias = "part-test", template = "part", file = "{*part}/test.rs", count = { min = 0 }, description = "The proof of a nested part that is a test group of its own." },
-  { alias = "part-service-test", template = "part", file = "{*part}/service_test.rs", count = { min = 0 }, description = "The proof of a nested part's service." },
+  { alias = "part-test", template = "idiomatic.arch/unit-test@0.1.0", file = "{*part}/test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "The proof of a nested part that is a test group of its own." },
+  { alias = "part-service-test", template = "idiomatic.arch/unit-test@0.1.0", file = "{*part}/service_test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "The proof of a nested part's service." },
   { alias = "part-group-module", template = "idiomatic.arch/test-group-module@0.1.0", file = "{*part}/service_test/{*group}/mod.rs", count = { min = 0 }, description = "The module file of one group of a nested part's cases." },
-  { alias = "part-group-test", template = "part", file = "{*part}/service_test/{*group}/test.rs", count = { min = 0 }, description = "One group of a nested part's cases." },
+  { alias = "part-group-test", template = "idiomatic.arch/unit-test@0.1.0", file = "{*part}/service_test/{*group}/test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "One group of a nested part's cases." },
   { alias = "part-group-fixtures", template = "concept-fixtures", file = "{*part}/service_test/{*group}/fixtures.rs", count = { min = 0 }, description = "The test support of one group of a nested part's cases." },
 ]
 rules = [
   { rule = "idiomatic.arch/value-companions@0.1.0", include = ["types/**"], description = "Every behavior value has its module, implementation and adjacent proof; arbitrary helpers remain closed." },
   { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["**"], exclude = ["**/tests/fixtures/**", "**/tests/ui/**"], description = "Every Rust file of the concept is a module the crate reaches: a file its module files do not declare is never compiled." },
-  { rule = "idiomatic.arch/no-vacuous-tests@0.1.0", include = ["*_test.rs"], description = "Proofs execute a real subject over nonempty cases." },
-  { rule = "service-has-fn", include = ["service.rs"], description = "A service declares at least one free function: a concept that declares none has no service.rs." },
-  { rule = "fns-only-in-service", include = ["types.rs", "errors.rs"], description = "A concept declares its functions in service.rs, so one that declares a function has a service and its test." },
-  { rule = "service-shape", include = ["service.rs"], description = "A concept's service is free functions only: no struct, enum, union, trait or impl." },
-  { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["types.rs"], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block." },
-  { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["types.rs", "types/*.rs", "types/*/value.rs"], description = "A part owns a nominal type directly or through its declared canonical behavior value." },
-  { rule = "idiomatic.arch/public-fields@0.2.0", include = ["types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data." },
-  { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["types.rs", "errors.rs"], description = "A part's types and errors are nominal types, never type aliases." },
-  { rule = "idiomatic.arch/error-name@0.1.0", include = ["errors.rs"], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type." },
+  { rule = "idiomatic.arch/no-vacuous-tests@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "Proofs execute a real subject over nonempty cases." },
+  { rule = "service-has-fn", include = ["service.rs", { placed-by = "part-service" }], description = "A service declares at least one free function: a concept that declares none has no service.rs." },
+  { rule = "fns-only-in-service", include = ["types.rs", "errors.rs", { placed-by = "part-types" }, { placed-by = "part-errors" }], description = "A concept declares its functions in service.rs, so one that declares a function has a service and its test." },
+  { rule = "service-shape", include = ["service.rs", { placed-by = "part-service" }], description = "A concept's service is free functions only: no struct, enum, union, trait or impl." },
+  { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["types.rs", { placed-by = "part-types" }], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block." },
+  { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["types.rs", "types/*.rs", "types/*/value.rs", { placed-by = "part-types" }], description = "A part owns a nominal type directly or through its declared canonical behavior value." },
+  { rule = "idiomatic.arch/public-fields@0.2.0", include = ["types.rs", { placed-by = "part-types" }], description = "Every field of a struct in a types.rs is public: a type is its data." },
+  { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["types.rs", "errors.rs", { placed-by = "part-types" }, { placed-by = "part-errors" }], description = "A part's types and errors are nominal types, never type aliases." },
+  { rule = "idiomatic.arch/error-name@0.1.0", include = ["errors.rs", { placed-by = "part-errors" }], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type." },
   { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["*.rs"], description = "A part's test has a `succeeds` row, and a `refuses` row where its errors.rs has a variant of its own." },
   { rule = "idiomatic.arch/proof-beside@0.1.0", include = ["*.rs"], description = "A schemas test exists exactly beside the schemas it proves: schemas_test.rs beside schemas.rs." },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder." },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["*.rs"], exclude = ["schemas.rs", "*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs." },
   { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["*.rs"], exclude = ["*_test.rs", "fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module." },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["*.rs"], exclude = ["composition.rs", "fixtures.rs", "*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter." },
-  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["*_test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table." },
-  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
-  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs"], description = "A row of a part's table expects a value or an error variant, never any success." },
+  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "Every test of a part is a runner named for a case word over a `CASES` table." },
+  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
+  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "A row of a part's table expects a value or an error variant, never any success." },
 ]
 
 [params]
@@ -1842,3 +1843,33 @@ given.files.'src/domain/greeting/lowering/mod.rs' = 'pub(crate) mod extra;'
 given.files.'src/domain/greeting/lowering/extra.rs' = 'pub(crate) fn extra() {}'
 then.only = ['idiomatic.arch/concept#closed']
 then.findings = [{ rule = 'idiomatic.arch/concept#closed', path = 'src/domain/greeting/lowering/extra.rs' }]
+
+[[scenarios]]
+id = 'nested-part-errors-hold-the-errors-role'
+scenario = "A nested part's errors.rs is held to the errors role as a top-level one is: an enum not named for the part is reported."
+given.files.'src/domain/greeting/publication/mod.rs' = 'pub(crate) mod errors;'
+given.files.'src/domain/greeting/publication/errors.rs' = '''
+//! The publication part's failures.
+
+/// Why publishing failed.
+#[derive(Debug, thiserror::Error)]
+pub enum Wrong {}
+'''
+then.only = ['idiomatic.arch/error-name', 'idiomatic.arch/errors(part-errors)#template']
+then.findings = [
+  { rule = 'idiomatic.arch/error-name', path = 'src/domain/greeting/publication/errors.rs', line = 4 },
+  { rule = 'idiomatic.arch/errors(part-errors)#template', path = 'src/domain/greeting/publication/errors.rs' },
+]
+
+[[scenarios]]
+id = 'nested-part-errors-named-for-the-part'
+scenario = "A nested part's errors.rs with one enum named for the part, `PublicationError`, holds the errors role."
+given.files.'src/domain/greeting/publication/mod.rs' = 'pub(crate) mod errors;'
+given.files.'src/domain/greeting/publication/errors.rs' = '''
+//! The publication part's failures.
+
+/// Why publishing failed.
+#[derive(Debug, thiserror::Error)]
+pub enum PublicationError {}
+'''
+then.only = ['idiomatic.arch/error-name', 'idiomatic.arch/errors(part-errors)#template']
