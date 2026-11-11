@@ -6,7 +6,8 @@ let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", 
 let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
 let files = select * from tree-nodes where kind = "source-file";
 let all-tests = capture(from=files, path="file", pattern="{*dir}/{part}_test.rs", captures=["dir", "part"]);
-let unit-tests = project(from=all-tests, columns=["file", "span", "dir", "part"]);
+let own-tests = select * from all-tests where not glob_any(file, "**/*_test/**");
+let unit-tests = project(from=own-tests, columns=["file", "span", "dir", "part"]);
 let main-tests = select * from unit-tests where glob_any(part, "{service,use_case,adapter,item,schemas,command,entry}");
 let fields = select * from tree-nodes where kind = "record-expr-field";
 let field-edges = select l."id" as "field", l."file" as "file", r."child" as "node" from fields as l join "syntax-child" as r on l."id" = r."parent";
@@ -616,3 +617,23 @@ fn succeeds() {
 then.findings = [
   { path = 'src/greeting/domain/short/service_test.rs', line = 3 },
 ]
+
+[[scenarios]]
+id = 'group-file-is-read-as-rows-not-as-a-unit-test'
+scenario = 'A `*_test.rs` beneath a group directory (a flat group, an engine test under `engine_test/`) is read for the rows of the namespace above it, and is not itself a unit test that needs a `succeeds` row.'
+given.include = ['**/*.rs']
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+#[cfg(test)]
+mod order_test;
+'''
+given.files.'src/greeting/domain/short/service_test/order_test.rs' = '''
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+];
+'''
+given.files.'src/greeting/domain/short/service_test/plain_test.rs' = '''
+#[test]
+fn keeps_order() {}
+'''
