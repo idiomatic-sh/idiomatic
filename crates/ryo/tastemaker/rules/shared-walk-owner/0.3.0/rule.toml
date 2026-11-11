@@ -12,7 +12,7 @@ let named-structs = select l.id as id, l.file as file, l.span as span, r.text as
 let sealed = select * from named-structs where glob_any(name, "{FileWalk,PermittedWalk,WalkResult}");
 let wrong-placement = select file, span from sealed where
     (name = "PermittedWalk" and not glob_any(file, "{src,**/src}/application/file_dag/program/native_walk/lease/service.rs"))
-    or (glob_any(name, "{FileWalk,WalkResult}") and not glob_any(file, "{src,**/src}/application/file_dag/program/native_walk/mod.rs"));
+    or (glob_any(name, "{FileWalk,WalkResult}") and not glob_any(file, "{src,**/src}/application/file_dag/program/native_walk.rs"));
 let lists = select r.child as list from sealed as l join "syntax-child" as r on l.id = r.parent;
 let field-edges = select r.child as field from lists as l join "syntax-child" as r on l.list = r.parent;
 let fields = select * from nodes where glob_any(kind, "{record-field,tuple-field}");
@@ -47,7 +47,7 @@ emit violations subject file key(span);
 [diagnostic]
 primary = "span"
 message = "shared file-walk ownership escapes its required private engine boundary"
-help = "Keep FileWalk/WalkResult private in native_walk/mod.rs and the permitted request private in native_walk/lease/service.rs. Give file sessions a required owner and project sessions an explicitly validated stage. Acquire shared results through the file owner."
+help = "Keep FileWalk/WalkResult private in native_walk.rs and the permitted request private in native_walk/lease/service.rs. Give file sessions a required owner and project sessions an explicitly validated stage. Acquire shared results through the file owner."
 
 [given]
 include = ["execution_domain/src/**", "execution_runtime/src/**", "walker/src/**"]
@@ -88,11 +88,11 @@ files.'execution_domain/src/domain/shared_walk/service.rs' = 'pub fn evaluate() 
 files.'execution_runtime/src/lib.rs' = 'mod application;'
 files.'execution_runtime/src/application.rs' = 'mod file_dag;'
 files.'execution_runtime/src/application/file_dag.rs' = 'mod program;'
-files.'execution_runtime/src/application/file_dag/program/mod.rs' = 'mod native_walk; mod kernel_session;'
-files.'execution_runtime/src/application/file_dag/program/native_walk/mod.rs' = "pub(super) struct FileWalk { generation: () }\npub(super) struct WalkResult { result: () }\npub(super) mod lease;\n"
-files.'execution_runtime/src/application/file_dag/program/kernel_session/mod.rs' = "struct KernelSession<'a> { walk: &'a super::native_walk::FileWalk }"
+files.'execution_runtime/src/application/file_dag/program.rs' = 'mod native_walk; mod kernel_session;'
+files.'execution_runtime/src/application/file_dag/program/native_walk.rs' = "pub(super) struct FileWalk { generation: () }\npub(super) struct WalkResult { result: () }\npub(super) mod lease;\n"
+files.'execution_runtime/src/application/file_dag/program/kernel_session.rs' = "struct KernelSession<'a> { walk: &'a super::native_walk::FileWalk }"
 
-files.'execution_runtime/src/application/file_dag/program/native_walk/lease/mod.rs' = 'pub(super) mod service;'
+files.'execution_runtime/src/application/file_dag/program/native_walk/lease.rs' = 'pub(super) mod service;'
 files.'execution_runtime/src/application/file_dag/program/native_walk/lease/service.rs' = 'pub(crate) struct PermittedWalk { permit: (), ready: () } fn dispatch() { execution_domain::domain::shared_walk::service::evaluate(); }'
 
 [[scenarios]]
@@ -102,8 +102,8 @@ scenario = "The required file owner holds the ready queue and dispatches through
 [[scenarios]]
 id = "optional-owner-refused"
 scenario = "A session cannot restore a nullable walk owner."
-given.files.'execution_runtime/src/application/file_dag/program/kernel_session/mod.rs' = "struct KernelSession<'a> { walk: Option<&'a super::native_walk::FileWalk> }"
-then.findings = [{ path = "execution_runtime/src/application/file_dag/program/kernel_session/mod.rs", line = 1 }]
+given.files.'execution_runtime/src/application/file_dag/program/kernel_session.rs' = "struct KernelSession<'a> { walk: Option<&'a super::native_walk::FileWalk> }"
+then.findings = [{ path = "execution_runtime/src/application/file_dag/program/kernel_session.rs", line = 1 }]
 
 [[scenarios]]
 id = "widened-permitted-ready-queue-refused"
@@ -114,25 +114,25 @@ then.findings = [{ path = "execution_runtime/src/application/file_dag/program/na
 [[scenarios]]
 id = "widened-generation-refused"
 scenario = "The walk generation cannot be supplied or rebound through a visible field."
-given.files.'execution_runtime/src/application/file_dag/program/native_walk/mod.rs' = 'pub(super) struct FileWalk { pub generation: () }'
-then.findings = [{ path = "execution_runtime/src/application/file_dag/program/native_walk/mod.rs", line = 1 }]
+given.files.'execution_runtime/src/application/file_dag/program/native_walk.rs' = 'pub(super) struct FileWalk { pub generation: () }'
+then.findings = [{ path = "execution_runtime/src/application/file_dag/program/native_walk.rs", line = 1 }]
 
 [[scenarios]]
 id = "moved-owner-refused"
 scenario = "A semantic consumer cannot become the file-walk owner."
-given.files.'execution_runtime/src/application/file_dag/program/kernel_session/mod.rs' = 'struct FileWalk { generation: () }'
-then.findings = [{ path = "execution_runtime/src/application/file_dag/program/kernel_session/mod.rs", line = 1 }]
+given.files.'execution_runtime/src/application/file_dag/program/kernel_session.rs' = 'struct FileWalk { generation: () }'
+then.findings = [{ path = "execution_runtime/src/application/file_dag/program/kernel_session.rs", line = 1 }]
 
 [[scenarios]]
 id = "raw-evaluator-refused"
 scenario = "A caller cannot bypass ready-class acquisition with a raw semantic walk."
-given.files.'execution_runtime/src/application/file_dag/program/kernel_session/mod.rs' = 'fn bypass() { execution_domain::domain::shared_walk::service::evaluate(); }'
-then.findings = [{ path = "execution_runtime/src/application/file_dag/program/kernel_session/mod.rs", line = 1 }]
+given.files.'execution_runtime/src/application/file_dag/program/kernel_session.rs' = 'fn bypass() { execution_domain::domain::shared_walk::service::evaluate(); }'
+then.findings = [{ path = "execution_runtime/src/application/file_dag/program/kernel_session.rs", line = 1 }]
 
 [[scenarios]]
 id = "comments-and-strings-are-not-owners"
 scenario = "A comment or diagnostic string has no ownership or dispatch authority."
-given.files.'execution_runtime/src/application/file_dag/program/kernel_session/mod.rs' = '''
+given.files.'execution_runtime/src/application/file_dag/program/kernel_session.rs' = '''
 // struct KernelSession { walk: Option<FileWalk> }
 const NOTE: &str = "crate::domain::shared_walk::service::evaluate()";
 '''
@@ -140,8 +140,8 @@ const NOTE: &str = "crate::domain::shared_walk::service::evaluate()";
 [[scenarios]]
 id = "aliased-semantic-service-refused"
 scenario = "Resolved module aliases cannot restore a raw walk outside the file owner."
-given.files.'execution_runtime/src/application/file_dag/program/kernel_session/mod.rs' = 'use execution_domain::domain::shared_walk as semantic; fn bypass() { semantic::service::evaluate(); }'
-then.findings = [{ path = "execution_runtime/src/application/file_dag/program/kernel_session/mod.rs", line = 1 }, { path = "execution_runtime/src/application/file_dag/program/kernel_session/mod.rs", line = 1 }]
+given.files.'execution_runtime/src/application/file_dag/program/kernel_session.rs' = 'use execution_domain::domain::shared_walk as semantic; fn bypass() { semantic::service::evaluate(); }'
+then.findings = [{ path = "execution_runtime/src/application/file_dag/program/kernel_session.rs", line = 1 }, { path = "execution_runtime/src/application/file_dag/program/kernel_session.rs", line = 1 }]
 
 [[scenarios]]
 id = "aliased-inbound-semantic-module-refused"
@@ -242,27 +242,27 @@ then.findings = [{ path = "execution_domain/src/domain/shared_walk/types.rs", li
 [[scenarios]]
 id = "old-walk-owner-cannot-dispatch-semantics"
 scenario = "Only the issued request consumes semantic dispatch after the owner queues ready work."
-given.files.'execution_runtime/src/application/file_dag/program/native_walk/mod.rs' = "pub(super) struct FileWalk { generation: () } pub(super) struct WalkResult { result: () } pub(super) mod lease; \nfn bypass() { execution_domain::domain::shared_walk::service::evaluate(); }"
-then.findings = [{ path = "execution_runtime/src/application/file_dag/program/native_walk/mod.rs", line = 2 }]
+given.files.'execution_runtime/src/application/file_dag/program/native_walk.rs' = "pub(super) struct FileWalk { generation: () } pub(super) struct WalkResult { result: () } pub(super) mod lease; \nfn bypass() { execution_domain::domain::shared_walk::service::evaluate(); }"
+then.findings = [{ path = "execution_runtime/src/application/file_dag/program/native_walk.rs", line = 2 }]
 
 [[scenarios]]
 id = "old-walk-owner-cannot-alias-semantics"
 scenario = "The previous parent role cannot retain evaluator permission through a renamed import."
-given.files.'execution_runtime/src/application/file_dag/program/native_walk/mod.rs' = "pub(super) struct FileWalk { generation: () } pub(super) struct WalkResult { result: () } pub(super) mod lease; \nuse execution_domain::domain::shared_walk as semantic; fn bypass() { semantic::service::evaluate(); }"
-then.findings = [{ path = "execution_runtime/src/application/file_dag/program/native_walk/mod.rs", line = 2 }, { path = "execution_runtime/src/application/file_dag/program/native_walk/mod.rs", line = 2 }]
+given.files.'execution_runtime/src/application/file_dag/program/native_walk.rs' = "pub(super) struct FileWalk { generation: () } pub(super) struct WalkResult { result: () } pub(super) mod lease; \nuse execution_domain::domain::shared_walk as semantic; fn bypass() { semantic::service::evaluate(); }"
+then.findings = [{ path = "execution_runtime/src/application/file_dag/program/native_walk.rs", line = 2 }, { path = "execution_runtime/src/application/file_dag/program/native_walk.rs", line = 2 }]
 
 [[scenarios]]
 id = "new-neighbor-cannot-dispatch-semantics"
 scenario = "An adjacent lease helper cannot acquire the exact consuming data owner role."
-given.files.'execution_runtime/src/application/file_dag/program/native_walk/lease/mod.rs' = "pub(super) mod service; pub(super) mod rogue;"
+given.files.'execution_runtime/src/application/file_dag/program/native_walk/lease.rs' = "pub(super) mod service; pub(super) mod rogue;"
 given.files.'execution_runtime/src/application/file_dag/program/native_walk/lease/rogue.rs' = "fn bypass() { execution_domain::domain::shared_walk::service::evaluate(); }"
 then.findings = [{ path = "execution_runtime/src/application/file_dag/program/native_walk/lease/rogue.rs", line = 1 }]
 
 [[scenarios]]
 id = "permitted-request-cannot-return-to-parent"
 scenario = "The issued data declaration cannot move back into the workflow owner."
-given.files.'execution_runtime/src/application/file_dag/program/native_walk/mod.rs' = "pub(super) struct FileWalk { generation: () } pub(super) struct WalkResult { result: () } pub(super) mod lease; \npub(crate) struct PermittedWalk { permit: (), ready: () }"
-then.findings = [{ path = "execution_runtime/src/application/file_dag/program/native_walk/mod.rs", line = 2 }]
+given.files.'execution_runtime/src/application/file_dag/program/native_walk.rs' = "pub(super) struct FileWalk { generation: () } pub(super) struct WalkResult { result: () } pub(super) mod lease; \npub(crate) struct PermittedWalk { permit: (), ready: () }"
+then.findings = [{ path = "execution_runtime/src/application/file_dag/program/native_walk.rs", line = 2 }]
 
 [[scenarios]]
 id = "cross-crate-aliased-semantic-service-refused"
@@ -276,8 +276,8 @@ scenario = "The lease owner's relative path grants nothing outside execution_run
 given.files.'walker/src/lib.rs' = 'mod application;'
 given.files.'walker/src/application.rs' = 'mod file_dag;'
 given.files.'walker/src/application/file_dag.rs' = 'mod program;'
-given.files.'walker/src/application/file_dag/program/mod.rs' = 'mod native_walk;'
-given.files.'walker/src/application/file_dag/program/native_walk/mod.rs' = 'mod lease;'
+given.files.'walker/src/application/file_dag/program.rs' = 'mod native_walk;'
+given.files.'walker/src/application/file_dag/program/native_walk.rs' = 'mod lease;'
 given.files.'walker/src/application/file_dag/program/native_walk/lease.rs' = 'mod service;'
 given.files.'walker/src/application/file_dag/program/native_walk/lease/service.rs' = 'fn dispatch() { engine::domain::shared_walk::service::evaluate(); }'
 then.findings = [{ path = "walker/src/application/file_dag/program/native_walk/lease/service.rs", line = 1 }]

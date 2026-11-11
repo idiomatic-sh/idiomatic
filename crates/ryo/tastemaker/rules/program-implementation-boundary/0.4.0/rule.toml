@@ -11,28 +11,28 @@ let callable-dependencies = antijoin(left="source-dependency", right=visibility-
 let paths = capture(from=callable-dependencies, path="source", pattern="{*source-root}/{*source-tail}", captures=["source-root", "source-tail"]);
 let targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/program/{*implementation-tail}", captures=["target-root", "implementation-tail"]);
 let local = select source as file, span, source-tail, implementation-tail from targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let protected = select * from local where not glob_any(implementation-tail, "{preparation/service.rs,preparation/types.rs,rule_outcome/types.rs,observed_publication/types.rs,observed_publication/service.rs,prepared_execution/{interface,service,types}.rs,request_execution/{interface,service,types}.rs,file_session/{interface,types}.rs,project_phase/{interface,types}.rs,observation_stage/{interface,types}.rs,facade_runtime/mod.rs,facade_runtime/file_execution/mod.rs,facade_runtime/project_execution/mod.rs,facade_runtime/service.rs,facade_runtime/types.rs,admission/mod.rs,restored/mod.rs,restored/types.rs}");
-let outsiders = select * from protected where not glob_any(source-tail, "{application/file_dag/program/mod.rs,application/file_dag/program/**}");
-let ordinary-bridges = select * from outsiders where not glob_any(implementation-tail, "{admission/mod.rs,runtime/service.rs}") or not glob_any(source-tail, "{application/file_dag/executor/mod.rs,application/file_dag/execution/mod.rs,application/file_dag/execution/lease/mod.rs,application/file_dag/execution/lease/capability/service.rs}");
-let bridges = select * from ordinary-bridges where source-tail != "application/file_dag/executor/mod.rs" or not glob_any(implementation-tail, "{native_walk/lease/service.rs,native_join/lease/service.rs}");
+let protected = select * from local where not glob_any(implementation-tail, "{preparation/service.rs,preparation/types.rs,rule_outcome/types.rs,observed_publication/types.rs,observed_publication/service.rs,prepared_execution/{interface,service,types}.rs,request_execution/{interface,service,types}.rs,file_session/{interface,types}.rs,project_phase/{interface,types}.rs,observation_stage/{interface,types}.rs,facade_runtime.rs,facade_runtime/file_execution.rs,facade_runtime/project_execution.rs,facade_runtime/service.rs,facade_runtime/types.rs,admission.rs,restored.rs,restored/types.rs}");
+let outsiders = select * from protected where not glob_any(source-tail, "{application/file_dag/program.rs,application/file_dag/program/**}");
+let ordinary-bridges = select * from outsiders where not glob_any(implementation-tail, "{admission.rs,runtime/service.rs}") or not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/execution/lease.rs,application/file_dag/execution/lease/capability/service.rs}");
+let bridges = select * from ordinary-bridges where source-tail != "application/file_dag/executor.rs" or not glob_any(implementation-tail, "{native_walk/lease/service.rs,native_join/lease/service.rs}");
 let forbidden = select * from bridges where implementation-tail != "runtime/service.rs" or not glob_any(source-tail, "{application/file_dag/derived/owner/raw_scope.rs,application/file_dag/derived/owner/acquisition/admission/service/issuance/service.rs}");
 let program-violations = select file, span from forbidden;
-let lease-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/execution/lease/mod.rs", captures=["target-root"]);
+let lease-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/execution/lease.rs", captures=["target-root"]);
 let local-leases = select source as file, span, source-tail from lease-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let foreign-leases = select file, span from local-leases where not glob_any(source-tail, "{application/file_dag/executor/mod.rs,application/file_dag/execution/mod.rs,application/file_dag/program/kernel_session/mod.rs,application/file_dag/program/kernel_session/**}");
+let foreign-leases = select file, span from local-leases where not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs,application/file_dag/program/kernel_session/**}");
 let cache-files = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/derived/owner/{cache-part}.rs", captures=["target-root", "cache-part"]);
-let cache-modules = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/derived/owner/{cache-part}/mod.rs", captures=["target-root", "cache-part"]);
+let cache-modules = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/derived/owner/{cache-part}.rs", captures=["target-root", "cache-part"]);
 let cache-targets = union(left=cache-files, right=cache-modules);
 let local-cache = select source as file, span, source-tail, cache-part from cache-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
 let raw-cache = select * from local-cache where glob_any(cache-part, "{acquisition,raw_scope,leases}");
-let foreign-cache = select file, span from raw-cache where not glob_any(source-tail, "{application/file_dag/derived/owner.rs,application/file_dag/derived/owner/**,application/file_dag/testing/mod.rs}");
+let foreign-cache = select file, span from raw-cache where not glob_any(source-tail, "{application/file_dag/derived/owner.rs,application/file_dag/derived/owner/**,application/file_dag/testing.rs}");
 let capability-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/execution/lease/capability/service.rs", captures=["target-root"]);
-let foreign-capabilities = select source as file, span from capability-targets where source-root = target-root and glob_any(source-root, "{src,**/src}") and not glob_any(source-tail, "{application/file_dag/executor/mod.rs,application/file_dag/execution/mod.rs,application/file_dag/execution/lease/mod.rs}");
+let foreign-capabilities = select source as file, span from capability-targets where source-root = target-root and glob_any(source-root, "{src,**/src}") and not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/execution/lease.rs}");
 let lease-boundaries = union(left=foreign-leases, right=foreign-capabilities);
 let dispatch-violations = union(left=program-violations, right=lease-boundaries);
 let owner-violations = union(left=dispatch-violations, right=foreign-cache);
 let positioned-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/relations/{issuer}.rs", captures=["target-root", "issuer"]);
-let foreign-positioned = select source as file, span from positioned-targets where source-root = target-root and glob_any(source-root, "{src,**/src}") and ((issuer = "positioned" and not glob_any(source-tail, "{application/file_dag/program/kernel_session/mod.rs,application/file_dag/program/kernel_session/**}")) or (issuer = "selection" and not glob_any(source-tail, "{application/file_dag/program/selection.rs,application/file_dag/derived/owner/selection/mod.rs}")));
+let foreign-positioned = select source as file, span from positioned-targets where source-root = target-root and glob_any(source-root, "{src,**/src}") and ((issuer = "positioned" and not glob_any(source-tail, "{application/file_dag/program/kernel_session.rs,application/file_dag/program/kernel_session/**}")) or (issuer = "selection" and not glob_any(source-tail, "{application/file_dag/program/selection.rs,application/file_dag/derived/owner/selection.rs}")));
 let derived-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/derived/owner/{*owned-tail}", captures=["target-root", "owned-tail"]);
 let raw-derived = select source as file, span, source-tail from derived-targets where source-root = target-root and glob_any(source-root, "{src,**/src}") and glob_any(owned-tail, "{graphs/types/retained/**,selection/candidates/**,selection/fanout/**,acquisition/semantics/**}");
 let foreign-derived = select file, span from raw-derived where not glob_any(source-tail, "{application/file_dag/derived/owner.rs,application/file_dag/derived/owner/**,application/file_dag/derived/owner_test.rs}");
@@ -45,21 +45,21 @@ let local-application-roots = select source as file, span, source-tail from appl
 let all-application = union(left=local-application, right=local-application-roots);
 let domain-application = select file, span from all-application where source-tail = "domain.rs" or glob_any(source-tail, "domain/**");
 let protected-app = union(left=app-violations, right=domain-application);
-let kernel-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/executable_program/kernel/mod.rs", captures=["target-root"]);
+let kernel-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/executable_program/kernel.rs", captures=["target-root"]);
 let local-kernel = select source as file, span, source-tail from kernel-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let foreign-kernel = select file, span from local-kernel where not glob_any(source-tail, "{domain/executable_program.rs,domain/executable_program/**,application/file_dag/execution/mod.rs,application/file_dag/program/kernel_session/mod.rs,application/file_dag/program/kernel_session/**}");
-let registry-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/registration/mod.rs", captures=["target-root"]);
+let foreign-kernel = select file, span from local-kernel where not glob_any(source-tail, "{domain/executable_program.rs,domain/executable_program/**,application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs,application/file_dag/program/kernel_session/**}");
+let registry-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/registration.rs", captures=["target-root"]);
 let local-registry = select source as file, span, source-tail from registry-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let foreign-registry = select file, span from local-registry where not glob_any(source-tail, "{domain/operator/contract/mod.rs,domain/operator/contract/**,domain/operator/service.rs,application/file_dag/execution/lease/capability/service.rs}");
-let context-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/context/mod.rs", captures=["target-root"]);
+let foreign-registry = select file, span from local-registry where not glob_any(source-tail, "{domain/operator/contract.rs,domain/operator/contract/**,domain/operator/service.rs,application/file_dag/execution/lease/capability/service.rs}");
+let context-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/context.rs", captures=["target-root"]);
 let local-context = select source as file, span, source-tail from context-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let foreign-context = select file, span from local-context where source-tail != "application/file_dag/execution/lease/mod.rs";
+let foreign-context = select file, span from local-context where source-tail != "application/file_dag/execution/lease.rs";
 let domain-entry-violations = union(left=foreign-kernel, right=foreign-registry);
 let domain-violations = union(left=domain-entry-violations, right=foreign-context);
 let neutral-backrefs = select file, span from local where
-    (glob_any(source-tail, "application/file_dag/program/{rule_outcome,observed_publication}/**") and glob_any(implementation-tail, "{preparation/**,runtime/**,facade_runtime/mod.rs,facade_runtime/**,kernel_session/mod.rs,kernel_session/**,native_walk/mod.rs,native_join.rs}"))
-    or (glob_any(source-tail, "application/file_dag/program/preparation/**") and glob_any(implementation-tail, "{rule_outcome/**,observed_publication/**,runtime/**,facade_runtime/mod.rs,facade_runtime/**,kernel_session/mod.rs,kernel_session/**,native_walk/mod.rs,native_join.rs}"))
-    or (source-tail = "application/file_dag/program/admission/mod.rs" and glob_any(implementation-tail, "runtime/**"))
+    (glob_any(source-tail, "application/file_dag/program/{rule_outcome,observed_publication}/**") and glob_any(implementation-tail, "{preparation/**,runtime/**,facade_runtime.rs,facade_runtime/**,kernel_session.rs,kernel_session/**,native_walk.rs,native_join.rs}"))
+    or (glob_any(source-tail, "application/file_dag/program/preparation/**") and glob_any(implementation-tail, "{rule_outcome/**,observed_publication/**,runtime/**,facade_runtime.rs,facade_runtime/**,kernel_session.rs,kernel_session/**,native_walk.rs,native_join.rs}"))
+    or (source-tail = "application/file_dag/program/admission.rs" and glob_any(implementation-tail, "runtime/**"))
     or (source-tail = "application/file_dag/program/runtime/types.rs" and implementation-tail = "runtime/service.rs");
 let invocation-boundary = union(left=protected-app, right=domain-violations);
 let direct-implementations = select file, span, declaration, target as contract from "inherits" where glob_any(target, "{KernelInvocation,*::KernelInvocation,Inputs,*::Inputs,PrimitiveExecutor,*::PrimitiveExecutor,PrimitiveSemantics,*::PrimitiveSemantics,OperatorsItem,*::OperatorsItem,RepresentationsItem,*::RepresentationsItem}");
@@ -67,24 +67,24 @@ let implementation-imports = select file, span, binding, target from "static-imp
 let aliased-implementations = select l.file as file, l.span as span, l.declaration as declaration, r.target as contract from "inherits" as l join implementation-imports as r on l.file = r.file and l.target = r.binding;
 let written-implementations = union(left=direct-implementations, right=aliased-implementations);
 let local-dependencies = capture(from=paths, path="target", pattern="{*target-root}/{*target-tail}", captures=["target-root", "target-tail"]);
-let contract-dependencies = select * from local-dependencies where source-root = target-root and glob_any(target-tail, "{application/file_dag/program/runtime/service.rs,application/file_dag/program/admission/mod.rs,application/file_dag/executor/mod.rs,domain/operator/contract/types.rs,domain/operator/collections/operators/interface.rs,domain/table_model/collections/representations/interface.rs}");
+let contract-dependencies = select * from local-dependencies where source-root = target-root and glob_any(target-tail, "{application/file_dag/program/runtime/service.rs,application/file_dag/program/admission.rs,application/file_dag/executor.rs,domain/operator/contract/types.rs,domain/operator/collections/operators/interface.rs,domain/table_model/collections/representations/interface.rs}");
 let qualified-implementations = select l.file as file, l.span as span, l.declaration as declaration, l.contract as contract, r.source-tail as source-tail, r.source-root as source-root from written-implementations as l join contract-dependencies as r on l.file = r.source and l.span = r.span;
 let resolved-contract-imports = select l.file as file, l.binding as binding, l.target as contract, r.source-tail as source-tail, r.source-root as source-root from implementation-imports as l join contract-dependencies as r on l.file = r.source and l.span = r.span;
 let imported-implementations = select l.file as file, l.span as span, l.declaration as declaration, r.contract as contract, r.source-tail as source-tail, r.source-root as source-root from "inherits" as l join resolved-contract-imports as r on l.file = r.file and l.target = r.binding;
 let external-implementations = union(left=qualified-implementations, right=imported-implementations);
 let local-trait-files = capture(from="defines", path="file", pattern="{*source-root}/{*source-tail}", captures=["source-root", "source-tail"]);
-let local-traits = select * from local-trait-files where kind = "trait" and glob_any(name, "{KernelInvocation,Inputs,PrimitiveExecutor,PrimitiveSemantics,OperatorsItem,RepresentationsItem}") and glob_any(source-tail, "{application/file_dag/program/runtime/service.rs,application/file_dag/program/admission/mod.rs,application/file_dag/executor/mod.rs,domain/operator/contract/types.rs,domain/operator/collections/operators/interface.rs,domain/table_model/collections/representations/interface.rs}");
+let local-traits = select * from local-trait-files where kind = "trait" and glob_any(name, "{KernelInvocation,Inputs,PrimitiveExecutor,PrimitiveSemantics,OperatorsItem,RepresentationsItem}") and glob_any(source-tail, "{application/file_dag/program/runtime/service.rs,application/file_dag/program/admission.rs,application/file_dag/executor.rs,domain/operator/contract/types.rs,domain/operator/collections/operators/interface.rs,domain/table_model/collections/representations/interface.rs}");
 let self-implementations = select l.file as file, l.span as span, l.declaration as declaration, r.name as contract, r.source-tail as source-tail, r.source-root as source-root from "inherits" as l join local-traits as r on l.file = r.file and l.target = r.name;
 let implementations = union(left=external-implementations, right=self-implementations);
 let named-implementations = select l.file as file, l.span as span, l.contract as contract, l.source-tail as source-tail, l.source-root as source-root, r.name as name from implementations as l join "defines" as r on l.declaration = r.id;
 let engine-implementations = select * from named-implementations where
-    (glob_any(contract, "{KernelInvocation,*::KernelInvocation}") and source-tail = "application/file_dag/program/kernel_session/mod.rs" and name = "KernelSession")
-    or (glob_any(contract, "{Inputs,*::Inputs}") and source-tail = "application/file_dag/program/facade_runtime/source_admission/mod.rs" and name = "SourceInputs")
-    or (glob_any(contract, "{PrimitiveExecutor,*::PrimitiveExecutor}") and source-tail = "application/file_dag/execution/mod.rs" and name = "CommonOperatorEngine")
-    or (glob_any(contract, "{PrimitiveSemantics,*::PrimitiveSemantics}") and source-tail = "application/file_dag/execution/mod.rs" and name = "PrimitiveSemanticsBridge");
-let registry-uses = select source, target, span, written, source-root, source-tail from local-dependencies where source-root = target-root and glob_any(source-tail, "{domain/operator/contract/registration/mod.rs,domain/table_model/types/registered_representation/value.rs}");
+    (glob_any(contract, "{KernelInvocation,*::KernelInvocation}") and source-tail = "application/file_dag/program/kernel_session.rs" and name = "KernelSession")
+    or (glob_any(contract, "{Inputs,*::Inputs}") and source-tail = "application/file_dag/program/facade_runtime/source_admission.rs" and name = "SourceInputs")
+    or (glob_any(contract, "{PrimitiveExecutor,*::PrimitiveExecutor}") and source-tail = "application/file_dag/execution.rs" and name = "CommonOperatorEngine")
+    or (glob_any(contract, "{PrimitiveSemantics,*::PrimitiveSemantics}") and source-tail = "application/file_dag/execution.rs" and name = "PrimitiveSemanticsBridge");
+let registry-uses = select source, target, span, written, source-root, source-tail from local-dependencies where source-root = target-root and glob_any(source-tail, "{domain/operator/contract/registration.rs,domain/table_model/types/registered_representation/value.rs}");
 let registry-nodes = select id, file, span, kind from "syntax-tree" where text = "";
-let candidate-registry-owners = select * from "defines" where kind = "implementation" and ((name = "RegisteredOperator" and glob_any(file, "{src,**/src}/domain/operator/contract/registration/mod.rs")) or (name = "RegisteredRepresentation" and glob_any(file, "{src,**/src}/domain/table_model/types/registered_representation/value.rs")));
+let candidate-registry-owners = select * from "defines" where kind = "implementation" and ((name = "RegisteredOperator" and glob_any(file, "{src,**/src}/domain/operator/contract/registration.rs")) or (name = "RegisteredRepresentation" and glob_any(file, "{src,**/src}/domain/table_model/types/registered_representation/value.rs")));
 let registry-roots = select id from registry-nodes where kind = "source-file";
 let root-children = select r.child as id from registry-roots as l join "syntax-child" as r on l.id = r.parent;
 let registry-owners = select l.id as id from candidate-registry-owners as l join root-children as r on l.id = r.id;
@@ -127,7 +127,7 @@ let member-imports = capture(from="static-import", path="target", pattern="{*mem
 let imported-members = select l.target as file, r.name as name, l.source-root as source-root, l.source-tail as registry from dispatch-uses as l join member-imports as r on l.source = r.file and l.written = r.binding;
 let registered-members = union(left=direct-members, right=imported-members);
 let catalog-implementations = select l.file as file, l.span as span, l.contract as contract, l.source-tail as source-tail, l.source-root as source-root, l.name as name from named-implementations as l join registered-members as r on l.file = r.file and l.name = r.name and l.source-root = r.source-root where
-    (glob_any(l.contract, "{OperatorsItem,*::OperatorsItem}") and r.registry = "domain/operator/contract/registration/mod.rs")
+    (glob_any(l.contract, "{OperatorsItem,*::OperatorsItem}") and r.registry = "domain/operator/contract/registration.rs")
     or (glob_any(l.contract, "{RepresentationsItem,*::RepresentationsItem}") and r.registry = "domain/table_model/types/registered_representation/value.rs");
 let authorized-implementations = union(left=engine-implementations, right=catalog-implementations);
 let registered-sites = select file, span from authorized-implementations;
@@ -177,32 +177,32 @@ edition = "2024"
 files.'src/lib.rs' = 'pub mod application; pub mod domain;'
 files.'src/application.rs' = 'pub mod file_dag; pub mod caller;'
 files.'src/application/file_dag.rs' = 'pub mod program; pub mod executor; pub mod execution; pub mod derived; pub mod relations;'
-files.'src/application/file_dag/program/mod.rs' = 'pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection;'
-files.'src/application/file_dag/program/facade_runtime/mod.rs' = 'pub mod source_admission;'
-files.'src/application/file_dag/program/facade_runtime/source_admission/mod.rs' = "pub fn raw_admit() {} use super::super::admission::Inputs; pub struct SourceInputs; impl Inputs for SourceInputs {}"
-files.'src/application/file_dag/program/preparation/mod.rs' = 'pub mod types; pub mod service;'
+files.'src/application/file_dag/program.rs' = 'pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection;'
+files.'src/application/file_dag/program/facade_runtime.rs' = 'pub mod source_admission;'
+files.'src/application/file_dag/program/facade_runtime/source_admission.rs' = "pub fn raw_admit() {} use super::super::admission::Inputs; pub struct SourceInputs; impl Inputs for SourceInputs {}"
+files.'src/application/file_dag/program/preparation.rs' = 'pub mod types; pub mod service;'
 files.'src/application/file_dag/program/preparation/types.rs' = 'pub struct PreparedProgram;'
 files.'src/application/file_dag/program/preparation/service.rs' = 'pub fn invoke() {}'
-files.'src/application/file_dag/program/rule_outcome/mod.rs' = 'pub mod types; pub mod service;'
+files.'src/application/file_dag/program/rule_outcome.rs' = 'pub mod types; pub mod service;'
 files.'src/application/file_dag/program/rule_outcome/types.rs' = 'pub struct LogicalCounts;'
 files.'src/application/file_dag/program/rule_outcome/service.rs' = 'pub fn validate() {}'
-files.'src/application/file_dag/program/runtime/mod.rs' = 'pub mod types; pub mod service;'
+files.'src/application/file_dag/program/runtime.rs' = 'pub mod types; pub mod service;'
 files.'src/application/file_dag/program/runtime/types.rs' = 'pub struct WorkCount;'
 files.'src/application/file_dag/program/runtime/service.rs' = "pub struct KernelPermit; pub fn execute() {} pub trait KernelInvocation {}"
-files.'src/application/file_dag/program/admission/mod.rs' = "pub struct Permit; pub trait Inputs {}"
-files.'src/application/file_dag/program/restored/mod.rs' = 'pub fn restore() {}'
-files.'src/application/file_dag/program/kernel_session/mod.rs' = "pub fn dispatch() {} use super::runtime::service::KernelInvocation; pub struct KernelSession; impl KernelInvocation for KernelSession {}"
-files.'src/application/file_dag/program/request_identity/mod.rs' = 'pub struct RequestId;'
-files.'src/application/file_dag/executor/mod.rs' = "pub fn bridge() {} pub trait PrimitiveExecutor {}"
-files.'src/application/file_dag/execution/mod.rs' = "pub mod lease; use super::executor::PrimitiveExecutor; use crate::domain::operator::contract::types::PrimitiveSemantics; pub struct CommonOperatorEngine; impl PrimitiveExecutor for CommonOperatorEngine {} pub struct PrimitiveSemanticsBridge; impl PrimitiveSemantics for PrimitiveSemanticsBridge {}"
-files.'src/application/file_dag/execution/lease/mod.rs' = 'pub fn bridge() {}'
-files.'src/application/file_dag/derived/mod.rs' = 'pub mod owner;'
+files.'src/application/file_dag/program/admission.rs' = "pub struct Permit; pub trait Inputs {}"
+files.'src/application/file_dag/program/restored.rs' = 'pub fn restore() {}'
+files.'src/application/file_dag/program/kernel_session.rs' = "pub fn dispatch() {} use super::runtime::service::KernelInvocation; pub struct KernelSession; impl KernelInvocation for KernelSession {}"
+files.'src/application/file_dag/program/request_identity.rs' = 'pub struct RequestId;'
+files.'src/application/file_dag/executor.rs' = "pub fn bridge() {} pub trait PrimitiveExecutor {}"
+files.'src/application/file_dag/execution.rs' = "pub mod lease; use super::executor::PrimitiveExecutor; use crate::domain::operator::contract::types::PrimitiveSemantics; pub struct CommonOperatorEngine; impl PrimitiveExecutor for CommonOperatorEngine {} pub struct PrimitiveSemanticsBridge; impl PrimitiveSemantics for PrimitiveSemanticsBridge {}"
+files.'src/application/file_dag/execution/lease.rs' = 'pub fn bridge() {}'
+files.'src/application/file_dag/derived.rs' = 'pub mod owner;'
 files.'src/application/file_dag/derived/owner.rs' = 'pub mod acquisition; pub mod raw_scope; pub mod leases; pub mod future_acquisition;'
-files.'src/application/file_dag/derived/owner/acquisition/mod.rs' = 'pub fn acquire() {}'
+files.'src/application/file_dag/derived/owner/acquisition.rs' = 'pub fn acquire() {}'
 files.'src/application/file_dag/derived/owner/future_acquisition.rs' = 'pub fn acquire() {}'
 files.'src/application/file_dag/derived/owner/raw_scope.rs' = 'pub fn make_scope() {}'
-files.'src/application/file_dag/derived/owner/leases/mod.rs' = 'pub fn make_lease() {}'
-files.'src/application/file_dag/relations/mod.rs' = 'pub mod positioned; pub mod selection;'
+files.'src/application/file_dag/derived/owner/leases.rs' = 'pub fn make_lease() {}'
+files.'src/application/file_dag/relations.rs' = 'pub mod positioned; pub mod selection;'
 files.'src/application/file_dag/relations/positioned.rs' = 'pub fn publish() {}'
 files.'src/application/file_dag/program/selection.rs' = 'pub fn evaluate() {}'
 files.'src/application/file_dag/program/positions.rs' = 'pub fn evaluate() {}'
@@ -211,15 +211,15 @@ files.'src/application/caller.rs' = 'pub fn invoke() {}'
 files.'src/domain.rs' = "pub mod semantic; pub mod executable_program; pub mod operator; pub mod table_model;"
 files.'src/domain/semantic.rs' = 'pub fn read_borrowed() {}'
 files.'src/domain/executable_program.rs' = 'pub mod kernel;'
-files.'src/domain/executable_program/kernel/mod.rs' = 'pub fn evaluate() {}'
+files.'src/domain/executable_program/kernel.rs' = 'pub fn evaluate() {}'
 files.'src/domain/operator.rs' = 'pub mod contract; pub mod service; pub mod collections;'
 files.'src/domain/operator/collections.rs' = 'pub mod operators;'
 files.'src/domain/operator/collections/operators.rs' = "pub mod select; pub mod interface;"
 files.'src/domain/operator/collections/operators/select.rs' = 'pub mod item;'
 files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}"
-files.'src/domain/operator/contract/mod.rs' = "pub mod registration; pub mod context; pub mod types;"
-files.'src/domain/operator/contract/registration/mod.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
-files.'src/domain/operator/contract/context/mod.rs' = 'pub fn with_primitive_context() {}'
+files.'src/domain/operator/contract.rs' = "pub mod registration; pub mod context; pub mod types;"
+files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+files.'src/domain/operator/contract/context.rs' = 'pub fn with_primitive_context() {}'
 files.'src/domain/operator/service.rs' = 'pub fn registered() {}'
 
 files.'src/domain/operator/contract/types.rs' = "pub trait PrimitiveSemantics {}"
@@ -246,8 +246,8 @@ files.'src/domain/table_model/types/registered_representation.rs' = 'pub mod val
 [[scenarios]]
 id = "handle-concept-is-an-entry"
 scenario = "A caller outside the owner names the interface of a handle concept, the outer entry the owner offers."
-given.files.'src/application/file_dag/program/mod.rs' = 'pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod file_session;'
-given.files.'src/application/file_dag/program/file_session/mod.rs' = 'pub mod interface; pub mod types;'
+given.files.'src/application/file_dag/program.rs' = 'pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod file_session;'
+given.files.'src/application/file_dag/program/file_session.rs' = 'pub mod interface; pub mod types;'
 given.files.'src/application/file_dag/program/file_session/interface.rs' = 'pub trait FileExecution {}'
 given.files.'src/application/file_dag/program/file_session/types.rs' = 'pub struct FileSession;'
 given.files.'src/application/caller.rs' = 'use crate::application::file_dag::program::file_session::interface::FileExecution; use crate::application::file_dag::program::file_session::types::FileSession;'
@@ -256,8 +256,8 @@ then.findings = []
 [[scenarios]]
 id = "handle-concept-service-is-protected"
 scenario = "The service of a handle concept stays an implementation: a caller outside the owner cannot name it."
-given.files.'src/application/file_dag/program/mod.rs' = 'pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod file_session;'
-given.files.'src/application/file_dag/program/file_session/mod.rs' = 'pub mod interface; pub mod service; pub mod types;'
+given.files.'src/application/file_dag/program.rs' = 'pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod file_session;'
+given.files.'src/application/file_dag/program/file_session.rs' = 'pub mod interface; pub mod service; pub mod types;'
 given.files.'src/application/file_dag/program/file_session/interface.rs' = 'pub trait FileExecution {}'
 given.files.'src/application/file_dag/program/file_session/service.rs' = 'pub fn open() {}'
 given.files.'src/application/file_dag/program/file_session/types.rs' = 'pub struct FileSession;'
@@ -396,22 +396,22 @@ given.files.'src/application/file_dag/program/runtime/service.rs' = 'use super::
 [[scenarios]]
 id = "physical-bridge-is-supported"
 scenario = "The physical execution bridge may borrow an admission permit."
-given.files.'src/application/file_dag/execution/lease/mod.rs' = 'use super::super::program::runtime::service::KernelPermit;'
+given.files.'src/application/file_dag/execution/lease.rs' = 'use super::super::program::runtime::service::KernelPermit;'
 
 [[scenarios]]
 id = "program-dispatch-is-supported"
 scenario = "The program's kernel session may invoke the physical lease."
-given.files.'src/application/file_dag/program/kernel_session/mod.rs' = 'pub fn dispatch() { crate::application::file_dag::execution::lease::bridge(); }'
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn dispatch() { crate::application::file_dag::execution::lease::bridge(); }'
 
 [[scenarios]]
 id = "declared-domain-dispatch-bridge"
 scenario = "The physical bridge may call the semantic dispatcher."
-given.files.'src/application/file_dag/execution/mod.rs' = 'pub mod lease; pub fn evaluate() { crate::domain::executable_program::kernel::evaluate(); }'
+given.files.'src/application/file_dag/execution.rs' = 'pub mod lease; pub fn evaluate() { crate::domain::executable_program::kernel::evaluate(); }'
 
 [[scenarios]]
 id = "declared-row-admission-bridge"
 scenario = "The program kernel session may call the semantic row dispatcher."
-given.files.'src/application/file_dag/program/kernel_session/mod.rs' = 'pub fn dispatch() { crate::domain::executable_program::kernel::evaluate(); }'
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn dispatch() { crate::domain::executable_program::kernel::evaluate(); }'
 
 [[scenarios]]
 id = "declared-operator-preparation"
@@ -422,14 +422,14 @@ given.files.'src/application/file_dag.rs' = 'pub mod program; pub mod executor; 
 [[scenarios]]
 id = "declared-context-bridge"
 scenario = "The application invocation bridge may construct a borrowed semantic context."
-given.files.'src/application/file_dag/execution/lease/mod.rs' = 'pub fn bridge() { crate::domain::operator::contract::context::with_primitive_context(); }'
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub fn bridge() { crate::domain::operator::contract::context::with_primitive_context(); }'
 
 [[scenarios]]
 id = "declared-operator-execution"
 scenario = "The application execution owner may dispatch the registered primitive after permit validation."
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = 'pub fn dispatch() { crate::domain::operator::contract::registration::registered(); }'
 
-given.files.'src/application/file_dag/execution/lease/mod.rs' = 'pub mod capability;'
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability;'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = 'pub mod service;'
 
 [[scenarios]]
@@ -452,7 +452,7 @@ then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 [[scenarios]]
 id = "declared-positioned-bridge"
 scenario = "The admitted native instruction may finish a relation population through its owner."
-given.files.'src/application/file_dag/program/kernel_session/mod.rs' = 'pub fn evaluate() { crate::application::file_dag::relations::positioned::publish(); }'
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn evaluate() { crate::application::file_dag::relations::positioned::publish(); }'
 
 [[scenarios]]
 id = "foreign-selected-population"
@@ -489,14 +489,14 @@ then.findings = [{ path = "src/application/file_dag/program/rule_outcome/types.r
 id = "preparation-cannot-call-file-workflow"
 scenario = "Immutable request compilation cannot reintroduce file execution through an alias."
 given.files.'src/application/file_dag/program/preparation/service.rs' = 'use crate::application::file_dag::program::facade_runtime as workflow; fn bypass() { workflow::run(); }'
-given.files.'src/application/file_dag/program/facade_runtime/mod.rs' = 'pub fn run() {}'
+given.files.'src/application/file_dag/program/facade_runtime.rs' = 'pub fn run() {}'
 then.findings = [{ path = "src/application/file_dag/program/preparation/service.rs", line = 1 }, { path = "src/application/file_dag/program/preparation/service.rs", line = 1 }]
 
 [[scenarios]]
 id = "source-proofs-cannot-validate-interpreter-object"
 scenario = "Source admission depends on explicit owner and partition requirements rather than runtime state."
-given.files.'src/application/file_dag/program/admission/mod.rs' = 'use crate::application::file_dag::program::runtime::service as execution; fn bypass(_: &execution::KernelPermit) {}'
-then.findings = [{ path = "src/application/file_dag/program/admission/mod.rs", line = 1 }, { path = "src/application/file_dag/program/admission/mod.rs", line = 1 }]
+given.files.'src/application/file_dag/program/admission.rs' = 'use crate::application::file_dag::program::runtime::service as execution; fn bypass(_: &execution::KernelPermit) {}'
+then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }, { path = "src/application/file_dag/program/admission.rs", line = 1 }]
 
 [[scenarios]]
 id = "runtime-types-cannot-import-runtime-interpreter"
@@ -507,26 +507,26 @@ then.findings = [{ path = "src/application/file_dag/program/runtime/types.rs", l
 [[scenarios]]
 id = "physical-bridge-borrows-runtime-capability-type"
 scenario = "The physical bridge may borrow the actual runtime-issued type while issuance remains private to the runtime owner."
-given.files.'src/application/file_dag/executor/mod.rs' = 'use super::program::runtime::service::KernelPermit; fn borrowed(_: &KernelPermit) {}'
+given.files.'src/application/file_dag/executor.rs' = 'use super::program::runtime::service::KernelPermit; fn borrowed(_: &KernelPermit) {}'
 
 [[scenarios]]
 id = "caller-may-name-public-partition-descriptor"
 scenario = "The actual public partition descriptor remains available after removing the facade forwarding alias; admitted-input constructors stay private."
-given.files.'src/application/file_dag/program/admission/mod.rs' = 'pub struct RequiredPartitions;'
+given.files.'src/application/file_dag/program/admission.rs' = 'pub struct RequiredPartitions;'
 given.files.'src/application/caller.rs' = 'use super::file_dag::program::admission::RequiredPartitions; fn metadata(_: &RequiredPartitions) {}'
 
 [[scenarios]]
 id = "caller-may-name-opaque-validated-frontier"
 scenario = "The actual validated frontier handover remains available without exposing runtime state or a second evaluator."
-given.files.'src/application/file_dag/program/restored/mod.rs' = 'pub mod types;'
+given.files.'src/application/file_dag/program/restored.rs' = 'pub mod types;'
 given.files.'src/application/file_dag/program/restored/types.rs' = 'pub struct ValidatedFrontier { proof: () }'
 given.files.'src/application/caller.rs' = 'use super::file_dag::program::restored::types::ValidatedFrontier; fn handover(_: &ValidatedFrontier) {}'
 
 [[scenarios]]
 id = "caller-may-name-the-owning-run-module"
 scenario = "File runs are named at their owning module; the facade keeps no forwarding alias, and the other implementation modules stay protected."
-given.files.'src/application/file_dag/program/facade_runtime/mod.rs' = 'pub mod source_admission; pub mod file_execution;'
-given.files.'src/application/file_dag/program/facade_runtime/file_execution/mod.rs' = 'pub struct FileRun;'
+given.files.'src/application/file_dag/program/facade_runtime.rs' = 'pub mod source_admission; pub mod file_execution;'
+given.files.'src/application/file_dag/program/facade_runtime/file_execution.rs' = 'pub struct FileRun;'
 given.files.'src/application/caller.rs' = 'use super::file_dag::program::facade_runtime::file_execution::FileRun; fn run(_: &FileRun) {}'
 
 [[scenarios]]
@@ -538,7 +538,7 @@ given.files.'src/application/file_dag/derived/owner/raw_scope.rs' = 'use crate::
 id = "derived-admission-borrows-required-runtime-capability"
 scenario = "Only the exact derived admission issuer role may borrow the required runtime capability."
 given.files.'src/application/file_dag/derived/owner.rs' = 'mod acquisition;'
-given.files.'src/application/file_dag/derived/owner/acquisition/mod.rs' = 'mod admission;'
+given.files.'src/application/file_dag/derived/owner/acquisition.rs' = 'mod admission;'
 given.files.'src/application/file_dag/derived/owner/acquisition/admission.rs' = 'mod service;'
 given.files.'src/application/file_dag/derived/owner/acquisition/admission/service/issuance/service.rs' = 'use crate::application::file_dag::program::runtime::service::KernelPermit; fn required(_: &KernelPermit) {}'
 
@@ -557,12 +557,12 @@ id = "selector-owner-publishes-leased-result"
 given.files.'src/application/file_dag/derived/owner.rs' = 'pub mod selection;'
 
 scenario = "The common acquisition owner publishes selected positions while their required resources remain attached."
-given.files.'src/application/file_dag/derived/owner/selection/mod.rs' = 'pub fn finish() { crate::application::file_dag::relations::selection::publish(); }'
+given.files.'src/application/file_dag/derived/owner/selection.rs' = 'pub fn finish() { crate::application::file_dag::relations::selection::publish(); }'
 
 [[scenarios]]
 id = "derived-peer-cannot-publish-selected-storage"
 scenario = "An adjacent derived helper cannot replace the admitted selector publication owner."
-given.files.'src/application/file_dag/derived/mod.rs' = 'pub mod owner; pub mod future;'
+given.files.'src/application/file_dag/derived.rs' = 'pub mod owner; pub mod future;'
 given.files.'src/application/file_dag/derived/future.rs' = 'use crate::application::file_dag::relations::selection::publish as bypass;'
 then.findings = [{ path = "src/application/file_dag/derived/future.rs", line = 1 }]
 
@@ -648,44 +648,44 @@ then.findings = [{ path = "src/domain/operator/collections/operators/extra/item.
 id = "import-is-not-registration"
 scenario = "An unused registry import cannot authorize a second callable implementer."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
-given.files.'src/domain/operator/contract/registration/mod.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } } use super::super::collections::operators::select::item::Extra;"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } } use super::super::collections::operators::select::item::Extra;"
 then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "registry-alias-preserves-actual-member"
 scenario = "The registry may rename the actual implemented type while matching the same kind."
-given.files.'src/domain/operator/contract/registration/mod.rs' = "use super::super::collections::operators::select::item::SelectItem as Chosen; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &Chosen } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem as Chosen; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &Chosen } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
 
 [[scenarios]]
 id = "unregistered-kernel-in-owner-file"
 scenario = "Another invocation implementation cannot hide next to the one required production bridge."
-given.files.'src/application/file_dag/program/kernel_session/mod.rs' = "pub fn dispatch() {} use super::runtime::service::KernelInvocation; pub struct KernelSession; impl KernelInvocation for KernelSession {}\npub struct Extra; impl KernelInvocation for Extra {}"
-then.findings = [{ path = "src/application/file_dag/program/kernel_session/mod.rs", line = 2 }]
+given.files.'src/application/file_dag/program/kernel_session.rs' = "pub fn dispatch() {} use super::runtime::service::KernelInvocation; pub struct KernelSession; impl KernelInvocation for KernelSession {}\npub struct Extra; impl KernelInvocation for Extra {}"
+then.findings = [{ path = "src/application/file_dag/program/kernel_session.rs", line = 2 }]
 
 [[scenarios]]
 id = "aliased-kernel-in-new-module"
 scenario = "An aliased invocation implementation in a new program module is refused."
-given.files.'src/application/file_dag/program/mod.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod extra;"
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod extra;"
 given.files.'src/application/file_dag/program/extra.rs' = "use super::runtime::service::KernelInvocation as Route; pub struct Extra; impl Route for Extra {}"
 then.findings = [{ path = "src/application/file_dag/program/extra.rs", line = 1 }]
 
 [[scenarios]]
 id = "qualified-source-implementation"
 scenario = "An alternate source supplier cannot bypass the admitted source owner."
-given.files.'src/application/file_dag/program/facade_runtime/source_admission/mod.rs' = "pub fn raw_admit() {} use super::super::admission::Inputs; pub struct SourceInputs; impl Inputs for SourceInputs {}\npub struct Extra; impl crate::application::file_dag::program::admission::Inputs for Extra {}"
-then.findings = [{ path = "src/application/file_dag/program/facade_runtime/source_admission/mod.rs", line = 2 }]
+given.files.'src/application/file_dag/program/facade_runtime/source_admission.rs' = "pub fn raw_admit() {} use super::super::admission::Inputs; pub struct SourceInputs; impl Inputs for SourceInputs {}\npub struct Extra; impl crate::application::file_dag::program::admission::Inputs for Extra {}"
+then.findings = [{ path = "src/application/file_dag/program/facade_runtime/source_admission.rs", line = 2 }]
 
 [[scenarios]]
 id = "unregistered-semantic-executor"
 scenario = "A new executor beside the adapter does not become the common engine."
-given.files.'src/application/file_dag/execution/mod.rs' = "pub mod lease; use super::executor::PrimitiveExecutor; use crate::domain::operator::contract::types::PrimitiveSemantics; pub struct CommonOperatorEngine; impl PrimitiveExecutor for CommonOperatorEngine {} pub struct PrimitiveSemanticsBridge; impl PrimitiveSemantics for PrimitiveSemanticsBridge {}\npub struct Extra; impl PrimitiveExecutor for Extra {}"
-then.findings = [{ path = "src/application/file_dag/execution/mod.rs", line = 2 }]
+given.files.'src/application/file_dag/execution.rs' = "pub mod lease; use super::executor::PrimitiveExecutor; use crate::domain::operator::contract::types::PrimitiveSemantics; pub struct CommonOperatorEngine; impl PrimitiveExecutor for CommonOperatorEngine {} pub struct PrimitiveSemanticsBridge; impl PrimitiveSemantics for PrimitiveSemanticsBridge {}\npub struct Extra; impl PrimitiveExecutor for Extra {}"
+then.findings = [{ path = "src/application/file_dag/execution.rs", line = 2 }]
 
 [[scenarios]]
 id = "unregistered-semantic-bridge"
 scenario = "Another borrowed semantics implementation cannot bypass physical authorization."
-given.files.'src/application/file_dag/execution/mod.rs' = "pub mod lease; use super::executor::PrimitiveExecutor; use crate::domain::operator::contract::types::PrimitiveSemantics; pub struct CommonOperatorEngine; impl PrimitiveExecutor for CommonOperatorEngine {} pub struct PrimitiveSemanticsBridge; impl PrimitiveSemantics for PrimitiveSemanticsBridge {}\npub struct Extra; impl PrimitiveSemantics for Extra {}"
-then.findings = [{ path = "src/application/file_dag/execution/mod.rs", line = 2 }]
+given.files.'src/application/file_dag/execution.rs' = "pub mod lease; use super::executor::PrimitiveExecutor; use crate::domain::operator::contract::types::PrimitiveSemantics; pub struct CommonOperatorEngine; impl PrimitiveExecutor for CommonOperatorEngine {} pub struct PrimitiveSemanticsBridge; impl PrimitiveSemantics for PrimitiveSemanticsBridge {}\npub struct Extra; impl PrimitiveSemantics for Extra {}"
+then.findings = [{ path = "src/application/file_dag/execution.rs", line = 2 }]
 
 [[scenarios]]
 id = "unplaced-implementation-proof-refused"
@@ -711,7 +711,7 @@ then.findings = [{ path = "src/domain/operator/collections/operators/interface.r
 [[scenarios]]
 id = "deleted-operator-registration"
 scenario = "Removing the actual typed match-arm registration leaves its implementation unregistered."
-given.files.'src/domain/operator/contract/registration/mod.rs' = "pub fn registered() {}"
+given.files.'src/domain/operator/contract/registration.rs' = "pub fn registered() {}"
 then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 1 }]
 
 [[scenarios]]
@@ -723,13 +723,13 @@ then.findings = [{ path = "src/domain/table_model/collections/representations/st
 [[scenarios]]
 id = "invocation-coordinator-cannot-directly-dispatch-registry"
 scenario = "The invocation coordinator must use the issued lease rather than call the semantic registry directly."
-given.files.'src/application/file_dag/execution/lease/mod.rs' = "pub fn bypass() { crate::domain::operator::contract::registration::registered(); }"
-then.findings = [{ path = "src/application/file_dag/execution/lease/mod.rs", line = 1 }]
+given.files.'src/application/file_dag/execution/lease.rs' = "pub fn bypass() { crate::domain::operator::contract::registration::registered(); }"
+then.findings = [{ path = "src/application/file_dag/execution/lease.rs", line = 1 }]
 
 [[scenarios]]
 id = "peer-cannot-alias-issued-lease-capability"
 scenario = "A sibling cannot import the private data/dispatch capability by alias."
-given.files.'src/application/file_dag/execution/lease/mod.rs' = 'pub mod capability;'
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability;'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = 'pub mod service;'
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = 'pub struct Lease;'
 given.files.'src/application/caller.rs' = "use crate::application::file_dag::execution::lease::capability::service::Lease as Alternative;"
@@ -747,50 +747,50 @@ then.findings = [{ path = "src/domain/operator/collections/operators/select/item
 [[scenarios]]
 id = "executor-borrows-issued-native-leaf-types"
 scenario = "The executor names only the actual private native request data contracts."
-given.files.'src/application/file_dag/program/mod.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
-given.files.'src/application/file_dag/program/native_walk/mod.rs' = "pub mod lease; pub struct FileWalk;"
-given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
+given.files.'src/application/file_dag/program/native_walk/lease.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
 given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; pub enum Eligibility { Native }"
-given.files.'src/application/file_dag/program/native_join/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_join/lease.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
-given.files.'src/application/file_dag/executor/mod.rs' = "pub fn bridge() {} pub trait PrimitiveExecutor {} use crate::application::file_dag::program::native_walk::lease::service::PermittedWalk; use crate::application::file_dag::program::native_join::lease::service::PermittedNativeJoin; fn borrowed(_: &PermittedWalk, _: &PermittedNativeJoin) {}"
+given.files.'src/application/file_dag/executor.rs' = "pub fn bridge() {} pub trait PrimitiveExecutor {} use crate::application::file_dag::program::native_walk::lease::service::PermittedWalk; use crate::application::file_dag::program::native_join::lease::service::PermittedNativeJoin; fn borrowed(_: &PermittedWalk, _: &PermittedNativeJoin) {}"
 
 [[scenarios]]
 id = "executor-cannot-borrow-old-walk-owner"
 scenario = "Moving issued data does not leave obsolete walk owner permission."
-given.files.'src/application/file_dag/program/mod.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
-given.files.'src/application/file_dag/program/native_walk/mod.rs' = "pub mod lease; pub struct FileWalk;"
-given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
+given.files.'src/application/file_dag/program/native_walk/lease.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
 given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; pub enum Eligibility { Native }"
-given.files.'src/application/file_dag/program/native_join/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_join/lease.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
-given.files.'src/application/file_dag/executor/mod.rs' = "use crate::application::file_dag::program::native_walk::FileWalk; fn bypass(_: &FileWalk) {}"
-then.findings = [{ path = "src/application/file_dag/executor/mod.rs", line = 1 }]
+given.files.'src/application/file_dag/executor.rs' = "use crate::application::file_dag::program::native_walk::FileWalk; fn bypass(_: &FileWalk) {}"
+then.findings = [{ path = "src/application/file_dag/executor.rs", line = 1 }]
 
 [[scenarios]]
 id = "executor-cannot-borrow-old-join-owner"
 scenario = "Moving issued data does not leave obsolete native join owner permission."
-given.files.'src/application/file_dag/program/mod.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
-given.files.'src/application/file_dag/program/native_walk/mod.rs' = "pub mod lease; pub struct FileWalk;"
-given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
+given.files.'src/application/file_dag/program/native_walk/lease.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
 given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; pub enum Eligibility { Native }"
-given.files.'src/application/file_dag/program/native_join/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_join/lease.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
-given.files.'src/application/file_dag/executor/mod.rs' = "use crate::application::file_dag::program::native_join::Eligibility; fn bypass(_: &Eligibility) {}"
-then.findings = [{ path = "src/application/file_dag/executor/mod.rs", line = 1 }]
+given.files.'src/application/file_dag/executor.rs' = "use crate::application::file_dag::program::native_join::Eligibility; fn bypass(_: &Eligibility) {}"
+then.findings = [{ path = "src/application/file_dag/executor.rs", line = 1 }]
 
 [[scenarios]]
 id = "foreign-alias-of-issued-walk-refused"
 scenario = "Only the executor bridge may borrow the issued walk data type."
-given.files.'src/application/file_dag/program/mod.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
-given.files.'src/application/file_dag/program/native_walk/mod.rs' = "pub mod lease; pub struct FileWalk;"
-given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
+given.files.'src/application/file_dag/program/native_walk/lease.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
 given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; pub enum Eligibility { Native }"
-given.files.'src/application/file_dag/program/native_join/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_join/lease.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
 given.files.'src/application/caller.rs' = "use crate::application::file_dag::program::native_walk::lease::service::PermittedWalk as Alternate;"
 then.findings = [{ path = "src/application/caller.rs", line = 1 }]
@@ -798,12 +798,12 @@ then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 [[scenarios]]
 id = "foreign-qualified-issued-join-refused"
 scenario = "Qualified access to issued join data does not grant a new bridge."
-given.files.'src/application/file_dag/program/mod.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
-given.files.'src/application/file_dag/program/native_walk/mod.rs' = "pub mod lease; pub struct FileWalk;"
-given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
+given.files.'src/application/file_dag/program/native_walk/lease.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
 given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; pub enum Eligibility { Native }"
-given.files.'src/application/file_dag/program/native_join/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_join/lease.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
 given.files.'src/application/caller.rs' = "pub fn bypass(_: &crate::application::file_dag::program::native_join::lease::service::PermittedNativeJoin) {}"
 then.findings = [{ path = "src/application/caller.rs", line = 1 }]
@@ -811,12 +811,12 @@ then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 [[scenarios]]
 id = "new-module-issued-native-leaf-refused"
 scenario = "A new application module cannot acquire executor-only issued native data."
-given.files.'src/application/file_dag/program/mod.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
-given.files.'src/application/file_dag/program/native_walk/mod.rs' = "pub mod lease; pub struct FileWalk;"
-given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
+given.files.'src/application/file_dag/program/native_walk/lease.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
 given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; pub enum Eligibility { Native }"
-given.files.'src/application/file_dag/program/native_join/lease/mod.rs' = "pub mod service;"
+given.files.'src/application/file_dag/program/native_join/lease.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
 given.files.'src/application.rs' = "pub mod file_dag; pub mod caller; pub mod new_route;"
 given.files.'src/application/new_route.rs' = "use crate::application::file_dag::program::native_walk::lease::service::PermittedWalk;"
@@ -826,7 +826,7 @@ then.findings = [{ path = "src/application/new_route.rs", line = 1 }]
 id = "operator-incidental-same-arm-does-not-register"
 scenario = "A block arm referring to Extra but returning SelectItem is not a pure catalog selection."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
-given.files.'src/domain/operator/contract/registration/mod.rs' = "use super::super::collections::operators::select::item::{SelectItem, Extra}; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => { let _ = &Extra; &SelectItem } } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::{SelectItem, Extra}; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => { let _ = &Extra; &SelectItem } } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
 then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 1 }, { path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
@@ -840,7 +840,7 @@ then.findings = [{ path = "src/domain/table_model/collections/representations/st
 id = "operator-incidental-aliased-member-does-not-register"
 scenario = "Renamed imports inside a block do not turn incidental paths into selected implementations."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
-given.files.'src/domain/operator/contract/registration/mod.rs' = "use super::super::collections::operators::select::item::{SelectItem as Selected, Extra as Incidental}; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => { let _ = &Incidental; &Selected } } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::{SelectItem as Selected, Extra as Incidental}; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => { let _ = &Incidental; &Selected } } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
 then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 1 }, { path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
@@ -856,7 +856,7 @@ scenario = "A new item module is not registered by an incidental expression in a
 given.files.'src/domain/operator/collections/operators.rs' = "pub mod select; pub mod interface; pub mod extra;"
 given.files.'src/domain/operator/collections/operators/extra.rs' = "pub mod item;"
 given.files.'src/domain/operator/collections/operators/extra/item.rs' = "use super::super::interface::OperatorsItem; pub struct Extra; impl OperatorsItem for Extra {}"
-given.files.'src/domain/operator/contract/registration/mod.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select, Other } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem, Kind::Other => { let _ = &super::super::collections::operators::extra::item::Extra; &SelectItem } } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select, Other } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem, Kind::Other => { let _ = &super::super::collections::operators::extra::item::Extra; &SelectItem } } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
 then.findings = [{ path = "src/domain/operator/collections/operators/extra/item.rs", line = 1 }]
 
 [[scenarios]]
@@ -871,7 +871,7 @@ then.findings = [{ path = "src/domain/table_model/collections/representations/ex
 [[scenarios]]
 id = "operator-block-only-return-is-not-pure-registration"
 scenario = "Registry arms use an unambiguous direct immutable reference, not general block dataflow."
-given.files.'src/domain/operator/contract/registration/mod.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => { &SelectItem } } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => { &SelectItem } } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
 then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 1 }]
 
 [[scenarios]]
@@ -883,7 +883,7 @@ then.findings = [{ path = "src/domain/table_model/collections/representations/st
 [[scenarios]]
 id = "qualified-selected-operator-is-registered"
 scenario = "A direct qualified operator selection retains registration."
-given.files.'src/domain/operator/contract/registration/mod.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &super::super::collections::operators::select::item::SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &super::super::collections::operators::select::item::SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
 
 [[scenarios]]
 id = "aliased-selected-physical-is-registered"
@@ -894,49 +894,49 @@ given.files.'src/domain/table_model/types/registered_representation/value.rs' = 
 id = "operator-unrelated-method-match-does-not-register"
 scenario = "A different method of the actual catalog owner cannot supply registration."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
-given.files.'src/domain/operator/contract/registration/mod.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } } impl RegisteredOperator { fn kind() -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match () { () => &super::super::collections::operators::select::item::Extra } } }"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } } impl RegisteredOperator { fn kind() -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match () { () => &super::super::collections::operators::select::item::Extra } } }"
 then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "operator-other-owner-item-method-does-not-register"
 scenario = "A similarly named method of another owner is outside the designated selector."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
-given.files.'src/domain/operator/contract/registration/mod.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } } pub struct Other; impl Other { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match () { () => &super::super::collections::operators::select::item::Extra } } }"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } } pub struct Other; impl Other { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match () { () => &super::super::collections::operators::select::item::Extra } } }"
 then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "operator-discarded-match-does-not-register"
 scenario = "Only the selector tail expression, not an unused earlier match in that method, registers types."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
-given.files.'src/domain/operator/contract/registration/mod.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { let _ = match () { () => &super::super::collections::operators::select::item::Extra }; match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { let _ = match () { () => &super::super::collections::operators::select::item::Extra }; match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
 then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "operator-guard-reference-does-not-register"
 scenario = "Mentioning an implementation inside the arm guard does not select it."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
-given.files.'src/domain/operator/contract/registration/mod.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select if { let _ = &super::super::collections::operators::select::item::Extra; true } => &SelectItem, Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select if { let _ = &super::super::collections::operators::select::item::Extra; true } => &SelectItem, Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
 then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "operator-guarded-result-is-not-pure-registration"
 scenario = "A guarded conditional result is not an unguarded constant catalog selection."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
-given.files.'src/domain/operator/contract/registration/mod.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select if false => &super::super::collections::operators::select::item::Extra, Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select if false => &super::super::collections::operators::select::item::Extra, Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
 then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "operator-pattern-reference-does-not-register"
 scenario = "A unit implementation in a match pattern supplies no selected result identity."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
-given.files.'src/domain/operator/contract/registration/mod.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match (self.kind, super::super::collections::operators::select::item::Extra) { (Kind::Select, super::super::collections::operators::select::item::Extra) => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match (self.kind, super::super::collections::operators::select::item::Extra) { (Kind::Select, super::super::collections::operators::select::item::Extra) => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
 then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "operator-nested-lookalike-owner-does-not-register"
 scenario = "A nested lookalike cannot impersonate the actual top-level catalog owner."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
-given.files.'src/domain/operator/contract/registration/mod.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } } fn unrelated() { struct RegisteredOperator; impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match () { () => &super::super::collections::operators::select::item::Extra } } } }"
+given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } } fn unrelated() { struct RegisteredOperator; impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match () { () => &super::super::collections::operators::select::item::Extra } } } }"
 then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
@@ -991,21 +991,21 @@ then.findings = [{ path = "src/domain/table_model/collections/representations/st
 [[scenarios]]
 id = "lease-constructor-visibility-is-not-owner-access"
 scenario = "Constructor privacy names its real owning lease without borrowing it."
-given.files.'src/application/file_dag/execution/lease/mod.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}"
 
 [[scenarios]]
 id = "lease-field-visibility-is-not-owner-access"
 scenario = "Private data visibility may name the owner without importing it."
-given.files.'src/application/file_dag/execution/lease/mod.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "pub(in crate::application::file_dag::execution::lease) struct Owned { pub(in crate::application::file_dag::execution::lease) value: usize }"
 
 [[scenarios]]
 id = "lease-visibility-does-not-hide-real-import"
 scenario = "The same file and owner path still expose an actual imported function."
-given.files.'src/application/file_dag/execution/lease/mod.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}\nuse crate::application::file_dag::execution::lease::bridge;"
 then.findings = [{ path = "src/application/file_dag/execution/lease/capability/service.rs", line = 2 }]
@@ -1013,7 +1013,7 @@ then.findings = [{ path = "src/application/file_dag/execution/lease/capability/s
 [[scenarios]]
 id = "lease-visibility-does-not-hide-real-type"
 scenario = "Only the visibility span is excluded; an argument type still borrows the owner."
-given.files.'src/application/file_dag/execution/lease/mod.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}\npub fn consume(_: &crate::application::file_dag::execution::lease::Lease) {}"
 then.findings = [{ path = "src/application/file_dag/execution/lease/capability/service.rs", line = 2 }]
@@ -1021,7 +1021,7 @@ then.findings = [{ path = "src/application/file_dag/execution/lease/capability/s
 [[scenarios]]
 id = "lease-visibility-does-not-hide-qualified-call"
 scenario = "A real qualified call at the same path remains prohibited."
-given.files.'src/application/file_dag/execution/lease/mod.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}\npub fn bypass() { crate::application::file_dag::execution::lease::bridge(); }"
 then.findings = [{ path = "src/application/file_dag/execution/lease/capability/service.rs", line = 2 }]
@@ -1029,7 +1029,7 @@ then.findings = [{ path = "src/application/file_dag/execution/lease/capability/s
 [[scenarios]]
 id = "lease-visibility-does-not-hide-renamed-import-call"
 scenario = "Renaming an imported owner function cannot turn it into visibility metadata."
-given.files.'src/application/file_dag/execution/lease/mod.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}\nuse crate::application::file_dag::execution::lease::bridge as invoke;\npub fn bypass() { invoke(); }"
 then.findings = [{ path = "src/application/file_dag/execution/lease/capability/service.rs", line = 2 }]
@@ -1037,7 +1037,7 @@ then.findings = [{ path = "src/application/file_dag/execution/lease/capability/s
 [[scenarios]]
 id = "lease-real-import-before-visibility-stays-prohibited"
 scenario = "Visibility later in the same file cannot erase an earlier import span."
-given.files.'src/application/file_dag/execution/lease/mod.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "use crate::application::file_dag::execution::lease::bridge;\npub(in crate::application::file_dag::execution::lease) fn create() {}"
 then.findings = [{ path = "src/application/file_dag/execution/lease/capability/service.rs", line = 1 }]
@@ -1045,7 +1045,7 @@ then.findings = [{ path = "src/application/file_dag/execution/lease/capability/s
 [[scenarios]]
 id = "new-lease-module-visibility-does-not-hide-call"
 scenario = "A newly declared adjacent module gets the same exact-span filter."
-given.files.'src/application/file_dag/execution/lease/mod.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod new_route;"
 given.files.'src/application/file_dag/execution/lease/capability/new_route.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}\npub fn bypass() { crate::application::file_dag::execution::lease::bridge(); }"
 then.findings = [{ path = "src/application/file_dag/execution/lease/capability/new_route.rs", line = 2 }]
@@ -1053,13 +1053,13 @@ then.findings = [{ path = "src/application/file_dag/execution/lease/capability/n
 [[scenarios]]
 id = "kernel-session-concept-may-call-the-semantic-dispatcher"
 scenario = "A concept directory beneath the kernel session may call the semantic row dispatcher."
-given.files.'src/application/file_dag/program/kernel_session/mod.rs' = 'pub mod evaluation;'
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub mod evaluation;'
 given.files.'src/application/file_dag/program/kernel_session/evaluation.rs' = 'pub fn dispatch() { crate::domain::executable_program::kernel::evaluate(); }'
 
 [[scenarios]]
 id = "kernel-session-lookalike-cannot-call-the-semantic-dispatcher"
 scenario = "A directory that only begins with the kernel session's name is not the kernel session."
-given.files.'src/application/file_dag/program/mod.rs' = 'pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod kernel_session_extra; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection;'
+given.files.'src/application/file_dag/program.rs' = 'pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod kernel_session_extra; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection;'
 given.files.'src/application/file_dag/program/kernel_session_extra.rs' = 'pub fn dispatch() { crate::domain::executable_program::kernel::evaluate(); }'
 then.findings = [{ path = "src/application/file_dag/program/kernel_session_extra.rs", line = 1 }]
 
@@ -1072,14 +1072,14 @@ then.findings = [{ path = "src/domain/semantic.rs", line = 1 }]
 [[scenarios]]
 id = "ungated-fixtures-double"
 scenario = "An invocation implementation in a fixtures file declared without a test or fixtures gate is production, so it is refused."
-given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub mod types; pub mod service; pub mod fixtures;'
+given.files.'src/application/file_dag/program/runtime.rs' = 'pub mod types; pub mod service; pub mod fixtures;'
 given.files.'src/application/file_dag/program/runtime/fixtures.rs' = "use super::service::KernelInvocation; pub struct Probe; impl KernelInvocation for Probe {}"
 then.findings = [{ path = "src/application/file_dag/program/runtime/fixtures.rs", line = 1 }]
 
 [[scenarios]]
 id = "gated-fixtures-double"
 scenario = "An invocation implementation in a fixtures file declared under the fixtures gate is a test double: it passes."
-given.files.'src/application/file_dag/program/runtime/mod.rs' = '''pub mod types; pub mod service;
+given.files.'src/application/file_dag/program/runtime.rs' = '''pub mod types; pub mod service;
 #[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;'''
 given.files.'src/application/file_dag/program/runtime/fixtures.rs' = "use super::service::KernelInvocation; pub struct Probe; impl KernelInvocation for Probe {}"
@@ -1087,9 +1087,9 @@ given.files.'src/application/file_dag/program/runtime/fixtures.rs' = "use super:
 [[scenarios]]
 id = "gated-group-fixtures-double"
 scenario = "A source double in a fixtures file beneath a test-gated group passes."
-given.files.'src/application/file_dag/program/admission/mod.rs' = '''pub struct Permit; pub trait Inputs {}
+given.files.'src/application/file_dag/program/admission.rs' = '''pub struct Permit; pub trait Inputs {}
 #[cfg(test)]
 mod service_test;'''
-given.files.'src/application/file_dag/program/admission/service_test/mod.rs' = 'mod probe;'
-given.files.'src/application/file_dag/program/admission/service_test/probe/mod.rs' = 'mod fixtures;'
+given.files.'src/application/file_dag/program/admission/service_test.rs' = 'mod probe;'
+given.files.'src/application/file_dag/program/admission/service_test/probe.rs' = 'mod fixtures;'
 given.files.'src/application/file_dag/program/admission/service_test/probe/fixtures.rs' = "use crate::application::file_dag::program::admission::Inputs; pub struct Probe; impl Inputs for Probe {}"

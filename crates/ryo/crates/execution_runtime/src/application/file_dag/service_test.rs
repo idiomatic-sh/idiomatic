@@ -21,13 +21,13 @@ use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::{
     service::{kinds, to_bits},
-    types::{ColumnsView, FactColumn, FileId, Integer, Relation, Value},
+    types::{ColumnsView, FactColumn, FileId, Integer, Relation, Value as Cell},
 };
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{
-        ColumnIndex, Input, Operand, ParameterId, ParameterName, PlanComparison, RepeatedRows,
+        ColumnIndex, Input as PlanInput, Operand, ParameterId, ParameterName, PlanComparison, RepeatedRows,
         StepId, StepScope, Test, WholeNumber,
     },
     plans::types::{Emit, Operation, Plan, PlanStep},
@@ -91,7 +91,7 @@ fn binding_plan() -> Plan {
             PlanStep {
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
-                    from: Input::Relation(Relation::LanguageTarget),
+                    from: PlanInput::Relation(Relation::LanguageTarget),
                     comparisons: vec![PlanComparison {
                         test: Test::Equal,
                         left: Operand::Column(ColumnIndex(1)),
@@ -104,7 +104,7 @@ fn binding_plan() -> Plan {
             PlanStep {
                 scope: StepScope::PerFile,
                 operation: Operation::Project {
-                    from: Input::Step(StepId(0)),
+                    from: PlanInput::Step(StepId(0)),
                     columns: vec![ColumnIndex(0)],
                     distinct: RepeatedRows::Kept,
                 },
@@ -112,7 +112,7 @@ fn binding_plan() -> Plan {
             PlanStep {
                 scope: StepScope::PerFile,
                 operation: Operation::Project {
-                    from: Input::Step(StepId(1)),
+                    from: PlanInput::Step(StepId(1)),
                     columns: vec![ColumnIndex(0)],
                     distinct: RepeatedRows::Kept,
                 },
@@ -182,9 +182,9 @@ pub(super) fn prepare(bindings: Vec<Vec<ParameterBinding>>) -> Prepared {
 }
 pub(super) fn language_columns(file: FileId, major: Integer) -> Vec<FactColumn> {
     [
-        Value::File(file),
-        Value::Number(major),
-        Value::Number(Integer(10)),
+        Cell::File(file),
+        Cell::Number(major),
+        Cell::Number(Integer(10)),
     ]
     .into_iter()
     .map(|cell| FactColumn(vec![to_bits(cell).0]))
@@ -228,7 +228,7 @@ pub(super) fn run_rule(
     }
 }
 fn identical_binding_dependent_operations_do_not_share_rule_graph_results()
--> Result<Answer, Failure> {
+-> Result<Value, Failure> {
     let Prepared { prepared, services } = prepare(vec![
         vec![ParameterBinding::Number(WholeNumber(3))],
         vec![ParameterBinding::Number(WholeNumber(2))],
@@ -285,7 +285,7 @@ fn identical_binding_dependent_operations_do_not_share_rule_graph_results()
         table: second,
         reads: second_reads,
     } = run_rule(&mut file, RuleIndex(1), &storage, &mut symbols);
-    assert_eq!(first.cells, vec![Value::File(FileId(7))]);
+    assert_eq!(first.cells, vec![Cell::File(FileId(7))]);
     assert_eq!(second.count.0, 0);
     assert_eq!(second_reads, Reads(0), "{SECOND_ROOT_REPLAYS}");
     assert_eq!(file.readiness_counts(), prepared_work);
@@ -294,21 +294,21 @@ fn identical_binding_dependent_operations_do_not_share_rule_graph_results()
 }
 
 /// A scenario: what a row asks of the generation owner.
-type Scenario = fn() -> Result<Answer, Failure>;
+type Input = fn() -> Result<Value, Failure>;
 /// What a scenario answers: a yes as one.
-type Answer = usize;
+type Value = usize;
 /// This part has no failure of its own.
 type Failure = ();
 
 /// The rows of this part's cases.
-const CASES: &[Case<Scenario, Answer, Failure>] = &[Case {
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("identical_binding_dependent_operations_do_not_share_rule_graph_results"),
     word: Word::Succeeds,
     input: || identical_binding_dependent_operations_do_not_share_rule_graph_results,
     expect: Expect::Value(1),
 }];
 
-fn subject(scenario: Scenario) -> Result<Answer, Failure> {
+fn subject(scenario: Input) -> Result<Value, Failure> {
     scenario()
 }
 

@@ -2,7 +2,7 @@
 
 ## 0.4.0
 
-A test double of a guarded contract (`KernelInvocation`, `Inputs`, `PrimitiveExecutor`, `PrimitiveSemantics`, an operator or representation item) is accepted in a fixtures role as well as in a proof-placed file: a `fixtures.rs` or a file beneath `fixtures/` whose module, or a module above it, is declared under a `cfg` naming `test` or the `fixtures` feature. A production implementation outside the registered set is still refused, and so is the same double in a fixtures file declared without the gate, so a test double needs no per-file `program-runtime-proof` placement. Scenarios `domain-double-is-production` and `ungated-fixtures-double` (refused), `gated-fixtures-double` and `gated-group-fixtures-double` (pass). Everything else is as in 0.3.0.
+A test double of a guarded contract (`KernelInvocation`, `Inputs`, `PrimitiveExecutor`, `PrimitiveSemantics`, an operator or representation item) is accepted in a fixtures role as well as in a proof-placed file: a `fixtures.rs` or a file beneath `fixtures/` whose module, or a module above it, is declared under a `cfg` naming `test` or the `fixtures` feature. A production implementation outside the registered set is still refused, and so is the same double in a fixtures file declared without the gate, so a test double needs no per-file `program-runtime-proof` placement. Scenarios `domain-double-is-production` and `ungated-fixtures-double` (refused), `gated-fixtures-double` and `gated-group-fixtures-double` (pass). Everything else is as in 0.3.0. Module files are named for their directory (`<x>.rs`, never `<x>/mod.rs`), so every module-file path the query and the scenarios name is `<x>.rs`.
 
 ## 0.3.0
 
