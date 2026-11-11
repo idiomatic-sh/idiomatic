@@ -36,6 +36,7 @@ use ryo_values::domain::{
     runs::types::{RuleApplicability, RuleId},
     stored_facts::types::Digest,
 };
+use std::borrow::Cow;
 use std::sync::Arc;
 
 pub(super) fn columns() -> Vec<ObservationColumn> {
@@ -84,7 +85,52 @@ pub(super) fn plan(operation: Operation) -> Plan {
     }
 }
 
-pub(super) fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_calls: usize) {
+/// What a consumer's emit answered: the union's numbers and row count, or its deferral.
+#[derive(Debug, PartialEq)]
+pub(super) enum Emitted {
+    Union { numbers: Cow<'static, [i64]>, rows: usize },
+    Deferred(StepScope),
+    /// Any other outcome.
+    Other,
+}
+
+/// What the producers and the consumer of a named union observed in one file.
+#[derive(Debug, PartialEq)]
+pub(super) struct Observed {
+    pub(super) producers_complete: usize,
+    pub(super) emitted: Emitted,
+    pub(super) registered_calls: usize,
+    pub(super) replayed: Emitted,
+    pub(super) registered_unchanged: bool,
+    pub(super) readiness_unchanged: bool,
+}
+
+fn emitted(outcome: RootOutcome) -> Emitted {
+    match outcome {
+        RootOutcome::Complete(table) => Emitted::Union {
+            numbers: Cow::Owned(
+                table
+                    .cells
+                    .iter()
+                    .map(|cell| match cell {
+                        Value::Number(Integer(number)) => *number,
+                        _ => i64::MIN,
+                    })
+                    .collect(),
+            ),
+            rows: table.count.0,
+        },
+        RootOutcome::Deferred { phase } => Emitted::Deferred(phase),
+        RootOutcome::Partial { .. }
+        | RootOutcome::Skipped(_)
+        | RootOutcome::Unknown(_)
+        | RootOutcome::Failed(_)
+        | RootOutcome::NoQuery => Emitted::Other,
+    }
+}
+
+/// Runs one producer per hosted population of `given` and a consumer of their named union.
+pub(super) fn exercise(given: &[&[i64]]) -> Observed {
     let consumer = given.len();
     let mut rules = (0..=consumer).map(rule).collect::<Vec<_>>();
     let mut plans = (0..consumer)
@@ -161,7 +207,7 @@ pub(super) fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_ca
     )
     .expect("prepared named request");
     let services = Arc::new(ProgramServices::new(
-        Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
+        Arc::new(CommonOperatorEngine::new(Arc::new(
             crate::application::file_dag::fixtures::operators(),
         ))),
         derived,
@@ -204,6 +250,7 @@ pub(super) fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_ca
     )
     .unwrap();
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
+    let mut producers_complete = 0;
     for index in 0..consumer {
         let outcome = file
             .rule(
@@ -216,10 +263,11 @@ pub(super) fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_ca
                 &mut symbols,
             )
             .unwrap();
-        assert!(
-            matches!(outcome.observations[0].outcome, RootOutcome::Complete(_)),
-            "the actual producer publishes its named root"
-        );
+        // The actual producer publishes its named root.
+        producers_complete += usize::from(matches!(
+            outcome.observations[0].outcome,
+            RootOutcome::Complete(_)
+        ));
     }
     let outcome = file
         .rule(
@@ -232,34 +280,7 @@ pub(super) fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_ca
             &mut symbols,
         )
         .unwrap();
-    if let Some(expected) = expected {
-        let RootOutcome::Complete(table) = outcome.emit else {
-            panic!("all complete producers must supply the named union")
-        };
-        assert_eq!(
-            table.cells,
-            expected
-                .iter()
-                .map(|number| Value::Number(Integer(*number)))
-                .collect::<Vec<_>>(),
-            "{given:?}"
-        );
-        assert_eq!(table.count.0, expected.len());
-        assert_eq!(
-            file.observation_routes(ryo_values::domain::records::types::ObservationIndex(0))
-                .unwrap()
-                .registered_calls,
-            registered_calls,
-            "the top union dispatches once per input row, including singleton duplication"
-        );
-    } else {
-        assert!(matches!(
-            outcome.emit,
-            RootOutcome::Deferred {
-                phase: StepScope::CrossFile
-            }
-        ));
-    }
+    let emitted_first = emitted(outcome.emit);
     let registered = file
         .observation_routes(ryo_values::domain::records::types::ObservationIndex(0))
         .unwrap()
@@ -276,32 +297,20 @@ pub(super) fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_ca
             &mut symbols,
         )
         .unwrap();
-    match expected {
-        Some(expected) => {
-            let RootOutcome::Complete(table) = repeated.emit else {
-                panic!("union replay must complete")
-            };
-            assert_eq!(
-                table.cells,
-                expected
-                    .iter()
-                    .map(|number| Value::Number(Integer(*number)))
-                    .collect::<Vec<_>>()
-            );
-        }
-        None => assert!(matches!(
-            repeated.emit,
-            RootOutcome::Deferred {
-                phase: StepScope::CrossFile
-            }
-        )),
-    }
-    assert_eq!(
-        file.observation_routes(ryo_values::domain::records::types::ObservationIndex(0))
-            .unwrap()
-            .registered_calls,
-        registered
-    );
-    assert_eq!(file.readiness_counts(), readiness);
+    let registered_unchanged = file
+        .observation_routes(ryo_values::domain::records::types::ObservationIndex(0))
+        .unwrap()
+        .registered_calls
+        == registered;
+    let readiness_unchanged = file.readiness_counts() == readiness;
     file.finish().unwrap();
+    Observed {
+        producers_complete,
+        emitted: emitted_first,
+        // The top union dispatches once per input row, including singleton duplication.
+        registered_calls: registered,
+        replayed: emitted(repeated.emit),
+        registered_unchanged,
+        readiness_unchanged,
+    }
 }
