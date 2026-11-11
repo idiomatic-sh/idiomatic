@@ -3,6 +3,7 @@ use ryo_values::domain::files::types::CorpusInput;
 
 // The application handles and protocol traits the contract is made of.
 pub use ryo_execution_runtime::application::file_dag::frontiers::errors::PreparationError;
+pub use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::EmittedRoot;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileEnd;

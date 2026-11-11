@@ -1,6 +1,7 @@
 //! The support of the `witness` cases and of the groups nested in it.
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
 use ryo_execution::inbound::use_cases::execution::interface::Install;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationBatches;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
@@ -14,7 +15,6 @@ use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution_domain::domain::frontier_capture::types::FrontierCapture;
 use ryo_execution_domain::domain::row_emission::types::RowEmission;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileFinished;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
