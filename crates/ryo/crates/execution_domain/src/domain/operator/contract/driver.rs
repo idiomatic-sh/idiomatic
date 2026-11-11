@@ -1,5 +1,3 @@
-//! The engine's side of one evaluation: the lease, the downstream sink and the prepared inputs behind the
-//! operators' driver ports. Every kind's row meaning is the operators'; each strategy the engine keeps (an
-//! index probe, native tree candidates, its walks over trees, partitions and graphs) implements one port.
+//! The engine's side of one evaluation: the operators' one meaning of an operation's kind, evaluated with the
+//! engine's lease driver behind their driver ports.
 pub(crate) mod service;
-pub(crate) mod types;

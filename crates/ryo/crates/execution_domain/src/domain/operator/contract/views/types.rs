@@ -2,7 +2,7 @@
 
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::Verdict;
-use crate::domain::table_reach::borrowed::{types::IndexedRows, types::KeyProbe};
+use crate::domain::table_reach::borrowed::types::IndexedRows;
 use ryo_operators::domain::cycles::types::{CycleDriver, EdgePlace, NodeCount, NodeNumber};
 use ryo_operators::domain::source_matches::types::{BaseLine, SourceBase};
 use ryo_relations::domain::relations::types::Value;
@@ -156,20 +156,6 @@ pub(crate) enum Started {
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct NativeCursor(pub(crate) usize);
 
-/// The join candidates of one left row: the native tree candidates when a native lookup is bound, else the
-/// index probe; a filtered native join admits only the elements its bound predicate holds for.
-pub(crate) struct JoinCursor<'f> {
-    pub(crate) native: Option<NativeJoin<'f>>,
-    pub(crate) index: Option<IndexedRows<'f>>,
-    pub(crate) probe: Option<KeyProbe>,
-    pub(crate) current: Option<ryo_values::domain::rows::types::RowIndex>,
-    pub(crate) positions: Vec<ryo_relations::domain::relations::types::Position>,
-    pub(crate) at: NativeCursor,
-    pub(crate) started: Started,
-    pub(crate) position: Option<ryo_relations::domain::relations::types::Position>,
-    pub(crate) filtered: super::super::resources::types::Filtering,
-}
-
 /// The axis resources one walk runs over: none, a tree of elements, or an index of edges with its domain.
 ///
 /// # Examples
@@ -202,26 +188,10 @@ pub enum PreparedAxis<'a> {
     },
 }
 
-/// The axis resources the last walk ran over.
-#[derive(Default)]
-pub(crate) struct AxisCursor<'f> {
-    pub(crate) prepared: Option<PreparedAxis<'f>>,
-}
-
 /// The prepared adjacency of the derived resource, read through the operators' port.
 pub(crate) struct PreparedAdjacency<'a>(
     pub(crate) &'a ryo_derived::domain::cycle_adjacency::types::CycleGraph,
 );
-
-/// The graph resources an evaluation acquired: its ordered keys, adjacency, closure partitions and depth-first
-/// graph.
-#[derive(Default)]
-pub(crate) struct GraphCursor<'f> {
-    pub(crate) ordered: Option<&'f ryo_derived::domain::ordered::types::OrderedMatching>,
-    pub(crate) cycles: Option<PreparedAdjacency<'f>>,
-    pub(crate) closure: ClosureViews<'f>,
-    pub(crate) dfs: Option<&'f ryo_derived::domain::dfs::types::PreparedDfs>,
-}
 
 impl CycleDriver for PreparedAdjacency<'_> {
     fn nodes(&self) -> NodeCount {
@@ -231,6 +201,10 @@ impl CycleDriver for PreparedAdjacency<'_> {
         self.0.values.get(node.0).copied()
     }
     fn edge(&self, node: NodeNumber, place: EdgePlace) -> Option<NodeNumber> {
-        super::super::graph::service::adjacency_edge(self, node, place)
+        let starts = &self.0.starts.0;
+        let at = starts.get(node.0)?.checked_add(place.0)?;
+        (at < *starts.get(node.0 + 1)?)
+            .then(|| self.0.leaving.0.get(at).copied().map(NodeNumber))
+            .flatten()
     }
 }

@@ -1,8 +1,16 @@
-//! The types of the `driver` concept: plain data, public fields and derives, with no constructor and no inherent impl.
+//! The `LeaseDriver` value: the engine's side of one evaluation behind the operators' driver ports. It holds the
+//! shared row delivery and the strategy values (join candidates, graph walks and lookups, the axis walk), and
+//! passes the row delivery into each strategy a port reaches; every kind's row meaning is the operators'.
 
-use super::super::failure::types::FailureLatch;
-use super::super::primitive::types::PreparedInputs;
-use super::super::types::{PrimitiveLease, PrimitiveResources, RowSink};
+use super::super::axis_walk::value::AxisWalk;
+use super::super::graph_lookups::value::GraphLookups;
+use super::super::graph_walks::value::GraphWalks;
+use super::super::join_candidates::value::JoinCandidates;
+use super::super::row_delivery::value::RowDelivery;
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::operator::contract::primitive::types::PreparedInputs;
+use crate::domain::operator::contract::types::{PrimitiveLease, RowSink};
+use ryo_language::domain::semantics::types::RenderOutcome;
 use ryo_operators::domain::axis::types::{
     AxisAdmission, AxisCandidates, AxisDriver, AxisEvaluation,
 };
@@ -18,57 +26,92 @@ use ryo_operators::domain::cycles::types::{CycleDriver, CyclesEvaluation};
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_operators::domain::equality_join::types::{Advance, JoinDriver, JoinEvaluation};
 use ryo_operators::domain::ordered_dfs::types::{DfsDriver, DfsEvaluation, OrderedEdge};
-use ryo_operators::domain::ordered_match::types::{OrderedMatchDriver, OrderedMatchEvaluation};
+use ryo_operators::domain::ordered_match::types::{
+    KeyOrder, OrderedMatchDriver, OrderedMatchEvaluation,
+};
 use ryo_operators::domain::set_rows::errors::SetRowsError;
 use ryo_operators::domain::set_rows::types::{
     RightMembership, RightPopulation, SetRowDriver, SetRowsEvaluation,
 };
 use ryo_operators::domain::source_matches::types::{TextRowDriver, TextRowsEvaluation};
 use ryo_relations::domain::relations::types::{Count, NodeId, Value};
-use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Direction;
-use ryo_values::domain::plan_parts::types::InputNumber;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, InputNumber};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::{RowCount, RowIndex};
 
-/// The lease, sink and inputs of one evaluation, with the cursor state of the engine's strategies.
+/// The row delivery of one evaluation and the strategies its ports reach.
 pub(crate) struct LeaseDriver<'a, 'f> {
-    pub(crate) lease: &'a mut PrimitiveLease<'f>,
-    pub(crate) sink: &'a mut dyn RowSink,
-    pub(crate) operation: &'a Operation,
-    pub(crate) inputs: PreparedInputs<'a>,
-    pub(crate) resources: &'f dyn PrimitiveResources,
-    pub(crate) failure: FailureLatch,
-    pub(crate) join: super::super::views::types::JoinCursor<'f>,
-    pub(crate) axis: super::super::views::types::AxisCursor<'f>,
-    pub(crate) graph: super::super::views::types::GraphCursor<'f>,
-    pub(crate) rendered: Vec<ryo_language::domain::semantics::types::RenderOutcome>,
-    pub(crate) left_buffer: Vec<Value>,
-    pub(crate) right_buffer: Vec<Value>,
+    rows: RowDelivery<'a, 'f>,
+    join: JoinCandidates<'a, 'f>,
+    walks: GraphWalks<'f>,
+    lookups: GraphLookups<'f>,
+    axis: AxisWalk<'f>,
+}
+
+impl<'a, 'f> LeaseDriver<'a, 'f> {
+    /// The driver of one evaluation of `operation` over `inputs`; it borrows the workspace's positions buffer
+    /// until [`LeaseDriver::finish`] hands it back.
+    pub(crate) fn new(
+        lease: &'a mut PrimitiveLease<'f>,
+        sink: &'a mut dyn RowSink,
+        operation: &'a Operation,
+        inputs: PreparedInputs<'a>,
+    ) -> Self {
+        let resources = lease.views.resources;
+        let positions = std::mem::take(&mut lease.workspace.positions);
+        let left = match inputs {
+            PreparedInputs::Row { row, .. } => row,
+            PreparedInputs::Views(_) | PreparedInputs::RequestSource(_) => &[],
+        };
+        Self {
+            rows: RowDelivery::new(lease, sink, operation, inputs),
+            join: JoinCandidates::new(resources, operation, left, positions),
+            walks: GraphWalks::default(),
+            lookups: GraphLookups::default(),
+            axis: AxisWalk::default(),
+        }
+    }
+
+    /// The engine error kept, taken out of the latch.
+    pub(crate) fn take_failure(&mut self) -> Option<OperatingError> {
+        self.rows.take_failure()
+    }
+
+    /// The answers of the last render.
+    pub(crate) fn rendered_answers(&self) -> &[RenderOutcome] {
+        self.rows.rendered_answers()
+    }
+
+    /// Ends the evaluation: the positions buffer goes back to the workspace and the lease to the caller.
+    pub(crate) fn finish(self) -> &'a mut PrimitiveLease<'f> {
+        let lease = self.rows.into_lease();
+        lease.workspace.positions = self.join.give_back();
+        lease
+    }
 }
 
 impl RowDriver for LeaseDriver<'_, '_> {
     fn emit(&mut self, row: &[Value]) -> Result<(), Fault> {
-        super::super::driver::service::emit(self, row)
+        self.rows.emit(row)
     }
     fn holds(&mut self, row: &[Value]) -> Result<PredicateOutcome, Fault> {
-        super::super::driver::service::holds(self, row)
+        self.rows.holds(row)
     }
     fn first_time(&mut self, row: &[Value]) -> Result<FirstOccurrence, Fault> {
-        super::super::driver::service::first_time(self, row)
+        self.rows.first_time(row)
     }
     fn found(&mut self, input: InputNumber, rows: Count) {
-        super::super::driver::service::found(self, input, rows)
+        self.rows.found(input, rows);
     }
     fn text(&mut self, value: Value, target: &mut TextScratch) -> TextFound {
-        super::super::driver::service::text(self, value, target)
+        self.rows.text(value, target)
     }
     fn mint(&mut self, text: CellText<'_>) -> Value {
-        super::super::driver::service::mint(self, text)
+        self.rows.mint(text)
     }
     fn population(&mut self, input: InputNumber) -> Result<RowCount, Fault> {
-        super::super::driver::service::population(self, input)
+        self.rows.population(input)
     }
     fn population_row(
         &mut self,
@@ -76,31 +119,31 @@ impl RowDriver for LeaseDriver<'_, '_> {
         at: RowIndex,
         row: &mut Vec<Value>,
     ) -> RowRead {
-        super::super::driver::service::population_row(self, input, at, row)
+        self.rows.population_row(input, at, row)
     }
     fn groups(&mut self) -> Result<Count, Fault> {
-        super::super::driver::service::groups(self)
+        self.rows.groups()
     }
     fn group(&self, at: VertexPlace) -> Option<GroupSummary> {
-        super::super::driver::service::group(self, at)
+        self.rows.group(at)
     }
     fn render(&mut self, nodes: &[NodeId]) -> Result<(), Fault> {
-        super::super::driver::service::render(self, nodes)
+        self.rows.render(nodes)
     }
     fn rendered(&self, at: RowIndex, text: &mut TextScratch) -> RenderKind {
-        super::super::driver::service::rendered(self, at, text)
+        self.rows.rendered(at, text)
     }
     fn right_columns(&self) -> RightColumns {
-        super::super::driver::service::right_columns(self)
+        self.join.right_columns()
     }
 }
 
 impl TextRowDriver for LeaseDriver<'_, '_> {
     fn intern(&mut self, text: CellText<'_>) -> Value {
-        super::super::driver::service::intern(self, text)
+        self.rows.intern(text)
     }
     fn emit(&mut self, row: &[Value]) -> Result<(), ContractError> {
-        RowDriver::emit(self, row).map_err(|_| ContractError::Interrupted)
+        self.rows.emit(row).map_err(|_| ContractError::Interrupted)
     }
 }
 
@@ -112,13 +155,15 @@ impl TextRowsEvaluation for LeaseDriver<'_, '_> {
 
 impl JoinDriver for LeaseDriver<'_, '_> {
     fn next(&mut self, key: &[Value]) -> Result<Advance, EqualityJoinError> {
-        super::super::candidates::service::next(self, key)
+        self.join.next(&mut self.rows, key)
     }
     fn right_cell(&self, column: ColumnIndex) -> Option<Value> {
-        super::super::candidates::service::right_cell(self, column)
+        self.join.right_cell(&self.rows, column)
     }
     fn emit(&mut self, row: &[Value]) -> Result<(), EqualityJoinError> {
-        RowDriver::emit(self, row).map_err(|_| EqualityJoinError::Interrupted)
+        self.rows
+            .emit(row)
+            .map_err(|_| EqualityJoinError::Interrupted)
     }
 }
 
@@ -136,66 +181,68 @@ impl SetRowsEvaluation for LeaseDriver<'_, '_> {
 
 impl SetRowDriver for LeaseDriver<'_, '_> {
     fn right_empty(&mut self) -> Result<RightPopulation, SetRowsError> {
-        super::super::candidates::service::right_empty(self)
+        self.join.right_empty(&mut self.rows)
     }
     fn contains_right(&mut self, key: &[Value]) -> Result<RightMembership, SetRowsError> {
-        super::super::candidates::service::contains_right(self, key)
+        self.join.contains_right(&mut self.rows, key)
     }
     fn first_time(&mut self, row: &[Value]) -> Result<FirstOccurrence, SetRowsError> {
-        RowDriver::first_time(self, row).map_err(|_| SetRowsError::Interrupted)
+        self.rows
+            .first_time(row)
+            .map_err(|_| SetRowsError::Interrupted)
     }
     fn emit(&mut self, row: &[Value]) -> Result<(), SetRowsError> {
-        RowDriver::emit(self, row).map_err(|_| SetRowsError::Interrupted)
+        self.rows.emit(row).map_err(|_| SetRowsError::Interrupted)
     }
 }
 
 impl ClosureDriver for LeaseDriver<'_, '_> {
     fn partitions(&mut self) -> Result<Count, Fault> {
-        super::super::graph::service::partitions(self)
+        self.walks.partitions(&mut self.rows)
     }
     fn partition_key(
         &mut self,
         partition: PartitionPlace,
         key: &mut Vec<Value>,
     ) -> Result<(), Fault> {
-        super::super::graph::service::partition_key(self, partition, key)
+        self.walks.partition_key(&mut self.rows, partition, key)
     }
     fn sources(&self, partition: PartitionPlace) -> Count {
-        super::super::graph::service::sources(self, partition)
+        self.walks.sources(partition)
     }
     fn source(
         &mut self,
         partition: PartitionPlace,
         at: VertexPlace,
     ) -> Result<Option<Value>, Fault> {
-        super::super::graph::service::source(self, partition, at)
+        self.walks.source(&mut self.rows, partition, at)
     }
     fn reach(&mut self, partition: PartitionPlace, source: Value) -> Result<Count, Fault> {
-        super::super::graph::service::reach(self, partition, source)
+        self.walks.reach(&mut self.rows, partition, source)
     }
     fn reached(&self, at: VertexPlace) -> Option<Value> {
-        super::super::graph::service::reached(self, at)
+        GraphWalks::reached(&self.rows, at)
     }
 }
 
 impl DfsDriver for LeaseDriver<'_, '_> {
     fn roots(&mut self) -> Result<RowCount, Fault> {
-        super::super::graph::service::roots(self)
+        self.walks.roots(&mut self.rows)
     }
     fn root(&self, at: RowIndex, row: &mut Vec<Value>) -> RowRead {
-        super::super::graph::service::root(self, at, row)
+        self.walks.root(at, row)
     }
     fn root_columns(&self, columns: &mut Vec<ColumnIndex>) {
-        super::super::graph::service::root_columns(self, columns)
+        self.walks.root_columns(columns);
     }
     fn begin(&mut self, partition: &[Value], root: Value) -> Result<(), Fault> {
-        super::super::graph::service::begin(self, partition, root)
+        self.walks.begin(&mut self.rows, partition, root)
     }
     fn next(&mut self, partition: &[Value]) -> Result<Option<OrderedEdge>, Fault> {
-        super::super::graph::service::next(self, partition)
+        self.walks.next(&mut self.rows, partition)
     }
     fn edge(&self, at: RowIndex, row: &mut Vec<Value>) -> RowRead {
-        super::super::graph::service::edge(self, at, row)
+        self.walks.edge(at, row)
     }
 }
 
@@ -213,32 +260,29 @@ impl DfsEvaluation for LeaseDriver<'_, '_> {
 
 impl CyclesEvaluation for LeaseDriver<'_, '_> {
     fn cycles(&mut self) -> Result<&dyn CycleDriver, Fault> {
-        super::super::graph::service::cycles(self)
+        self.lookups.cycles(&mut self.rows)
     }
 }
 
 impl OrderedMatchEvaluation for LeaseDriver<'_, '_> {
     fn ordered_match(&mut self) -> Result<&mut dyn OrderedMatchDriver, Fault> {
-        super::super::graph::service::ordered_match(self)
+        self.lookups.ordered_match(&mut self.rows)?;
+        Ok(self)
     }
 }
 
 impl OrderedMatchDriver for LeaseDriver<'_, '_> {
     fn left_len(&self) -> RowCount {
-        RowCount(self.graph.ordered.map_or(0, |ordered| ordered.left.len()))
+        self.lookups.left_len()
     }
     fn right_len(&self) -> RowCount {
-        RowCount(self.graph.ordered.map_or(0, |ordered| ordered.right.len()))
+        self.lookups.right_len()
     }
     fn compare_keys(&self, left: RowIndex, right: RowIndex) -> std::cmp::Ordering {
-        super::super::graph::service::compare_keys(self, left, right)
+        self.lookups.compare_keys(left, right)
     }
-    fn right_order_before_or_equal(
-        &self,
-        left: RowIndex,
-        right: RowIndex,
-    ) -> ryo_operators::domain::ordered_match::types::KeyOrder {
-        super::super::graph::service::right_order_before_or_equal(self, left, right)
+    fn right_order_before_or_equal(&self, left: RowIndex, right: RowIndex) -> KeyOrder {
+        self.lookups.right_order_before_or_equal(left, right)
     }
     fn visit_pair(
         &mut self,
@@ -246,10 +290,11 @@ impl OrderedMatchDriver for LeaseDriver<'_, '_> {
         right: RowIndex,
         project: &mut dyn FnMut(&[Value], &[Value]) -> Result<(), Fault>,
     ) -> Result<(), Fault> {
-        super::super::graph::service::visit_pair(self, left, right, project)
+        self.lookups
+            .visit_pair(&mut self.rows, left, right, project)
     }
     fn emit(&mut self, row: &[Value]) -> Result<(), ContractError> {
-        RowDriver::emit(self, row).map_err(|_| ContractError::Interrupted)
+        self.rows.emit(row).map_err(|_| ContractError::Interrupted)
     }
 }
 
@@ -260,16 +305,16 @@ impl AxisDriver for LeaseDriver<'_, '_> {
         row: &[Value],
         id: ColumnIndex,
     ) -> Result<AxisCandidates, Fault> {
-        super::super::walk::service::walk(self, direction, row, id)
+        self.axis.walk(&mut self.rows, direction, row, id)
     }
     fn admits(&mut self, at: VertexPlace) -> Result<AxisAdmission, Fault> {
-        super::super::walk::service::admits(self, at)
+        self.axis.admits(&mut self.rows, at)
     }
     fn candidate(&self, at: VertexPlace) -> Option<Value> {
-        super::super::walk::service::candidate(self, at)
+        self.axis.candidate(&self.rows, at)
     }
     fn element_cell(&self, at: VertexPlace, column: ColumnIndex) -> Option<Value> {
-        super::super::walk::service::element_cell(self, at, column)
+        self.axis.element_cell(&self.rows, at, column)
     }
 }
 
