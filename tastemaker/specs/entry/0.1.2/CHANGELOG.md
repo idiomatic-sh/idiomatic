@@ -1,3 +1,7 @@
+# entry 0.1.2
+
+An entry's schemas may split by stored kind: `schemas/{kind}.rs` is placed by the `schemas` template beside `schemas.rs`, which declares one module per kind, with `schemas/{kind}_test.rs` by `schemas-test`, each `count = { min = 0 }`; `schema-name` and `schema-visibility` read them as they read `schemas.rs`. A file under `schemas/` that is no kind's schemas is refused (`schema-name`), and one of no role is closed. 0.1.1 is removed with this version, not kept as published: no lock names it, nothing has been released, and an unreleased version keeps no copy for compatibility.
+
 # entry
 
 ## 0.1.0

@@ -1,5 +1,5 @@
 description = "A scenario test holds `use` lines and at least one `#[test]` function, nothing else: no helper of its own and nothing `pub`."
-why = "A scenario test builds a real owner or program from its group's fixtures, runs it, and asserts on what it observed; it is a test of a group (`service_test/<group>/test.rs`), not a table of cases, so `unit-test`'s `CASES` and `subject` shape does not fit it. What keeps it honest is its own shape: it proves something only through `#[test]` functions, so a file with none proves nothing; and every helper it needs lives in the group's `fixtures.rs` (or a parent's fixtures), so a test file never grows a second, private copy of the setup or exports an item another test imports. A top-level item that is neither a `use` nor a `#[test]` function (`#[tokio::test]` and the like count) is reported where it stands, and a file with no `#[test]` function is reported where its code begins."
+why = "A scenario test builds a real owner or program from its group's fixtures, runs it, and asserts on what it observed; it is a test of a group (`service_test/<group>/test.rs`), not a table of cases, so `unit-test`'s `CASES` and `subject` shape does not fit it. What keeps it honest is its own shape: it proves something only through `#[test]` functions, so a file with none proves nothing; and every helper it needs lives in the group's `fixtures.rs` (or a parent's fixtures), so a test file never grows a second, private copy of the setup or exports an item another test imports. A group test may instead declare a `CASES` table, the one mechanical fact that makes it a case table: then the case-table rules (`test-shape` with `reads = \"case-tables\"`, `test-runners-match-rows`, `case-expectation`) hold its items, and this rule only asks that it have a `#[test]` runner. Otherwise a top-level item that is neither a `use` nor a `#[test]` function (`#[tokio::test]` and the like count) is reported where it stands, and a file with no `#[test]` function is reported where its code begins."
 
 query = '''
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
@@ -14,7 +14,16 @@ let kept-ids = project(from=kept, columns=["id"]);
 let test-ids = project(from=test-fns, columns=["id"]);
 let allowed = union(left=kept-ids, right=test-ids);
 let extra = antijoin(left=items, right=allowed, left-on=["id"], right-on=["id"]);
-let extra-found = select l."kind" as "kind", l."file" as "file", l."span" as "span" from extra as l;
+let table-consts = select * from tree-nodes where glob_any(kind, "{const,static}");
+let table-names = select * from tree-nodes where kind = "name";
+let table-kids = select l."file" as "file", r."child" as "child" from table-consts as l join "syntax-child" as r on l."id" = r."parent";
+let table-const-names = select l."file" as "file", r."id" as "name" from table-kids as l join table-names as r on l."child" = r."id";
+let table-name-kids = select l."file" as "file", r."child" as "child" from table-const-names as l join "syntax-child" as r on l."name" = r."parent";
+let table-words = select l."id" as "id" from "syntax-tree" as l where l."text" = "CASES";
+let table-files-rows = select l."file" as "file" from table-name-kids as l join table-words as r on l."child" = r."id";
+let table-files = project(from=table-files-rows, columns=["file"]);
+let scenario-extra = antijoin(left=extra, right=table-files, left-on=["file"], right-on=["file"]);
+let extra-found = select l."kind" as "kind", l."file" as "file", l."span" as "span" from scenario-extra as l;
 let tested = project(from=test-fns, columns=["file"]);
 let untested = antijoin(left=roots, right=tested, left-on=["file"], right-on=["file"]);
 let untested-found = select l."kind" as "kind", l."file" as "file", l."span" as "span" from untested as l;
@@ -95,3 +104,28 @@ then.findings = [
   { path = "src/owner/service_test/publication/test.rs", line = 10 },
   { path = "src/owner/service_test/publication/test.rs", line = 12 },
 ]
+
+[[scenarios]]
+id = "group-case-table"
+scenario = "A group test that declares a `CASES` table, with its types, its subject and its runners, is a case table: its items are left to the case-table rules."
+given.files.'src/owner/service_test/order/test.rs' = '''
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = u8;
+type Value = u8;
+type Failure = ();
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: 1, expect: Expect::Value(1) },
+];
+
+fn subject(input: Input) -> Result<Value, Failure> {
+    Ok(input)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+

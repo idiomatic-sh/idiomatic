@@ -39,7 +39,7 @@ rules = [
   { rule = "error-shape", include = ["**"], description = "Every error type of the crate is a `thiserror` derive, never a hand-written `Error` or `Display` impl." },
   # A part's fakes reach other crates' tests only.
   { rule = "fixtures-feature", include = ["Cargo.toml"], description = "The crate's `fixtures` feature is switched on only from `[dev-dependencies]`, so its fakes never ship." },
-  { rule = "idiomatic.arch/test-group-namespace@0.1.0", include = [{ placed-by = "test-group-module" }], description = "A test group's module file declares the group's modules only: its test, its fixtures and its nested groups." },
+  { rule = "idiomatic.arch/test-group-namespace@0.1.0", include = [{ placed-by = "test-group-module" }], params = { case-table = "refused" }, description = "A test group's module file declares the group's modules only: its test, its fixtures and its nested groups." },
 ]
 
 [[scenarios]]

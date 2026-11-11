@@ -1,5 +1,5 @@
 description = "Imports, external-crate bindings and type aliases of a path have inherited visibility outside the product’s placed SDK surface."
-why = "Consumers use the defining module. Public use, extern crate and type declarations forward another module’s item under a second path. A canonical inbound use-case interface may expose private domain */types and */errors signature vocabulary (the error a use case's signature carries is vocabulary as much as its data), and the application and domain types its contract is made of, wherever beneath `application/` or `domain/` they are declared: a type or trait of the crate that the signature of one of the interface's methods names, or that a type so named names in its fields, variants or methods, or that such a type implements or is implemented by, transitively (the handles a use case returns and the protocol traits they implement are its contract). An application item no such signature reaches, and every service function, stays forbidden. A port factory may expose its adapter connection module's named `Connection` handle for edge construction and injection; mixed exports or adapter implementations are not exempt. Only such a factory may also carry a local `clippy::pub_use` allowance that Clippy requires; `clippy::restriction` remains forbidden. This exception checks the factory location and imported path, not runtime ownership. The product excludes only the src tree of its actual SDK spec placement; CLI and ordinary crate roots receive no exception. The former derive-facade switch is removed. Syntax checking includes inactive cfg code and macro_rules bodies, but not procedural-macro expansion; the compiler construction boundary independently resolves aliases when checking composition."
+why = "Consumers use the defining module. Public use, extern crate and type declarations forward another module’s item under a second path. A canonical inbound use-case interface may expose private domain */types and */errors signature vocabulary (the error a use case's signature carries is vocabulary as much as its data), and the application and domain types its contract is made of, wherever beneath `application/` or `domain/` they are declared: a type or trait of the crate that the signature of one of the interface's methods names, or that a type so named names in its fields, variants or methods, or that such a type implements or is implemented by, transitively (the handles a use case returns and the protocol traits they implement are its contract). An application item no such signature reaches, and every service function, stays forbidden. A test seam is no re-export: a `pub use` inside a `fixtures` module gated `cfg(any(test, feature = \"fixtures\"))` (its file, or an inline module) forwards the vocabulary a test needs, and only a test builds it. A use case's interface may forward an outbound port trait that the signature of an entry trait it declares or forwards names, since a caller must name the port to hand it in; an adapter, a port no entry signature names, and a forward from any other file stay forbidden. A port factory may expose its adapter connection module's named `Connection` handle for edge construction and injection; mixed exports or adapter implementations are not exempt. Only such a factory may also carry a local `clippy::pub_use` allowance that Clippy requires; `clippy::restriction` remains forbidden. This exception checks the factory location and imported path, not runtime ownership. The product excludes only the src tree of its actual SDK spec placement; CLI and ordinary crate roots receive no exception. The former derive-facade switch is removed. Syntax checking includes inactive cfg code and macro_rules bodies, but not procedural-macro expansion; the compiler construction boundary independently resolves aliases when checking composition."
 
 query = '''
 param internal-crates: set<string>;
@@ -108,7 +108,44 @@ let contract-vocabulary = union(left=contract-reached, right=contract-root-names
 let contract-named = select l."id" as "id" from contract-items as l join contract-vocabulary as r on l."text" = r."text";
 let contract-application-imports = select l."id" as "id" from contract-named as l join contract-crate-rooted as r on l."id" = r."id";
 let domain-signature-ids = project(from=signature-imports, columns=["id"]);
-let allowed-signature-ids = union(left=domain-signature-ids, right=contract-application-imports);
+let contract-and-domain-ids = union(left=domain-signature-ids, right=contract-application-imports);
+let fixture-cfgs = select * from "decorates" where target = "cfg" and glob_any(arguments, "any(test, feature = ?fixtures?)");
+let fixture-modules = select r."id" as "id", r."file" as "file" from fixture-cfgs as l join "defines" as r on l."declaration" = r."id" where r."kind" = "namespace" and r."name" = "fixtures";
+let fixture-places = capture(from=fixture-modules, path="file", pattern="{*dir}/{stem}.rs", captures=["dir", "stem"]);
+let source-files = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "**/*.rs");
+let nested-fixture-files = capture(from=source-files, path="file", pattern="{*dir}/{stem}/fixtures.rs", captures=["dir", "stem"]);
+let nested-fixture-trees = capture(from=source-files, path="file", pattern="{*dir}/{stem}/fixtures/{*rest}", captures=["dir", "stem", "rest"]);
+let nested-gated-files = select r."file" as "file" from fixture-places as l join nested-fixture-files as r on l."dir" = r."dir" and l."stem" = r."stem";
+let nested-gated-trees = select r."file" as "file" from fixture-places as l join nested-fixture-trees as r on l."dir" = r."dir" and l."stem" = r."stem";
+let root-fixture-places = select * from fixture-places where glob_any(stem, "{lib,main,mod}");
+let root-fixture-files = capture(from=source-files, path="file", pattern="{*dir}/fixtures.rs", captures=["dir"]);
+let root-fixture-trees = capture(from=source-files, path="file", pattern="{*dir}/fixtures/{*rest}", captures=["dir", "rest"]);
+let root-gated-files = select r."file" as "file" from root-fixture-places as l join root-fixture-files as r on l."dir" = r."dir";
+let root-gated-trees = select r."file" as "file" from root-fixture-places as l join root-fixture-trees as r on l."dir" = r."dir";
+let gated-files-0 = union(left=nested-gated-files, right=nested-gated-trees);
+let gated-files-1 = union(left=gated-files-0, right=root-gated-files);
+let gated-fixture-files = union(left=gated-files-1, right=root-gated-trees);
+let fixture-file-imports = select l."id" as "id" from visible-imports as l join gated-fixture-files as r on l."file" = r."file";
+let inline-fixture-modules = project(from=fixture-modules, columns=["id"]);
+let inline-fixture-reach = axis(from=visible-imports, relation="syntax-child", direction=ancestor, domain=inline-fixture-modules);
+let inline-fixture-imports = project(from=inline-fixture-reach, columns=["id"]);
+let fixture-seam-ids = union(left=fixture-file-imports, right=inline-fixture-imports);
+let port-prefixes = select * from contract-prefix-names where text = "outbound";
+let port-forwards = select l."id" as "id", l."text" as "text" from contract-items as l join port-prefixes as r on l."id" = r."id";
+let declared-traits = select * from tree-nodes where kind = "trait";
+let declared-trait-kids = select l."id" as "trait", r."child" as "child" from declared-traits as l join "syntax-child" as r on l."id" = r."parent";
+let declared-trait-name-nodes = select l."trait" as "trait", r."id" as "name" from declared-trait-kids as l join tree-nodes as r on l."child" = r."id" where r."kind" = "name";
+let declared-trait-names = select l."trait" as "trait", r."text" as "text" from declared-trait-name-nodes as l join token-edges as r on l."name" = r."parent";
+let port-traits = select l."id" as "id", l."text" as "text" from port-forwards as l join declared-trait-names as r on l."text" = r."text";
+let forwarded-entry-traits = select r."trait" as "id" from contract-items as l join declared-trait-names as r on l."text" = r."text";
+let declared-entry-traits = project(from=contract-traits, columns=["id"]);
+let entry-traits = union(left=declared-entry-traits, right=forwarded-entry-traits);
+let entry-references = axis(from=entry-traits, relation="syntax-child", direction=descendant, domain=name-references);
+let entry-names = select r."text" as "text" from entry-references as l join token-edges as r on l."related" = r."parent";
+let seam-ports = select l."id" as "id" from port-traits as l join entry-names as r on l."text" = r."text";
+let seam-port-ids = project(from=seam-ports, columns=["id"]);
+let seam-ids = union(left=fixture-seam-ids, right=seam-port-ids);
+let allowed-signature-ids = union(left=contract-and-domain-ids, right=seam-ids);
 let other-forwarding = antijoin(left=visible-forwarding, right=resource-imports, left-on=["id"], right-on=["id"]);
 let forbidden-forwarding = antijoin(left=other-forwarding, right=allowed-signature-ids, left-on=["id"], right-on=["id"]);
 let forwarding-rows = project(from=forbidden-forwarding, columns=["file", "span", "kind"]);
@@ -1792,3 +1829,353 @@ then.findings = [
   { path = 'src/inbound/use_cases/run/interface.rs', line = 1 },
   { path = 'src/inbound/use_cases/run/interface.rs', line = 2 },
 ]
+
+[[scenarios]]
+id = 'gated-fixtures-module-forwards-vocabulary'
+scenario = "A `pub use` in a fixtures module gated `cfg(any(test, feature = \"fixtures\"))` is a test seam and passes."
+given.include = ['**/*.rs']
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+'''
+given.files.'src/lib.rs' = '''
+pub mod owner;
+'''
+given.files.'src/owner.rs' = '''
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+pub mod types;
+'''
+given.files.'src/owner/types.rs' = '''
+pub struct Row;
+'''
+given.files.'src/owner/fixtures.rs' = '''
+pub use super::types::Row;
+'''
+
+
+[[scenarios]]
+id = 'ungated-fixtures-module-forward'
+scenario = "A `pub use` in a fixtures module with no gate is still a re-export."
+given.include = ['**/*.rs']
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+'''
+given.files.'src/lib.rs' = '''
+pub mod owner;
+'''
+given.files.'src/owner.rs' = '''
+pub mod fixtures;
+pub mod types;
+'''
+given.files.'src/owner/types.rs' = '''
+pub struct Row;
+'''
+given.files.'src/owner/fixtures.rs' = '''
+pub use super::types::Row;
+'''
+then.findings = [{ path = 'src/owner/fixtures.rs', line = 1 }]
+
+
+[[scenarios]]
+id = 'gated-non-fixtures-module-forward'
+scenario = "A `pub use` in a module gated the same way that is not a fixtures module is still a re-export."
+given.include = ['**/*.rs']
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+'''
+given.files.'src/lib.rs' = '''
+pub mod owner;
+'''
+given.files.'src/owner.rs' = '''
+#[cfg(any(test, feature = "fixtures"))]
+pub mod helpers;
+pub mod types;
+'''
+given.files.'src/owner/types.rs' = '''
+pub struct Row;
+'''
+given.files.'src/owner/helpers.rs' = '''
+pub use super::types::Row;
+'''
+then.findings = [{ path = 'src/owner/helpers.rs', line = 1 }]
+
+
+[[scenarios]]
+id = 'use-case-forwards-a-port-its-entry-names'
+scenario = "A use case interface forwards the outbound port its entry trait's signature names, as ryo's execution interface forwards ObserverPort: it passes."
+given.include = ['**/*.rs']
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+'''
+given.files.'src/lib.rs' = '''
+pub mod inbound;
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+pub mod observer;
+pub mod sink;
+'''
+given.files.'src/outbound/observer.rs' = '''
+pub mod interface;
+pub mod adapters;
+'''
+given.files.'src/outbound/observer/interface.rs' = '''
+pub trait ObserverPort {
+    fn observe(&self);
+}
+'''
+given.files.'src/outbound/observer/adapters.rs' = '''
+pub struct ConsoleObserver;
+'''
+given.files.'src/outbound/sink.rs' = '''
+pub mod interface;
+'''
+given.files.'src/outbound/sink/interface.rs' = '''
+pub trait SinkPort {
+    fn sink(&self);
+}
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod run;
+'''
+given.files.'src/inbound/use_cases/run.rs' = '''
+pub mod interface;
+pub mod use_case;
+'''
+given.files.'src/inbound/use_cases/run/interface.rs' = '''
+pub use crate::outbound::observer::interface::ObserverPort;
+
+pub trait RunUseCase {
+    fn run(&self, observer: &dyn ObserverPort);
+}
+'''
+given.files.'src/inbound/use_cases/run/use_case.rs' = '''
+pub struct RunUseCaseImpl;
+'''
+
+
+[[scenarios]]
+id = 'use-case-forwards-a-port-no-entry-names'
+scenario = "A use case interface that forwards an outbound port no entry signature names is refused."
+given.include = ['**/*.rs']
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+'''
+given.files.'src/lib.rs' = '''
+pub mod inbound;
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+pub mod observer;
+pub mod sink;
+'''
+given.files.'src/outbound/observer.rs' = '''
+pub mod interface;
+pub mod adapters;
+'''
+given.files.'src/outbound/observer/interface.rs' = '''
+pub trait ObserverPort {
+    fn observe(&self);
+}
+'''
+given.files.'src/outbound/observer/adapters.rs' = '''
+pub struct ConsoleObserver;
+'''
+given.files.'src/outbound/sink.rs' = '''
+pub mod interface;
+'''
+given.files.'src/outbound/sink/interface.rs' = '''
+pub trait SinkPort {
+    fn sink(&self);
+}
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod run;
+'''
+given.files.'src/inbound/use_cases/run.rs' = '''
+pub mod interface;
+pub mod use_case;
+'''
+given.files.'src/inbound/use_cases/run/interface.rs' = '''
+pub use crate::outbound::observer::interface::ObserverPort;
+
+pub trait RunUseCase {
+    fn run(&self, observer: &dyn ObserverPort);
+}
+pub use crate::outbound::sink::interface::SinkPort;
+'''
+given.files.'src/inbound/use_cases/run/use_case.rs' = '''
+pub struct RunUseCaseImpl;
+'''
+then.findings = [{ path = 'src/inbound/use_cases/run/interface.rs', line = 6 }]
+
+
+[[scenarios]]
+id = 'use-case-forwards-an-adapter'
+scenario = "A use case interface that forwards an adapter, which is no trait, is refused even when an entry names it."
+given.include = ['**/*.rs']
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+'''
+given.files.'src/lib.rs' = '''
+pub mod inbound;
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+pub mod observer;
+pub mod sink;
+'''
+given.files.'src/outbound/observer.rs' = '''
+pub mod interface;
+pub mod adapters;
+'''
+given.files.'src/outbound/observer/interface.rs' = '''
+pub trait ObserverPort {
+    fn observe(&self);
+}
+'''
+given.files.'src/outbound/observer/adapters.rs' = '''
+pub struct ConsoleObserver;
+'''
+given.files.'src/outbound/sink.rs' = '''
+pub mod interface;
+'''
+given.files.'src/outbound/sink/interface.rs' = '''
+pub trait SinkPort {
+    fn sink(&self);
+}
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod run;
+'''
+given.files.'src/inbound/use_cases/run.rs' = '''
+pub mod interface;
+pub mod use_case;
+'''
+given.files.'src/inbound/use_cases/run/interface.rs' = '''
+pub use crate::outbound::observer::adapters::ConsoleObserver;
+
+pub trait RunUseCase {
+    fn run(&self, observer: &ConsoleObserver);
+}
+'''
+given.files.'src/inbound/use_cases/run/use_case.rs' = '''
+pub struct RunUseCaseImpl;
+'''
+then.findings = [{ path = 'src/inbound/use_cases/run/interface.rs', line = 1 }]
+
+
+[[scenarios]]
+id = 'port-forwarded-from-a-use-case-body'
+scenario = "The same port forwarded from the use case's body rather than its interface is refused."
+given.include = ['**/*.rs']
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+'''
+given.files.'src/lib.rs' = '''
+pub mod inbound;
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+pub mod observer;
+pub mod sink;
+'''
+given.files.'src/outbound/observer.rs' = '''
+pub mod interface;
+pub mod adapters;
+'''
+given.files.'src/outbound/observer/interface.rs' = '''
+pub trait ObserverPort {
+    fn observe(&self);
+}
+'''
+given.files.'src/outbound/observer/adapters.rs' = '''
+pub struct ConsoleObserver;
+'''
+given.files.'src/outbound/sink.rs' = '''
+pub mod interface;
+'''
+given.files.'src/outbound/sink/interface.rs' = '''
+pub trait SinkPort {
+    fn sink(&self);
+}
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod run;
+'''
+given.files.'src/inbound/use_cases/run.rs' = '''
+pub mod interface;
+pub mod use_case;
+'''
+given.files.'src/inbound/use_cases/run/interface.rs' = '''
+pub trait RunUseCase {
+    fn run(&self, observer: &dyn crate::outbound::observer::interface::ObserverPort);
+}
+'''
+given.files.'src/inbound/use_cases/run/use_case.rs' = '''
+pub use crate::outbound::observer::interface::ObserverPort;
+pub struct RunUseCaseImpl;
+'''
+then.findings = [{ path = 'src/inbound/use_cases/run/use_case.rs', line = 1 }]
+

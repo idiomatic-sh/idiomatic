@@ -1,7 +1,7 @@
 description = "A product's SDK crate, applied beside its `crate` entry: the resources and verbs a user of the product calls, mirroring the command line. It places `src/resources.rs`, which lists the resources, `src/resources/<resource>.rs`, which declares the verbs of the resource and exposes the types and traits they use, and the `entry` spec's parts at `src/resources/<resource>/<verb>/`, so the product's `tastemaker.toml` names only the crate and this spec. There is no extension_points.rs and no vocabulary.rs: a type is defined once in the core and exposed by each resource that uses it, and a port a resource module re-exports is an extension point (`extension-point-ports`)."
 why = "Keeps a product's SDK an edge like its command line: one public function per resource and entry, each opening its own stores, checking its request in its schemas, composing its own service and calling it once, so a user states only what they choose and names no internal crate. The function is placed by the `entry` spec, apart from the command line's command; this spec holds what lists the functions and what they share, so every function is reachable from one root and nothing composes at the crate's top."
 specs = [
-  { spec = "idiomatic.arch/entry@0.1.1", include = ["src/resources/{resource}/{entry}"], exclude = ["src/resources/*/macros"], count = { min = 0 }, description = "The SDK's functions, one part each." },
+  { spec = "idiomatic.arch/entry@0.1.2", include = ["src/resources/{resource}/{entry}"], exclude = ["src/resources/*/macros"], count = { min = 0 }, description = "The SDK's functions, one part each." },
 ]
 templates = [
   { template = "entries", file = "src/resources.rs", description = "The list of the SDK's resources, one public module each." },

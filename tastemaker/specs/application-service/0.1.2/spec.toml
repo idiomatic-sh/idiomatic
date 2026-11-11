@@ -2,7 +2,7 @@ description = "An optional cohesive application operation and its related struct
 why = "A service owns one cohesive operation and the few related structures it needs, with explicit invocation, worker or session lifetimes for state. It need not be shared or reusable, and neither service count nor file length defines cohesion. Use cases remain readable workflow orchestration: they may call application services, domain functions and outbound contracts directly and own final publication. A service neither constructs adapters nor calls sibling services or use cases. Supporting types exist only when needed; no interface, factory or generic runtime is required. Behavioral cases and review prove semantic cohesion and failure/publication behavior; structural rules alone cannot."
 templates = [
   { template = "service", file = "service.rs", description = "One concrete operation holding injected ports and explicitly owned invocation state." },
-  { template = "service-test", file = "service_test.rs", description = "Behavioral cases using injected fakes, including substitution and failures where applicable." },
+  { alias = "service-test", template = "idiomatic.arch/test-group-module@0.2.0", file = "service_test.rs", description = "Behavioral cases using injected fakes, including substitution and failures where applicable." },
   { template = "idiomatic.arch/types@0.1.0", file = "types.rs", count = { min = 0 }, params = { kind = "concept" }, description = "Only data owned by this operation, not copies of existing domain values." },
   { template = "idiomatic.arch/errors@0.1.0", file = "errors.rs", count = { min = 0 }, params = { kind = "concept" }, description = "Failures owned by this operation." },
   { template = "idiomatic.arch/constants@0.1.0", file = "constants.rs", count = { min = 0 }, description = "Constants of this operation." },
@@ -41,10 +41,12 @@ rules = [
   { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["*.rs"], exclude = ["*_test.rs", "fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module." },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["*.rs"], exclude = ["composition.rs", "fixtures.rs", "*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter." },
   { rule = "idiomatic.arch/test-shape@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }], description = "Every test of a part is a runner named for a case word over a `CASES` table." },
-  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
-  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }], description = "A row of a part's table expects a value or an error variant, never any success." },
+  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
+  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "A row of a part's table expects a value or an error variant, never any success." },
   { rule = "idiomatic.arch/scenario-test@0.1.0", include = [{ placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "A group's scenario test holds `use` lines and at least one `#[test]` function: its helpers come from the group's fixtures, and it exports nothing." },
-  { rule = "idiomatic.arch/test-group-namespace@0.1.0", include = [{ placed-by = "group-module" }, { placed-by = "part-group-module" }], description = "A group's module file declares the group's modules only: its test, its fixtures and its nested groups." },
+  { alias = "group-namespace", rule = "idiomatic.arch/test-group-namespace@0.1.0", params = { case-table = "refused" }, include = [{ placed-by = "group-module" }, { placed-by = "part-group-module" }], description = "A group's module file declares the group's modules only: its test, its fixtures and its nested groups." },
+  { alias = "group-test-shape", rule = "idiomatic.arch/test-shape@0.2.0", include = [{ placed-by = "group-test" }, { placed-by = "part-group-test" }], params = { reads = "case-tables" }, description = "A group test that declares a `CASES` table is held to the runner shape, as a test beside its source is." },
+  { alias = "service-test-form", rule = "idiomatic.arch/test-group-namespace@0.1.0", include = ["service_test.rs"], params = { case-table = "exempt" }, description = "The service's proof is a case table, or the namespace of its groups (only `mod x;` declarations): a file that declares `CASES` is left to the case-table rules, any other is held here." },
 ]
 
 [given]
@@ -81,7 +83,7 @@ fn succeeds() {
 id = 'service-without-test'
 scenario = 'An application operation without its behavioral test is reported.'
 then.findings = [
-  { rule = 'application-service/service-test#count', path = 'src/short' },
+  { rule = 'idiomatic.arch/test-group-module(service-test)#count', path = 'src/short' },
 ]
 
 [[scenarios]]
