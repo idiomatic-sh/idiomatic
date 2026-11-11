@@ -180,14 +180,26 @@ fn manifest(written: &Written<'_>) -> Vec<DataRow> {
     let mut rows = vec![
         row(Syntax::Entries, ("#v", "#0"), ("variables", "mapping", "")),
         row(Syntax::Mappings, ("#vm", "#v"), ("0", "standard", "")),
-        row(Syntax::Entries, ("#vl", "#vm"), ("libraries", "sequence", "")),
+        row(
+            Syntax::Entries,
+            ("#vl", "#vm"),
+            ("libraries", "sequence", ""),
+        ),
     ];
     values(&mut rows, "#vl", written.libraries);
     if written.more {
-        rows.push(row(Syntax::Entries, ("#vo", "#vm"), ("more", "sequence", "")));
+        rows.push(row(
+            Syntax::Entries,
+            ("#vo", "#vm"),
+            ("more", "sequence", ""),
+        ));
     }
     rows.extend([
-        row(Syntax::Entries, ("#x", "#0"), ("variables-x", "mapping", "")),
+        row(
+            Syntax::Entries,
+            ("#x", "#0"),
+            ("variables-x", "mapping", ""),
+        ),
         row(Syntax::Mappings, ("#xm", "#x"), ("0", "standard", "")),
         row(Syntax::Entries, ("#xa", "#xm"), ("a", "sequence", "")),
     ]);
@@ -199,7 +211,11 @@ fn manifest(written: &Written<'_>) -> Vec<DataRow> {
             ("rules", "sequence-of-mappings", ""),
         ),
         row(Syntax::Elements, ("#r0", "#r"), ("0", "mapping", "")),
-        row(Syntax::Mappings, ("#r0", "#r0"), ("0", "sequence-member", "")),
+        row(
+            Syntax::Mappings,
+            ("#r0", "#r0"),
+            ("0", "sequence-member", ""),
+        ),
         row(Syntax::Entries, ("#re", "#r0"), ("exclude", "sequence", "")),
     ]);
     values(&mut rows, "#re", written.exclude);

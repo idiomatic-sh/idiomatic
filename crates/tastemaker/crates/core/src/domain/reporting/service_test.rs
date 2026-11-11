@@ -62,7 +62,11 @@ fn variables(libraries: &[&str]) -> Vec<DataRow> {
     let mut rows = vec![
         row(Syntax::Entries, ("#v", "#0"), ("variables", "mapping", "")),
         row(Syntax::Mappings, ("#vm", "#v"), ("0", "standard", "")),
-        row(Syntax::Entries, ("#vl", "#vm"), ("libraries", "sequence", "")),
+        row(
+            Syntax::Entries,
+            ("#vl", "#vm"),
+            ("libraries", "sequence", ""),
+        ),
     ];
     for (place, library) in libraries.iter().enumerate() {
         rows.push(row(
@@ -101,10 +105,9 @@ fn reported(target: &str) -> usize {
 fn subject(question: Input) -> Value {
     match question {
         Question::Settled => settled(),
-        Question::Variables => Value::Reported(
-            reported("demo/tastemaker.toml"),
-            reported("demo/own.toml"),
-        ),
+        Question::Variables => {
+            Value::Reported(reported("demo/tastemaker.toml"), reported("demo/own.toml"))
+        }
     }
 }
 
