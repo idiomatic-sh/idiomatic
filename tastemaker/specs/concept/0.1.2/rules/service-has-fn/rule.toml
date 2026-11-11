@@ -1,0 +1,74 @@
+description = "A `service.rs` declares at least one free function, or a `macro_rules!` that writes them."
+why = "A concept holds its verbs in one service.rs and its data in types.rs, errors.rs and constants.rs; a concept that declares no function has no service.rs and no service_test.rs, and one that declares a function has both. The trigger is mechanical: where a function is written. A `macro_rules!` is a verb of the service too: it writes the functions of the crates that call it, so a service that declares one and no function is not hollow."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let files = select * from tree-nodes where kind = "source-file";
+let kids = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "child" from files as l join "syntax-child" as r on l."id" = r."parent";
+let fns = select * from tree-nodes where kind = "fn";
+let with-fn = select l."id" as "id" from kids as l join fns as r on l."child" = r."id";
+let macros = select * from tree-nodes where kind = "macro-rules";
+let with-macro = select l."id" as "id" from kids as l join macros as r on l."child" = r."id";
+let with-verb = union(left=with-fn, right=with-macro);
+let hollow = antijoin(left=files, right=with-verb, left-on=["id"], right-on=["id"]);
+let rows = project(from=hollow, columns=["file", "span"]);
+emit rows subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this service declares no function and no macro that writes them"
+help = "A concept that declares no function has no service.rs and no service_test.rs: delete both and keep the concept as its types, errors and constants. An ignore is not legitimate here."
+
+[given]
+include = ['**/service.rs']
+
+[[scenarios]]
+id = 'with-fn'
+scenario = 'A service with a function.'
+given.files.'src/service.rs' = '''
+pub fn double(value: u8) -> u8 {
+    value
+}
+'''
+
+[[scenarios]]
+id = 'without-fn'
+scenario = 'A service with no function.'
+given.files.'src/service.rs' = '''
+//! Nothing here.
+
+use std::fmt::Debug;
+'''
+then.findings = [
+  { path = 'src/service.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'with-macro'
+scenario = 'A service whose verb is a macro that writes functions.'
+given.files.'src/service.rs' = '''
+//! A service whose one verb is a macro that writes functions.
+
+/// Writes `double` for the type it is given.
+#[macro_export]
+macro_rules! doubling {
+    ($kind:ty) => {
+        pub fn double(value: $kind) -> $kind {
+            value
+        }
+    };
+}
+'''
+
+[[scenarios]]
+id = 'with-macro-call'
+scenario = 'A service with only a macro call and no function.'
+given.files.'src/service.rs' = '''
+//! A service that only calls a macro: it declares no function and no macro of its own.
+
+println!();
+'''
+then.findings = [
+  { path = 'src/service.rs', line = 3 },
+]

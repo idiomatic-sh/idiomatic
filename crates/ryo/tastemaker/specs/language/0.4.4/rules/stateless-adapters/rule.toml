@@ -1,0 +1,161 @@
+description = "An adapter holds no process-global state: no `static` item, `thread_local!`, `OnceLock`, `LazyLock`, `lazy_static!` or `once_cell` item in its adapter.rs, types.rs, errors.rs or settings.rs."
+why = "A provider keeps no state between calls, and an adapter is a provider of its port: what must outlive a call lives in the client or the store the edge injected, never in the process. v3 bans only what is global to the process, which an instance cannot own: a `static` item, `thread_local!`, `OnceLock`, `LazyLock`, `lazy_static` and `once_cell`. A struct field is no longer read: an adapter is built per use by its factory, so a `Mutex` or an atomic field is state of that one instance, which the handle of a stream legitimately holds between its own calls (the old fields-based check made five adapters carry an ignore for exactly that). Read from the `static` items of the file, the imports and references of `std::sync::OnceLock`, `std::sync::LazyLock`, `once_cell` and `lazy_static`, and the `thread_local!` and `lazy_static!` macro calls. Not seen: a type written only inside another macro's tokens, and any file of the adapter but adapter.rs, types.rs, errors.rs and settings.rs."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let imports = project(from="static-import", columns=["occurrence", "file", "span", "target"]);
+let references = project(from="reference", columns=["occurrence", "file", "span", "target"]);
+let mentions = union(left=imports, right=references);
+let state = select * from mentions where glob_any(target, "{std::sync::OnceLock,std::sync::OnceLock::*,std::sync::LazyLock,std::sync::LazyLock::*,once_cell::*,lazy_static::*}");
+let state-rows = project(from=state, columns=["file", "span"]);
+let names = select * from tree-tokens where glob_any(text, "{thread_local,lazy_static}");
+let name-refs = select r."parent" as "node" from names as l join "syntax-child" as r on l."id" = r."child";
+let segments = select r."parent" as "node" from name-refs as l join "syntax-child" as r on l."node" = r."child";
+let paths = select r."parent" as "node" from segments as l join "syntax-child" as r on l."node" = r."child";
+let owners = select r."parent" as "node" from paths as l join "syntax-child" as r on l."node" = r."child";
+let macro-calls = select * from tree-nodes where kind = "macro-call";
+let thread-locals = select r."file" as "file", r."span" as "span" from owners as l join macro-calls as r on l."node" = r."id";
+let statics = select * from tree-nodes where kind = "static";
+let static-rows = project(from=statics, columns=["file", "span"]);
+let global-rows = union(left=state-rows, right=thread-locals);
+let findings = union(left=global-rows, right=static-rows);
+emit findings subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this adapter holds process-global state"
+help = "Keep nothing global to the process in the adapter: hold the connection or client the edge injected and the adapter's settings, and let what must outlive a call live in the store behind the client. A field of the adapter's struct is fine. Replace a `static` constant with a `const`, and build a compiled pattern or a table in the adapter's constructor. A cache is a store, which is its own crate. Ignore only a value computed once and never changed that cannot be a `const`: `// ignore: idiomatic.ryo/language/stateless-adapters - <why this value never changes>` on its own line above the line the finding names."
+
+[given]
+include = ['adapter.rs']
+
+[[scenarios]]
+id = 'settings-only'
+scenario = 'An adapter holding a client the edge injected.'
+given.files.'adapter.rs' = '''
+use std::sync::Arc;
+
+use crate::outbound::names::interface::NamesPort;
+
+pub struct NamesMemoryAdapter {
+    client: Arc<dyn Client>,
+}
+
+trait Client {}
+
+impl NamesPort for NamesMemoryAdapter {}
+'''
+
+[[scenarios]]
+id = 'local-refcell'
+scenario = 'A RefCell local to one call is no state.'
+given.files.'adapter.rs' = '''
+use std::cell::RefCell;
+
+pub struct NamesMemoryAdapter;
+
+impl NamesMemoryAdapter {
+    fn tree(&self) -> usize {
+        let sink = RefCell::new(Vec::<u8>::new());
+        sink.borrow().len()
+    }
+}
+'''
+
+[[scenarios]]
+id = 'mutex-cache'
+scenario = 'A Mutex field is the state of one instance, not of the process.'
+given.files.'adapter.rs' = '''
+use std::collections::VecDeque;
+use std::sync::Mutex;
+
+pub struct NamesMemoryAdapter {
+    kept: Mutex<VecDeque<String>>,
+}
+'''
+
+[[scenarios]]
+id = 'atomic-counter'
+scenario = 'An atomic field is the state of one instance, not of the process.'
+given.files.'adapter.rs' = '''
+use std::sync::atomic::AtomicUsize;
+
+pub struct NamesMemoryAdapter {
+    calls: AtomicUsize,
+}
+'''
+
+[[scenarios]]
+id = 'thread-local-cache'
+scenario = 'A kept answer in a thread_local.'
+given.files.'adapter.rs' = '''
+use std::cell::RefCell;
+
+thread_local! {
+    static KEPT: RefCell<Option<String>> = const { RefCell::new(None) };
+}
+
+pub struct NamesMemoryAdapter;
+'''
+then.findings = [
+  { path = 'adapter.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'once-lock'
+scenario = 'A value kept in a OnceLock static.'
+given.files.'adapter.rs' = '''
+use std::sync::OnceLock;
+
+static KEPT: OnceLock<String> = OnceLock::new();
+
+pub struct NamesMemoryAdapter;
+'''
+then.findings = [
+  { path = 'adapter.rs', line = 1 },
+  { path = 'adapter.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'lazy-lock'
+scenario = 'A value kept in a LazyLock static.'
+given.files.'adapter.rs' = '''
+use std::sync::LazyLock;
+
+static KEPT: LazyLock<String> = LazyLock::new(String::new);
+
+pub struct NamesMemoryAdapter;
+'''
+then.findings = [
+  { path = 'adapter.rs', line = 1 },
+  { path = 'adapter.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'static-item'
+scenario = 'A plain static item.'
+given.files.'adapter.rs' = '''
+static NAMES: [&str; 2] = ["a", "b"];
+
+pub struct NamesMemoryAdapter;
+'''
+then.findings = [
+  { path = 'adapter.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'lazy-static-macro'
+scenario = 'A value kept by lazy_static.'
+given.files.'adapter.rs' = '''
+lazy_static::lazy_static! {
+    static ref KEPT: Vec<u8> = Vec::new();
+}
+
+pub struct NamesMemoryAdapter;
+'''
+then.findings = [
+  { path = 'adapter.rs', line = 1 },
+  { path = 'adapter.rs', line = 1 },
+]

@@ -1,0 +1,50 @@
+description = "One use case's behaviour in Gherkin, through the crate's surface: a Rule of what it answers, and a Scenario Outline whose Examples table has the unit rows' columns (name, input, expected)."
+why = "States what one use case does through the crate's public surface, with production stores for lifecycle scenarios and controlled doubles for injected failures, one `src/inbound/use_cases/<use_case>/acceptance.feature` for each use case. The skeleton is an outline with no example row and steps nobody defined, so a scaffold cannot pass by saying nothing (a file no language reads, it is held to its first line, the feature it is): the runner fails on a skipped step and on a run with no passed step. The four case words are tags, exactly one per scenario or outline (`@succeeds`, `@refuses`, `@fails`, `@rejects`), never file names, and the runner asserts it."
+content = '''
+Feature: {{ feature }}
+{%- if scaffold | default(false) %}
+
+  Rule: {{ feature }} answers what its caller sees
+
+    @succeeds
+    Scenario Outline: {{ feature }} succeeds
+      Given <input>
+      When {{ feature }} runs
+      Then <expected> is answered
+
+      Examples:
+        | name | input | expected |
+{%- endif %}
+'''
+
+[params]
+feature = { type = "identifier", from = "directory-name", description = "The owning use case." }
+
+[given]
+file = 'acceptance.feature'
+params = { feature = 'greet' }
+
+[[scenarios]]
+id = 'feature-outline-for-a-use-case'
+scenario = 'A use case states its behaviour in a Scenario Outline with the unit rows columns.'
+given.files.'acceptance.feature' = '''
+Feature: greet
+
+  Rule: greet answers what its caller sees
+
+    @succeeds
+    Scenario Outline: greet succeeds
+      Given <input>
+      When greet runs
+      Then <expected> is answered
+
+      Examples:
+        | name | input | expected |
+'''
+
+[[scenarios]]
+id = 'feature-missing'
+scenario = 'A use case without its acceptance.feature is reported.'
+then.findings = [
+  { rule = 'acceptance-feature#count', path = '.' },
+]

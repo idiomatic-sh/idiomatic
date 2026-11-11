@@ -1,0 +1,48 @@
+description = "`tests/fixtures/relations/{relation}/input.*` of a language: `input.<extension>`, or `input.<file name>` for a file the language reads only by its whole name (`input.go.mod`, read as `go.mod`)."
+why = "The language is complete or says what it lacks: this file is placed at count 1 for every language, so a language added by its directory has it from the first scaffold, in the shape every other language has, and a language that lacks it is a finding at the language. A first writing starts the file with `#`; the template asks only that the file be there: what it holds is the relation's fixture, in the language's words. A file a language reads only by its whole name (Go reads a module's requirements only from a file named `go.mod`) is named after `input.` whole, and the conformance reads `input.<file name>` as that file name, so every language's fixture is the one `input.*` beside its rows."
+content = '''
+{% if scaffold | default(false) %}#
+{% endif %}'''
+
+[given]
+file = 'tests/fixtures/relations/{relation}/input.*'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'tests/fixtures/relations/syntax_tree/input.demo' = '''
+#
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'tests/fixtures/relations/syntax_tree/input.demo' = '''
+#
+
+More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'language-relation-input#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'input-named-for-a-whole-file-name'
+scenario = 'An input named for a file the language reads only by its whole name is the input.'
+given.files.'tests/fixtures/relations/entry/input.go.mod' = '''
+#
+'''
+
+[[scenarios]]
+id = 'input-folder-is-no-input'
+scenario = 'A file in a folder named `input` is no input: the input is named after `input.`.'
+given.files.'tests/fixtures/relations/entry/input/go.mod' = '''
+#
+'''
+then.findings = [
+  { rule = 'language-relation-input#count', path = '.' },
+]

@@ -1,0 +1,24 @@
+description = "A file of a nested part of the concept: its module file, an interface, schemas, errors or a proof of it, beneath the concept's directory."
+why = "A concept may keep a cohesive sub-concept in a directory of its own (`contract/`, `lowering/`), and that part has the files a part has: its module file holding its items, its interface, its schemas, its errors and its proofs, and its own nested parts. The pattern places every such file by its role, so a new nested part touches no manifest; the concept's rules still hold the part's code, and its module tree is held by the crate's `orphan-rust-files`."
+content = '''
+//! A part of the `{{ part }}` concept.
+'''
+
+[params]
+part = { type = "identifier", from = "directory-name", description = "The directory of the file: the nested part it belongs to." }
+
+[[scenarios]]
+id = "nested-part-file"
+scenario = "A file of a nested part with any items has no finding."
+given.file = "lowering/mod.rs"
+given.files.'lowering/mod.rs' = '''
+//! Lowering of the concept's values.
+
+pub(crate) struct Lowered;
+'''
+
+[[scenarios]]
+id = "nested-part-file-missing"
+scenario = "A part file the entry places that is missing is reported."
+given.file = "lowering/mod.rs"
+then.findings = [{ rule = "#count", path = "." }]

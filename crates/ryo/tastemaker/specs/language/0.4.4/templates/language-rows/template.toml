@@ -1,0 +1,51 @@
+description = "The expected rows of one relation fixture, `tests/fixtures/relations/<relation>/expected.rs`: the typed rows the relation's input must give."
+why = "A relation fixture is an input and the typed rows it must give, side by side, so that the allocation test and the conformance read every relation without anyone editing them. The rows are Rust, not a table in a data file, and are the language's own; the template asks for the function `expected` that returns them, which the typed fixtures of the language call."
+content = '''
+// The rows the input of `relations/{{ relation }}` must give: none while the language reads no tree.
+
+use ryo::languages::contract::{Expected, {{ relation | pascal }}ExpectedRow, expected_rows};
+
+pub(super) fn expected() -> Expected {
+    expected_rows::<{{ relation | pascal }}ExpectedRow>(&[])
+}
+'''
+
+[params]
+relation = { type = "identifier", description = "The relation, captured from the fixture's path." }
+
+[[scenarios]]
+id = 'expected-rows-relation'
+scenario = 'The expected rows of a relation.'
+given.file = 'tests/fixtures/relations/{relation}/expected.rs'
+given.count = { min = 1 }
+given.files.'tests/fixtures/relations/function/expected.rs' = '''
+// The rows the input of `relations/function` must give: none while the language reads no tree.
+
+use ryo::languages::contract::{Expected, FunctionExpectedRow, expected_rows};
+
+pub(super) fn expected() -> Expected {
+    expected_rows::<FunctionExpectedRow>(&[])
+}
+'''
+
+[[scenarios]]
+id = 'without-rows'
+scenario = 'A file that is not the typed rows.'
+given.file = 'tests/fixtures/relations/{relation}/expected.rs'
+given.count = { min = 1 }
+given.files.'tests/fixtures/relations/function/expected.rs' = '''
+// Nothing.
+pub const ROWS: () = ();
+'''
+then.findings = [
+  { rule = 'language-rows#template', path = 'tests/fixtures/relations/function/expected.rs' },
+]
+
+[[scenarios]]
+id = 'no-relation-rows'
+scenario = 'No relation has rows.'
+given.file = 'tests/fixtures/relations/{relation}/expected.rs'
+given.count = { min = 1 }
+then.findings = [
+  { rule = 'language-rows#count', path = '.' },
+]
