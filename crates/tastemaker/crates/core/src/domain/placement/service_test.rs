@@ -23,9 +23,6 @@ const UNLOADED: &str = "";
 /// A spec that places `errors.txt`, a file named for a directory beside it, and the files of a `notes/` directory.
 const BESIDE: &str = "description = \"d\"\nwhy = \"w\"\ntemplates = [\n  { template = \"errors\", file = \"errors.txt\", description = \"e\" },\n  { alias = \"module\", template = \"errors\", file = \"{part:dir}.txt\", count = { min = 0 }, description = \"m\" },\n  { alias = \"note\", template = \"errors\", file = \"notes/{note}.txt\", count = { min = 0 }, description = \"n\" },\n]\n";
 
-/// A spec that places `errors.txt` and the file named for the directory its instance's own name names.
-const INTERPOLATED: &str = "description = \"d\"\nwhy = \"w\"\ntemplates = [\n  { template = \"errors\", file = \"errors.txt\", description = \"e\" },\n  { alias = \"own\", template = \"errors\", file = \"{domain:dir}.txt\", count = { min = 0 }, description = \"o\" },\n]\n";
-
 /// A spec whose entry writes a directory capture before the file's own name.
 const NOT_LAST: &str = "description = \"d\"\nwhy = \"w\"\ntemplates = [{ template = \"errors\", file = \"{part:dir}/errors.txt\", description = \"e\" }]\n";
 
@@ -208,21 +205,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(String::new()),
     },
     Case {
-        name: CaseName("an_interpolated_directory_capture_still_needs_its_directory"),
+        name: CaseName("a_file_whose_name_captures_a_dot_or_two_names_no_directory"),
         word: Word::Succeeds,
-        input: || {
-            (
-                &[
-                    "tastemaker.toml",
-                    "src/a/a.txt",
-                    "src/a/a/x.txt",
-                    "src/a/errors.txt",
-                    "src/b/b.txt",
-                    "src/b/errors.txt",
-                ],
-                INTERPOLATED,
-            )
-        },
+        input: || (&["tastemaker.toml", "src/a/..txt", "src/a/...txt"], BESIDE),
         expect: Expect::Value(String::new()),
     },
     Case {
@@ -306,11 +291,11 @@ fn expected(files: &[&str], spec: &str) -> &'static str {
         (BESIDE, [_, _, _, "src/a/lowering/deeper/x.txt", _]) => {
             "2 src/a/errors.txt,src/a/lowering.txt,src/b/errors.txt closed:src/a/lowering/deeper/x.txt,p/part/errors(module)#count,p/part/errors(note)#count,p/part/errors(note)#count"
         }
+        (BESIDE, [_, "src/a/..txt", _]) => {
+            "1  closed:src/a/...txt,closed:src/a/..txt,p/part/errors#count,p/part/errors(module)#count,p/part/errors(note)#count"
+        }
         (BESIDE, _) => {
             "2 src/a/errors.txt,src/b/errors.txt closed:src/a/errors/x.txt,p/part/errors(module)#count,p/part/errors(module)#count,p/part/errors(note)#count,p/part/errors(note)#count"
-        }
-        (INTERPOLATED, _) => {
-            "2 src/a/a.txt,src/a/errors.txt,src/b/errors.txt closed:src/a/a/x.txt,closed:src/b/b.txt,p/part/errors(own)#count"
         }
         (PARAMED, _) => {
             "2 src/a/a.txt closed:src/a/a/x.txt,closed:src/b/b.txt,p/part/errors(module)#count"
