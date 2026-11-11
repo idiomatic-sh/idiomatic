@@ -137,7 +137,7 @@ fn normalized() -> Result<Normalized, OperatingError> {
     let relation = Relation::SourceLocation;
     let schema = kinds(relation);
     let mut physical = columns(schema);
-    drop(physical[1].0.pop());
+    physical[1].0.truncate(1);
     let source = ColumnsView {
         kinds: schema,
         columns: &physical,

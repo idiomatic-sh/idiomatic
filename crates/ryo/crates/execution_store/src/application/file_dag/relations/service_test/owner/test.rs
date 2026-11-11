@@ -253,10 +253,10 @@ fn compact() -> Result<Compact, OperatingError> {
     let compact_weak = Arc::downgrade(&compact);
     let owner = fresh_owner();
     let first = owner.source_compact(Arc::clone(&compact))?;
-    owner.admit(first.as_ref(), RepresentationInput::Compact(&compact))?;
+    drop(owner.admit(first.as_ref(), RepresentationInput::Compact(&compact))?);
     let first_unique = owner.derived.publication_ownership_bytes().2;
     let second = owner.source_compact(Arc::clone(&compact))?;
-    owner.admit(second.as_ref(), RepresentationInput::Compact(&compact))?;
+    drop(owner.admit(second.as_ref(), RepresentationInput::Compact(&compact))?);
     let records = first.same_record(&second);
     // A second publication of the same immutable Compact and word buffer
     // adds only its own record. Shared backing allocations are not charged
@@ -459,7 +459,7 @@ fn normalized() -> Result<Normalized, OperatingError> {
     let relation = Relation::SourceLocation;
     let schema = kinds(relation);
     let mut physical = columns(schema);
-    drop(physical[1].0.pop());
+    physical[1].0.truncate(1);
     let source = ColumnsView {
         kinds: schema,
         columns: &physical,
