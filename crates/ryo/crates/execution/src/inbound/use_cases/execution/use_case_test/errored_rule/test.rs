@@ -3,26 +3,28 @@
 //! its rows: compilation and preparation succeed, and the error is the second rule's alone. Each rule's written text is
 //! compiled through the query-language port and its parameters bound from its written spec; the provider hands over the
 //! plans (RyoQL refuses both authoring errors itself, so a provider is the author that can hand them over).
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::{FileInput, SourceLanguage, SourceRows};
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use super::super::super::{fixtures, interface::*};
-use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, RuleDemand};
-use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use crate::outbound::query_language::{
     errors::QueryLanguageError, fixtures::fake::QueryLanguageFake, interface::QueryLanguagePort,
 };
-use ryo_values::domain::query_tokens::types::{
-    QueryBundle, QueryDocumentSource, QuerySourceId, QuerySourceText,
+use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, RuleDemand};
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs::text;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::{
+    FileInput, SourceLanguage, SourceRows,
 };
-use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
-use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::service::prepare;
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::{
     service::kinds,
-    types::{CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as CellValue},
+    types::{
+        CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as CellValue,
+    },
 };
 use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::cases::Case;
@@ -35,21 +37,23 @@ use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::files::types::ExecutablePermission;
 use ryo_values::domain::files::types::FileSize;
 use ryo_values::domain::files::types::Nanoseconds;
+use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::rows::types::RowCount;
-use ryo_values::domain::rows::types::Table;
-use ryo_execution_runtime::application::file_dag::program::prepared_execution::service::prepare;
-use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_tokens::types::{
+    QueryBundle, QueryDocumentSource, QuerySourceId, QuerySourceText,
+};
+use ryo_values::domain::rows::types::RowCount;
+use ryo_values::domain::rows::types::Table;
+use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
+use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
 use ryo_values::domain::stored_facts::types::Digest;
 use std::collections::BTreeMap;
-use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs::text;
 
 /// Which authoring error the second rule carries.
 #[derive(Clone, Copy)]

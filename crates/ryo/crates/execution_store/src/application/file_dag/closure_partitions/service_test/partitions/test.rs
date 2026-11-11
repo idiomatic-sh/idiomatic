@@ -1,7 +1,7 @@
 //! The proofs of the partitioned closure cursor.
-use super::super::super::fixtures::working_capacity;
 use super::super::super::PartitionedClosure;
 use super::super::super::constants::LIVE_PARTITION_VIEW;
+use super::super::super::fixtures::working_capacity;
 use ryo_derived::domain::key::types::{ChainLink, HashedRow, KeyCellsHash};
 #[cfg(test)]
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;

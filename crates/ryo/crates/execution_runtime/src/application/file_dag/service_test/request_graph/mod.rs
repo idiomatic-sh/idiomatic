@@ -1,1 +1,3 @@
-#[cfg(test)] pub(super) mod test;
+//! Request-graph identities and ordered dependency contracts over the operators the application prepares.
+#[cfg(test)]
+pub(super) mod test;

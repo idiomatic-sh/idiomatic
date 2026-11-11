@@ -2,7 +2,6 @@
 //! A rule that cannot match a file is never instantiated there: its root publishes the empty, complete table its full run
 //! would, no region only it reaches gets a slot or a reader count, and nothing that could have a row or a row error is
 //! skipped. Language-free: fixture relations, fixture rows and compiled programs only.
-use crate::application::file_dag::service_test::operators::fixtures::NO_TEXT;
 use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::file_execution::{FileRun, open_file};
 use crate::application::file_dag::program::facade_runtime::types::{
@@ -10,6 +9,7 @@ use crate::application::file_dag::program::facade_runtime::types::{
 };
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::application::file_dag::service_test::operators::fixtures::NO_TEXT;
 use ryo_execution_domain::domain::coverage::types::{Partial, RuleIndex};
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::observation_schedule::types::RuleSchedule;

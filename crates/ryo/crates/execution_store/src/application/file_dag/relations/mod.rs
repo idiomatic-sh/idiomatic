@@ -279,7 +279,6 @@ impl interface::RelationStore for RelationOwner {
     }
 }
 
-
 pub(crate) fn same_admitted_rows(
     left: RepresentationInput<'_>,
     right: RepresentationInput<'_>,

@@ -18,7 +18,6 @@ mod service_test;
 
 pub(crate) mod executor;
 
-
 pub mod observations;
 mod ordered_existence;
 

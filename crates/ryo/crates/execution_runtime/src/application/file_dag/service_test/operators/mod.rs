@@ -1,3 +1,4 @@
+//! The `operators` group of cases and the support its groups share.
 pub(crate) mod fixtures;
 mod source_matches_gate;
 mod source_matches_item;

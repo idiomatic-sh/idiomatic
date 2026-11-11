@@ -1,1 +1,3 @@
-#[cfg(test)] pub(super) mod test;
+//! Physical occurrence spans and capture rows through actual compiled execution.
+#[cfg(test)]
+pub(super) mod test;

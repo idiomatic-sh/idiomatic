@@ -2,10 +2,10 @@
 use super::errors::RuleCompilationError;
 use super::service::CompiledPlans;
 use super::service::RuleCompilation;
-use fixtures::{population, rule};
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::fixtures::fake::{QueryLanguageFake, REFUSED};
 use crate::outbound::query_language::interface::QueryLanguagePort;
+use fixtures::{population, rule};
 use ryo_execution_domain::domain::operator::constants::{OPERATORS, describe};
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;

@@ -1,7 +1,7 @@
 //! Request-qualified observation slots and the complete synthetic instruction census.
+use super::super::fixtures::{self, DeclaredFileProducers, Fixture, FrontierSlots, Names};
 #[cfg(test)]
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use super::super::fixtures::{self, DeclaredFileProducers, Fixture, FrontierSlots, Names};
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     executable_program::{

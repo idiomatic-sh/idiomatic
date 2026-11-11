@@ -1,16 +1,14 @@
 //! The interpreter's own visit bounds over increasing authored input populations: the rows each input of the operation is fed
 //! grow linearly with the population.
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use crate::inbound::use_cases::execution::interface::OperatingError;
 use super::super::super::conformance::test::{author, compare_delivery, repeated};
-use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::*;
-use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::values::numbers;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::expectations::SOURCE;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::values::numbers;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::*;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
-    plan_parts::types::ColumnIndex,
-    plans::types::Operation,
-    query_operators::types::OperationKind,
+    plan_parts::types::ColumnIndex, plans::types::Operation, query_operators::types::OperationKind,
 };
 fn former_unary_pilots_keep_linear_visits() -> Result<(), Failure> {
     for kind in [

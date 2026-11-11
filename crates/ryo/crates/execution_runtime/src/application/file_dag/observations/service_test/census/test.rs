@@ -1,8 +1,6 @@
 //! The shared walk's census counts every synthetic observation union a compiled program adds, beside the original
 //! instructions, each with its observation barrier.
-use super::super::fixtures::{
-    DeclaredFileProducers, Fixture, FrontierSlots, Names, fixture,
-};
+use super::super::fixtures::{DeclaredFileProducers, Fixture, FrontierSlots, Names, fixture};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::{
     executable_program::{service::compile, types::InputSource},

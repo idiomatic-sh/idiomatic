@@ -1,5 +1,7 @@
 //! The project phase's frontiers and demands: frontiers of another request or coverage are refused, a root answers only what its rule demands, and a scope and its phase finish together.
-use super::super::super::fixtures::{Entry, corpus, covered, prepare_for, producer_program, program};
+use super::super::super::fixtures::{
+    Entry, corpus, covered, prepare_for, producer_program, program,
+};
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::project_phase::interface::ProjectStage as _;
 use crate::application::file_dag::program::project_phase::types::{

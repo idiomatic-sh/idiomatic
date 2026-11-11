@@ -4,10 +4,7 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     coverage::types::{Lacking, Partial},
     operating::errors::OperatingError,
-    table_model::{
-        types::PhysicalShape,
-        types::Rows,
-    },
+    table_model::{types::PhysicalShape, types::Rows},
 };
 use ryo_relations::domain::relations::{
     service::{all, kinds, to_bits},
@@ -340,4 +337,3 @@ fn normalization_reuses_one_owned_fallback_without_promoting_missing_rows() {
         crate::application::file_dag::relations::types::CheckCount(1)
     );
 }
-

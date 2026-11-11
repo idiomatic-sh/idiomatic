@@ -1,4 +1,6 @@
 //! Schema, publication and refusal controls through production request preparation.
+#[cfg(test)]
+use super::fixtures::{native_plan, plan, prepared, select, step};
 use ryo_execution_domain::domain::file_program::service::compile_prepared_observations;
 use ryo_execution_domain::domain::file_program::types::NodeInput;
 use ryo_execution_domain::domain::observation_schedule::types::ObservationRequest;
@@ -20,8 +22,6 @@ use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::RowCount;
 use ryo_values::domain::rows::types::Table;
-#[cfg(test)]
-use super::fixtures::{native_plan, plan, prepared, select, step};
 
 #[test]
 fn each_native_step_answers_its_output_kinds() {

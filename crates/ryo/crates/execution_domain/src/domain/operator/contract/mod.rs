@@ -19,7 +19,5 @@ pub(crate) mod walk;
 
 pub mod workspace;
 
-
-
 #[cfg(test)]
 mod service_test;
