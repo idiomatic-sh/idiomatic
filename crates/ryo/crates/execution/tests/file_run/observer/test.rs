@@ -37,7 +37,7 @@ fn a_file_run_answers_the_same_with_or_without_the_counting_observer() {
     let corpus = corpus();
     let facts = ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake::default();
     let run = |observer: Option<
-        Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort>,
+        Arc<dyn ryo_execution::inbound::use_cases::execution::interface::ObserverPort>,
     >| {
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, observer);
         let worker = super::super::fixtures::function_rows(&facts, FileId(0), &[1, 2, 3]);
@@ -60,10 +60,10 @@ fn a_file_run_answers_the_same_with_or_without_the_counting_observer() {
             .collect::<Vec<_>>()
     };
     let unobserved = run(None);
-    use ryo_execution_runtime::outbound::observer::interface::ObserverPort as _;
+    use ryo_execution::inbound::use_cases::execution::interface::ObserverPort as _;
     let counting = Arc::new(ryo_execution_runtime::outbound::observer::factory::counting());
     let shared = Arc::clone(&counting);
-    let observer: Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort> =
+    let observer: Arc<dyn ryo_execution::inbound::use_cases::execution::interface::ObserverPort> =
         shared;
     let observed = run(Some(observer));
     assert_eq!(
@@ -90,8 +90,8 @@ fn a_file_run_answers_the_same_with_or_without_the_counting_observer() {
 #[test]
 fn each_fused_step_is_counted_for_the_rows_it_was_fed() {
     use crate::shared_walk::fixtures::{compared, text, tree};
+    use ryo_execution::inbound::use_cases::execution::interface::ObserverPort as _;
     use ryo_execution_runtime::outbound::facts::interface::FactsPort as _;
-    use ryo_execution_runtime::outbound::observer::interface::ObserverPort as _;
     use ryo_values::domain::plan_parts::types::Test;
     let (engine, _) = crate::shared_walk::fixtures::engine();
     let mut input = authored_request(1);
@@ -121,7 +121,7 @@ fn each_fused_step_is_counted_for_the_rows_it_was_fed() {
     let corpus = corpus();
     let counting = Arc::new(ryo_execution_runtime::outbound::observer::factory::counting());
     let shared = Arc::clone(&counting);
-    let observer: Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort> =
+    let observer: Arc<dyn ryo_execution::inbound::use_cases::execution::interface::ObserverPort> =
         shared;
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, Some(observer));
     let (elements, mut symbols) = tree(FileId(0), b"abc");

@@ -1,6 +1,7 @@
 //! The facts a file run reads, held by the facts port's fake.
+use ryo_execution::inbound::use_cases::execution::interface::FactsWorker;
 use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
-use ryo_execution_runtime::outbound::facts::interface::{FactsPort as _, FactsWorker};
+use ryo_execution_runtime::outbound::facts::interface::FactsPort as _;
 use ryo_relations::domain::relations::fixtures::{kinds, to_bits};
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Flag, Integer, NodeId, Offset, Relation, Span, Value,

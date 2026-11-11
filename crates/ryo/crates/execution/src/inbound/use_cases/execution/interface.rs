@@ -43,7 +43,9 @@ pub use ryo_execution_runtime::application::file_dag::program::rule_outcome::typ
 pub use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 pub use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 pub use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RuleOutcome;
-use ryo_execution_runtime::outbound::observer::interface::ObserverPort;
+pub use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
+pub use ryo_execution_runtime::outbound::observer::interface::ObserverPort;
+pub use ryo_execution_store::application::file_dag::relations::interface::RelationStore;
 // Canonical inbound signature vocabulary from private pure concepts.
 pub use ryo_execution_domain::domain::coverage::types::Covered;
 pub use ryo_execution_domain::domain::coverage::types::FileObservationReadiness;

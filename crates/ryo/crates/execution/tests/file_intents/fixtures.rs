@@ -119,7 +119,7 @@ pub(crate) fn ran_file(
         &ryo_language::domain::elements::types::Elements,
         &mut Symbols,
     ),
-    worker: &dyn ryo_execution_runtime::outbound::facts::interface::FactsWorker,
+    worker: &dyn ryo_execution::inbound::use_cases::execution::interface::FactsWorker,
 ) -> (Vec<Ran>, String) {
     use ryo_execution::inbound::use_cases::execution::interface::{
         EmittedRoot, FileEnd, FileRunInput, RuleAfter,

@@ -43,8 +43,8 @@ pub(crate) fn rows(second: (u32, u32)) -> Table {
 }
 
 /// A store of its own, through the owner's fixture, over the store's derived semantics.
-pub(crate) fn store()
--> impl ryo_execution_store::application::file_dag::relations::interface::RelationStore {
+pub(crate) fn store() -> impl ryo_execution::inbound::use_cases::execution::interface::RelationStore
+{
     ryo_execution_store::application::file_dag::relations::RelationOwner::fixture(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),

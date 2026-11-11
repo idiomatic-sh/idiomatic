@@ -211,9 +211,6 @@ specs = [
   # relations `accounting.rs` and the packed issuance describe each relation backing's allocation once, as the ledger's `Backing`, when the relation is published: they report to that ledger and keep none of their own.
   { spec = "idiomatic.arch/idiomatic-rust", include = ["."], params = { internal-crates = ["ryo_execution_domain", "ryo_execution_store", "ryo_execution_runtime"], test-contracts = [
     { path = "ryo_execution_runtime::outbound::facts::interface::FactsPort" },
-    { path = "ryo_execution_runtime::outbound::facts::interface::FactsWorker" },
-    { path = "ryo_execution_runtime::outbound::observer::interface::ObserverPort" },
-    { path = "ryo_execution_store::application::file_dag::relations::interface::RelationStore" },
     { path = "ryo_execution_store::application::file_dag::relations::RelationOwner::fixture" },
     { path = "ryo_relations::domain::relations::collections::relations::function::item::Function" },
     { path = "ryo_relations::domain::relations::collections::relations::function::item::FunctionRow" },
