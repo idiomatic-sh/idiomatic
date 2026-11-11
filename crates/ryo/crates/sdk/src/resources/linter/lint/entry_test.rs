@@ -1,11 +1,8 @@
-// ignore: idiomatic.arch/file-length - the proof table of one function: the entry spec admits one entry_test.rs, one row of CASES per promise, so the file cannot split
 //! What `linter lint` promises its caller, one row of `CASES` for each case it has.
 
-use std::collections::BTreeMap;
 use std::num::{NonZeroU64, NonZeroUsize};
 
 use super::entry::lint;
-use super::errors::LintError;
 use super::fixtures::capability_cache::capability_cache;
 use super::fixtures::configured_scope::configured_scope;
 use super::fixtures::excluded_producer::excluded_producer;
@@ -17,97 +14,17 @@ use super::fixtures::queries::{
     HOSTED, LITERAL_PARSE_POSITIVE, OPTIONAL_POSITIVE, RAW_FORMAT_POSITIVE,
 };
 use super::fixtures::re_exported_publication::re_exported_publication;
+use super::fixtures::refusal::{Refusal, refusal};
 use super::fixtures::refused_and_empty_producers::refused_and_empty_producers;
+use super::fixtures::request::{Given, Hosting, Linting, Reads, Root, request};
 use super::fixtures::shared_calls::shared;
 use super::fixtures::unbound_export::unbound_export;
 use super::fixtures::zero_finding_producer::zero_finding_producer;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::capacity::types::MemoryBudget;
-use crate::domain::cell::types::{Cell, HostNumber, HostText};
-use crate::domain::file::types::RelativePath;
-use crate::domain::host::types::{HostColumn, HostColumnName, HostKind, HostRelationName};
 use crate::domain::language::types::Languages;
 use crate::resources::linter::lint::types::Cache;
-use crate::resources::linter::lint::types::CaseSource;
-use crate::resources::linter::lint::types::Corpus;
-use crate::resources::linter::lint::types::HostRelation;
-use crate::resources::linter::lint::types::HostRow;
-use crate::resources::linter::lint::types::LintRequest;
-use crate::resources::linter::lint::types::Rule;
-use crate::resources::linter::lint::types::RuleId;
-use crate::resources::linter::lint::types::SourceText;
 use crate::resources::linter::lint::types::Workers;
-
-/// Where the repository is.
-#[derive(Clone, Copy, Debug)]
-enum Root {
-    /// A directory holding one file.
-    Directory,
-    /// A directory that is not there.
-    Missing,
-    /// A path that is not text. A Unix path from raw bytes and a Windows path from a lone surrogate can be other than
-    /// text, so the row and this variant exist there.
-    #[cfg(any(unix, windows))]
-    NotText,
-}
-
-/// Which linter the row's calls go to.
-#[derive(Clone, Copy, Debug)]
-enum Linting {
-    /// The one call, to a linter of its own.
-    Fresh,
-    /// Two different calls to one linter, one after the other, interleaved and in parallel, each checked against what the same
-    /// call gives on a fresh linter: the value is the first call's.
-    Shared,
-    /// Same-binary optional capability changes invalidate retained observations.
-    Capabilities,
-    /// A scenario of the fixtures, over a linter and a repository of its own.
-    Scenario(fn() -> Outcome),
-}
-
-/// What the caller states: the rule's text, whether the run keeps what it leaves in a directory of the caller's, where the repository
-/// is, the most memory the run may use in bytes (none: the machine's), whether the file it holds is said to be placed, and whether the
-/// files are given as text, and which linter the calls go to.
-#[derive(Clone, Copy, Debug)]
-struct Given {
-    query: &'static str,
-    kept: bool,
-    root: Root,
-    bytes: Option<u64>,
-    hosted: Hosting,
-    corpus: Reads,
-    linter: Linting,
-}
-
-/// Which files the run is told to read.
-#[derive(Clone, Copy, Debug)]
-enum Reads {
-    /// The disk, walked.
-    Walked,
-    /// The disk, as listed: the one file there.
-    Listed,
-    /// The disk, as listed: nothing.
-    ListedNothing,
-    /// The disk, walked, and a file given as text beside it.
-    Beside,
-    /// Only a file given as text.
-    Given,
-}
-
-/// What the host declares with the request.
-#[derive(Clone, Copy, Debug)]
-enum Hosting {
-    /// Nothing.
-    None,
-    /// A relation of the files it placed, its rows right.
-    Placed,
-    /// A row with a cell fewer than the relation has columns.
-    ShortRow,
-    /// A cell that is not of the kind of its column.
-    WrongKind,
-    /// Two relations with one name.
-    Twice,
-}
 
 /// What a row gives the function: the rule's text, where the repository is and what else the caller states.
 type Input = Given;
@@ -116,37 +33,6 @@ type Input = Given;
 type Value = Outcome;
 /// Why the function ends in error.
 type Failure = Refusal;
-
-/// The refusals the rows tell apart.
-#[derive(Debug, PartialEq, Eq)]
-enum Refusal {
-    /// Preserve the engine execution reason for an unexpected runtime refusal.
-    Execution(String),
-    /// Invalid declared observation bindings.
-    ObservationBindings,
-    /// Required observation publication failed during execution.
-    ObservationExecution,
-    /// The explicitly requested source provider is not linked.
-    SourceLanguage,
-    /// A rule whose text is wrong.
-    Rule,
-    /// A rule that cannot be run.
-    Unrunnable,
-    /// A parameter nothing is bound to.
-    MissingParameter,
-    /// A repository that does not fit.
-    TooLarge,
-    /// A path that is not text.
-    PathNotText,
-    /// A part of the system failed.
-    Io,
-    /// A language wrote what its file cannot hold.
-    Provider,
-    /// The host declared its relations wrongly.
-    Host,
-    /// The run held more than the budget.
-    MemoryBudgetExceeded,
-}
 
 const FUNCTIONS: &str =
     "let functions = select * from \"function\"; emit functions subject \"file\" key(\"span\");";
@@ -451,57 +337,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// A path that is not text.
-#[cfg(unix)]
-fn not_text() -> std::path::PathBuf {
-    use std::os::unix::ffi::OsStringExt as _;
-    std::ffi::OsString::from_vec(vec![b'/', 0xff, 0xfe]).into()
-}
-
-/// A path that is not text: a lone surrogate, which no UTF-8 holds.
-#[cfg(windows)]
-fn not_text() -> std::path::PathBuf {
-    use std::os::windows::ffi::OsStringExt as _;
-    std::ffi::OsString::from_wide(&[u16::from(b'/'), 0xD800]).into()
-}
-
-/// The relation of the placed files the host declares: the file that is on disk, or the one given as text.
-fn hosted(hosting: Hosting, given_as_text: bool) -> Vec<HostRelation> {
-    let file = if given_as_text {
-        "from-memory.txt"
-    } else {
-        "notes.txt"
-    };
-    let relation = |cells: Vec<Cell>| HostRelation {
-        name: HostRelationName("host.placed".into()),
-        columns: vec![
-            HostColumn {
-                name: HostColumnName("path".into()),
-                kind: HostKind::File,
-            },
-            HostColumn {
-                name: HostColumnName("spec".into()),
-                kind: HostKind::Text,
-            },
-        ],
-        rows: vec![HostRow(cells)],
-    };
-    let right = vec![
-        Cell::File(RelativePath(file.into())),
-        Cell::Text(HostText("docs".into())),
-    ];
-    match hosting {
-        Hosting::None => Vec::new(),
-        Hosting::Placed => vec![relation(right)],
-        Hosting::ShortRow => vec![relation(vec![Cell::File(RelativePath(file.into()))])],
-        Hosting::WrongKind => vec![relation(vec![
-            Cell::Number(HostNumber(1)),
-            Cell::Text(HostText("docs".into())),
-        ])],
-        Hosting::Twice => vec![relation(right.clone()), relation(right)],
-    }
-}
-
 /// Lints a directory holding one file, with no language linked: the file is unread.
 fn subject(given: Input) -> Result<Value, Failure> {
     if matches!(given.linter, Linting::Capabilities) {
@@ -516,50 +351,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
     let root = tempfile::tempdir().expect("a temporary directory");
     let elsewhere = tempfile::tempdir().expect("a temporary directory");
     std::fs::write(root.path().join("notes.txt"), "text").expect("a file");
-    let id = RuleId::try_from("rule").expect("a rule id");
-    let request = LintRequest {
-        project_search_scope: Default::default(),
-        given_project_inventory: Default::default(),
-        source_language: crate::domain::language::types::SourceLanguage::Recognized,
-        root: match given.root {
-            Root::Directory => root.path().to_path_buf(),
-            Root::Missing => root.path().join("not-there"),
-            #[cfg(any(unix, windows))]
-            Root::NotText => not_text(),
-        },
-        rules: BTreeMap::from([(
-            id,
-            Rule {
-                observations: Vec::new(),
-                query: crate::resources::query::RyoQlQuery::try_from(given.query).expect("a query"),
-                applicability: crate::resources::linter::RuleApplicability::Always,
-                parameters: BTreeMap::new(),
-                include: Vec::new(),
-                exclude: Vec::new(),
-            },
-        )]),
-        files: Vec::new(),
-        hosted: hosted(given.hosted, matches!(given.corpus, Reads::Given)),
-        corpus: match given.corpus {
-            Reads::Walked | Reads::Beside => Corpus::Walked,
-            Reads::Listed => Corpus::Listed(vec![RelativePath("notes.txt".into())]),
-            Reads::ListedNothing => Corpus::Listed(Vec::new()),
-            Reads::Given => Corpus::Given(vec![CaseSource {
-                executable: Default::default(),
-                path: RelativePath("from-memory.txt".into()),
-                text: SourceText("text".into()),
-            }]),
-        },
-        beside: if matches!(given.corpus, Reads::Beside) {
-            vec![CaseSource {
-                executable: Default::default(),
-                path: RelativePath("beside.txt".into()),
-                text: SourceText("text".into()),
-            }]
-        } else {
-            Vec::new()
-        },
-    };
+    let request = request(given, root.path());
     let memory = given
         .bytes
         .and_then(NonZeroU64::new)
@@ -577,24 +369,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
         cache,
         request,
     )
-    .map_err(|error| match error {
-        LintError::Execution { reason } => Refusal::Execution(reason),
-        LintError::ObservationBindings { .. } => Refusal::ObservationBindings,
-        LintError::ObservationExecution { .. } => Refusal::ObservationExecution,
-        LintError::SourceLanguage { .. } => Refusal::SourceLanguage,
-        LintError::Rule { .. } => Refusal::Rule,
-        LintError::Unrunnable { .. } => Refusal::Unrunnable,
-        LintError::MissingParameter { .. } => Refusal::MissingParameter,
-        LintError::TooLarge { .. } => Refusal::TooLarge,
-        LintError::PathNotText { .. } => Refusal::PathNotText,
-        LintError::ProjectPath { .. } => Refusal::PathNotText,
-        LintError::Io { .. } => Refusal::Io,
-        LintError::Provider { .. } => Refusal::Provider,
-        LintError::DuplicateHostRelation { .. }
-        | LintError::HostRowWidth { .. }
-        | LintError::HostCellKind { .. } => Refusal::Host,
-        LintError::MemoryBudgetExceeded { .. } => Refusal::MemoryBudgetExceeded,
-    })?;
+    .map_err(refusal)?;
     let untouched = std::fs::read_dir(root.path()).is_ok_and(|entries| entries.count() == 1)
         && (!given.kept || elsewhere.path().join("cache").join("ryo").is_dir());
     let columns = report
