@@ -69,7 +69,7 @@ pub struct InvocationWorkspace {
     >,
     predicate_memo: Vec<ryo_execution_domain::domain::operating::types::Memo>,
     predicate_names: Option<ryo_execution_domain::domain::operating::types::NameCount>,
-    literal_regex: Option<ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex>,
+    literal_regex: Option<ryo_matching::inbound::use_cases::matching::types::CompiledRegex>,
     primitive: ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace,
 }
 
