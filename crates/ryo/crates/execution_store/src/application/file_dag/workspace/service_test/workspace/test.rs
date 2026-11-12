@@ -150,7 +150,16 @@ fn subject(input: Held) -> Result<Answered, OperatingError> {
                 Held::Captured | Held::Released => {
                     workspace.admit(InputNumber(0), RepresentationInput::from(&rows))?
                 }
-                _ => workspace.admit(InputNumber(0), RepresentationInput::Computed(&raw))?,
+                Held::Nothing
+                | Held::EmptySlot
+                | Held::Unpublished
+                | Held::TwoViews(_)
+                | Held::TwoRights(_)
+                | Held::Normalized
+                | Held::Recaptured(_)
+                | Held::Prepared => {
+                    workspace.admit(InputNumber(0), RepresentationInput::Computed(&raw))?
+                }
             };
             Ok(Answered::Admitted {
                 relation: admitted.identity(&owner)?.relation,

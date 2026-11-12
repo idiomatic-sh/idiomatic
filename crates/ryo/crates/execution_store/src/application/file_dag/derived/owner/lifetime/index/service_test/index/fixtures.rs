@@ -36,9 +36,10 @@ pub(super) fn fixture(columns: &[FactColumn]) -> (ResourceFixture, Built) {
     let held = fixture
         .index(Relation::Function, &input, &[ColumnIndex(0)])
         .unwrap();
-    let rows = match held.view().unwrap() {
-        DerivedView::Equality(index) => index.rows.clone(),
-        _ => Vec::new(),
+    let rows = if let DerivedView::Equality(index) = held.view().unwrap() {
+        index.rows.clone()
+    } else {
+        Vec::new()
     };
     let first_payload = rows
         .first()

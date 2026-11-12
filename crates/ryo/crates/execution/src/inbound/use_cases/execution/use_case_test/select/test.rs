@@ -282,7 +282,14 @@ fn subject(selection: Input) -> Result<Value, Failure> {
     let out = fixtures::requests::published(plan, vec![], vec![hosted], &mut symbols)?;
     let shown = |cell: &Published| match cell {
         Published::Number(Integer(number)) => Shown::Number(*number),
-        other => Shown::Text(Cow::Owned(inputs::text(other.clone(), &symbols).to_owned())),
+        other @ (Published::Node(_)
+        | Published::Symbol(_)
+        | Published::Name(_)
+        | Published::File(_)
+        | Published::Span(_)
+        | Published::Flag(_)) => {
+            Shown::Text(Cow::Owned(inputs::text(other.clone(), &symbols).to_owned()))
+        }
     };
     let width = out.kinds.len().max(1);
     Ok(Cow::Owned(

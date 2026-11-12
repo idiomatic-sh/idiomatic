@@ -283,7 +283,7 @@ pub(super) fn exercise_nested(single_result: bool) -> Result<Observed, Operating
             // The frame borrows the exact existing lookup, without replacing or extending its
             // session.
             let admitted = context.semantic.ok_or(OperatingError::NotRead)?;
-            if std::ptr::from_ref(admitted) as *const () == std::ptr::from_ref(&lookup) as *const ()
+            if std::ptr::addr_eq(std::ptr::from_ref(admitted), std::ptr::from_ref(&lookup))
                 && admitted
                     .render_batch(&[], ryo_values::domain::files::types::SourceView(b""))?
                     .is_empty()

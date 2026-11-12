@@ -307,7 +307,9 @@ fn subject(route: Input) -> Result<Value, Failure> {
                 }
                 // The earlier internal-demand case observed this Project's two dominated
                 // numbers; as an authored root it is observed under the real protocol.
-                _ => request.emit.step = StepId(3),
+                Route::Dominated | Route::PartialPositive | Route::PartialAbsence => {
+                    request.emit.step = StepId(3);
+                }
             }
             run_file(
                 request,
@@ -320,7 +322,11 @@ fn subject(route: Input) -> Result<Value, Failure> {
     let (kinds, affected) = match &outcome {
         RootOutcome::Complete(table) => (table.kinds.clone(), vec![]),
         RootOutcome::Partial { table, affected } => (table.kinds.clone(), affected.clone()),
-        _ => (vec![], vec![]),
+        RootOutcome::Skipped(_)
+        | RootOutcome::Unknown(_)
+        | RootOutcome::Failed(_)
+        | RootOutcome::NoQuery
+        | RootOutcome::Deferred { .. } => (vec![], vec![]),
     };
     Ok(Routed {
         kinds: Cow::Owned(kinds),

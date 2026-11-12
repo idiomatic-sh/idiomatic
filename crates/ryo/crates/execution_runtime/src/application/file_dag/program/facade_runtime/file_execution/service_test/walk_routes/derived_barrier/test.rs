@@ -50,9 +50,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 }];
 
 fn rows(root: Root) -> Option<usize> {
-    match root {
-        Root::Complete { rows, .. } => Some(rows),
-        _ => None,
+    if let Root::Complete { rows, .. } = root {
+        Some(rows)
+    } else {
+        None
     }
 }
 

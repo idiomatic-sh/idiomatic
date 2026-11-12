@@ -222,11 +222,10 @@ fn subject(binds: Input) -> Result<Value, Failure> {
                 let group = first[kind.ordinal()].as_ref()?;
                 let again = second[kind.ordinal()].as_ref()?;
                 let primary = &group.primary;
-                let equality = match &primary.plan.request {
-                    ViewRequest::Equality { columns } => {
-                        Some(Cow::Owned(columns.iter().map(|column| column.0).collect()))
-                    }
-                    _ => None,
+                let equality = if let ViewRequest::Equality { columns } = &primary.plan.request {
+                    Some(Cow::Owned(columns.iter().map(|column| column.0).collect()))
+                } else {
+                    None
                 };
                 Some(Slot {
                     kind,

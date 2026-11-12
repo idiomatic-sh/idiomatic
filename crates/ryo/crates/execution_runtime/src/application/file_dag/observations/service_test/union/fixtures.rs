@@ -117,7 +117,12 @@ fn emitted(outcome: RootOutcome) -> Emitted {
                     .iter()
                     .map(|cell| match cell {
                         Value::Number(Integer(number)) => *number,
-                        _ => i64::MIN,
+                        Value::Node(_)
+                        | Value::Symbol(_)
+                        | Value::Name(_)
+                        | Value::File(_)
+                        | Value::Span(_)
+                        | Value::Flag(_) => i64::MIN,
                     })
                     .collect(),
             ),

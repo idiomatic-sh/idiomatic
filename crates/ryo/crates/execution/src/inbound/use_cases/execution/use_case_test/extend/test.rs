@@ -104,7 +104,14 @@ fn subject(appending: Input) -> Result<Value, Failure> {
         .collect();
     let shown = |cell: &Cell| match cell {
         Cell::Number(Integer(number)) => Shown::Number(*number),
-        other => Shown::Text(Cow::Owned(inputs::text(other.clone(), &symbols).to_owned())),
+        other @ (Cell::Node(_)
+        | Cell::Symbol(_)
+        | Cell::Name(_)
+        | Cell::File(_)
+        | Cell::Span(_)
+        | Cell::Flag(_)) => {
+            Shown::Text(Cow::Owned(inputs::text(other.clone(), &symbols).to_owned()))
+        }
     };
     Ok(Extended {
         kinds: Cow::Owned(out.kinds.clone()),

@@ -408,8 +408,8 @@ fn fallible(kind: OperationKind) -> Result<RowFailure, OperatingError> {
         InputShape { kinds, tree: None },
     ];
     let function = Source::Relation(Relation::Function);
-    let operation = match kind {
-        OperationKind::OrderedMatch => Operation::OrderedMatch {
+    let operation = if kind == OperationKind::OrderedMatch {
+        Operation::OrderedMatch {
             left: function,
             right: function,
             left_on: vec![],
@@ -417,16 +417,18 @@ fn fallible(kind: OperationKind) -> Result<RowFailure, OperatingError> {
             left_order: ColumnIndex(0),
             right_order: ColumnIndex(0),
             output: vec![],
-        },
-        OperationKind::SpanBounds => Operation::SpanBounds {
+        }
+    } else if kind == OperationKind::SpanBounds {
+        Operation::SpanBounds {
             from: function,
             span: ColumnIndex(0),
-        },
-        _ => Operation::Select {
+        }
+    } else {
+        Operation::Select {
             from: function,
             comparisons: vec![],
             kept: vec![],
-        },
+        }
     };
     prepare_for(kind, &operation, &shape, &[], StepScope::PerFile).map(|contract| contract.failure)
 }
@@ -631,13 +633,15 @@ fn plans_of(plans: Plans) -> (Vec<Plan>, Option<Relation>) {
 fn compared(comparison: PlanComparison) -> Compared {
     Compared {
         test: comparison.test,
-        column: match comparison.left {
-            Operand::Column(column) => Some(column.0),
-            _ => None,
+        column: if let Operand::Column(column) = comparison.left {
+            Some(column.0)
+        } else {
+            None
         },
-        text: match comparison.right {
-            Operand::Literal(QueryLiteral::Text(text)) => Some(Cow::Owned(text.0.into())),
-            _ => None,
+        text: if let Operand::Literal(QueryLiteral::Text(text)) = comparison.right {
+            Some(Cow::Owned(text.0.into()))
+        } else {
+            None
         },
     }
 }
@@ -653,7 +657,12 @@ fn folded(plans: Plans) -> Skip {
         | Plans::Noqa
         | Plans::MixedShared
         | Plans::MixedBoth => fold_sharing(&plans_folded, shared),
-        _ => fold(&plans_folded),
+        Plans::SelfJoin
+        | Plans::JoinRight { .. }
+        | Plans::Union
+        | Plans::CrossFile
+        | Plans::UnknownColumn
+        | Plans::FallibleUpstream => fold(&plans_folded),
     };
     let formula = last(&presence, &plans_folded);
     let shape = match &presence.table.formulas[formula.0] {
@@ -703,8 +712,8 @@ fn gates(kind: OperationKind) -> Result<Gates, OperatingError> {
         },
     ];
     let child = Source::Relation(Relation::SyntaxChild);
-    let operation = match kind {
-        OperationKind::Axis => Operation::Axis {
+    let operation = if kind == OperationKind::Axis {
+        Operation::Axis {
             from: child,
             edges: child,
             domain: child,
@@ -716,19 +725,20 @@ fn gates(kind: OperationKind) -> Result<Gates, OperatingError> {
             domain_filter: vec![],
             domain_view: vec![],
             output: vec![],
-        },
-        _ => Operation::Antijoin {
+        }
+    } else {
+        Operation::Antijoin {
             left: child,
             right: child,
             left_on: vec![ColumnIndex(0)],
             right_on: vec![ColumnIndex(0)],
-        },
+        }
     };
     let kind = ryo_values::domain::plans::service::kind_of(&operation);
     let contract = prepare_for(kind, &operation, &shapes, &[], StepScope::PerFile)?;
     let (requires_all, mask) = match semantics(kind).presence {
         PresenceMask::AllOf(mask) => (true, mask.0),
-        _ => (false, 0),
+        PresenceMask::AnyOf(_) | PresenceMask::Always => (false, 0),
     };
     let any = contract
         .empty_results

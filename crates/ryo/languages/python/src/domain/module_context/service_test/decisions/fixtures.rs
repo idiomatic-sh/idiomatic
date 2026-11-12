@@ -126,7 +126,9 @@ pub(super) fn root_basename_preserves_contiguous_boundary_and_namespace_prefix()
                 ));
                 observed.push(format!("{}", !module.path.0.contains("namespace")));
             }
-            other => observed.push(format!("{other:?}")),
+            other @ (ModuleDecision::Known(None)
+            | ModuleDecision::Need(_)
+            | ModuleDecision::Unknown) => observed.push(format!("{other:?}")),
         }
     }
     observed.join("|")

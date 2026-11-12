@@ -150,7 +150,9 @@ fn refusal(error: RuleCompilationError) -> Refusal {
         RuleCompilationError::UnknownRuleIndex { index, rules } => {
             Refusal::UnknownRuleIndex { index, rules }
         }
-        other => Refusal::Other(format!("{other:?}")),
+        other @ (RuleCompilationError::Observations(_)
+        | RuleCompilationError::Rules(_)
+        | RuleCompilationError::Query { .. }) => Refusal::Other(format!("{other:?}")),
     }
 }
 

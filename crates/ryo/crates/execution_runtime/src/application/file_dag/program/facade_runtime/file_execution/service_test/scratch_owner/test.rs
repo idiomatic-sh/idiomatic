@@ -144,9 +144,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn numbers(cells: &[Cell]) -> Cow<'static, [i64]> {
     cells
         .iter()
-        .map(|cell| match cell {
-            Cell::Number(Integer(number)) => *number,
-            other => panic!("a number cell, not {other:?}"),
+        .map(|cell| {
+            let Cell::Number(Integer(number)) = cell else {
+                panic!("a number cell, not {cell:?}");
+            };
+            *number
         })
         .collect()
 }
@@ -167,18 +169,20 @@ fn aggregate(kind: OperationKind) -> Result<Ran, OperatingError> {
                 .collect()
         })
         .collect();
-    let operation = match case.operation {
-        Operation::GroupCount { keys, distinct, .. } => Operation::GroupCount {
+    let operation = if let Operation::GroupCount { keys, distinct, .. } = case.operation {
+        Operation::GroupCount {
             from: PlanInput::Step(StepId(0)),
             keys,
             distinct,
-        },
-        Operation::GroupDigest { keys, over, .. } => Operation::GroupDigest {
+        }
+    } else if let Operation::GroupDigest { keys, over, .. } = case.operation {
+        Operation::GroupDigest {
             from: PlanInput::Step(StepId(0)),
             keys,
             over,
-        },
-        _ => return Err(OperatingError::WrongOperation),
+        }
+    } else {
+        return Err(OperatingError::WrongOperation);
     };
     let (result, observed, left) = execute(
         operation,
@@ -243,11 +247,14 @@ fn subject(operated: Input) -> Result<Value, Failure> {
     let delivered = result
         .map(|table| match operated {
             Operated::Project { .. } => Delivered::Numbers(numbers(&table.cells)),
-            _ => Delivered::Rows(table.count.0),
+            Operated::SelfMatch { .. } | Operated::Aggregate(_) => Delivered::Rows(table.count.0),
         })
-        .or_else(|error| match error {
-            OperatingError::InvalidRegex { reason } => Ok(Delivered::InvalidRegex(reason.into())),
-            other => Err(other),
+        .or_else(|error| {
+            if let OperatingError::InvalidRegex { reason } = error {
+                Ok(Delivered::InvalidRegex(reason.into()))
+            } else {
+                Err(error)
+            }
         })?;
     Ok(Ran {
         delivered,

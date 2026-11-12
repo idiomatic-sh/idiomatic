@@ -176,7 +176,9 @@ fn dense() -> Observed {
         places_in_order: table.cells.chunks_exact(2).enumerate().all(|(place, row)| {
             row == [
                 stretch((place / 16) as u32, (place / 16 + 1) as u32),
-                Cell::Number(Integer((place % 16) as i64)),
+                Cell::Number(Integer(
+                    i64::try_from(place % 16).expect("a place within a group of 16 fits in i64"),
+                )),
             ]
         }),
         held,

@@ -97,11 +97,10 @@ fn subject((input, mode): Input) -> Result<Value, Failure> {
     })
     .map_err(|refused| Refused {
         input: refused.input,
-        refusal: match refused.error {
-            OperatingError::ObservationIncomplete { reason } => {
-                Refusal::Incomplete(Cow::Owned(reason))
-            }
-            other => Refusal::Other(other),
+        refusal: if let OperatingError::ObservationIncomplete { reason } = refused.error {
+            Refusal::Incomplete(Cow::Owned(reason))
+        } else {
+            Refusal::Other(refused.error)
         },
     })
 }

@@ -218,7 +218,12 @@ pub(in super::super) fn exercise(
                 delivered.push(Outcome::Rows(table.count.0));
                 transferred.push(table);
             }
-            other => delivered.push(Outcome::from(other)),
+            other @ (RootOutcome::Partial { .. }
+            | RootOutcome::Skipped(_)
+            | RootOutcome::Unknown(_)
+            | RootOutcome::Failed(_)
+            | RootOutcome::NoQuery
+            | RootOutcome::Deferred { .. }) => delivered.push(Outcome::from(other)),
         }
     }
     let duplicates_equal = (transferred.len() >= 2).then(|| transferred[0] == transferred[1]);

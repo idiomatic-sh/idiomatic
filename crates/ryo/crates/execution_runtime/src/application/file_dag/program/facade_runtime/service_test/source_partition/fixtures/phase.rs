@@ -107,11 +107,10 @@ fn admitted(
         Arc::clone(&derived),
         ObservationIdentity::Independent,
     )?;
+    let operators: Arc<dyn crate::outbound::operators::interface::OperatorsPort> =
+        Arc::new(crate::application::file_dag::fixtures::operators());
     let engine: Arc<dyn crate::application::file_dag::executor::service::PrimitiveExecutor + Send> =
-        Arc::new(CommonOperatorEngine::new(
-            (Arc::new(crate::application::file_dag::fixtures::operators())
-                as Arc<dyn crate::outbound::operators::interface::OperatorsPort>),
-        ));
+        Arc::new(CommonOperatorEngine::new(operators));
     let corpus = ["a", "b"].map(|path| {
         CorpusInput::Available(CorpusEntry {
             executable: ExecutablePermission::Unknown,

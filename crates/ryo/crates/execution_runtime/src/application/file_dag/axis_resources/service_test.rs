@@ -194,9 +194,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn integers(cells: &[Cell]) -> Cow<'static, [i64]> {
     cells
         .iter()
-        .map(|cell| match cell {
-            Cell::Number(Integer(value)) => *value,
-            other => panic!("a number cell, not {other:?}"),
+        .map(|cell| {
+            let Cell::Number(Integer(value)) = cell else {
+                panic!("a number cell, not {cell:?}");
+            };
+            *value
         })
         .collect()
 }

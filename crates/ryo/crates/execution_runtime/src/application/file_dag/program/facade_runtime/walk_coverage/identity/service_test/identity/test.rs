@@ -251,7 +251,13 @@ fn subject(input: Input) -> Result<Value, Failure> {
     let beside = match input {
         Shape::ReadOnce => Some(class(&program, 0)),
         Shape::SecondReader => Some(class(&program, 2)),
-        _ => None,
+        Shape::HandedOver
+        | Shape::Frontier
+        | Shape::Observed
+        | Shape::JoinedAfter
+        | Shape::CrossFile
+        | Shape::AfterAntijoin
+        | Shape::Extends(_) => None,
     };
     Ok(Fused::Continuation {
         class: class(&program, 1),

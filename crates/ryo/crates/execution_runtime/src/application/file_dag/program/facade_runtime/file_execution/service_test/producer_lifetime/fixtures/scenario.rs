@@ -43,7 +43,11 @@ impl From<RootOutcome> for Delivery {
         match outcome {
             RootOutcome::Complete(table) => Self::Rows(table.count.0),
             RootOutcome::Failed(error) => Self::Failed(error),
-            _ => Self::Lost,
+            RootOutcome::Partial { .. }
+            | RootOutcome::Skipped(_)
+            | RootOutcome::Unknown(_)
+            | RootOutcome::NoQuery
+            | RootOutcome::Deferred { .. } => Self::Lost,
         }
     }
 }
@@ -258,7 +262,11 @@ pub(in super::super) fn exercise(
         match file.rule(RuleIndex(1), demand(), &read, &mut symbols)?.emit {
             RootOutcome::Complete(second) => Second::Rows(integers(&second)),
             RootOutcome::Failed(error) => Second::Failed(error),
-            _ => return Err(OperatingError::NotRun),
+            RootOutcome::Partial { .. }
+            | RootOutcome::Skipped(_)
+            | RootOutcome::Unknown(_)
+            | RootOutcome::NoQuery
+            | RootOutcome::Deferred { .. } => return Err(OperatingError::NotRun),
         }
     };
     let final_counts = file.owner.derived().counts();

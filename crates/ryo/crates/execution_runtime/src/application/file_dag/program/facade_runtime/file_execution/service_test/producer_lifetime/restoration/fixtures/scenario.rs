@@ -175,7 +175,12 @@ pub(in super::super) fn exercise(exit: Exit) -> Result<Restored, OperatingError>
                 delivered.push(Delivery::Rows(table.count.0));
                 transferred.push(table);
             }
-            other => delivered.push(Delivery::from(other)),
+            other @ (RootOutcome::Partial { .. }
+            | RootOutcome::Skipped(_)
+            | RootOutcome::Unknown(_)
+            | RootOutcome::Failed(_)
+            | RootOutcome::NoQuery
+            | RootOutcome::Deferred { .. }) => delivered.push(Delivery::from(other)),
         }
     }
     let duplicates_equal = transferred[0] == transferred[1];

@@ -109,11 +109,17 @@ fn minted_of(text: &'static str, after: AfterTheFiles) -> Minted {
                 origin: place_of(name, &[], &symbols).map(|place| place.origin),
                 text: match crate::domain::table_texts::service::datum(Cell::Name(name), &texts) {
                     Datum::Text(TextView(read)) => Some(Cow::Owned(read.into())),
-                    _ => None,
+                    Datum::Unlocated
+                    | Datum::Number(_)
+                    | Datum::Flag(_)
+                    | Datum::Numbers(_)
+                    | Datum::Texts(_) => None,
                 },
             }
         }
-        _ => Minted::Other,
+        Cell::Node(_) | Cell::File(_) | Cell::Span(_) | Cell::Number(_) | Cell::Flag(_) => {
+            Minted::Other
+        }
     }
 }
 fn subject(ask: Input) -> Result<Value, Failure> {

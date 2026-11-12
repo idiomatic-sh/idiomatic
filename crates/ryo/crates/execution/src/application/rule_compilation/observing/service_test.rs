@@ -248,9 +248,12 @@ fn side(operand: &Operand) -> Side {
             let columns = applied
                 .arguments
                 .iter()
-                .map(|argument| match argument {
-                    Operand::Column(column) => Some(column.0),
-                    _ => None,
+                .map(|argument| {
+                    if let Operand::Column(column) = argument {
+                        Some(column.0)
+                    } else {
+                        None
+                    }
                 })
                 .collect::<Option<Vec<_>>>();
             columns.map_or_else(
