@@ -27,7 +27,7 @@ rules = [
   { rule = "idiomatic.arch/io-at-boundary@0.2.0", include = ["src/domain/**", "src/inbound/use_cases/**", "src/outbound/**", "src/application/**"], exclude = ["**/adapters/**", "**/*_test.rs", "**/acceptance.rs", "**/fixtures.rs", "**/fixtures/**"], description = "Core operations reach external effects only through injected contracts." },
 
   { alias = "application-namespace", rule = "idiomatic.arch/test-group-namespace@0.1.0", params = { case-table = "refused" }, include = [{ placed-by = "application-module" }], description = "An application operation's module file declares the operation's modules only, as a nested part's does: its operation goes in its service.rs, held by the operation's spec, and a namespace operation's module file declares its sub-concepts and nothing else." },
-  { rule = "public-application-service", include = ["src/application/*.rs", "src/application/*/service.rs"], description = "An application operation with a service declares it `pub mod service;` in its module file, as the `application-module` template held before the module file was placed by `part-module`; a namespace operation has no service and is not read." },
+  { rule = "public-application-service", include = ["src/application/*.rs", "src/application/*/service.rs", "src/application/*/service_test.rs"], description = "An application operation with a service declares it `pub mod service;` in its module file, and its service test exactly `#[cfg(test)] mod service_test;`, as the `application-module` template held before the module file was placed by `part-module`; a namespace operation has no service and is not read." },
   { rule = "domain-modules", include = ["src/domain.rs"], description = "The list of domain concepts only declares modules and holds no rule." },
   # The namespace's own files (module files, lists, collections, fixtures): validated only at an edge, no fixtures read at runtime, no hollow file.
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["src/*.rs", "src/inbound/*.rs", "src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/domain/*.rs", "src/outbound/*.rs", "src/application/*.rs"], exclude = ["**/schemas.rs", "**/*_test.rs"], description = "Nothing in the core's namespace files validates: a `TryFrom`, an `impl FromStr` or a fallible constructor stands only in a schemas.rs." },
@@ -1058,6 +1058,50 @@ given.files.'src/application/short.rs' = '''
 //! The `short` application operation.
 mod service;
 #[cfg(test)]
+mod service_test;
+'''
+given.files.'src/application/short/service.rs' = '''
+//! The operation.
+
+/// Runs the operation.
+pub fn run() {}
+'''
+given.files.'src/application/short/service_test.rs' = '''
+//! Behavioral proof of `short`.
+
+use crate::cases::{Case, Expect, Word, run};
+type Input = u8; type Value = u8; type Failure = Refusal; fn subject(input: Input) -> Result<Value, Failure> { Ok(input) }
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.only = ['idiomatic.arch/part-module(application-module)#template', 'idiomatic.arch/test-group-namespace', 'idiomatic.arch/nu-hex/public-application-service', 'idiomatic.arch/application-service/service#count', 'idiomatic.arch/service-test(service-test)#count']
+then.findings = [
+  { rule = 'idiomatic.arch/nu-hex/public-application-service', path = 'src/application/short.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'operation-module-with-a-fixtures-gated-test'
+scenario = "An application module that declares its service test under `#[cfg(any(test, feature = \"fixtures\"))]` is reported: an operation's proof is declared exactly `#[cfg(test)] mod service_test;`."
+given.files.'src/lib.rs' = '''
+//! The crate.
+
+pub mod application;
+'''
+given.files.'src/application.rs' = '''
+//! The crate's application operations.
+
+pub mod short;
+'''
+given.files.'src/application/short.rs' = '''
+//! The `short` application operation.
+pub mod service;
+#[cfg(any(test, feature = "fixtures"))]
 mod service_test;
 '''
 given.files.'src/application/short/service.rs' = '''
