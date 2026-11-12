@@ -25,7 +25,13 @@ pub struct PrepareRequest {
 }
 
 /// The derived views `prepare` prepares over: composed once at the edge ([`crate::derived`]) and cloned into each prepare
-/// use case. Execution's own handle, opaque to its callers: it lends no access and acquires no view.
+/// use case. Execution's own handle, opaque to its callers: it lends no access and acquires no view, and no caller
+/// outside execution reaches the preparation it holds.
+///
+/// ```compile_fail,E0616
+/// let views = ryo_execution::derived();
+/// let _preparation = views.0;
+/// ```
 ///
 /// # Examples
 ///
