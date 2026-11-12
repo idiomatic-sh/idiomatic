@@ -163,39 +163,73 @@ pub fn view<'a>(
     payload: &'a DerivedPayload,
 ) -> Result<DerivedView<'a>, DerivedFault> {
     prepared.validate()?;
-    match (
-        crate::domain::preparation::service::kind(&prepared.request),
-        &payload.data,
-    ) {
-        (DerivedKind::Equality, PayloadData::Equality(data)) => Ok(DerivedView::Equality(data)),
-        (DerivedKind::Adjacency, PayloadData::Adjacency(data)) => Ok(DerivedView::Adjacency(data)),
-        (DerivedKind::Membership, PayloadData::Membership(data)) => {
-            Ok(DerivedView::Membership(match data {
-                DerivedMembership::Values(values) => MembershipView::Values(values),
-                DerivedMembership::Dense(values) => {
-                    MembershipView::Dense(DenseMarks(values.0.as_slice()))
-                }
-            }))
+    let view = payload_view(payload);
+    let built = match &view {
+        DerivedView::Equality(_) => DerivedKind::Equality,
+        DerivedView::Adjacency(_) => DerivedKind::Adjacency,
+        DerivedView::Membership(_) => DerivedKind::Membership,
+        DerivedView::PartitionOrder(_) => DerivedKind::PartitionOrder,
+        DerivedView::ClosureAdjacency(_) => DerivedKind::ClosureAdjacency,
+        DerivedView::CycleAdjacency(_) => DerivedKind::CycleAdjacency,
+        DerivedView::OrderedKeys(_) => DerivedKind::OrderedKeys,
+        DerivedView::OrderedDfs(_) => DerivedKind::OrderedDfs,
+        DerivedView::NativeLookup(_) => DerivedKind::NativeLookup,
+    };
+    if crate::domain::preparation::service::kind(&prepared.request) == built {
+        Ok(view)
+    } else {
+        Err(DerivedFault::WrongOperation)
+    }
+}
+
+/// The view of a built payload, of whatever kind it was built: the view a prepared request borrows, without the request.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_derived::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, DerivedView};
+/// use ryo_derived::domain::dispatch::service::{build, payload_view};
+/// use ryo_derived::domain::preparation::service::prepare;
+/// use ryo_derived::domain::request::types::DerivedRequest;
+/// use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
+/// use ryo_values::domain::plan_parts::types::ColumnIndex;
+/// use ryo_values::domain::rows::types::{RowCount, Table};
+/// let rows = Table {
+///     kinds: vec![CellKind::Number],
+///     cells: vec![Value::Number(Integer(4)), Value::Number(Integer(5))],
+///     count: RowCount(2),
+/// };
+/// let prepared = prepare(
+///     DerivedRequest::Equality { columns: vec![ColumnIndex(0)] },
+///     vec![vec![CellKind::Number]],
+/// );
+/// let Ok(BuildOutcome::Built(payload)) =
+///     build(&prepared, BuildInputs::Rows(&rows), &mut BuildWorkspace::default(), None)
+/// else {
+///     panic!("an equality index over two numbers builds");
+/// };
+/// let DerivedView::Equality(index) = payload_view(&payload) else {
+///     panic!("an equality payload is viewed as its index");
+/// };
+/// assert_eq!(index.rows.len(), 2);
+/// ```
+#[must_use]
+pub fn payload_view(payload: &DerivedPayload) -> DerivedView<'_> {
+    match &payload.data {
+        PayloadData::Equality(data) => DerivedView::Equality(data),
+        PayloadData::Adjacency(data) => DerivedView::Adjacency(data),
+        PayloadData::Membership(DerivedMembership::Values(values)) => {
+            DerivedView::Membership(MembershipView::Values(values))
         }
-        (DerivedKind::PartitionOrder, PayloadData::PartitionOrder(data)) => {
-            Ok(DerivedView::PartitionOrder(data))
+        PayloadData::Membership(DerivedMembership::Dense(marks)) => {
+            DerivedView::Membership(MembershipView::Dense(DenseMarks(marks.0.as_slice())))
         }
-        (DerivedKind::ClosureAdjacency, PayloadData::ClosureAdjacency(data)) => {
-            Ok(DerivedView::ClosureAdjacency(data))
-        }
-        (DerivedKind::CycleAdjacency, PayloadData::CycleAdjacency(data)) => {
-            Ok(DerivedView::CycleAdjacency(data))
-        }
-        (DerivedKind::OrderedKeys, PayloadData::OrderedKeys(data)) => {
-            Ok(DerivedView::OrderedKeys(data))
-        }
-        (DerivedKind::OrderedDfs, PayloadData::OrderedDfs(data)) => {
-            Ok(DerivedView::OrderedDfs(data))
-        }
-        (DerivedKind::NativeLookup, PayloadData::NativeLookup(data)) => {
-            Ok(DerivedView::NativeLookup(data))
-        }
-        _ => Err(DerivedFault::WrongOperation),
+        PayloadData::PartitionOrder(data) => DerivedView::PartitionOrder(data),
+        PayloadData::ClosureAdjacency(data) => DerivedView::ClosureAdjacency(data),
+        PayloadData::CycleAdjacency(data) => DerivedView::CycleAdjacency(data),
+        PayloadData::OrderedKeys(data) => DerivedView::OrderedKeys(data),
+        PayloadData::OrderedDfs(data) => DerivedView::OrderedDfs(data),
+        PayloadData::NativeLookup(data) => DerivedView::NativeLookup(data),
     }
 }
 

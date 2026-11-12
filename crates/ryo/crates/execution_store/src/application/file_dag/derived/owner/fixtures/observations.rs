@@ -86,7 +86,7 @@ impl DerivedOwner {
     pub fn shared_index_backings(&self) -> usize {
         self.ledger
             .borrow()
-            .backing_count(crate::application::file_dag::derived::ledger::types::BackingTag(11))
+            .backing_count(crate::application::file_dag::accounting::ledger::types::BackingTag(11))
             .0
     }
     /// The publication, ownership and retained bytes the owner accounts for.

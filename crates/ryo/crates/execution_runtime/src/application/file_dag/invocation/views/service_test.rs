@@ -90,9 +90,10 @@ fn subject(request: Input) -> Result<Value, Failure> {
         &mut DerivedScratch::default(),
         None,
     )?;
-    let built = match acquired.view()? {
-        DerivedView::CycleAdjacency(built) => Some(built.values.as_ptr()),
-        _ => None,
+    let built = if let DerivedView::CycleAdjacency(built) = acquired.view()? {
+        Some(built.values.as_ptr())
+    } else {
+        None
     };
     let Some(graph) = InvocationResources::cycles_view(Some(&acquired))? else {
         return Err(OperatingError::NotRead);
@@ -101,9 +102,11 @@ fn subject(request: Input) -> Result<Value, Failure> {
         values: graph
             .values
             .iter()
-            .map(|cell| match cell {
-                Cell::Number(Integer(value)) => *value,
-                other => panic!("a number cell, not {other:?}"),
+            .map(|cell| {
+                let Cell::Number(Integer(value)) = cell else {
+                    panic!("a number cell, not {cell:?}");
+                };
+                *value
             })
             .collect(),
         borrowed: built == Some(graph.values.as_ptr()),

@@ -1,6 +1,6 @@
 //! The `storage` application operation.
 
-use crate::application::file_dag::derived::ledger::types::{
+use crate::application::file_dag::accounting::ledger::types::{
     BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
 };
 use crate::outbound::derived::interface::DerivedPort;
@@ -76,11 +76,14 @@ impl DerivedStorage {
     /// Describe the exact physical allocations; admission and lease classes remain with the owner.
     pub(crate) fn backings(
         this: &Arc<Self>,
-    ) -> Result<Arc<[crate::application::file_dag::derived::ledger::types::Backing]>, OperatingError>
-    {
-        use crate::application::file_dag::derived::ledger::types::Backing;
-        let facts = ryo_derived::domain::footprint::service::describe(&this.payload)
-            .map_err(derived_fault)?;
+    ) -> Result<
+        Arc<[crate::application::file_dag::accounting::ledger::types::Backing]>,
+        OperatingError,
+    > {
+        use crate::application::file_dag::accounting::ledger::types::Backing;
+        let facts =
+            crate::application::file_dag::accounting::footprint::service::describe(&this.payload)
+                .map_err(derived_fault)?;
         let mut output: Vec<Backing> = facts
             .shared
             .into_iter()
@@ -105,14 +108,15 @@ impl DerivedStorage {
             retention_units: UnitCount(0),
         });
         if let Some(identity) = &this.graph_identity {
-            let keys = crate::application::file_dag::derived::ledger::capacity::service::checked::<
-                ryo_values::domain::plan_parts::types::ColumnIndex,
-            >(
-                crate::application::file_dag::derived::ledger::types::SlotCount(
-                    identity.keys.capacity(),
-                ),
-            )
-            .ok_or(OperatingError::ShapeMismatch)?;
+            let keys =
+                crate::application::file_dag::accounting::ledger::capacity::service::checked::<
+                    ryo_values::domain::plan_parts::types::ColumnIndex,
+                >(
+                    crate::application::file_dag::accounting::ledger::types::SlotCount(
+                        identity.keys.capacity(),
+                    ),
+                )
+                .ok_or(OperatingError::ShapeMismatch)?;
             output.push(Backing {
                 key: BackingKey {
                     tag: BackingTag(34),

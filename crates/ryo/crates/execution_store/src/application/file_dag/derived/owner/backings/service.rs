@@ -2,7 +2,7 @@
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
 use std::sync::Arc;
 
-use super::super::super::ledger::types::Backing;
+use crate::application::file_dag::accounting::ledger::types::Backing;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 pub(crate) fn view(storage: &Arc<DerivedStorage>) -> Result<Arc<[Backing]>, OperatingError> {

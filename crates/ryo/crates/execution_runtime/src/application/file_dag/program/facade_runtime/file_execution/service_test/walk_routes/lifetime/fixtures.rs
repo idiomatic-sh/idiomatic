@@ -120,7 +120,11 @@ pub(super) fn script(
                         Answer::Rows(rows)
                     }
                     RootOutcome::Failed(error) => Answer::Failed(error),
-                    _ => Answer::Other,
+                    RootOutcome::Partial { .. }
+                    | RootOutcome::Skipped(_)
+                    | RootOutcome::Unknown(_)
+                    | RootOutcome::NoQuery
+                    | RootOutcome::Deferred { .. } => Answer::Other,
                 }
             }
             Step::Forward { file, refuse } => open[file]

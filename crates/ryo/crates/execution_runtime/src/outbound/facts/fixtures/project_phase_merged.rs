@@ -11,6 +11,11 @@ impl crate::outbound::facts::interface::FactsFinish for Buckets {
         bucket: Bucket,
     ) -> Result<crate::outbound::facts::types::KeptBucket, crate::outbound::facts::errors::FactsError>
     {
-        self.0[usize::try_from(bucket.0).expect("a bucket number fits in usize")].kept(bucket)
+        let index = usize::try_from(bucket.0).map_err(|error| {
+            crate::outbound::facts::errors::FactsError::Store {
+                reason: error.to_string(),
+            }
+        })?;
+        self.0[index].kept(bucket)
     }
 }

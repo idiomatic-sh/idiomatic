@@ -5,7 +5,7 @@ use crate::application::file_dag::derived::owner::graph_key::service::Requiremen
 use crate::application::file_dag::derived::population::service::PopulationId;
 use std::sync::Arc;
 
-use crate::application::file_dag::derived::ledger::types::ByteCount;
+use crate::application::file_dag::accounting::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use ryo_execution_domain::domain::{
     derived_views::types::contract::value::DerivedContract, operating::errors::OperatingError,
@@ -131,7 +131,10 @@ impl DerivedOwner {
     pub(crate) fn graph_backings(
         &self,
         storage: &Arc<DerivedStorage>,
-    ) -> Result<Arc<[super::super::super::ledger::types::Backing]>, OperatingError> {
+    ) -> Result<
+        Arc<[crate::application::file_dag::accounting::ledger::types::Backing]>,
+        OperatingError,
+    > {
         super::super::backings::service::view(storage)
     }
     /// IdentityCompatibility is an owner lookup guard, never HashMap key equality.
@@ -210,7 +213,7 @@ impl DerivedOwner {
     /// remains a bounded capacity charge, never a scan of retained populations.
     pub(crate) fn graph_retention_cost(
         &self,
-        backings: &[super::super::super::ledger::types::Backing],
+        backings: &[crate::application::file_dag::accounting::ledger::types::Backing],
         metadata: ByteCount,
     ) -> Result<ByteCount, OperatingError> {
         self.ledger
@@ -243,11 +246,13 @@ impl DerivedOwner {
     pub(crate) fn try_graph_lease(
         &self,
         cache: &CacheBackend,
-        backings: &[super::super::super::ledger::types::Backing],
+        backings: &[crate::application::file_dag::accounting::ledger::types::Backing],
         cost: ByteCount,
         memo: MemoBudget,
-    ) -> Result<Option<Arc<super::super::super::ledger::service::ResourceLease>>, OperatingError>
-    {
+    ) -> Result<
+        Option<Arc<crate::application::file_dag::accounting::ledger::service::ResourceLease>>,
+        OperatingError,
+    > {
         if self.graph_room(cache, cost, memo) == Room::Full {
             return Ok(None);
         }

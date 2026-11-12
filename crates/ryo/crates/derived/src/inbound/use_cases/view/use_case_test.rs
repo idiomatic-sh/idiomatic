@@ -73,8 +73,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
     let BuildOutcome::Built(payload) = built else {
         return Err(DerivedFault::NotRun);
     };
+    // A view of another kind is what view() answered, not a refusal: it shows as a fault no row expects.
     let DerivedView::Equality(index) = ViewUseCaseImpl::new().view(&equality, &payload)? else {
-        return Err(DerivedFault::WrongOperation);
+        return Err(DerivedFault::ShapeMismatch);
     };
     Ok(index.rows.len())
 }

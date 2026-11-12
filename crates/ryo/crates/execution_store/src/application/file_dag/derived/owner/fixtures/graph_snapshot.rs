@@ -128,7 +128,9 @@ impl GraphFixture {
             overlap_bytes: s.overlap_bytes.0,
             #[cfg(test)]
             graph_backings: ledger
-                .backing_count(crate::application::file_dag::derived::ledger::types::BackingTag(9))
+                .backing_count(
+                    crate::application::file_dag::accounting::ledger::types::BackingTag(9),
+                )
                 .0,
             #[cfg(test)]
             retained_view_bytes: self.owner.derived().state.borrow().retained_bytes.0,

@@ -117,7 +117,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn ledger(
     fixture: &ResourceFixture,
-) -> crate::application::file_dag::derived::ledger::types::LedgerSnapshot {
+) -> crate::application::file_dag::accounting::ledger::types::LedgerSnapshot {
     fixture.owner().derived().ledger.borrow().snapshot()
 }
 

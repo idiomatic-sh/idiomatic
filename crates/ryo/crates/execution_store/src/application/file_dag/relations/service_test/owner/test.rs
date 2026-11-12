@@ -163,7 +163,7 @@ fn compact() -> Result<Compact, OperatingError> {
     let second_adds_only_its_record = owner.derived.publication_ownership_bytes().2
         == first_unique + size_of::<RelationResult>() + 2 * size_of::<usize>();
     let first_charges_backing_once = first_unique
-        == crate::application::file_dag::derived::ledger::capacity::service::compact_table(
+        == crate::application::file_dag::accounting::ledger::capacity::service::compact_table(
             &compact,
         )
         .0 + size_of::<KeptWords>()

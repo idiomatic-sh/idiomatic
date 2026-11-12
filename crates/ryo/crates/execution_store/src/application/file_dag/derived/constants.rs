@@ -15,9 +15,6 @@ pub(crate) const TARGET_GRAPH: &str = "ryo::diagnostic::graph";
 pub const TARGET_RESOURCE_ROUTES: &str =
     ryo_values::domain::table_words::constants::RESOURCE_ROUTES_TARGET;
 pub(crate) const TARGET_STORED_JOIN: &str = "ryo::diagnostic::stored_join";
-/// The tracing target of the lifecycle memory events.
-pub const TARGET_LIFECYCLE_MEMORY: &str =
-    ryo_values::domain::table_words::constants::LIFECYCLE_TARGET;
 pub(crate) const EVENT_OWNER_FOOTPRINT: &str = "owner_footprint";
 pub(crate) const EVENT_FILE_GRAPHS: &str = "file_graphs";
 pub(crate) const EVENT_FILE_INDEXES: &str = "file_indexes";

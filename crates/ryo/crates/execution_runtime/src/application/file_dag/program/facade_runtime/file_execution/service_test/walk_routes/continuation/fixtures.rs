@@ -107,9 +107,10 @@ pub(super) fn exercise(residency: Residency) -> Result<Observed, OperatingError>
         replay.extend_from_slice(row);
         Ok(())
     })?;
-    let answer = match &transferred {
-        Root::Complete { cells, .. } => cells.to_vec(),
-        _ => Vec::new(),
+    let answer = if let Root::Complete { cells, .. } = &transferred {
+        cells.to_vec()
+    } else {
+        Vec::new()
     };
     let repeated = Root::from(file.rule(RuleIndex(1), demand(), &read, &mut symbols)?.emit);
     let retries_repeat_no_work = meanings.snapshot() == semantic

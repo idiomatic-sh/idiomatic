@@ -213,7 +213,12 @@ pub(in super::super) fn external_root_exit(
             RootOutcome::Complete(alias) => Alias::Rows {
                 same: alias == transferred,
             },
-            other => Alias::Other(Delivery::from(other)),
+            other @ (RootOutcome::Partial { .. }
+            | RootOutcome::Skipped(_)
+            | RootOutcome::Unknown(_)
+            | RootOutcome::Failed(_)
+            | RootOutcome::NoQuery
+            | RootOutcome::Deferred { .. }) => Alias::Other(Delivery::from(other)),
         });
     let final_consumer = Delivery::from(file.rule(RuleIndex(3), demand, &read, &mut symbols)?.emit);
     let replay_quiet = file.readiness_counts() == counts

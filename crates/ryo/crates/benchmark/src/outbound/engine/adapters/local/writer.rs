@@ -33,10 +33,9 @@ pub(super) const LAYOUT_TARGET: &str = constants::RYO_DIAGNOSTIC_LAYOUT;
 pub(super) const GRAPH_TARGET: &str = constants::RYO_DIAGNOSTIC_GRAPH;
 /// Request-wide file-program sharing and retained cells in explicit diagnostic runs.
 pub(super) const FILE_PROGRAM_TARGET: &str = constants::RYO_DIAGNOSTIC_FILE_PROGRAM;
-/// Coarse retention/decoding/store phases for an explicit lifecycle diagnostic.
+/// Resource route events in explicit diagnostic runs.
 pub(super) const RESOURCE_ROUTES_TARGET: &str =
     ryo_values::domain::table_words::constants::RESOURCE_ROUTES_TARGET;
-pub(super) const LIFECYCLE_TARGET: &str = constants::RYO_DIAGNOSTIC_LIFECYCLE_MEMORY;
 
 /// Shared append-only file writer; each event holds the lock until its JSON line is complete.
 #[derive(Clone)]
@@ -69,25 +68,19 @@ pub(super) fn subscriber(
             ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On
         )
     };
-    let aggregate_level = if on(options.execution) && !on(options.lifecycle_memory) {
+    let aggregate_level = if on(options.execution) {
         tracing_subscriber::filter::LevelFilter::TRACE
     } else {
         tracing_subscriber::filter::LevelFilter::OFF
     };
-    let lifecycle_only = on(options.lifecycle_memory);
     let resource_routes = on(options.resource_routes);
-    let lifecycle_level = if lifecycle_only {
-        tracing_subscriber::filter::LevelFilter::TRACE
-    } else {
-        aggregate_level
-    };
     let writer = DiagnosticEventWriter::new(open(path)?);
     let progress_only = on(options.row_progress);
-    let include_steps = on(options.steps) && !lifecycle_only && !progress_only;
-    let include_joins = on(options.joins) && !lifecycle_only;
-    let include_prefixes = on(options.prefixes) && !lifecycle_only;
-    let include_subplans = on(options.subplans) && !lifecycle_only;
-    let include_selection_detail = on(options.selection_detail) && !lifecycle_only;
+    let include_steps = on(options.steps) && !progress_only;
+    let include_joins = on(options.joins);
+    let include_prefixes = on(options.prefixes);
+    let include_subplans = on(options.subplans);
+    let include_selection_detail = on(options.selection_detail);
     use tracing_subscriber::Layer as _;
     use tracing_subscriber::layer::SubscriberExt as _;
     let layer = tracing_subscriber::fmt::layer()
@@ -99,7 +92,7 @@ pub(super) fn subscriber(
             tracing_subscriber::filter::Targets::new()
                 .with_target(
                     RESOURCE_ROUTES_TARGET,
-                    if resource_routes && !lifecycle_only {
+                    if resource_routes {
                         tracing_subscriber::filter::LevelFilter::TRACE
                     } else {
                         tracing_subscriber::filter::LevelFilter::OFF
@@ -127,10 +120,9 @@ pub(super) fn subscriber(
                 .with_target(LAYOUT_TARGET, aggregate_level)
                 .with_target(GRAPH_TARGET, aggregate_level)
                 .with_target(FILE_PROGRAM_TARGET, aggregate_level)
-                .with_target(LIFECYCLE_TARGET, lifecycle_level)
                 .with_target(
                     RULE_FILE_TARGET,
-                    if lifecycle_only || progress_only || !include_steps {
+                    if progress_only || !include_steps {
                         tracing_subscriber::filter::LevelFilter::OFF
                     } else {
                         tracing_subscriber::filter::LevelFilter::TRACE

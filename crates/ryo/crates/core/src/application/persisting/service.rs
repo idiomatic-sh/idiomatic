@@ -1,13 +1,5 @@
 //! What a run reads again of what the files handed the last, and what it keeps for the next, over the store it read beside its files.
 use super::types::KeepRun;
-use crate::domain::memory_diagnostics::constants::LIFECYCLE_MEMORY_DIAGNOSTIC;
-use crate::domain::memory_diagnostics::constants::{
-    AFTER_STORE_BUILD, AFTER_STORE_WRITE, BEFORE_STORE_BUILD, BEFORE_STORE_WRITE, STORE_HANDED,
-};
-use crate::domain::memory_diagnostics::service::{
-    memory_diagnostics, observed_records, observed_staged, observed_stored,
-};
-use crate::domain::memory_diagnostics::types::MemoryDiagnostics;
 use crate::domain::reading::service::buckets_of;
 use crate::domain::render::types::Answering;
 use crate::domain::storing::service::stored_of;
@@ -90,19 +82,9 @@ pub(crate) fn kept(
             .filter(|bucket| rebuilt.binary_search(bucket).is_err())
             .collect(),
     };
-    observed_records(BEFORE_STORE_BUILD, &keeping.records);
     let to_store = stored_of(keeping, run.stored, last_handed, &rebuilt, unchanged);
-    observed_stored(AFTER_STORE_BUILD, &to_store.stored.handed);
-    observed_staged(AFTER_STORE_BUILD, &to_store.kept);
     if let Some(read) = read {
-        observed_stored(BEFORE_STORE_WRITE, &to_store.stored.handed);
-        observed_staged(BEFORE_STORE_WRITE, &to_store.kept);
-        let written = read.keep(to_store.stored, &to_store.kept);
-        if memory_diagnostics() == MemoryDiagnostics::Enabled {
-            // Ownership moved into the outbound call; this does not claim it freed allocator pages.
-            tracing::trace!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, phase = AFTER_STORE_WRITE.0, owner = STORE_HANDED.0, caller_payload_owned = false, success = written.is_ok());
-        }
-        written?;
+        read.keep(to_store.stored, &to_store.kept)?;
     }
     Ok(())
 }

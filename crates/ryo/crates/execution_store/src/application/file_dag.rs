@@ -1,4 +1,5 @@
 //! The file DAG's store: derived views, relation publications, leases, the ledger and each invocation's working allocations.
+pub mod accounting;
 pub mod closure_partitions;
 pub mod derived;
 pub mod relations;

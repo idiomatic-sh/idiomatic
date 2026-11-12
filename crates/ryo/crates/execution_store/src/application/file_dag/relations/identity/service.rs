@@ -1,6 +1,6 @@
 //! The `identity` application operation.
 
-use crate::application::file_dag::derived::ledger::types::BackingAddress;
+use crate::application::file_dag::accounting::ledger::types::BackingAddress;
 use crate::application::file_dag::relations::publication::types::{
     SourceDescriptor, SpanLength, StorageSpan,
 };

@@ -1,6 +1,5 @@
 //! The ordinary project phase: the phase opened, one call that prepares each declared rule within the budget, evaluates the batch
 //! and completes each outcome, then the phase released.
-use super::super::constants::CROSS_RULE_MEMORY;
 use super::super::errors::CrossFileError;
 use super::super::service::{CrossFile, phase_partials, stopped};
 use super::super::types::{OrdinaryOutcome, OrdinaryRun, ProjectOutcome};
@@ -19,7 +18,6 @@ use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rule_requests::service::failed;
-use ryo_values::domain::table_words::constants::LIFECYCLE_TARGET;
 
 impl CrossFile {
     /// Makes the ordinary rules that cross files in one phase: they are independent of one another and share one interpreter and
@@ -67,18 +65,18 @@ impl CrossFile {
             |occurrence| -> Result<_, CrossFileError> {
                 let each = declared(occurrence)?;
                 if occurrence.0 != 0 {
-                    within(memory.resident_bytes()?, run.budget, || vec![each.id.clone()])?;
+                    within(memory.resident_bytes()?, run.budget, || {
+                        vec![each.id.clone()]
+                    })?;
                 }
-                // Rule identity on the decoder events of the opt-in lifecycle memory diagnostics.
-                Ok(tracing::enabled!(target: LIFECYCLE_TARGET, tracing::Level::TRACE).then(|| {
-                    tracing::trace_span!(target: LIFECYCLE_TARGET, CROSS_RULE_MEMORY, rule = %each.id.0, rule_index = each.rule.0)
-                        .entered()
-                }))
+                Ok(())
             },
             |occurrence| phase_partials(&crossing.program, &crossing.domain, declared(occurrence)?),
             |rule: RuleIndex| -> Result<(), CrossFileError> {
                 let id = run.ids.get(rule.0).ok_or(OperatingError::NotRun)?;
-                Ok(within(memory.resident_bytes()?, run.budget, || vec![id.clone()])?)
+                Ok(within(memory.resident_bytes()?, run.budget, || {
+                    vec![id.clone()]
+                })?)
             },
             |occurrence, outcome, _, worker, symbols: &mut Symbols| {
                 self.complete_occurrence(crossing, declared(occurrence)?, outcome, worker, symbols)
@@ -104,7 +102,6 @@ impl CrossFile {
             outcomes,
             refused,
             finished,
-            symbols: cross,
         }))
     }
 }

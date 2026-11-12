@@ -348,11 +348,12 @@ fn subject(asked: Input) -> Result<Value, Failure> {
                     affected,
                     file_count: CoverageFileCount(3),
                 })
-                .map_err(|error| match error {
-                    OperatingError::ObservationIncomplete { reason } => {
+                .map_err(|error| {
+                    if let OperatingError::ObservationIncomplete { reason } = error {
                         Refusal::Incomplete(Cow::Owned(reason))
+                    } else {
+                        Refusal::Coverage(error)
                     }
-                    other => Refusal::Coverage(other),
                 })?;
             Ok(Expected::Affected(Cow::Owned(ordinals.0)))
         }

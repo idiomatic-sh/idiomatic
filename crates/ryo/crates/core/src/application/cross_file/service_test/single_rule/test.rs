@@ -41,9 +41,8 @@ fn current_project_roots_keep_the_original_two_group_four_cell_result()
     let done = done
         .remove(0)
         .expect("actual source-bound frontier and rule");
-    let table = match done.emit {
-        RootOutcome::Complete(table) => table,
-        _ => return Ok("the group root is not complete".to_owned()),
+    let RootOutcome::Complete(table) = done.emit else {
+        return Ok("the group root is not complete".to_owned());
     };
     seen.push(format!("{:?}", [table.count.0, table.cells.len()]));
     Ok(seen.join("|"))

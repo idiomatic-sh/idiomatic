@@ -4,8 +4,8 @@
 use crate::domain::rows::types::{RowCount, Table};
 use crate::domain::stored_facts::types::PackedWords;
 use crate::domain::table_words::types::{
-    CompactCursor, Completeness, DecodeMode, DecodePhase, DecodedTables, EncodedSize, Framing,
-    PackedOffset, PackedSlice, WordSlice, WordSpelling,
+    CompactCursor, Completeness, DecodeMode, DecodedTables, EncodedSize, Framing, PackedOffset,
+    PackedSlice, WordSlice, WordSpelling,
 };
 use ryo_language::domain::words::service::{
     decode_kind, decode_places, decode_value, encode_kind, encode_places, encode_value,
@@ -66,9 +66,7 @@ fn decode_combined_status(
         mode == DecodeMode::Permissive || canonical_words(packed) == WordSpelling::Canonical;
     let mut combined = Table::default();
     // A value takes two words at least, and a packed word a byte at least.
-    observed_decode(DecodePhase::BeforeReserve, packed, &combined, places);
     combined.cells.reserve(packed.0.len() / 2);
-    observed_decode(DecodePhase::AfterReserve, packed, &combined, places);
     let mut words = unpacked(packed);
     while let Some(Bits(columns)) = words.next() {
         let Some(Bits(rows)) = words.next() else {
@@ -128,9 +126,7 @@ fn decode_combined_status(
             break;
         }
     }
-    observed_decode(DecodePhase::BeforeShrink, packed, &combined, places);
     combined.cells.shrink_to_fit();
-    observed_decode(DecodePhase::AfterShrink, packed, &combined, places);
     DecodedTables {
         table: combined,
         completeness: if complete {
@@ -138,25 +134,6 @@ fn decode_combined_status(
         } else {
             Completeness::Incomplete
         },
-    }
-}
-
-/// Report only this decoder's caller-owned buffers, never process/allocator residency.
-fn observed_decode(at: DecodePhase, packed: &PackedWords, table: &Table, places: &Vec<NamePlace>) {
-    if tracing::enabled!(target: super::constants::LIFECYCLE_TARGET, tracing::Level::TRACE) {
-        let phase = match at {
-            DecodePhase::BeforeReserve => super::constants::BEFORE_RESERVE,
-            DecodePhase::AfterReserve => super::constants::AFTER_RESERVE,
-            DecodePhase::BeforeShrink => super::constants::BEFORE_SHRINK,
-            DecodePhase::AfterShrink => super::constants::AFTER_SHRINK,
-        };
-        let bytes = crate::domain::stores::types::retention::value::RetainedBytes::table(table);
-        let place_width = size_of::<NamePlace>();
-        tracing::trace!(target: super::constants::LIFECYCLE_TARGET, phase, owner = super::constants::DECODING_OWNER,
-            packed_live_bytes = packed.0.len(), packed_capacity_bytes = packed.0.capacity(),
-            decoded_live_bytes = bytes.cells_live.0, decoded_capacity_bytes = bytes.cells_capacity.0,
-            decoded_rows = bytes.rows.0, metadata_capacity_bytes = bytes.metadata.0,
-            places_live_bytes = places.len() * place_width, places_capacity_bytes = places.capacity() * place_width);
     }
 }
 

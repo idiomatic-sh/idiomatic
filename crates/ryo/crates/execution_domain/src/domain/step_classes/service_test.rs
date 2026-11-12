@@ -93,9 +93,10 @@ fn projection(distinct: RepeatedRows) -> Plan {
 }
 /// The column an operand reads, if it is a column.
 fn column(operand: &Operand) -> Option<u32> {
-    match operand {
-        Operand::Column(index) => Some(index.0),
-        _ => None,
+    if let Operand::Column(index) = operand {
+        Some(index.0)
+    } else {
+        None
     }
 }
 

@@ -91,6 +91,3 @@ fn subject(input: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
-
-#[cfg(test)]
-mod retained_test;

@@ -105,7 +105,14 @@ fn subject(input: Input) -> Result<Value, OperatingError> {
             let (small, tail) = match input {
                 Input::Graph => (measure(3, &[1]), measure(TOTAL, &[129])),
                 Input::Mixed => (measure(3, &[0, 1, 2]), measure(TOTAL, &[0, 1, 2])),
-                _ => (measure(3, &[0, 2]), measure(TOTAL, &[130, 0])),
+                Input::TailSelectors
+                | Input::Empty
+                | Input::Sparse
+                | Input::Selector
+                | Input::Dense
+                | Input::ProjectSparse
+                | Input::ProjectDense
+                | Input::ProjectUncounted => (measure(3, &[0, 2]), measure(TOTAL, &[130, 0])),
             };
             Answer::Tail {
                 work: small.work,

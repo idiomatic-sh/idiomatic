@@ -1,6 +1,6 @@
 //! Owned cross-root words use the same required backing ledger as resident publications.
-use crate::application::file_dag::derived::ledger::service::ResourceLease;
-use crate::application::file_dag::derived::ledger::types::Backing;
+use crate::application::file_dag::accounting::ledger::service::ResourceLease;
+use crate::application::file_dag::accounting::ledger::types::Backing;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, KeptWords};
 use std::sync::Arc;

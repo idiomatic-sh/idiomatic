@@ -259,7 +259,7 @@ fn subject(corpus: Input) -> Result<Value, Failure> {
         .copied()
         .filter(|relation| {
             let selected = heads().any(|head| matches!(&head.operation(), Operation::Select { from: Source::Relation(source), .. } if source == relation));
-            let kept = heads().any(|head| matches!(&head.operation(), Operation::Project { from: Source::Relation(source), distinct: RepeatedRows::Kept, columns } if source == relation && columns.iter().all(|column| (column.0 as usize) < ryo_relations::domain::relations::service::columns(*source).len())));
+            let kept = heads().any(|head| matches!(&head.operation(), Operation::Project { from: Source::Relation(source), distinct: RepeatedRows::Kept, columns } if source == relation && columns.iter().all(|column| usize::try_from(column.0).is_ok_and(|index| index < ryo_relations::domain::relations::service::columns(*source).len()))));
             let dropped = heads().any(|head| matches!(&head.operation(), Operation::Project { from: Source::Relation(source), distinct: RepeatedRows::Dropped, .. } if source == relation));
             !(selected && kept && dropped)
         })
@@ -303,7 +303,9 @@ fn subject(corpus: Input) -> Result<Value, Failure> {
     if let Some(logical) = target {
         walk.physical[logical.0] = match tamper {
             Tamper::RemoveEligibleHead => None,
-            _ => Some(WalkRoute::Barrier(WalkBarrier::Representation)),
+            Tamper::Nothing | Tamper::RelabelEligibleHead | Tamper::RelabelProjectHead => {
+                Some(WalkRoute::Barrier(WalkBarrier::Representation))
+            }
         };
     }
     covered.consistent = internally_consistent(&walk);

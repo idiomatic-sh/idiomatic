@@ -36,7 +36,11 @@ fn subject(operand: Input) -> Result<Value, Failure> {
     let mut made = MadeText::default();
     Ok(match resolve(&operand, &[], &[], &texts, &mut made)? {
         Datum::Number(number) => Resolved::Number(number),
-        other => Resolved::Other(format!("{other:?}")),
+        other @ (Datum::Unlocated
+        | Datum::Flag(_)
+        | Datum::Text(_)
+        | Datum::Numbers(_)
+        | Datum::Texts(_)) => Resolved::Other(format!("{other:?}")),
     })
 }
 

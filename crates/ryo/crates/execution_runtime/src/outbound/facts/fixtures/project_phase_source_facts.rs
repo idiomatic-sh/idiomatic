@@ -34,6 +34,12 @@ impl ProjectFacts {
         }
         facts
     }
+    /// The declared schema of `relation`, with one row of zero cells.
+    ///
+    /// # Panics
+    ///
+    /// When `relation` has a node, number or flag column: the project fixture follows its
+    /// actual catalog schema, which has none.
     pub fn new(relation: Relation) -> Self {
         let columns = kinds(relation)
             .iter()

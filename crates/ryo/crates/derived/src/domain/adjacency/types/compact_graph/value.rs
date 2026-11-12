@@ -1,5 +1,7 @@
 //! Compact adjacency: the value and its behaviour, owned together.
+use crate::domain::adjacency::types::GraphCapacities;
 use crate::domain::adjacency::types::forest_parents::value::ForestParents;
+use crate::domain::allocation::types::ElementCapacity;
 use crate::domain::vertices::types::{
     EdgeDirection, NeighborList, OffsetList, ParentList, ParentSlice, PartitionId, PartitionList,
     VertexId, VertexKey,
@@ -64,6 +66,30 @@ impl CompactGraph {
         match direction {
             EdgeDirection::Forward => &self.neighbors[0],
             EdgeDirection::Backward => &self.neighbors[1],
+        }
+    }
+    /// The capacity of each buffer the accessors do not lend, and how many values the partitions hold.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
+    /// let _ = CompactGraph::capacities;
+    /// ```
+    #[must_use]
+    pub fn capacities(&self) -> GraphCapacities {
+        GraphCapacities {
+            partitions: ElementCapacity(self.partitions.capacity()),
+            partition_count: ElementCapacity(self.partitions.len()),
+            partition_values: ElementCapacity(self.partitions.iter().map(|part| part.len()).sum()),
+            partition_ids: ElementCapacity(self.partition_ids.capacity()),
+            vertices: ElementCapacity(self.vertices.capacity()),
+            vertex_ids: ElementCapacity(self.vertex_ids.capacity()),
+            forests: self.forests.each_ref().map(|parents| {
+                parents
+                    .as_ref()
+                    .map(|parents| ElementCapacity(parents.0.capacity()))
+            }),
         }
     }
     /// The validated ancestry of one direction, when each vertex has one parent and no cycle.

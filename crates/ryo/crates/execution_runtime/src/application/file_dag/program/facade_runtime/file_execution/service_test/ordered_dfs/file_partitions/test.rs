@@ -2,7 +2,7 @@
 use super::super::fixtures::{Ran, column, execute_request, host, hosted_plan, numbers, operation};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
-use ryo_execution_store::application::file_dag::derived::ledger::types::ByteCount;
+use ryo_execution_store::application::file_dag::accounting::ledger::types::ByteCount;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::kinds,

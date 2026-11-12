@@ -1,6 +1,6 @@
 //! Private application backend storage. Only derived-owner algorithms can access mutable fields.
 
-use crate::application::file_dag::derived::ledger::types::ByteCount;
+use crate::application::file_dag::accounting::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::index::types::ByteLimit;
 use crate::application::file_dag::derived::owner::types::{BuildCount, RefusalCount, ReuseCount};
 use ryo_relations::domain::relations::types::Relation;

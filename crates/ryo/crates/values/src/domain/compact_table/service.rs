@@ -145,7 +145,6 @@ pub fn admit_compact(
         places.truncate(before);
         return Err(crate::domain::table_words::errors::TableWordsError::Incomplete);
     }
-    tracing::trace!(target: crate::domain::table_words::constants::LIFECYCLE_TARGET, phase=crate::domain::table_words::constants::COMPACT_ADMISSION, packed_bytes=backing.0.0.0.len(), decoded_rows=count, decoded_cells=total_cells, frame_count=frames.len(), spelling_names=names.len(), spelling_capacity_bytes=names.capacity()*size_of::<Name>(), frame_metadata_bytes=frames.capacity()*size_of::<CompactFrame>());
     Ok(Admitted {
         table: CompactTable {
             words: backing.0,

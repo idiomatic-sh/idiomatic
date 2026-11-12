@@ -2,15 +2,15 @@
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use std::sync::Arc;
 
-use crate::application::file_dag::derived::ledger::types::ByteCount;
+use crate::application::file_dag::accounting::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::types::{PinState, ReclaimOutlook, Room};
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 use super::super::service::*;
 
-use crate::application::file_dag::derived::ledger::types::Backing;
-use crate::application::file_dag::derived::ledger::types::UnitCount;
+use crate::application::file_dag::accounting::ledger::types::Backing;
+use crate::application::file_dag::accounting::ledger::types::UnitCount;
 use crate::application::file_dag::derived::owner::graphs::service::room;
 
 impl DerivedOwner {
@@ -63,7 +63,7 @@ impl DerivedOwner {
             .filter(|entry| {
                 entry.required.is_none()
                     && ledger.optional_payload_only(&entry.backings)
-                        == crate::application::file_dag::derived::ledger::types::Dormancy::Dormant
+                        == crate::application::file_dag::accounting::ledger::types::Dormancy::Dormant
                     && entry
                         .retained
                         .as_ref()
@@ -117,7 +117,7 @@ impl DerivedOwner {
             .filter_map(|(key, entry)| {
                 (entry.required.is_none()
                     && ledger.optional_payload_only(&entry.backings)
-                        == crate::application::file_dag::derived::ledger::types::Dormancy::Dormant
+                        == crate::application::file_dag::accounting::ledger::types::Dormancy::Dormant
                     && entry
                         .retained
                         .as_ref()

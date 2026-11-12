@@ -25,7 +25,6 @@ struct OptionsSchema {
 #[serde(default, deny_unknown_fields)]
 struct DiagnosticsSchema {
     execution: bool,
-    lifecycle_memory: bool,
     resource_routes: bool,
     row_progress: bool,
     steps: bool,
@@ -41,7 +40,6 @@ impl From<PerformanceOptions> for OptionsSchema {
         Self {
             diagnostics: DiagnosticsSchema {
                 execution: on(diagnostics.execution),
-                lifecycle_memory: on(diagnostics.lifecycle_memory),
                 resource_routes: on(diagnostics.resource_routes),
                 row_progress: on(diagnostics.row_progress),
                 steps: on(diagnostics.steps),

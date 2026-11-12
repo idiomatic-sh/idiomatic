@@ -81,8 +81,7 @@ pub(crate) struct OrdinaryRun<'a> {
     pub budget: ryo_values::domain::runs::types::MemoryBytes,
 }
 
-/// What the ordinary project phase came to: each rule's outcome in order, the budget guard's refusal, the release of the stage and
-/// the symbols the phase named.
+/// What the ordinary project phase came to: each rule's outcome in order, the budget guard's refusal and the release of the stage.
 pub(crate) struct OrdinaryOutcome {
     /// Each evaluated rule's outcome, in the order of the rules.
     pub outcomes: Vec<ProjectOutcome>,
@@ -90,8 +89,6 @@ pub(crate) struct OrdinaryOutcome {
     pub refused: Option<CrossFileError>,
     /// The release of the shared stage.
     pub finished: Result<(), CrossFileError>,
-    /// The symbols the phase named.
-    pub symbols: Symbols,
 }
 
 /// What the cross-file phase of a run reads of it: what the store kept and what the run uses again of it, the rules, the files, the

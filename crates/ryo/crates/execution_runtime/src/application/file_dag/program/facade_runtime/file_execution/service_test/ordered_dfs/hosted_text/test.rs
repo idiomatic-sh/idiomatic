@@ -146,9 +146,11 @@ fn sorted(table: &ryo_values::domain::rows::types::Table) -> Cow<'static, [Cow<'
         .chunks_exact(5)
         .map(|row| {
             row.iter()
-                .map(|cell| match cell {
-                    Cell::Number(Integer(value)) => *value,
-                    other => panic!("a number cell, not {other:?}"),
+                .map(|cell| {
+                    let Cell::Number(Integer(value)) = cell else {
+                        panic!("a number cell, not {cell:?}");
+                    };
+                    *value
                 })
                 .collect()
         })

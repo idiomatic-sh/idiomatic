@@ -36,9 +36,10 @@ pub(super) fn fixture(columns: &[FactColumn]) -> (ResourceFixture, Built) {
     let held = fixture
         .index(Relation::Function, &input, &[ColumnIndex(0)])
         .unwrap();
-    let rows = match held.view().unwrap() {
-        DerivedView::Equality(index) => index.rows.clone(),
-        _ => Vec::new(),
+    let rows = if let DerivedView::Equality(index) = held.view().unwrap() {
+        index.rows.clone()
+    } else {
+        Vec::new()
     };
     let first_payload = rows
         .first()
@@ -108,7 +109,7 @@ pub(super) fn reclaim(fixture: &ResourceFixture) -> (Room, usize) {
     let room = owner
         .prepare_graph_room(
             cache,
-            crate::application::file_dag::derived::ledger::types::ByteCount(cost),
+            crate::application::file_dag::accounting::ledger::types::ByteCount(cost),
             &[],
         )
         .unwrap();

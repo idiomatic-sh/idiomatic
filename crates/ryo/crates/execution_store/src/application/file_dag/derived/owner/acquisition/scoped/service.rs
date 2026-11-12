@@ -1,6 +1,6 @@
 //! Invocation-lifetime builds and acquisitions that no population pin retains.
-use crate::application::file_dag::derived::ledger::types::Backing;
-use crate::application::file_dag::derived::ledger::types::{
+use crate::application::file_dag::accounting::ledger::types::Backing;
+use crate::application::file_dag::accounting::ledger::types::{
     BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
 };
 use crate::application::file_dag::derived::owner::acquisition::admission::service::{
@@ -51,14 +51,16 @@ impl DerivedOwner {
             ),
         );
         let semantic_bytes =
-            ryo_derived::domain::footprint::service::working_bytes(&scratch.semantic)
-                .map_err(ryo_execution_domain::domain::operating::service::derived_fault)?
-                .0;
+            crate::application::file_dag::accounting::footprint::service::working_bytes(
+                &scratch.semantic,
+            )
+            .map_err(ryo_execution_domain::domain::operating::service::derived_fault)?
+            .0;
         let scratch_bytes =
-            crate::application::file_dag::derived::ledger::capacity::service::checked::<
+            crate::application::file_dag::accounting::ledger::capacity::service::checked::<
                 ryo_relations::domain::relations::types::Value,
             >(
-                crate::application::file_dag::derived::ledger::types::SlotCount(
+                crate::application::file_dag::accounting::ledger::types::SlotCount(
                     scratch.row.capacity(),
                 ),
             )
@@ -102,7 +104,7 @@ impl DerivedOwner {
             crate::application::file_dag::derived::owner::backings::service::view(&storage)?
                 .to_vec();
         for backing in backings {
-            crate::application::file_dag::derived::ledger::service::append_backing(
+            crate::application::file_dag::accounting::ledger::service::append_backing(
                 &mut required,
                 *backing,
             )?;

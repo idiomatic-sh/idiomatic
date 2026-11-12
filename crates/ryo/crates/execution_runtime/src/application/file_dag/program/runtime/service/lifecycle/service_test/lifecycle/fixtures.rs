@@ -122,9 +122,10 @@ pub(super) fn nested() -> Result<Lived, OperatingError> {
             .iter()
             .map(|root| {
                 let slot = &slots[root];
-                let failed = match &slot.state {
-                    State::Failed(error) => Some(error.clone()),
-                    _ => None,
+                let failed = if let State::Failed(error) = &slot.state {
+                    Some(error.clone())
+                } else {
+                    None
                 };
                 (failed, slot.scratch.is_empty())
             })

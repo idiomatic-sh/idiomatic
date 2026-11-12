@@ -3,8 +3,8 @@ use super::{
     construction::service as build,
     identity::service::{domain_identity, source},
 };
-use crate::application::file_dag::derived::ledger::service::append_backing;
-use crate::application::file_dag::derived::ledger::types::{
+use crate::application::file_dag::accounting::ledger::service::append_backing;
+use crate::application::file_dag::accounting::ledger::types::{
     BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
 };
 use crate::application::file_dag::derived::owner::acquisition::population::types::{
@@ -265,7 +265,7 @@ pub(crate) fn domain(
     }
     append_backing(
         &mut backings,
-        crate::application::file_dag::derived::ledger::types::Backing {
+        crate::application::file_dag::accounting::ledger::types::Backing {
             key: BackingKey {
                 tag: BackingTag(19),
                 address: BackingAddress(Arc::as_ptr(&domain).addr()),
@@ -274,7 +274,7 @@ pub(crate) fn domain(
             retention_units: UnitCount(0),
         },
     )?;
-    let backings: Arc<[crate::application::file_dag::derived::ledger::types::Backing]> =
+    let backings: Arc<[crate::application::file_dag::accounting::ledger::types::Backing]> =
         backings.into();
     if !invoked.get() {
         owner.retain_domain(

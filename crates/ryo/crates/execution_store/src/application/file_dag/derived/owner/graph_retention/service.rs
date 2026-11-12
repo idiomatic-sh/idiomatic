@@ -1,16 +1,14 @@
 //! The `graph_retention` application operation.
+use crate::application::file_dag::accounting::ledger::types::Backing;
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::population::service::PopulationId;
 use std::sync::Arc;
 
-use super::super::super::{
-    ledger::types::Backing,
-    owner::graphs::{
-        handles::{service::GraphHandle, types::GraphSharing},
-        retained::types::{DomainEntry, GraphEntry},
-        service::{replace, room, slot},
-    },
+use super::super::super::owner::graphs::{
+    handles::{service::GraphHandle, types::GraphSharing},
+    retained::types::{DomainEntry, GraphEntry},
+    service::{replace, room, slot},
 };
 use super::super::service::*;
 use crate::application::file_dag::derived::owner::types::{MemoBudget, Room};

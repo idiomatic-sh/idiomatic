@@ -93,8 +93,6 @@ pub struct PerformanceOptions {
 pub struct DiagnosticOptions {
     /// Execution events.
     pub execution: DiagnosticSwitch,
-    /// Lifecycle memory events.
-    pub lifecycle_memory: DiagnosticSwitch,
     /// Resource route events.
     pub resource_routes: DiagnosticSwitch,
     /// Row progress events.

@@ -10,7 +10,6 @@ use crate::domain::render::types::Rendered;
 use crate::inbound::use_cases::lint::errors::LintError;
 use crate::inbound::use_cases::lint::service::settled;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::records::types::CrossPublicationTransfer;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
@@ -60,7 +59,6 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
                 }],
                 refused: None,
                 finished: Ok(()),
-                symbols: Symbols::default(),
             };
             let mut answered = Answered {
                 unknowns: Vec::new(),

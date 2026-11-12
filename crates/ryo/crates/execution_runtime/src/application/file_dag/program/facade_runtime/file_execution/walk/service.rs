@@ -80,7 +80,9 @@ impl FileRun<'_> {
                         CaptureIntent::DiagnosticAndObservations => FrontierSelection::All,
                     },
                 },
-                _ => ryo_execution_domain::domain::executable_program::file_demand::constants::NO_FILE_DEMAND,
+                FileRuleIntent::Undemanded
+                | FileRuleIntent::Skipped(_)
+                | FileRuleIntent::Refused(_) => ryo_execution_domain::domain::executable_program::file_demand::constants::NO_FILE_DEMAND,
             };
             if selected != ryo_execution_domain::domain::executable_program::file_demand::constants::NO_FILE_DEMAND {
                 demanded.push(rule);

@@ -25,10 +25,27 @@ enum Asked {
     Packages,
 }
 
-/// The files a repository holds, each with its path and its text, and what the run asks for.
-type Input = (&'static [(&'static str, &'static str)], Asked);
-/// How many manifests it names, how many packages the manifests declared, how many it refused and how many files it examined.
-type Value = (usize, usize, usize, usize);
+/// What a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Ask {
+    /// The contract over the files a repository holds, each with its path and its text, and what the run asks for.
+    Files(&'static [(&'static str, &'static str)], Asked),
+    /// One scenario of the contract's fixtures, which runs the contract over inputs of its own.
+    Scenario(Scenario),
+}
+
+/// What a row observed.
+#[derive(Debug, PartialEq, Eq)]
+enum Answer {
+    /// How many manifests the run names, how many packages the manifests declared, how many it refused and how many
+    /// files it examined.
+    Counts(usize, usize, usize, usize),
+    /// What a scenario observed, each check in order, joined by `|`.
+    Observed(&'static str),
+}
+
+type Input = Ask;
+type Value = Answer;
 type Failure = languages::ProjectError;
 
 /// The rows of this part's cases.
@@ -36,25 +53,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("names_one_manifest_and_a_repository_without_one_gives_no_package"),
         word: Word::Succeeds,
-        input: || (&[], Asked::Nothing),
-        expect: Expect::Value((1, 0, 0, 0)),
+        input: || Ask::Files(&[], Asked::Nothing),
+        expect: Expect::Value(Answer::Counts(1, 0, 0, 0)),
     },
     Case {
         name: CaseName("a_manifest_that_names_a_package_declares_one"),
         word: Word::Succeeds,
         input: || {
-            (
+            Ask::Files(
                 &[("pyproject.toml", "[project]\nname = \"demo\"\n")],
                 Asked::Packages,
             )
         },
-        expect: Expect::Value((1, 1, 0, 0)),
+        expect: Expect::Value(Answer::Counts(1, 1, 0, 0)),
     },
     Case {
         name: CaseName("a_manifest_the_tool_cannot_read_is_refused_and_the_run_goes_on"),
         word: Word::Succeeds,
         input: || {
-            (
+            Ask::Files(
                 &[
                     ("a/pyproject.toml", "[project\nname"),
                     ("pyproject.toml", "[project]\nname = \"demo\"\n"),
@@ -62,24 +79,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 Asked::Packages,
             )
         },
-        expect: Expect::Value((1, 1, 1, 0)),
+        expect: Expect::Value(Answer::Counts(1, 1, 1, 0)),
     },
     Case {
         name: CaseName("a_file_that_is_not_a_manifest_is_not_read"),
         word: Word::Succeeds,
         input: || {
-            (
+            Ask::Files(
                 &[("README.md", "[project]\nname = \"demo\"\n")],
                 Asked::Nothing,
             )
         },
-        expect: Expect::Value((1, 0, 0, 0)),
+        expect: Expect::Value(Answer::Counts(1, 0, 0, 0)),
     },
     Case {
         name: CaseName("the_python_files_are_examined_when_a_relation_of_the_links_is_asked_for"),
         word: Word::Succeeds,
         input: || {
-            (
+            Ask::Files(
                 &[
                     ("a.py", ""),
                     ("pyproject.toml", "[project]\nname = \"demo\"\n"),
@@ -87,13 +104,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 Asked::Links,
             )
         },
-        expect: Expect::Value((1, 1, 0, 1)),
+        expect: Expect::Value(Answer::Counts(1, 1, 0, 1)),
     },
     Case {
         name: CaseName("the_files_are_not_linked_when_no_relation_of_the_links_is_asked_for"),
         word: Word::Succeeds,
         input: || {
-            (
+            Ask::Files(
                 &[
                     ("a.py", ""),
                     ("pyproject.toml", "[project]\nname = \"demo\"\n"),
@@ -101,7 +118,37 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 Asked::Packages,
             )
         },
-        expect: Expect::Value((1, 1, 0, 0)),
+        expect: Expect::Value(Answer::Counts(1, 1, 0, 0)),
+    },
+    Case {
+        name: CaseName(
+            "positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots",
+        ),
+        word: Word::Succeeds,
+        input: || Ask::Scenario(Scenario::NamespacePartial),
+        expect: Expect::Value(Answer::Observed(
+            "true|true|true|true|true|true|true|true|true|true|true|true|true|true|true",
+        )),
+    },
+    Case {
+        name: CaseName("module_identity_only_preserves_inputs_without_projecting_or_validating"),
+        word: Word::Succeeds,
+        input: || Ask::Scenario(Scenario::ModuleIdentityOnly),
+        expect: Expect::Value(Answer::Observed("1|(1, 1)|0|true|true|true|true")),
+    },
+    Case {
+        name: CaseName("metadata_rejection_and_dependency_refusal_have_independent_applicability"),
+        word: Word::Succeeds,
+        input: || Ask::Scenario(Scenario::IndependentApplicability),
+        expect: Expect::Value(Answer::Observed(
+            "true|true|true|1|1|true|1|0|true|1|true|true",
+        )),
+    },
+    Case {
+        name: CaseName("primary_metadata_rejection_keeps_real_dependency_projection"),
+        word: Word::Succeeds,
+        input: || Ask::Scenario(Scenario::PrimaryMetadataRejection),
+        expect: Expect::Value(Answer::Observed("true|1|\"requests>=2\"|true|1|true")),
     },
 ];
 
@@ -110,7 +157,12 @@ fn faked(_available: &[languages::ManifestFile]) -> Vec<Arc<dyn ManifestReadingP
     vec![Arc::new(ManifestReadingFake)]
 }
 
-fn subject((files, asked): Input) -> Result<Value, Failure> {
+/// Runs the contract over the row's files, or the scenario the row names.
+fn subject(ask: Input) -> Result<Value, Failure> {
+    let (files, asked) = match ask {
+        Ask::Files(files, asked) => (files, asked),
+        Ask::Scenario(given) => return Ok(Answer::Observed(scenario(given))),
+    };
     let contract = ProjectContract::new(
         faked,
         Arc::new(postcard()),
@@ -147,7 +199,7 @@ fn subject((files, asked): Input) -> Result<Value, Failure> {
             Asked::Packages => vec![languages::Relation::PackageDependency],
         },
     })?;
-    Ok((
+    Ok(Answer::Counts(
         contract.manifests().len(),
         resolved.derived.packages.packages.len(),
         resolved.refused.len(),
@@ -168,51 +220,18 @@ enum Scenario {
     PrimaryMetadataRejection,
 }
 
-/// The scenarios' rows: what each observed, each check in order, joined by `|`.
-const SCENARIOS: &[Case<Scenario, &'static str, ()>] = &[
-    Case {
-        name: CaseName(
-            "positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::NamespacePartial,
-        expect: Expect::Value(
-            "true|true|true|true|true|true|true|true|true|true|true|true|true|true|true",
-        ),
-    },
-    Case {
-        name: CaseName("module_identity_only_preserves_inputs_without_projecting_or_validating"),
-        word: Word::Succeeds,
-        input: || Scenario::ModuleIdentityOnly,
-        expect: Expect::Value("1|(1, 1)|0|true|true|true|true"),
-    },
-    Case {
-        name: CaseName("metadata_rejection_and_dependency_refusal_have_independent_applicability"),
-        word: Word::Succeeds,
-        input: || Scenario::IndependentApplicability,
-        expect: Expect::Value("true|true|true|1|1|true|1|0|true|1|true|true"),
-    },
-    Case {
-        name: CaseName("primary_metadata_rejection_keeps_real_dependency_projection"),
-        word: Word::Succeeds,
-        input: || Scenario::PrimaryMetadataRejection,
-        expect: Expect::Value("true|1|\"requests>=2\"|true|1|true"),
-    },
-];
-
-/// Runs the scenario the row names.
-fn scenario(given: Scenario) -> Result<&'static str, ()> {
+/// Runs the scenario the row names: what it observed, each check in order, joined by `|`.
+fn scenario(given: Scenario) -> &'static str {
     let observed = match given {
         Scenario::NamespacePartial => fixtures::namespace_partial::positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots(),
         Scenario::ModuleIdentityOnly => fixtures::module_identity_only::module_identity_only_preserves_inputs_without_projecting_or_validating(),
         Scenario::IndependentApplicability => fixtures::independent_applicability::metadata_rejection_and_dependency_refusal_have_independent_applicability(),
         Scenario::PrimaryMetadataRejection => fixtures::primary_metadata_rejection::primary_metadata_rejection_keeps_real_dependency_projection(),
     };
-    Ok(Box::leak(observed.into_boxed_str()))
+    Box::leak(observed.into_boxed_str())
 }
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-    run(SCENARIOS, Word::Succeeds, scenario);
 }

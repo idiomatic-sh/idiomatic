@@ -116,9 +116,10 @@ pub(super) fn output_requests(
 
 /// The address of a complete root's cells, if it is complete.
 fn pointer(root: &RootOutcome) -> Option<*const Cell> {
-    match root {
-        RootOutcome::Complete(table) => Some(table.cells.as_ptr()),
-        _ => None,
+    if let RootOutcome::Complete(table) = root {
+        Some(table.cells.as_ptr())
+    } else {
+        None
     }
 }
 
@@ -144,9 +145,10 @@ pub(super) struct Output {
 
 impl Output {
     fn after_finish(root: RootOutcome, before: Option<*const Cell>) -> Self {
-        let kinds = match &root {
-            RootOutcome::Complete(table) => Cow::Owned(table.kinds.clone()),
-            _ => Cow::Borrowed(&[][..]),
+        let kinds = if let RootOutcome::Complete(table) = &root {
+            Cow::Owned(table.kinds.clone())
+        } else {
+            Cow::Borrowed(&[][..])
         };
         Self {
             kinds,

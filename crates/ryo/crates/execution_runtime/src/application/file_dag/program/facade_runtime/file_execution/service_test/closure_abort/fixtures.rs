@@ -65,9 +65,10 @@ pub(super) enum Refused {
 
 impl From<OperatingError> for Refused {
     fn from(error: OperatingError) -> Self {
-        match error {
-            OperatingError::InvalidRegex { .. } => Self::InvalidRegex,
-            other => Self::Error(other),
+        if matches!(error, OperatingError::InvalidRegex { .. }) {
+            Self::InvalidRegex
+        } else {
+            Self::Error(error)
         }
     }
 }
@@ -243,9 +244,10 @@ pub(super) fn exercise(refusal: Refusal, fused: bool) -> Observed {
                     &mut symbols,
                 )
                 .unwrap();
-            match result.emit {
-                RootOutcome::Failed(error) => Some(Refused::from(error)),
-                _ => None,
+            if let RootOutcome::Failed(error) = result.emit {
+                Some(Refused::from(error))
+            } else {
+                None
             }
         }
         Refusal::DeliveredPattern | Refusal::Callback => file

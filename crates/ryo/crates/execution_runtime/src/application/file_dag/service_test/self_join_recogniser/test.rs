@@ -66,7 +66,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 fn subject(second: Input) -> Result<Value, Failure> {
     let first = fixture();
     let mut rule = first.clone();
-    rule.steps.truncate(second.emits.0 as usize + 1);
+    rule.steps
+        .truncate(usize::try_from(second.emits.0).expect("a step number fits in usize") + 1);
     rule.emit.step = second.emits;
     let plans = [first, rule];
     let request = prepare(&plans, &[vec![], vec![]], &[], Arc::new(semantics()))?;

@@ -4,7 +4,7 @@ use super::super::{
     capacity::service::table,
     types::{BackingKey, ByteCount, LedgerEntry, LedgerSnapshot, SlotCount},
 };
-use crate::application::file_dag::derived::ledger::service::Ledger;
+use crate::application::file_dag::accounting::ledger::service::Ledger;
 
 impl Ledger {
     pub(crate) fn snapshot(&self) -> LedgerSnapshot {

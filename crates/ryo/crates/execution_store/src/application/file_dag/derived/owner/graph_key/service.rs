@@ -1,7 +1,7 @@
 //! The `graph_key` application operation.
 
 use super::super::types::IdentityCompatibility;
-use crate::application::file_dag::derived::ledger::types::ByteCount;
+use crate::application::file_dag::accounting::ledger::types::ByteCount;
 use ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract;
 use std::sync::Arc;
 

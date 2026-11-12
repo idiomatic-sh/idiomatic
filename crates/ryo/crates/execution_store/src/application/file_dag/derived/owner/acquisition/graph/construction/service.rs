@@ -1,10 +1,10 @@
 //! Physical graph kernels publish completed immutable storage to the common owner.
 use super::types::{BuiltDomain, BuiltGraph};
-use crate::application::file_dag::derived::constants;
-use crate::application::file_dag::derived::ledger::service::append_backing;
-use crate::application::file_dag::derived::ledger::types::{
+use crate::application::file_dag::accounting::ledger::service::append_backing;
+use crate::application::file_dag::accounting::ledger::types::{
     BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
 };
+use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AdmittedViewInputs;
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 use crate::application::file_dag::derived::owner::graphs::handles::types::GraphSharing;
@@ -166,7 +166,7 @@ pub(crate) fn domain(
         append_backing(&mut dependencies, backing)?;
     }
     dependencies.push(
-        crate::application::file_dag::derived::ledger::types::Backing {
+        crate::application::file_dag::accounting::ledger::types::Backing {
             key: BackingKey {
                 tag: BackingTag(19),
                 address: BackingAddress(Arc::as_ptr(&domain).addr()),

@@ -48,10 +48,6 @@ The core domain's `keeping` concept: what a run keeps of a repository for the ne
 
 The core domain's `listing` concept: the record of every file a run listed, whether a rule governed it or not.
 
-### `memory_diagnostics`
-
-The core domain's `memory_diagnostics` concept: the opt-in lifecycle memory diagnostics, written at the phases of a run.
-
 ### ordering
 
 The core domain's `ordering` concept.

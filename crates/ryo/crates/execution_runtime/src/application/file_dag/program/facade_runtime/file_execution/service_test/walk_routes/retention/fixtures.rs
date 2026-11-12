@@ -126,7 +126,11 @@ pub(super) fn script(authoring: Authoring, steps: &[Step]) -> Result<Trace, Oper
             outcome.map_or_else(Answer::Refused, |outcome| match outcome {
                 RootOutcome::Complete(table) => Answer::Rows(table.count.0),
                 RootOutcome::Failed(error) => Answer::Failed(error),
-                _ => Answer::Other,
+                RootOutcome::Partial { .. }
+                | RootOutcome::Skipped(_)
+                | RootOutcome::Unknown(_)
+                | RootOutcome::NoQuery
+                | RootOutcome::Deferred { .. } => Answer::Other,
             })
         };
         let answer = match *step {
