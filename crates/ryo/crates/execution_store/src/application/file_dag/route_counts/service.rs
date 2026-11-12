@@ -189,7 +189,7 @@ impl CapturedOrigin {
     /// # Examples
     ///
     /// ```
-    /// use ryo_execution_store::application::file_dag::route_counts::service::CapturedOrigin;
+    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::CapturedOrigin;
     /// let _ = CapturedOrigin::profile;
     /// ```
     pub fn profile(&self) -> &RouteProfile {
@@ -200,7 +200,7 @@ impl CapturedOrigin {
     /// # Examples
     ///
     /// ```
-    /// use ryo_execution_store::application::file_dag::route_counts::service::CapturedOrigin;
+    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::CapturedOrigin;
     /// let _ = CapturedOrigin::resume;
     /// ```
     pub fn resume(&self) -> OriginScope {
