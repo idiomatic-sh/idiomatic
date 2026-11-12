@@ -1,0 +1,84 @@
+description = "An application operation that has a service, `src/application/<operation>/service.rs`, declares it public in its module file: `pub mod service;`."
+why = "An application operation's module file is placed by `part-module`, which holds a namespace operation (one that only gathers sub-concepts) and an operation with its own service alike; the `application-module` template it replaced also held that the service is declared `pub`, so the engine crates above an operation can call it. A placement cannot tell the two kinds of module file apart by their path, so this rule keeps that one requirement of the template for the operations that have a service: a module file beside a directory holding `service.rs` that declares no `mod service` of bare `pub` visibility (`pub(crate)`, `pub(super)` and none are not) is reported. A namespace operation has no service.rs and is not read."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let sources = select file, span from tree-nodes where kind = "source-file";
+let files = project(from="filesystem.file", columns=["path"]);
+let services = capture(from=files, path="path", pattern="{*root}/application/{operation}/service.rs", captures=["root", "operation"]);
+let module-files = capture(from=sources, path="file", pattern="{*root}/application/{operation}.rs", captures=["root", "operation"]);
+let operations = select l."file" as "file", l."span" as "span" from module-files as l join services as r on l."root" = r."root" and l."operation" = r."operation";
+let modules = select * from tree-nodes where kind = "module";
+let name-nodes = select * from tree-nodes where kind = "name";
+let idents = select * from tree-tokens where kind = "ident";
+let visibilities = select * from tree-nodes where kind = "visibility";
+let inners = select * from tree-nodes where kind = "visibility-inner";
+let kids = select l."id" as "id", r."child" as "child" from modules as l join "syntax-child" as r on l."id" = r."parent";
+let named = select l."id" as "id", r."id" as "name-node" from kids as l join name-nodes as r on l."child" = r."id";
+let name-kids = select l."id" as "id", r."child" as "token" from named as l join "syntax-child" as r on l."name-node" = r."parent";
+let name-texts = select l."id" as "id", r."text" as "text", r."file" as "file" from name-kids as l join idents as r on l."token" = r."id";
+let service-mods = select * from name-texts where text = "service";
+let vis = select l."id" as "id", r."id" as "vis" from kids as l join visibilities as r on l."child" = r."id";
+let vis-kids = select l."id" as "id", l."vis" as "vis", r."child" as "child" from vis as l join "syntax-child" as r on l."vis" = r."parent";
+let restricted = select l."id" as "id" from vis-kids as l join inners as r on l."child" = r."id";
+let public = antijoin(left=vis, right=restricted, left-on=["id"], right-on=["id"]);
+let public-services = select l."file" as "file" from service-mods as l join public as r on l."id" = r."id";
+let missing = antijoin(left=operations, right=public-services, left-on=["file"], right-on=["file"]);
+emit missing subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{file}` has a service but does not declare it `pub mod service;`"
+help = "Declare the operation's service public in its module file, `pub mod service;`, beside its `#[cfg(test)] mod service_test;`."
+
+[given]
+include = ['src/application/*.rs', 'src/application/*/service.rs']
+
+[[scenarios]]
+id = 'public-service-passes'
+scenario = 'An operation module that declares its service `pub mod service;` passes.'
+given.files.'src/application/short.rs' = '''
+//! The `short` application operation.
+pub mod service;
+#[cfg(test)]
+mod service_test;
+'''
+given.files.'src/application/short/service.rs' = 'pub fn run() {}'
+
+[[scenarios]]
+id = 'private-service-refused'
+scenario = 'An operation module that declares its service `mod service;` is reported.'
+given.files.'src/application/short.rs' = '''
+//! The `short` application operation.
+mod service;
+#[cfg(test)]
+mod service_test;
+'''
+given.files.'src/application/short/service.rs' = 'pub fn run() {}'
+then.findings = [
+  { path = 'src/application/short.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'crate-visible-service-refused'
+scenario = 'An operation module that declares its service `pub(crate) mod service;` is reported.'
+given.files.'src/application/short.rs' = '''
+//! The `short` application operation.
+pub(crate) mod service;
+'''
+given.files.'src/application/short/service.rs' = 'pub fn run() {}'
+then.findings = [
+  { path = 'src/application/short.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'namespace-is-not-read'
+scenario = 'A namespace operation, which has no service.rs, is not read.'
+given.files.'src/application/file_dag.rs' = '''
+//! The file DAG.
+pub mod derived;
+'''
+given.files.'src/application/file_dag/derived.rs' = 'pub mod service;'
+given.files.'src/application/file_dag/derived/service.rs' = 'pub fn derive() {}'
