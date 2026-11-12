@@ -1,4 +1,4 @@
-//! Actual completion: nested provenance, resolved scope and no unrelated carrier parsing.
+//! Actual completion: nested provenance, resolved scope, no unrelated carrier parsing and the single mapping writer.
 use super::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::contracts::parse::contract::ParseContract;
@@ -99,6 +99,24 @@ fn invalid_nested_expression_keeps_outer_success_without_guessed_inner_root() ->
     )
 }
 
+/// Per source, whether the logical text of a unicode or escaped carrier reaches its name token and
+/// its two hosts, through the one mapping writer.
+fn unicode_and_escaped_carriers_use_the_existing_single_mapping_writer() -> String {
+    ["Alias = list[\"'λ'\"]\n", "Alias = list[\"'\\u03bb'\"]\n"]
+        .map(|source| {
+            let semantic = reading::<SemanticSyntaxItem>(source);
+            let embedded = reading::<EmbeddedExpressionItem>(source);
+            format!(
+                "{source:?}: causes {:?}, name token λ {}, embedded rows {}, second host is the first {}",
+                semantic.causes,
+                name(&semantic, "λ"),
+                embedded.rows.len(),
+                embedded.rows.get(1).map(|row| row[1]) == embedded.rows.first().map(|row| row[0])
+            )
+        })
+        .join("; ")
+}
+
 /// The cases of this file, one variant each.
 #[derive(Clone, Copy)]
 enum Body {
@@ -108,6 +126,8 @@ enum Body {
     ValuesAndShadowingStayNegativeBesideLiveTypeControls,
     /// The case `invalid_nested_expression_keeps_outer_success_without_guessed_inner_root`.
     InvalidNestedExpressionKeepsOuterSuccessWithoutGuessedInnerRoot,
+    /// The case `unicode_and_escaped_carriers_use_the_existing_single_mapping_writer`.
+    UnicodeAndEscapedCarriersUseTheExistingSingleMappingWriter,
 }
 
 type Input = Body;
@@ -141,6 +161,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "causes []; outcomes [\"parsed\", \"malformed\"]; embedded rows 1; name token T false",
         ),
     },
+    Case {
+        name: CaseName("unicode_and_escaped_carriers_use_the_existing_single_mapping_writer"),
+        word: Word::Succeeds,
+        input: || Body::UnicodeAndEscapedCarriersUseTheExistingSingleMappingWriter,
+        expect: Expect::Value(
+            "\"Alias = list[\\\"'λ'\\\"]\\n\": causes [], name token λ true, embedded rows 2, second host is the first true; \"Alias = list[\\\"'\\\\u03bb'\\\"]\\n\": causes [], name token λ true, embedded rows 2, second host is the first true",
+        ),
+    },
 ];
 
 /// Runs the body of one case.
@@ -154,6 +182,9 @@ fn subject(given: Input) -> Result<Value, Failure> {
         }
         Body::InvalidNestedExpressionKeepsOuterSuccessWithoutGuessedInnerRoot => {
             invalid_nested_expression_keeps_outer_success_without_guessed_inner_root()
+        }
+        Body::UnicodeAndEscapedCarriersUseTheExistingSingleMappingWriter => {
+            unicode_and_escaped_carriers_use_the_existing_single_mapping_writer()
         }
     };
     Ok(Box::leak(observed.into_boxed_str()))

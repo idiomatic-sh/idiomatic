@@ -142,6 +142,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// The refusal as a row states it.
 fn refusal(error: RuleCompilationError) -> Refusal {
+    use RuleCompilationError::{Observations, Query, Rules};
     match error {
         RuleCompilationError::UnknownKind { id, reason } => Refusal::UnknownKind {
             id: Cow::Owned(id.0.to_string()),
@@ -150,9 +151,7 @@ fn refusal(error: RuleCompilationError) -> Refusal {
         RuleCompilationError::UnknownRuleIndex { index, rules } => {
             Refusal::UnknownRuleIndex { index, rules }
         }
-        other @ (RuleCompilationError::Observations(_)
-        | RuleCompilationError::Rules(_)
-        | RuleCompilationError::Query { .. }) => Refusal::Other(format!("{other:?}")),
+        other @ (Observations(_) | Rules(_) | Query { .. }) => Refusal::Other(format!("{other:?}")),
     }
 }
 

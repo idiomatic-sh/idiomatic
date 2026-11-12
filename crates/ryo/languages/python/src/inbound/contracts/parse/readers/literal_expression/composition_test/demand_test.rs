@@ -1,6 +1,5 @@
-//! Actual completion under repeated demands: native ids, one model preparation, zero parses and the single mapping writer.
-use super::preseal_test::{build, name};
-use super::*;
+//! Actual completion under repeated demands: native ids, one model preparation and zero parses.
+use super::preseal_test::build;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::{
     inbound::contracts::parse::contract::ParseContract,
@@ -195,21 +194,6 @@ fn unrelated_runtime_subscripts_add_zero_parses_and_zero_logical_payload_bytes()
         added.len()
     )
 }
-fn unicode_and_escaped_carriers_use_the_existing_single_mapping_writer() -> String {
-    ["Alias = list[\"'λ'\"]\n", "Alias = list[\"'\\u03bb'\"]\n"]
-        .map(|source| {
-            let semantic = reading::<SemanticSyntaxItem>(source);
-            let embedded = reading::<EmbeddedExpressionItem>(source);
-            format!(
-                "{source:?}: causes {:?}, name token λ {}, embedded rows {}, second host is the first {}",
-                semantic.causes,
-                name(&semantic, "λ"),
-                embedded.rows.len(),
-                embedded.rows.get(1).map(|row| row[1]) == embedded.rows.first().map(|row| row[0])
-            )
-        })
-        .join("; ")
-}
 
 /// The rows of each relation, and what each demand saw, as one order reads them.
 type Demanded = (String, Vec<(languages::Relation, Vec<Vec<String>>)>);
@@ -326,8 +310,6 @@ enum Body {
     NativeIdsAndOneActualModelPreparationSurviveRepeatedDemandsAndRefill,
     /// The case `unrelated_runtime_subscripts_add_zero_parses_and_zero_logical_payload_bytes`.
     UnrelatedRuntimeSubscriptsAddZeroParsesAndZeroLogicalPayloadBytes,
-    /// The case `unicode_and_escaped_carriers_use_the_existing_single_mapping_writer`.
-    UnicodeAndEscapedCarriersUseTheExistingSingleMappingWriter,
     /// The case `complete_relation_rows_do_not_depend_on_demand_order`.
     CompleteRelationRowsDoNotDependOnDemandOrder,
     /// The case `a_demand_that_reads_no_expanded_element_expands_no_annotation`.
@@ -362,14 +344,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
     },
     Case {
-        name: CaseName("unicode_and_escaped_carriers_use_the_existing_single_mapping_writer"),
-        word: Word::Succeeds,
-        input: || Body::UnicodeAndEscapedCarriersUseTheExistingSingleMappingWriter,
-        expect: Expect::Value(
-            "\"Alias = list[\\\"'λ'\\\"]\\n\": causes [], name token λ true, embedded rows 2, second host is the first true; \"Alias = list[\\\"'\\\\u03bb'\\\"]\\n\": causes [], name token λ true, embedded rows 2, second host is the first true",
-        ),
-    },
-    Case {
         name: CaseName("complete_relation_rows_do_not_depend_on_demand_order"),
         word: Word::Succeeds,
         input: || Body::CompleteRelationRowsDoNotDependOnDemandOrder,
@@ -395,9 +369,6 @@ fn subject(given: Input) -> Result<Value, Failure> {
         }
         Body::UnrelatedRuntimeSubscriptsAddZeroParsesAndZeroLogicalPayloadBytes => {
             unrelated_runtime_subscripts_add_zero_parses_and_zero_logical_payload_bytes()
-        }
-        Body::UnicodeAndEscapedCarriersUseTheExistingSingleMappingWriter => {
-            unicode_and_escaped_carriers_use_the_existing_single_mapping_writer()
         }
         Body::CompleteRelationRowsDoNotDependOnDemandOrder => {
             complete_relation_rows_do_not_depend_on_demand_order()
