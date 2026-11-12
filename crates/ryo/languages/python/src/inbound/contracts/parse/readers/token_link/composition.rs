@@ -18,7 +18,7 @@ pub(crate) struct TokenLinkItem;
 ryo::reads! {
     TokenLinkItem => languages::TokenLink, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits,
-        each (scan(tree)) as event {
+        each (scan(tree, std::cell::RefMut::map(model.scratch.borrow_mut(), |scratch| &mut scratch.token_stack))) as event {
             when identity(event) {
                 Event::Link(link) => {
                     given name = languages::intern_derived(symbols, tree.source, link_kind(link.kind));

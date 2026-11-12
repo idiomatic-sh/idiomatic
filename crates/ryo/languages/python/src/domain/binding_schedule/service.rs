@@ -1,11 +1,12 @@
 //! Schedule language evaluation and alternatives; no linter policy or runtime CFG is encoded.
 use super::constants;
+use super::types::PhaseCursor;
 use crate::domain::{
     binding_walk::service::{comprehension_body, fields, parameters, push, walk},
     labels::types::Field,
     model::types::{
         BindingAction, BindingAnnotationTiming, BindingPhase, BindingPhaseKind, BindingSchedule,
-        Declarations, PhaseCursor,
+        Declarations,
     },
     nodes::types::Node,
     scopes::service::enclosing,

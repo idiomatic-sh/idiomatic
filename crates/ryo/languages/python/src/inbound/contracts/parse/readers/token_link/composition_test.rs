@@ -16,7 +16,8 @@ fn edges(source: &str) -> (Vec<(String, String, LinkKind)>, bool) {
     };
     let mut edges = Vec::new();
     let mut partial = false;
-    for event in scan(&tree) {
+    let stack = std::cell::RefCell::default();
+    for event in scan(&tree, stack.borrow_mut()) {
         match event {
             Event::Incomplete => partial = true,
             Event::Link(link) => {

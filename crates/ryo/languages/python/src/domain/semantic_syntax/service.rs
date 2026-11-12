@@ -282,9 +282,10 @@ pub(crate) fn completion_hosts(
     symbols: &mut Symbols,
 ) -> Vec<Position> {
     let provenance = prepare(tree, model);
-    let expanded = languages::embedded_expressions(tree.elements)
-        .map(|source| source.host)
-        .collect::<std::collections::HashSet<_>>();
+    let mut scratch = model.scratch.borrow_mut();
+    let expanded = &mut scratch.completion_expanded;
+    expanded.clear();
+    expanded.extend(languages::embedded_expressions(tree.elements).map(|source| source.host));
     languages::positions(tree.elements)
         .filter(|&host| {
             kind(tree, host) == Kind::Node(Node::Constant)

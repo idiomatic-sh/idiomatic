@@ -68,6 +68,8 @@ pub(crate) mod format_parsing;
 /// Application-owned decoded format grammar results and parser port.
 pub(crate) mod format_syntax;
 pub(crate) mod raw_format;
+/// Buffers the readers keep from file to file instead of allocating per file.
+pub(crate) mod read_scratch;
 /// Target-aware recognition of Python's standard format-specification mini-language.
 pub(crate) mod standard_format_spec;
 /// Python release-specific, platform-independent standard-library names.

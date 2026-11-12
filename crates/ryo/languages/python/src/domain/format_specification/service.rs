@@ -1,7 +1,8 @@
 //! Read decoded brace fields and syntax-owned f-string specs, without call/type policy.
 use super::constants;
 use super::types::{
-    ConversionText, Observation, ObservationCompleteness, Observations, SelectorPath, SpecOrdinal,
+    ConversionText, Observation, ObservationCompleteness, Observations, ObservedPiece,
+    ObservedSpan, ObservedText, OwnedField, SelectorPath, SpanEnd, SpanStart, SpecOrdinal,
     SpecSource, SpecValue,
 };
 use crate::domain::brace_format::types::CachedBraceFormat;
@@ -22,7 +23,7 @@ use crate::domain::{
         types::Kind,
     },
 };
-use ryo::languages::{self, Position, Tree};
+use ryo::languages::{self, NameText, Position, Tree};
 /// The actual f-string owner, excluding synthetic format-spec JoinedStr nodes.
 fn fstring_owner(tree: &Tree<'_>, at: Position) -> Option<Position> {
     let mut above = parent(tree, at);
@@ -38,19 +39,41 @@ fn fstring_owner(tree: &Tree<'_>, at: Position) -> Option<Position> {
     }
     None
 }
-/// Extract observations after the caller has lazily prepared the independent brace grammar.
+/// The span of `piece` appended to the observations' text.
+fn appended(text: &mut ObservedText, piece: ObservedPiece<'_>) -> ObservedSpan {
+    let start = SpanStart(text.0.len());
+    text.0.push_str(piece.0);
+    ObservedSpan {
+        start,
+        end: SpanEnd(text.0.len()),
+    }
+}
+
+/// What an observation's span reads in the observations' text.
+pub(crate) fn text_of(observations: &Observations, span: ObservedSpan) -> NameText<'_> {
+    NameText(
+        observations
+            .text
+            .0
+            .get(span.start.0..span.end.0)
+            .unwrap_or(constants::NO_TEXT),
+    )
+}
+
+/// Extract observations after the caller has lazily prepared the independent brace grammar. `result` is the caller's, kept between
+/// files, so a file whose specifications fit what an earlier one grew allocates nothing.
 pub(crate) fn observe(
     tree: &Tree<'_>,
     braces: &RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>,
     target: crate::domain::standard_library::types::TargetVersion,
-) -> Observations {
-    let mut result = Observations {
-        completeness: if braces.state == BraceFormatState::Complete {
-            ObservationCompleteness::Whole
-        } else {
-            ObservationCompleteness::Partial
-        },
-        ..Default::default()
+    result: &mut Observations,
+) {
+    result.rows.clear();
+    result.text.0.clear();
+    result.completeness = if braces.state == BraceFormatState::Complete {
+        ObservationCompleteness::Whole
+    } else {
+        ObservationCompleteness::Partial
     };
     for occurrence in &braces.occurrences {
         // F-string specs have their own AST fields and must not be reinterpreted as brace strings.
@@ -69,6 +92,18 @@ pub(crate) fn observe(
                 continue;
             };
             let nested = parsed.fields.iter().any(|nested| matches!(nested.context, BraceFieldContext::FormatSpec { parent_ordinal } if parent_ordinal == field.ordinal));
+            let value = appended(&mut result.text, ObservedPiece(&spec.0));
+            let selector = appended(&mut result.text, ObservedPiece(&field.selector_text.0));
+            let conversion = {
+                let start = SpanStart(result.text.0.len());
+                if let Some(character) = field.conversion {
+                    result.text.0.push(character.0);
+                }
+                ObservedSpan {
+                    start,
+                    end: SpanEnd(result.text.0.len()),
+                }
+            };
             result.rows.push(Observation {
                 id: occurrence.node,
                 ordinal: SpecOrdinal(field.ordinal.0),
@@ -80,28 +115,30 @@ pub(crate) fn observe(
                 },
                 origin: occurrence.node,
                 source_kind: SpecSource(constants::BRACE_STRING),
-                value: Some(SpecValue(spec.0.clone())),
+                value: Some(SpecValue(value)),
                 outcome: recognize(FormatSpecText(&spec.0), nested.into(), target.into()),
-                selector: SelectorPath(field.selector_text.0.clone()),
-                conversion: ConversionText(
-                    field
-                        .conversion
-                        .map_or_else(String::new, |value| value.to_string()),
-                ),
+                selector: SelectorPath(selector),
+                conversion: ConversionText(conversion),
             });
         }
     }
-    let mut owners = indexmap::IndexMap::<Position, Vec<Position>>::new();
-    for field in crate::domain::semantic_syntax::service::positions(tree) {
+    result.owners.clear();
+    for field in (0..languages::end_of(tree.elements).0).map(Position) {
         if kind(tree, field) != Kind::Node(Node::FormattedValue) {
             continue;
         }
         if let Some(owner) = fstring_owner(tree, field) {
-            owners.entry(owner).or_default().push(field);
+            result.owners.push(OwnedField { owner, field });
         }
     }
-    for (owner, fields) in owners {
-        for (ordinal, field) in fields.iter().enumerate() {
+    // Preorder positions put an owner before its fields, so grouping by owner position keeps each owner's first-field order.
+    result.owners.sort_unstable();
+    let owners = std::mem::take(&mut result.owners);
+    for group in owners.chunk_by(|left, right| left.owner == right.owner) {
+        let Some(owner) = group.first().map(|each| each.owner) else {
+            continue;
+        };
+        for (ordinal, OwnedField { field, .. }) in group.iter().enumerate() {
             let Some(spec) = languages::children(tree.elements, *field)
                 .find(|child| field_of(tree, *child) == Field::FormatSpec)
             else {
@@ -112,7 +149,7 @@ pub(crate) fn observe(
                 if above == owner {
                     break None;
                 }
-                if let Some(found) = fields.iter().position(|each| *each == above) {
+                if let Some(found) = group.iter().position(|each| each.field == above) {
                     break Some(found);
                 }
                 let next = parent(tree, above);
@@ -121,18 +158,28 @@ pub(crate) fn observe(
                 }
                 above = next;
             };
-            let mut decoded = String::new();
-            let (value, outcome) = match decoded_into(tree, spec, FormatScratch(&mut decoded)) {
-                Ok(DecodedInput::Static) => {
-                    let outcome = recognize(FormatSpecText(&decoded), false.into(), target.into());
-                    (Some(SpecValue(decoded)), outcome)
-                }
-                Ok(DecodedInput::Dynamic) => (None, StandardSpecOutcome::Dynamic),
-                Err(()) => {
-                    result.completeness = ObservationCompleteness::Partial;
-                    continue;
-                }
-            };
+            let (value, outcome) =
+                match decoded_into(tree, spec, FormatScratch(&mut result.decoded.0)) {
+                    Ok(DecodedInput::Static) => {
+                        let outcome = recognize(
+                            FormatSpecText(&result.decoded.0),
+                            false.into(),
+                            target.into(),
+                        );
+                        (
+                            Some(SpecValue(appended(
+                                &mut result.text,
+                                ObservedPiece(&result.decoded.0),
+                            ))),
+                            outcome,
+                        )
+                    }
+                    Ok(DecodedInput::Dynamic) => (None, StandardSpecOutcome::Dynamic),
+                    Err(()) => {
+                        result.completeness = ObservationCompleteness::Partial;
+                        continue;
+                    }
+                };
             result.rows.push(Observation {
                 id: owner,
                 ordinal: SpecOrdinal(ordinal),
@@ -142,16 +189,19 @@ pub(crate) fn observe(
                 value,
                 outcome,
                 selector: SelectorPath::default(),
-                conversion: ConversionText(
-                    languages::property_at(
-                        tree.elements,
-                        *field,
-                        crate::domain::syntax::constants::INTERPOLATION_CONVERSION,
-                    )
-                    .map_or_else(String::new, |value| value.0.to_owned()),
-                ),
+                conversion: ConversionText(appended(
+                    &mut result.text,
+                    ObservedPiece(
+                        languages::property_at(
+                            tree.elements,
+                            *field,
+                            crate::domain::syntax::constants::INTERPOLATION_CONVERSION,
+                        )
+                        .map_or(constants::NO_TEXT, |value| value.0),
+                    ),
+                )),
             });
         }
     }
-    result
+    result.owners = owners;
 }

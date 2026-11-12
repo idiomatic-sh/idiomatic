@@ -8,6 +8,7 @@ use crate::domain::format_syntax::types::{
     CachedFormat, FormatParseResult, FormatParseState, RetainedFormatIndex,
 };
 use crate::domain::indentation::types::IndentationIndex;
+use crate::domain::read_scratch::types::ReadScratch;
 use crate::domain::terminal_flow::types::TerminalIndex;
 use crate::domain::{labels::types::Field, syntax::types::Kind};
 use ryo::languages::{Position, PropertyId, Symbol};
@@ -91,6 +92,8 @@ pub(crate) struct Declarations {
     pub semantic: RefCell<SemanticIndex>,
     /// Lazy static binding observations; no analysis occurs for queries that do not request them.
     pub binding_analysis: RefCell<BindingAnalysisIndex>,
+    /// What the readers work in file after file; emptied at each use, its capacity kept between files.
+    pub scratch: RefCell<ReadScratch>,
 }
 
 /// A lexical event that can invalidate otherwise known import or builtin provenance.
@@ -394,7 +397,3 @@ pub(crate) struct BindingMutation {
     /// Store, deletion, or exception cleanup.
     pub action: BindingAction,
 }
-
-/// Index of the next deferred binding phase to drain.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct PhaseCursor(pub usize);
