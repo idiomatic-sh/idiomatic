@@ -155,6 +155,7 @@ pub enum Coverage {
 /// A pattern placed at a base directory, compiled: its text, base and literal prefix, its capture names in order, and
 /// the compiled tests the matching port made.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct PathMatcher {
     /// The pattern as written.
     pub text: PathPattern,
