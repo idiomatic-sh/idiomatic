@@ -1,10 +1,10 @@
 //! The `leases` application operation.
 use std::sync::Arc;
 
-use super::super::super::ledger::types::{Backing, LeaseClass};
 use super::super::service::*;
-use crate::application::file_dag::derived::ledger::service::Ledger;
-use crate::application::file_dag::derived::ledger::service::ResourceLease;
+use crate::application::file_dag::accounting::ledger::service::Ledger;
+use crate::application::file_dag::accounting::ledger::service::ResourceLease;
+use crate::application::file_dag::accounting::ledger::types::{Backing, LeaseClass};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 impl DerivedOwner {

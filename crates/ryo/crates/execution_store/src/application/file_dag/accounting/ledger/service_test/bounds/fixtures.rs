@@ -1,7 +1,7 @@
 //! The leases of the `bounds` cases and what each observed.
-use crate::application::file_dag::derived::ledger::fixtures::{backing, positions};
-use crate::application::file_dag::derived::ledger::service::Ledger;
-use crate::application::file_dag::derived::ledger::types::{
+use crate::application::file_dag::accounting::ledger::fixtures::{backing, positions};
+use crate::application::file_dag::accounting::ledger::service::Ledger;
+use crate::application::file_dag::accounting::ledger::types::{
     BackingAddress, ByteCount, LeaseClass, UnitCount,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;

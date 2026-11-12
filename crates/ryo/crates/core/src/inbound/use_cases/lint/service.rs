@@ -24,10 +24,6 @@ use crate::domain::answering::service::settle;
 use crate::domain::answering::types::Answered;
 use crate::domain::keeping::service::rows_of;
 use crate::domain::listing::service::every_file;
-use crate::domain::memory_diagnostics::constants::{AFTER_FILES, BEFORE_CROSS_CLEANUP};
-use crate::domain::memory_diagnostics::service::{
-    observed_arenas, observed_cross_symbols, observed_notes, observed_records,
-};
 use crate::domain::project::service::{project_rules, reads_any};
 use crate::domain::project::types::{PlanReads, Projected};
 use crate::domain::render::types::Rendered;
@@ -181,9 +177,6 @@ pub(super) fn answer(
         total,
     } = visits.visited(&stream, visit)??;
     let fresh = order(&mut met);
-    observed_records(AFTER_FILES, &fresh.records);
-    observed_arenas(AFTER_FILES, &met.arenas);
-    observed_notes(AFTER_FILES, &met.notes);
     let WorkersMet {
         observations,
         mut arenas,
@@ -326,9 +319,7 @@ pub(super) fn settled(ordinary: OrdinaryOutcome, answered: &mut Answered) -> Res
         outcomes,
         refused,
         finished,
-        mut symbols,
     } = ordinary;
-    observed_cross_symbols(BEFORE_CROSS_CLEANUP, &mut symbols);
     for outcome in outcomes {
         if settle(
             outcome.result.map_err(LintError::from)?.crossed,

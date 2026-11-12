@@ -1,6 +1,6 @@
 //! Budgeted acquisition of complete typed indexes, with invocation-local fallback.
 use super::types::ByteLimit;
-use crate::application::file_dag::derived::ledger::types::ByteCount;
+use crate::application::file_dag::accounting::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use ryo_execution_domain::domain::coverage::types::Partial;
 use ryo_relations::domain::relations::types::Relation;
@@ -32,11 +32,11 @@ pub(crate) fn new(
             eligible.push(*relation);
         }
     }
-    let bytes = crate::application::file_dag::derived::ledger::capacity::service::headed::<
+    let bytes = crate::application::file_dag::accounting::ledger::capacity::service::headed::<
         CacheBackend,
         Relation,
     >(
-        crate::application::file_dag::derived::ledger::types::SlotCount(eligible.capacity()),
+        crate::application::file_dag::accounting::ledger::types::SlotCount(eligible.capacity()),
     )?
     .0;
     (bytes <= limit.0).then_some(CacheBackend {

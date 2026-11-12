@@ -1,5 +1,5 @@
 //! Worker-local lease capabilities wrap thread-safe immutable publication records.
-use crate::application::file_dag::derived::ledger::service::ResourceLease;
+use crate::application::file_dag::accounting::ledger::service::ResourceLease;
 use crate::application::file_dag::relations::publication::types::RelationResult;
 use crate::application::file_dag::relations::types::NormalizationCharge;
 use std::{cell::RefCell, sync::Arc};

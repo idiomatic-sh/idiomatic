@@ -40,10 +40,6 @@ Indexes the keys of finite rows in hash chains, with buffers a later build reuse
 
 Declares the portable failures of derived semantics.
 
-### footprint
-
-Reports the allocation facts of a payload and of a build's scratch; the engine alone assigns lifetimes and budgets.
-
 ### key
 
 Reduces cells to words and keys to hashes, shared by construction and by immutable physical probes.

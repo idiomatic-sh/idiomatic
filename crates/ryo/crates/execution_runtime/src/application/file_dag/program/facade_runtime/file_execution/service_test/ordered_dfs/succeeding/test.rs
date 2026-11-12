@@ -7,7 +7,7 @@ use super::fixtures::{
     partitions_and_multiple_keys_are_exact, roots_are_independent_and_duplicates_are_deduplicated,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_store::application::file_dag::derived::ledger::types::ByteCount;
+use ryo_execution_store::application::file_dag::accounting::ledger::types::ByteCount;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use std::borrow::Cow;

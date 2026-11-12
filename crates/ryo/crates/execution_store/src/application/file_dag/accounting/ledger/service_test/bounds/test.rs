@@ -1,6 +1,6 @@
 //! Category totals, metadata and overflow stay bounded across repeated leases.
 use super::fixtures::{Observed, Overflow, Repeated, Turn, overflow, repeated};
-use crate::application::file_dag::derived::ledger::types::ByteCount;
+use crate::application::file_dag::accounting::ledger::types::ByteCount;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::borrow::Cow;

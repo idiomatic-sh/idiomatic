@@ -351,7 +351,7 @@ impl GraphFixture {
             .derived()
             .prepare_graph_room(
                 backend.as_mut().unwrap(),
-                crate::application::file_dag::derived::ledger::types::ByteCount(cost),
+                crate::application::file_dag::accounting::ledger::types::ByteCount(cost),
                 &[],
             )
             .unwrap()

@@ -5,7 +5,7 @@ use super::fixtures::{
     malformed_empty_input_is_rejected, ties_are_rejected_even_without_roots,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_store::application::file_dag::derived::ledger::types::ByteCount;
+use ryo_execution_store::application::file_dag::accounting::ledger::types::ByteCount;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::selects;
 

@@ -4,7 +4,7 @@ use super::fixtures::{
     SharedAlias, optional_release, optional_retention, position_capacity, release_preview,
     reused_key, shared_alias,
 };
-use crate::application::file_dag::derived::ledger::types::{ByteCount, Credit, UnitCount};
+use crate::application::file_dag::accounting::ledger::types::{ByteCount, Credit, UnitCount};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 

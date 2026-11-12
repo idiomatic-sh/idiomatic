@@ -1,11 +1,7 @@
-// ignore: idiomatic.arch/file-length - the one preparation operation of the frontier part: prepare, its admissions and bucket validation and the cache it fills run as one sequence over the same request, and the spec places one service.rs per part
 //! One compact admission operation for diagnostic and observed project phases.
 //! Store reads and name/spelling preparation keep their existing eager order;
 //! row-cell allocation belongs to the shared executable invocation owner.
-use super::constants::{
-    INPUT_MEMORY_SPAN, OWNER_FRONTIER_DESCRIPTORS, OWNER_PACKED_INPUT, PHASE_COMPACT_PREPARED,
-    PHASE_INPUT_PACKED, PRODUCER_UNAVAILABLE, PROOF_MISMATCH, SOURCES_SKIPPED,
-};
+use super::constants::{PRODUCER_UNAVAILABLE, PROOF_MISMATCH, SOURCES_SKIPPED};
 use super::errors::FrontiersError;
 use super::types::{
     FileAccounting, FrontierInput, FrontierSource, InputReadiness, PackedFrontier,
@@ -14,7 +10,6 @@ use super::types::{
 use crate::application::file_dag::frontiers::cache::service::FrontierCache;
 use crate::application::file_dag::frontiers::decodes::service::FrontierDecodes;
 use crate::outbound::facts::interface::{FactsFinish, FactsWorker};
-use ryo_execution_store::application::file_dag::derived::constants::TARGET_LIFECYCLE_MEMORY;
 use ryo_language::domain::symbols::{service::places_mut, types::Symbols};
 use ryo_values::domain::{
     plan_parts::types::{Input, InputNumber},
@@ -69,9 +64,7 @@ pub(super) fn prepare(
         .into();
     let mut admitted = Vec::new();
     let mut refused = Vec::new();
-    let memory = tracing::enabled!(target: TARGET_LIFECYCLE_MEMORY, tracing::Level::TRACE);
     for (place, input) in program.frontiers(rule)?.iter().copied().enumerate() {
-        let _input = memory.then(|| tracing::trace_span!(target: TARGET_LIFECYCLE_MEMORY, INPUT_MEMORY_SPAN, input_index=place, input=?input).entered());
         if let PreparationPolicy::Observations { ready } = policy {
             if ready.get(place).copied().ok_or(OperatingError::NotRun)?
                 == InputReadiness::Unavailable
@@ -126,12 +119,6 @@ pub(super) fn prepare(
             });
             continue;
         }
-        if memory {
-            let bytes = ryo_values::domain::stores::types::retention::value::RetainedBytes::packed(
-                &words.words,
-            );
-            tracing::trace!(target: TARGET_LIFECYCLE_MEMORY, phase=PHASE_INPUT_PACKED, owner=OWNER_PACKED_INPUT, packed_live_bytes=bytes.packed_live.0, packed_capacity_bytes=bytes.packed_capacity.0);
-        }
         let mode = match policy {
             PreparationPolicy::Diagnostic => DecodeMode::Permissive,
             PreparationPolicy::Observations { .. } => DecodeMode::Complete,
@@ -144,18 +131,6 @@ pub(super) fn prepare(
             mode,
             coverage,
         }));
-    }
-    if memory {
-        let compact_rows = admitted
-            .iter()
-            .map(|input| match input {
-                FrontierInput::Compact { table, .. } => {
-                    ryo_values::domain::compact_table::service::compact_rows(table).0
-                }
-                FrontierInput::Decoded { .. } | FrontierInput::Packed(_) => 0,
-            })
-            .sum::<usize>();
-        tracing::trace!(target: TARGET_LIFECYCLE_MEMORY, phase=PHASE_COMPACT_PREPARED, owner=OWNER_FRONTIER_DESCRIPTORS, inputs=admitted.len(), compact_rows);
     }
     Ok(PreparedFrontiers {
         producer: rule,

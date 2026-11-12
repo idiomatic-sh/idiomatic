@@ -4,8 +4,8 @@ use super::super::types::{
     Backing, BackingKey, ByteCount, Credit, Dormancy, HoldCount, LeaseClass, UnitCount,
 };
 use super::types::Dropping;
-use crate::application::file_dag::derived::ledger::service::Ledger;
-use crate::application::file_dag::derived::ledger::service::ResourceLease;
+use crate::application::file_dag::accounting::ledger::service::Ledger;
+use crate::application::file_dag::accounting::ledger::service::ResourceLease;
 use rustc_hash::FxHashMap;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::sync::Arc;

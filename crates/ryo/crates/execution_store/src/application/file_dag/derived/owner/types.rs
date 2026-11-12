@@ -1,5 +1,5 @@
 //! Counters, orders and answers of the derived owner, each named for what it counts.
-use crate::application::file_dag::derived::ledger::types::ByteCount;
+use crate::application::file_dag::accounting::ledger::types::ByteCount;
 
 /// The order in which an entry was admitted; a smaller order was admitted first.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
@@ -57,7 +57,7 @@ pub(crate) enum PinState {
 /// What reclaiming optional payload could free, and whether pinned payload blocked more.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ReclaimOutlook {
-    pub available: Option<crate::application::file_dag::derived::ledger::types::Credit>,
+    pub available: Option<crate::application::file_dag::accounting::ledger::types::Credit>,
     pub pinned: PinState,
 }
 

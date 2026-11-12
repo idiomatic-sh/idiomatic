@@ -1,5 +1,5 @@
 //! Physical allocation facts are supplied by the immutable capability payload.
-use crate::application::file_dag::derived::ledger::types::ByteCount;
+use crate::application::file_dag::accounting::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::sync::Arc;

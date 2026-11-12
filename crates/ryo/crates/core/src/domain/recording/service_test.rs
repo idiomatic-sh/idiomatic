@@ -320,7 +320,5 @@ mod coverage_test;
 mod normalization_test;
 #[cfg(test)]
 mod replay_test;
-#[cfg(test)]
-mod retention_test;
 
 use super::fixtures::matcher;

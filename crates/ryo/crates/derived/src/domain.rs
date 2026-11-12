@@ -8,7 +8,6 @@ pub mod dfs;
 pub mod dispatch;
 pub mod equality;
 pub mod fault;
-pub mod footprint;
 pub mod key;
 pub mod membership;
 pub mod native;

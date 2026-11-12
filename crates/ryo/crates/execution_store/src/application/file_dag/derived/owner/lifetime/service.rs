@@ -1,5 +1,5 @@
 //! The `lifetime` application operation.
-use crate::application::file_dag::derived::ledger::types::ByteCount;
+use crate::application::file_dag::accounting::ledger::types::ByteCount;
 use crate::application::file_dag::derived::population::service::PopulationId;
 
 use crate::application::file_dag::derived::owner::types::{

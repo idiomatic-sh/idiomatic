@@ -10,7 +10,7 @@ use ryo_values::domain::rows::types::Table;
 
 use super::super::service::*;
 
-use crate::application::file_dag::derived::ledger::types::{
+use crate::application::file_dag::accounting::ledger::types::{
     Backing, BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
 };
 
@@ -51,7 +51,7 @@ impl RelationOwner {
                         address: BackingAddress(Arc::as_ptr(table).addr()),
                     },
                     retention_units: UnitCount(0),
-                    bytes: crate::application::file_dag::derived::ledger::capacity::service::compact_table(
+                    bytes: crate::application::file_dag::accounting::ledger::capacity::service::compact_table(
                         table,
                     ),
                 });

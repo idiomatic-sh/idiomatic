@@ -101,7 +101,7 @@ use super::types::{
     AdmissionOrder, BuildCount, BuildCounts, EntryLimit, FilePreparation, HitCount,
     MembershipOrder, PinCount, PopulationCount, RefusalCount, ReleasedEntries, ScopeId, ViewCount,
 };
-use crate::application::file_dag::derived::ledger::types::ByteCount;
+use crate::application::file_dag::accounting::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::population::service::PopulationId;
 use rustc_hash::FxHashMap;
@@ -161,7 +161,8 @@ pub struct DerivedOwner {
     pub(super) next_scope: std::cell::Cell<ScopeId>,
     #[cfg(any(test, feature = "fixtures"))]
     pub(super) last_scoped_storage: RefCell<Weak<DerivedStorage>>,
-    pub(super) ledger: std::rc::Rc<RefCell<super::super::ledger::service::Ledger>>,
+    pub(super) ledger:
+        std::rc::Rc<RefCell<crate::application::file_dag::accounting::ledger::service::Ledger>>,
     pub(super) backend: RefCell<Option<CacheBackend>>,
     pub(super) file_prepared: std::cell::Cell<FilePreparation>,
     pub(super) state: RefCell<State>,
@@ -183,7 +184,7 @@ impl DerivedOwner {
             #[cfg(any(test, feature = "fixtures"))]
             last_scoped_storage: RefCell::new(Weak::new()),
             ledger: std::rc::Rc::new(RefCell::new(
-                super::super::ledger::service::Ledger::default(),
+                crate::application::file_dag::accounting::ledger::service::Ledger::default(),
             )),
             state: RefCell::new(State::default()),
             backend: RefCell::new(None),
@@ -254,7 +255,7 @@ impl DerivedOwner {
         )
     }
     pub(crate) fn metadata_bytes(&self) -> ByteCount {
-        use crate::application::file_dag::derived::ledger::{
+        use crate::application::file_dag::accounting::ledger::{
             capacity::{service::saturating, service::table},
             types::SlotCount,
         };
@@ -319,7 +320,8 @@ pub(super) struct Key {
 
 pub(super) struct OwnedView {
     pub(crate) storage: Arc<DerivedStorage>,
-    pub(crate) _lease: Arc<super::super::ledger::service::ResourceLease>,
+    pub(crate) _lease:
+        Arc<crate::application::file_dag::accounting::ledger::service::ResourceLease>,
 }
 
 pub(super) struct OwnerEntry {
@@ -328,8 +330,9 @@ pub(super) struct OwnerEntry {
     pub(crate) weak: Weak<DerivedStorage>,
     pub(crate) required: Option<OwnedView>,
     pub(crate) retained: Option<OwnedView>,
-    pub(crate) backings: Arc<[super::super::ledger::types::Backing]>,
-    pub(crate) lease: Weak<super::super::ledger::service::ResourceLease>,
+    pub(crate) backings: Arc<[crate::application::file_dag::accounting::ledger::types::Backing]>,
+    pub(crate) lease:
+        Weak<crate::application::file_dag::accounting::ledger::service::ResourceLease>,
     pub(crate) bytes: ByteCount,
     pub(crate) working: ByteCount,
     pub(crate) backend: ByteCount,

@@ -109,7 +109,7 @@ pub(super) fn reclaim(fixture: &ResourceFixture) -> (Room, usize) {
     let room = owner
         .prepare_graph_room(
             cache,
-            crate::application::file_dag::derived::ledger::types::ByteCount(cost),
+            crate::application::file_dag::accounting::ledger::types::ByteCount(cost),
             &[],
         )
         .unwrap();

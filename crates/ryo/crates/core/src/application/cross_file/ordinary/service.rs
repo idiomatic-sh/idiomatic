@@ -104,7 +104,6 @@ impl CrossFile {
             outcomes,
             refused,
             finished,
-            symbols: cross,
         }))
     }
 }

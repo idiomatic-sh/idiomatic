@@ -1,6 +1,6 @@
 //! The types of the `footprint` concept: plain data, public fields and derives, with no constructor and no inherent impl.
-use crate::domain::allocation::types::{AllocationBytes, AllocationKey, ElementCapacity};
-use crate::domain::vertices::types::{PartitionId, VertexId, VertexKey};
+use ryo_derived::domain::allocation::types::{AllocationBytes, AllocationKey, ElementCapacity};
+use ryo_derived::domain::vertices::types::{PartitionId, VertexId, VertexKey};
 use ryo_relations::domain::relations::types::Value;
 use std::sync::Arc;
 
@@ -31,7 +31,9 @@ pub struct PayloadFootprint {
 }
 
 /// One entry of the partition table of a compact graph, as the hash table stores it.
+#[derive(Debug)]
 pub struct PartitionEntry(pub Arc<[Value]>, pub PartitionId);
 
 /// One entry of the vertex table of a compact graph, as the hash table stores it.
+#[derive(Clone, Copy, Debug)]
 pub struct VertexEntry(pub VertexKey, pub VertexId);
