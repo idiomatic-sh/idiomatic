@@ -199,6 +199,39 @@ pub fn view<'a>(
     }
 }
 
+/// The view of a built payload, of whatever kind it was built: the view a prepared request borrows, without the request.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_derived::domain::contract::types::DerivedView;
+/// use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
+/// use ryo_derived::domain::dispatch::service::payload_view;
+/// fn is_index(payload: &DerivedPayload) -> bool {
+///     matches!(payload_view(payload), DerivedView::Equality(_))
+/// }
+/// let _ = is_index;
+/// ```
+#[must_use]
+pub fn payload_view(payload: &DerivedPayload) -> DerivedView<'_> {
+    match &payload.data {
+        PayloadData::Equality(data) => DerivedView::Equality(data),
+        PayloadData::Adjacency(data) => DerivedView::Adjacency(data),
+        PayloadData::Membership(DerivedMembership::Values(values)) => {
+            DerivedView::Membership(MembershipView::Values(values))
+        }
+        PayloadData::Membership(DerivedMembership::Dense(marks)) => {
+            DerivedView::Membership(MembershipView::Dense(DenseMarks(marks.0.as_slice())))
+        }
+        PayloadData::PartitionOrder(data) => DerivedView::PartitionOrder(data),
+        PayloadData::ClosureAdjacency(data) => DerivedView::ClosureAdjacency(data),
+        PayloadData::CycleAdjacency(data) => DerivedView::CycleAdjacency(data),
+        PayloadData::OrderedKeys(data) => DerivedView::OrderedKeys(data),
+        PayloadData::OrderedDfs(data) => DerivedView::OrderedDfs(data),
+        PayloadData::NativeLookup(data) => DerivedView::NativeLookup(data),
+    }
+}
+
 /// Interprets optional native support without building a lookup payload.
 ///
 /// # Errors

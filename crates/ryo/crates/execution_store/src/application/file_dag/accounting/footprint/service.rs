@@ -127,7 +127,7 @@ fn graph(value: &CompactGraph) -> Result<AllocationBytes, DerivedFault> {
 /// # Errors
 /// A size that does not fit.
 pub(crate) fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, DerivedFault> {
-    let view = payload.view();
+    let view = ryo_derived::domain::dispatch::service::payload_view(payload);
     let mut shared = Vec::new();
     let owned = match &view {
         DerivedView::Equality(value) => {
