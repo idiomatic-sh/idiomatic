@@ -65,7 +65,7 @@ fn a_path_through_a_private_module_of_a_library() -> Repository {
     let private = declares(&["inner"])
         .into_iter()
         .map(|each| crate::domain::module_tree::types::ModDeclaration {
-            reach: crate::domain::module_tree::types::Reach::Crate,
+            reach: crate::domain::module_tree::types::Exposure::Crate,
             ..each
         })
         .collect();

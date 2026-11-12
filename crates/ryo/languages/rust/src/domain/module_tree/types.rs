@@ -156,12 +156,12 @@ pub(crate) struct ModDeclaration {
     /// Whether the module is built always, or only for the package's unit tests.
     pub gate: Gate,
     /// Who may name the module: its own crate, or the crates that depend on it as well.
-    pub reach: Reach,
+    pub reach: Exposure,
 }
 
 /// Who may name a module: its own crate alone, unless it is declared `pub`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum Reach {
+pub(crate) enum Exposure {
     /// Its own crate alone: no visibility, or `pub(crate)`, `pub(super)` or `pub(in …)`.
     #[default]
     Crate,

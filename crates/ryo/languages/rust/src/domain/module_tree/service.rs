@@ -5,8 +5,8 @@ use super::constants::{
     CRATE, DIRECTORY_OWNER, GLOB, MACRO_CRATE, MODULE_SEPARATOR, SELF, SELF_TYPE, SOURCE, SUPER,
 };
 use super::types::{
-    Body, Facts, Gate, ModDeclaration, ModulePath, ModuleText, ModuleTree, Placing, Reach, Segment,
-    SourceCount, Unfollowed,
+    Body, Exposure, Facts, Gate, ModDeclaration, ModulePath, ModuleText, ModuleTree, Placing,
+    Segment, SourceCount, Unfollowed,
 };
 use crate::domain::paths::service::{directory_of, lexical_join, owns_directory, stem};
 use crate::domain::paths::types::RepoPath;
@@ -60,6 +60,22 @@ pub(crate) fn resolve<'a>(
     })
     .map(|prefix| files_for(tree, prefix))
     .find(|files| !files.is_empty())
+}
+
+/// The leading segments of `written`, a path from the crate root of `tree`, another crate may name: it names a module only through
+/// modules declared `pub`, so at the first that is not, the path names an item of the module above it (`use dependency::name` names
+/// the `pub fn name` of the root when its `mod name` is private).
+#[must_use]
+pub(crate) fn exported<'w>(tree: &ModuleTree, written: &'w [Segment]) -> &'w [Segment] {
+    let mut module = Vec::with_capacity(written.len());
+    let reachable = written
+        .iter()
+        .take_while(|segment| {
+            module.push((*segment).clone());
+            !tree.unexported.contains(&ModulePath(module.clone()))
+        })
+        .count();
+    written.get(..reachable).unwrap_or(written)
 }
 
 /// What a file declares, as the module it declares and where that module's own children and `#[path]` are relative to, given
@@ -148,7 +164,7 @@ fn visit<'f>(
         if declared.gate == Gate::Test {
             tree.tests.extend([child.clone()]);
         }
-        if declared.reach == Reach::Crate {
+        if declared.reach == Exposure::Crate {
             tree.unexported.extend([child.clone()]);
         }
         if declared.body == Body::Inline {

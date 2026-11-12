@@ -3,7 +3,7 @@
 
 use crate::domain::module_tree::constants::{CRATE, SELF, SUPER};
 use crate::domain::module_tree::types::{
-    Body, Cleanliness, EnclosingBlock, Facts, Gate, ModDeclaration, Reach, Segment, Spelling,
+    Body, Cleanliness, EnclosingBlock, Facts, Gate, ModDeclaration, Exposure, Segment, Spelling,
     Written,
 };
 use crate::domain::paths::types::Section;
@@ -42,7 +42,7 @@ pub(crate) fn note_of(facts: &Facts) -> Note<'_> {
                 inline: NoteFlag(declared.body == Body::Inline),
                 path: path(&declared.path),
                 test_only: NoteFlag(declared.gate == Gate::Test),
-                exported: NoteFlag(declared.reach == Reach::Dependents),
+                exported: NoteFlag(declared.reach == Exposure::Dependents),
             })
             .collect(),
         written: facts
@@ -107,9 +107,9 @@ pub(crate) fn facts_of(note: Note<'_>, names: &dyn Fn(&Segment) -> Naming) -> Fa
                 Gate::Always
             },
             reach: if each.exported.0 {
-                Reach::Dependents
+                Exposure::Dependents
             } else {
-                Reach::Crate
+                Exposure::Crate
             },
         })
         .collect();
