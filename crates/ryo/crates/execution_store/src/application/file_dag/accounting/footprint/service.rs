@@ -1,6 +1,5 @@
 //! What a built derived payload occupies, as allocation facts; the engine alone assigns lifetime classes and budgets.
 use super::types::{BackingKind, PayloadFootprint, SharedBacking};
-use crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 use ryo_derived::domain::allocation::types::{AllocationBytes, AllocationKey, ElementCapacity};
 use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
@@ -11,8 +10,6 @@ use ryo_derived::domain::key::types::KeyCellsHash;
 use ryo_derived::domain::membership::types::MembershipView;
 use ryo_derived::domain::ordered::types::{OrderedText, OwnedOrderedKey, OwnedOrderedRow};
 use ryo_derived::domain::vertices::types::{EdgeDirection, PartitionId, VertexId, VertexKey};
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::service::derived_fault;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::rows::types::{RowIndex, Table};
 
@@ -125,21 +122,14 @@ fn graph(value: &CompactGraph) -> Result<AllocationBytes, DerivedFault> {
     sum([base, partitions, directions])
 }
 
-/// What a stored payload occupies, as allocation facts, read through the payload's own view.
+/// What a payload occupies, as allocation facts, read through the payload's own view.
 ///
 /// # Errors
-/// The derived port's refusal to view the payload, or a size that does not fit.
-pub(crate) fn describe(storage: &DerivedStorage) -> Result<PayloadFootprint, OperatingError> {
-    let view = storage.view()?;
-    occupied(&view, storage.payload()).map_err(derived_fault)
-}
-
-fn occupied(
-    view: &DerivedView<'_>,
-    payload: &DerivedPayload,
-) -> Result<PayloadFootprint, DerivedFault> {
+/// A size that does not fit.
+pub(crate) fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, DerivedFault> {
+    let view = payload.view();
     let mut shared = Vec::new();
-    let owned = match view {
+    let owned = match &view {
         DerivedView::Equality(value) => {
             shared.push(shared_model(*value, BackingKind(11), equality(value)?)?);
             AllocationBytes(0)

@@ -1,13 +1,13 @@
 //! The `footprint` service's cases: the bytes and the allocation identity of what a stored payload and a lent scratch occupy.
 
 use super::service::{describe, working_bytes};
-use crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::derived::factory::semantics;
-use crate::outbound::derived::interface::DerivedPort;
+use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
 use ryo_derived::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace};
+use ryo_derived::domain::dispatch::service::build;
 use ryo_derived::domain::membership::types::MarkSpace;
 use ryo_derived::domain::native::types::NativeForm;
+use ryo_derived::domain::preparation::service::prepare;
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::derived_fault;
@@ -84,33 +84,31 @@ fn numbers(values: &[i64]) -> Table {
     }
 }
 
-/// The payload the real derived semantics build for `request` over `inputs`, stored as the owner stores it.
-fn stored(
+/// The payload the real derived semantics build for `request` over `inputs`.
+fn built(
     request: DerivedRequest,
     schemas: Vec<Vec<CellKind>>,
     inputs: BuildInputs<'_>,
-) -> Result<DerivedStorage, OperatingError> {
-    let port: Arc<dyn DerivedPort> = Arc::new(semantics());
-    let prepared = port.prepare(request, schemas);
-    let BuildOutcome::Built(payload) = port
-        .build(&prepared, inputs, &mut BuildWorkspace::default(), None)
-        .map_err(derived_fault)?
+) -> Result<DerivedPayload, OperatingError> {
+    let prepared = prepare(request, schemas);
+    let BuildOutcome::Built(payload) =
+        build(&prepared, inputs, &mut BuildWorkspace::default(), None).map_err(derived_fault)?
     else {
         return Err(OperatingError::WrongOperation);
     };
-    Ok(DerivedStorage::new(port, Arc::new(prepared), payload, None))
+    Ok(payload)
 }
 
 /// Calls the part on one input.
 fn subject(input: Input) -> Result<Value, Failure> {
     let rows = numbers(&[3, 1, 3]);
     let space: Vec<Cell> = (0..8).map(|value| Cell::Number(Integer(value))).collect();
-    let storage = match input {
+    let payload = match input {
         Scenario::EmptyWorkspace => {
             let bytes = working_bytes(&BuildWorkspace::default()).map_err(derived_fault)?;
             return Ok(Box::leak(format!("bytes {}", bytes.0).into_boxed_str()));
         }
-        Scenario::Native => stored(
+        Scenario::Native => built(
             DerivedRequest::NativeLookup {
                 left_on: vec![ColumnIndex(0)],
                 right_on: vec![ColumnIndex(0)],
@@ -119,14 +117,14 @@ fn subject(input: Input) -> Result<Value, Failure> {
             vec![vec![CellKind::Node], vec![CellKind::Node]],
             BuildInputs::Native(NativeForm::Elements),
         )?,
-        Scenario::Equality => stored(
+        Scenario::Equality => built(
             DerivedRequest::Equality {
                 columns: vec![ColumnIndex(0)],
             },
             vec![vec![CellKind::Number]],
             BuildInputs::Rows(&rows),
         )?,
-        Scenario::DenseMembership => stored(
+        Scenario::DenseMembership => built(
             DerivedRequest::Membership {
                 column: ColumnIndex(0),
             },
@@ -137,8 +135,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
             },
         )?,
     };
-    let footprint = describe(&storage)?;
-    let payload = storage.payload();
+    let footprint = describe(&payload).map_err(derived_fault)?;
     let own = payload
         .share_equality()
         .map(|index| Arc::as_ptr(&index.0).addr())

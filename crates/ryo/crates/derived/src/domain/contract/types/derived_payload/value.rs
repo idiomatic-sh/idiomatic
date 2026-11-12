@@ -2,12 +2,14 @@
 use crate::domain::adjacency::types::compact_graph::value::CompactGraph;
 use crate::domain::allocation::types::ElementCapacity;
 use crate::domain::closure_adjacency::types::ClosurePartition;
+use crate::domain::contract::types::DerivedView;
 use crate::domain::cycle_adjacency::types::CycleGraph;
 use crate::domain::dfs::types::PreparedDfs;
 use crate::domain::equality::types::KeyIndex;
-use crate::domain::membership::types::DerivedMembership;
+use crate::domain::membership::types::{DerivedMembership, MembershipView};
 use crate::domain::native::types::NativeFinding;
 use crate::domain::ordered::types::OrderedMatching;
+use crate::domain::positions::types::DenseMarks;
 use crate::domain::sharing::types::{SharedGraph, SharedKeyIndex, SharedMarks};
 use ryo_values::domain::rows::types::RowIndex;
 use std::sync::Arc;
@@ -81,6 +83,37 @@ impl DerivedPayload {
             Some(SharedGraph(Arc::clone(data)))
         } else {
             None
+        }
+    }
+    /// The view of this payload, of whatever kind it was built: the view a prepared request borrows, without the request.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_derived::domain::contract::types::DerivedView;
+    /// use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
+    /// fn is_index(payload: &DerivedPayload) -> bool {
+    ///     matches!(payload.view(), DerivedView::Equality(_))
+    /// }
+    /// let _ = is_index;
+    /// ```
+    #[must_use]
+    pub fn view(&self) -> DerivedView<'_> {
+        match &self.data {
+            PayloadData::Equality(data) => DerivedView::Equality(data),
+            PayloadData::Adjacency(data) => DerivedView::Adjacency(data),
+            PayloadData::Membership(DerivedMembership::Values(values)) => {
+                DerivedView::Membership(MembershipView::Values(values))
+            }
+            PayloadData::Membership(DerivedMembership::Dense(marks)) => {
+                DerivedView::Membership(MembershipView::Dense(DenseMarks(marks.0.as_slice())))
+            }
+            PayloadData::PartitionOrder(data) => DerivedView::PartitionOrder(data),
+            PayloadData::ClosureAdjacency(data) => DerivedView::ClosureAdjacency(data),
+            PayloadData::CycleAdjacency(data) => DerivedView::CycleAdjacency(data),
+            PayloadData::OrderedKeys(data) => DerivedView::OrderedKeys(data),
+            PayloadData::OrderedDfs(data) => DerivedView::OrderedDfs(data),
+            PayloadData::NativeLookup(data) => DerivedView::NativeLookup(data),
         }
     }
 }
