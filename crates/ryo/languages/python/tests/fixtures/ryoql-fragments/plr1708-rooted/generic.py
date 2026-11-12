@@ -23,7 +23,7 @@ helper = (
     / "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py"
 )
 bench = args.candidate_root / "crates/ryo/languages/python/benchmarks/linters/ruff"
-source = (bench / "rules/PLR1708/candidate.ryoql").read_text()
+source = (bench / "rules/PLR1708/query.ryoql").read_text()
 assert 'axis(from=body_roots, relation=walk_edges, direction=descendant, domain=member_domain)' in source
 assert 'closure(edges=walk_edges' not in source
 spec = importlib.util.spec_from_file_location("guard", helper)
@@ -56,6 +56,7 @@ for name, files in cases:
         "rules": str(root / "profile/rules"),
         "query_modules": {},
         "rule_applicability": {"ROOTED001": "accepted-syntax"},
+        "selected_rules": ["ROOTED001"],
         "parser_configuration": "python-target=3.10",
         "files": list(files),
         "cache": None,

@@ -89,6 +89,7 @@ for name, files in cases:
         "rules": str(root / "profile/rules"),
         "query_modules": {},
         "rule_applicability": {"ROOTED001": "accepted-syntax"},
+        "selected_rules": ["ROOTED001"],
         "parser_configuration": "python-target=3.10",
         "files": list(files),
         "cache": None,
