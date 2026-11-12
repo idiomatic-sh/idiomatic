@@ -1,0 +1,326 @@
+description = "A crate's allocation test: a test of its own, with no harness, that installs `dhat` as the global allocator and counts the blocks of a run, alone in its process. The kernel language crate's allocation test, placed closed."
+why = "Only a count proves a run allocates no more than it should, and only a process of its own can count: a global allocator counts every thread, so the test has `harness = false` and no other test beside it, and its `main` is the whole test. The file is the `#[global_allocator]` static and the `main` that runs the one case, and nothing more: the language double it judges, its readers and the function that runs the row are the parse use case's fixtures (`fixtures::allocating`), so the test names no internal of the relations crate and has no `use` item. The template has no variables, so it determines the whole file, and it is placed byte for byte (`match = \"text\"`): a helper, a `use` item, an assertion added to `main` or one taken out of it is a finding; a change to what the row judges is made in the fixture, once. The crate's manifest declares it `[[test]] harness = false`."
+match = "text"
+content = '''
+//! The allocation row of the engine, proved on the language double of the parse fixtures (`fixtures::allocating`): the
+//! allocations of a language's own library parse (`read_tree`) are in the count of reading and in the count of the baseline
+//! alike, so they cancel, and only the table and the readers are judged. A `read_tree` that allocates a scratch buffer in
+//! every file passes; a reader that allocates in every element fails. It runs alone in its process, with `dhat` as the
+//! global allocator, so nothing else counts.
+
+/// Counts every allocation the test makes, so a run's allocations are read back.
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+/// Runs the one case on libtest-mimic, on this thread, so no other thread allocates beside it.
+fn main() {
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    arguments.test_threads = Some(1);
+    let case = libtest_mimic::Trial::test(
+        "allocation::language::reading_allocates_as_the_parser_library_does",
+        || {
+            assert!(
+                ryo_language::inbound::use_cases::parse::fixtures::allocating::held(
+                    &ryo_language::inbound::use_cases::parse::fixtures::allocating::AllocatingLanguage {
+                        greedy_reader: false
+                    }
+                ),
+                "a library parse that allocates in every file is the library's, and the row holds"
+            );
+            assert!(
+                !ryo_language::inbound::use_cases::parse::fixtures::allocating::held(
+                    &ryo_language::inbound::use_cases::parse::fixtures::allocating::AllocatingLanguage {
+                        greedy_reader: true
+                    }
+                ),
+                "a reader that allocates in every element is not the library's, and the row does not hold"
+            );
+            Ok(())
+        },
+    );
+    libtest_mimic::run(&arguments, vec![case]).exit();
+}
+'''
+
+[given]
+file = 'tests/allocation.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'tests/allocation.rs' = '''
+//! The allocation row of the engine, proved on the language double of the parse fixtures (`fixtures::allocating`): the
+//! allocations of a language's own library parse (`read_tree`) are in the count of reading and in the count of the baseline
+//! alike, so they cancel, and only the table and the readers are judged. A `read_tree` that allocates a scratch buffer in
+//! every file passes; a reader that allocates in every element fails. It runs alone in its process, with `dhat` as the
+//! global allocator, so nothing else counts.
+
+/// Counts every allocation the test makes, so a run's allocations are read back.
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+/// Runs the one case on libtest-mimic, on this thread, so no other thread allocates beside it.
+fn main() {
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    arguments.test_threads = Some(1);
+    let case = libtest_mimic::Trial::test(
+        "allocation::language::reading_allocates_as_the_parser_library_does",
+        || {
+            assert!(
+                ryo_language::inbound::use_cases::parse::fixtures::allocating::held(
+                    &ryo_language::inbound::use_cases::parse::fixtures::allocating::AllocatingLanguage {
+                        greedy_reader: false
+                    }
+                ),
+                "a library parse that allocates in every file is the library's, and the row holds"
+            );
+            assert!(
+                !ryo_language::inbound::use_cases::parse::fixtures::allocating::held(
+                    &ryo_language::inbound::use_cases::parse::fixtures::allocating::AllocatingLanguage {
+                        greedy_reader: true
+                    }
+                ),
+                "a reader that allocates in every element is not the library's, and the row does not hold"
+            );
+            Ok(())
+        },
+    );
+    libtest_mimic::run(&arguments, vec![case]).exit();
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file that carries more than its template: a helper of its own.'
+given.files.'tests/allocation.rs' = '''
+//! The allocation row of the engine, proved on the language double of the parse fixtures (`fixtures::allocating`): the
+//! allocations of a language's own library parse (`read_tree`) are in the count of reading and in the count of the baseline
+//! alike, so they cancel, and only the table and the readers are judged. A `read_tree` that allocates a scratch buffer in
+//! every file passes; a reader that allocates in every element fails. It runs alone in its process, with `dhat` as the
+//! global allocator, so nothing else counts.
+
+/// Counts every allocation the test makes, so a run's allocations are read back.
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+/// Runs the one case on libtest-mimic, on this thread, so no other thread allocates beside it.
+fn main() {
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    arguments.test_threads = Some(1);
+    let case = libtest_mimic::Trial::test(
+        "allocation::language::reading_allocates_as_the_parser_library_does",
+        || {
+            assert!(
+                ryo_language::inbound::use_cases::parse::fixtures::allocating::held(
+                    &ryo_language::inbound::use_cases::parse::fixtures::allocating::AllocatingLanguage {
+                        greedy_reader: false
+                    }
+                ),
+                "a library parse that allocates in every file is the library's, and the row holds"
+            );
+            assert!(
+                !ryo_language::inbound::use_cases::parse::fixtures::allocating::held(
+                    &ryo_language::inbound::use_cases::parse::fixtures::allocating::AllocatingLanguage {
+                        greedy_reader: true
+                    }
+                ),
+                "a reader that allocates in every element is not the library's, and the row does not hold"
+            );
+            Ok(())
+        },
+    );
+    libtest_mimic::run(&arguments, vec![case]).exit();
+}
+
+/// More than the template gives: a helper of the test's own.
+fn more() {}
+'''
+then.findings = [
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+]
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'allocation-test#count', path = 'tastemaker.toml' },
+]
+
+[[scenarios]]
+id = 'missing-allocator'
+scenario = 'The global allocator is not installed.'
+given.files.'tests/allocation.rs' = '''
+//! The allocation row of the engine, proved on the language double of the parse fixtures (`fixtures::allocating`): the
+//! allocations of a language's own library parse (`read_tree`) are in the count of reading and in the count of the baseline
+//! alike, so they cancel, and only the table and the readers are judged. A `read_tree` that allocates a scratch buffer in
+//! every file passes; a reader that allocates in every element fails. It runs alone in its process, with `dhat` as the
+//! global allocator, so nothing else counts.
+
+/// Runs the one case on libtest-mimic, on this thread, so no other thread allocates beside it.
+fn main() {
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    arguments.test_threads = Some(1);
+    let case = libtest_mimic::Trial::test(
+        "allocation::language::reading_allocates_as_the_parser_library_does",
+        || {
+            assert!(
+                ryo_language::inbound::use_cases::parse::fixtures::allocating::held(
+                    &ryo_language::inbound::use_cases::parse::fixtures::allocating::AllocatingLanguage {
+                        greedy_reader: false
+                    }
+                ),
+                "a library parse that allocates in every file is the library's, and the row holds"
+            );
+            assert!(
+                !ryo_language::inbound::use_cases::parse::fixtures::allocating::held(
+                    &ryo_language::inbound::use_cases::parse::fixtures::allocating::AllocatingLanguage {
+                        greedy_reader: true
+                    }
+                ),
+                "a reader that allocates in every element is not the library's, and the row does not hold"
+            );
+            Ok(())
+        },
+    );
+    libtest_mimic::run(&arguments, vec![case]).exit();
+}
+'''
+then.findings = [
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+]
+
+[[scenarios]]
+id = 'assertion-removed'
+scenario = 'An assertion of `main` taken out: the row can no longer fail.'
+given.files.'tests/allocation.rs' = '''
+//! The allocation row of the engine, proved on the language double of the parse fixtures (`fixtures::allocating`): the
+//! allocations of a language's own library parse (`read_tree`) are in the count of reading and in the count of the baseline
+//! alike, so they cancel, and only the table and the readers are judged. A `read_tree` that allocates a scratch buffer in
+//! every file passes; a reader that allocates in every element fails. It runs alone in its process, with `dhat` as the
+//! global allocator, so nothing else counts.
+
+/// Counts every allocation the test makes, so a run's allocations are read back.
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+/// Runs the one case on libtest-mimic, on this thread, so no other thread allocates beside it.
+fn main() {
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    arguments.test_threads = Some(1);
+    let case = libtest_mimic::Trial::test(
+        "allocation::language::reading_allocates_as_the_parser_library_does",
+        || {
+            assert!(
+                !ryo_language::inbound::use_cases::parse::fixtures::allocating::held(
+                    &ryo_language::inbound::use_cases::parse::fixtures::allocating::AllocatingLanguage {
+                        greedy_reader: true
+                    }
+                ),
+                "a reader that allocates in every element is not the library's, and the row does not hold"
+            );
+            Ok(())
+        },
+    );
+    libtest_mimic::run(&arguments, vec![case]).exit();
+}
+'''
+then.findings = [
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+]
+
+[[scenarios]]
+id = 'assertion-added'
+scenario = 'An assertion added to `main` that the template does not hold.'
+given.files.'tests/allocation.rs' = '''
+//! The allocation row of the engine, proved on the language double of the parse fixtures (`fixtures::allocating`): the
+//! allocations of a language's own library parse (`read_tree`) are in the count of reading and in the count of the baseline
+//! alike, so they cancel, and only the table and the readers are judged. A `read_tree` that allocates a scratch buffer in
+//! every file passes; a reader that allocates in every element fails. It runs alone in its process, with `dhat` as the
+//! global allocator, so nothing else counts.
+
+/// Counts every allocation the test makes, so a run's allocations are read back.
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+/// Runs the one case on libtest-mimic, on this thread, so no other thread allocates beside it.
+fn main() {
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    arguments.test_threads = Some(1);
+    let case = libtest_mimic::Trial::test(
+        "allocation::language::reading_allocates_as_the_parser_library_does",
+        || {
+            assert!(
+                ryo_language::inbound::use_cases::parse::fixtures::allocating::held(
+                    &ryo_language::inbound::use_cases::parse::fixtures::allocating::AllocatingLanguage {
+                        greedy_reader: false
+                    }
+                ),
+                "a library parse that allocates in every file is the library's, and the row holds"
+            );
+            assert!(
+                !ryo_language::inbound::use_cases::parse::fixtures::allocating::held(
+                    &ryo_language::inbound::use_cases::parse::fixtures::allocating::AllocatingLanguage {
+                        greedy_reader: true
+                    }
+                ),
+                "a reader that allocates in every element is not the library's, and the row does not hold"
+            );
+            assert!(true, "an assertion the template does not hold");
+            Ok(())
+        },
+    );
+    libtest_mimic::run(&arguments, vec![case]).exit();
+}
+'''
+then.findings = [
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+]
+
+[[scenarios]]
+id = 'use-added'
+scenario = 'A `use` item of a relations internal added to the test.'
+given.files.'tests/allocation.rs' = '''
+//! The allocation row of the engine, proved on the language double of the parse fixtures (`fixtures::allocating`): the
+//! allocations of a language's own library parse (`read_tree`) are in the count of reading and in the count of the baseline
+//! alike, so they cancel, and only the table and the readers are judged. A `read_tree` that allocates a scratch buffer in
+//! every file passes; a reader that allocates in every element fails. It runs alone in its process, with `dhat` as the
+//! global allocator, so nothing else counts.
+
+use ryo_relations::domain::relations::collections::relations::function::item::Function;
+
+/// Counts every allocation the test makes, so a run's allocations are read back.
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+/// Runs the one case on libtest-mimic, on this thread, so no other thread allocates beside it.
+fn main() {
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    arguments.test_threads = Some(1);
+    let case = libtest_mimic::Trial::test(
+        "allocation::language::reading_allocates_as_the_parser_library_does",
+        || {
+            assert!(
+                ryo_language::inbound::use_cases::parse::fixtures::allocating::held(
+                    &ryo_language::inbound::use_cases::parse::fixtures::allocating::AllocatingLanguage {
+                        greedy_reader: false
+                    }
+                ),
+                "a library parse that allocates in every file is the library's, and the row holds"
+            );
+            assert!(
+                !ryo_language::inbound::use_cases::parse::fixtures::allocating::held(
+                    &ryo_language::inbound::use_cases::parse::fixtures::allocating::AllocatingLanguage {
+                        greedy_reader: true
+                    }
+                ),
+                "a reader that allocates in every element is not the library's, and the row does not hold"
+            );
+            Ok(())
+        },
+    );
+    libtest_mimic::run(&arguments, vec![case]).exit();
+}
+'''
+then.findings = [
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+]

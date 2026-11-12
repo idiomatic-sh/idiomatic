@@ -62,7 +62,7 @@ pub struct EvaluationViews<'a> {
     /// The request's parameter bindings.
     pub bindings: &'a [ParameterBinding],
     /// The matcher the engine acquired for this operation.
-    pub regex: Lent<&'a ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex>,
+    pub regex: Lent<&'a ryo_matching::inbound::use_cases::matching::types::CompiledRegex>,
     /// The span text an occurrence search was validated against.
     pub checked: Lent<crate::domain::source_matches::types::CheckedSource<'a>>,
     /// The resolved suffix an extension appends.

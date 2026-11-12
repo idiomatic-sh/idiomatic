@@ -1,5 +1,4 @@
 //! Matching contract with opaque caller-owned compiled values.
-pub mod compiled;
 pub mod errors;
 pub mod interface;
 pub mod types;

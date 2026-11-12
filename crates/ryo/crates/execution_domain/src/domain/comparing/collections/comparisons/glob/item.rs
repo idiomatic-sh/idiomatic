@@ -8,9 +8,8 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_scratch::types::ComparisonSlot;
 use crate::domain::table_texts::types::Datum;
-use ryo_matching::inbound::use_cases::matching::{
-    compiled::CompiledTextGlobs,
-    types::{GlobPattern, MatchOutcome, SearchText},
+use ryo_matching::inbound::use_cases::matching::types::{
+    CompiledTextGlobs, GlobPattern, MatchOutcome, SearchText,
 };
 use ryo_values::domain::plan_parts::service::columns_of;
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
