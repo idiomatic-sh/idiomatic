@@ -1,8 +1,8 @@
 //! The derived owner's access as the core holds it: the edge composes it, the lint use case keeps it, and each run's engine prepares
 //! with a clone of it. This is the one place in the core that names the access.
 
-use ryo_execution::inbound::use_cases::prepare::interface::DerivedAccess;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution_runtime::application::file_dag::derived::service::ViewAccess;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 use std::sync::Arc;
@@ -18,7 +18,7 @@ use std::sync::Arc;
 /// let lent = derived.access();
 /// ```
 #[derive(Clone, Debug)]
-pub struct Derived(DerivedAccess);
+pub struct Derived(ViewAccess);
 
 impl Derived {
     /// The access an engine prepares with: a clone of the one held.
@@ -33,7 +33,7 @@ impl Derived {
     /// let second = derived.access();
     /// ```
     #[must_use]
-    pub fn access(&self) -> DerivedAccess {
+    pub fn access(&self) -> ViewAccess {
         self.0.clone()
     }
 
@@ -64,8 +64,8 @@ impl Derived {
     }
 }
 
-impl From<DerivedAccess> for Derived {
-    fn from(access: DerivedAccess) -> Self {
+impl From<ViewAccess> for Derived {
+    fn from(access: ViewAccess) -> Self {
         Self(access)
     }
 }

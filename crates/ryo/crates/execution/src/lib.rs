@@ -13,13 +13,11 @@ pub mod cases;
 /// accounting format for the edges above the engine crates: core, the SDK and the command line name execution only, never
 /// the store.
 #[must_use]
-pub fn derived() -> inbound::use_cases::prepare::interface::DerivedAccess {
-    inbound::use_cases::prepare::interface::DerivedAccess::from(std::sync::Arc::new(
-        ryo_execution_store::outbound::derived::factory::use_case(
+pub fn derived() -> ryo_execution_runtime::application::file_dag::derived::service::ViewAccess {
+    ryo_execution_runtime::application::file_dag::derived::service::ViewAccess::routed(
+        std::sync::Arc::new(ryo_execution_store::outbound::derived::factory::use_case(
             ryo_execution_store::outbound::derived::factory::semantics(),
-        ),
-    ))
-    .routed(std::sync::Arc::new(
-        ryo_execution_store::outbound::route_counts::factory::json(),
-    ))
+        )),
+        std::sync::Arc::new(ryo_execution_store::outbound::route_counts::factory::json()),
+    )
 }
