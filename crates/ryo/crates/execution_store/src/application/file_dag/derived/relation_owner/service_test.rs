@@ -1,7 +1,7 @@
 //! The store's one operation: a scope opens its file generation's relation owner, which keeps the reuse the scope was
 //! opened with.
-use super::derived::relation_owner::service::open_program_owner;
-use super::relations::types::ReuseEligibility;
+use super::service::open_program_owner;
+use crate::application::file_dag::relations::types::ReuseEligibility;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
@@ -13,10 +13,10 @@ type Failure = OperatingError;
 fn subject(reuse: ReuseEligibility) -> Result<ReuseEligibility, Failure> {
     // A one-rule program of one region.
     let owner = open_program_owner(
-        super::relations::types::ProducerCapacity(1),
-        super::fixtures::program_derived_port(),
+        crate::application::file_dag::relations::types::ProducerCapacity(1),
+        crate::application::file_dag::fixtures::program_derived_port(),
         reuse,
-        super::route_counts::profile::service::RouteProfile::default(),
+        crate::application::file_dag::route_counts::profile::service::RouteProfile::default(),
     );
     Ok(owner.stable())
 }

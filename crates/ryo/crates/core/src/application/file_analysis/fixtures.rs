@@ -55,7 +55,7 @@ pub(crate) fn prepared_test_program(
                 ),
             ),
         ),
-        ryo_execution::application::file_dag::derived::service::derived(),
+        ryo_execution::derived(),
         Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     let program = Arc::new(

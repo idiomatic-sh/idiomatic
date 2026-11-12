@@ -5,6 +5,8 @@ use ryo_execution_runtime::application::file_dag::program::prepared_execution::t
 
 // Canonical inbound signature vocabulary from private pure concepts.
 pub use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
+// The derived capability a prepared program holds; an edge hands it to the use case, so callers outside the engine crates never name the store.
+pub use ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess;
 
 /// What `prepare` offers its callers.
 pub trait PrepareUseCase {

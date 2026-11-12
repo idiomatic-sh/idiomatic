@@ -94,7 +94,7 @@ pub(crate) fn build(
                 Arc::new(query_language::factory::use_case(compile, typecheck)),
                 machine,
                 Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())))),
-ryo_execution::application::file_dag::derived::service::derived(),
+ryo_execution::derived(),
                 pool,
                 workers,
                 Arc::new(row_sink::factory::collect(collector)),
