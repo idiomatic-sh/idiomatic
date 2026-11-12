@@ -12,7 +12,13 @@
 ///
 /// ```
 /// use ryo_execution_domain::domain::executable_program::kernel::service::row_admissible;
-/// let _ = row_admissible;
+/// use ryo_execution_domain::domain::executable_program::types::RowGate;
+/// use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
+/// use ryo_execution_domain::domain::table_texts::types::Texts;
+/// use ryo_relations::domain::relations::types::Value;
+/// fn gate(contract: &OperatorContract, row: &[Value], texts: &Texts<'_>) -> Option<RowGate> {
+///     row_admissible(contract, row, texts).ok()
+/// }
 /// ```
 pub fn row_admissible(
     contract: &crate::domain::operator::contract::types::OperatorContract,

@@ -79,8 +79,13 @@ impl InvocationWorkspace {
     /// # Examples
     ///
     /// ```
+    /// use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
     /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// let _ = InvocationWorkspace::for_contract;
+    /// use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
+    /// use std::rc::Rc;
+    /// fn workspace(owner: &Rc<RelationOwner>, contract: &OperatorContract) -> InvocationWorkspace {
+    ///     InvocationWorkspace::for_contract(Rc::clone(owner), contract)
+    /// }
     /// ```
     pub fn for_contract(
         owner: std::rc::Rc<super::super::relations::service::RelationOwner>,
@@ -120,7 +125,9 @@ impl InvocationWorkspace {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// let _ = InvocationWorkspace::measured;
+    /// fn rows_held(workspace: &InvocationWorkspace) -> usize {
+    ///     workspace.measured().row_capacity
+    /// }
     /// ```
     #[cfg(any(test, feature = "fixtures"))]
     pub fn measured(
@@ -174,7 +181,11 @@ impl InvocationWorkspace {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// let _ = InvocationWorkspace::release_inputs;
+    /// use ryo_execution_store::application::file_dag::relations::handle::service::Publication;
+    /// fn invoked(workspace: &mut InvocationWorkspace, publications: Vec<Publication>) {
+    ///     workspace.capture_admitted(publications);
+    ///     workspace.release_inputs();
+    /// }
     /// ```
     pub fn release_inputs(&mut self) {
         self.publications.clear();
@@ -185,7 +196,10 @@ impl InvocationWorkspace {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// let _ = InvocationWorkspace::capture_admitted;
+    /// use ryo_execution_store::application::file_dag::relations::handle::service::Publication;
+    /// fn admitted(workspace: &mut InvocationWorkspace, publications: Vec<Publication>) {
+    ///     workspace.capture_admitted(publications);
+    /// }
     /// ```
     pub fn capture_admitted(
         &mut self,
@@ -200,7 +214,9 @@ impl InvocationWorkspace {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// let _ = InvocationWorkspace::owner;
+    /// fn owned(workspace: &InvocationWorkspace) -> usize {
+    ///     workspace.owner().derived().owned_bytes().0
+    /// }
     /// ```
     pub fn owner(&self) -> &super::super::relations::service::RelationOwner {
         &self.relation_owner
@@ -212,7 +228,11 @@ impl InvocationWorkspace {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// let _ = InvocationWorkspace::work;
+    /// use ryo_execution_domain::domain::operator::contract::lease::service::take_totals;
+    /// use ryo_execution_domain::domain::operator::contract::types::WorkTotals;
+    /// fn found(workspace: &InvocationWorkspace) -> WorkTotals {
+    ///     take_totals(workspace.work())
+    /// }
     /// ```
     pub fn work(&self) -> &ryo_execution_domain::domain::operator::contract::types::WorkCounters {
         &self.work
@@ -223,7 +243,10 @@ impl InvocationWorkspace {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// let _ = InvocationWorkspace::progress_origin;
+    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::OriginScope;
+    /// fn resumed(workspace: &InvocationWorkspace) -> OriginScope {
+    ///     workspace.progress_origin().resume()
+    /// }
     /// ```
     #[cfg(feature = "diagnostic-row-progress")]
     pub fn progress_origin(&self) -> &super::super::route_counts::profile::service::CapturedOrigin {
@@ -235,7 +258,9 @@ impl InvocationWorkspace {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// let _ = InvocationWorkspace::primitive;
+    /// fn positions(workspace: &InvocationWorkspace) -> usize {
+    ///     workspace.primitive().positions.len()
+    /// }
     /// ```
     pub fn primitive(
         &self,
@@ -248,7 +273,9 @@ impl InvocationWorkspace {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// let _ = InvocationWorkspace::primitive_mut;
+    /// fn cleared(workspace: &mut InvocationWorkspace) {
+    ///     workspace.primitive_mut().positions.clear();
+    /// }
     /// ```
     pub fn primitive_mut(
         &mut self,
@@ -261,7 +288,9 @@ impl InvocationWorkspace {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// let _ = InvocationWorkspace::observation_mut;
+    /// fn observed(workspace: &mut InvocationWorkspace) -> usize {
+    ///     workspace.observation_mut().row_capacity
+    /// }
     /// ```
     #[cfg(any(test, feature = "fixtures"))]
     pub fn observation_mut(
@@ -276,7 +305,9 @@ impl InvocationWorkspace {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// let _ = InvocationWorkspace::parts;
+    /// fn positions(workspace: &mut InvocationWorkspace) -> usize {
+    ///     workspace.parts().primitive.positions.len()
+    /// }
     /// ```
     pub fn parts(&mut self) -> super::types::WorkspaceParts<'_> {
         super::types::WorkspaceParts {
@@ -379,7 +410,10 @@ impl<'f> InputAdmissions<'_, 'f> {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
-    /// let _ = InputAdmissions::input;
+    /// use ryo_values::domain::plan_parts::types::InputNumber;
+    /// fn admitted(admissions: &InputAdmissions<'_, '_>) -> bool {
+    ///     admissions.input(InputNumber(0)).is_ok()
+    /// }
     /// ```
     pub fn input(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
         self.inputs
@@ -400,7 +434,10 @@ impl<'f> InputAdmissions<'_, 'f> {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
-    /// let _ = InputAdmissions::rows;
+    /// use ryo_values::domain::plan_parts::types::InputNumber;
+    /// fn held(admissions: &InputAdmissions<'_, '_>) -> bool {
+    ///     admissions.rows(InputNumber(0)).is_ok()
+    /// }
     /// ```
     pub fn rows(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
         Ok(self.proof(place)?.rows())

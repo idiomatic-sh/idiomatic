@@ -15,7 +15,7 @@ use ryo_language::domain::files::types::SourcePath;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
-use ryo_language::inbound::use_cases::parse::fixtures::samples::{allocations, harness_case};
+use ryo_language::inbound::use_cases::parse::fixtures::samples::allocations;
 use ryo_language::inbound::use_cases::parse::interface::ParseUseCase;
 use ryo_language::inbound::use_cases::parse::service::baseline;
 use ryo_language::inbound::use_cases::parse::types::Recognition;
@@ -267,8 +267,11 @@ fn held(language: &Language) -> bool {
     held
 }
 
+/// Runs the one case on libtest-mimic, on this thread, so no other thread allocates beside it.
 fn main() {
-    harness_case(
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    arguments.test_threads = Some(1);
+    let case = libtest_mimic::Trial::test(
         "allocation::language::reading_allocates_as_the_parser_library_does",
         || {
             assert!(
@@ -283,6 +286,8 @@ fn main() {
                 }),
                 "a reader that allocates in every element is not the library's, and the row does not hold"
             );
+            Ok(())
         },
     );
+    libtest_mimic::run(&arguments, vec![case]).exit();
 }

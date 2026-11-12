@@ -81,6 +81,7 @@ impl From<CapturesText> for Box<str> {
 /// One piece of a path pattern's text, as the pattern grammar reads it: a character written as itself (escaped or plain),
 /// a wildcard, or a capture.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum PatternPiece<'a> {
     /// A character that stands for itself.
     Literal(PatternChar),

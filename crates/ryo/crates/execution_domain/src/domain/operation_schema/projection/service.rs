@@ -36,8 +36,33 @@ pub(crate) fn projected(
 /// # Examples
 ///
 /// ```
+/// use ryo_execution_domain::domain::operating::errors::OperatingError;
 /// use ryo_execution_domain::domain::operation_schema::projection::service::continuation_kinds;
-/// let _ = continuation_kinds;
+/// use ryo_relations::domain::relations::types::CellKind;
+/// use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepId};
+/// use ryo_values::domain::plans::types::Operation;
+///
+/// let every_column = Operation::Select {
+///     from: Input::Step(StepId(0)),
+///     comparisons: Vec::new(),
+///     kept: Vec::new(),
+/// };
+/// let input = [CellKind::Node, CellKind::Symbol];
+/// assert_eq!(continuation_kinds(&every_column, &input).unwrap(), input.to_vec());
+///
+/// let second = Operation::Project {
+///     from: Input::Step(StepId(0)),
+///     columns: vec![ColumnIndex(1)],
+///     distinct: RepeatedRows::Kept,
+/// };
+/// assert_eq!(continuation_kinds(&second, &input).unwrap(), vec![CellKind::Symbol]);
+///
+/// let distinct = Operation::Project {
+///     from: Input::Step(StepId(0)),
+///     columns: vec![ColumnIndex(1)],
+///     distinct: RepeatedRows::Dropped,
+/// };
+/// assert!(matches!(continuation_kinds(&distinct, &input), Err(OperatingError::WrongOperation)));
 /// ```
 pub fn continuation_kinds(
     operation: &Operation,

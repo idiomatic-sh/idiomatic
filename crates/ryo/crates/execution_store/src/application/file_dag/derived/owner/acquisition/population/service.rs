@@ -7,7 +7,7 @@ use crate::application::file_dag::derived::owner::acquisition::admission::servic
 };
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
-use crate::application::file_dag::derived::owner::footprint::service::storage_bytes;
+use crate::application::file_dag::accounting::footprint::service::backed_bytes;
 use crate::application::file_dag::derived::owner::graph_key::service::RequirementIdentity;
 use crate::application::file_dag::derived::owner::service::*;
 use crate::application::file_dag::derived::owner::types::*;
@@ -164,7 +164,7 @@ impl DerivedOwner {
             }
         }
         let _checked = storage.view()?;
-        let bytes = storage_bytes(&storage)?;
+        let bytes = backed_bytes(&DerivedStorage::backings(&storage)?)?;
         let backend_bytes = ByteCount(0);
         let working = bytes.saturating_add(backend_bytes);
         let backings = backings::service::view(&storage)?;

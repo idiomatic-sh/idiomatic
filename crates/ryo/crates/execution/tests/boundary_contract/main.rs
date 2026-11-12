@@ -48,7 +48,7 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
     let semantics = Arc::new(ReductionAudit::default());
     let engine = PrepareUseCaseImpl::new(
         semantics.clone(),
-        Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
+        Arc::new(ryo_execution_store::outbound::derived::factory::semantics()).into(),
         Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     let mut input = authored_request(1);
@@ -132,7 +132,7 @@ fn a_refused_sink_is_retried_from_the_publication_without_another_evaluation() {
     let semantics = Arc::new(ReductionAudit::default());
     let engine = PrepareUseCaseImpl::new(
         semantics.clone(),
-        Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
+        Arc::new(ryo_execution_store::outbound::derived::factory::semantics()).into(),
         Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     let mut input = authored_request(1);

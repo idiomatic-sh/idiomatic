@@ -27,6 +27,7 @@ cargo_metadata.workspace = true
 cucumber.workspace = true
 tokio.workspace = true
 trybuild.workspace = true
+libtest-mimic.workspace = true
 # The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
 idiomatic-sh-ryo-language = { path = ".", features = ["fixtures"] }
 

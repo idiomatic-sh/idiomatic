@@ -23,8 +23,11 @@ impl AdmittedNumber<'_> {
     /// # Examples
     ///
     /// ```
+    /// use ryo_execution_store::application::file_dag::relations::handle::service::PublishedInput;
     /// use ryo_execution_store::application::file_dag::relations::number::service::service::AdmittedNumber;
-    /// let _ = AdmittedNumber::publication;
+    /// fn published<'a>(number: &'a AdmittedNumber<'_>) -> &'a PublishedInput {
+    ///     number.publication()
+    /// }
     /// ```
     pub fn publication(&self) -> &PublishedInput {
         self.publication
@@ -35,7 +38,9 @@ impl AdmittedNumber<'_> {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::relations::number::service::service::AdmittedNumber;
-    /// let _ = AdmittedNumber::column;
+    /// fn column(number: &AdmittedNumber<'_>) -> u32 {
+    ///     number.column().0
+    /// }
     /// ```
     pub fn column(&self) -> ryo_values::domain::plan_parts::types::ColumnIndex {
         self.column

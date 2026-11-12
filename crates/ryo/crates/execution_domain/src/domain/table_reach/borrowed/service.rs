@@ -15,7 +15,14 @@ use ryo_values::domain::rows::types::RowIndex;
 ///
 /// ```
 /// use ryo_execution_domain::domain::table_reach::borrowed::service::follow;
-/// let _ = follow;
+/// use ryo_execution_domain::domain::table_reach::borrowed::types::IndexedRows;
+/// use ryo_relations::domain::relations::types::Value;
+/// use ryo_values::domain::plan_parts::types::ColumnIndex;
+/// fn destinations(edges: &IndexedRows<'_>, to: ColumnIndex, start: Value) -> Vec<Value> {
+///     let (mut key, mut into) = (Vec::new(), Vec::new());
+///     follow(edges, to, start, &mut key, &mut into);
+///     into
+/// }
 /// ```
 pub fn follow(
     edges: &IndexedRows<'_>,
@@ -39,7 +46,15 @@ pub fn follow(
 ///
 /// ```
 /// use ryo_execution_domain::domain::table_reach::borrowed::service::reach_breadth;
-/// let _ = reach_breadth;
+/// use ryo_execution_domain::domain::table_reach::borrowed::types::IndexedRows;
+/// use ryo_execution_domain::domain::table_reach::types::Walk;
+/// use ryo_relations::domain::relations::types::Value;
+/// use ryo_values::domain::plan_parts::types::ColumnIndex;
+/// fn reached(edges: &IndexedRows<'_>, to: ColumnIndex, start: Value) -> Vec<Value> {
+///     let mut walk = Walk::default();
+///     reach_breadth(edges, to, start, &mut walk);
+///     walk.reached
+/// }
 /// ```
 pub fn reach_breadth(edges: &IndexedRows<'_>, to: ColumnIndex, start: Value, walk: &mut Walk) {
     match breadth::<_, true>(edges, to, start, walk, |_| {

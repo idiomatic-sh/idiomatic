@@ -104,8 +104,8 @@ impl FileScope {
     /// # Examples
     ///
     /// ```
-    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::FileScope;
-    /// let _ = FileScope::profile;
+    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::{FileScope, RouteProfile};
+    /// fn profile(scope: &FileScope) -> &RouteProfile { scope.profile() }
     /// ```
     pub fn profile(&self) -> &RouteProfile {
         &self.profile
@@ -189,8 +189,8 @@ impl CapturedOrigin {
     /// # Examples
     ///
     /// ```
-    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::CapturedOrigin;
-    /// let _ = CapturedOrigin::profile;
+    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::{CapturedOrigin, RouteProfile};
+    /// fn profile(origin: &CapturedOrigin) -> &RouteProfile { origin.profile() }
     /// ```
     pub fn profile(&self) -> &RouteProfile {
         &self.profile
@@ -200,8 +200,8 @@ impl CapturedOrigin {
     /// # Examples
     ///
     /// ```
-    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::CapturedOrigin;
-    /// let _ = CapturedOrigin::resume;
+    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::{CapturedOrigin, OriginScope};
+    /// fn resumed(origin: &CapturedOrigin) -> OriginScope { origin.resume() }
     /// ```
     pub fn resume(&self) -> OriginScope {
         scope(&self.profile, |current| {

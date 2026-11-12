@@ -39,7 +39,20 @@ impl DerivedOwner {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
-    /// let _ = DerivedOwner::prepare_graph;
+    /// use ryo_execution_store::application::file_dag::derived::owner::cached_graph::service::CachedGraph;
+    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
+    /// use ryo_execution_domain::domain::operator::contract::resources::types::ResourceProgram;
+    /// use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
+    /// use ryo_execution_domain::domain::table_model::types::Rows;
+    /// fn graph(
+    ///     owner: &DerivedOwner,
+    ///     contract: &OperatorContract,
+    ///     admission: &InvocationWorkspace,
+    ///     program: &ResourceProgram,
+    ///     rows: &[Rows<'_>],
+    /// ) -> Option<CachedGraph> {
+    ///     owner.prepare_graph(contract, admission, program, rows).ok().flatten()
+    /// }
     /// ```
     pub fn prepare_graph(
         &self,

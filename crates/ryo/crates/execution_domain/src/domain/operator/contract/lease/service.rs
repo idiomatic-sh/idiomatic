@@ -15,8 +15,14 @@ use ryo_relations::domain::relations::types::Value;
 /// # Examples
 ///
 /// ```
-/// use ryo_execution_domain::domain::operator::contract::lease::service::add_found;
-/// let _ = add_found;
+/// use ryo_execution_domain::domain::operator::contract::lease::service::{add_found, take_totals};
+/// use ryo_execution_domain::domain::operator::contract::types::{FoundRows, WorkCounters, WorkTotals};
+/// use ryo_values::domain::plan_parts::types::InputNumber;
+///
+/// let counters = WorkCounters::default();
+/// add_found(&counters, InputNumber(1), FoundRows(2));
+/// add_found(&counters, InputNumber(1), FoundRows(3));
+/// assert_eq!(take_totals(&counters), WorkTotals([FoundRows(0), FoundRows(5), FoundRows(0)]));
 /// ```
 pub fn add_found(
     counters: &WorkCounters,
@@ -33,8 +39,14 @@ pub fn add_found(
 /// # Examples
 ///
 /// ```
-/// use ryo_execution_domain::domain::operator::contract::lease::service::take_totals;
-/// let _ = take_totals;
+/// use ryo_execution_domain::domain::operator::contract::lease::service::{add_found, take_totals};
+/// use ryo_execution_domain::domain::operator::contract::types::{FoundRows, WorkCounters, WorkTotals};
+/// use ryo_values::domain::plan_parts::types::InputNumber;
+///
+/// let counters = WorkCounters::default();
+/// add_found(&counters, InputNumber(0), FoundRows(4));
+/// assert_eq!(take_totals(&counters), WorkTotals([FoundRows(4), FoundRows(0), FoundRows(0)]));
+/// assert_eq!(take_totals(&counters), WorkTotals::default());
 /// ```
 pub fn take_totals(counters: &WorkCounters) -> WorkTotals {
     WorkTotals(std::array::from_fn(|at| {

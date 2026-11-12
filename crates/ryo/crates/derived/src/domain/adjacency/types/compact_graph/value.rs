@@ -74,7 +74,10 @@ impl CompactGraph {
     ///
     /// ```
     /// use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
-    /// let _ = CompactGraph::capacities;
+    /// use ryo_derived::domain::adjacency::types::GraphCapacities;
+    /// fn capacities(graph: &CompactGraph) -> GraphCapacities {
+    ///     graph.capacities()
+    /// }
     /// ```
     #[must_use]
     pub fn capacities(&self) -> GraphCapacities {

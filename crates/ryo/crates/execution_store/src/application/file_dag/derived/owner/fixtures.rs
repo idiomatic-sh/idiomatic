@@ -56,13 +56,6 @@ impl super::service::DerivedOwner {
     ///
     /// None in practice: preparation records a schema the semantic capability refuses in the contract, which its
     /// validation returns.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
-    /// let _ = DerivedOwner::prepare_view;
-    /// ```
     pub fn prepare_view(
         &self,
         request: &ViewRequest,

@@ -53,7 +53,17 @@ pub(super) fn bound_views(
 ///
 /// ```
 /// use ryo_execution_domain::domain::executable_program::physical::service::authorize;
-/// let _ = authorize;
+/// use ryo_execution_domain::domain::executable_program::physical::types::{PhysicalBinding, PhysicalRoute};
+/// use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+/// use ryo_values::domain::plans::types::Operation;
+/// fn authorized(
+///     operation: &Operation,
+///     route: PhysicalRoute<'_>,
+///     binding: &PhysicalBinding<'_>,
+///     call: &OperatorCall<'_>,
+/// ) -> bool {
+///     authorize(operation, route, binding, call).is_ok()
+/// }
 /// ```
 pub fn authorize(
     operation: &Operation,

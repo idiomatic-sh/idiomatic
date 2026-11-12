@@ -25,8 +25,9 @@ pub struct PrepareRequest {
 }
 
 /// The derived views `prepare` prepares over: composed once at the edge ([`crate::derived`]) and cloned into each prepare
-/// use case. Execution's own handle, opaque to its callers: it lends no access and acquires no view, and no caller
-/// outside execution reaches the preparation it holds.
+/// use case; the tests convert an `Arc` of a derived port into one (the `fixtures` feature). Execution's own handle,
+/// opaque to its callers: it lends no access and acquires no view, and no caller outside execution reaches the
+/// preparation it holds.
 ///
 /// ```compile_fail,E0616
 /// let views = ryo_execution::derived();
@@ -43,13 +44,3 @@ pub struct PrepareRequest {
 /// ```
 #[derive(Clone, Debug)]
 pub struct DerivedViews(pub(crate) DerivedPreparation);
-
-/// Whatever execution's derived preparation is built from (itself, or a derived port) builds the views over it.
-impl<T> From<T> for DerivedViews
-where
-    DerivedPreparation: From<T>,
-{
-    fn from(preparation: T) -> Self {
-        Self(DerivedPreparation::from(preparation))
-    }
-}

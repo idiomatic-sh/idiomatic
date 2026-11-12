@@ -48,7 +48,9 @@ impl RelationOwner {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
-    /// let _ = RelationOwner::derived;
+    /// fn owned(owner: &RelationOwner) -> usize {
+    ///     owner.derived().owned_bytes().0
+    /// }
     /// ```
     pub fn derived(&self) -> &super::super::derived::owner::service::DerivedOwner {
         &self.derived
@@ -59,7 +61,10 @@ impl RelationOwner {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
-    /// let _ = RelationOwner::routes;
+    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::RouteProfile;
+    /// fn routes(owner: &RelationOwner) -> &RouteProfile {
+    ///     owner.routes()
+    /// }
     /// ```
     pub fn routes(&self) -> &super::super::route_counts::profile::service::RouteProfile {
         &self.routes
@@ -114,7 +119,10 @@ impl RelationOwner {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
-    /// let _ = RelationOwner::stable;
+    /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
+    /// fn reusable(owner: &RelationOwner) -> bool {
+    ///     owner.stable() == ReuseEligibility::Eligible
+    /// }
     /// ```
     #[cfg(any(test, feature = "fixtures"))]
     pub fn stable(&self) -> ReuseEligibility {

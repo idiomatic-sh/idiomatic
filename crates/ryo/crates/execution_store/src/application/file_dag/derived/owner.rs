@@ -6,7 +6,6 @@ pub mod cached_graph;
 mod diagnostics;
 #[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;
-mod footprint;
 mod graph;
 mod graph_key;
 mod graph_policy;

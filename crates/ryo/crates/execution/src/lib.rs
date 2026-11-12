@@ -14,7 +14,7 @@ pub mod cases;
 /// never the store.
 #[must_use]
 pub fn derived() -> inbound::use_cases::prepare::types::DerivedViews {
-    inbound::use_cases::prepare::types::DerivedViews::from(
+    inbound::use_cases::prepare::types::DerivedViews(
         application::derived::service::DerivedPreparation::routed(
             std::sync::Arc::new(ryo_execution_store::outbound::derived::factory::use_case(
                 ryo_execution_store::outbound::derived::factory::semantics(),
