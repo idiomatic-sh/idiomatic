@@ -12,7 +12,7 @@ use super::service::PartitionedClosure;
     reason = "a fixture: the cursor it measures holds a live partition, and a broken one fails the proof that reads it"
 )]
 pub fn working_capacity(closure: &PartitionedClosure<'_>) -> usize {
-    closure.current.as_ref().map_or(0, |_| {
+    closure.views.current.as_ref().map_or(0, |_| {
         let current = closure.current().expect(LIVE_PARTITION_VIEW);
         let capacities = ryo_derived::domain::closure_adjacency::service::capacities(current);
         current.table.cells.capacity() + capacities.key.0 + capacities.sources.0

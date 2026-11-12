@@ -27,8 +27,7 @@ pub struct PreparedExecutionProgram {
 pub(crate) struct ProgramParts {
     pub(crate) kernels:
         Arc<dyn crate::application::file_dag::executor::service::PrimitiveExecutor + Send>,
-    pub(crate) derived:
-        ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess,
+    pub(crate) derived: crate::application::file_dag::derived::program::service::ProgramDerived,
     pub(crate) inner:
         Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
     /// What names the content of packed words, for every request of the program.

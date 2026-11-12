@@ -14,7 +14,7 @@ use ryo_execution_domain::domain::frontier_capture::types::FrontierCapture;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_execution_store::application::file_dag::derived::relation_owner::types::ScopePartials;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::stored_facts::types::Bucket;

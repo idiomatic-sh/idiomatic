@@ -10,7 +10,7 @@ use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::Emit as RowSink;
 use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_execution_store::application::file_dag::derived::relation_owner::types::ScopePartials;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::{kinds, node_id},

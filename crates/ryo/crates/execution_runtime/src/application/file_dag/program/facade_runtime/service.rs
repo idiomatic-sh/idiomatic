@@ -12,7 +12,6 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
-use ryo_execution_store::application::file_dag::service::open_program_owner;
 use ryo_values::domain::runs::types::Skipped;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -23,11 +22,10 @@ pub(crate) fn publication_owner(
     digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
 ) -> Result<PublicationScope, OperatingError> {
     // The project phase opens no route scope: its owner records into an empty profile.
-    let owner = open_program_owner(
+    let owner = services.derived().open_owner(
         ryo_execution_store::application::file_dag::relations::types::ProducerCapacity(
             program.program().regions().len(),
         ),
-        services.derived().clone(),
         ReuseEligibility::Eligible,
         ryo_execution_store::application::file_dag::route_counts::profile::service::RouteProfile::default(),
     );
@@ -92,8 +90,7 @@ pub(crate) struct FilePresence {
 pub(crate) struct ProgramServices {
     pub(super) request: Arc<RequestIdentity>,
     pub(super) kernels: Arc<dyn PrimitiveExecutor + Send>,
-    pub(super) derived:
-        ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess,
+    pub(super) derived: crate::application::file_dag::derived::program::service::ProgramDerived,
     /// The observer the request's caller asked to be told of the engine's work, if any.
     pub(super) observer: Option<Arc<dyn crate::outbound::observer::interface::ObserverPort>>,
 }
@@ -101,9 +98,7 @@ pub(crate) struct ProgramServices {
 impl ProgramServices {
     pub(crate) fn new(
         kernels: Arc<dyn PrimitiveExecutor + Send>,
-        derived: impl Into<
-            ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess,
-        >,
+        derived: impl Into<crate::application::file_dag::derived::program::service::ProgramDerived>,
         corpus: &[ryo_values::domain::files::types::CorpusInput],
     ) -> Self {
         Self {
@@ -135,7 +130,7 @@ impl ProgramServices {
     }
     pub(crate) fn derived(
         &self,
-    ) -> &ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess {
+    ) -> &crate::application::file_dag::derived::program::service::ProgramDerived {
         &self.derived
     }
 }

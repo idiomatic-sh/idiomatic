@@ -237,14 +237,14 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let charge = || owner.derived().publication_ownership_bytes().0;
             let first_backing =
                 crate::application::file_dag::derived::owner::fixtures::resources::weak_storage(
-                    cursor.current.as_ref().expect("a current partition"),
+                    cursor.views.current.as_ref().expect("a current partition"),
                 );
             let first_charge = charge();
             let second = cursor.advance()?;
             let first_released = first_backing.upgrade().is_none();
             let second_backing =
                 crate::application::file_dag::derived::owner::fixtures::resources::weak_storage(
-                    cursor.current.as_ref().expect("a current partition"),
+                    cursor.views.current.as_ref().expect("a current partition"),
                 );
             let charge_unchanged = charge() == first_charge;
             let transferred = cursor.take_current()?;
@@ -254,7 +254,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 panic!("closure partition")
             };
             let taken_key = Cow::Owned(part.key.to_vec());
-            let cursor_holds_none = cursor.current.is_none();
+            let cursor_holds_none = cursor.views.current.is_none();
             drop(cursor);
             let taken_kept = second_backing.upgrade().is_some();
             let taken_charged = charge() > 0;
@@ -290,14 +290,15 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 advance,
                 current_after,
                 take,
-                wrong_plan: super::super::super::service::from_prepared(
-                    cursor.proof.clone(),
-                    wrong_plan,
-                    std::sync::Arc::clone(&cursor.closure_plan),
-                    cursor.ordered.clone(),
-                    std::rc::Rc::clone(&cursor.owner),
-                )
-                .err(),
+                wrong_plan:
+                    crate::application::file_dag::derived::partition_views::service::from_prepared(
+                        cursor.proof.clone(),
+                        wrong_plan,
+                        std::sync::Arc::clone(&cursor.closure_plan),
+                        cursor.views.ordered.clone(),
+                        std::rc::Rc::clone(&cursor.owner),
+                    )
+                    .err(),
             })
         }
     })

@@ -1,5 +1,6 @@
 //! The `file_execution` application operation.
 
+use crate::application::file_dag::derived::service::prepare_file;
 use crate::application::file_dag::program::admission::service::AdmittedInput;
 use crate::application::file_dag::program::admission::service::FileGeneration;
 #[cfg(test)]
@@ -44,8 +45,7 @@ use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_execution_store::application::file_dag::derived::constants::TARGET_RESOURCE_ROUTES;
 use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
-use ryo_execution_store::application::file_dag::service::open_program_owner;
+use ryo_execution_store::application::file_dag::derived::relation_owner::types::ScopePartials;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::files::types::SourceView;
@@ -113,11 +113,10 @@ pub(crate) fn open_file<'a>(
     if let Some(path) = services.request.path(file) {
         routes.profile().file_name(path);
     }
-    let owner = open_program_owner(
+    let owner = services.derived().open_owner(
         ryo_execution_store::application::file_dag::relations::types::ProducerCapacity(
             program.program().regions().len(),
         ),
-        services.derived().clone(),
         reuse_eligible,
         routes.profile().clone(),
     );
@@ -163,9 +162,7 @@ pub(crate) fn open_file<'a>(
         activation: None,
     };
     let demanded = run.bind_intents()?;
-    run.owner
-        .derived()
-        .prepare_program_file(program.derived(), &demanded, publication)?;
+    prepare_file(&run.owner, program.derived(), &demanded, publication)?;
     Ok(run)
 }
 

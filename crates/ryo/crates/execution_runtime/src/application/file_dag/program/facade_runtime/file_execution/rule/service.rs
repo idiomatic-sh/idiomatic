@@ -20,7 +20,7 @@ use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
 use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_execution_store::application::file_dag::derived::relation_owner::types::ScopePartials;
 use ryo_relations::domain::relations::types::Relation;
 use std::rc::Rc;
 

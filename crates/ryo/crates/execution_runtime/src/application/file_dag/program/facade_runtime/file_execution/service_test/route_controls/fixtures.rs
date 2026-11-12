@@ -24,7 +24,7 @@ use ryo_execution_domain::domain::{
     prepared_request::types::{Compiled, ObservationIdentity},
 };
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_execution_store::application::file_dag::derived::relation_owner::types::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;

@@ -25,7 +25,7 @@ use ryo_execution_domain::domain::{
 };
 use ryo_execution_store::application::file_dag::accounting::ledger::types::ByteCount;
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_execution_store::application::file_dag::derived::relation_owner::types::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Relation, Value as Cell};
 use ryo_values::domain::hosted::types::{

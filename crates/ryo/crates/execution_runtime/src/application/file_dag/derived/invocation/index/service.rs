@@ -1,7 +1,7 @@
 //! The `index` application operation.
 
 use super::types::EmptyInput;
-use crate::application::file_dag::invocation::prepared_use::service::prepared;
+use crate::application::file_dag::derived::invocation::prepared_use::service::prepared;
 use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::contract::types::OperatorContract;

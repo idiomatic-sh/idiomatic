@@ -2,8 +2,8 @@
 use super::groups::service::groups;
 use super::index::{service::IndexResource, types::EmptyInput};
 use super::prepared_use::service::prepared;
-use super::types::{AcquiredPartitions, InvocationInputs, InvocationResources};
-use crate::application::file_dag::axis_resources::service::prepare_axis;
+use super::types::{AcquiredPartitions, InvocationInputs, InvocationResources, LentRow};
+use crate::application::file_dag::derived::axis_resources::service::prepare_axis;
 use crate::application::file_dag::resources::service::appended_values;
 use ryo_execution_domain::domain::operator::contract::{
     resources::{types::IndexColumns, types::JoinResources, types::ResourceProgram},
@@ -259,7 +259,7 @@ pub(crate) fn prepare<'f>(
             )?);
         }
         ResourceProgram::Axis(program) => {
-            use crate::application::file_dag::axis_resources::{
+            use crate::application::file_dag::derived::axis_resources::{
                 service::classify, types::AxisMode,
             };
 
@@ -348,5 +348,35 @@ impl AcquiredPartitions {
     /// Appends the next partition's view.
     pub(crate) fn push(&mut self, view: AcquiredView) {
         self.0.push(view);
+    }
+}
+
+impl<'f> InvocationResources<'f> {
+    /// The closure the invocation walks partition by partition, when it walks one.
+    pub(crate) fn partitioned_closure(
+        &mut self,
+    ) -> Option<
+        &mut ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure<
+            'f,
+        >,
+    >{
+        self.inputs.partitioned_closure.as_mut()
+    }
+    /// The cached graph's answer for `row`, read through the file's derived `owner` when the invocation holds a graph,
+    /// lent together with the resources primitives read for one evaluation.
+    pub(crate) fn lend_row<'a>(
+        &'a mut self,
+        owner: &ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner,
+        row: Option<&[ryo_relations::domain::relations::types::Value]>,
+    ) -> Result<LentRow<'a>, OperatingError> {
+        let cached = if let (Some(graph), Some(row)) = (self.cached_graph.as_mut(), row) {
+            Some(owner.graph_row(graph, row)?)
+        } else {
+            None
+        };
+        Ok(LentRow {
+            cached,
+            resources: &self.inputs,
+        })
     }
 }

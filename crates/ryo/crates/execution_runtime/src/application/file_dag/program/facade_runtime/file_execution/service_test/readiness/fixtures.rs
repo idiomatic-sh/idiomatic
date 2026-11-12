@@ -8,7 +8,7 @@ use ryo_execution_domain::domain::{
     prepared_request::types::{Compiled, ObservationIdentity},
     table_cells::types::{TreeForm, TreeRows},
 };
-use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_execution_store::application::file_dag::derived::relation_owner::types::ScopePartials;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::{FileId, Integer, Relation};
 use ryo_values::domain::{

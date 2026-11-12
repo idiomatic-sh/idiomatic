@@ -1,8 +1,9 @@
 description = "An optional cohesive application operation and its related structures, over injected outbound contracts and pure domain functions."
 why = "A service owns one cohesive operation and the few related structures it needs, with explicit invocation, worker or session lifetimes for state. It need not be shared or reusable, and neither service count nor file length defines cohesion. Use cases remain readable workflow orchestration: they may call application services, domain functions and outbound contracts directly and own final publication. A service neither constructs adapters nor calls sibling services or use cases. Supporting types exist only when needed; no interface, factory or generic runtime is required. Behavioral cases and review prove semantic cohesion and failure/publication behavior; structural rules alone cannot."
+conditions = { namespace = { description = "The operation is a namespace: it declares nested parts (`<part>.rs`) and writes no role file of its own (`service.rs`, `service_test.rs`, `types.rs`, `errors.rs`, `constants.rs`, `interface.rs`), so it gathers sub-concepts, each with its own service and proof.", rule = { rule = "namespace-operation", include = ["*.rs"] } } }
 templates = [
-  { template = "service", file = "service.rs", description = "One concrete operation holding injected ports and explicitly owned invocation state." },
-  { alias = "service-test", template = "idiomatic.arch/service-test@0.1.0", file = "service_test.rs", params = { kind = "application" }, description = "Behavioral cases using injected fakes, including substitution and failures where applicable." },
+  { template = "service", file = "service.rs", count = { when = { condition = "namespace" }, then = 0, else = 1 }, description = "One concrete operation holding injected ports and explicitly owned invocation state; a namespace operation, which only gathers its parts, has none." },
+  { alias = "service-test", template = "idiomatic.arch/service-test@0.1.0", file = "service_test.rs", count = { when = { condition = "namespace" }, then = 0, else = 1 }, params = { kind = "application" }, description = "Behavioral cases using injected fakes, including substitution and failures where applicable; a namespace operation's proofs are its parts'." },
   { template = "idiomatic.arch/types@0.1.0", file = "types.rs", count = { min = 0 }, params = { kind = "concept" }, description = "Only data owned by this operation, not copies of existing domain values." },
   { template = "idiomatic.arch/errors@0.1.0", file = "errors.rs", count = { min = 0 }, params = { kind = "concept" }, description = "Failures owned by this operation." },
   { template = "idiomatic.arch/constants@0.1.0", file = "constants.rs", count = { min = 0 }, description = "Constants of this operation." },
@@ -45,6 +46,7 @@ rules = [
   { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "A row of a part's table expects a value or an error variant, never any success." },
   { alias = "group-namespace", rule = "idiomatic.arch/test-group-namespace@0.1.0", params = { case-table = "refused" }, include = [{ placed-by = "group-module" }, { placed-by = "nested-group-module" }, { placed-by = "part-group-module" }, { placed-by = "nested-part-group-module" }], description = "A group's module file declares the group's modules only: its test, its fixtures and its nested groups." },
   { alias = "part-namespace", rule = "idiomatic.arch/test-group-namespace@0.1.0", params = { case-table = "refused" }, include = [{ placed-by = "part-module" }, { placed-by = "nested-part-module" }], description = "A nested part's module file declares the part's modules only, as the operation's own module file does: its operation goes in its service.rs, its data in its types.rs, its failures in its errors.rs, each held by the role's rules." },
+  { rule = "namespace-part-proof", include = ["*.rs", "**/service.rs", "**/service_test.rs"], description = "A namespace operation's proofs are its parts': each sub-concept (the topmost part with a service on its branch) has its `service_test.rs` beside its `service.rs`, and at least one part has a service; an operation that is not a namespace is not read." },
   { alias = "service-test-form", rule = "idiomatic.arch/test-group-namespace@0.1.0", include = ["service_test.rs", { placed-by = "part-service-test" }], params = { case-table = "exempt" }, description = "The service's proof is a case table, or the namespace of its groups (only `mod x;` declarations): a file that declares `CASES` is left to the case-table rules, any other is held here." },
 ]
 
@@ -83,6 +85,116 @@ id = 'service-without-test'
 scenario = 'An application operation without its behavioral test is reported.'
 then.findings = [
   { rule = 'idiomatic.arch/service-test(service-test)#count', path = 'src/short' },
+]
+
+[[scenarios]]
+id = 'namespace-operation'
+scenario = 'An operation that only gathers nested parts, each with its own service and proof, and writes no role file of its own, is a namespace: it has no service and no service test, and nothing is reported.'
+given.at = 'src/tall'
+given.files.'src/tall/derived.rs' = '''
+//! The derived views of the operation.
+
+pub mod service;
+#[cfg(test)]
+mod service_test;
+'''
+given.files.'src/tall/derived/service.rs' = '''
+//! The derived views.
+
+/// Derives the views.
+pub fn derive() {}
+'''
+given.files.'src/tall/derived/service_test.rs' = '''
+//! Behavioral proof of `derived`.
+'''
+then.only = ['idiomatic.arch/application-service/namespace-part-proof', 'idiomatic.arch/application-service/service#count', 'idiomatic.arch/service-test(service-test)#count']
+
+[[scenarios]]
+id = 'namespace-part-with-a-service-and-no-test'
+scenario = "A namespace whose part has a service and no `service_test.rs` beside it leaves that service unproven: it is reported at the part's service."
+given.at = 'src/tall'
+given.files.'src/tall/derived.rs' = '''
+//! The derived views of the operation.
+
+pub mod service;
+'''
+given.files.'src/tall/derived/service.rs' = '''
+//! The derived views.
+
+/// Derives the views.
+pub fn derive() {}
+'''
+then.only = ['idiomatic.arch/application-service/namespace-part-proof', 'idiomatic.arch/application-service/service#count', 'idiomatic.arch/service-test(service-test)#count']
+then.findings = [
+  { rule = 'idiomatic.arch/application-service/namespace-part-proof', path = 'src/tall/derived/service.rs' },
+]
+
+[[scenarios]]
+id = 'namespace-of-types-only'
+scenario = 'A namespace whose parts hold only data gathers no operation: it is reported at its part, and its service and test are not asked for.'
+given.at = 'src/tall'
+given.files.'src/tall/rows.rs' = '''
+//! The rows of the operation.
+
+pub mod types;
+'''
+given.files.'src/tall/rows/types.rs' = '''
+//! The rows.
+
+/// A row.
+pub struct Row;
+'''
+then.only = ['idiomatic.arch/application-service/namespace-part-proof', 'idiomatic.arch/application-service/service#count', 'idiomatic.arch/service-test(service-test)#count']
+then.findings = [
+  { rule = 'idiomatic.arch/application-service/namespace-part-proof', path = 'src/tall/rows.rs' },
+]
+
+[[scenarios]]
+id = 'operation-with-neither-service-nor-parts'
+scenario = 'An operation that declares no part and has no service is no namespace: its service and its test are reported missing.'
+given.at = 'src/tall'
+given.files.'src/tall/types.rs' = '''
+//! The rows of the operation.
+
+/// A row.
+pub struct Row;
+'''
+then.only = ['idiomatic.arch/application-service/service#count', 'idiomatic.arch/service-test(service-test)#count']
+then.findings = [
+  { rule = 'idiomatic.arch/application-service/service#count', path = 'src/tall' },
+  { rule = 'idiomatic.arch/service-test(service-test)#count', path = 'src/tall' },
+]
+
+[[scenarios]]
+id = 'namespace-holding-its-own-types'
+scenario = 'An operation that declares parts and also writes a role file of its own (types.rs) is an operation, not a namespace: its service and its test are reported missing.'
+given.at = 'src/tall'
+given.files.'src/tall/derived.rs' = '''
+//! The derived views of the operation.
+
+pub mod service;
+#[cfg(test)]
+mod service_test;
+'''
+given.files.'src/tall/derived/service.rs' = '''
+//! The derived views.
+
+/// Derives the views.
+pub fn derive() {}
+'''
+given.files.'src/tall/derived/service_test.rs' = '''
+//! Behavioral proof of `derived`.
+'''
+given.files.'src/tall/types.rs' = '''
+//! The rows of the operation.
+
+/// A row.
+pub struct Row;
+'''
+then.only = ['idiomatic.arch/application-service/service#count', 'idiomatic.arch/service-test(service-test)#count']
+then.findings = [
+  { rule = 'idiomatic.arch/application-service/service#count', path = 'src/tall' },
+  { rule = 'idiomatic.arch/service-test(service-test)#count', path = 'src/tall' },
 ]
 
 [[scenarios]]

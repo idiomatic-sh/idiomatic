@@ -9,7 +9,7 @@ use ryo_values::domain::rows::types::RowIndex;
 #[cfg(test)]
 /// All live Value payload cells owned by this cursor, not only adjacency rows.
 pub(super) fn working_cells(closure: &PartitionedClosure<'_>) -> usize {
-    closure.current.as_ref().map_or(0, |_| {
+    closure.views.current.as_ref().map_or(0, |_| {
         let current = closure.current().expect(LIVE_PARTITION_VIEW);
         current.table.cells.len() + current.key.len() + current.sources.len()
     }) + closure.key.len()
@@ -23,7 +23,7 @@ pub(super) fn ordering_bytes(closure: &PartitionedClosure<'_>) -> usize {
         .0
         .saturating_mul(size_of::<RowIndex>())
         .saturating_add(working_capacity(closure).saturating_mul(size_of::<Value>()));
-    if closure.current.is_some() {
+    if closure.views.current.is_some() {
         let current = closure.current().expect(LIVE_PARTITION_VIEW);
         let capacities = ryo_derived::domain::equality::service::capacities(&current.index);
         let [rows, hashes, heads, links, sorted, pairs, runs] = [

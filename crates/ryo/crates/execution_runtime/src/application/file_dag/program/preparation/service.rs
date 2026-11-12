@@ -214,12 +214,10 @@ pub(crate) fn prepare(
     rules: &[RuleSpec],
     rule_digests: &[ryo_values::domain::stored_facts::types::Digest],
     hosted: &[HostRelation],
-    derived: impl Into<
-        ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess,
-    >,
+    derived: impl Into<crate::application::file_dag::derived::program::service::ProgramDerived>,
     identity: ObservationIdentity,
 ) -> Result<Arc<PreparedProgram>, OperatingError> {
-    let derived: ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess =
+    let derived: crate::application::file_dag::derived::program::service::ProgramDerived =
         derived.into();
     if rule_digests.len() != rules.len() {
         return Err(OperatingError::WrongOperation);

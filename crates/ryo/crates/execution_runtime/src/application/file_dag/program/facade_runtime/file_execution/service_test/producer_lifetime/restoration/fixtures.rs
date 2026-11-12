@@ -28,7 +28,7 @@ use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use ryo_execution_store::application::file_dag::derived::owner::witness::service::{
     BackingIdentity, BackingLiveness,
 };
-use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_execution_store::application::file_dag::derived::relation_owner::types::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::{
     service::kinds,

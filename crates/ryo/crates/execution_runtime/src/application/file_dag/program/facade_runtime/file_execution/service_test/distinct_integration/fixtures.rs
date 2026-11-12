@@ -23,7 +23,7 @@ use ryo_execution_domain::domain::{
     table_cells::types::{TreeForm, TreeRows},
 };
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_execution_store::application::file_dag::derived::relation_owner::types::ScopePartials;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::{FileId, Relation, Value as Cell};
 use ryo_values::domain::files::types::{

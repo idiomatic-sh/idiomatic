@@ -7,4 +7,8 @@ pub mod prepared;
 
 pub mod population;
 
+mod admitted_views;
+pub(crate) mod partition_views;
+pub mod relation_owner;
+
 pub mod constants;
