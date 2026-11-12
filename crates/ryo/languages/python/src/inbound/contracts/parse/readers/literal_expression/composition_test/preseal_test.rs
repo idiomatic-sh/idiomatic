@@ -117,6 +117,54 @@ fn unicode_and_escaped_carriers_use_the_existing_single_mapping_writer() -> Stri
         .join("; ")
 }
 
+/// Each file of one contract, read over the elements of the file before: what its walks find of the embedded
+/// expressions and the semantic names, which hold only when the model is prepared afresh for each file.
+fn each_file_of_one_contract_is_read_with_a_fresh_model() -> String {
+    let settings =
+        crate::settings::PythonParserSettings::new(crate::settings::PythonTargetVersion::Py310);
+    let parse = ParseContract::new(
+        settings,
+        std::sync::Arc::new(crate::outbound::syntax::fixtures::library::observed(
+            settings,
+            std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+        )),
+        std::sync::Arc::new(crate::outbound::notes::factory::postcard()),
+    );
+    let (mut elements, mut symbols) = (
+        languages::Elements::default(),
+        languages::Symbols::default(),
+    );
+    [
+        "list = lambda value: value\nAlias = list[\"'Hidden'\"]\n",
+        "Alias = list[\"'T'\"]\n",
+        "list = lambda value: value\nAlias = list[\"'Hidden'\"]\n",
+        "from typing import Literal\nAlias = tuple[Literal[\"'Hidden'\"], \"'Visible'\"]\n",
+    ]
+    .map(|source| {
+        build(&parse, source.as_bytes(), &mut elements, &mut symbols);
+        let walked = [
+            languages::Relation::EmbeddedExpression,
+            languages::Relation::SemanticSyntax,
+            languages::Relation::LiteralExpressionParse,
+        ]
+        .map(|relation| {
+            let mut out = languages::contract::Collect::default();
+            languages::contract::walk(
+                &parse,
+                &mut elements,
+                &mut symbols,
+                ByteSlice(source.as_bytes()),
+                languages::FileId(0),
+                &[relation],
+                &mut out,
+            );
+            out.rows().len()
+        });
+        format!("{source:?}: rows {walked:?}")
+    })
+    .join("; ")
+}
+
 /// The cases of this file, one variant each.
 #[derive(Clone, Copy)]
 enum Body {
@@ -128,6 +176,8 @@ enum Body {
     InvalidNestedExpressionKeepsOuterSuccessWithoutGuessedInnerRoot,
     /// The case `unicode_and_escaped_carriers_use_the_existing_single_mapping_writer`.
     UnicodeAndEscapedCarriersUseTheExistingSingleMappingWriter,
+    /// The case `each_file_of_one_contract_is_read_with_a_fresh_model`.
+    EachFileOfOneContractIsReadWithAFreshModel,
 }
 
 type Input = Body;
@@ -169,6 +219,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "\"Alias = list[\\\"'λ'\\\"]\\n\": causes [], name token λ true, embedded rows 2, second host is the first true; \"Alias = list[\\\"'\\\\u03bb'\\\"]\\n\": causes [], name token λ true, embedded rows 2, second host is the first true",
         ),
     },
+    Case {
+        name: CaseName("each_file_of_one_contract_is_read_with_a_fresh_model"),
+        word: Word::Succeeds,
+        input: || Body::EachFileOfOneContractIsReadWithAFreshModel,
+        expect: Expect::Value(
+            "\"list = lambda value: value\\nAlias = list[\\\"'Hidden'\\\"]\\n\": rows [0, 35, 1]; \"Alias = list[\\\"'T'\\\"]\\n\": rows [2, 21, 2]; \"list = lambda value: value\\nAlias = list[\\\"'Hidden'\\\"]\\n\": rows [0, 35, 1]; \"from typing import Literal\\nAlias = tuple[Literal[\\\"'Hidden'\\\"], \\\"'Visible'\\\"]\\n\": rows [2, 44, 3]",
+        ),
+    },
 ];
 
 /// Runs the body of one case.
@@ -185,6 +243,9 @@ fn subject(given: Input) -> Result<Value, Failure> {
         }
         Body::UnicodeAndEscapedCarriersUseTheExistingSingleMappingWriter => {
             unicode_and_escaped_carriers_use_the_existing_single_mapping_writer()
+        }
+        Body::EachFileOfOneContractIsReadWithAFreshModel => {
+            each_file_of_one_contract_is_read_with_a_fresh_model()
         }
     };
     Ok(Box::leak(observed.into_boxed_str()))
