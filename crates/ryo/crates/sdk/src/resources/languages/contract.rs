@@ -206,25 +206,28 @@ pub fn conformance_with(
 
 /// Runs the allocation row against a linked language, with its fixtures under `tests/fixtures` of its directory `manifest_dir`: reading
 /// a file allocates no more than the baseline, what the language's own `read_tree` does for the file alone through a builder that builds nothing. It runs alone in its
-/// process, with `dhat` as the global allocator, so nothing else counts. It reports as cargo's harness does, as the case
-/// `allocation::<language>::reading_allocates_as_the_parser_library_does`, named by the language's directory.
-///
-/// # Panics
-///
-/// When reading a file allocates more than the baseline does, after the case is reported as failed.
+/// process, with `dhat` as the global allocator, so nothing else counts. It runs on libtest-mimic, which answers libtest's
+/// command line and reports as cargo's harness does, as the case
+/// `allocation::<language>::reading_allocates_as_the_parser_library_does`, named by the language's directory. When
+/// reading a file allocates more than the baseline does, the case is reported as failed and the process exits 101, as a
+/// failed cargo test does.
 pub fn allocations_of_linked(linked: &super::Language, manifest_dir: ManifestDir) {
-    parse_samples::harness_case(
-        &format!(
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    // The case runs on this thread, so no other thread allocates beside it.
+    arguments.test_threads = Some(1);
+    let parse = linked.parse_engine();
+    let fixtures = Path::new(manifest_dir.0).join(FIXTURES);
+    let case = libtest_mimic::Trial::test(
+        format!(
             "allocation::{}::reading_allocates_as_the_parser_library_does",
             linked.name().0
         ),
-        || {
-            parse_samples::allocations_of_fixtures(
-                linked.parse_engine().as_ref(),
-                &Path::new(manifest_dir.0).join(FIXTURES),
-            );
+        move || {
+            parse_samples::allocations_of_fixtures(parse.as_ref(), &fixtures);
+            Ok(())
         },
     );
+    libtest_mimic::run(&arguments, vec![case]).exit_if_failed();
 }
 
 /// What the linked language writes of the relation `Item` reads for `source`, read with its own parse as the file numbered 0 at `path`:

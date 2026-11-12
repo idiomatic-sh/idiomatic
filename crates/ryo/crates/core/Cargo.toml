@@ -43,6 +43,7 @@ cucumber.workspace = true
 divan.workspace = true
 tokio.workspace = true
 dhat.workspace = true
+libtest-mimic.workspace = true
 # The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
 idiomatic-sh-ryo-core = { path = ".", features = ["fixtures"] }
 

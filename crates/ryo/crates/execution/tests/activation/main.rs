@@ -355,5 +355,14 @@ fn main() {
         .collect();
     let conclusion = libtest_mimic::run(&arguments, trials);
     drop(profiler);
+    // A run that names no filter, skip or listing executes a case: an empty table is refused.
+    let unfiltered = !arguments.list
+        && !arguments.ignored
+        && arguments.filter.is_none()
+        && arguments.skip.is_empty();
+    assert!(
+        !unfiltered || conclusion.num_passed + conclusion.num_failed > 0,
+        "the activation target must execute an actual case"
+    );
     conclusion.exit();
 }
