@@ -214,5 +214,9 @@ fn scenario(given: Scenario) -> Result<&'static str, ()> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn succeeds_in_each_scenario() {
     run(SCENARIOS, Word::Succeeds, scenario);
 }
