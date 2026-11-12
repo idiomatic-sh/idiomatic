@@ -1,7 +1,7 @@
 //! Authored request assembly, for the use case's own tests: every operation runs through the public execution owner.
 
 use super::{derived, operators};
-use crate::application::file_dag::derived::service::DerivedPreparation;
+use crate::application::derived::service::DerivedPreparation;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::{
     CaptureIntent, DiagnosticDelivery, ExecutionUseCase, FileRuleIntent, ObservationDemand,

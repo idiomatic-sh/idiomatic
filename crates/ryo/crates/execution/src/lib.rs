@@ -13,11 +13,13 @@ pub mod cases;
 /// route accounting format for the edges above the engine crates: core, the SDK and the command line name execution only,
 /// never the store.
 #[must_use]
-pub fn derived() -> application::file_dag::derived::service::DerivedPreparation {
-    application::file_dag::derived::service::DerivedPreparation::routed(
-        std::sync::Arc::new(ryo_execution_store::outbound::derived::factory::use_case(
-            ryo_execution_store::outbound::derived::factory::semantics(),
-        )),
-        std::sync::Arc::new(ryo_execution_store::outbound::route_counts::factory::json()),
+pub fn derived() -> inbound::use_cases::prepare::types::DerivedViews {
+    inbound::use_cases::prepare::types::DerivedViews::from(
+        application::derived::service::DerivedPreparation::routed(
+            std::sync::Arc::new(ryo_execution_store::outbound::derived::factory::use_case(
+                ryo_execution_store::outbound::derived::factory::semantics(),
+            )),
+            std::sync::Arc::new(ryo_execution_store::outbound::route_counts::factory::json()),
+        ),
     )
 }

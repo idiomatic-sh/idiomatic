@@ -21,9 +21,12 @@ use std::sync::Arc;
 /// # Examples
 ///
 /// ```
-/// use ryo_execution::application::file_dag::derived::service::DerivedPreparation;
+/// use ryo_execution::application::derived::service::DerivedPreparation;
+/// use std::sync::Arc;
 ///
-/// let preparation = ryo_execution::derived();
+/// let preparation = DerivedPreparation::from(Arc::new(
+///     ryo_execution_store::outbound::derived::factory::semantics(),
+/// ));
 /// let shared: DerivedPreparation = preparation.clone();
 /// ```
 #[derive(Clone, Debug)]
@@ -35,7 +38,7 @@ impl DerivedPreparation {
     /// # Examples
     ///
     /// ```
-    /// use ryo_execution::application::file_dag::derived::service::DerivedPreparation;
+    /// use ryo_execution::application::derived::service::DerivedPreparation;
     /// use std::sync::Arc;
     ///
     /// let preparation = DerivedPreparation::routed(
@@ -60,9 +63,12 @@ impl DerivedPreparation {
     /// # Examples
     ///
     /// ```
-    /// use ryo_execution::application::file_dag::derived::service::DerivedPreparation;
+    /// use ryo_execution::application::derived::service::DerivedPreparation;
+    /// use std::sync::Arc;
     ///
-    /// let preparation: DerivedPreparation = ryo_execution::derived();
+    /// let preparation = DerivedPreparation::from(Arc::new(
+    ///     ryo_execution_store::outbound::derived::factory::semantics(),
+    /// ));
     /// let _ = DerivedPreparation::program;
     /// ```
     pub fn program(
@@ -94,7 +100,7 @@ impl DerivedPreparation {
     ///
     /// ```
     /// use ryo_derived::domain::request::types::DerivedRequest;
-    /// use ryo_execution::application::file_dag::derived::service::DerivedPreparation;
+    /// use ryo_execution::application::derived::service::DerivedPreparation;
     ///
     /// fn prepared(preparation: &DerivedPreparation, request: DerivedRequest) {
     ///     let _contract = preparation.contract(request, Vec::new());
