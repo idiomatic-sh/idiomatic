@@ -227,6 +227,12 @@ def staged_digest(profile_root: Path) -> str:
     """The digest a measurement receipt records: the sha256 of the lines `<sha256>  <path>` of every staged file, in path order."""
     return hashlib.sha256(''.join(f'{digest}  {path}\n' for path, digest in sorted(profile_worker.staged_hashes(profile_root).items())).encode()).hexdigest()
 
+def switched_on(diagnostics):
+    """The pinned request's diagnostic switches that are on: a switch left off is the worker's default, so a diagnostic the
+    worker no longer has (lifecycle_memory, gone with its owner) and the pinned request leaves off is not written."""
+    return {name: on for name, on in diagnostics.items() if on} if isinstance(diagnostics, dict) else diagnostics
+
+
 def stage_measurement_request(pinned_request: Path, source: str, output_directory: Path, cache: Path) -> dict[str, object]:
     """Stage rules, fragments and benchmark.toml from the measured source commit and build the run-ryo request over them.
 
@@ -257,7 +263,7 @@ def stage_measurement_request(pinned_request: Path, source: str, output_director
         'parser_configuration': profile['parser-configuration'],
         'project_context_mode': profile['project-context-mode'],
         'project_search_roots': profile['project-search-roots'],
-        'performance': {'diagnostics': request['performance']['diagnostics']},
+        'performance': {'diagnostics': switched_on(request['performance']['diagnostics'])},
     })
     (output_directory / 'request.json').write_text(json.dumps(request), encoding='utf-8')
     receipt = {'source_commit': commit, 'staged': list(MEASURED_INPUTS), 'staged_files': len(profile_worker.staged_hashes(profile_root)),

@@ -33,6 +33,8 @@ def staged_request_self_test() -> None:
             raise AssertionError('a staged request kept a rule-side field of the pinned request or lost its corpus side')
         if receipt['request_sha256'] != profile_config.sha256(output / 'request.json') or receipt['pinned_request_sha256'] != profile_config.sha256(pinned):
             raise AssertionError('the staging receipt does not bind the request and the pinned request by hash')
+        if profile_staging.switched_on({'execution': True, 'lifecycle_memory': False, 'steps': False}) != {'execution': True}:
+            raise AssertionError('a staged request wrote a diagnostic switch the pinned request leaves off')
         try:
             profile_staging.stage_measurement_request(pinned, 'HEAD', output, Path(temporary) / 'cache')
         except FileExistsError:
