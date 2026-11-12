@@ -65,7 +65,10 @@ impl RequestViews {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::derived::request::service::RequestViews;
-    /// let _ = RequestViews::bind;
+    /// use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
+    /// fn bound(views: &mut RequestViews, contract: &mut OperatorContract) -> bool {
+    ///     views.bind(contract).is_ok()
+    /// }
     /// ```
     pub fn bind(&mut self, contract: &mut OperatorContract) -> Result<(), OperatingError> {
         self.logical.clear();

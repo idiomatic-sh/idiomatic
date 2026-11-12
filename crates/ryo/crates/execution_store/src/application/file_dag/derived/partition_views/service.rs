@@ -123,7 +123,14 @@ impl PartitionedClosure<'_> {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure;
-    /// let _ = PartitionedClosure::advance;
+    /// use ryo_execution_store::application::file_dag::closure_partitions::types::PartitionAdvance;
+    /// fn partitions(closure: &mut PartitionedClosure<'_>) -> usize {
+    ///     let mut count = 0;
+    ///     while let Ok(PartitionAdvance::Advanced) = closure.advance() {
+    ///         count += 1;
+    ///     }
+    ///     count
+    /// }
     /// ```
     pub fn advance(&mut self) -> Result<PartitionAdvance, OperatingError> {
         let ryo_derived::domain::contract::types::DerivedView::PartitionOrder(order) =
@@ -195,7 +202,14 @@ impl PartitionedClosure<'_> {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure;
-    /// let _ = PartitionedClosure::take_current;
+    /// use ryo_execution_store::application::file_dag::closure_partitions::types::PartitionAdvance;
+    /// use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
+    /// fn first(closure: &mut PartitionedClosure<'_>) -> Option<AcquiredView> {
+    ///     match closure.advance() {
+    ///         Ok(PartitionAdvance::Advanced) => closure.take_current().ok(),
+    ///         _ => None,
+    ///     }
+    /// }
     /// ```
     pub fn take_current(&mut self) -> Result<AcquiredView, OperatingError> {
         self.views.current.take().ok_or(OperatingError::NotRun)
@@ -211,7 +225,9 @@ impl PartitionedClosure<'_> {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure;
-    /// let _ = PartitionedClosure::current;
+    /// fn partitioned(closure: &PartitionedClosure<'_>) -> bool {
+    ///     closure.current().is_ok()
+    /// }
     /// ```
     pub fn current(&self) -> Result<&ClosurePartition, OperatingError> {
         let current = self.views.current.as_ref().ok_or(OperatingError::NotRun)?;

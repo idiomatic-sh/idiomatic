@@ -27,8 +27,21 @@ pub(in crate::domain::operator) fn prepare(
 /// # Examples
 ///
 /// ```
+/// use ryo_execution_domain::domain::operating::errors::OperatingError;
+/// use ryo_execution_domain::domain::operator::contract::primitive::types::PreparedInputs;
 /// use ryo_execution_domain::domain::operator::contract::registration::service::evaluate;
-/// let _ = evaluate;
+/// use ryo_execution_domain::domain::operator::contract::registration::types::RegisteredOperator;
+/// use ryo_execution_domain::domain::operator::contract::types::{PrimitiveLease, RowSink};
+/// use ryo_values::domain::plans::types::Operation;
+/// fn evaluated(
+///     registered: &RegisteredOperator,
+///     operation: &Operation,
+///     inputs: PreparedInputs<'_>,
+///     lease: &mut PrimitiveLease<'_>,
+///     output: &mut dyn RowSink,
+/// ) -> Result<(), OperatingError> {
+///     evaluate(registered, operation, inputs, lease, output)
+/// }
 /// ```
 pub fn evaluate(
     registered: &RegisteredOperator,
@@ -49,7 +62,10 @@ pub fn evaluate(
 ///
 /// ```
 /// use ryo_execution_domain::domain::operator::contract::registration::service::registered;
-/// let _ = registered;
+/// use ryo_values::domain::query_operators::types::OperationKind;
+///
+/// let select = registered(OperationKind::Select);
+/// assert!(format!("{select:?}").contains("Select"));
 /// ```
 pub fn registered(kind: OperationKind) -> RegisteredOperator {
     RegisteredOperator { kind }

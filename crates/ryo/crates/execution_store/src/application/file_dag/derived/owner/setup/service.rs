@@ -20,7 +20,10 @@ impl DerivedOwner {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
-    /// let _ = DerivedOwner::set_optional_limit;
+    /// use ryo_execution_store::application::file_dag::derived::owner::index::types::ByteLimit;
+    /// fn limited(owner: &DerivedOwner) -> bool {
+    ///     owner.set_optional_limit(ByteLimit(1 << 20)).is_ok()
+    /// }
     /// ```
     #[cfg(any(test, feature = "fixtures"))]
     pub fn set_optional_limit(
@@ -46,7 +49,10 @@ impl DerivedOwner {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
-    /// let _ = DerivedOwner::prepare_program_file;
+    /// use ryo_execution_store::application::file_dag::derived::prepared::service::RequestDerived;
+    /// fn prepared(owner: &DerivedOwner, request: &RequestDerived) -> bool {
+    ///     owner.prepare_program_file(request, &[], &[]).is_ok()
+    /// }
     /// ```
     pub fn prepare_program_file(
         &self,

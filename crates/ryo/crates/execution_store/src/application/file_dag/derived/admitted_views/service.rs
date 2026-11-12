@@ -157,7 +157,10 @@ impl<'f> InputAdmissions<'_, 'f> {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
-    /// let _ = InputAdmissions::try_native_lookup;
+    /// use ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse;
+    /// fn native(admissions: &InputAdmissions<'_, '_>, use_: &PreparedViewUse) -> bool {
+    ///     matches!(admissions.try_native_lookup(use_), Ok(Some(_)))
+    /// }
     /// ```
     pub fn try_native_lookup(
         &self,
@@ -194,7 +197,11 @@ impl<'f> InputAdmissions<'_, 'f> {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
-    /// let _ = InputAdmissions::acquire_rows;
+    /// use ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse;
+    /// use ryo_execution_domain::domain::operator::types::OperatorContext;
+    /// fn acquired(admissions: &InputAdmissions<'_, '_>, use_: &PreparedViewUse, context: &mut OperatorContext<'_>) -> bool {
+    ///     admissions.acquire_rows(use_, context).is_ok()
+    /// }
     /// ```
     pub fn acquire_rows(
         &self,
@@ -219,7 +226,12 @@ impl<'f> InputAdmissions<'_, 'f> {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
-    /// let _ = InputAdmissions::acquire_derived;
+    /// use ryo_execution_store::application::file_dag::derived::owner::service::ViewContext;
+    /// use ryo_execution_store::application::file_dag::workspace::types::ViewInputs;
+    /// use ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse;
+    /// fn acquired(admissions: &InputAdmissions<'_, '_>, use_: &PreparedViewUse, supplied: ViewInputs<'_, '_>) -> bool {
+    ///     admissions.acquire_derived(use_, ViewContext::default(), supplied).is_ok()
+    /// }
     /// ```
     pub fn acquire_derived(
         &self,
@@ -241,7 +253,19 @@ impl<'f> InputAdmissions<'_, 'f> {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
-    /// let _ = InputAdmissions::partitioned;
+    /// use ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure;
+    /// use ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse;
+    /// use ryo_execution_domain::domain::operator::types::OperatorContext;
+    /// use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+    /// fn partitions<'f>(
+    ///     admissions: &InputAdmissions<'_, 'f>,
+    ///     order: &PreparedViewUse,
+    ///     closure: &PreparedViewUse,
+    ///     input: RepresentationInput<'f>,
+    ///     context: &mut OperatorContext<'_>,
+    /// ) -> Option<PartitionedClosure<'f>> {
+    ///     admissions.partitioned(order, closure, input, context).ok()
+    /// }
     /// ```
     pub fn partitioned(
         &self,

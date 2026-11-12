@@ -57,8 +57,11 @@ pub(crate) fn prepare(
 /// # Examples
 ///
 /// ```
+/// use ryo_execution_domain::domain::operator::contract::types::{PrimitiveWorkspace, WorkspaceLifetime, WorkspaceProgram};
 /// use ryo_execution_domain::domain::operator::contract::workspace::service::begin;
-/// let _ = begin;
+/// fn begun(program: &WorkspaceProgram, workspace: &mut PrimitiveWorkspace) {
+///     begin(program, WorkspaceLifetime::Invocation, workspace);
+/// }
 /// ```
 pub fn begin(program: &WorkspaceProgram, lifetime: Lifetime, workspace: &mut PrimitiveWorkspace) {
     let WorkspaceProgram::FirstOccurrences {

@@ -47,27 +47,13 @@ impl DerivedStorage {
     /// # Errors
     ///
     /// The derived port's refusal to view the payload, mapped into its [`OperatingError`].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
-    /// let _ = DerivedStorage::view;
-    /// ```
-    pub fn view(&self) -> Result<DerivedView<'_>, OperatingError> {
+    pub(crate) fn view(&self) -> Result<DerivedView<'_>, OperatingError> {
         self.port
             .view(&self.plan, &self.payload)
             .map_err(derived_fault)
     }
     /// The built payload.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
-    /// let _ = DerivedStorage::payload;
-    /// ```
-    pub fn payload(&self) -> &DerivedPayload {
+    pub(crate) fn payload(&self) -> &DerivedPayload {
         &self.payload
     }
     pub(crate) fn graph_identity(&self) -> Option<&Arc<GraphIdentity>> {

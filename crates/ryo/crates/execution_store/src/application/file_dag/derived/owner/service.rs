@@ -130,7 +130,12 @@ impl ViewContext {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::derived::owner::service::ViewContext;
-    /// let _ = ViewContext::ordered;
+    /// use ryo_execution_store::application::file_dag::derived::owner::types::MembershipOrder;
+    ///
+    /// let ordered = ViewContext::ordered(MembershipOrder(2));
+    /// assert_eq!(ordered, ViewContext::ordered(MembershipOrder(2)));
+    /// assert_ne!(ordered, ViewContext::ordered(MembershipOrder(3)));
+    /// assert_ne!(ordered, ViewContext::default());
     /// ```
     pub fn ordered(order: MembershipOrder) -> Self {
         Self {
@@ -199,7 +204,11 @@ impl DerivedOwner {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
-    /// let _ = DerivedOwner::counts;
+    /// use ryo_execution_store::application::file_dag::derived::owner::types::BuildCounts;
+    /// fn builds(owner: &DerivedOwner) -> u64 {
+    ///     let BuildCounts(built, _hits, _refused) = owner.counts();
+    ///     built.0
+    /// }
     /// ```
     pub fn counts(&self) -> BuildCounts {
         let state = self.state.borrow();
@@ -211,7 +220,9 @@ impl DerivedOwner {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
-    /// let _ = DerivedOwner::working_bytes;
+    /// fn working(owner: &DerivedOwner) -> usize {
+    ///     owner.working_bytes().0
+    /// }
     /// ```
     pub fn working_bytes(&self) -> ByteCount {
         self.state.borrow().required_bytes
@@ -225,7 +236,9 @@ impl DerivedOwner {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
-    /// let _ = DerivedOwner::retained_bytes;
+    /// fn retained(owner: &DerivedOwner) -> usize {
+    ///     owner.retained_bytes().0
+    /// }
     /// ```
     pub fn retained_bytes(&self) -> ByteCount {
         self.state.borrow().retained_bytes
@@ -242,7 +255,9 @@ impl DerivedOwner {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
-    /// let _ = DerivedOwner::owned_bytes;
+    /// fn owned(owner: &DerivedOwner) -> usize {
+    ///     owner.owned_bytes().0
+    /// }
     /// ```
     pub fn owned_bytes(&self) -> ByteCount {
         let state = self.state.borrow();

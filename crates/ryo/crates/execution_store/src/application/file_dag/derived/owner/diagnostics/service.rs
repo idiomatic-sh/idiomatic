@@ -14,7 +14,12 @@ impl DerivedOwner {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
-    /// let _ = DerivedOwner::report;
+    /// use ryo_relations::domain::relations::types::FileId;
+    /// fn reported(owner: &DerivedOwner, files: &[FileId]) {
+    ///     for file in files {
+    ///         owner.report(*file);
+    ///     }
+    /// }
     /// ```
     pub fn report(&self, file: FileId) {
         tracing::trace!(target: constants::TARGET_RESOURCE_ROUTES, event = constants::EVENT_OWNER_FOOTPRINT, file = file.0,

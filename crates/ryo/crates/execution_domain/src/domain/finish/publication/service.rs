@@ -33,7 +33,21 @@ use std::collections::BTreeMap;
 ///
 /// ```
 /// use ryo_execution_domain::domain::finish::publication::service::escape_cross_publication;
-/// let _ = escape_cross_publication;
+/// use ryo_language::domain::symbols::types::Symbols;
+/// use ryo_relations::domain::relations::types::{NamePlace, WorkerNumber};
+/// use ryo_values::domain::rows::types::Table;
+/// use ryo_values::domain::stored_facts::types::ArenaBytes;
+/// fn published(
+///     table: &mut Table,
+///     producer: &mut Symbols,
+///     inherited: &[ArenaBytes],
+///     worker: WorkerNumber,
+///     arena: &mut ArenaBytes,
+/// ) -> Vec<NamePlace> {
+///     let mut places = Vec::new();
+///     let _carried = escape_cross_publication(table, producer, inherited, worker, arena, &mut places);
+///     places
+/// }
 /// ```
 pub fn escape_cross_publication(
     table: &mut Table,

@@ -28,8 +28,22 @@ use std::sync::Arc;
 /// # Examples
 ///
 /// ```
+/// use ryo_execution_domain::domain::operating::errors::OperatingError;
+/// use ryo_execution_domain::domain::prepared_request::types::{Compiled, ObservationIdentity};
 /// use ryo_execution_runtime::application::file_dag::derived::service::prepare;
-/// let _ = prepare;
+/// use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+/// use ryo_execution_runtime::outbound::digest::interface::DigestPort;
+/// use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
+/// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess;
+/// use std::sync::Arc;
+/// fn prepared(
+///     compiled: Compiled,
+///     operators: Arc<dyn OperatorsPort>,
+///     derived: DerivedAccess,
+///     digest: Arc<dyn DigestPort>,
+/// ) -> Result<PreparedExecutionProgram, OperatingError> {
+///     prepare(compiled, &[], &[], &[], ObservationIdentity::Independent, operators, derived, digest)
+/// }
 /// ```
 pub fn prepare(
     compiled: Compiled,
