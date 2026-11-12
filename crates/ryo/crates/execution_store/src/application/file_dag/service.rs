@@ -30,7 +30,7 @@ pub enum ScopePartials<'a> {
 /// The one outer owner factory. Kernels have no way to acquire this permit.
 pub fn open_program_owner(
     producers: crate::application::file_dag::relations::types::ProducerCapacity,
-    derived: impl Into<crate::application::file_dag::derived::owner::service::DerivedAccess>,
+    derived: impl Into<crate::application::file_dag::derived::relation_owner::service::ScopeAccess>,
     reuse: ReuseEligibility,
     routes: crate::application::file_dag::route_counts::profile::service::RouteProfile,
 ) -> Rc<RelationOwner> {
@@ -42,7 +42,7 @@ pub fn open_program_owner(
                 .saturating_add(ryo_relations::domain::relations::service::all().len())
                 .saturating_add(1),
         ),
-        derived,
+        derived.into(),
         routes,
     ))
 }
