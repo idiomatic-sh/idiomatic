@@ -193,7 +193,7 @@ def install_dist(version: str) -> None:
 
 
 def nightly(root: Path = ROOT) -> str:
-    """The nightly toolchain that writes rustdoc's JSON for the `sdk-api` tool."""
+    """The nightly toolchain that writes rustdoc's JSON for the `sdk-api` tool and runs the doctests of `test-doc`."""
     return tomllib.loads((root / "crates/ryo/Cargo.toml").read_text(encoding="utf-8"))["workspace"]["metadata"]["api"]["nightly"]
 
 

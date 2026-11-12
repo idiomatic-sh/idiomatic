@@ -75,7 +75,9 @@ inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 [[tools]]
 id = "test-doc"
 group = "check"
-run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--doc"]
+# On the nightly `[workspace.metadata.api] nightly` of Cargo.toml pins: only a nightly rustdoc checks the error code of a
+# `compile_fail,E0…` doctest, and on stable such a doctest passes for any error, so a renamed field or a wrong code proves nothing.
+run = ["bash", "-c", "set -e; nightly=$(python3 -c 'import tomllib; print(tomllib.load(open(\"Cargo.toml\", \"rb\"))[\"workspace\"][\"metadata\"][\"api\"][\"nightly\"])'); cargo \"+$nightly\" test --workspace --locked --all-features --doc"]
 timeout-seconds = 3600
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
