@@ -11,6 +11,8 @@ use ryo_relations::domain::relations::types::{KindBits, TextHash, Value};
 use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
+pub mod downstream_buffers;
+
 /// Which kinds a test asked of their names is about: the vocabulary of kinds it asked of, the test, and the hash of the text it is
 /// against.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
