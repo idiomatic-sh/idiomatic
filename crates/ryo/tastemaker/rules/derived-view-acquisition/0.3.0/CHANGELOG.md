@@ -12,8 +12,6 @@ Edited in place: the derived port's own outbound files, beneath `outbound/derive
 
 Edited in place: that exemption is the port's own name only: an identifier the port's `outbound/derived/interface.rs` defines, written beneath the same crate's `outbound/derived`. Any other confined identifier there (a held `AcquiredView`) is a finding, and so is the port's name beneath another crate's `outbound/derived`. Scenarios `port-hex-file-holding-a-view` and `another-crate-outbound-derived-naming-the-port` (violations).
 
-Edited in place: an edge's composition, a file placed by the `composition` template or a `*-composition` one (the `tastemaker.placed` record that `client-at-adapter@0.2.0` reads), composes the store's factories into the derived access and hands the access and the port to the owner, so a confined identifier written there is not a finding; the same code in a file no composition template places still is (owner via PM, 2026-11-12). Scenarios `placed-composition-may-name-the-access` (pass) and `unplaced-file-naming-the-access` (violation).
-
 ## 0.2.0
 
 Who reaches the derived owner is confined: an identifier of the new required `confined` param (the owner's acquiring entries and the leased views and handles it issues), written in a production file outside the owner tree, is a finding unless the new required `allowed` param lists that `{ file, name }`. It replaces the derived census's text scans of the acquiring entries' callers (`sites`) and of the files that hold a leased view or handle (`Holder::ALL`). Fixtures `listed-holder-and-owner-may-name-the-view` (pass), `unlisted-caller-of-an-acquiring-entry` and `unlisted-holder-of-a-leased-view` (violations). Everything else is as in 0.1.0.
