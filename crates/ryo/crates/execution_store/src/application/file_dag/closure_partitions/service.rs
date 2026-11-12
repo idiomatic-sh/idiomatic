@@ -2,7 +2,7 @@
 //! Its views are admitted, built and held by the derived concept (`derived::partition_views`).
 use super::types::OrderCursor;
 use crate::application::file_dag::{
-    derived::partition_views::service::PartitionViews, relations::service::RelationOwner,
+    derived::partition_views::types::PartitionViews, relations::service::RelationOwner,
 };
 use ryo_execution_domain::domain::derived_views::types::DerivedScratch;
 use ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract;
@@ -36,14 +36,10 @@ pub fn prepare<'f>(
     destination: ryo_values::domain::plan_parts::types::ColumnIndex,
     owner: Rc<RelationOwner>,
 ) -> Result<PartitionedClosure<'f>, OperatingError> {
-    crate::application::file_dag::derived::partition_views::service::prepare(
-        publication,
-        input,
-        keys,
-        source,
-        destination,
-        owner,
-    )
+    let relations = Rc::clone(&owner);
+    relations
+        .derived()
+        .partitioned_closure(publication, input, keys, source, destination, owner)
 }
 
 /// Ordering metadata can be shared across consumers; only the current partition

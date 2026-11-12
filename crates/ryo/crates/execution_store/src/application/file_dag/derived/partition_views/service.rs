@@ -3,6 +3,8 @@
 use crate::application::file_dag::closure_partitions::service::PartitionedClosure;
 use crate::application::file_dag::closure_partitions::types::{OrderCursor, PartitionAdvance};
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
+use crate::application::file_dag::derived::owner::service::DerivedOwner;
+use crate::application::file_dag::derived::partition_views::types::PartitionViews;
 use crate::application::file_dag::relations::service::RelationOwner;
 use ryo_derived::domain::closure_adjacency::types::ClosurePartition;
 use ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract;
@@ -12,12 +14,6 @@ use ryo_execution_domain::domain::derived_views::types::{
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use std::{rc::Rc, sync::Arc};
-
-/// The leases a partitioned closure reads: the shared ordering, and the partition the cursor is on.
-pub(crate) struct PartitionViews {
-    pub(crate) ordered: AcquiredView,
-    pub(crate) current: Option<AcquiredView>,
-}
 
 /// The one place a prepared partition cursor is admitted: its plans, ordering and proof are checked here.
 pub(crate) fn from_prepared<'f>(
@@ -66,50 +62,52 @@ pub(crate) fn from_prepared<'f>(
         scratch: DerivedScratch::default(),
     })
 }
-/// The partitioned closure `closure_partitions::service::prepare` answers: the publication is admitted and its shared
-/// ordering prepared and acquired.
+
 #[cfg(any(test, feature = "fixtures"))]
-pub(crate) fn prepare<'f>(
-    publication: &crate::application::file_dag::relations::handle::service::Publication,
-    input: RepresentationInput<'f>,
-    keys: &[ryo_values::domain::plan_parts::types::ColumnIndex],
-    source: ryo_values::domain::plan_parts::types::ColumnIndex,
-    destination: ryo_values::domain::plan_parts::types::ColumnIndex,
-    owner: Rc<RelationOwner>,
-) -> Result<PartitionedClosure<'f>, OperatingError> {
-    input.validate()?;
-    let schema = [
-        ryo_execution_domain::domain::operation_schema::types::InputShape {
-            kinds: input.kinds(),
-            tree: None,
-        },
-    ];
-    let partition_plan = Arc::new(owner.derived().prepare_view(
-        &ViewRequest::PartitionOrder {
-            keys: keys.to_vec(),
-        },
-        &schema,
-    )?);
-    let closure_plan = Arc::new(owner.derived().prepare_view(
-        &ViewRequest::ClosureAdjacency {
-            source,
-            destination,
-        },
-        &schema,
-    )?);
-    let proof = owner.admit(publication.input()?.as_ref(), input)?;
-    let admitted = owner
-        .derived()
-        .admit_view(&partition_plan, &owner, &[&proof])?;
-    let ordered = owner.derived().acquire_stored(
-        &partition_plan,
-        &admitted,
-        crate::application::file_dag::derived::owner::service::ViewContext::default(),
-        DerivedInputs::Rows(&[proof.rows()]),
-        &mut DerivedScratch::default(),
-        None,
-    )?;
-    from_prepared(proof, partition_plan, closure_plan, ordered, owner)
+impl DerivedOwner {
+    /// The partitioned closure `closure_partitions::service::prepare` answers: the publication is admitted and its shared
+    /// ordering prepared and acquired.
+    pub(crate) fn partitioned_closure<'f>(
+        &self,
+        publication: &crate::application::file_dag::relations::handle::service::Publication,
+        input: RepresentationInput<'f>,
+        keys: &[ryo_values::domain::plan_parts::types::ColumnIndex],
+        source: ryo_values::domain::plan_parts::types::ColumnIndex,
+        destination: ryo_values::domain::plan_parts::types::ColumnIndex,
+        owner: Rc<RelationOwner>,
+    ) -> Result<PartitionedClosure<'f>, OperatingError> {
+        input.validate()?;
+        let schema = [
+            ryo_execution_domain::domain::operation_schema::types::InputShape {
+                kinds: input.kinds(),
+                tree: None,
+            },
+        ];
+        let partition_plan = Arc::new(self.prepare_view(
+            &ViewRequest::PartitionOrder {
+                keys: keys.to_vec(),
+            },
+            &schema,
+        )?);
+        let closure_plan = Arc::new(self.prepare_view(
+            &ViewRequest::ClosureAdjacency {
+                source,
+                destination,
+            },
+            &schema,
+        )?);
+        let proof = owner.admit(publication.input()?.as_ref(), input)?;
+        let admitted = self.admit_view(&partition_plan, &owner, &[&proof])?;
+        let ordered = self.acquire_stored(
+            &partition_plan,
+            &admitted,
+            crate::application::file_dag::derived::owner::service::ViewContext::default(),
+            DerivedInputs::Rows(&[proof.rows()]),
+            &mut DerivedScratch::default(),
+            None,
+        )?;
+        from_prepared(proof, partition_plan, closure_plan, ordered, owner)
+    }
 }
 
 impl PartitionedClosure<'_> {
