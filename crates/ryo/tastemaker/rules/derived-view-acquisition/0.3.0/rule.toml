@@ -1,5 +1,5 @@
 description = "Semantic construction belongs to the admitted derived owner; consumers borrow acquired views."
-why = "The execution owner alone binds live source proofs to semantic construction, shared keys and required leases for every derived kind. Resolved dependencies to the actual semantic bridge plus precise imported build spans reject renamed, qualified and newly added-module bypasses. Resolved injected-port users may prepare immutable descriptors but may not call build outside that bridge. Portable semantic API proofs are legitimate callers of the public semantic use case; production engine consumers are not. Rust private fields and required permit/source capabilities separately prohibit forged acquisition or raw invocation authority. The method guard associates resolved semantic-port references and build calls in the same file; it does not infer receiver types across macros or follow arbitrary re-export chains, so runtime and Rust controls remain required. Who reaches the owner is confined too: an identifier of `confined` (the owner's acquiring entries, and the leased views and handles it issues) written in a production file outside the owner's concept is a finding: the concept is the one directory `owner-concept` names beneath a crate's `src/` (`application/file_dag/derived`), not any directory that shares its last name, so acquisition is collapsed into one owner module per crate, and a new caller of `admit_view` or a new holder of an `AcquiredView` outside it is a change of who reaches the owner, which moves the code into the concept rather than naming the file in a list. The builder port itself (`DerivedPort`) can be confined the same way, so it is named only by its own hex and the compositions that hand it to the owner. Test code (the files placed as proofs, test-named files and fixtures) is not production and is left out; a build call is left out of a fixtures role too, a `fixtures.rs` or a file beneath `fixtures/` whose module, or a module above it, is declared under a `cfg` naming `test` or the `fixtures` feature, while the same file declared without that gate is production."
+why = "The execution owner alone binds live source proofs to semantic construction, shared keys and required leases for every derived kind. Resolved dependencies to the actual semantic bridge plus precise imported build spans reject renamed, qualified and newly added-module bypasses. Resolved injected-port users may prepare immutable descriptors but may not call build outside that bridge. Portable semantic API proofs are legitimate callers of the public semantic use case; production engine consumers are not. Rust private fields and required permit/source capabilities separately prohibit forged acquisition or raw invocation authority. The method guard associates resolved semantic-port references and build calls in the same file; it does not infer receiver types across macros or follow arbitrary re-export chains, so runtime and Rust controls remain required. Who reaches the owner is confined too: an identifier of `confined` (the owner's acquiring entries, and the leased views and handles it issues) written in a production file outside the owner's concept is a finding: the concept is the one directory `owner-concept` names beneath a crate's `src/` (`application/file_dag/derived`), not any directory that shares its last name, so acquisition is collapsed into one owner module per crate, and a new caller of `admit_view` or a new holder of an `AcquiredView` outside it is a change of who reaches the owner, which moves the code into the concept rather than naming the file in a list. The builder port itself (`DerivedPort`) can be confined the same way, so it is named only by its own hex and the compositions that hand it to the owner: the port's own outbound files, beneath `outbound/derived`, are the port (its interface, factory, adapters and fakes), so a confined identifier written there is not a finding. Test code (the files placed as proofs, test-named files and fixtures) is not production and is left out; a build call is left out of a fixtures role too, a `fixtures.rs` or a file beneath `fixtures/` whose module, or a module above it, is declared under a `cfg` naming `test` or the `fixtures` feature, while the same file declared without that gate is production."
 
 query = '''
 param confined: set<string>;
@@ -58,7 +58,7 @@ let proof-port-builds = antijoin(left=consumer-builds, right=semantic-proofs, le
 let production-port-builds = antijoin(left=proof-port-builds, right=fixture-roles, left-on=["file"], right-on=["file"]);
 let ordinary = union(left=local, right=all-raw-builds);
 let build-violations = union(left=ordinary, right=production-port-builds);
-let confined-names = select file, span, text as name from "syntax-tree" where kind = "ident" and glob_any(text, $confined) and glob_any(file, "{src,**/src}/**") and not glob_any(file, concat("{src,**/src}/", $owner-concept, "/**")) and not glob_any(file, "{**/*_test.rs,**/test.rs,**/fixtures.rs,**/fixtures/**,**/*_test/**}");
+let confined-names = select file, span, text as name from "syntax-tree" where kind = "ident" and glob_any(text, $confined) and glob_any(file, "{src,**/src}/**") and not glob_any(file, concat("{src,**/src}/", $owner-concept, "/**")) and not glob_any(file, "{src,**/src}/outbound/derived/**") and not glob_any(file, "{**/*_test.rs,**/test.rs,**/fixtures.rs,**/fixtures/**,**/*_test/**}");
 let production-names = antijoin(left=confined-names, right=semantic-proofs, left-on=["file"], right-on=["file"]);
 let held = select file, span from production-names;
 let violations = union(left=build-violations, right=held);
@@ -312,3 +312,21 @@ given.files.'src/application/file_dag.rs' = """pub mod derived; pub mod consumer
 pub mod fixtures;"""
 given.files.'src/application/file_dag/fixtures.rs' = 'use crate::outbound::derived::interface::DerivedPort; pub fn record(port: &dyn DerivedPort) { port.build(); }'
 then.findings = [{ path = "src/application/file_dag/fixtures.rs", line = 1 }]
+
+[[scenarios]]
+id = "port-hex-may-name-the-port"
+scenario = "When the port is confined, the port's own outbound files (its interface, factory and adapter) are the port, not its consumers: they name it and pass."
+given.params = { confined = ["admit_view", "AcquiredView", "DerivedPort"] }
+given.files.'src/outbound/derived.rs' = 'pub mod interface; pub mod factory; pub mod adapters;'
+given.files.'src/outbound/derived/adapters.rs' = 'pub mod use_case;'
+given.files.'src/outbound/derived/adapters/use_case.rs' = 'pub mod adapter;'
+given.files.'src/outbound/derived/adapters/use_case/adapter.rs' = 'use crate::outbound::derived::interface::DerivedPort; pub struct Adapter; impl DerivedPort for Adapter { fn build(&self) {} fn prepare(&self) {} }'
+given.files.'src/outbound/derived/factory.rs' = 'use crate::outbound::derived::interface::DerivedPort; pub fn use_case() -> impl DerivedPort { super::adapters::use_case::adapter::Adapter }'
+
+[[scenarios]]
+id = "non-port-file-naming-the-port"
+scenario = "When the port is confined, a production file outside the port's own outbound files that names it is rejected."
+given.params = { confined = ["admit_view", "AcquiredView", "DerivedPort"] }
+given.files.'src/outbound.rs' = 'pub mod derived; pub mod other;'
+given.files.'src/outbound/other.rs' = 'pub fn hold(_: &dyn crate::outbound::derived::interface::DerivedPort) {}'
+then.findings = [{ path = "src/outbound/other.rs", line = 1 }]
