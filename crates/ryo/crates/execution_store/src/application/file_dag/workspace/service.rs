@@ -1,7 +1,6 @@
 // ignore: idiomatic.arch/file-length - the invocation workspace and the input admissions of one demand scope, each method stating its errors; a split would part the admissions from the workspace they borrow
 //! The invocation workspace admits an operator's inputs and acquires the derived view they demand.
 use crate::application::file_dag::relations::admission::service::BorrowedInput;
-use ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
@@ -43,8 +42,6 @@ impl InvocationWorkspace {
         }
     }
 }
-use ryo_execution_domain::domain::operator::types::OperatorContext;
-use std::sync::Arc;
 
 /// One invocation's mutable allocations and the admitted publications it reads, released when it ends.
 ///
@@ -366,7 +363,7 @@ pub struct InputAdmissions<'a, 'f> {
     proofs: [std::cell::OnceCell<BorrowedInput<'f>>; 3],
 }
 
-impl<'a, 'f> InputAdmissions<'a, 'f> {
+impl<'f> InputAdmissions<'_, 'f> {
     pub(crate) fn owner_handle(
         &self,
     ) -> std::rc::Rc<super::super::relations::service::RelationOwner> {
@@ -424,41 +421,5 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
                 .map_err(|_| OperatingError::WrongOperation)?;
         }
         cell.get().ok_or(OperatingError::WrongOperation)
-    }
-    /// The partitioned closure of `input`, built from its shared ordering.
-    ///
-    /// # Errors
-    ///
-    /// The refusal of admitting the ordering's input, [`OperatingError::NotRead`] when `input` is not the rows it
-    /// admitted, and the refusals of acquiring the ordering and preparing the closure.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
-    /// let _ = InputAdmissions::partitioned;
-    /// ```
-    pub fn partitioned(
-        &self,
-        order: &PreparedViewUse,
-        closure: &PreparedViewUse,
-        input: RepresentationInput<'f>,
-        context: &mut OperatorContext<'_>,
-    ) -> Result<super::super::closure_partitions::service::PartitionedClosure<'f>, OperatingError>
-    {
-        let proof = self.proof(order.inputs[0])?;
-        if super::super::relations::service::same_admitted_rows(input, proof.rows())
-            == crate::application::file_dag::relations::types::Sameness::Different
-        {
-            return Err(OperatingError::NotRead);
-        }
-        let storage = self.acquire_rows(order, context)?;
-        crate::application::file_dag::derived::partition_views::service::from_prepared(
-            proof.clone(),
-            Arc::clone(&order.plan),
-            Arc::clone(&closure.plan),
-            storage,
-            self.owner_handle(),
-        )
     }
 }

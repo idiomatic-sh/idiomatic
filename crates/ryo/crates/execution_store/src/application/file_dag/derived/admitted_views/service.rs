@@ -145,7 +145,7 @@ impl<'a> GraphInput<'a> {
     }
 }
 
-impl InputAdmissions<'_, '_> {
+impl<'f> InputAdmissions<'_, 'f> {
     /// The native lookup view of the tree input, when the input is a tree.
     ///
     /// # Errors
@@ -229,5 +229,43 @@ impl InputAdmissions<'_, '_> {
     ) -> Result<AcquiredView, OperatingError> {
         self.workspace
             .acquire_admitted(use_, self, identity, supplied)
+    }
+    /// The partitioned closure of `input`, built from its shared ordering.
+    ///
+    /// # Errors
+    ///
+    /// The refusal of admitting the ordering's input, [`OperatingError::NotRead`] when `input` is not the rows it
+    /// admitted, and the refusals of acquiring the ordering and preparing the closure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
+    /// let _ = InputAdmissions::partitioned;
+    /// ```
+    pub fn partitioned(
+        &self,
+        order: &PreparedViewUse,
+        closure: &PreparedViewUse,
+        input: RepresentationInput<'f>,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<
+        crate::application::file_dag::closure_partitions::service::PartitionedClosure<'f>,
+        OperatingError,
+    > {
+        let proof = self.proof(order.inputs[0])?;
+        if crate::application::file_dag::relations::service::same_admitted_rows(input, proof.rows())
+            == crate::application::file_dag::relations::types::Sameness::Different
+        {
+            return Err(OperatingError::NotRead);
+        }
+        let storage = self.acquire_rows(order, context)?;
+        crate::application::file_dag::derived::partition_views::service::from_prepared(
+            proof.clone(),
+            Arc::clone(&order.plan),
+            Arc::clone(&closure.plan),
+            storage,
+            self.owner_handle(),
+        )
     }
 }
