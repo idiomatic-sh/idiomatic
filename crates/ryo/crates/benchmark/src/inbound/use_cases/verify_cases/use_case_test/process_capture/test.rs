@@ -202,7 +202,7 @@ fn metadata_failure_keeps_bytes() {
     );
     assert_eq!(
         outcome.result.unwrap_err().to_string(),
-        "operational failure"
+        "operational failure; raw process identity unavailable: entity not found"
     );
     let CaptureRecord::Kept(kept) = &outcome.capture else {
         panic!("an undecodable output keeps its raw bytes");
