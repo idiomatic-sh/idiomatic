@@ -13,19 +13,18 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
     profiles = manifest['profiles']
     base_profile = profile_config.RUFF_DIR / 'benchmark.toml'
     paths = {helper_path, base_profile.relative_to(profile_config.REPOSITORY).as_posix()}
-    paths.add(profile_config.NATIVE_DESCRIPTOR_FILE.relative_to(profile_config.REPOSITORY).as_posix())
     paths.add(profile_config.HISTORICAL_NATIVE_DESCRIPTOR_FILE.relative_to(profile_config.REPOSITORY).as_posix())
     paths.add(profile_config.HISTORICAL_NATIVE_PROFILE_FILE.relative_to(profile_config.REPOSITORY).as_posix())
-    native = native_descriptor_json(profile_config.NATIVE_DESCRIPTOR_FILE.read_text(encoding='utf-8'))
-    for profile in native['profiles']:
-        paths.add(profile_sources.prepared_candidate_path(profile['rule_id'], profile).relative_to(profile_config.REPOSITORY).as_posix())
-        paths.add(profile_sources.prepared_case_path(profile['rule_id'], profile).relative_to(profile_config.REPOSITORY).as_posix())
-        native_source_profile = profile_sources.prepared_profile_path(profile['profile_name'], profile)
+    paths.update((summary.relative_to(profile_config.REPOSITORY).as_posix() for summary in profile_config.NATIVE_EVIDENCE_SUMMARIES))
+    for rule in profile_sources.native_members():
+        paths.add(profile_sources.prepared_candidate_path(rule, {}).relative_to(profile_config.REPOSITORY).as_posix())
+        paths.add(profile_sources.prepared_case_path(rule, {}).relative_to(profile_config.REPOSITORY).as_posix())
+        native_source_profile = profile_sources.prepared_profile_path(rule, {})
         paths.add(native_source_profile.relative_to(profile_config.REPOSITORY).as_posix())
         native_source_data = tomllib.loads(native_source_profile.read_text(encoding='utf-8'))
         paths.update((profile_sources.module_path(relative) for relative in profile_sources.profile_modules(native_source_data).values()))
-        native_cases = tomllib.loads(profile_sources.prepared_case_path(profile['rule_id'], profile).read_text(encoding='utf-8'))['cases']
-        paths.update((source.relative_to(profile_config.REPOSITORY).as_posix() for source, _digest in reference_discrepancies.declared_discrepancy_artifacts(native_source_profile, native_cases, source_root=profile_config.discrepancy_source_root(profile['rule_id'], native_source_profile)).values()))
+        native_cases = tomllib.loads(profile_sources.prepared_case_path(rule, {}).read_text(encoding='utf-8'))['cases']
+        paths.update((source.relative_to(profile_config.REPOSITORY).as_posix() for source, _digest in reference_discrepancies.declared_discrepancy_artifacts(native_source_profile, native_cases, source_root=profile_config.discrepancy_source_root(rule, native_source_profile)).values()))
     paths.add(profile_config.RULE_PHASES_FILE.relative_to(profile_config.REPOSITORY).as_posix())
     paths.add((profile_config.RUFF_DIR / 'results/standard-suppression-policy.json').relative_to(profile_config.REPOSITORY).as_posix())
     paths.add((profile_config.RUFF_DIR / 'profiles/pinned-noqa-code-policy.json').relative_to(profile_config.REPOSITORY).as_posix())
@@ -315,18 +314,3 @@ def check_standard_suppression(profile: Path, selected_rules: list[str], policie
             observed = re.findall(r'^observe\s+(\w+)\s+as\s+\w+\s*;', source, re.MULTILINE)
             if not observed or not all(depends_on_family([root]) for root in observed):
                 raise ValueError(f'{rule} does not publish named outputs depending on declared suppression matches')
-
-def native_descriptor_json(text: str) -> dict[str, object]:
-    """An explicit execution contract must not lose duplicate JSON declarations."""
-
-    def unique(pairs):
-        result = {}
-        for key, value in pairs:
-            if key in result:
-                raise ValueError(f'duplicate native descriptor key: {key}')
-            result[key] = value
-        return result
-    result = json.loads(text, object_pairs_hook=unique)
-    if not isinstance(result, dict):
-        raise ValueError('native descriptor must be an object')
-    return result

@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
-from authoring import case_receipt_adapter, case_records, profile_shards
+from authoring import case_observations, case_receipt_adapter, case_records, profile_shards
 
 
 class ProcessShardTests(unittest.TestCase):

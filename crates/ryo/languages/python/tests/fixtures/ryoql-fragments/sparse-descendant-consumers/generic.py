@@ -24,7 +24,7 @@ helper = (
 )
 bench = args.candidate_root / "crates/ryo/languages/python/benchmarks/linters/ruff"
 c419 = (bench / "rules/C419/query.ryoql").read_text()
-b023 = (bench / "rules/B023/candidate.ryoql").read_text()
+b023 = (bench / "rules/B023/query.ryoql").read_text()
 assert (
     'axis(from=candidate_elements, relation="semantic-child", direction=descendant, domain=awaits)'
     in c419
@@ -106,6 +106,7 @@ for name, files in cases:
         "rules": str(root / "profile/rules"),
         "query_modules": {},
         "rule_applicability": {"ROOTED001": "accepted-syntax"},
+        "selected_rules": ["ROOTED001"],
         "parser_configuration": "python-target=3.10",
         "files": list(files),
         "cache": None,

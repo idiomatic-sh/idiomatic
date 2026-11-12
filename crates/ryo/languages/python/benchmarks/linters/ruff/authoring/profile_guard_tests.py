@@ -24,12 +24,11 @@ def inventory_registration_source_root_self_test() -> None:
     base = tomllib.loads((ruff / 'benchmark.toml').read_text(encoding='utf-8'))
     phases = json.loads(profile_config.RULE_PHASES_FILE.read_text(encoding='utf-8'))
     manifest = json.loads(profile_config.MANIFEST.read_text(encoding='utf-8'))
-    native = profile_proofs.native_descriptor_json(profile_config.NATIVE_DESCRIPTOR_FILE.read_text(encoding='utf-8'))
     with tempfile.TemporaryDirectory(prefix='ryo-inventory-registration-') as temporary:
         output = Path(temporary)
         for rule in ('UP031', 'UP032', 'PYI020', 'F821', 'PLW0602'):
             count = len(tomllib.loads((ruff / 'rules' / rule / 'cases.toml').read_text(encoding='utf-8'))['cases'])
-            stage, entry = rule_registration.stage_full_inventory_rule(rule, output, base, phases, manifest, native)
+            stage, entry = rule_registration.stage_full_inventory_rule(rule, output, base, phases, manifest)
             assert entry['case_count'] == count and stage.is_dir()
         profile = ruff / 'profiles/UP031/benchmark.toml'
         cases = tomllib.loads((ruff / 'rules/UP031/cases.toml').read_text(encoding='utf-8'))['cases']

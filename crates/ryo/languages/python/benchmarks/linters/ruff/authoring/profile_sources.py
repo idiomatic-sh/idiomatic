@@ -32,6 +32,13 @@ def write_cases(path: Path, cases: list[dict[str, object]]) -> None:
     path.write_text('\n'.join(lines), encoding='utf-8')
 
 
+def native_members() -> list[str]:
+    """The native standalone set: the rules of the recorded 2026-11-02 native evidence, sorted."""
+    members = set()
+    for summary in profile_config.NATIVE_EVIDENCE_SUMMARIES:
+        members.update(json.loads(summary.read_text(encoding='utf-8'))['profiles'])
+    return sorted(members)
+
 def prepared_profile_path(profile_name: str, recorded: dict[str, object]) -> Path:
     """Resolve a sealed profile TOML, allowing target-specific profile aliases."""
     value = recorded.get('profile_file', f'profiles/{profile_name}/benchmark.toml')

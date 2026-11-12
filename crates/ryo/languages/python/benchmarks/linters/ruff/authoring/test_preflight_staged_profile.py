@@ -12,7 +12,7 @@ import tomllib
 import unittest
 from unittest.mock import patch
 
-import preflight_staged_profile as preflight
+from authoring import preflight_staged_profile as preflight
 from verify_profiles import RUFF_DIR, profile_modules, write_staged_profile
 
 

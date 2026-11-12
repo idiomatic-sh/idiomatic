@@ -192,10 +192,10 @@ inputs = ["Cargo.toml", "Cargo.lock", ".config", "languages/{lang}", "crates/lan
 [[tools]]
 id = "correctness-python-ruff"
 group = "check"
-# All 104 native query assets retain their 2,211 authored cases under explicitly declared
-# singleton selections. The full combined candidate cohort stays a separate tool; no
-# reference arrays are rewritten and every staged execution identity is recorded.
-run = ["python3", "-c", "import os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\nguards = subprocess.run([sys.executable, str(helper), '--self-test-native-standalone'])\nif guards.returncode:\n    sys.exit(guards.returncode)\noutput = Path(os.environ.get('RUNNER_TEMP', '/tmp')) / ('ruff-native-standalone-' + os.environ.get('GITHUB_RUN_ID', 'local') + '-' + str(os.getpid()))\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\nsys.exit(subprocess.run([sys.executable, str(helper), executable, '--native-standalone', '--output-dir', str(output)], env=environment).returncode)"]
+# Each rule of the native evidence runs its authored cases alone under its own profile against
+# the pinned Ruff, with the descriptor generated into the output directory; then the
+# benchmark's Python unittests run. The combined candidate cohort is a separate tool.
+run = ["python3", "-c", "import json, os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\ncodes = [subprocess.run([sys.executable, str(helper), '--self-test-native-standalone']).returncode]\noutput = Path(os.environ.get('RUNNER_TEMP', '/tmp')) / ('ruff-native-standalone-' + os.environ.get('GITHUB_RUN_ID', 'local') + '-' + str(os.getpid()))\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\ncodes.append(subprocess.run([sys.executable, str(helper), executable, '--native-standalone', '--output-dir', str(output)], env=environment).returncode)\nbuild = output / 'build' / 'result.json'\nworker = json.loads(build.read_text()).get('frozen_executable', {}).get('path', '') if build.is_file() else ''\ntests = {**os.environ, 'RYO_PREFLIGHT_WORKER': worker, 'RYO_PREFLIGHT_RUFF': executable}\ncodes.extend(subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', directory, '-p', 'test_*.py'], cwd=helper.parent, env=tests).returncode for directory in ('authoring', '.'))\nsys.exit(next((code for code in codes if code), 0))"]
 timeout-seconds = 3600
 inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
 
