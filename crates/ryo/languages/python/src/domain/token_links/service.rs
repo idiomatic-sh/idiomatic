@@ -8,9 +8,11 @@ use crate::domain::{
 use ryo::languages::{self, NameText, Position, Tree};
 
 /// Native root extent excludes separately adopted embedded expressions.
-pub(crate) fn scan<'tree, 'source>(
+pub(crate) fn scan<'tree, 'source, 'stack>(
     tree: &'tree Tree<'source>,
-) -> impl Iterator<Item = Event> + use<'tree, 'source> {
+    mut stack: std::cell::RefMut<'stack, Vec<Opener>>,
+) -> impl Iterator<Item = Event> {
+    stack.clear();
     let end = if languages::end_of(tree.elements).0 == 0 {
         0
     } else {
@@ -25,7 +27,7 @@ pub(crate) fn scan<'tree, 'source>(
             end: Position(end),
         },
         previous: None,
-        stack: Vec::new(),
+        stack,
         pending: [None; 2],
         pairing: Pairing::Whole,
         reported: Coverage::Pending,
@@ -56,7 +58,7 @@ fn closing(open: Token) -> Option<Token> {
 }
 
 /// The next link or coverage event of the scan, in source order.
-fn next_event(scan: &mut Scan<'_, '_>) -> Option<Event> {
+fn next_event(scan: &mut Scan<'_, '_, '_>) -> Option<Event> {
     if let Some(link) = scan.pending[0].take() {
         scan.pending[0] = scan.pending[1].take();
         return Some(Event::Link(link));

@@ -1,7 +1,7 @@
 //! The `format_specification` service's cases: the standard format specifications of the brace strings and f-strings of a parsed
 //! source, with their place, their value, their outcome, their selector and their conversion.
 
-use super::service::observe;
+use super::service::{observe, text_of};
 use super::types::ObservationCompleteness;
 use crate::application::brace_format::service::prepare;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -84,7 +84,14 @@ fn subject(source: Input) -> Result<Value, Failure> {
         positions(&tree),
         |node, symbols| (visibility(&tree, &model, node, symbols) == Visibility::Visible).into(),
     );
-    let observations = observe(&tree, &braces, model.language_target);
+    observe(
+        &tree,
+        &braces,
+        model.language_target,
+        &mut model.scratch.borrow_mut().format_observations,
+    );
+    let scratch = model.scratch.borrow();
+    let observations = &scratch.format_observations;
     let mut texts: Vec<String> = observations
         .rows
         .iter()
@@ -95,10 +102,10 @@ fn subject(source: Input) -> Result<Value, Failure> {
                 spec.ordinal.0,
                 spec.parent
                     .map_or_else(|| "-".to_owned(), |parent| parent.0.to_string()),
-                spec.value.as_ref().map(|value| value.0.as_str()),
+                spec.value.map(|value| text_of(observations, value.0).0),
                 spec.outcome,
-                spec.selector.0,
-                spec.conversion.0
+                text_of(observations, spec.selector.0).0,
+                text_of(observations, spec.conversion.0).0
             )
         })
         .collect();

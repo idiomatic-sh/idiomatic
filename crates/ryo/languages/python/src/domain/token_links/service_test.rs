@@ -59,7 +59,8 @@ fn subject(source: Input) -> Result<Value, Failure> {
         source: ByteSlice(file.bytes),
         file: languages::FileId(0),
     };
-    let texts: Vec<String> = scan(&tree)
+    let stack = std::cell::RefCell::default();
+    let texts: Vec<String> = scan(&tree, stack.borrow_mut())
         .map(|event| match event {
             Event::Link(link) => format!(
                 "{} {:?}>{:?}",

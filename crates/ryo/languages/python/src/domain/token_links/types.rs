@@ -68,7 +68,7 @@ pub(crate) enum Coverage {
 }
 
 /// Invocation-local cursor and delimiter stack; no second token population.
-pub(crate) struct Scan<'tree, 'source> {
+pub(crate) struct Scan<'tree, 'source, 'stack> {
     /// Completed native syntax tree borrowed for one demand.
     pub tree: &'tree Tree<'source>,
     /// Unvisited native element positions, excluding adopted expansions.
@@ -76,7 +76,7 @@ pub(crate) struct Scan<'tree, 'source> {
     /// Previous recognized lexer token for successor edges.
     pub previous: Option<Position>,
     /// Unmatched typed opening delimiters in nesting order.
-    pub stack: Vec<Opener>,
+    pub stack: std::cell::RefMut<'stack, Vec<Opener>>,
     /// At most two remaining edges from the current token.
     pub pending: [Option<TokenLink>; 2],
     /// Pairing knowledge so far.
