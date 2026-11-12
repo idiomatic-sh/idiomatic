@@ -9,7 +9,7 @@ use crate::domain::fault::types::DerivedFault;
 /// ```
 /// use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
 /// use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
-/// use ryo_derived::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace};
+/// use ryo_derived::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, Recycled};
 /// use ryo_derived::domain::fault::types::DerivedFault;
 /// use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
 /// struct Item;

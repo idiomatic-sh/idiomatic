@@ -33,7 +33,7 @@ pub(crate) mod sealed {
 ///     fn primitive(&self) -> &PrimitiveWorkspace { todo!() }
 ///     fn primitive_mut(&mut self) -> &mut PrimitiveWorkspace { todo!() }
 ///     fn parts(&mut self) -> WorkspaceParts<'_> { todo!() }
-///     fn capture_admitted(&mut self, _: Vec<Publication>) {}
+///     fn capture_admitted(&mut self, _: ryo_execution_store::application::file_dag::workspace::types::AdmittedPublications) {}
 ///     fn release_inputs(&mut self) {}
 ///     fn measured(&self) -> ExecutionObservation { todo!() }
 /// }
@@ -46,7 +46,7 @@ pub(crate) mod sealed {
 /// use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort;
 /// use ryo_execution_store::application::file_dag::relations::handle::service::Publication;
 /// fn invoked(workspace: &mut impl WorkspacePort, publications: Vec<Publication>) {
-///     workspace.capture_admitted(publications);
+///     workspace.capture_admitted(publications.into());
 ///     workspace.release_inputs();
 /// }
 /// ```
@@ -120,7 +120,7 @@ pub trait WorkspacePort: sealed::Sealed {
     /// use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort;
     /// use ryo_execution_store::application::file_dag::relations::handle::service::Publication;
     /// fn admitted(workspace: &mut impl WorkspacePort, publications: Vec<Publication>) {
-    ///     workspace.capture_admitted(publications);
+    ///     workspace.capture_admitted(publications.into());
     /// }
     /// ```
     fn capture_admitted(
@@ -135,7 +135,7 @@ pub trait WorkspacePort: sealed::Sealed {
     /// use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort;
     /// use ryo_execution_store::application::file_dag::relations::handle::service::Publication;
     /// fn invoked(workspace: &mut impl WorkspacePort, publications: Vec<Publication>) {
-    ///     workspace.capture_admitted(publications);
+    ///     workspace.capture_admitted(publications.into());
     ///     workspace.release_inputs();
     /// }
     /// ```

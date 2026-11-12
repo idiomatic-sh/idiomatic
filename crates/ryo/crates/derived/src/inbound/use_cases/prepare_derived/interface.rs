@@ -11,7 +11,7 @@ use crate::domain::request::types::DerivedRequest;
 /// use ryo_derived::inbound::use_cases::prepare_derived::interface::PrepareDerivedUseCase;
 /// struct Item;
 /// impl PrepareDerivedUseCase for Item {
-///     fn prepare_derived(&self, _request: DerivedRequest, _schemas: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>) -> PreparedDerived { unimplemented!() }
+///     fn prepare_derived(&self, _request: DerivedRequest, _schemas: ryo_derived::domain::contract::types::InputSchemas) -> PreparedDerived { unimplemented!() }
 /// }
 /// ```
 ///
