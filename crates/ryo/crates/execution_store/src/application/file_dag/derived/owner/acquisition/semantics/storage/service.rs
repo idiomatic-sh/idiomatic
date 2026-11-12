@@ -81,11 +81,7 @@ impl DerivedStorage {
         OperatingError,
     > {
         use crate::application::file_dag::accounting::ledger::types::Backing;
-        let facts = crate::application::file_dag::accounting::footprint::service::describe(
-            &this.view()?,
-            &this.payload,
-        )
-        .map_err(derived_fault)?;
+        let facts = crate::application::file_dag::accounting::footprint::service::describe(this)?;
         let mut output: Vec<Backing> = facts
             .shared
             .into_iter()

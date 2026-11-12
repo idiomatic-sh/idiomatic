@@ -1,5 +1,6 @@
 //! What a built derived payload occupies, as allocation facts; the engine alone assigns lifetime classes and budgets.
-use super::types::{BackingKind, PartitionEntry, PayloadFootprint, SharedBacking, VertexEntry};
+use super::types::{BackingKind, PayloadFootprint, SharedBacking};
+use crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 use ryo_derived::domain::allocation::types::{AllocationBytes, AllocationKey, ElementCapacity};
 use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
@@ -9,7 +10,9 @@ use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::key::types::KeyCellsHash;
 use ryo_derived::domain::membership::types::MembershipView;
 use ryo_derived::domain::ordered::types::{OrderedText, OwnedOrderedKey, OwnedOrderedRow};
-use ryo_derived::domain::vertices::types::EdgeDirection;
+use ryo_derived::domain::vertices::types::{EdgeDirection, PartitionId, VertexId, VertexKey};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::service::derived_fault;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::rows::types::{RowIndex, Table};
 
@@ -95,11 +98,13 @@ fn graph(value: &CompactGraph) -> Result<AllocationBytes, DerivedFault> {
         vector(&value.vertex_partitions().0),
         hash(
             capacities.partition_ids,
-            AllocationBytes(size_of::<PartitionEntry>()),
+            // One entry of the partition table, as the hash table stores it.
+            AllocationBytes(size_of::<(std::sync::Arc<[Value]>, PartitionId)>()),
         ),
         hash(
             capacities.vertex_ids,
-            AllocationBytes(size_of::<VertexEntry>()),
+            // One entry of the vertex table, as the hash table stores it.
+            AllocationBytes(size_of::<(VertexKey, VertexId)>()),
         ),
     ])?;
     let partitions = sum([
@@ -120,18 +125,16 @@ fn graph(value: &CompactGraph) -> Result<AllocationBytes, DerivedFault> {
     sum([base, partitions, directions])
 }
 
-/// What a payload occupies, as allocation facts: `view` is the payload's own view.
+/// What a stored payload occupies, as allocation facts, read through the payload's own view.
 ///
 /// # Errors
-/// A size that does not fit.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_store::application::file_dag::accounting::footprint::service::describe;
-/// let _ = describe;
-/// ```
-pub fn describe(
+/// The derived port's refusal to view the payload, or a size that does not fit.
+pub(crate) fn describe(storage: &DerivedStorage) -> Result<PayloadFootprint, OperatingError> {
+    let view = storage.view()?;
+    occupied(&view, storage.payload()).map_err(derived_fault)
+}
+
+fn occupied(
     view: &DerivedView<'_>,
     payload: &DerivedPayload,
 ) -> Result<PayloadFootprint, DerivedFault> {
@@ -220,15 +223,7 @@ pub fn describe(
 ///
 /// # Errors
 /// A size that does not fit.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_derived::domain::contract::types::BuildWorkspace;
-/// use ryo_execution_store::application::file_dag::accounting::footprint::service::working_bytes;
-/// assert_eq!(working_bytes(&BuildWorkspace::default()).map(|bytes| bytes.0), Ok(0));
-/// ```
-pub fn working_bytes(room: &BuildWorkspace) -> Result<AllocationBytes, DerivedFault> {
+pub(crate) fn working_bytes(room: &BuildWorkspace) -> Result<AllocationBytes, DerivedFault> {
     room.row
         .capacity()
         .checked_mul(size_of::<Value>())
