@@ -92,8 +92,7 @@ pub(crate) struct FilePresence {
 pub(crate) struct ProgramServices {
     pub(super) request: Arc<RequestIdentity>,
     pub(super) kernels: Arc<dyn PrimitiveExecutor + Send>,
-    pub(super) derived:
-        ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess,
+    pub(super) derived: crate::application::file_dag::derived::service::ViewAccess,
     /// The observer the request's caller asked to be told of the engine's work, if any.
     pub(super) observer: Option<Arc<dyn crate::outbound::observer::interface::ObserverPort>>,
 }
@@ -101,9 +100,7 @@ pub(crate) struct ProgramServices {
 impl ProgramServices {
     pub(crate) fn new(
         kernels: Arc<dyn PrimitiveExecutor + Send>,
-        derived: impl Into<
-            ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess,
-        >,
+        derived: impl Into<crate::application::file_dag::derived::service::ViewAccess>,
         corpus: &[ryo_values::domain::files::types::CorpusInput],
     ) -> Self {
         Self {
@@ -133,9 +130,7 @@ impl ProgramServices {
     pub(crate) fn kernels(&self) -> &dyn PrimitiveExecutor {
         self.kernels.as_ref()
     }
-    pub(crate) fn derived(
-        &self,
-    ) -> &ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess {
+    pub(crate) fn derived(&self) -> &crate::application::file_dag::derived::service::ViewAccess {
         &self.derived
     }
 }

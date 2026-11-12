@@ -1,6 +1,7 @@
 //! The `index` application operation.
 
 use super::types::EmptyInput;
+use crate::application::file_dag::derived::view::service::LeasedView;
 use crate::application::file_dag::invocation::prepared_use::service::prepared;
 use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -8,7 +9,6 @@ use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_reach::borrowed::types::IndexedRows;
-use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 
 /// An equality index the invocation holds: its key columns are read from the plan once, at acquisition, so a plan
 /// that is not an equality is refused there and the variants hold only what an equality index has.
@@ -16,7 +16,7 @@ pub(crate) enum IndexResource<'f> {
     Derived {
         rows: RepresentationInput<'f>,
         columns: Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
-        view: AcquiredView,
+        view: LeasedView,
     },
     Empty {
         rows: RepresentationInput<'f>,
@@ -54,7 +54,7 @@ impl<'f> IndexResource<'f> {
             });
         }
         let source = admission.rows(place)?;
-        let storage = admission.acquire_rows(use_, context)?;
+        let storage = LeasedView::rows(admission, use_, context)?;
         Ok(Self::Derived {
             rows: source,
             columns,

@@ -4,6 +4,7 @@ use super::index::{service::IndexResource, types::EmptyInput};
 use super::prepared_use::service::prepared;
 use super::types::{AcquiredPartitions, InvocationInputs, InvocationResources};
 use crate::application::file_dag::axis_resources::service::prepare_axis;
+use crate::application::file_dag::derived::view::service::LeasedView;
 use crate::application::file_dag::resources::service::appended_values;
 use ryo_execution_domain::domain::operator::contract::{
     resources::{types::IndexColumns, types::JoinResources, types::ResourceProgram},
@@ -15,7 +16,6 @@ use ryo_execution_domain::domain::table_texts::types::Texts;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError, operator::types::OperatorContext,
 };
-use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use ryo_values::domain::plan_parts::{service::parameter_in, types::InputNumber};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
@@ -102,10 +102,10 @@ pub(crate) fn prepare<'f>(
         .transpose()?
         .unwrap_or(false);
     if !empty_domain {
-        resources.cached_graph = admission
-            .owner()
-            .derived()
-            .prepare_graph(contract, admission, program, originals)?;
+        resources.cached_graph =
+            crate::application::file_dag::derived::graph::service::LeasedGraph::prepared(
+                contract, admission, program, originals,
+            )?;
         if resources.cached_graph.is_some() {
             return Ok(resources);
         }
@@ -151,7 +151,7 @@ pub(crate) fn prepare<'f>(
             if let Some(reach) = reach {
                 let mut cursor = partitioned(contract, right, &admitted, context)?;
                 while cursor.advance()? == ryo_execution_store::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced {
-                    resources.inputs.closure.push(cursor.take_current()?);
+                    resources.inputs.closure.push(LeasedView::current_partition(&mut cursor)?);
                 }
             } else {
                 let native = if let RepresentationInput::Tree(tree) = right {
@@ -159,9 +159,7 @@ pub(crate) fn prepare<'f>(
                         contract,
                         ryo_derived::domain::request::types::DerivedKind::NativeLookup,
                     )?;
-                    admitted
-                        .try_native_lookup(use_)?
-                        .map(|acquired| (tree, acquired))
+                    LeasedView::native_lookup(&admitted, use_)?.map(|acquired| (tree, acquired))
                 } else {
                     None
                 };
@@ -227,7 +225,7 @@ pub(crate) fn prepare<'f>(
                 contract,
                 ryo_derived::domain::request::types::DerivedKind::CycleAdjacency,
             )?;
-            resources.inputs.cycles = Some(admitted.acquire_rows(use_, context)?);
+            resources.inputs.cycles = Some(LeasedView::rows(&admitted, use_, context)?);
         }
         ResourceProgram::Ordered { .. } => {
             use ryo_derived::domain::request::types::DerivedKind;
@@ -238,7 +236,8 @@ pub(crate) fn prepare<'f>(
                 paths: context.paths,
                 arenas: context.arenas,
             };
-            resources.inputs.ordered = Some(admitted.acquire_derived(
+            resources.inputs.ordered = Some(LeasedView::with_inputs(
+                &admitted,
                 use_,
                 ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
                 ryo_execution_store::application::file_dag::workspace::types::ViewInputs::Text(&texts),
@@ -247,7 +246,8 @@ pub(crate) fn prepare<'f>(
         ResourceProgram::Dfs(_) => {
             use ryo_derived::domain::request::types::DerivedKind;
             let use_ = prepared(contract, DerivedKind::OrderedDfs)?;
-            resources.inputs.dfs = Some(admitted.acquire_derived(
+            resources.inputs.dfs = Some(LeasedView::with_inputs(
+                &admitted,
                 use_,
                 ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
                 ryo_execution_store::application::file_dag::workspace::types::ViewInputs::Dfs {
@@ -269,23 +269,23 @@ pub(crate) fn prepare<'f>(
             let mode_axis = classify(program, edges, domain)?;
             let slots = &contract.derived.slots;
             let equality = if matches!(mode_axis, AxisMode::Indexed { .. }) {
-                Some(
-                    admitted.acquire_rows(
-                        slots[DerivedKind::Equality.ordinal()]
-                            .as_ref()
-                            .ok_or(OperatingError::NotRun)?
-                            .primary
-                            .as_ref(),
-                        context,
-                    )?,
-                )
+                Some(LeasedView::rows(
+                    &admitted,
+                    slots[DerivedKind::Equality.ordinal()]
+                        .as_ref()
+                        .ok_or(OperatingError::NotRun)?
+                        .primary
+                        .as_ref(),
+                    context,
+                )?)
             } else {
                 None
             };
             let membership = match mode_axis {
                 AxisMode::Empty | AxisMode::Native { among: Some(_), .. } => None,
                 AxisMode::Native { tree, among: None } => Some(
-                    admitted.acquire_derived(
+                    LeasedView::with_inputs(
+                        &admitted,
                         slots[DerivedKind::Membership.ordinal()]
                             .as_ref()
                             .ok_or(OperatingError::NotRun)?
@@ -298,7 +298,8 @@ pub(crate) fn prepare<'f>(
                     )?,
                 ),
                 AxisMode::Indexed { .. } => Some(
-                    admitted.acquire_derived(
+                    LeasedView::with_inputs(
+                        &admitted,
                         slots[DerivedKind::Membership.ordinal()]
                             .as_ref()
                             .ok_or(OperatingError::NotRun)?
@@ -346,7 +347,7 @@ pub(super) fn partitioned<'f>(
 
 impl AcquiredPartitions {
     /// Appends the next partition's view.
-    pub(crate) fn push(&mut self, view: AcquiredView) {
+    pub(crate) fn push(&mut self, view: LeasedView) {
         self.0.push(view);
     }
 }

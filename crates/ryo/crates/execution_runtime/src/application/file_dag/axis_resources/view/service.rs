@@ -1,5 +1,6 @@
 //! The `view` application operation.
 
+use crate::application::file_dag::derived::view::service::LeasedView;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::membership::types::MembershipView;
 use ryo_derived::domain::positions::types::DenseMarks;
@@ -8,7 +9,6 @@ use ryo_execution_domain::domain::{
     operating::errors::OperatingError, operator::contract::views::types::PreparedAxis,
     table_cells::types::TreeRows, table_reach::borrowed::types::IndexedRows,
 };
-use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 pub(crate) enum AxisResource<'f> {
@@ -16,14 +16,14 @@ pub(crate) enum AxisResource<'f> {
     Native {
         tree: TreeRows<'f>,
         among: Option<TreeRows<'f>>,
-        membership: Option<AcquiredView>,
+        membership: Option<LeasedView>,
     },
     Indexed {
         edges: RepresentationInput<'f>,
         from: [ColumnIndex; 1],
         to: ColumnIndex,
-        equality: AcquiredView,
-        membership: AcquiredView,
+        equality: LeasedView,
+        membership: LeasedView,
     },
 }
 
@@ -40,7 +40,7 @@ impl AxisResource<'_> {
                 among,
                 membership,
             } => {
-                let marks = match membership.as_ref().map(AcquiredView::view).transpose()? {
+                let marks = match membership.as_ref().map(LeasedView::view).transpose()? {
                     Some(DerivedView::Membership(MembershipView::Dense(marks))) => marks,
                     None if among.is_some() => DenseMarks(&[]),
                     _ => return Err(OperatingError::WrongBinding),

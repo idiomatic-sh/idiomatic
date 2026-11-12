@@ -239,8 +239,8 @@ fn subject(axis: Input) -> Result<Value, Failure> {
         &program(axis.direction),
         RepresentationInput::Computed(&edges),
         RepresentationInput::Computed(&domain),
-        equality,
-        membership,
+        equality.map(Into::into),
+        membership.map(Into::into),
     )?;
     match &resource {
         AxisResource::Empty => Ok(Prepared::Empty),

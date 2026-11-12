@@ -95,7 +95,8 @@ fn subject(request: Input) -> Result<Value, Failure> {
     } else {
         None
     };
-    let Some(graph) = InvocationResources::cycles_view(Some(&acquired))? else {
+    let leased = acquired.into();
+    let Some(graph) = InvocationResources::cycles_view(Some(&leased))? else {
         return Err(OperatingError::NotRead);
     };
     Ok(Lease {

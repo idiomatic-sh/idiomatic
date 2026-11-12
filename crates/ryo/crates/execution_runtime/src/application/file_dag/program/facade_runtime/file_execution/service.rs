@@ -1,5 +1,6 @@
 //! The `file_execution` application operation.
 
+use crate::application::file_dag::derived::service::prepare_file;
 use crate::application::file_dag::program::admission::service::AdmittedInput;
 use crate::application::file_dag::program::admission::service::FileGeneration;
 #[cfg(test)]
@@ -163,9 +164,7 @@ pub(crate) fn open_file<'a>(
         activation: None,
     };
     let demanded = run.bind_intents()?;
-    run.owner
-        .derived()
-        .prepare_program_file(program.derived(), &demanded, publication)?;
+    prepare_file(&run.owner, program.derived(), &demanded, publication)?;
     Ok(run)
 }
 

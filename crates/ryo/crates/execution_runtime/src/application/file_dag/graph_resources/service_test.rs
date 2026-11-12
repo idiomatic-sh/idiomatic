@@ -82,7 +82,7 @@ fn prepare_closure(
         )?;
     let mut parts = crate::application::file_dag::invocation::types::AcquiredPartitions::default();
     while cursor.advance()? == ryo_execution_store::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced {
-        parts.push(cursor.take_current()?);
+        parts.push(cursor.take_current()?.into());
     }
     Ok(parts)
 }

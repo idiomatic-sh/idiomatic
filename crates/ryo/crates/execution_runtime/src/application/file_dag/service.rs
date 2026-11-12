@@ -15,9 +15,7 @@ pub(crate) fn prepare(
     plans: &[Plan],
     bindings: &[Vec<ParameterBinding>],
     hosted: &[HostRelation],
-    semantic: impl Into<
-        ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess,
-    >,
+    semantic: impl Into<crate::application::file_dag::derived::service::ViewAccess>,
 ) -> Result<RequestOperators, OperatingError> {
     prepare_with_schemas(plans, bindings, hosted, &kinds, semantic)
 }
@@ -27,10 +25,9 @@ pub(crate) fn prepare_with_schemas<'s>(
     bindings: &[Vec<ParameterBinding>],
     hosted: &[HostRelation],
     relation_kinds: &dyn Fn(Relation) -> &'s [CellKind],
-    semantic: impl Into<
-        ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess,
-    >,
+    semantic: impl Into<crate::application::file_dag::derived::service::ViewAccess>,
 ) -> Result<RequestOperators, OperatingError> {
+    let semantic: crate::application::file_dag::derived::service::ViewAccess = semantic.into();
     let mut views =
         ryo_execution_store::application::file_dag::derived::request::service::RequestViews::new(
             semantic,

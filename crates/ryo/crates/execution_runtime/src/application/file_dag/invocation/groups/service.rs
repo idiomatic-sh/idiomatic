@@ -57,7 +57,9 @@ pub(crate) fn groups(
         contract,
         ryo_derived::domain::request::types::DerivedKind::PartitionOrder,
     )?;
-    let acquired = admitted.acquire_rows(use_, context)?;
+    let acquired = crate::application::file_dag::derived::view::service::LeasedView::rows(
+        admitted, use_, context,
+    )?;
     let ryo_derived::domain::contract::types::DerivedView::PartitionOrder(order) =
         acquired.view()?
     else {
