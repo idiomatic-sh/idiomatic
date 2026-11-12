@@ -1,5 +1,6 @@
 //! What a built derived payload occupies, as allocation facts; the engine alone assigns lifetime classes and budgets.
 use super::types::{BackingKind, PayloadFootprint, SharedBacking};
+use crate::application::file_dag::accounting::ledger::types::{Backing, ByteCount};
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 use ryo_derived::domain::allocation::types::{AllocationBytes, AllocationKey, ElementCapacity};
 use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
@@ -10,6 +11,7 @@ use ryo_derived::domain::key::types::KeyCellsHash;
 use ryo_derived::domain::membership::types::MembershipView;
 use ryo_derived::domain::ordered::types::{OrderedText, OwnedOrderedKey, OwnedOrderedRow};
 use ryo_derived::domain::vertices::types::{EdgeDirection, PartitionId, VertexId, VertexKey};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::rows::types::{RowIndex, Table};
 
@@ -219,4 +221,16 @@ pub(crate) fn working_bytes(room: &BuildWorkspace) -> Result<AllocationBytes, De
         .checked_mul(size_of::<Value>())
         .map(AllocationBytes)
         .ok_or(DerivedFault::ShapeMismatch)
+}
+
+/// The bytes a payload's backings hold together.
+///
+/// # Errors
+/// `ShapeMismatch` when the sum does not fit.
+pub(crate) fn backed_bytes(backings: &[Backing]) -> Result<ByteCount, OperatingError> {
+    backings.iter().try_fold(ByteCount(0), |total, backing| {
+        total
+            .checked_add(backing.bytes)
+            .ok_or(OperatingError::ShapeMismatch)
+    })
 }
