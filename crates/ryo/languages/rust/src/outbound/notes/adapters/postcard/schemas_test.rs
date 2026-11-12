@@ -21,6 +21,7 @@ fn note_is_read_as_it_is_written() -> String {
         clean: FlagSchema(true),
         declared: vec![DeclaredSchema {
             test_only: FlagSchema(false),
+            exported: FlagSchema(true),
             around: vec![StepSchema {
                 name: NameSchema("outer"),
                 path: Some(TextSchema("x".into())),
@@ -43,6 +44,7 @@ fn note_is_read_as_it_is_written() -> String {
         clean: NoteFlag(true),
         declared: vec![DeclaredNote {
             test_only: NoteFlag(false),
+            exported: NoteFlag(true),
             around: vec![StepNote {
                 name: NoteName(Cow::Borrowed("outer")),
                 path: Some(NotePath("x".into())),

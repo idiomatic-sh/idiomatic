@@ -59,6 +59,38 @@ fn a_path_into_a_library_the_package_depends_on() -> Repository {
     }
 }
 
+/// `b` declares `mod inner;` without `pub` and writes `pub fn inner` beside it, as a proc-macro crate does: `a` names the function
+/// in `b`'s crate root, never the private module, which another crate cannot name.
+fn a_path_through_a_private_module_of_a_library() -> Repository {
+    let private = declares(&["inner"])
+        .into_iter()
+        .map(|each| crate::domain::module_tree::types::ModDeclaration {
+            reach: crate::domain::module_tree::types::Reach::Crate,
+            ..each
+        })
+        .collect();
+    Repository {
+        files: vec![
+            "a/Cargo.toml",
+            "a/src/lib.rs",
+            "b/Cargo.toml",
+            "b/src/inner.rs",
+            "b/src/lib.rs",
+        ],
+        roots: vec![("a", "a/src/lib.rs"), ("b", "b/src/lib.rs")],
+        outputs: Vec::new(),
+        facts: vec![
+            (
+                "a/src/lib.rs",
+                facts(Vec::new(), vec![writes(&["bee", "inner"])]),
+            ),
+            ("b/src/inner.rs", facts(Vec::new(), Vec::new())),
+            ("b/src/lib.rs", facts(private, Vec::new())),
+        ],
+        externs: vec![("a", "bee", "b", "b/src/lib.rs")],
+    }
+}
+
 /// What a row is given: the parent table's input.
 type Input = super::Input;
 /// What a row expects: the parent table's value.
@@ -92,6 +124,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || a_path_into_a_library_the_package_depends_on,
         expect: Expect::Value(
             "a/src/lib.rs -> b/src/inner.rs | a/src/lib.rs b/src/inner.rs b/src/lib.rs",
+        ),
+    },
+    Case {
+        name: CaseName("a_path_through_a_private_module_of_a_library_names_the_crate_root"),
+        word: Word::Succeeds,
+        input: || a_path_through_a_private_module_of_a_library,
+        expect: Expect::Value(
+            "a/src/lib.rs -> b/src/lib.rs | a/src/lib.rs b/src/inner.rs b/src/lib.rs",
         ),
     },
 ];

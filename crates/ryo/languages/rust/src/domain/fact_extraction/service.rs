@@ -6,7 +6,7 @@ use crate::domain::tokens::types::Token;
 use ryo::languages::{self, Position, Tree};
 use std::borrow::Cow;
 
-use super::constants::{PATH_ATTRIBUTE, RAW_PREFIX, TEST_ATTRIBUTE};
+use super::constants::{EXPORTED_VISIBILITY, PATH_ATTRIBUTE, RAW_PREFIX, TEST_ATTRIBUTE};
 use crate::domain::fact_notes::types::{
     DeclaredNote, Note, NoteFlag, NoteName, NoteOffset, NotePath, StepNote, WrittenNote,
 };
@@ -90,6 +90,10 @@ fn declarations<'a>(
             inline: NoteFlag(list.is_some()),
             path: path.clone(),
             test_only: test_attribute(tree, item),
+            exported: NoteFlag(
+                child(tree, item, Kind::Node(Node::Visibility))
+                    .is_some_and(|visibility| spelled(tree, visibility).0 == EXPORTED_VISIBILITY),
+            ),
         });
         if let Some(list) = list {
             let depth = around.len();

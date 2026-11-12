@@ -5,7 +5,7 @@ use super::constants::{
     CRATE, DIRECTORY_OWNER, GLOB, MACRO_CRATE, MODULE_SEPARATOR, SELF, SELF_TYPE, SOURCE, SUPER,
 };
 use super::types::{
-    Body, Facts, Gate, ModDeclaration, ModulePath, ModuleText, ModuleTree, Placing, Segment,
+    Body, Facts, Gate, ModDeclaration, ModulePath, ModuleText, ModuleTree, Placing, Reach, Segment,
     SourceCount, Unfollowed,
 };
 use crate::domain::paths::service::{directory_of, lexical_join, owns_directory, stem};
@@ -102,6 +102,7 @@ pub(crate) fn tree<'f>(
         files: BTreeMap::new(),
         gaps: Vec::new(),
         tests: BTreeSet::new(),
+        unexported: BTreeSet::new(),
     };
     declare(&mut drawn, ModulePath::default(), root);
     let mut active = vec![root.clone()];
@@ -146,6 +147,9 @@ fn visit<'f>(
         } = placed(declared, file, module, base);
         if declared.gate == Gate::Test {
             tree.tests.extend([child.clone()]);
+        }
+        if declared.reach == Reach::Crate {
+            tree.unexported.extend([child.clone()]);
         }
         if declared.body == Body::Inline {
             tree.modules.entry(child).or_default().push(file.clone());

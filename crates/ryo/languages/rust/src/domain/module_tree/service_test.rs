@@ -29,6 +29,7 @@ fn declares(names: &[&str]) -> Vec<ModDeclaration> {
         .iter()
         .map(|name| ModDeclaration {
             gate: crate::domain::module_tree::types::Gate::Always,
+            reach: crate::domain::module_tree::types::Reach::Dependents,
             around: Vec::new(),
             name: Segment((*name).into()),
             body: Body::File,
@@ -102,6 +103,7 @@ fn a_path_attribute_names_the_file() -> Repository {
 fn an_inline_block_has_its_children_in_a_directory_of_its_name() -> Repository {
     let inside = vec![ModDeclaration {
         gate: crate::domain::module_tree::types::Gate::Always,
+        reach: crate::domain::module_tree::types::Reach::Dependents,
         around: vec![EnclosingBlock {
             name: Segment("outer".into()),
             path: Section::Absent,
@@ -112,6 +114,7 @@ fn an_inline_block_has_its_children_in_a_directory_of_its_name() -> Repository {
     }];
     let mut declared = vec![ModDeclaration {
         gate: crate::domain::module_tree::types::Gate::Always,
+        reach: crate::domain::module_tree::types::Reach::Dependents,
         around: Vec::new(),
         name: Segment("outer".into()),
         body: Body::Inline,

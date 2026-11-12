@@ -65,6 +65,7 @@ pub(crate) fn encode(facts: &Facts) -> languages::Bytes {
 pub(crate) fn linked() -> (Vec<languages::Bytes>, Vec<languages::FilePath>) {
     let declared = |name: &str| ModDeclaration {
         gate: crate::domain::module_tree::types::Gate::Always,
+        reach: crate::domain::module_tree::types::Reach::Dependents,
         around: Vec::new(),
         name: Segment(name.into()),
         body: Body::File,

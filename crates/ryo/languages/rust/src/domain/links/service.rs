@@ -220,9 +220,19 @@ fn resolve_extern<'a>(
             .get(&ModulePath::default())
             .is_some_and(|roots| roots.contains(&library.root))
     })?;
+    // Another crate names a module only through modules declared `pub`: at the first one that is not, the path names an item of the
+    // module above it (`use dependency::name` names the `pub fn name` of the root when its `mod name` is private).
+    let mut module = Vec::with_capacity(rest.len());
+    let reachable = rest
+        .iter()
+        .take_while(|segment| {
+            module.push((*segment).clone());
+            !tree.unexported.contains(&ModulePath(module.clone()))
+        })
+        .count();
     let mut from_root = Vec::with_capacity(written.len());
     from_root.push(Segment(CRATE.into()));
-    from_root.extend(rest.iter().cloned());
+    from_root.extend(rest.iter().take(reachable).cloned());
     resolve(tree, &[], &from_root)
 }
 

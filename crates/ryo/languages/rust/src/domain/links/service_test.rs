@@ -36,6 +36,7 @@ pub(super) fn declares(names: &[&str]) -> Vec<ModDeclaration> {
         .iter()
         .map(|name| ModDeclaration {
             gate: crate::domain::module_tree::types::Gate::Always,
+            reach: crate::domain::module_tree::types::Reach::Dependents,
             around: Vec::new(),
             name: Segment((*name).into()),
             body: Body::File,

@@ -27,6 +27,7 @@ fn facts() -> Facts {
         declared: vec![
             ModDeclaration {
                 gate: crate::domain::module_tree::types::Gate::Always,
+                reach: crate::domain::module_tree::types::Reach::Dependents,
                 around: vec![EnclosingBlock {
                     name: Segment("outer".into()),
                     path: Section::Present(WrittenPath("x".into())),
@@ -37,6 +38,7 @@ fn facts() -> Facts {
             },
             ModDeclaration {
                 gate: crate::domain::module_tree::types::Gate::Always,
+                reach: crate::domain::module_tree::types::Reach::Dependents,
                 around: Vec::new(),
                 name: Segment("inner".into()),
                 body: Body::Inline,
@@ -99,6 +101,7 @@ fn tiny_bytes() -> String {
         clean: Cleanliness::Clean,
         declared: vec![ModDeclaration {
             gate: crate::domain::module_tree::types::Gate::Always,
+            reach: crate::domain::module_tree::types::Reach::Dependents,
             around: Vec::new(),
             name: Segment("a".into()),
             body: Body::File,
@@ -127,7 +130,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_note_is_written_as_postcard_writes_it"),
         word: Word::Succeeds,
         input: || || Ok(tiny_bytes()),
-        expect: Expect::Value("[1, 1, 0, 1, 97, 0, 0, 0, 0]"),
+        expect: Expect::Value("[1, 1, 0, 1, 97, 0, 0, 0, 1, 0]"),
     },
     Case {
         name: CaseName("bytes_followed_by_more_are_no_note"),

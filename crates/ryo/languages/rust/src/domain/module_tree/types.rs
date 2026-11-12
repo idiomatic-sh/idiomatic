@@ -21,6 +21,8 @@ pub(crate) struct ModuleTree {
     pub gaps: Vec<Unfollowed>,
     /// The modules declared under `#[cfg(test)]`: they and every module inside them are built for the unit tests alone.
     pub tests: std::collections::BTreeSet<ModulePath>,
+    /// The modules declared without `pub`: another crate cannot name them, nor anything inside them.
+    pub unexported: std::collections::BTreeSet<ModulePath>,
 }
 
 /// Where a `mod` declaration puts its module: the module's path, and the directories its children and its `#[path]` resolve under.
@@ -153,6 +155,18 @@ pub(crate) struct ModDeclaration {
     pub path: Section<WrittenPath>,
     /// Whether the module is built always, or only for the package's unit tests.
     pub gate: Gate,
+    /// Who may name the module: its own crate, or the crates that depend on it as well.
+    pub reach: Reach,
+}
+
+/// Who may name a module: its own crate alone, unless it is declared `pub`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum Reach {
+    /// Its own crate alone: no visibility, or `pub(crate)`, `pub(super)` or `pub(in …)`.
+    #[default]
+    Crate,
+    /// The crates that depend on its crate as well: `pub`.
+    Dependents,
 }
 
 /// When a module is built: always, or only under `#[cfg(test)]`, for the package's unit tests, with its dev-dependencies.

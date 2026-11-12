@@ -62,6 +62,8 @@ pub(crate) struct DeclaredNote<'a> {
     pub path: Option<NotePath>,
     /// Whether it is declared under `#[cfg(test)]`: built only for the package's unit tests, with its dev-dependencies.
     pub test_only: NoteFlag,
+    /// Whether it is declared `pub`, so a crate that depends on its crate may name it.
+    pub exported: NoteFlag,
 }
 
 /// A path a file writes.
