@@ -22,14 +22,16 @@ enum Scenario {
     Native,
     /// A key index over three numbers.
     Equality,
-    /// The members of three numbers, marked over a dense space of eight values.
-    DenseMembership,
+    /// The members of three numbers, marked over a dense space of eight values: the bytes past the marks' own vector.
+    MarksCapacity,
+    /// The same members: the allocation the marks' backing is keyed by.
+    MarksIdentity,
     /// A scratch never lent a row.
     EmptyWorkspace,
 }
 type Input = Scenario;
-/// What the payload occupies, rendered: its owned bytes and each shared backing's tag and bytes, whether the
-/// backing is keyed by the payload's own allocation, and for marks whether the bytes cover the marks' capacity.
+/// What the payload occupies, rendered: its owned bytes and each shared backing's tag and bytes and whether the backing is
+/// keyed by the payload's own allocation; for the marks, the bytes past their vector against their capacity, or their key.
 type Value = &'static str;
 type Failure = OperatingError;
 
@@ -46,24 +48,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::Equality,
         expect: Expect::Value(
-            "owned 64; shared [\"tag 11 bytes 288 keyed by its own allocation true covers the marks false\"]",
+            "owned 64; shared [\"tag 11 bytes 288 keyed by its own allocation true\"]",
         ),
     },
     Case {
         name: CaseName("the_capacity_of_marks_covers_them"),
         word: Word::Succeeds,
-        input: || Scenario::DenseMembership,
-        expect: Expect::Value(
-            "owned 64; shared [\"tag 10 bytes 48 keyed by its own allocation true covers the marks true\"]",
-        ),
+        input: || Scenario::MarksCapacity,
+        expect: Expect::Value("bytes past the marks' vector 8, marks capacity 8"),
     },
     Case {
         name: CaseName("marks_are_identified_by_their_allocation"),
         word: Word::Succeeds,
-        input: || Scenario::DenseMembership,
-        expect: Expect::Value(
-            "owned 64; shared [\"tag 10 bytes 48 keyed by its own allocation true covers the marks true\"]",
-        ),
+        input: || Scenario::MarksIdentity,
+        expect: Expect::Value("tag 10 keyed by the marks' allocation true"),
     },
     Case {
         name: CaseName("an_empty_workspace_holds_no_bytes"),
@@ -124,7 +122,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
             vec![vec![CellKind::Number]],
             BuildInputs::Rows(&rows),
         )?,
-        Scenario::DenseMembership => built(
+        Scenario::MarksCapacity | Scenario::MarksIdentity => built(
             DerivedRequest::Membership {
                 column: ColumnIndex(0),
             },
@@ -136,25 +134,38 @@ fn subject(input: Input) -> Result<Value, Failure> {
         )?,
     };
     let footprint = describe(&payload).map_err(derived_fault)?;
+    if let Some(marks) = payload.share_marks() {
+        let [backing] = footprint.shared.as_slice() else {
+            return Err(OperatingError::ShapeMismatch);
+        };
+        let shown = if let Scenario::MarksCapacity = input {
+            let vector = size_of::<Vec<bool>>() + 2 * size_of::<usize>();
+            format!(
+                "bytes past the marks' vector {}, marks capacity {}",
+                backing.bytes.0.saturating_sub(vector),
+                marks.0.capacity()
+            )
+        } else {
+            format!(
+                "tag {} keyed by the marks' allocation {}",
+                backing.tag.0,
+                backing.allocation_key.0 == Arc::as_ptr(&marks.0).addr()
+            )
+        };
+        return Ok(Box::leak(shown.into_boxed_str()));
+    }
     let own = payload
         .share_equality()
-        .map(|index| Arc::as_ptr(&index.0).addr())
-        .or_else(|| {
-            payload
-                .share_marks()
-                .map(|marks| Arc::as_ptr(&marks.0).addr())
-        });
-    let marks = payload.share_marks().map(|marks| marks.0.capacity());
+        .map(|index| Arc::as_ptr(&index.0).addr());
     let shared = footprint
         .shared
         .iter()
         .map(|backing| {
             format!(
-                "tag {} bytes {} keyed by its own allocation {} covers the marks {}",
+                "tag {} bytes {} keyed by its own allocation {}",
                 backing.tag.0,
                 backing.bytes.0,
                 Some(backing.allocation_key.0) == own,
-                marks.is_some_and(|capacity| backing.bytes.0 >= capacity),
             )
         })
         .collect::<Vec<_>>();

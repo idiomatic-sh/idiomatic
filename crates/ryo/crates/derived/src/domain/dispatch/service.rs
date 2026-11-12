@@ -163,39 +163,22 @@ pub fn view<'a>(
     payload: &'a DerivedPayload,
 ) -> Result<DerivedView<'a>, DerivedFault> {
     prepared.validate()?;
-    match (
-        crate::domain::preparation::service::kind(&prepared.request),
-        &payload.data,
-    ) {
-        (DerivedKind::Equality, PayloadData::Equality(data)) => Ok(DerivedView::Equality(data)),
-        (DerivedKind::Adjacency, PayloadData::Adjacency(data)) => Ok(DerivedView::Adjacency(data)),
-        (DerivedKind::Membership, PayloadData::Membership(data)) => {
-            Ok(DerivedView::Membership(match data {
-                DerivedMembership::Values(values) => MembershipView::Values(values),
-                DerivedMembership::Dense(values) => {
-                    MembershipView::Dense(DenseMarks(values.0.as_slice()))
-                }
-            }))
-        }
-        (DerivedKind::PartitionOrder, PayloadData::PartitionOrder(data)) => {
-            Ok(DerivedView::PartitionOrder(data))
-        }
-        (DerivedKind::ClosureAdjacency, PayloadData::ClosureAdjacency(data)) => {
-            Ok(DerivedView::ClosureAdjacency(data))
-        }
-        (DerivedKind::CycleAdjacency, PayloadData::CycleAdjacency(data)) => {
-            Ok(DerivedView::CycleAdjacency(data))
-        }
-        (DerivedKind::OrderedKeys, PayloadData::OrderedKeys(data)) => {
-            Ok(DerivedView::OrderedKeys(data))
-        }
-        (DerivedKind::OrderedDfs, PayloadData::OrderedDfs(data)) => {
-            Ok(DerivedView::OrderedDfs(data))
-        }
-        (DerivedKind::NativeLookup, PayloadData::NativeLookup(data)) => {
-            Ok(DerivedView::NativeLookup(data))
-        }
-        _ => Err(DerivedFault::WrongOperation),
+    let view = payload_view(payload);
+    let built = match &view {
+        DerivedView::Equality(_) => DerivedKind::Equality,
+        DerivedView::Adjacency(_) => DerivedKind::Adjacency,
+        DerivedView::Membership(_) => DerivedKind::Membership,
+        DerivedView::PartitionOrder(_) => DerivedKind::PartitionOrder,
+        DerivedView::ClosureAdjacency(_) => DerivedKind::ClosureAdjacency,
+        DerivedView::CycleAdjacency(_) => DerivedKind::CycleAdjacency,
+        DerivedView::OrderedKeys(_) => DerivedKind::OrderedKeys,
+        DerivedView::OrderedDfs(_) => DerivedKind::OrderedDfs,
+        DerivedView::NativeLookup(_) => DerivedKind::NativeLookup,
+    };
+    if crate::domain::preparation::service::kind(&prepared.request) == built {
+        Ok(view)
+    } else {
+        Err(DerivedFault::WrongOperation)
     }
 }
 
