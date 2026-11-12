@@ -19,7 +19,8 @@
       "profile includes explicit query-module declarations; reference argv unchanged",
       "normalized settings adds typed default performance; reference argv/environment/directory/source/process bytes unchanged",
       "normalized settings drops the retired engine options column_kernel and node_result_reuse (their defaults false and disabled); reference argv/environment/directory/source/process bytes unchanged",
-      "profile query-module declarations follow the noqa fragment rewrite (the deleted suppress, suppress-directives and suppression-edges modules out, the noqa-heads/codes/blankets/ranges/suppressions modules in); reference argv/environment/directory/source/process bytes unchanged"
+      "profile query-module declarations follow the noqa fragment rewrite (the deleted suppress, suppress-directives and suppression-edges modules out, the noqa-heads/codes/blankets/ranges/suppressions modules in); reference argv/environment/directory/source/process bytes unchanged",
+      "normalized settings drops the retired diagnostics switch lifecycle_memory (its default false); reference argv/environment/directory/source/process bytes unchanged"
     ],
     "kind": "canonical-invocation-context-rebind",
     "not_a_new_process_capture": true,
@@ -63,7 +64,6 @@
       "diagnostics": {
         "execution": false,
         "joins": false,
-        "lifecycle_memory": false,
         "prefixes": false,
         "resource_routes": false,
         "row_progress": false,
@@ -76,7 +76,7 @@
   },
   "observer_no_deadline": true,
   "profile_sha256": "cae8712ac8b4ff623d73960f5f098826a05eb6045361b001a9a2e35ef04c6c87",
-  "settings_sha256": "094d4a1b3c5b7caeedb4869d8cbd4d372508cbac59732c0f853b5a8015087ec2",
+  "settings_sha256": "5e51c3ed2dfb4df346bff5d0d7933ca52db5d279c878e022cac2d9dd2ab1172b",
   "signal": null,
   "source_sha256": "37d8c29ceaf683cbd160d3b919f5cc8a38ebb7d5a28ada2db77203cba91a0191",
   "state": "/tmp/.tmp29OHU9/cache/UP031/0",
