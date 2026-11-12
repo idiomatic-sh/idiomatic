@@ -38,6 +38,7 @@ globset = "=0.4.18"
 regex-syntax = { version = "=0.8.11", default-features = false, features = ["std", "unicode"] }
 regex-automata = { version = "=0.4.18", default-features = false, features = ["std", "meta", "hybrid", "unicode"] }
 dhat = "=0.3.3"
+libtest-mimic = "=0.8.2"
 # The allocators ruff and uv ship, pinned as ruff pins them: jemalloc where it builds, mimalloc on Windows (mimalloc v2: v3.3.2
 # crashes on Windows CPUs without POPCNT).
 mimalloc = { version = "=0.1.52", default-features = false, features = ["v2"] }

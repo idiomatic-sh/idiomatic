@@ -339,31 +339,21 @@ fn main() {
     // never elapsed time. Request compilation and full intent binding precede
     // the observed derived activation boundary and are outside this claim; the
     // project cases observe phase opening through the last root delivery.
-    // nextest lists the cases first (`--list --format terse`), then runs each by its name.
-    let arguments = std::env::args().skip(1).collect::<Vec<_>>();
-    if arguments.iter().any(|argument| argument == "--list") {
-        let listed = !arguments.iter().any(|argument| argument == "--ignored");
-        for case in CASES.iter().filter(|_| listed) {
-            println!("{}: test", case.name.0);
-        }
-    } else {
-        let _profiler = dhat::Profiler::builder().testing().build();
-        let selected = arguments
-            .iter()
-            .find(|argument| !argument.starts_with("--"))
-            .cloned();
-        let mut executed = 0;
-        for case in CASES
-            .iter()
-            .filter(|case| selected.as_deref().is_none_or(|name| name == case.name.0))
-        {
-            run(std::slice::from_ref(case), Word::Succeeds, subject);
-            executed += 1;
-        }
-        assert!(
-            executed > 0,
-            "the activation target must execute an actual case"
-        );
-        println!("activation: {executed} actual cases passed");
-    }
+    // libtest-mimic answers libtest's command line (`--list`, `--exact`, `--skip`, filters), one trial per case.
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    // dhat counts the whole process's heap, so the trials run one at a time, on this thread.
+    arguments.test_threads = Some(1);
+    let profiler = (!arguments.list).then(|| dhat::Profiler::builder().testing().build());
+    let trials = CASES
+        .iter()
+        .map(|case| {
+            libtest_mimic::Trial::test(case.name.0, move || {
+                run(std::slice::from_ref(case), Word::Succeeds, subject);
+                Ok(())
+            })
+        })
+        .collect();
+    let conclusion = libtest_mimic::run(&arguments, trials);
+    drop(profiler);
+    conclusion.exit();
 }

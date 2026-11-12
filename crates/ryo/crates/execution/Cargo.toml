@@ -32,6 +32,7 @@ idiomatic-sh-ryo-execution = { path = ".", features = ["fixtures"] }
 ryo_execution_store = { package = "idiomatic-sh-ryo-execution-store", path = "../execution_store", version = "0.1.3", features = ["fixtures"] }
 ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../execution_runtime", version = "0.1.3", features = ["fixtures"] }
 dhat.workspace = true
+libtest-mimic.workspace = true
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.3", features = ["fixtures"] }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.3", features = ["fixtures"] }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.3", features = ["fixtures"] }

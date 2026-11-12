@@ -34,6 +34,7 @@ ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version 
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.3", features = ["fixtures"] }
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.3", features = ["fixtures"] }
 dhat.workspace = true
+libtest-mimic.workspace = true
 divan.workspace = true
 tempfile.workspace = true
 

@@ -836,6 +836,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "escape8259"
+version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f1f0d310082fd5de539d4f41601182241147498444a7695c520288a0cdbead6"
+
+[[package]]
 name = "fastrand"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1414,6 +1420,7 @@ dependencies = [
  "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
+ "libtest-mimic",
  "thiserror 2.0.20",
  "tokio",
  "tracing",
@@ -1454,6 +1461,7 @@ dependencies = [
  "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
+ "libtest-mimic",
  "rustc-hash 2.1.3",
  "tempfile",
  "thiserror 2.0.20",
@@ -1949,6 +1957,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a45a52f43e1c16f667ccfe4dd8c85b7f7c204fd5e3bf46c5b0db9a5c3c0b8e9"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "libtest-mimic"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14e6ba06f0ade6e504aff834d7c34298e5155c6baca353cc6a4aaff2f9fd7f33"
+dependencies = [
+ "anstream 1.0.0",
+ "anstyle",
+ "clap",
+ "escape8259",
 ]
 
 [[package]]
