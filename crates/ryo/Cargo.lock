@@ -1714,6 +1714,7 @@ dependencies = [
  "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-sdk",
  "idiomatic-sh-ryo-values",
  "libtest-mimic",
  "rayon",
