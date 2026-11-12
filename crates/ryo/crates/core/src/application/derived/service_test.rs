@@ -24,7 +24,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 /// Prepares an equality index over the input's columns with the access a held `Derived` lends.
 fn subject(columns: Input) -> Result<Value, Failure> {
     let derived = Derived::from(ryo_execution::derived());
-    let prepared = derived.access().prepare(
+    let prepared = derived.access().contract(
         DerivedRequest::Equality {
             columns: columns.iter().copied().map(ColumnIndex).collect(),
         },

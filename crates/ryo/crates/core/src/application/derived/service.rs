@@ -1,13 +1,13 @@
-//! The derived owner's access as the core holds it: the edge composes it, the lint use case keeps it, and each run's engine prepares
-//! with a clone of it. This is the one place in the core that names the access.
+//! Execution's derived preparation as the core holds it: the edge composes it, the lint use case keeps it, and each run's
+//! engine prepares with a clone of it. It lends no access and acquires no view.
 
-use ryo_execution::inbound::use_cases::prepare::interface::ViewAccess;
+use ryo_execution::application::file_dag::derived::service::DerivedPreparation;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 use std::sync::Arc;
 
-/// The derived owner's access, held between the edge that composes it and the engine each run prepares.
+/// Execution's derived preparation, held between the edge that composes it and the engine each run prepares.
 ///
 /// # Examples
 ///
@@ -18,10 +18,10 @@ use std::sync::Arc;
 /// let lent = derived.access();
 /// ```
 #[derive(Clone, Debug)]
-pub struct Derived(ViewAccess);
+pub struct Derived(DerivedPreparation);
 
 impl Derived {
-    /// The access an engine prepares with: a clone of the one held.
+    /// The preparation an engine prepares with: a clone of the one held.
     ///
     /// # Examples
     ///
@@ -33,11 +33,11 @@ impl Derived {
     /// let second = derived.access();
     /// ```
     #[must_use]
-    pub fn access(&self) -> ViewAccess {
+    pub fn access(&self) -> DerivedPreparation {
         self.0.clone()
     }
 
-    /// The engine's prepare use case over `operators` and `digest`, preparing with a clone of the held access.
+    /// The engine's prepare use case over `operators` and `digest`, preparing with a clone of the held preparation.
     ///
     /// # Examples
     ///
@@ -64,8 +64,8 @@ impl Derived {
     }
 }
 
-impl From<ViewAccess> for Derived {
-    fn from(access: ViewAccess) -> Self {
+impl From<DerivedPreparation> for Derived {
+    fn from(access: DerivedPreparation) -> Self {
         Self(access)
     }
 }

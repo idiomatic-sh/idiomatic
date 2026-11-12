@@ -1,6 +1,7 @@
 //! Authored request assembly, for the use case's own tests: every operation runs through the public execution owner.
 
 use super::{derived, operators};
+use crate::application::file_dag::derived::service::DerivedPreparation;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::{
     CaptureIntent, DiagnosticDelivery, ExecutionUseCase, FileRuleIntent, ObservationDemand,
@@ -14,13 +15,11 @@ use ryo_execution_runtime::application::file_dag::program::file_session::interfa
 use ryo_execution_runtime::application::file_dag::program::file_session::types::{
     FileInput, SourceLanguage, SourceRows,
 };
-use ryo_execution_runtime::application::file_dag::program::prepared_execution::service::prepare;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
-use ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess;
 use ryo_execution_store::outbound::derived::interface::DerivedPort;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};
@@ -96,7 +95,7 @@ pub(crate) struct Authored {
 /// The application's preparation over the operators and derived views it is given.
 pub(crate) struct Preparation {
     operators: Arc<dyn OperatorsPort>,
-    derived: DerivedAccess,
+    derived: DerivedPreparation,
 }
 impl Preparation {
     /// The preparation over the real operators and derived views.
@@ -119,14 +118,13 @@ impl Preparation {
             request.bindings,
             &request.rules,
         )?;
-        prepare(
+        self.derived.program(
             compiled,
             &request.rules,
             &request.digests,
             &request.hosted,
             request.observations,
             Arc::clone(&self.operators),
-            &self.derived,
             Arc::new(ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake),
         )
     }
