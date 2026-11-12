@@ -1,3 +1,4 @@
 //! The relation owner's constructors: the derived access an edge hands down is turned into the generation's derived-view
 //! owner here, inside the derived concept, so the relation owner holds that owner and never the access.
-pub(crate) mod service;
+pub(crate) mod permit;
+pub mod service;

@@ -44,5 +44,5 @@ pub fn operators() -> Arc<dyn OperatorsPort> {
 /// The derived access over the engine's derived use cases, as the prepare use case's composition builds it.
 #[must_use]
 pub fn derived() -> Derived {
-    Derived::from(ryo_execution::derived())
+    Derived::from(ryo_execution::application::file_dag::derived::service::derived())
 }

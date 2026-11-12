@@ -145,7 +145,7 @@ fn succeeds() {
             Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
             )),
-            ryo_execution::derived(),
+            ryo_execution::application::file_dag::derived::service::derived(),
             Arc::new(SchedulerFake::default()),
             WorkerCount(1),
             Arc::new(row_sink::factory::collect(row_sink::factory::CollectorConnection::default())),

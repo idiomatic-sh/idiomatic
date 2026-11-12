@@ -1,7 +1,7 @@
 //! The derived owner's access as the core holds it: the edge composes it, the lint use case keeps it, and each run's engine prepares
 //! with a clone of it. This is the one place in the core that names the access.
 
-use ryo_execution::inbound::use_cases::prepare::interface::DerivedAccess;
+use ryo_execution::application::file_dag::derived::service::DerivedAccess;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
@@ -14,7 +14,7 @@ use std::sync::Arc;
 /// ```
 /// use ryo_core::application::derived::service::Derived;
 ///
-/// let derived = Derived::from(ryo_execution::derived());
+/// let derived = Derived::from(ryo_execution::application::file_dag::derived::service::derived());
 /// let lent = derived.access();
 /// ```
 #[derive(Clone, Debug)]
@@ -28,7 +28,7 @@ impl Derived {
     /// ```
     /// use ryo_core::application::derived::service::Derived;
     ///
-    /// let derived = Derived::from(ryo_execution::derived());
+    /// let derived = Derived::from(ryo_execution::application::file_dag::derived::service::derived());
     /// let first = derived.access();
     /// let second = derived.access();
     /// ```
@@ -45,7 +45,7 @@ impl Derived {
     /// use ryo_core::application::derived::service::Derived;
     /// use std::sync::Arc;
     ///
-    /// let derived = Derived::from(ryo_execution::derived());
+    /// let derived = Derived::from(ryo_execution::application::file_dag::derived::service::derived());
     /// let operators = ryo_execution_runtime::outbound::operators::factory::use_case(
     ///     ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(Arc::new(
     ///         ryo_operators::outbound::matching::factory::use_case(),

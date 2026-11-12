@@ -1,7 +1,7 @@
 //! The store's one operation: a scope opens its file generation's relation owner, which keeps the reuse the scope was
 //! opened with.
+use super::derived::relation_owner::service::open_program_owner;
 use super::relations::types::ReuseEligibility;
-use super::service::open_program_owner;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
