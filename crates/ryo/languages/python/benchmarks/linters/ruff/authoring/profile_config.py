@@ -14,7 +14,6 @@ DISCREPANCY_SOURCE_ROOTS = {
 MANIFEST = Path(os.environ.get('RYO_RUFF_PREPARED_MANIFEST', PROFILE_DIR / 'prepared.json'))
 SHAPE_PROFILE = 'shape-110'
 RULE_PHASES_FILE = PROFILE_DIR / 'pinned-rule-phases.json'
-NATIVE_DESCRIPTOR_FILE = PROFILE_DIR / 'native-standalone.json'
 NATIVE_EVIDENCE_SUMMARIES = (RUFF_DIR / 'results/native143-split-2026-11-02/summary.json',
                              RUFF_DIR / 'results/native151-supplement-2026-11-02/summary.json')
 HISTORICAL_NATIVE_DESCRIPTOR_FILE = PROFILE_DIR / 'native-standalone-104.json'

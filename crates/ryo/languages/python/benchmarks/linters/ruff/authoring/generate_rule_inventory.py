@@ -25,215 +25,6 @@ def render_full_inventory(path: Path) -> str:
         or any(row.get("status") not in {"PASS", "FAIL"} for row in rows)):
         raise ValueError("full inventory result omitted, duplicated, or changed a pinned rule ID")
     by_rule = {row["rule_id"]: row for row in rows}
-    supplement_label = ""
-    current = RESULTS / "full-inventory-current"
-    if path.resolve() == (current / "summary.json").resolve():
-        supplement = current / "sim222-sim223-supplement"
-        proof_file = supplement / "proof.json"
-        if proof_file.is_file():
-            proof = json.loads(proof_file.read_text(encoding="utf-8"))
-            extra_file = supplement / "summary.json"
-            extra = json.loads(extra_file.read_text(encoding="utf-8"))
-            extra_rows = extra.get("rules", [])
-            if (proof.get("schema") != "benchmark-inventory-supplement/v1"
-                or proof.get("base_summary_sha256") != sha(path)
-                or proof.get("supplement_summary_sha256") != sha(extra_file)
-                or proof.get("raw_receipts_sha256") != sha(supplement / "raw-receipts.tar.gz")
-                or proof.get("rule_ids") != [row.get("rule_id") for row in extra_rows]
-                or proof.get("rule_ids") != ["SIM222", "SIM223"]
-                or extra.get("schema") != "benchmark-inventory/v1"
-                or extra.get("run_state") != "complete"
-                or extra.get("counts") != {"PASS": 2, "FAIL": 0}
-                or extra.get("identity", {}).get("worker_sha256") != worker_sha256
-                or any(row.get("status") != "PASS" or row.get("case_count") != 17
-                       or row.get("case_count") != row.get("raw_exact")
-                       or row.get("documented_discrepancies") != 0 or not row.get("case_results_sha256")
-                       or by_rule[row["rule_id"]]["status"] != "FAIL" for row in extra_rows)):
-                raise ValueError("SIM supplement is stale or changes the complete base receipt")
-            for row in extra_rows:
-                by_rule[row["rule_id"]] = {**row, "reason": "[separate 17/17 raw-exact proof](results/full-inventory-current/sim222-sim223-supplement/summary.json)"}
-            supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
-        future = current / "future-directive-supplement"
-        proof_file = future / "proof.json"
-        if proof_file.is_file():
-            proof = json.loads(proof_file.read_text(encoding="utf-8"))
-            extra_file = future / "summary.json"
-            extra = json.loads(extra_file.read_text(encoding="utf-8"))
-            extra_rows = extra.get("rules", [])
-            expected = {"F404": (26, 26, 0), "F407": (23, 23, 0),
-                        "UP007": (33, 32, 1), "UP010": (15, 15, 0)}
-            if (proof.get("schema") != "benchmark-inventory-supplement/v1"
-                or proof.get("base_summary_sha256") != sha(path)
-                or proof.get("sim_supplement_summary_sha256") != sha(supplement / "summary.json")
-                or proof.get("supplement_summary_sha256") != sha(extra_file)
-                or proof.get("raw_receipts_sha256") != sha(future / "raw-receipts.tar.gz")
-                or proof.get("independent_controls_sha256") != sha(future / "controls.json")
-                or proof.get("rule_ids") != list(expected)
-                or [row.get("rule_id") for row in extra_rows] != list(expected)
-                or extra.get("schema") != "benchmark-inventory/v1"
-                or extra.get("run_state") != "complete"
-                or extra.get("counts") != {"PASS": 4, "FAIL": 0}
-                or extra.get("identity", {}).get("worker_sha256") != proof.get("worker_sha256")
-                or not proof.get("worker_sha256")
-                or any(row.get("status") != "PASS"
-                       or (row.get("case_count"), row.get("raw_exact"), row.get("documented_discrepancies")) != expected[row["rule_id"]]
-                       or not row.get("case_results_sha256")
-                       or by_rule[row["rule_id"]]["status"] != "FAIL" for row in extra_rows)):
-                raise ValueError("future directive supplement is stale or changes the complete base receipt")
-            for row in extra_rows:
-                by_rule[row["rule_id"]] = {**row, "reason": "[separate source-bound fixture proof](results/full-inventory-current/future-directive-supplement/summary.json)"}
-            supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
-        match_or = current / "match-or-supplement"
-        proof_file = match_or / "proof.json"
-        if proof_file.is_file():
-            proof = json.loads(proof_file.read_text(encoding="utf-8"))
-            extra_file = match_or / "summary.json"
-            extra = json.loads(extra_file.read_text(encoding="utf-8"))
-            extra_rows = extra.get("rules", [])
-            expected = {"F842": (22, 22, 0), "FURB132": (103, 102, 1),
-                        "PERF402": (67, 66, 1), "PLW0177": (26, 26, 0)}
-            if (proof.get("schema") != "benchmark-inventory-supplement/v1"
-                or proof.get("base_summary_sha256") != sha(path)
-                or proof.get("sim_supplement_summary_sha256") != sha(supplement / "summary.json")
-                or proof.get("future_supplement_summary_sha256") != sha(future / "summary.json")
-                or proof.get("supplement_summary_sha256") != sha(extra_file)
-                or proof.get("raw_receipts_sha256") != sha(match_or / "raw-receipts.tar.gz")
-                or proof.get("independent_controls_sha256") != sha(match_or / "controls.json")
-                or proof.get("rule_ids") != list(expected)
-                or [row.get("rule_id") for row in extra_rows] != list(expected)
-                or extra.get("schema") != "benchmark-inventory/v1"
-                or extra.get("run_state") != "complete"
-                or extra.get("counts") != {"PASS": 4, "FAIL": 0}
-                or extra.get("identity", {}).get("worker_sha256") != proof.get("worker_sha256")
-                or not proof.get("worker_sha256")
-                or any(row.get("status") != "PASS"
-                       or (row.get("case_count"), row.get("raw_exact"), row.get("documented_discrepancies")) != expected[row["rule_id"]]
-                       or proof.get("case_results_sha256", {}).get(row["rule_id"]) != row.get("case_results_sha256")
-                       or by_rule[row["rule_id"]]["status"] != "FAIL" for row in extra_rows)):
-                raise ValueError("match OR supplement is stale or changes an earlier receipt")
-            for row in extra_rows:
-                by_rule[row["rule_id"]] = {**row, "reason": "[separate source-bound fixture proof](results/full-inventory-current/match-or-supplement/summary.json)"}
-            supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
-        fa = current / "fa-target-supplement"
-        proof_file = fa / "proof.json"
-        if proof_file.is_file():
-            proof = json.loads(proof_file.read_text(encoding="utf-8"))
-            extra_file = fa / "summary.json"
-            extra = json.loads(extra_file.read_text(encoding="utf-8"))
-            extra_rows = extra.get("rules", [])
-            controls = json.loads((fa / "py310-controls.json").read_text(encoding="utf-8"))
-            expected = {"FA100": (27, 27, 0), "FA102": (22, 22, 0)}
-            if (proof.get("schema") != "benchmark-inventory-supplement/v1"
-                or proof.get("base_summary_sha256") != sha(path)
-                or proof.get("sim_supplement_summary_sha256") != sha(supplement / "summary.json")
-                or proof.get("future_supplement_summary_sha256") != sha(future / "summary.json")
-                or proof.get("match_or_supplement_summary_sha256") != sha(match_or / "summary.json")
-                or proof.get("supplement_summary_sha256") != sha(extra_file)
-                or proof.get("raw_receipts_sha256") != sha(fa / "raw-receipts.tar.gz")
-                or proof.get("py310_controls_sha256") != sha(fa / "py310-controls.json")
-                or proof.get("py310_inputs_sha256") != sha(fa / "py310-inputs.tar.gz")
-                or proof.get("rule_ids") != list(expected)
-                or [row.get("rule_id") for row in extra_rows] != list(expected)
-                or extra.get("schema") != "benchmark-inventory/v1"
-                or extra.get("run_state") != "complete"
-                or extra.get("counts") != {"PASS": 2, "FAIL": 0}
-                or extra.get("identity", {}).get("worker_sha256") != proof.get("worker_sha256")
-                or controls.get("worker_sha256") != proof.get("worker_sha256")
-                or controls.get("target") != "python-target=3.10"
-                or any(row.get("status") != "PASS"
-                       or (row.get("case_count"), row.get("raw_exact"), row.get("documented_discrepancies")) != expected[row["rule_id"]]
-                       or proof.get("case_results_sha256", {}).get(row["rule_id"]) != row.get("case_results_sha256")
-                       or by_rule[row["rule_id"]]["status"] != "FAIL" for row in extra_rows)
-                or any((control.get("case_count") != count
-                        or control.get("candidate_exact") != count
-                        or control.get("reference_exact") != count
-                        or control.get("complete") != count
-                        or control.get("query_sha256") != sha(RUFF / "rules" / rule / "query.ryoql")
-                        or any(any(diagnostic.get("rule") == rule for diagnostic in case.get("candidate", []))
-                               for case in control.get("cases", [])))
-                       for rule, count in (("FA100", 27), ("FA102", 22))
-                       for control in [controls.get("rules", {}).get(rule, {})])):
-                raise ValueError("FA target supplement is stale or changes an earlier receipt")
-            for row in extra_rows:
-                by_rule[row["rule_id"]] = {**row, "reason": "[separate py37 fixture and py310 control proof](results/full-inventory-current/fa-target-supplement/summary.json)"}
-            supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
-        up017 = current / "up017-target-supplement"
-        proof_file = up017 / "proof.json"
-        if proof_file.is_file():
-            proof = json.loads(proof_file.read_text(encoding="utf-8"))
-            extra_file = up017 / "summary.json"
-            extra = json.loads(extra_file.read_text(encoding="utf-8"))
-            extra_rows = extra.get("rules", [])
-            controls = json.loads((up017 / "py310-controls.json").read_text(encoding="utf-8"))
-            cases_file = RUFF / "rules" / "UP017" / "cases.toml"
-            query_file = RUFF / "rules" / "UP017" / "query.ryoql"
-            if (proof.get("schema") != "benchmark-inventory-supplement/v1"
-                or proof.get("base_summary_sha256") != sha(path)
-                or proof.get("sim_supplement_summary_sha256") != sha(supplement / "summary.json")
-                or proof.get("future_supplement_summary_sha256") != sha(future / "summary.json")
-                or proof.get("match_or_supplement_summary_sha256") != sha(match_or / "summary.json")
-                or proof.get("fa_supplement_summary_sha256") != sha(fa / "summary.json")
-                or proof.get("supplement_summary_sha256") != sha(extra_file)
-                or proof.get("raw_receipts_sha256") != sha(up017 / "raw-receipts.tar.gz")
-                or proof.get("py310_controls_sha256") != sha(up017 / "py310-controls.json")
-                or proof.get("py310_inputs_sha256") != sha(up017 / "py310-inputs.tar.gz")
-                or proof.get("rule_ids") != ["UP017"]
-                or extra.get("schema") != "benchmark-inventory/v1"
-                or extra.get("run_state") != "complete"
-                or extra.get("counts") != {"PASS": 1, "FAIL": 0}
-                or len(extra_rows) != 1
-                or extra_rows[0].get("rule_id") != "UP017"
-                or extra_rows[0].get("status") != "PASS"
-                or (extra_rows[0].get("case_count"), extra_rows[0].get("raw_exact"), extra_rows[0].get("documented_discrepancies")) != (14, 14, 0)
-                or proof.get("case_results_sha256", {}).get("UP017") != extra_rows[0].get("case_results_sha256")
-                or proof.get("query_sha256") != sha(query_file)
-                or proof.get("cases_sha256") != sha(cases_file)
-                or proof.get("profile_sha256") != extra_rows[0].get("instance", {}).get("profile_sha256")
-                or extra.get("identity", {}).get("worker_sha256") != proof.get("worker_sha256")
-                or controls.get("worker_sha256") != proof.get("worker_sha256")
-                or controls.get("ruff_sha256") != proof.get("reference_sha256")
-                or controls.get("query_sha256") != proof.get("query_sha256")
-                or controls.get("canonical_cases_sha256") != proof.get("cases_sha256")
-                or controls.get("profile_sha256") != proof.get("py310_control_profile_sha256")
-                or (controls.get("case_count"), controls.get("candidate_exact"), controls.get("reference_exact"), controls.get("candidate_complete")) != (14, 14, 14, 14)
-                or len(controls.get("cases", [])) != 14
-                or any(case.get("candidate") != [] or case.get("reference") != []
-                       or not all(case.get(key) is True for key in ("candidate_exact", "reference_exact", "candidate_complete"))
-                       for case in controls["cases"])
-                or by_rule["UP017"]["status"] != "FAIL"):
-                raise ValueError("UP017 target supplement is stale or changes an earlier receipt")
-            by_rule["UP017"] = {**extra_rows[0], "reason": "[separate py311 fixture and py310 control proof](results/full-inventory-current/up017-target-supplement/summary.json)"}
-            supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
-        sys.path.insert(0, str(RUFF))
-        from authoring.target_supplement import verified_rows
-        for directory_name, label in (
-            ("up035-up036-target-supplement", "full target-version fixture proof"),
-            ("ruf009-target-supplement", "raw-exact fixture proof"),
-            ("ruf101-target-supplement", "raw-exact fixture proof"),
-            ("ple0116-target-supplement", "py37 fixture and py310 control proof"),
-            ("sim115-target-supplement", "raw-exact fixture proof"),
-            ("f621-target-supplement", "declared-contract fixture proof"),
-            ("furb188-target-supplement", "fixture and py38 inactive-rule control proof"),
-            ("ple1300-ple1310-target-supplement", "full fixture and target-version control proof"),
-        ):
-            for row in verified_rows(RUFF, current, by_rule, current / directory_name):
-                by_rule[row["rule_id"]] = {**row, "reason": f"[separate {label}](results/full-inventory-current/{directory_name}/summary.json)"}
-                supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
-        from authoring.target_supplement import verified_failed_rows
-        failed_observations = current / "latest-failed-observations"
-        if not failed_observations.is_dir():
-            failed_observations = current / "ruf101-target-supplement"
-        for row in verified_failed_rows(RUFF, by_rule, failed_observations):
-            by_rule[row["rule_id"]] = row
-    # Recoveries belong beside the immutable full receipt they supplement.
-    if path.resolve() != (current / "summary.json").resolve():
-        sys.path.insert(0, str(RUFF))
-        from authoring.target_supplement import verified_rows
-        for directory in sorted(path.parent.glob("*-target-supplement")):
-            for row in verified_rows(RUFF, path.parent, by_rule, directory):
-                receipt = (directory / "summary.json").relative_to(RUFF).as_posix()
-                by_rule[row["rule_id"]] = {**row, "reason": f"[separate source-bound recovery proof]({receipt})"}
-                supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
     rendered = []
     passed = 0
     for rule in defaults:
@@ -264,7 +55,7 @@ def render_full_inventory(path: Path) -> str:
         f"**{passed} PASS / {413 - passed} FAIL / 413 pinned defaults**; run state `{summary.get('run_state')}`. "
         f"Base worker `{worker_sha256 or 'not run'}`. "
         "PASS means executed intended expectations, including only independently validated explicit reference discrepancies. "
-        "Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset." + supplement_label, "",
+        "Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset.", "",
         "| Rule | Result | Reason / evidence |",
         "|---|---|---|", *rendered, "",
     ])
@@ -276,7 +67,6 @@ def render() -> str:
     base = tomllib.loads((RUFF / "benchmark.toml").read_text(encoding="utf-8"))
     defaults = base["defaults"]
     assert len(defaults) == len(set(defaults)) == 413
-    descriptor = json.loads((RUFF / "profiles/native-standalone.json").read_text(encoding="utf-8"))
     first = json.loads((RESULTS / "native143-split-2026-11-02/summary.json").read_text(encoding="utf-8"))
     supplement = json.loads((RESULTS / "native151-supplement-2026-11-02/summary.json").read_text(encoding="utf-8"))
     assert first["worker_sha256"] == supplement["worker_sha256"]
@@ -285,8 +75,6 @@ def render() -> str:
     assert len(first["profiles"]) == 143 and len(supplement["profiles"]) == 8
     assert not set(first["profiles"]) & set(supplement["profiles"])
     assert supplement["case_count"] == 175
-    assert descriptor["query_count"] == 151 and descriptor["case_count"] == 3950
-    assert {entry["rule_id"] for entry in descriptor["profiles"]} == set(first["profiles"]) | set(supplement["profiles"])
 
     passed = 0
     rows = []

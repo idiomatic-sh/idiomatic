@@ -10,7 +10,31 @@ from authoring.profile_proofs import check_base_rule_applicability, verify_rule_
 def native_descriptor(manifest: dict[str, object]) -> dict[str, object]:
     """Seal the native descriptor from the live tree: schema v2, one entry per native member,
     each bound to its own profile, every identity hashed now."""
-    raise NotImplementedError
+    phases = verify_rule_phase_registry(manifest)
+
+    def sealed(data: dict[str, object]) -> dict[str, object]:
+        registry = profile_sources.profile_modules(data)
+        return {'source_settings': profile_sources.canonical_run_ryo_settings(data, data['defaults'], phases), 'module_registry': registry,
+                'module_sha256': {logical: profile_config.sha256(profile_config.REPOSITORY / profile_sources.module_path(relative)) for logical, relative in registry.items()}}
+    source = profile_sources.prepared_profile_path('native', {'profile_file': 'benchmark.toml'})
+    entries = []
+    for rule in profile_sources.native_members():
+        recorded = {'profile_file': f'profiles/{rule}/benchmark.toml', 'candidate_file': f'rules/{rule}/query.ryoql', 'cases_file': f'rules/{rule}/cases.toml'}
+        path = profile_sources.prepared_profile_path(f'native-{rule}', recorded)
+        data = tomllib.loads(path.read_text(encoding='utf-8'))
+        cases_path = profile_sources.prepared_case_path(rule, recorded)
+        names = [case['name'] for case in tomllib.loads(cases_path.read_text(encoding='utf-8'))['cases']]
+        entries.append({'profile_name': f'native-{rule}', 'rule_id': rule, 'selected_rules': [rule], **recorded,
+                        'query_sha256': profile_config.sha256(profile_sources.prepared_candidate_path(rule, recorded)),
+                        'cases_sha256': profile_config.sha256(cases_path), 'case_count': len(names), 'case_names': names,
+                        'effective_settings': profile_sources.canonical_run_ryo_settings(data, [rule], phases),
+                        'profile_sha256': profile_config.sha256(path), **sealed(data)})
+    root = sealed(tomllib.loads(source.read_text(encoding='utf-8')))
+    return {'schema': 'native-standalone-cases/v2', 'execution_contract': 'singleton-per-declared-rule', 'historical_certification': False,
+            'intent': 'Generated from the live tree for this run: each rule of the 2026-11-02 native evidence runs its authored cases alone under its own profile.',
+            'source_profile_file': 'benchmark.toml', 'source_profile_sha256': profile_config.sha256(source), **root,
+            'phase_registry_sha256': profile_config.sha256(profile_config.RULE_PHASES_FILE),
+            'query_count': len(entries), 'case_count': sum(entry['case_count'] for entry in entries), 'profiles': entries}
 
 def native_standalone_manifest(manifest: dict[str, object], descriptor: dict[str, object]) -> dict[str, object]:
     """Validate a descriptor against the live tree; `descriptor` is required.

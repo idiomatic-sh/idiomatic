@@ -95,9 +95,12 @@ def main() -> int:
     try:
         profile_proofs.verify_files(manifest, helper_path)
         if arguments.native_standalone:
-            manifest = native_standalone.native_standalone_manifest(manifest)
+            descriptor = native_standalone.native_descriptor(manifest)
+            manifest = native_standalone.native_standalone_manifest(manifest, descriptor)
             if output_directory is not None:
-                shutil.copyfile(profile_config.NATIVE_DESCRIPTOR_FILE, output_directory / 'native-standalone.json')
+                written = output_directory / 'native-standalone.json'
+                profile_config.atomic_json_write(written, descriptor)
+                manifest['native_identity'].update(descriptor_path='native-standalone.json', descriptor_sha256=profile_config.sha256(written))
                 profile_config.atomic_json_write(output_directory / 'native-execution.json', {'identity': manifest['native_identity'], 'profiles': manifest['profiles'], 'limits': 'New explicit singleton execution contract; no historical correctness certification; combined cohorts are separate.'})
         if arguments.profile is not None:
             if arguments.profile not in manifest.get('combined_profiles', {}):
