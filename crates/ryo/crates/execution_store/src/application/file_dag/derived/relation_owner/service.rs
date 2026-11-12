@@ -1,38 +1,59 @@
-//! Building a relation owner over the derived access its scope was given.
+//! Opening a scope's relation owner, and building one over the derived access its scope was given.
+use super::permit::service::ScopePermit;
 use crate::application::file_dag::derived::owner::service::{DerivedAccess, DerivedOwner};
 use crate::application::file_dag::derived::owner::types::EntryLimit;
 use crate::application::file_dag::relations::service::RelationOwner;
-use crate::application::file_dag::relations::types::{PinnedViewCount, ReuseEligibility};
+use crate::application::file_dag::relations::types::{
+    PinnedViewCount, ProducerCapacity, ReuseEligibility,
+};
 use crate::application::file_dag::route_counts::profile::service::RouteProfile;
+use std::rc::Rc;
 
-/// The derived access a scope's relation owner is opened over, as the scope's opener hands it in: anything that converts
-/// into the derived owner's access converts into it, and only the derived concept unwraps it.
+/// The one outer owner factory: a scope opens its file generation's relation owner over the derived access its opener
+/// hands in. Kernels have no way to acquire the permit it mints.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_execution_store::application::file_dag::derived::relation_owner::service::ScopeAccess;
-/// fn opened_over(access: ScopeAccess) -> ScopeAccess {
-///     access
-/// }
+/// use ryo_execution_store::application::file_dag::derived::relation_owner::service::open_program_owner;
+/// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
+/// use ryo_execution_store::application::file_dag::relations::types::{ProducerCapacity, ReuseEligibility};
+///
+/// let owner = open_program_owner(
+///     ProducerCapacity(1),
+///     program_derived_port(),
+///     ReuseEligibility::Eligible,
+///     Default::default(),
+/// );
+/// assert_eq!(owner.stable(), ReuseEligibility::Eligible);
 /// ```
-#[derive(Clone, Debug)]
-pub struct ScopeAccess(DerivedAccess);
-
-impl<T: Into<DerivedAccess>> From<T> for ScopeAccess {
-    fn from(access: T) -> Self {
-        Self(access.into())
-    }
+pub fn open_program_owner(
+    producers: ProducerCapacity,
+    derived: impl Into<DerivedAccess>,
+    reuse: ReuseEligibility,
+    routes: RouteProfile,
+) -> Rc<RelationOwner> {
+    Rc::new(RelationOwner::for_scope(
+        ScopePermit { reuse },
+        PinnedViewCount(
+            producers
+                .0
+                .saturating_add(ryo_relations::domain::relations::service::all().len())
+                .saturating_add(1),
+        ),
+        derived.into(),
+        routes,
+    ))
 }
 
 impl RelationOwner {
-    pub(crate) fn for_scope(
-        permit: crate::application::file_dag::service::permit::service::ScopePermit,
+    fn for_scope(
+        permit: ScopePermit,
         views: PinnedViewCount,
-        semantic: ScopeAccess,
+        semantic: DerivedAccess,
         routes: RouteProfile,
     ) -> Self {
-        Self::with_limits(ReuseEligibility::from(permit), views, semantic.0, routes)
+        Self::with_limits(ReuseEligibility::from(permit), views, semantic, routes)
     }
     /// An owner over `semantic` with the default pin limit and no route recording, for the proofs of the store and the engine.
     #[cfg(any(test, feature = "fixtures"))]
