@@ -62,8 +62,6 @@ pub(super) const RYO_DIAGNOSTIC_LAYOUT: &str = "ryo::diagnostic::layout";
 pub(super) const RYO_DIAGNOSTIC_GRAPH: &str = "ryo::diagnostic::graph";
 /// Text of the ryo diagnostic file program in this part.
 pub(super) const RYO_DIAGNOSTIC_FILE_PROGRAM: &str = "ryo::diagnostic::file_program";
-/// Text of the ryo diagnostic lifecycle memory in this part.
-pub(super) const RYO_DIAGNOSTIC_LIFECYCLE_MEMORY: &str = "ryo::diagnostic::lifecycle_memory";
 /// Text of the ryo diagnostic row progress in this part.
 pub(super) const RYO_DIAGNOSTIC_ROW_PROGRESS: &str = "ryo::diagnostic::row_progress";
 /// Refuse a requested path repeated in the source inventory.

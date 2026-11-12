@@ -259,7 +259,7 @@ def canonical_run_ryo_settings(profile: dict[str, object], rules: list[str], pha
     if selection is not None and (not isinstance(selection, str) or not selection or selection.strip() != selection):
         raise ValueError('source language must be an exact nonblank provider name')
     extra = {'source_language': selection} if selection is not None else {}
-    extra['performance'] = {'diagnostics': {name: False for name in ['execution', 'lifecycle_memory', 'resource_routes', 'row_progress', 'steps', 'joins', 'prefixes', 'subplans', 'selection_detail']}}
+    extra['performance'] = {'diagnostics': {name: False for name in ['execution', 'resource_routes', 'row_progress', 'steps', 'joins', 'prefixes', 'subplans', 'selection_detail']}}
     if profile.get('rule-context') is not None:
         extra['rule_context_declaration'] = profile['rule-context']
     observations = projected_profile_observations(profile, rules)

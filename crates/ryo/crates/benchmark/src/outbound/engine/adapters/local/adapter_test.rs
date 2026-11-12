@@ -154,7 +154,6 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
             tracing::trace!(target: writer::LAYOUT_TARGET, event = "layout_schema", payload_rows = 0_usize);
             tracing::trace!(target: writer::GRAPH_TARGET, event = "graph_work", graph_edges = 13_usize);
             tracing::trace!(target: writer::FILE_PROGRAM_TARGET, event = "file_program", shared_executions = 5_u64);
-            tracing::trace!(target: writer::LIFECYCLE_TARGET, phase = "after_files", retained_bytes = 17_usize);
         });
         let output = std::fs::read_to_string(path)?;
         if level == tracing_subscriber::filter::LevelFilter::OFF {
@@ -164,7 +163,7 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
                 .lines()
                 .map(serde_json::from_str::<serde_json::Value>)
                 .collect::<Result<Vec<_>, _>>()?;
-            assert_eq!(events.len(), 7);
+            assert_eq!(events.len(), 6);
             assert!(
                 events
                     .iter()
@@ -187,37 +186,6 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
             );
         }
     }
-    Ok(())
-}
-
-fn lifecycle_profile_excludes_per_file_steps_and_other_aggregates()
--> Result<(), Box<dyn std::error::Error>> {
-    let directory = tempfile::tempdir()?;
-    let path = directory.path().join("lifecycle.jsonl");
-    let dispatch = tracing::Dispatch::new(writer::subscriber(
-        &path,
-        ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions {
-            execution: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
-            lifecycle_memory:
-                ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
-            ..Default::default()
-        },
-    )?);
-    tracing::dispatcher::with_default(&dispatch, || {
-        tracing::trace!(target: RULE_FILE_TARGET, event = "rule_file_start");
-        tracing::trace!(target: RULE_STEP_TARGET, event = "rule_step_start");
-        tracing::trace!(target: writer::GRAPH_TARGET, event = "graph_work");
-        tracing::trace!(target: writer::EXECUTION_TARGET, phase = "provider_parse");
-        tracing::trace!(target: writer::LIFECYCLE_TARGET, phase = "after_files", retained_bytes = 17_usize);
-    });
-    let text = std::fs::read_to_string(path)?;
-    let events = text
-        .lines()
-        .map(serde_json::from_str::<serde_json::Value>)
-        .collect::<Result<Vec<_>, _>>()?;
-    assert_eq!(events.len(), 1);
-    assert_eq!(events[0]["target"], writer::LIFECYCLE_TARGET);
-    assert_eq!(events[0]["fields"]["retained_bytes"], 17);
     Ok(())
 }
 
@@ -297,12 +265,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("aggregate_profile_is_explicit_and_keeps_counter_fields"),
         word: Word::Succeeds,
         input: || aggregate_profile_is_explicit_and_keeps_counter_fields,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("lifecycle_profile_excludes_per_file_steps_and_other_aggregates"),
-        word: Word::Succeeds,
-        input: || lifecycle_profile_excludes_per_file_steps_and_other_aggregates,
         expect: Expect::Value(()),
     },
     Case {
