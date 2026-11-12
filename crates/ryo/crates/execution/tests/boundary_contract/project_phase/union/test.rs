@@ -8,6 +8,9 @@ use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionP
 use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectObservation;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::interface::{
     BatchNumber, BatchOccurrence, ObservationBatches,
@@ -16,9 +19,6 @@ use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectObservation;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::CapturedFacts;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::ProjectFacts;
 use ryo_execution_runtime::outbound::operators::fixtures::project_phase_union::UnionSemanticCalls;
@@ -68,7 +68,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     let union_semantic_calls = Arc::new(UnionSemanticCalls::default());
     let engine = PrepareUseCaseImpl::new(
         union_semantic_calls.clone(),
-        Arc::new(ryo_execution_store::outbound::derived::factory::semantics()).into(),
+        Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
         std::sync::Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     let mut authored = authored_request(2);

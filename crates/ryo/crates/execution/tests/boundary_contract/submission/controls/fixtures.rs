@@ -5,7 +5,9 @@ use super::super::witness::fixtures::{Method, Probe, probe};
 use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine, prepared_rules};
 use crate::file_intents::fixtures::named_request;
 use crate::project_phase::negative::fixtures::{Entry, Held, with_held};
+use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileInput;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
 use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
@@ -22,14 +24,12 @@ use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::interface::RefusedFiles;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
 use ryo_execution::inbound::use_cases::execution::interface::{
     BatchNumber, BatchOccurrence, ObservationBatches,
 };
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_negative::NoFacts;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
@@ -195,8 +195,8 @@ pub(in super::super) fn file_session_undeclared_rule() -> Vec<Probe> {
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
             },
             &mut symbols,
         )

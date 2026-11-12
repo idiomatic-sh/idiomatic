@@ -7,9 +7,9 @@ use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Relation, Value};
 use ryo_values::domain::{
     plan_parts::types::{HostedNumber, Input, StepId, StepScope},

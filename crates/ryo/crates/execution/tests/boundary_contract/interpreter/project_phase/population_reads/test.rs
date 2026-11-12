@@ -1,22 +1,22 @@
 //! A deferred project root feeds nothing at file scope, and its file frontier walks the source once.
 use crate::boundary_fixture::fixtures::{corpus, demand, engine, source};
 use crate::project_phase::fixtures::mixed_program;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileInput;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
+use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::RowEmission;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
+use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution_domain::domain::row_emission::types::RowEmission;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Relation};
@@ -65,8 +65,8 @@ fn a_deferred_project_root_feeds_no_file_step_and_its_frontier_walks_the_source_
                     source: ryo_values::domain::files::types::SourceView(b"abc"),
                     elements: &elements,
                     read: &read,
-                    semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                    kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+                    semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+                    kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
                 },
                 &mut symbols,
             )
@@ -109,8 +109,8 @@ fn a_deferred_project_root_feeds_no_file_step_and_its_frontier_walks_the_source_
                     source: ryo_values::domain::files::types::SourceView(b"abc"),
                     elements: &elements,
                     read: &read,
-                    semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                    kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+                    semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+                    kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
                 },
                 &mut symbols,
             )

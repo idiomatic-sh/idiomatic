@@ -1,8 +1,14 @@
 //! The support of the `boundary_fixture` cases and of the groups nested in it.
+use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
+use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
+use ryo_execution::inbound::use_cases::execution::interface::RuleOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::{
     PhasePartials, PhaseRules, PhaseStop,
 };
@@ -10,12 +16,6 @@ use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
-use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
-use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use ryo_language::{domain::files::types::FilePath, domain::symbols::types::Symbols};
 use ryo_relations::domain::relations::{
     fixtures::{kinds, node_id},
@@ -254,8 +254,11 @@ pub(crate) trait Observed {
     ) -> std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>;
 }
 
-impl Observed for ryo_execution_runtime::application::file_dag::program::file_session::types::FinishedReadiness {
-    fn observed(self, reason: &str) -> std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness> {
+impl Observed for ryo_execution::inbound::use_cases::execution::interface::FinishedReadiness {
+    fn observed(
+        self,
+        reason: &str,
+    ) -> std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness> {
         match self {
             Self::Observed(readiness) => readiness,
             Self::Unobserved => panic!("{reason}"),

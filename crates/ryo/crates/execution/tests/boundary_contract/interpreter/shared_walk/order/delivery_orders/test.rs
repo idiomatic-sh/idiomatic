@@ -3,6 +3,7 @@ use crate::boundary_fixture::fixtures::{authored_request, corpus};
 use crate::interpreter::shared_walk::fixtures::walked;
 use crate::shared_walk::fixtures::no_catalog;
 use crate::shared_walk::fixtures::*;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
@@ -13,7 +14,6 @@ use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecu
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_values::domain::plan_parts::types::{Input, StepId};
 use ryo_values::domain::plans::types::Operation;

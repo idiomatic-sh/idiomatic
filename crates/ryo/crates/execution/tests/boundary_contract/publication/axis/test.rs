@@ -113,8 +113,8 @@ x
                     source: ryo_values::domain::files::types::SourceView(bytes),
                     elements: &elements,
                     read: &read,
-                    semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                    kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+                    semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+                    kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
                 },
                 &mut symbols,
             )
@@ -193,8 +193,8 @@ fn ordinary_select_does_not_publish_a_prefix_before_late_predicate_failure() {
                 source: ryo_values::domain::files::types::SourceView(bytes),
                 elements: &elements,
                 read: &read,
-                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
             },
             &mut symbols,
         )

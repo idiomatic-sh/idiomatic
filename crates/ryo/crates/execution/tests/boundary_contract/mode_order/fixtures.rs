@@ -1,10 +1,10 @@
 //! The support of the `mode_order` cases and of the groups nested in it.
 use super::super::*;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::RowEmission;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
-use ryo_execution_domain::domain::row_emission::types::RowEmission;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
@@ -46,8 +46,8 @@ pub(super) fn evaluate<'facts>(
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read,
-                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
             },
             &mut symbols,
         )
@@ -148,8 +148,8 @@ pub(super) fn deliver<'facts>(
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read,
-                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
             },
             &mut symbols,
         )

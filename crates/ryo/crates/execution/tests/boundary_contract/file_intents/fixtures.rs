@@ -1,5 +1,6 @@
 //! The support of the `file_intents` cases and of the groups nested in it.
 use super::super::*;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::{
@@ -7,7 +8,6 @@ use ryo_execution::inbound::use_cases::execution::interface::{
 };
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 
@@ -26,8 +26,8 @@ pub(crate) fn input<'a, 'facts>(
         source: ryo_values::domain::files::types::SourceView(b"abc"),
         elements,
         read,
-        semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-        kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+        semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+        kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
     }
 }
 
@@ -135,8 +135,9 @@ pub(crate) fn ran_file(
             intents,
             source: ryo_values::domain::files::types::SourceView(b"abc"),
             elements,
-            semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-            kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+            semantic:
+                ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+            kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
             first: &first,
         },
         symbols,

@@ -1,9 +1,11 @@
 //! Missing transport remains an error; explicit syntax rejection and refused acceptance remain partial.
 use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine, source};
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileInput;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
@@ -16,14 +18,12 @@ use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhase
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
+use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
+use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::CapturedFacts;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::ProjectFacts;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
@@ -163,8 +163,8 @@ fn exercise(case: Case) {
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
             },
             &mut symbols,
         )
@@ -210,8 +210,8 @@ fn exercise(case: Case) {
                     source: ryo_values::domain::files::types::SourceView(b"def broken(:"),
                     elements: &elements,
                     read: &forbidden_read,
-                    semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                    kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+                    semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+                    kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
                 },
                 &mut symbols,
             )

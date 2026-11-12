@@ -1,9 +1,11 @@
 //! The files, the function rows of each and the run through the owner that the rewrite proofs compare plans by.
 use crate::boundary_fixture::fixtures::{authored_request, demand, engine};
+use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileInput;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
@@ -12,14 +14,12 @@ use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
+use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
+use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_rewrites::CapturedBuckets;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::ProjectFacts;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
@@ -196,8 +196,8 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
                     source: ryo_values::domain::files::types::SourceView(SOURCE),
                     elements: &elements,
                     read: &read,
-                    semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                    kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+                    semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+                    kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
                 },
                 &mut symbols,
             )

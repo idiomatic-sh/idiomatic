@@ -7,12 +7,8 @@ use super::super::super::{fixtures, interface::*};
 use crate::outbound::query_language::{
     errors::QueryLanguageError, fixtures::fake::QueryLanguageFake, interface::QueryLanguagePort,
 };
-use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, RuleDemand};
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort as _;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::{
-    FileInput, SourceLanguage, SourceRows,
-};
 use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
