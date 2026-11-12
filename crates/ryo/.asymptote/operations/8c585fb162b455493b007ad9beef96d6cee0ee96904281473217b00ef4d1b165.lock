@@ -1,0 +1,27 @@
+version = 1
+parents = ["cae31590797eb0e2507f2fc75fa4f23e3c80f2485c55d3ac8a157f4a9f4410d6"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/execution_domain/src/domain/observation_schedule/service/link/service.rs", level = "error", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/ryo/crates/execution_domain/src/domain/observation_schedule/service/link/service.rs` has 427 lines, over the file-length limit", since_rev = "56b0b03e83579c1da6ed3cf74f17579f5646cb35", since = "2026-11-12" },
+  { tool = "tastemaker", rule = "idiomatic.arch/no-unwrap-or-on-lookup", path = "crates/execution_domain/src/domain/operation_schema/projection/service.rs", level = "error", fingerprint = "90829564cfdcff1b", count = 1, message = "a lookup in an internal table by its own index answers a default when it misses: the bug becomes a wrong answer", since_rev = "56b0b03e83579c1da6ed3cf74f17579f5646cb35", since = "2026-11-10" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution/service_test/presence/test.rs", level = "error", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution/service_test/presence/test.rs` has 1454 lines, over the file-length limit", since_rev = "56b0b03e83579c1da6ed3cf74f17579f5646cb35", since = "2026-11-12" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/execution_store/src/application/file_dag/workspace/service.rs", level = "error", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/ryo/crates/execution_store/src/application/file_dag/workspace/service.rs` has 462 lines, over the file-length limit", since_rev = "56b0b03e83579c1da6ed3cf74f17579f5646cb35", since = "2026-11-12" },
+]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "languages/python/src/domain/expression_types/service.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/execution_runtime/src/application/file_dag/frontiers/types.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/benchmark/src/outbound/receipts/adapters/local/observation/schemas.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/sdk/src/resources/linter/lint/entry_test.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/execution_runtime/src/application/file_dag/frontiers/service.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/execution_store/src/application/file_dag/workspace/mod.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/language/src/inbound/use_cases/parse/service.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/execution_domain/src/domain/observation_schedule/service/link.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/execution_runtime/src/application/file_dag/acceptance/presence_service_test.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/execution/tests/file_intents/mod.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/no-unwrap-or-on-lookup", path = "crates/execution_domain/src/domain/operation_schema/projection.rs", level = "error", fingerprint = "90829564cfdcff1b" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/benchmark/src/application/worker_request/service_test.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "languages/python/src/inbound/contracts/parse/contract.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/benchmark/src/application/inventory_verification/service.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+]
