@@ -1,0 +1,47 @@
+description = "Selects each nested part's module file `<part>.rs` of an operation whose directory holds no file of its own role (`service.rs`, `service_test.rs`, `types.rs`, `errors.rs`, `constants.rs`, `interface.rs`): the operation is a namespace of sub-concepts, the condition on which it has no service and no service test."
+why = "An application operation is either one operation, with its service and its proof, or a namespace that gathers sub-concepts, each of which is a nested part with its own service and proof (ryo's execution store: `file_dag` declares `accounting`, `derived`, `relations` and the rest, and has no operation of its own). The trigger is mechanical: a directory that declares a part and writes no role file of its own is a namespace; one that writes any role file is an operation and keeps its service and its test, and one that holds neither a part nor a service is no namespace, so its service is still required. It answers the `namespace` condition and is never placed as a check, so its rows are never findings; its scenarios show them. Read as the files are named: a test's or fixtures' module (`service_test.rs`, `fixtures.rs`) is no part."
+
+query = '''
+let files = project(from="filesystem.file", columns=["path"]);
+let modules = capture(from=files, path="path", pattern="{*dir}/{part}.rs", captures=["dir", "part"]);
+let parts = select path, dir from modules where not glob_any(part, "{service,service_test,types,errors,constants,interface,fixtures}");
+let roles = select dir from modules where glob_any(part, "{service,service_test,types,errors,constants,interface}");
+let namespaces = antijoin(left=parts, right=roles, left-on=["dir"], right-on=["dir"]);
+emit namespaces subject "path" key("path");
+'''
+
+[diagnostic]
+primary = "path"
+message = "`{path}` is a part of a namespace operation"
+help = "Nothing to fix: this rule only answers a condition, and its rows are never reported as findings."
+
+[given]
+include = ['src/short/*.rs']
+
+[[scenarios]]
+id = 'parts-and-no-role-answer-yes'
+scenario = 'An operation that declares parts and writes no role file of its own answers yes, at each part.'
+given.files.'src/short/derived.rs' = 'pub mod owner;'
+given.files.'src/short/relations.rs' = 'pub mod service;'
+given.files.'src/short/fixtures.rs' = 'pub fn port() {}'
+then.findings = [
+  { path = 'src/short/derived.rs' },
+  { path = 'src/short/relations.rs' },
+]
+
+[[scenarios]]
+id = 'service-answers-no'
+scenario = 'An operation with its service answers no, whatever parts it declares.'
+given.files.'src/short/derived.rs' = 'pub mod owner;'
+given.files.'src/short/service.rs' = 'pub fn run() {}'
+
+[[scenarios]]
+id = 'types-answer-no'
+scenario = 'An operation that writes its own types answers no: it is an operation, not a namespace.'
+given.files.'src/short/derived.rs' = 'pub mod owner;'
+given.files.'src/short/types.rs' = 'pub struct Row;'
+
+[[scenarios]]
+id = 'no-part-answers-no'
+scenario = 'An operation that declares no part answers no.'
+given.files.'src/short/fixtures.rs' = 'pub fn port() {}'

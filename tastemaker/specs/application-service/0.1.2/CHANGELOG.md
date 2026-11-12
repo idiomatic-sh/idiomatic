@@ -12,6 +12,8 @@ Edited in place: the `unit-cases` entry also reads the group tests (`*_test/**/t
 
 Edited in place: the `unit-cases` entry reads `*_test/**/*.rs` beside its own files, the flat groups and the group directories of a namespace test, which the rule reads only when its entry includes them.
 
+Edited in place: an operation may be a namespace of sub-concepts. The new `namespace` condition, answered by the spec's own rule `namespace-operation`, holds when the operation's directory declares a nested part (`<part>.rs`) and writes no role file of its own (`service.rs`, `service_test.rs`, `types.rs`, `errors.rs`, `constants.rs`, `interface.rs`; a `fixtures.rs` is test support, not a role); then its `service.rs` and its `service_test.rs` are absent (`count = { when = { condition = "namespace" }, then = 0, else = 1 }`), and each part keeps its own service and proof. An operation that writes any role file of its own, or declares no part, still requires both (owner via PM, 2026-11-12: ryo's execution store's `file_dag`). Scenarios `namespace-operation` (passes), `operation-with-neither-service-nor-parts` and `namespace-holding-its-own-types` (service and test reported missing); the rule's own scenarios show the condition's yes and no.
+
 # application-service 0.1.1
 
 Places the corrected rules (`public-fields@0.2.0`, `constants-once@0.2.0`, `mirrored-types@0.2.0`, `no-json-in-process@0.4.0`) and the specs that place them at their corrected versions, where 0.1.0 named the earlier ones. Nothing else changes.

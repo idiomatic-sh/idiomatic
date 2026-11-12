@@ -9,7 +9,7 @@ specs = [
 ]
 templates = [
   { template = "idiomatic.arch/application@0.1.0", file = "src/application.rs", count = { min = 0 }, description = "The optional application service namespace; absent when no service is needed." },
-  { template = "idiomatic.arch/application-module@0.1.0", file = "src/application/{application}.rs", count = { min = 0 }, description = "One application service and its behavioral proof." },
+  { alias = "application-module", template = "idiomatic.arch/part-module@0.1.0", file = "src/application/{application}.rs", count = { min = 0 }, description = "One application operation's module file: it declares the operation's role files (its service and its behavioral proof, which the operation's spec requires), or, for a namespace operation, only its sub-concepts, and holds none of their items." },
   # The inbound surface: the use cases an edge calls, several per core, each a part of kind use-case.
   { template = "inbound", file = "src/inbound.rs", count = { when = { condition = "library-only" }, then = 0, else = 1 }, imports = { default = "deny", allow = ["use-cases"] }, description = "The core's inbound module, declaring its use cases; a kernel crate with a public domain and no inbound module (the values crate) has none; a language provider's declares its contracts." },
   { template = "use-cases", file = "src/inbound/use_cases.rs", count = { min = 0 }, imports = { default = "deny", allow = ["use-case-module"] }, description = "The list of the core's use cases, one public module each, rendered from the use case parts the product places." },
@@ -26,6 +26,7 @@ rules = [
   { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["**"], exclude = ["**/tests/fixtures/**", "**/tests/ui/**"], description = "Every Rust file of the core is a module its crate root reaches: a file no `mod` declares is never compiled." },
   { rule = "idiomatic.arch/io-at-boundary@0.2.0", include = ["src/domain/**", "src/inbound/use_cases/**", "src/outbound/**", "src/application/**"], exclude = ["**/adapters/**", "**/*_test.rs", "**/acceptance.rs", "**/fixtures.rs", "**/fixtures/**"], description = "Core operations reach external effects only through injected contracts." },
 
+  { alias = "application-namespace", rule = "idiomatic.arch/test-group-namespace@0.1.0", params = { case-table = "refused" }, include = [{ placed-by = "application-module" }], description = "An application operation's module file declares the operation's modules only, as a nested part's does: its operation goes in its service.rs, held by the operation's spec, and a namespace operation's module file declares its sub-concepts and nothing else." },
   { rule = "domain-modules", include = ["src/domain.rs"], description = "The list of domain concepts only declares modules and holds no rule." },
   # The namespace's own files (module files, lists, collections, fixtures): validated only at an edge, no fixtures read at runtime, no hollow file.
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["src/*.rs", "src/inbound/*.rs", "src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/domain/*.rs", "src/outbound/*.rs", "src/application/*.rs"], exclude = ["**/schemas.rs", "**/*_test.rs"], description = "Nothing in the core's namespace files validates: a `TryFrom`, an `impl FromStr` or a fallible constructor stands only in a schemas.rs." },
@@ -908,6 +909,136 @@ rules = [
   { rule = "idiomatic.arch/bdd-members", include = ["**/src/inbound/use_cases/*.rs", "**/src/inbound/contracts/*.rs", "**/src/inbound/use_cases/*/acceptance.*", "**/src/inbound/contracts/*/acceptance.*", "**/tests/bdd.rs"], exclude = ["**/tests/fixtures/**"], description = "Colocated acceptance pairs have their owner and are declared by the integration harness across owned scopes." },
 ]
 '''
+
+[[scenarios]]
+id = 'namespace-application-module'
+scenario = 'An application module that declares only its sub-concepts, each with its own service and proof, is a namespace: it needs no service or service test of its own, and nothing is reported.'
+given.files.'src/lib.rs' = '''
+//! The crate.
+
+pub mod application;
+'''
+given.files.'src/application.rs' = '''
+//! The crate's application operations.
+
+pub mod file_dag;
+'''
+given.files.'src/application/file_dag.rs' = '''
+//! The file DAG: a namespace of its sub-concepts.
+
+pub mod derived;
+'''
+given.files.'src/application/file_dag/derived.rs' = '''
+//! The derived views of the file DAG.
+
+pub mod service;
+#[cfg(test)]
+mod service_test;
+'''
+given.files.'src/application/file_dag/derived/service.rs' = '''
+//! The derived views.
+
+/// Derives the views.
+pub fn derive() {}
+'''
+given.files.'src/application/file_dag/derived/service_test.rs' = '''
+//! Behavioral proof of `derived`.
+
+use crate::cases::{Case, Expect, Word, run};
+type Input = u8; type Value = u8; type Failure = Refusal; fn subject(input: Input) -> Result<Value, Failure> { Ok(input) }
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.only = ['idiomatic.arch/part-module(application-module)#template', 'idiomatic.arch/test-group-namespace', 'idiomatic.arch/application-service/service#count', 'idiomatic.arch/service-test(service-test)#count']
+
+[[scenarios]]
+id = 'namespace-application-module-holding-a-fn'
+scenario = "An application module that declares its sub-concepts and also holds a function is refused at the function: a namespace's module file declares its modules only."
+given.files.'src/lib.rs' = '''
+//! The crate.
+
+pub mod application;
+'''
+given.files.'src/application.rs' = '''
+//! The crate's application operations.
+
+pub mod file_dag;
+'''
+given.files.'src/application/file_dag.rs' = '''
+//! The file DAG: a namespace of its sub-concepts.
+
+pub mod derived;
+
+/// Opens the file DAG.
+pub fn open() {}
+'''
+given.files.'src/application/file_dag/derived.rs' = '''
+//! The derived views of the file DAG.
+
+pub mod service;
+#[cfg(test)]
+mod service_test;
+'''
+given.files.'src/application/file_dag/derived/service.rs' = '''
+//! The derived views.
+
+/// Derives the views.
+pub fn derive() {}
+'''
+given.files.'src/application/file_dag/derived/service_test.rs' = '''
+//! Behavioral proof of `derived`.
+
+use crate::cases::{Case, Expect, Word, run};
+type Input = u8; type Value = u8; type Failure = Refusal; fn subject(input: Input) -> Result<Value, Failure> { Ok(input) }
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.only = ['idiomatic.arch/part-module(application-module)#template', 'idiomatic.arch/test-group-namespace', 'idiomatic.arch/application-service/service#count', 'idiomatic.arch/service-test(service-test)#count']
+then.findings = [
+  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/application/file_dag.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'application-without-service-or-sub-concepts'
+scenario = 'An application operation that has neither a service nor a sub-concept is no namespace: its service and its test are reported missing.'
+given.files.'src/lib.rs' = '''
+//! The crate.
+
+pub mod application;
+'''
+given.files.'src/application.rs' = '''
+//! The crate's application operations.
+
+pub mod file_dag;
+'''
+given.files.'src/application/file_dag.rs' = '''
+//! The file DAG.
+
+pub mod types;
+'''
+given.files.'src/application/file_dag/types.rs' = '''
+//! The rows of the file DAG.
+
+/// A row.
+pub struct Row;
+'''
+then.only = ['idiomatic.arch/part-module(application-module)#template', 'idiomatic.arch/test-group-namespace', 'idiomatic.arch/application-service/service#count', 'idiomatic.arch/service-test(service-test)#count']
+then.findings = [
+  { rule = 'idiomatic.arch/application-service/service#count', path = 'src/application/file_dag' },
+  { rule = 'idiomatic.arch/service-test(service-test)#count', path = 'src/application/file_dag' },
+]
 
 [[scenarios]]
 id = 'several-ports'
