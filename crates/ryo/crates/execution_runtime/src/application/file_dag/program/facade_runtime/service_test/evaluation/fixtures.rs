@@ -14,7 +14,7 @@ use ryo_execution_domain::domain::table_cells::fixtures::{
     SMALL_SOURCE, SmallTree, rows_over, small_tree,
 };
 use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_execution_store::application::file_dag::derived::relation_owner::types::ScopePartials;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::service::{kinds, node_id};
 use ryo_relations::domain::relations::types::Value as Cell;

@@ -45,7 +45,7 @@ use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_execution_store::application::file_dag::derived::constants::TARGET_RESOURCE_ROUTES;
 use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_execution_store::application::file_dag::derived::relation_owner::types::ScopePartials;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::files::types::SourceView;

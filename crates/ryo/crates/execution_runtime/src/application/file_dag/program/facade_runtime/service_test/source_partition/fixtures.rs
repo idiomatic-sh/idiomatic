@@ -13,7 +13,7 @@ use crate::application::file_dag::program::runtime::service::{
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::{Lacking, Partial, Partials, RuleIndex};
 use ryo_execution_domain::domain::table_model::service::count_of;
-use ryo_execution_store::application::file_dag::service::open_program_owner;
+use ryo_execution_store::application::file_dag::derived::relation_owner::service::open_program_owner;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};
 use ryo_values::domain::{
