@@ -6,7 +6,7 @@ pub struct SourceMatchesInput<'a> {
     pub base: SourceBase,
     pub text: ryo_values::domain::row_texts::types::CellText<'a>,
     pub line: BaseLine,
-    pub regex: &'a ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
+    pub regex: &'a ryo_matching::inbound::use_cases::matching::types::CompiledRegex,
     pub capture: CaptureRequest<'a>,
     pub capture_text: ryo_values::domain::query_operators::types::TextOutput,
     pub capture_line: ryo_values::domain::query_operators::types::LineOutput,
@@ -101,7 +101,7 @@ pub(crate) struct SearchViews<'a> {
     /// The span text the search was validated against.
     pub checked: CheckedSource<'a>,
     /// The matcher the engine acquired.
-    pub regex: &'a ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
+    pub regex: &'a ryo_matching::inbound::use_cases::matching::types::CompiledRegex,
 }
 
 /// The source text an occurrence search was validated against, before any matcher was acquired.

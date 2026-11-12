@@ -1,8 +1,9 @@
 //! What the `matching` port asks of the outside: the occurrences of a prepared regex in a text.
 
-use ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex;
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
-use ryo_matching::inbound::use_cases::matching::types::{GroupName, SearchText, TextSpan};
+use ryo_matching::inbound::use_cases::matching::types::{
+    CompiledRegex, GroupName, SearchText, TextSpan,
+};
 
 /// What every `matching` adapter implements.
 pub trait MatchingPort: Send + Sync {

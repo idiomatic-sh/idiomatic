@@ -2,10 +2,10 @@
 
 pub mod prepared;
 
-use ryo_matching::inbound::use_cases::matching::compiled::{CompiledRegex, CompiledTextGlobs};
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_matching::inbound::use_cases::matching::types::{
-    GlobPattern, GroupName, MatchOutcome, RegexSource, SearchText, TextSpan,
+    CompiledRegex, CompiledTextGlobs, GlobPattern, GroupName, MatchOutcome, RegexSource,
+    SearchText, TextSpan,
 };
 
 /// Seals [`PatternSemantics`]: the trait is public so the engine crates can lend it, and its one implementation is the blanket

@@ -25,7 +25,7 @@ use crate::domain::table_scratch::types::{
     SubjectHash, SubjectTag, VerdictKey,
 };
 use crate::domain::table_texts::types::Texts;
-use ryo_matching::inbound::use_cases::matching::compiled::CompiledTextGlobs;
+use ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs;
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 use ryo_values::domain::rows::service::{cell, column_in};
 

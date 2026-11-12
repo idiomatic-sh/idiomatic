@@ -280,7 +280,7 @@ impl DfsDriver for FakeDriver {
 impl Occurrences for FakeDriver {
     fn matches(
         &self,
-        _regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
+        _regex: &ryo_matching::inbound::use_cases::matching::types::CompiledRegex,
         _text: ryo_matching::inbound::use_cases::matching::types::SearchText<'_>,
         _each: &mut dyn FnMut(
             ryo_matching::inbound::use_cases::matching::types::TextSpan,
@@ -290,7 +290,7 @@ impl Occurrences for FakeDriver {
     }
     fn captures(
         &self,
-        _regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
+        _regex: &ryo_matching::inbound::use_cases::matching::types::CompiledRegex,
         _text: ryo_matching::inbound::use_cases::matching::types::SearchText<'_>,
         _group: ryo_matching::inbound::use_cases::matching::types::GroupName<'_>,
         _each: &mut dyn FnMut(

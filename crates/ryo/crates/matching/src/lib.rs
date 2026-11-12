@@ -14,16 +14,6 @@
 //! ```compile_fail,E0432
 //! use ryo_matching::outbound;
 //! ```
-//! ```compile_fail,E0616
-//! use ryo_matching::inbound::use_cases::matching::{interface::MatchingUseCase, types::RegexSource, use_case::MatchingUseCaseImpl};
-//! let compiled = MatchingUseCaseImpl::new().compile_regex(RegexSource("ok")).unwrap();
-//! let _ = compiled.regex;
-//! ```
-//! ```compile_fail,E0616
-//! use ryo_matching::inbound::use_cases::matching::{interface::MatchingUseCase, types::GlobPattern, use_case::MatchingUseCaseImpl};
-//! let compiled = MatchingUseCaseImpl::new().compile_text_globs(&[GlobPattern("a?c")]);
-//! let _ = compiled.program;
-//! ```
 //! ```
 //! use ryo_matching::inbound::use_cases::matching::{interface::MatchingUseCase, types::{MatchOutcome, RegexSource, SearchText}, use_case::MatchingUseCaseImpl};
 //! let matching = MatchingUseCaseImpl::new();

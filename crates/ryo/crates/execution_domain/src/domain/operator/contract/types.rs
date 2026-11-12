@@ -290,7 +290,7 @@ pub struct PrimitiveViews<'a> {
     /// The source text checked against the operation's source gate, when it has one.
     pub validated_source: Option<ValidatedSource<'a>>,
     /// The compiled regular expression the operation matches, when it has one.
-    pub regex: Option<&'a ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex>,
+    pub regex: Option<&'a ryo_matching::inbound::use_cases::matching::types::CompiledRegex>,
     /// The reach answered from a cached graph, when one was acquired.
     pub cached_reach: Option<super::graph_view::types::ReachResult<'a>>,
     /// The axis answered from a cached graph, when one was acquired.

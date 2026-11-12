@@ -5,9 +5,8 @@ use crate::domain::matching::types::PatternMatcher;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_texts::types::{RegexPattern, TextView};
 use ryo_matching::inbound::use_cases::matching::{
-    compiled::{CompiledRegex, CompiledTextGlobs},
     errors::MatchingError,
-    types::{GlobPattern, RegexSource as AuthoredRegex},
+    types::{CompiledRegex, CompiledTextGlobs, GlobPattern, RegexSource as AuthoredRegex},
 };
 use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
 use ryo_values::domain::plans::types::Operation;

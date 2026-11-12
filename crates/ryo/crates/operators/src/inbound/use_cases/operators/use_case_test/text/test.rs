@@ -85,7 +85,7 @@ fn written(call: OperatorCall<'_>) -> Result<(), Failure> {
     );
     Ok(())
 }
-fn regex(pattern: &str) -> ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex {
+fn regex(pattern: &str) -> ryo_matching::inbound::use_cases::matching::types::CompiledRegex {
     fixtures::regex(pattern).unwrap()
 }
 fn subject(input: Input) -> Result<Value, Failure> {
