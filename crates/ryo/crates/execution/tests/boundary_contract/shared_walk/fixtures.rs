@@ -1,15 +1,15 @@
 //! Completed source data and authored requests; every execution enters the public owner.
 use crate::boundary_fixture::fixtures::authored_request;
+use ryo_execution::inbound::use_cases::execution::interface::FileInput;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
+use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::RuleOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
+use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
-use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution_runtime::outbound::operators::fixtures::shared_walk::SemanticCalls;
 use ryo_language::domain::builders::fixtures::{enter_node, leave_node, table_builder, token};
@@ -44,7 +44,7 @@ pub(crate) fn engine() -> (PrepareUseCaseImpl, Arc<SemanticCalls>) {
     (
         PrepareUseCaseImpl::new(
             semantics.clone(),
-            Arc::new(ryo_execution_store::outbound::derived::factory::semantics()).into(),
+            Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
             Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
         ),
         semantics,
@@ -146,8 +146,8 @@ pub(crate) fn input<'a, 'facts>(
         source: ryo_values::domain::files::types::SourceView(source),
         elements,
         read,
-        semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-        kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+        semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+        kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
     }
 }
 pub(crate) fn expected(file: FileId, elements: &Elements, positions: &[u32]) -> Table {

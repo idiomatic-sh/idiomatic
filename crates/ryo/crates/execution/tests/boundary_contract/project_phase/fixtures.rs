@@ -1,22 +1,22 @@
 //! The support of the `project_phase` cases and of the groups nested in it.
 use crate::boundary_fixture::fixtures::authored_request;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::FileInput;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
+use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
-use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
@@ -149,7 +149,7 @@ pub(crate) fn captured_in_file_0_of<'facts>(
     symbols: &mut Symbols,
 ) -> Vec<(
     FileId,
-    ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier,
+    ryo_execution::inbound::use_cases::execution::interface::CapturedFrontier,
 )> {
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut file = request
@@ -171,8 +171,8 @@ pub(crate) fn captured_in_file_0_of<'facts>(
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read,
-                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
             },
             symbols,
         )
@@ -205,7 +205,7 @@ pub(crate) fn captured_in_file_0(
     rows: &[(Relation, ryo_values::domain::rows::types::Table)],
     publication: &[ryo_execution::inbound::use_cases::execution::interface::Partial],
     symbols: &mut Symbols,
-) -> Vec<ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier> {
+) -> Vec<ryo_execution::inbound::use_cases::execution::interface::CapturedFrontier> {
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |relation| {
         rows.iter()
@@ -229,8 +229,8 @@ pub(crate) fn captured_in_file_0(
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
             },
             symbols,
         )
@@ -272,8 +272,8 @@ pub(crate) fn rejected_syntax<'a, 'facts>(
         source: ryo_values::domain::files::types::SourceView(b"def broken(:"),
         elements,
         read: &no_semantic_rows,
-        semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-        kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+        semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+        kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
     }
 }
 

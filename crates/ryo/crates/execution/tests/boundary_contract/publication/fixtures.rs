@@ -1,8 +1,8 @@
 //! The support of the `publication` cases and of the groups nested in it.
 use super::super::*;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
 pub(crate) fn program(engine: &PrepareUseCaseImpl) -> PreparedExecutionProgram {
@@ -60,7 +60,8 @@ pub(crate) fn abc_file<'a, 'facts>(
 ) -> FileInput<'a, 'facts> {
     FileInput {
         language: SourceLanguage::Recognized,
-        resident_stability: ryo_execution_runtime::outbound::facts::types::ResidentStability::Stable,
+        resident_stability:
+            ryo_execution_runtime::outbound::facts::types::ResidentStability::Stable,
         file: FileId(0),
         evaluation: &[],
         publication: &[],
@@ -68,7 +69,7 @@ pub(crate) fn abc_file<'a, 'facts>(
         source: ryo_values::domain::files::types::SourceView(b"abc"),
         elements,
         read,
-        semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-        kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+        semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+        kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
     }
 }

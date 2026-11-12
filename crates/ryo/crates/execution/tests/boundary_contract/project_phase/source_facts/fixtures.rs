@@ -4,6 +4,10 @@ use ryo_execution::inbound::use_cases::execution::interface::{
     AdmittedOutput, Install, ObservationBatches, OccurrenceNumber, OperatingError, Partials,
     PhasePartials, PhaseStop, ProgramObservationStagePort, ProjectOutputOutcome, RuleOutcome,
 };
+use ryo_execution::inbound::use_cases::publication::interface::{
+    PublicationInput, PublicationUseCase as _,
+};
+use ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::stored_facts::types::KeptWords;
 
@@ -110,17 +114,16 @@ pub(in super::super) fn published(
         let mut table = table.clone();
         let mut places = vec![];
         let mut words = ryo_relations::domain::relations::types::Words::default();
-        ryo_execution::application::publication::service::publication(
-            ryo_execution::application::publication::types::PublicationInput {
+        PublicationUseCaseImpl::new()
+            .publication(PublicationInput {
                 table: &mut table,
                 symbols: &mut *symbols,
                 inherited: arenas,
                 worker,
                 arena: &mut arena,
                 places: &mut places,
-            },
-        )
-        .expect("an observed table packs into its worker's arena");
+            })
+            .expect("an observed table packs into its worker's arena");
         // The arenas the packed names live in, as the caller's own packing records them.
         let mut named = vec![];
         for place in &places {

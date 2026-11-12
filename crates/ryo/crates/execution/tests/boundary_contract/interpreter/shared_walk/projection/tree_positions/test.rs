@@ -10,11 +10,11 @@ use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
+use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_relations::domain::relations::fixtures::node_id;
 use ryo_relations::domain::relations::types::{FileId, Position, Relation, Value};
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -36,7 +36,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
             });
             let engine = PrepareUseCaseImpl::new(
                 semantics.clone(),
-                Arc::new(ryo_execution_store::outbound::derived::factory::semantics()).into(),
+                Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
                 Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
             );
             let mut authored = authored_request(1);

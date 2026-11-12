@@ -202,7 +202,8 @@ fn semantic_failure_precedes_delivery_and_is_terminal_for_every_retry() {
 fn the_first_engine_error_of_an_evaluation_is_the_one_reported() {
     let engine = ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl::new(
         std::sync::Arc::new(CallsOnAfterARefusal),
-        std::sync::Arc::new(ryo_execution_store::outbound::derived::factory::semantics()).into(),
+        std::sync::Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived())
+            .into(),
         std::sync::Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     // A Select of the syntax tree is answered by the shared walk; a Select over its step is evaluated by the operators, in row

@@ -7,6 +7,9 @@ pub use ryo_execution_runtime::application::file_dag::program::file_session::int
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::EmittedRoot;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileEnd;
+pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileFinished;
+#[cfg(any(test, feature = "fixtures"))]
+pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileRules;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileRunInput;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileSession;
@@ -17,6 +20,8 @@ pub use ryo_execution_runtime::application::file_dag::program::file_session::typ
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::RuleAfter;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+#[cfg(any(test, feature = "fixtures"))]
+pub use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ProgramObservationStagePort;
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::types::AdmittedOutput;
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::types::BatchNumber;
@@ -58,15 +63,21 @@ pub use ryo_execution_domain::domain::coverage::types::Partials;
 pub use ryo_execution_domain::domain::coverage::types::RefusedFiles;
 pub use ryo_execution_domain::domain::coverage::types::RuleIndex;
 pub use ryo_execution_domain::domain::finish::types::Arena;
+pub use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
+pub use ryo_execution_domain::domain::frontier_capture::types::FrontierCapture;
 pub use ryo_execution_domain::domain::observation_schedule::types::ObservedFrontierRoot;
 pub use ryo_execution_domain::domain::operating::errors::OperatingError;
 pub use ryo_execution_domain::domain::operating::types::SemanticLookup;
+pub use ryo_execution_domain::domain::row_emission::types::RowEmission;
 pub use ryo_execution_domain::domain::rule_intent::errors::RuleIntentError;
 pub use ryo_execution_domain::domain::rule_intent::types::ApplicabilityReason;
 pub use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 pub use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+pub use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
 pub use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+pub use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 pub use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+pub use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 pub use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
 pub use ryo_execution_domain::domain::trust::types::RelationRead;
 

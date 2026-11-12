@@ -97,8 +97,8 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
                 source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
             },
             &mut symbols,
         )
@@ -223,8 +223,8 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
                         source: ryo_values::domain::files::types::SourceView(b"abc"),
                         elements: &elements,
                         read: &read,
-                        semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                        kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+                        semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
+                        kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
                     },
                     &mut symbols,
                 )
