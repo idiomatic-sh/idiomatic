@@ -3,6 +3,7 @@
 use super::super::*;
 
 use super::super::types::InvocationResources;
+use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort as _;
 
 impl InvocationResources<'_> {
     #[cfg(test)]

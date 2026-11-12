@@ -16,6 +16,7 @@ use ryo_execution_domain::domain::table_texts::{
     service::datum,
     types::{Datum, Texts},
 };
+use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort as _;
 use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
 use ryo_language::domain::symbols::service::query_reborrow;
 use ryo_relations::domain::relations::types::Value;

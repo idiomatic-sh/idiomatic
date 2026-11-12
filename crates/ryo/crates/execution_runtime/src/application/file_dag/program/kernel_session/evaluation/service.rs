@@ -12,6 +12,7 @@ use ryo_execution_domain::domain::{
     operator::contract::{primitive::types::PreparedInputs, types::InputMode},
     table_model::service::{count_of, read_row},
 };
+use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort as _;
 use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
 use ryo_values::domain::rows::types::RowIndex;
 use std::rc::Rc;

@@ -34,27 +34,7 @@ impl DerivedOwner {
     ///
     /// [`OperatingError::NotRead`] when `admission` belongs to another owner, [`OperatingError::NotRun`] when the file's
     /// graph cache is not prepared, and the refusals of acquiring the graph and its domain.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
-    /// use ryo_execution_store::application::file_dag::derived::owner::cached_graph::service::CachedGraph;
-    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// use ryo_execution_domain::domain::operator::contract::resources::types::ResourceProgram;
-    /// use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
-    /// use ryo_execution_domain::domain::table_model::types::Rows;
-    /// fn graph(
-    ///     owner: &DerivedOwner,
-    ///     contract: &OperatorContract,
-    ///     admission: &InvocationWorkspace,
-    ///     program: &ResourceProgram,
-    ///     rows: &[Rows<'_>],
-    /// ) -> Option<CachedGraph> {
-    ///     owner.prepare_graph(contract, admission, program, rows).ok().flatten()
-    /// }
-    /// ```
-    pub fn prepare_graph(
+    pub(crate) fn prepare_graph(
         &self,
         contract: &OperatorContract,
         admission: &InvocationWorkspace,

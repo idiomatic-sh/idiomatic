@@ -8,6 +8,7 @@ use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_reach::borrowed::types::IndexedRows;
+use ryo_execution_store::application::file_dag::derived::admitted_views::interface::DerivedAdmittedViewsPort;
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 
 /// An equality index the invocation holds: its key columns are read from the plan once, at acquisition, so a plan
@@ -28,10 +29,7 @@ pub(crate) enum IndexResource<'f> {
 impl<'f> IndexResource<'f> {
     pub(crate) fn acquired(
         contract: &OperatorContract,
-        admission: &ryo_execution_store::application::file_dag::workspace::service::InputAdmissions<
-            '_,
-            'f,
-        >,
+        admission: &impl DerivedAdmittedViewsPort<'f>,
         context: &mut OperatorContext<'_>,
         empty: EmptyInput,
     ) -> Result<Self, OperatingError> {

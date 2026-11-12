@@ -152,17 +152,7 @@ impl<'f> InputAdmissions<'_, 'f> {
     ///
     /// [`OperatingError::WrongOperation`] when `use_` is no native lookup over two inputs, and the refusals of admitting
     /// its inputs and acquiring the view.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
-    /// use ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse;
-    /// fn native(admissions: &InputAdmissions<'_, '_>, use_: &PreparedViewUse) -> bool {
-    ///     matches!(admissions.try_native_lookup(use_), Ok(Some(_)))
-    /// }
-    /// ```
-    pub fn try_native_lookup(
+    pub(crate) fn try_native_lookup(
         &self,
         use_: &PreparedViewUse,
     ) -> Result<Option<AcquiredView>, OperatingError> {
@@ -192,18 +182,7 @@ impl<'f> InputAdmissions<'_, 'f> {
     /// # Errors
     ///
     /// The refusals of [`Self::acquire_derived`].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
-    /// use ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse;
-    /// use ryo_execution_domain::domain::operator::types::OperatorContext;
-    /// fn acquired(admissions: &InputAdmissions<'_, '_>, use_: &PreparedViewUse, context: &mut OperatorContext<'_>) -> bool {
-    ///     admissions.acquire_rows(use_, context).is_ok()
-    /// }
-    /// ```
-    pub fn acquire_rows(
+    pub(crate) fn acquire_rows(
         &self,
         use_: &PreparedViewUse,
         context: &mut OperatorContext<'_>,
@@ -221,19 +200,7 @@ impl<'f> InputAdmissions<'_, 'f> {
     /// [`OperatingError::WrongOperation`] when `use_` reads no input or more than two, or its inputs do not fit
     /// `supplied`, [`OperatingError::MissingInput`] when `supplied` needs a second input `use_` lacks, and the refusals of
     /// admitting its inputs and acquiring the view.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
-    /// use ryo_execution_store::application::file_dag::derived::owner::service::ViewContext;
-    /// use ryo_execution_store::application::file_dag::workspace::types::ViewInputs;
-    /// use ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse;
-    /// fn acquired(admissions: &InputAdmissions<'_, '_>, use_: &PreparedViewUse, supplied: ViewInputs<'_, '_>) -> bool {
-    ///     admissions.acquire_derived(use_, ViewContext::default(), supplied).is_ok()
-    /// }
-    /// ```
-    pub fn acquire_derived(
+    pub(crate) fn acquire_derived(
         &self,
         use_: &PreparedViewUse,
         identity: crate::application::file_dag::derived::owner::service::ViewContext,
@@ -248,26 +215,7 @@ impl<'f> InputAdmissions<'_, 'f> {
     ///
     /// The refusal of admitting the ordering's input, [`OperatingError::NotRead`] when `input` is not the rows it
     /// admitted, and the refusals of acquiring the ordering and preparing the closure.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
-    /// use ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure;
-    /// use ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse;
-    /// use ryo_execution_domain::domain::operator::types::OperatorContext;
-    /// use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-    /// fn partitions<'f>(
-    ///     admissions: &InputAdmissions<'_, 'f>,
-    ///     order: &PreparedViewUse,
-    ///     closure: &PreparedViewUse,
-    ///     input: RepresentationInput<'f>,
-    ///     context: &mut OperatorContext<'_>,
-    /// ) -> Option<PartitionedClosure<'f>> {
-    ///     admissions.partitioned(order, closure, input, context).ok()
-    /// }
-    /// ```
-    pub fn partitioned(
+    pub(crate) fn partitioned(
         &self,
         order: &PreparedViewUse,
         closure: &PreparedViewUse,

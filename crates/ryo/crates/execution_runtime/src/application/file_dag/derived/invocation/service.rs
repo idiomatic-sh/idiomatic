@@ -15,7 +15,9 @@ use ryo_execution_domain::domain::table_texts::types::Texts;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError, operator::types::OperatorContext,
 };
+use ryo_execution_store::application::file_dag::derived::admitted_views::interface::DerivedAdmittedViewsPort;
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
+use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort;
 use ryo_values::domain::plan_parts::{service::parameter_in, types::InputNumber};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
@@ -56,7 +58,7 @@ pub(crate) fn prepare<'f>(
     inputs: &[RepresentationInput<'f>],
     context: &mut OperatorContext<'_>,
     originals: &[ryo_execution_domain::domain::table_model::types::Rows<'f>],
-    admission: &ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace,
+    admission: &impl WorkspacePort,
     semantics: &crate::application::file_dag::execution::types::PrimitiveSemanticsBridge<'_>,
 ) -> Result<InvocationResources<'f>, OperatingError> {
     InvocationResources::validate_row_metadata(contract, inputs)?;
@@ -102,10 +104,7 @@ pub(crate) fn prepare<'f>(
         .transpose()?
         .unwrap_or(false);
     if !empty_domain {
-        resources.cached_graph = admission
-            .owner()
-            .derived()
-            .prepare_graph(contract, admission, program, originals)?;
+        resources.cached_graph = admitted.prepare_graph(contract, program, originals)?;
         if resources.cached_graph.is_some() {
             return Ok(resources);
         }
@@ -329,10 +328,7 @@ pub(super) fn input<'f>(
 pub(super) fn partitioned<'f>(
     contract: &OperatorContract,
     input: RepresentationInput<'f>,
-    admitted: &ryo_execution_store::application::file_dag::workspace::service::InputAdmissions<
-        '_,
-        'f,
-    >,
+    admitted: &impl DerivedAdmittedViewsPort<'f>,
     context: &mut OperatorContext<'_>,
 ) -> Result<
     ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure<'f>,
