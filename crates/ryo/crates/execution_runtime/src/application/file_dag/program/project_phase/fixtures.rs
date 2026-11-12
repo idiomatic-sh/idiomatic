@@ -159,7 +159,7 @@ pub(super) fn program(entry: Entry, rule_count: usize) -> PreparedExecutionProgr
         &rules,
     )
     .expect("valid authored plans");
-    crate::application::file_dag::program::prepared_execution::service::prepare(
+    crate::application::file_dag::derived::service::prepare(
         compiled,
         &rules,
         &digests,
@@ -170,7 +170,7 @@ pub(super) fn program(entry: Entry, rule_count: usize) -> PreparedExecutionProgr
                 Arc::new(ryo_operators::outbound::matching::factory::use_case()),
             ),
         )),
-        &crate::application::file_dag::fixtures::real_derived_port().into(),
+        crate::application::file_dag::fixtures::real_derived_port().into(),
         Arc::new(crate::outbound::digest::factory::blake3()),
     )
     .expect("valid public request")
@@ -242,7 +242,7 @@ pub(super) fn producer_program() -> PreparedExecutionProgram {
         &rules,
     )
     .expect("valid authored producer");
-    crate::application::file_dag::program::prepared_execution::service::prepare(
+    crate::application::file_dag::derived::service::prepare(
         compiled,
         &rules,
         &[Digest([9; 16]), Digest([10; 16])],
@@ -253,7 +253,7 @@ pub(super) fn producer_program() -> PreparedExecutionProgram {
                 Arc::new(ryo_operators::outbound::matching::factory::use_case()),
             ),
         )),
-        &crate::application::file_dag::fixtures::real_derived_port().into(),
+        crate::application::file_dag::fixtures::real_derived_port().into(),
         Arc::new(crate::outbound::digest::factory::blake3()),
     )
     .expect("valid producer request")

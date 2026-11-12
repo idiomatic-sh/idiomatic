@@ -1,26 +1,17 @@
 //! The read-only views of a prepared program.
-use crate::application::file_dag::derived::service::ViewAccess;
-use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::preparation::types::RuleTotal;
 use crate::application::file_dag::program::prepared_execution::interface::PreparedReporting;
 use crate::application::file_dag::program::prepared_execution::interface::ProgramPreparedExecutionPort;
+use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use crate::application::file_dag::program::prepared_execution::types::{
     Demand, NamedLayout, ObservationContract, ReplayClosure,
 };
-use crate::application::file_dag::program::prepared_execution::types::{
-    PreparedExecutionProgram, ProgramParts,
-};
-use crate::outbound::operators::interface::OperatorsPort;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::prepared_request::types::{Compiled, ObservationIdentity};
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
 use ryo_execution_domain::domain::trust::types::RelationRead;
-use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::{
-    hosted::types::HostRelation, rule_requests::types::RuleSpec, stored_facts::types::Digest,
-};
+use ryo_values::domain::stored_facts::types::{Bucket, Digest};
 use std::sync::Arc;
 impl ProgramPreparedExecutionPort for PreparedExecutionProgram {
     fn observation_batches(&self) -> Option<&[Vec<RuleIndex>]> {
@@ -104,34 +95,4 @@ impl PreparedReporting for PreparedExecutionProgram {
     ) -> Result<ReplayClosure, OperatingError> {
         self.parts.inner.replay_closure(again, first)
     }
-}
-
-/// The program of a request prepared over the engine's operators and derived views.
-pub fn prepare(
-    compiled: Compiled,
-    rules: &[RuleSpec],
-    digests: &[Digest],
-    hosted: &[HostRelation],
-    identity: ObservationIdentity,
-    operators: Arc<dyn OperatorsPort>,
-    derived: impl Into<ViewAccess>,
-    digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
-) -> Result<PreparedExecutionProgram, OperatingError> {
-    let derived: ViewAccess = derived.into();
-    let inner = crate::application::file_dag::program::preparation::service::prepare(
-        compiled,
-        rules,
-        digests,
-        hosted,
-        derived.clone(),
-        identity,
-    )?;
-    Ok(PreparedExecutionProgram {
-        parts: ProgramParts {
-            inner,
-            kernels: Arc::new(CommonOperatorEngine::new(operators)),
-            derived: derived.clone(),
-            digest,
-        },
-    })
 }

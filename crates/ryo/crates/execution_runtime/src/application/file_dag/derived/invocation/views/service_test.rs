@@ -1,5 +1,5 @@
 //! The exact lease getter must consume the registered borrowed view without copying storage.
-use crate::application::file_dag::invocation::types::InvocationResources;
+use crate::application::file_dag::derived::invocation::types::InvocationResources;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -95,8 +95,7 @@ fn subject(request: Input) -> Result<Value, Failure> {
     } else {
         None
     };
-    let leased = acquired.into();
-    let Some(graph) = InvocationResources::cycles_view(Some(&leased))? else {
+    let Some(graph) = InvocationResources::cycles_view(Some(&acquired))? else {
         return Err(OperatingError::NotRead);
     };
     Ok(Lease {

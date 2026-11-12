@@ -1,10 +1,9 @@
 //! The `lease` application operation.
 
 use super::super::super::executor::{service::PrimitiveExecutor, types::KernelCall};
-use super::super::super::{
-    invocation::types::InvocationResources, predicates::types::BoundPredicate,
-};
+use super::super::super::predicates::types::BoundPredicate;
 use super::capability::service::ExecutableLease;
+use crate::application::file_dag::derived::invocation::types::InvocationResources;
 use crate::application::file_dag::executor::{types::KernelAnswer, types::KernelFault};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::portable_fault;
@@ -34,16 +33,14 @@ pub(crate) fn evaluate(
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
-    if resources.inputs.partitioned_closure.is_none() {
+    if resources.partitioned_closure().is_none() {
         return evaluate_once(
             operators, contract, permit, operation, input, resources, workspace, context, emit,
         );
     }
     loop {
         let available = resources
-            .inputs
-            .partitioned_closure
-            .as_mut()
+            .partitioned_closure()
             .ok_or_else(|| OperatingError::NotRun)?
             .advance()?;
         if available == ryo_execution_store::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted {
@@ -149,12 +146,8 @@ pub(super) fn evaluate_once(
     } else {
         None
     };
-    let cached = if let (Some(graph), Some(row)) = (resources.cached_graph.as_mut(), row) {
-        Some(graph.row(parts.owner.derived(), row)?)
-    } else {
-        None
-    };
-    let (cached_reach, cached_axis) = match cached {
+    let lent = resources.lend_row(parts.owner.derived(), row)?;
+    let (cached_reach, cached_axis) = match lent.cached {
         Some(
             ryo_execution_domain::domain::operator::contract::graph_view::types::CachedGraphRow::Reach(
                 view,
@@ -180,7 +173,7 @@ pub(super) fn evaluate_once(
         #[cfg(feature = "diagnostic-row-progress")]
         progress: &routes,
     };
-    resources.inputs.validate_declared()?;
+    lent.resources.validate_declared()?;
     if matches!(
         input,
         PreparedInputs::Row {
@@ -196,7 +189,7 @@ pub(super) fn evaluate_once(
     }
     let views = PrimitiveViews {
         phase: context.phase,
-        resources: &resources.inputs,
+        resources: lent.resources,
         semantic: context.semantic,
         paths: context.paths,
         arenas: context.arenas,

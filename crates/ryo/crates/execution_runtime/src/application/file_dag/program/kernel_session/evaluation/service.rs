@@ -1,5 +1,5 @@
 //! Registered-operator evaluation of a kernel session.
-use crate::application::file_dag::invocation::types::InvocationResources;
+use crate::application::file_dag::derived::invocation::types::InvocationResources;
 use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
@@ -81,8 +81,10 @@ impl super::super::service::KernelSession<'_, '_> {
                         ryo_execution_domain::domain::operator::contract::types::FoundRows(1),
                     );
                     let mut resources =
-                        crate::application::file_dag::invocation::service::continuation(contract)
-                            .map_err(InvocationFailure::Semantic)?;
+                        crate::application::file_dag::derived::invocation::service::continuation(
+                            contract,
+                        )
+                        .map_err(InvocationFailure::Semantic)?;
                     crate::application::file_dag::execution::lease::service::evaluate(
                         self.kernels,
                         contract,
@@ -176,7 +178,7 @@ impl super::super::service::KernelSession<'_, '_> {
                     None
                 } else {
                     Some(
-                        crate::application::file_dag::invocation::service::prepare(
+                        crate::application::file_dag::derived::invocation::service::prepare(
                             contract, &views, context, &originals, workspace, &setup_semantics,
                         )
                         .map_err(InvocationFailure::Semantic)?,
@@ -289,7 +291,7 @@ impl super::super::service::KernelSession<'_, '_> {
                                     }
                                     if resources.is_none() {
                                         resources = Some(
-                                            crate::application::file_dag::invocation::service::prepare(
+                                            crate::application::file_dag::derived::invocation::service::prepare(
                                                 contract,
                                                 &views,
                                                 context,

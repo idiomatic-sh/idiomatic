@@ -2,7 +2,6 @@
 
 use super::types::AxisMode;
 use super::view::service::AxisResource;
-use crate::application::file_dag::derived::view::service::LeasedView;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::membership::types::MembershipView;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
@@ -11,6 +10,7 @@ use ryo_execution_domain::domain::{
     table_cells::types::TreeForm, table_model::service::check_columns,
     tree_walk::service::entity_of,
 };
+use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 
 /// Preserve the old admission and error gates before acquiring any derived resource.
@@ -76,15 +76,15 @@ pub(crate) fn prepare_axis<'f>(
     program: &AxisResources,
     edges: RepresentationInput<'f>,
     domain: RepresentationInput<'f>,
-    equality: Option<LeasedView>,
-    membership: Option<LeasedView>,
+    equality: Option<AcquiredView>,
+    membership: Option<AcquiredView>,
 ) -> Result<AxisResource<'f>, OperatingError> {
     match classify(program, edges, domain)? {
         AxisMode::Empty => Ok(AxisResource::Empty),
         AxisMode::Native { tree, among } => {
             if among.is_none()
                 && !matches!(
-                    membership.as_ref().map(LeasedView::view).transpose()?,
+                    membership.as_ref().map(AcquiredView::view).transpose()?,
                     Some(DerivedView::Membership(MembershipView::Dense(_)))
                 )
             {
@@ -98,10 +98,10 @@ pub(crate) fn prepare_axis<'f>(
         }
         AxisMode::Indexed { from, to } => {
             if !matches!(
-                equality.as_ref().map(LeasedView::view).transpose()?,
+                equality.as_ref().map(AcquiredView::view).transpose()?,
                 Some(DerivedView::Equality(_))
             ) || !matches!(
-                membership.as_ref().map(LeasedView::view).transpose()?,
+                membership.as_ref().map(AcquiredView::view).transpose()?,
                 Some(DerivedView::Membership(MembershipView::Values(_)))
             ) {
                 return Err(OperatingError::WrongBinding);
