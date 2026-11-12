@@ -293,3 +293,110 @@ impl<'f> InputAdmissions<'_, 'f> {
         )
     }
 }
+
+impl crate::application::file_dag::workspace::interface::sealed::Sealed for InvocationWorkspace {}
+
+impl crate::application::file_dag::workspace::interface::WorkspacePort for InvocationWorkspace {
+    fn inputs<'a, 'f>(&'a self, inputs: &'a [RepresentationInput<'f>]) -> InputAdmissions<'a, 'f> {
+        InvocationWorkspace::inputs(self, inputs)
+    }
+    fn work(&self) -> &ryo_execution_domain::domain::operator::contract::types::WorkCounters {
+        InvocationWorkspace::work(self)
+    }
+    fn primitive(
+        &self,
+    ) -> &ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace {
+        InvocationWorkspace::primitive(self)
+    }
+    fn primitive_mut(
+        &mut self,
+    ) -> &mut ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace {
+        InvocationWorkspace::primitive_mut(self)
+    }
+    fn parts(&mut self) -> crate::application::file_dag::workspace::types::WorkspaceParts<'_> {
+        InvocationWorkspace::parts(self)
+    }
+    fn capture_admitted(
+        &mut self,
+        publications: Vec<crate::application::file_dag::relations::handle::service::Publication>,
+    ) {
+        InvocationWorkspace::capture_admitted(self, publications);
+    }
+    fn release_inputs(&mut self) {
+        InvocationWorkspace::release_inputs(self);
+    }
+    #[cfg(feature = "diagnostic-row-progress")]
+    fn progress_origin(
+        &self,
+    ) -> &crate::application::file_dag::route_counts::profile::service::CapturedOrigin {
+        InvocationWorkspace::progress_origin(self)
+    }
+    #[cfg(any(test, feature = "fixtures"))]
+    fn measured(&self) -> ryo_execution_domain::domain::operating::fixtures::ExecutionObservation {
+        InvocationWorkspace::measured(self)
+    }
+}
+
+impl super::interface::sealed::Sealed for InputAdmissions<'_, '_> {}
+
+impl<'f> super::interface::DerivedAdmittedViewsPort<'f> for InputAdmissions<'_, 'f> {
+    fn input(
+        &self,
+        place: ryo_values::domain::plan_parts::types::InputNumber,
+    ) -> Result<RepresentationInput<'f>, OperatingError> {
+        InputAdmissions::input(self, place)
+    }
+    fn rows(
+        &self,
+        place: ryo_values::domain::plan_parts::types::InputNumber,
+    ) -> Result<RepresentationInput<'f>, OperatingError> {
+        InputAdmissions::rows(self, place)
+    }
+    fn try_native_lookup(
+        &self,
+        use_: &PreparedViewUse,
+    ) -> Result<Option<AcquiredView>, OperatingError> {
+        InputAdmissions::try_native_lookup(self, use_)
+    }
+    fn acquire_rows(
+        &self,
+        use_: &PreparedViewUse,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<AcquiredView, OperatingError> {
+        InputAdmissions::acquire_rows(self, use_, context)
+    }
+    fn acquire_derived(
+        &self,
+        use_: &PreparedViewUse,
+        identity: crate::application::file_dag::derived::owner::service::ViewContext,
+        supplied: ViewInputs<'_, '_>,
+    ) -> Result<AcquiredView, OperatingError> {
+        InputAdmissions::acquire_derived(self, use_, identity, supplied)
+    }
+    fn partitioned(
+        &self,
+        order: &PreparedViewUse,
+        closure: &PreparedViewUse,
+        input: RepresentationInput<'f>,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<
+        crate::application::file_dag::closure_partitions::service::PartitionedClosure<'f>,
+        OperatingError,
+    > {
+        InputAdmissions::partitioned(self, order, closure, input, context)
+    }
+    fn prepare_graph(
+        &self,
+        contract: &ryo_execution_domain::domain::operator::contract::types::OperatorContract,
+        program: &ryo_execution_domain::domain::operator::contract::resources::types::ResourceProgram,
+        rows: &[ryo_execution_domain::domain::table_model::types::Rows<'_>],
+    ) -> Result<
+        Option<crate::application::file_dag::derived::owner::cached_graph::service::CachedGraph>,
+        OperatingError,
+    > {
+        self.workspace
+            .owner()
+            .derived()
+            .prepare_graph(contract, self.workspace, program, rows)
+    }
+}

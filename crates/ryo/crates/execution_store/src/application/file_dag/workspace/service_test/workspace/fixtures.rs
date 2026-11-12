@@ -106,6 +106,12 @@ pub(super) enum Held {
     /// The views the cases use: an equality on the first column, a membership of the first column,
     /// and ordered keys on the first column ordered by the second.
     Prepared,
+    /// The captured publication of the table `7`, released; its rows are then read at the first place.
+    AfterRelease,
+    /// Four captured publications of the table `7` and their four inputs; the rows are read at the fourth place.
+    BeyondProofSlots,
+    /// One captured publication of the table `7` and its one input; the input at this place is read.
+    PastInputs(usize),
 }
 
 /// What two views of one admitted input observed.
@@ -152,6 +158,10 @@ pub(super) enum Answered {
     },
     /// The kind each view the cases use is prepared as.
     Prepared([DerivedKind; 3]),
+    /// How many rows the admissions read at the place asked.
+    Read {
+        count: usize,
+    },
 }
 
 /// A membership of the first of one number column.
@@ -200,4 +210,39 @@ pub(super) fn ordered_key(
         ryo_derived::domain::ordered::types::OwnedOrderedKey::Value(value) => Some(value),
         _ => None,
     }
+}
+
+/// Captures the publication of the table `7` as `input` holds it and reads the admissions through the workspace and
+/// admitted views ports: the rows at the first place after a release, the rows at the fourth place of four, or the input
+/// at the place past the one input.
+pub(super) fn read_through_the_ports(
+    owner: &crate::application::file_dag::relations::service::RelationOwner,
+    workspace: &mut crate::application::file_dag::workspace::service::InvocationWorkspace,
+    input: Held,
+) -> Result<Answered, OperatingError> {
+    use crate::application::file_dag::derived::admitted_views::interface::DerivedAdmittedViewsPort;
+    use crate::application::file_dag::relations::handle::service::Publication;
+    use crate::application::file_dag::workspace::interface::WorkspacePort;
+    use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+    let publication = owner.computed(table(&[7], 1))?;
+    let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
+    let held = if matches!(input, Held::BeyondProofSlots) {
+        4
+    } else {
+        1
+    };
+    WorkspacePort::capture_admitted(workspace, vec![Publication::of(publication.clone()); held]);
+    if matches!(input, Held::AfterRelease) {
+        WorkspacePort::release_inputs(workspace);
+    }
+    let inputs = vec![RepresentationInput::from(&rows); held];
+    let admitted = WorkspacePort::inputs(&*workspace, &inputs);
+    let read = match input {
+        Held::BeyondProofSlots => DerivedAdmittedViewsPort::rows(&admitted, InputNumber(3))?,
+        Held::PastInputs(place) => DerivedAdmittedViewsPort::input(&admitted, InputNumber(place))?,
+        _ => DerivedAdmittedViewsPort::rows(&admitted, InputNumber(0))?,
+    };
+    Ok(Answered::Read {
+        count: read.count().0,
+    })
 }
