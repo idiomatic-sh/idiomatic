@@ -15,7 +15,7 @@ fn request(world: &mut Behavior, input: String) {
 fn runs(world: &mut Behavior) {
     let prepare = PrepareUseCaseImpl::new(
         Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::operators()),
-        Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
+        Arc::new(ryo_execution_store::outbound::derived::factory::semantics()).into(),
         Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     let bindings = if world.input == "mismatched bindings" {

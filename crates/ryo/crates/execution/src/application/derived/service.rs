@@ -53,12 +53,16 @@ impl DerivedPreparation {
     }
 }
 
+/// Test support: the preparation over a derived port a test injects; production composes it with [`DerivedPreparation::routed`].
+#[cfg(any(test, feature = "fixtures"))]
 impl From<Arc<dyn DerivedPort>> for DerivedPreparation {
     fn from(port: Arc<dyn DerivedPort>) -> Self {
         Self(DerivedAccess::from(port))
     }
 }
 
+/// Test support: the preparation over a derived port a test injects; production composes it with [`DerivedPreparation::routed`].
+#[cfg(any(test, feature = "fixtures"))]
 impl<T: DerivedPort + 'static> From<Arc<T>> for DerivedPreparation {
     fn from(port: Arc<T>) -> Self {
         Self(DerivedAccess::from(port))

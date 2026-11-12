@@ -18,12 +18,12 @@ impl PrepareUseCaseImpl {
     /// A use case over the engine's operators, derived views and digest.
     pub fn new(
         operators: Arc<dyn OperatorsPort>,
-        derived: impl Into<DerivedViews>,
+        derived: DerivedViews,
         digest: Arc<dyn DigestPort>,
     ) -> Self {
         Self {
             operators,
-            derived: derived.into(),
+            derived,
             digest,
         }
     }
