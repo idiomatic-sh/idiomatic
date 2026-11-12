@@ -83,6 +83,7 @@ mod manifests_uv;
 mod peak;
 mod recordings;
 mod rule_fixtures;
+mod scenarios;
 mod sdk;
 mod snapshot;
 

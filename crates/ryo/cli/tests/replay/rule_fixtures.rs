@@ -65,10 +65,21 @@ fn rule_directory(rule: &str) -> PathBuf {
 /// A rule Tastemaker retired keeps its query and scenarios under `tests/fixtures/rules`, as the proof of what the engine decides
 /// that today's ryo could not; any other rule is read from the package. Every scenario of the rule gives the findings its
 /// `then.findings` state, by the path of the file.
-fn check(rule: &str) {
+pub(crate) fn check(rule: &str) {
     let directory = rule_directory(rule);
     let manifest = std::fs::read_to_string(directory.join("rule.toml")).expect("the rule");
-    let query = tables::string_under(&manifest, &["query"]).expect("a query");
+    // A rule the replay reads from its recording keeps one query, the recording's.
+    let query = tables::string_under(&manifest, &["query"])
+        .or_else(|| {
+            std::fs::read_to_string(
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("tests/fixtures/recordings")
+                    .join(rule)
+                    .join("query.ryoql"),
+            )
+            .ok()
+        })
+        .expect("a query");
     let table: toml::Table = manifest.parse().expect("a rule that reads");
     let scenarios = table
         .get("scenarios")
@@ -307,94 +318,4 @@ fn placed_manifests(root: &Path) -> HostRelation {
             })
             .collect(),
     }
-}
-
-#[test]
-fn trait_with_one_impl_finds_what_its_scenarios_state() {
-    let _beside = crate::beside();
-    check("trait-with-one-impl");
-}
-
-#[test]
-fn workspace_membership_finds_what_its_scenarios_state() {
-    let _beside = crate::beside();
-    check("workspace-membership");
-}
-
-#[test]
-fn layer_order_finds_what_its_scenarios_state() {
-    let _beside = crate::beside();
-    check("layer-order");
-}
-
-#[test]
-fn module_declares_finds_what_its_scenarios_state() {
-    let _beside = crate::beside();
-    check("module-declares");
-}
-
-#[test]
-fn variants_benched_finds_what_its_scenarios_state() {
-    let _beside = crate::beside();
-    check("variants-benched");
-}
-
-#[test]
-fn captured_workload_finds_what_its_scenarios_state() {
-    let _beside = crate::beside();
-    check("captured-workload");
-}
-
-#[test]
-fn bdd_runner_finds_what_its_scenarios_state() {
-    let _beside = crate::beside();
-    check("bdd-runner");
-}
-
-#[test]
-fn case_vocabulary_finds_what_its_scenarios_state() {
-    let _beside = crate::beside();
-    check("case-vocabulary");
-}
-
-#[test]
-fn crate_dependency_depth_finds_what_its_scenarios_state() {
-    let _beside = crate::beside();
-    check("crate-dependency-depth");
-}
-
-#[test]
-fn distribution_wiring_finds_what_its_scenarios_state() {
-    let _beside = crate::beside();
-    check("distribution-wiring");
-}
-
-#[test]
-fn orphan_rust_files_finds_what_its_scenarios_state() {
-    let _beside = crate::beside();
-    check("orphan-rust-files");
-}
-
-#[test]
-fn scattered_dispatch_finds_what_its_scenarios_state() {
-    let _beside = crate::beside();
-    check("scattered-dispatch");
-}
-
-#[test]
-fn workspace_completeness_finds_what_its_scenarios_state() {
-    let _beside = crate::beside();
-    check("workspace-completeness");
-}
-
-#[test]
-fn pin_revision_finds_what_its_scenarios_state() {
-    let _beside = crate::beside();
-    check("pin-revision");
-}
-
-#[test]
-fn no_hardcoded_paths_finds_what_its_scenarios_state() {
-    let _beside = crate::beside();
-    check("no-hardcoded-paths");
 }

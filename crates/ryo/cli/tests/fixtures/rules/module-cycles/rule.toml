@@ -1,0 +1,50 @@
+# The scenarios of the replay's module-cycles reading; its query is the recording's (recordings/module-cycles/query.ryoql).
+description = "A source file on a cycle of the files its compiled code depends on."
+why = "An edge written only inside `#[cfg(test)]` code is no part of a module cycle: production code never compiles it (owner, checkpoint 336)."
+
+[[scenarios]]
+id = 'test-only-cycle-and-production-cycle'
+scenario = 'a.rs and b.rs name each other in production code; c.rs names d.rs, and d.rs names c.rs only inside a #[cfg(test)] module.'
+given.include = ['**']
+given.files.'Cargo.toml' = '''
+[package]
+name = "cycles"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod a;
+mod b;
+mod c;
+mod d;
+'''
+given.files.'src/a.rs' = '''
+pub(crate) fn alpha() {
+    crate::b::beta();
+}
+'''
+given.files.'src/b.rs' = '''
+pub(crate) fn beta() {
+    crate::a::alpha();
+}
+'''
+given.files.'src/c.rs' = '''
+pub(crate) fn gamma() {
+    crate::d::delta();
+}
+'''
+given.files.'src/d.rs' = '''
+pub(crate) fn delta() {}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn calls_gamma() {
+        crate::c::gamma();
+    }
+}
+'''
+then.findings = [
+  { rule = "module-cycles", path = "src/a.rs" },
+  { rule = "module-cycles", path = "src/b.rs" },
+]
