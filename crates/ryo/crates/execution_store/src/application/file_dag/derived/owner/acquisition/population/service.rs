@@ -1,5 +1,6 @@
 //! Shared lookup, lazy physical construction, ownership and retention decision for a population-scoped view.
 use super::types::{Acquisition, Construction, OptionalRetention, StoredObservation};
+use crate::application::file_dag::accounting::footprint::service::backed_bytes;
 use crate::application::file_dag::accounting::ledger::types::ByteCount;
 use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::{
@@ -7,7 +8,6 @@ use crate::application::file_dag::derived::owner::acquisition::admission::servic
 };
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
-use crate::application::file_dag::accounting::footprint::service::backed_bytes;
 use crate::application::file_dag::derived::owner::graph_key::service::RequirementIdentity;
 use crate::application::file_dag::derived::owner::service::*;
 use crate::application::file_dag::derived::owner::types::*;

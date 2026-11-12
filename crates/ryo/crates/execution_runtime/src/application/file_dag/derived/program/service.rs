@@ -1,12 +1,12 @@
 //! The `program` application operation: the request's derived access, held for a prepared program.
 use ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess;
+use ryo_execution_store::application::file_dag::derived::relation_owner::service::open_program_owner;
 use ryo_execution_store::application::file_dag::derived::request::service::RequestViews;
 use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 use ryo_execution_store::application::file_dag::relations::types::{
     ProducerCapacity, ReuseEligibility,
 };
 use ryo_execution_store::application::file_dag::route_counts::profile::service::RouteProfile;
-use ryo_execution_store::application::file_dag::derived::relation_owner::service::open_program_owner;
 use ryo_execution_store::outbound::route_counts::interface::RouteCountsPort;
 use std::rc::Rc;
 use std::sync::Arc;
