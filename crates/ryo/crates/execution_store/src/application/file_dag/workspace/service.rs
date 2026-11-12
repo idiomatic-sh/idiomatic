@@ -1,4 +1,3 @@
-// ignore: idiomatic.arch/file-length - the invocation workspace and the input admissions of one demand scope, each method stating its errors; a split would part the admissions from the workspace they borrow
 //! The invocation workspace admits an operator's inputs and acquires the derived view they demand.
 use crate::application::file_dag::relations::admission::service::BorrowedInput;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -60,8 +59,7 @@ pub struct InvocationWorkspace {
     relation_owner: std::rc::Rc<super::super::relations::service::RelationOwner>,
     pub(super) publications:
         Vec<Option<crate::application::file_dag::relations::handle::service::Publication>>,
-    downstream_scratch: ryo_execution_domain::domain::table_scratch::types::OperatorScratch,
-    downstream_memo: Vec<ryo_execution_domain::domain::operating::types::Memo>,
+    downstream: ryo_execution_domain::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers,
     predicates: ryo_execution_domain::domain::table_scratch::types::LazyScratch<
         ryo_execution_domain::domain::table_scratch::types::SelectScratch,
     >,
@@ -105,8 +103,7 @@ impl InvocationWorkspace {
             derived_scratch: Default::default(),
             relation_owner: owner,
             publications: Default::default(),
-            downstream_scratch: Default::default(),
-            downstream_memo: Default::default(),
+            downstream: Default::default(),
             predicates: Default::default(),
             predicate_memo: Default::default(),
             predicate_names: Default::default(),
@@ -216,8 +213,7 @@ impl InvocationWorkspace {
             predicate_memo: &mut self.predicate_memo,
             predicate_names: &mut self.predicate_names,
             primitive: &mut self.primitive,
-            downstream_scratch: &mut self.downstream_scratch,
-            downstream_memo: &mut self.downstream_memo,
+            downstream: &mut self.downstream,
         }
     }
     pub(crate) fn owner_handle(
