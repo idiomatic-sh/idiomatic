@@ -262,9 +262,17 @@ impl Drop for Invocation<'_> {
                 if let Some(workspace) = &mut scratch.workspace {
                     #[cfg(test)]
                     {
+                        // The workspace measures its capacities; the probe brings what the invocations observed.
                         slot.observed = workspace.measured();
+                        slot.observed.owners_initialized = scratch.probe.owners_initialized;
+                        slot.observed.index_rows = scratch.probe.index_rows;
+                        slot.observed.index_representation = scratch.probe.index_representation;
+                        slot.observed.closure_partition_rows = scratch.probe.closure_partition_rows;
+                        slot.observed.closure_partition_capacity =
+                            scratch.probe.closure_partition_capacity;
+                        slot.observed.dfs_adjacency_len = scratch.probe.dfs_adjacency_len;
                         slot.registered_calls.0 +=
-                            std::mem::take(&mut workspace.observation_mut().registered_calls);
+                            std::mem::take(&mut scratch.probe.registered_calls);
                     }
                     for (total, delta) in fed.0.iter_mut().zip(ryo_execution_domain::domain::operator::contract::lease::service::take_totals(workspace.work()).0) {
                         *total = total.saturating_add(delta.0);

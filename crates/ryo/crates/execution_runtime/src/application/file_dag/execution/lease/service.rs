@@ -16,8 +16,7 @@ use ryo_execution_domain::domain::table_texts::{
     service::datum,
     types::{Datum, Texts},
 };
-use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort as _;
-use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
+use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort;
 use ryo_language::domain::symbols::service::query_reborrow;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::rows::service::cell;
@@ -30,13 +29,25 @@ pub(crate) fn evaluate(
     operation: &ryo_values::domain::plans::types::Operation,
     input: PreparedInputs<'_>,
     resources: &mut InvocationResources<'_>,
-    workspace: &mut InvocationWorkspace,
+    workspace: &mut impl WorkspacePort,
+    #[cfg(test)]
+    probe: &mut ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
     if resources.partitioned_closure().is_none() {
         return evaluate_once(
-            operators, contract, permit, operation, input, resources, workspace, context, emit,
+            operators,
+            contract,
+            permit,
+            operation,
+            input,
+            resources,
+            workspace,
+            #[cfg(test)]
+            probe,
+            context,
+            emit,
         );
     }
     loop {
@@ -48,7 +59,17 @@ pub(crate) fn evaluate(
             return Ok(());
         }
         evaluate_once(
-            operators, contract, permit, operation, input, resources, workspace, context, emit,
+            operators,
+            contract,
+            permit,
+            operation,
+            input,
+            resources,
+            workspace,
+            #[cfg(test)]
+            probe,
+            context,
+            emit,
         )?;
     }
 }
@@ -60,7 +81,9 @@ pub(super) fn evaluate_once(
     operation: &ryo_values::domain::plans::types::Operation,
     input: PreparedInputs<'_>,
     resources: &mut InvocationResources<'_>,
-    workspace: &mut InvocationWorkspace,
+    workspace: &mut impl WorkspacePort,
+    #[cfg(test)]
+    probe: &mut ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
@@ -69,7 +92,7 @@ pub(super) fn evaluate_once(
     #[cfg(feature = "diagnostic-row-progress")]
     let _progress_invocation = workspace.progress_origin().resume();
     #[cfg(test)]
-    resources.observe(workspace);
+    resources.observe(workspace, probe);
     let parts = workspace.parts();
     let semantic_failure = std::sync::OnceLock::new();
     let row = match input {
@@ -255,8 +278,8 @@ pub(super) fn evaluate_once(
     drop(predicate);
     #[cfg(test)]
     {
-        workspace.observation_mut().registered_calls += registered_calls;
-        resources.observe(workspace);
+        probe.registered_calls += registered_calls;
+        resources.observe(workspace, probe);
     }
     semantic_failure.into_inner().map_or(outcome, Err)
 }

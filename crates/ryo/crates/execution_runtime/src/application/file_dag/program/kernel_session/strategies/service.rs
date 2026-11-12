@@ -63,6 +63,11 @@ impl super::super::service::KernelSession<'_, '_> {
             // admission refuses is a refusal, never a run of the other path.
             return Err(InvocationFailure::Semantic(OperatingError::NotRun));
         };
+        // A fresh workspace starts a fresh probe: the probe lives as long as the workspace.
+        #[cfg(test)]
+        if scratch.workspace.is_none() {
+            scratch.probe = Default::default();
+        }
         let workspace = scratch.workspace.get_or_insert_with(|| {
             InvocationWorkspace::for_contract(
                 Rc::clone(&self.owner),

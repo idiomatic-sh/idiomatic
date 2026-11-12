@@ -60,8 +60,6 @@ pub struct InvocationWorkspace {
     relation_owner: std::rc::Rc<super::super::relations::service::RelationOwner>,
     pub(super) publications:
         Vec<Option<crate::application::file_dag::relations::handle::service::Publication>>,
-    #[cfg(any(test, feature = "fixtures"))]
-    observation: ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
     downstream_scratch: ryo_execution_domain::domain::table_scratch::types::OperatorScratch,
     downstream_memo: Vec<ryo_execution_domain::domain::operating::types::Memo>,
     predicates: ryo_execution_domain::domain::table_scratch::types::LazyScratch<
@@ -114,8 +112,6 @@ impl InvocationWorkspace {
             predicate_names: Default::default(),
             literal_regex: Default::default(),
             primitive: Default::default(),
-            #[cfg(any(test, feature = "fixtures"))]
-            observation: Default::default(),
         }
     }
 
@@ -124,7 +120,8 @@ impl InvocationWorkspace {
     pub(crate) fn measured(
         &self,
     ) -> ryo_execution_domain::domain::operating::fixtures::ExecutionObservation {
-        let mut observed = self.observation;
+        let mut observed =
+            ryo_execution_domain::domain::operating::fixtures::ExecutionObservation::default();
         observed.regexes = self
             .predicates
             .0
@@ -184,12 +181,16 @@ impl InvocationWorkspace {
     }
 
     /// The rows each input was found to hold, counted as the kernels report them.
-    pub(crate) fn work(&self) -> &ryo_execution_domain::domain::operator::contract::types::WorkCounters {
+    pub(crate) fn work(
+        &self,
+    ) -> &ryo_execution_domain::domain::operator::contract::types::WorkCounters {
         &self.work
     }
     /// The route profile position this invocation was opened at.
     #[cfg(feature = "diagnostic-row-progress")]
-    pub(crate) fn progress_origin(&self) -> &super::super::route_counts::profile::service::CapturedOrigin {
+    pub(crate) fn progress_origin(
+        &self,
+    ) -> &super::super::route_counts::profile::service::CapturedOrigin {
         &self.progress_origin
     }
     /// The primitive operators' working allocations, to read what they hold.
@@ -204,24 +205,8 @@ impl InvocationWorkspace {
     ) -> &mut ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace {
         &mut self.primitive
     }
-    /// What the proofs observe of this invocation's work.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// fn observed(workspace: &mut InvocationWorkspace) -> usize {
-    ///     workspace.observation_mut().row_capacity
-    /// }
-    /// ```
-    #[cfg(any(test, feature = "fixtures"))]
-    pub fn observation_mut(
-        &mut self,
-    ) -> &mut ryo_execution_domain::domain::operating::fixtures::ExecutionObservation {
-        &mut self.observation
-    }
     /// Every working allocation a kernel uses, each lent apart from the others so one evaluation can hold them
-    /// at once; the admitted publications and the proofs' observation stay with the workspace.
+    /// at once; the admitted publications stay with the workspace.
     pub(crate) fn parts(&mut self) -> super::types::WorkspaceParts<'_> {
         super::types::WorkspaceParts {
             owner: &self.relation_owner,
@@ -318,7 +303,10 @@ impl<'f> InputAdmissions<'_, 'f> {
     /// # Errors
     ///
     /// [`OperatingError::MissingInput`] when the invocation has no input at `place`.
-    pub(crate) fn input(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
+    pub(crate) fn input(
+        &self,
+        place: InputNumber,
+    ) -> Result<RepresentationInput<'f>, OperatingError> {
         self.inputs
             .get(place.0)
             .copied()
@@ -332,7 +320,10 @@ impl<'f> InputAdmissions<'_, 'f> {
     ///
     /// [`OperatingError::WrongOperation`] for a place beyond the three an operator reads,
     /// [`OperatingError::MissingInput`] when the invocation has no input there, and the refusal of admitting it.
-    pub(crate) fn rows(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
+    pub(crate) fn rows(
+        &self,
+        place: InputNumber,
+    ) -> Result<RepresentationInput<'f>, OperatingError> {
         Ok(self.proof(place)?.rows())
     }
     pub(crate) fn proof(&self, place: InputNumber) -> Result<&BorrowedInput<'f>, OperatingError> {

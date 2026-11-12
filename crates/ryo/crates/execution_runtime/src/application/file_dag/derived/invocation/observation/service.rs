@@ -3,13 +3,13 @@
 use super::super::*;
 
 use super::super::types::InvocationResources;
-use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort as _;
 
 impl InvocationResources<'_> {
     #[cfg(test)]
     pub(crate) fn observe(
         &self,
-        workspace: &mut ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace,
+        workspace: &impl ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort,
+        probe: &mut ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
     ) {
         #[cfg(feature = "diagnostic-row-progress")]
         let view = self
@@ -52,7 +52,7 @@ impl InvocationResources<'_> {
                 .closure_walk
                 .as_ref()
                 .map_or(0, |walk| walk.visited.capacity());
-        let observed = workspace.observation_mut();
+        let observed = probe;
         observed.owners_initialized = usize::from(self.inputs.index.is_some())
             + usize::from(self.inputs.groups.is_some())
             + usize::from(
