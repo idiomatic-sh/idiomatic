@@ -1,8 +1,7 @@
 //! Thin public orchestration over the one private execution owner.
-use super::interface::PrepareUseCase;
+use super::interface::{PrepareUseCase, ViewAccess};
 use super::types::{PlanSource, PrepareRequest};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_runtime::application::file_dag::derived::service::ViewAccess;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::service::prepare;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
