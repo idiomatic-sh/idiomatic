@@ -1354,7 +1354,6 @@ dependencies = [
  "dhat",
  "divan",
  "idiomatic-sh-ryo-core",
- "idiomatic-sh-ryo-derived",
  "idiomatic-sh-ryo-execution",
  "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-language",
@@ -1768,7 +1767,6 @@ dependencies = [
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "thiserror 2.0.20",
- "tracing",
 ]
 
 [[package]]
