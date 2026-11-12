@@ -15,7 +15,7 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 /// use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort;
 /// use ryo_execution_runtime::application::file_dag::program::project_phase::{
 ///     interface::{ProjectRootExecution, ProgramProjectPhasePort},
-///     service::ProjectPhase,
+///     types::ProjectPhase,
 /// };
 /// fn deliver(project: &mut ProjectPhase<'_>) {
 ///     project.emit_rows();
@@ -30,7 +30,7 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 /// ```compile_fail,E0599
 /// use ryo_execution_runtime::application::file_dag::program::project_phase::{
 ///     interface::{ProjectRootExecution, ProgramProjectPhasePort},
-///     service::ProjectPhase,
+///     types::ProjectPhase,
 /// };
 /// fn readiness(project: &ProjectPhase<'_>) {
 ///     let _ = project.readiness_counts();
@@ -40,7 +40,7 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 /// ```compile_fail,E0599
 /// use ryo_execution_runtime::application::file_dag::program::project_phase::{
 ///     interface::{ProjectRootExecution, ProgramProjectPhasePort},
-///     service::ProjectPhase,
+///     types::ProjectPhase,
 /// };
 /// fn state(project: &ProjectPhase<'_>) {
 ///     let _ = project.state_counts();

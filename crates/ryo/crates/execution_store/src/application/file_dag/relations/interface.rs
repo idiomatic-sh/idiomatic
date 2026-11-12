@@ -38,7 +38,7 @@ pub(crate) mod sealed {
 /// ```
 /// ```compile_fail,E0624
 /// use ryo_execution_store::application::file_dag::relations::{
-///     RelationOwner, publication::types::ProducerScope, types::ProducerId,
+///     publication::types::ProducerScope, service::RelationOwner, types::ProducerId,
 /// };
 /// fn retire(owner: &RelationOwner) {
 ///     owner.release_derived_producer(ProducerScope::File, ProducerId(0));
