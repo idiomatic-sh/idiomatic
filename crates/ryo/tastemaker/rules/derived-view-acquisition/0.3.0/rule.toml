@@ -1,5 +1,5 @@
 description = "Semantic construction belongs to the admitted derived owner; consumers borrow acquired views."
-why = "The execution owner alone binds live source proofs to semantic construction, shared keys and required leases for every derived kind. Resolved dependencies to the actual semantic bridge plus precise imported build spans reject renamed, qualified and newly added-module bypasses. Resolved injected-port users may prepare immutable descriptors but may not call build outside that bridge. Portable semantic API proofs are legitimate callers of the public semantic use case; production engine consumers are not. Rust private fields and required permit/source capabilities separately prohibit forged acquisition or raw invocation authority. The method guard associates resolved semantic-port references and build calls in the same file; it does not infer receiver types across macros or follow arbitrary re-export chains, so runtime and Rust controls remain required. Who reaches the owner is confined too: an identifier of `confined` (the owner's acquiring entries, and the leased views and handles it issues) written in a production file outside the owner's concept is a finding: the concept is the one directory `owner-concept` names beneath a crate's `src/` (`application/file_dag/derived`), not any directory that shares its last name, so acquisition is collapsed into one owner module per crate, and a new caller of `admit_view` or a new holder of an `AcquiredView` outside it is a change of who reaches the owner, which moves the code into the concept rather than naming the file in a list. The builder port itself (`DerivedPort`) can be confined the same way, so it is named only by its own hex and the compositions that hand it to the owner: the port's own outbound files, beneath its crate's `outbound/derived`, are the port (its interface, factory, adapters and fakes), so the port's own name, an identifier its `outbound/derived/interface.rs` defines, written there is not a finding; any other confined identifier there, and the port's name beneath another crate's `outbound/derived`, still is. Test code (the files placed as proofs, test-named files and fixtures) is not production and is left out; a build call is left out of a fixtures role too, a `fixtures.rs` or a file beneath `fixtures/` whose module, or a module above it, is declared under a `cfg` naming `test` or the `fixtures` feature, while the same file declared without that gate is production."
+why = "The execution owner alone binds live source proofs to semantic construction, shared keys and required leases for every derived kind. Resolved dependencies to the actual semantic bridge plus precise imported build spans reject renamed, qualified and newly added-module bypasses. Resolved injected-port users may prepare immutable descriptors but may not call build outside that bridge. Portable semantic API proofs are legitimate callers of the public semantic use case; production engine consumers are not. Rust private fields and required permit/source capabilities separately prohibit forged acquisition or raw invocation authority. The method guard associates resolved semantic-port references and build calls in the same file; it does not infer receiver types across macros or follow arbitrary re-export chains, so runtime and Rust controls remain required. Who reaches the owner is confined too: an identifier of `confined` (the owner's acquiring entries, and the leased views and handles it issues) written in a production file outside the owner's concept is a finding: the concept is the one directory `owner-concept` names beneath a crate's `src/` (`application/file_dag/derived`), not any directory that shares its last name, so acquisition is collapsed into one owner module per crate, and a new caller of `admit_view` or a new holder of an `AcquiredView` outside it is a change of who reaches the owner, which moves the code into the concept rather than naming the file in a list. The builder port itself (`DerivedPort`) can be confined the same way, so it is named only by its own hex and the compositions that hand it to the owner: the port's own outbound files, beneath its crate's `outbound/derived`, are the port (its interface, factory, adapters and fakes), so the port's own name, an identifier its `outbound/derived/interface.rs` defines, written there is not a finding; any other confined identifier there, and the port's name beneath another crate's `outbound/derived`, still is. Test code (the files placed as proofs, test-named files and fixtures) is not production and is left out; a build call is left out of a fixtures role too, a `fixtures.rs` or a file beneath `fixtures/` whose module, or a module above it, is declared under a `cfg` naming `test` or the `fixtures` feature, while the same file declared without that gate is production. An edge's composition, a file a composition template places (`composition`, or a `*-composition`), composes the store's factories into the access and the port it hands the owner, so a confined identifier written there is not a finding; the same code in a file no composition template places is."
 
 query = '''
 param confined: set<string>;
@@ -65,7 +65,9 @@ let port-hex-names = capture(from=confined-names, path="file", pattern="{*port-r
 let port-naming-itself = select l.file as file, l.span as span from port-hex-names as l join port-own-names as r on l.port-root = r.port-root and l.name = r.name;
 let confined-outside = antijoin(left=confined-names, right=port-naming-itself, left-on=["file", "span"], right-on=["file", "span"]);
 let production-names = antijoin(left=confined-outside, right=semantic-proofs, left-on=["file"], right-on=["file"]);
-let held = select file, span from production-names;
+let placed-compositions = select l."path" as "file" from "tastemaker.placed" as l where glob_any(l."template", "{composition,*-composition}");
+let outside-compositions = antijoin(left=production-names, right=placed-compositions, left-on=["file"], right-on=["file"]);
+let held = select file, span from outside-compositions;
 let violations = union(left=build-violations, right=held);
 emit violations subject file key(span);
 '''
@@ -364,3 +366,51 @@ pub struct Port(pub Box<dyn DerivedPort>);
 pub struct AcquiredView;
 pub trait DerivedPort {}"""
 then.findings = [{ path = "runtime/src/outbound/derived/holder.rs", line = 1 }, { path = "runtime/src/outbound/derived/holder.rs", line = 2 }, { path = "runtime/src/outbound/derived/holder.rs", line = 3 }, { path = "runtime/src/outbound/derived/holder.rs", line = 4 }]
+
+[[scenarios]]
+id = "placed-composition-may-name-the-access"
+scenario = "An edge's composition, placed by a composition template, composes the store's factories into the access and the port it hands the owner: naming them there passes."
+given.params = { confined = ["admit_view", "AcquiredView", "DerivedPort", "DerivedAccess"] }
+given.files.'src/application/file_dag/derived/owner.rs' = 'pub mod acquisition; pub mod service;'
+given.files.'src/application/file_dag/derived/owner/service.rs' = 'pub struct DerivedAccess(pub std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);'
+given.files.'src/resources/views/show/composition.rs' = '''
+use crate::application::file_dag::derived::owner::service::DerivedAccess;
+use crate::outbound::derived::interface::DerivedPort;
+
+pub fn compose(port: std::sync::Arc<dyn DerivedPort>) -> DerivedAccess {
+    DerivedAccess(port)
+}
+'''
+given.files.'tastemaker.toml' = """
+workspace = { name = "proof", dependencies = [{ package = "idiomatic.ryo", path = "../../.." }] }
+rules = [{ rule = "idiomatic.ryo/derived-view-acquisition", include = ["src/**"], params = { confined = ["admit_view", "AcquiredView", "DerivedPort", "DerivedAccess"], owner-concept = "application/file_dag/derived" } }]
+templates = [{ template = "idiomatic.arch/composition", file = "src/resources/{resource}/{part}/composition.rs" }]
+"""
+then.only = ["idiomatic.ryo/derived-view-acquisition"]
+
+[[scenarios]]
+id = "unplaced-file-naming-the-access"
+scenario = "The same composing code in a file no composition template places is a holder of the access outside the owner's concept: it is rejected."
+given.params = { confined = ["admit_view", "AcquiredView", "DerivedPort", "DerivedAccess"] }
+given.files.'src/application/file_dag/derived/owner.rs' = 'pub mod acquisition; pub mod service;'
+given.files.'src/application/file_dag/derived/owner/service.rs' = 'pub struct DerivedAccess(pub std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);'
+given.files.'src/resources/views/show/composition.rs' = '''
+use crate::application::file_dag::derived::owner::service::DerivedAccess;
+use crate::outbound::derived::interface::DerivedPort;
+
+pub fn compose(port: std::sync::Arc<dyn DerivedPort>) -> DerivedAccess {
+    DerivedAccess(port)
+}
+'''
+given.files.'tastemaker.toml' = """
+workspace = { name = "proof", dependencies = [{ package = "idiomatic.ryo", path = "../../.." }] }
+rules = [{ rule = "idiomatic.ryo/derived-view-acquisition", include = ["src/**"], params = { confined = ["admit_view", "AcquiredView", "DerivedPort", "DerivedAccess"], owner-concept = "application/file_dag/derived" } }]
+"""
+then.only = ["idiomatic.ryo/derived-view-acquisition"]
+then.findings = [
+  { path = "src/resources/views/show/composition.rs", line = 1 },
+  { path = "src/resources/views/show/composition.rs", line = 2 },
+  { path = "src/resources/views/show/composition.rs", line = 4 },
+  { path = "src/resources/views/show/composition.rs", line = 4 },
+  { path = "src/resources/views/show/composition.rs", line = 5 },
+]
