@@ -1,6 +1,13 @@
 //! The values the ledger counts and the records it keeps.
 
 /// Physical bytes.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::accounting::ledger::types::ByteCount;
+/// assert_eq!(ByteCount::default(), ByteCount(0));
+/// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ByteCount(pub usize);
 
