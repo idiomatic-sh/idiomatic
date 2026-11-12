@@ -193,16 +193,8 @@ pub(crate) fn failed(outcome: RuleOutcome) -> Option<OperatingError> {
     }
 }
 pub(crate) fn regex_error(pattern: &str) -> OperatingError {
-    use ryo_matching::inbound::use_cases::matching::{
-        errors::MatchingError, interface::MatchingUseCase, types::RegexSource,
-        use_case::MatchingUseCaseImpl,
-    };
-    let error = MatchingUseCaseImpl::new()
-        .compile_regex(RegexSource(pattern))
-        .err()
-        .expect("intentionally malformed regular expression");
-    let (MatchingError::InvalidRegex { reason } | MatchingError::BadGlob { reason, .. }) = error;
-    OperatingError::InvalidRegex { reason }
+    ryo_execution::inbound::use_cases::execution::fixtures::regex_refusal(pattern)
+        .expect("intentionally malformed regular expression")
 }
 
 pub(crate) fn no_catalog(_: Relation) -> Result<SourceRows<'static>, OperatingError> {
