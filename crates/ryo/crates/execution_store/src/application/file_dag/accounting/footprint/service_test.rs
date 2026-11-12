@@ -31,7 +31,7 @@ enum Scenario {
 }
 type Input = Scenario;
 /// What the payload occupies, rendered: its owned bytes and each shared backing's tag and bytes and whether the backing is
-/// keyed by the payload's own allocation; for the marks, the bytes past their vector against their capacity, or their key.
+/// keyed by the payload's own allocation; for the marks, their bytes and capacity, or their key.
 type Value = &'static str;
 type Failure = OperatingError;
 
@@ -55,7 +55,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("the_capacity_of_marks_covers_them"),
         word: Word::Succeeds,
         input: || Scenario::MarksCapacity,
-        expect: Expect::Value("bytes past the marks' vector 8, marks capacity 8"),
+        // The marks' vector (24 bytes), its two counts (16) and its eight marks (8).
+        expect: Expect::Value("bytes 48, marks capacity 8"),
     },
     Case {
         name: CaseName("marks_are_identified_by_their_allocation"),
@@ -139,10 +140,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
             return Err(OperatingError::ShapeMismatch);
         };
         let shown = if let Scenario::MarksCapacity = input {
-            let vector = size_of::<Vec<bool>>() + 2 * size_of::<usize>();
             format!(
-                "bytes past the marks' vector {}, marks capacity {}",
-                backing.bytes.0.saturating_sub(vector),
+                "bytes {}, marks capacity {}",
+                backing.bytes.0,
                 marks.0.capacity()
             )
         } else {

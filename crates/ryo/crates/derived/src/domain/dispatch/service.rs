@@ -187,13 +187,31 @@ pub fn view<'a>(
 /// # Examples
 ///
 /// ```
-/// use ryo_derived::domain::contract::types::DerivedView;
-/// use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
-/// use ryo_derived::domain::dispatch::service::payload_view;
-/// fn is_index(payload: &DerivedPayload) -> bool {
-///     matches!(payload_view(payload), DerivedView::Equality(_))
-/// }
-/// let _ = is_index;
+/// use ryo_derived::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, DerivedView};
+/// use ryo_derived::domain::dispatch::service::{build, payload_view};
+/// use ryo_derived::domain::preparation::service::prepare;
+/// use ryo_derived::domain::request::types::DerivedRequest;
+/// use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
+/// use ryo_values::domain::plan_parts::types::ColumnIndex;
+/// use ryo_values::domain::rows::types::{RowCount, Table};
+/// let rows = Table {
+///     kinds: vec![CellKind::Number],
+///     cells: vec![Value::Number(Integer(4)), Value::Number(Integer(5))],
+///     count: RowCount(2),
+/// };
+/// let prepared = prepare(
+///     DerivedRequest::Equality { columns: vec![ColumnIndex(0)] },
+///     vec![vec![CellKind::Number]],
+/// );
+/// let Ok(BuildOutcome::Built(payload)) =
+///     build(&prepared, BuildInputs::Rows(&rows), &mut BuildWorkspace::default(), None)
+/// else {
+///     panic!("an equality index over two numbers builds");
+/// };
+/// let DerivedView::Equality(index) = payload_view(&payload) else {
+///     panic!("an equality payload is viewed as its index");
+/// };
+/// assert_eq!(index.rows.len(), 2);
 /// ```
 #[must_use]
 pub fn payload_view(payload: &DerivedPayload) -> DerivedView<'_> {
