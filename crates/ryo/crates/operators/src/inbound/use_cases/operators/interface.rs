@@ -29,7 +29,7 @@ use crate::domain::contract::types::PortableOperatorFault;
 ///
 /// The semantic package has no execution dependency or access to engine authority.
 ///
-/// ```compile_fail,E0432
+/// ```compile_fail,E0433
 /// use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 /// let _: Option<&dyn OperatorsPort> = None;
 /// ```
