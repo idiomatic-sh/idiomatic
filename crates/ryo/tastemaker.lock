@@ -239,6 +239,4 @@ language = "0.4.4"
 provider-imports = "0.1.0"
 
 [packages."idiomatic.ryo".templates]
-application-part = "0.1.0"
-program-runtime-proof = "0.1.0"
 provider-allowances = "0.1.0"
