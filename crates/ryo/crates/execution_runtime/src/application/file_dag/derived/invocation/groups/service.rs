@@ -8,6 +8,7 @@ use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_domain::domain::table_groups::types::Group;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_texts::types::Texts;
+use ryo_execution_store::application::file_dag::derived::admitted_views::interface::DerivedAdmittedViewsPort;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowIndex;
 use ryo_values::domain::rows::types::Table;
@@ -33,17 +34,14 @@ pub(super) fn materialized(input: RepresentationInput<'_>) -> Table {
     table
 }
 
-pub(crate) fn groups(
+pub(crate) fn groups<'f>(
     input: RepresentationInput<'_>,
     keys: &[ColumnIndex],
     distinct: Option<ColumnIndex>,
     digest: Option<ColumnIndex>,
     context: &mut OperatorContext<'_>,
     contract: &OperatorContract,
-    admitted: &ryo_execution_store::application::file_dag::workspace::service::InputAdmissions<
-        '_,
-        '_,
-    >,
+    admitted: &impl DerivedAdmittedViewsPort<'f>,
     semantics: &crate::application::file_dag::execution::types::PrimitiveSemanticsBridge<'_>,
 ) -> Result<Vec<Group>, OperatingError> {
     // The original collected contract checks the reduction operand before its grouping keys.

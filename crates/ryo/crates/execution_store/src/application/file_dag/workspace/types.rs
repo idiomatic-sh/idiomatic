@@ -1,9 +1,8 @@
 //! The borrowed parts of one invocation's workspace a kernel works in, lent together so one evaluation can hold them at once.
 use ryo_execution_domain::domain::operating::types::{Memo, NameCount};
 use ryo_execution_domain::domain::operator::contract::types::{PrimitiveWorkspace, WorkCounters};
-use ryo_execution_domain::domain::table_scratch::types::{
-    LazyScratch, OperatorScratch, SelectScratch,
-};
+use ryo_execution_domain::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers;
+use ryo_execution_domain::domain::table_scratch::types::{LazyScratch, SelectScratch};
 use ryo_matching::inbound::use_cases::matching::types::CompiledRegex;
 
 /// The working allocations of one invocation, each borrowed apart from the others: a view of the workspace, never
@@ -23,10 +22,8 @@ pub struct WorkspaceParts<'w> {
     pub predicate_names: &'w mut Option<NameCount>,
     /// The primitive operators' working allocations.
     pub primitive: &'w mut PrimitiveWorkspace,
-    /// The downstream operators' scratch.
-    pub downstream_scratch: &'w mut OperatorScratch,
-    /// The downstream operators' memo.
-    pub downstream_memo: &'w mut Vec<Memo>,
+    /// The downstream operators' buffers, lent together to each downstream row.
+    pub downstream: &'w mut DownstreamBuffers,
 }
 
 /// Sources are supplied only by admitted inputs, never independently by a view caller.

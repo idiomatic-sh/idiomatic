@@ -3,7 +3,7 @@ use super::super::super::service::*;
 use super::super::super::types::*;
 use super::fixtures::{
     Answered, Held, TwoRights, TwoViews, context, equality_on_first, membership_on_first,
-    ordered_key, ordered_keys, owner, table,
+    ordered_key, ordered_keys, owner, read_through_the_ports, table,
 };
 use crate::application::file_dag::derived::owner::service::ViewContext;
 use crate::application::file_dag::derived::owner::types::BuildCount;
@@ -48,6 +48,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Held::EmptySlot,
         expect: Expect::Error(OperatingError::NotRun),
+    },
+    Case {
+        name: CaseName("admission_after_release_reports_missing_input"),
+        word: Word::Refuses,
+        input: || Held::AfterRelease,
+        expect: Expect::Error(OperatingError::MissingInput { position: 1 }),
+    },
+    Case {
+        name: CaseName("admissions_beyond_the_three_proof_slots_are_wrong_operation"),
+        word: Word::Refuses,
+        input: || Held::BeyondProofSlots,
+        expect: Expect::Error(OperatingError::WrongOperation),
+    },
+    Case {
+        name: CaseName("admissions_past_the_inputs_name_the_missing_input"),
+        word: Word::Refuses,
+        input: || Held::PastInputs(1),
+        expect: Expect::Error(OperatingError::MissingInput { position: 2 }),
     },
     Case {
         name: CaseName("admission_of_rows_the_publication_did_not_resolve_is_not_read"),
@@ -157,7 +175,10 @@ fn subject(input: Held) -> Result<Answered, OperatingError> {
                 | Held::TwoRights(_)
                 | Held::Normalized
                 | Held::Recaptured(_)
-                | Held::Prepared => {
+                | Held::Prepared
+                | Held::AfterRelease
+                | Held::BeyondProofSlots
+                | Held::PastInputs(_) => {
                     workspace.admit(InputNumber(0), RepresentationInput::Computed(&raw))?
                 }
             };
@@ -169,6 +190,9 @@ fn subject(input: Held) -> Result<Answered, OperatingError> {
                     .try_into()
                     .map_err(|_| OperatingError::WrongOperation)?,
             })
+        }
+        Held::AfterRelease | Held::BeyondProofSlots | Held::PastInputs(_) => {
+            read_through_the_ports(&owner, &mut workspace, input)
         }
         Held::TwoViews(reads) => {
             let published = owner.computed(table(&[3, 1, 3], 1))?;

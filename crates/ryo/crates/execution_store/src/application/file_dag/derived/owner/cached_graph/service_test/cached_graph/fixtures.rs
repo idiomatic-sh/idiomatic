@@ -1,6 +1,7 @@
 //! The support of the `cached_graph` cases.
 use crate::application::file_dag::relations::service::RelationOwner;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
 
@@ -43,9 +44,11 @@ pub(super) fn axis_plan(relation: Relation) -> ryo_values::domain::plans::types:
     }
 }
 
-/// What `prepare_graph` answers for the axis of `axis_plan` on `owner`.
-pub(super) fn graph_of(owner: &std::rc::Rc<RelationOwner>) -> Result<bool, OperatingError> {
-    // The axis step's operator contract, its derived views bound through the store's request views.
+/// The operator contract of the axis of `axis_plan`, its derived views bound through `owner`'s request views.
+fn axis_contract(
+    owner: &std::rc::Rc<RelationOwner>,
+) -> Result<ryo_execution_domain::domain::operator::contract::types::OperatorContract, OperatingError>
+{
     let plan = axis_plan(Relation::Function);
     let operation = &plan.steps[0].operation;
     let kinds = ryo_relations::domain::relations::service::kinds(Relation::Function);
@@ -64,12 +67,60 @@ pub(super) fn graph_of(owner: &std::rc::Rc<RelationOwner>) -> Result<bool, Opera
         owner.derived().semantic.clone(),
     )
     .bind(&mut contract)?;
-    let contract = &contract;
+    Ok(contract)
+}
+
+/// What `prepare_graph` answers for the axis of `axis_plan` on `owner`.
+pub(super) fn graph_of(owner: &std::rc::Rc<RelationOwner>) -> Result<bool, OperatingError> {
+    let contract = &axis_contract(owner)?;
     let workspace = crate::application::file_dag::workspace::service::InvocationWorkspace::new(
         std::rc::Rc::clone(owner),
     );
     owner
         .derived()
         .prepare_graph(contract, &workspace, &contract.resources, &[])
+        .map(|graph| graph.is_some())
+}
+
+/// What the admitted views port answers for the axis of `axis_plan` on `owner` over `rows`: the `from` rows at place 0,
+/// the stored edges at place 1 and the domain rows at place 2, each captured as its own publication of `Function`.
+pub(super) fn admitted_graph_of(
+    owner: &std::rc::Rc<RelationOwner>,
+    rows: &Rows<'_>,
+) -> Result<bool, OperatingError> {
+    use crate::application::file_dag::derived::admitted_views::interface::DerivedAdmittedViewsPort;
+    use crate::application::file_dag::relations::handle::service::Publication;
+    use crate::application::file_dag::workspace::interface::WorkspacePort;
+    let contract = &axis_contract(owner)?;
+    let published = [
+        owner.source(Relation::Function, rows)?,
+        owner.source(Relation::Function, rows)?,
+        owner.source(Relation::Function, rows)?,
+    ];
+    let originals = published
+        .iter()
+        .map(|publication| {
+            owner.resolve(publication.as_ref(), &|relation| match relation {
+                Relation::Function => Ok(rows.clone()),
+                _ => Err(OperatingError::NotRead),
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut workspace = crate::application::file_dag::workspace::service::InvocationWorkspace::new(
+        std::rc::Rc::clone(owner),
+    );
+    WorkspacePort::capture_admitted(
+        &mut workspace,
+        published
+            .iter()
+            .map(|publication| Publication::of(publication.clone()))
+            .collect(),
+    );
+    let inputs = originals
+        .iter()
+        .map(ryo_execution_domain::domain::table_model::types::RepresentationInput::from)
+        .collect::<Vec<_>>();
+    let admitted = WorkspacePort::inputs(&workspace, &inputs);
+    DerivedAdmittedViewsPort::prepare_graph(&admitted, contract, &contract.resources, &originals)
         .map(|graph| graph.is_some())
 }

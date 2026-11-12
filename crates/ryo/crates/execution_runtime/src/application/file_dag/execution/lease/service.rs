@@ -11,12 +11,11 @@ use ryo_execution_domain::domain::operator::contract::{
     context::service::with_primitive_context, primitive::types::PreparedInputs, types::*,
 };
 use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
-use ryo_execution_domain::domain::table_scratch::types::OperatorScratch;
 use ryo_execution_domain::domain::table_texts::{
     service::datum,
     types::{Datum, Texts},
 };
-use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
+use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort;
 use ryo_language::domain::symbols::service::query_reborrow;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::rows::service::cell;
@@ -29,13 +28,25 @@ pub(crate) fn evaluate(
     operation: &ryo_values::domain::plans::types::Operation,
     input: PreparedInputs<'_>,
     resources: &mut InvocationResources<'_>,
-    workspace: &mut InvocationWorkspace,
+    workspace: &mut impl WorkspacePort,
+    #[cfg(test)]
+    probe: &mut ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
     if resources.partitioned_closure().is_none() {
         return evaluate_once(
-            operators, contract, permit, operation, input, resources, workspace, context, emit,
+            operators,
+            contract,
+            permit,
+            operation,
+            input,
+            resources,
+            workspace,
+            #[cfg(test)]
+            probe,
+            context,
+            emit,
         );
     }
     loop {
@@ -47,7 +58,17 @@ pub(crate) fn evaluate(
             return Ok(());
         }
         evaluate_once(
-            operators, contract, permit, operation, input, resources, workspace, context, emit,
+            operators,
+            contract,
+            permit,
+            operation,
+            input,
+            resources,
+            workspace,
+            #[cfg(test)]
+            probe,
+            context,
+            emit,
         )?;
     }
 }
@@ -59,7 +80,9 @@ pub(super) fn evaluate_once(
     operation: &ryo_values::domain::plans::types::Operation,
     input: PreparedInputs<'_>,
     resources: &mut InvocationResources<'_>,
-    workspace: &mut InvocationWorkspace,
+    workspace: &mut impl WorkspacePort,
+    #[cfg(test)]
+    probe: &mut ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
@@ -68,7 +91,7 @@ pub(super) fn evaluate_once(
     #[cfg(feature = "diagnostic-row-progress")]
     let _progress_invocation = workspace.progress_origin().resume();
     #[cfg(test)]
-    resources.observe(workspace);
+    resources.observe(workspace, probe);
     let parts = workspace.parts();
     let semantic_failure = std::sync::OnceLock::new();
     let row = match input {
@@ -203,8 +226,7 @@ pub(super) fn evaluate_once(
     let mut output = OutputBridge {
         emit,
         headers: super::super::output::service::Headers::from_context(context),
-        scratch: &mut *parts.downstream_scratch,
-        memo: &mut *parts.downstream_memo,
+        downstream: &mut *parts.downstream,
     };
     let semantics = super::super::types::PrimitiveSemanticsBridge {
         port: operators,
@@ -254,8 +276,8 @@ pub(super) fn evaluate_once(
     drop(predicate);
     #[cfg(test)]
     {
-        workspace.observation_mut().registered_calls += registered_calls;
-        resources.observe(workspace);
+        probe.registered_calls += registered_calls;
+        resources.observe(workspace, probe);
     }
     semantic_failure.into_inner().map_or(outcome, Err)
 }
@@ -263,13 +285,12 @@ pub(super) fn evaluate_once(
 pub(super) struct OutputBridge<'a> {
     emit: &'a mut dyn Emit,
     headers: super::super::output::service::Headers<'a>,
-    scratch: &'a mut OperatorScratch,
-    memo: &'a mut Vec<ryo_execution_domain::domain::operating::types::Memo>,
+    downstream: &'a mut ryo_execution_domain::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers,
 }
 
 impl RowSink for OutputBridge<'_> {
     fn row(&mut self, lease: &mut PrimitiveLease<'_>, row: &[Value]) -> Result<(), OperatingError> {
         self.headers
-            .row(self.emit, &mut lease.derived, self.scratch, self.memo, row)
+            .row(self.emit, &mut lease.derived, self.downstream, row)
     }
 }

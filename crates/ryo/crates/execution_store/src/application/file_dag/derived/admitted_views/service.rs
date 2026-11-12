@@ -152,17 +152,7 @@ impl<'f> InputAdmissions<'_, 'f> {
     ///
     /// [`OperatingError::WrongOperation`] when `use_` is no native lookup over two inputs, and the refusals of admitting
     /// its inputs and acquiring the view.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
-    /// use ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse;
-    /// fn native(admissions: &InputAdmissions<'_, '_>, use_: &PreparedViewUse) -> bool {
-    ///     matches!(admissions.try_native_lookup(use_), Ok(Some(_)))
-    /// }
-    /// ```
-    pub fn try_native_lookup(
+    pub(crate) fn try_native_lookup(
         &self,
         use_: &PreparedViewUse,
     ) -> Result<Option<AcquiredView>, OperatingError> {
@@ -192,18 +182,7 @@ impl<'f> InputAdmissions<'_, 'f> {
     /// # Errors
     ///
     /// The refusals of [`Self::acquire_derived`].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
-    /// use ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse;
-    /// use ryo_execution_domain::domain::operator::types::OperatorContext;
-    /// fn acquired(admissions: &InputAdmissions<'_, '_>, use_: &PreparedViewUse, context: &mut OperatorContext<'_>) -> bool {
-    ///     admissions.acquire_rows(use_, context).is_ok()
-    /// }
-    /// ```
-    pub fn acquire_rows(
+    pub(crate) fn acquire_rows(
         &self,
         use_: &PreparedViewUse,
         context: &mut OperatorContext<'_>,
@@ -221,19 +200,7 @@ impl<'f> InputAdmissions<'_, 'f> {
     /// [`OperatingError::WrongOperation`] when `use_` reads no input or more than two, or its inputs do not fit
     /// `supplied`, [`OperatingError::MissingInput`] when `supplied` needs a second input `use_` lacks, and the refusals of
     /// admitting its inputs and acquiring the view.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
-    /// use ryo_execution_store::application::file_dag::derived::owner::service::ViewContext;
-    /// use ryo_execution_store::application::file_dag::workspace::types::ViewInputs;
-    /// use ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse;
-    /// fn acquired(admissions: &InputAdmissions<'_, '_>, use_: &PreparedViewUse, supplied: ViewInputs<'_, '_>) -> bool {
-    ///     admissions.acquire_derived(use_, ViewContext::default(), supplied).is_ok()
-    /// }
-    /// ```
-    pub fn acquire_derived(
+    pub(crate) fn acquire_derived(
         &self,
         use_: &PreparedViewUse,
         identity: crate::application::file_dag::derived::owner::service::ViewContext,
@@ -248,26 +215,7 @@ impl<'f> InputAdmissions<'_, 'f> {
     ///
     /// The refusal of admitting the ordering's input, [`OperatingError::NotRead`] when `input` is not the rows it
     /// admitted, and the refusals of acquiring the ordering and preparing the closure.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
-    /// use ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure;
-    /// use ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse;
-    /// use ryo_execution_domain::domain::operator::types::OperatorContext;
-    /// use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-    /// fn partitions<'f>(
-    ///     admissions: &InputAdmissions<'_, 'f>,
-    ///     order: &PreparedViewUse,
-    ///     closure: &PreparedViewUse,
-    ///     input: RepresentationInput<'f>,
-    ///     context: &mut OperatorContext<'_>,
-    /// ) -> Option<PartitionedClosure<'f>> {
-    ///     admissions.partitioned(order, closure, input, context).ok()
-    /// }
-    /// ```
-    pub fn partitioned(
+    pub(crate) fn partitioned(
         &self,
         order: &PreparedViewUse,
         closure: &PreparedViewUse,
@@ -291,5 +239,112 @@ impl<'f> InputAdmissions<'_, 'f> {
             storage,
             self.owner_handle(),
         )
+    }
+}
+
+impl crate::application::file_dag::workspace::interface::sealed::Sealed for InvocationWorkspace {}
+
+impl crate::application::file_dag::workspace::interface::WorkspacePort for InvocationWorkspace {
+    fn inputs<'a, 'f>(&'a self, inputs: &'a [RepresentationInput<'f>]) -> InputAdmissions<'a, 'f> {
+        InvocationWorkspace::inputs(self, inputs)
+    }
+    fn work(&self) -> &ryo_execution_domain::domain::operator::contract::types::WorkCounters {
+        InvocationWorkspace::work(self)
+    }
+    fn primitive(
+        &self,
+    ) -> &ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace {
+        InvocationWorkspace::primitive(self)
+    }
+    fn primitive_mut(
+        &mut self,
+    ) -> &mut ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace {
+        InvocationWorkspace::primitive_mut(self)
+    }
+    fn parts(&mut self) -> crate::application::file_dag::workspace::types::WorkspaceParts<'_> {
+        InvocationWorkspace::parts(self)
+    }
+    fn capture_admitted(
+        &mut self,
+        publications: Vec<crate::application::file_dag::relations::handle::service::Publication>,
+    ) {
+        InvocationWorkspace::capture_admitted(self, publications);
+    }
+    fn release_inputs(&mut self) {
+        InvocationWorkspace::release_inputs(self);
+    }
+    #[cfg(feature = "diagnostic-row-progress")]
+    fn progress_origin(
+        &self,
+    ) -> &crate::application::file_dag::route_counts::profile::service::CapturedOrigin {
+        InvocationWorkspace::progress_origin(self)
+    }
+    #[cfg(any(test, feature = "fixtures"))]
+    fn measured(&self) -> ryo_execution_domain::domain::operating::fixtures::ExecutionObservation {
+        InvocationWorkspace::measured(self)
+    }
+}
+
+impl super::interface::sealed::Sealed for InputAdmissions<'_, '_> {}
+
+impl<'f> super::interface::DerivedAdmittedViewsPort<'f> for InputAdmissions<'_, 'f> {
+    fn input(
+        &self,
+        place: ryo_values::domain::plan_parts::types::InputNumber,
+    ) -> Result<RepresentationInput<'f>, OperatingError> {
+        InputAdmissions::input(self, place)
+    }
+    fn rows(
+        &self,
+        place: ryo_values::domain::plan_parts::types::InputNumber,
+    ) -> Result<RepresentationInput<'f>, OperatingError> {
+        InputAdmissions::rows(self, place)
+    }
+    fn try_native_lookup(
+        &self,
+        use_: &PreparedViewUse,
+    ) -> Result<Option<AcquiredView>, OperatingError> {
+        InputAdmissions::try_native_lookup(self, use_)
+    }
+    fn acquire_rows(
+        &self,
+        use_: &PreparedViewUse,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<AcquiredView, OperatingError> {
+        InputAdmissions::acquire_rows(self, use_, context)
+    }
+    fn acquire_derived(
+        &self,
+        use_: &PreparedViewUse,
+        identity: crate::application::file_dag::derived::owner::service::ViewContext,
+        supplied: ViewInputs<'_, '_>,
+    ) -> Result<AcquiredView, OperatingError> {
+        InputAdmissions::acquire_derived(self, use_, identity, supplied)
+    }
+    fn partitioned(
+        &self,
+        order: &PreparedViewUse,
+        closure: &PreparedViewUse,
+        input: RepresentationInput<'f>,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<
+        crate::application::file_dag::closure_partitions::service::PartitionedClosure<'f>,
+        OperatingError,
+    > {
+        InputAdmissions::partitioned(self, order, closure, input, context)
+    }
+    fn prepare_graph(
+        &self,
+        contract: &ryo_execution_domain::domain::operator::contract::types::OperatorContract,
+        program: &ryo_execution_domain::domain::operator::contract::resources::types::ResourceProgram,
+        rows: &[ryo_execution_domain::domain::table_model::types::Rows<'_>],
+    ) -> Result<
+        Option<crate::application::file_dag::derived::owner::cached_graph::service::CachedGraph>,
+        OperatingError,
+    > {
+        self.workspace
+            .owner()
+            .derived()
+            .prepare_graph(contract, self.workspace, program, rows)
     }
 }

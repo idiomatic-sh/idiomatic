@@ -6,6 +6,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
+use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort as _;
 use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
 use std::rc::Rc;
 
@@ -62,6 +63,11 @@ impl super::super::service::KernelSession<'_, '_> {
             // admission refuses is a refusal, never a run of the other path.
             return Err(InvocationFailure::Semantic(OperatingError::NotRun));
         };
+        // A fresh workspace starts a fresh probe: the probe lives as long as the workspace.
+        #[cfg(test)]
+        if scratch.workspace.is_none() {
+            scratch.probe = Default::default();
+        }
         let workspace = scratch.workspace.get_or_insert_with(|| {
             InvocationWorkspace::for_contract(
                 Rc::clone(&self.owner),

@@ -12,6 +12,7 @@ use ryo_execution_domain::domain::{
     operator::contract::{primitive::types::PreparedInputs, types::InputMode},
     table_model::service::{count_of, read_row},
 };
+use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort as _;
 use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
 use ryo_values::domain::rows::types::RowIndex;
 use std::rc::Rc;
@@ -47,12 +48,19 @@ impl super::super::service::KernelSession<'_, '_> {
             scratch: &mut *context.scratch,
         };
         let context = &mut rebound;
-        let mut invocation_workspace = scratch.workspace.take().unwrap_or_else(|| {
+        let mut invocation_workspace = if let Some(workspace) = scratch.workspace.take() {
+            workspace
+        } else {
+            // A fresh workspace starts a fresh probe: the probe lives as long as the workspace.
+            #[cfg(test)]
+            {
+                scratch.probe = Default::default();
+            }
             InvocationWorkspace::for_contract(
                 Rc::clone(&self.owner),
                 permit.descriptor().contract().as_ref(),
             )
-        });
+        };
         let workspace = &mut invocation_workspace;
         let contract = instruction.contract().as_ref();
         let setup_failure = std::sync::OnceLock::new();
@@ -97,6 +105,8 @@ impl super::super::service::KernelSession<'_, '_> {
                         },
                         &mut resources,
                         workspace,
+                        #[cfg(test)]
+                        &mut scratch.probe,
                         context,
                         output,
                     )
@@ -203,6 +213,8 @@ impl super::super::service::KernelSession<'_, '_> {
                                     InvocationFailure::Semantic(OperatingError::NotRun)
                                 })?,
                                 workspace,
+                                #[cfg(test)]
+                                &mut scratch.probe,
                                 context,
                                 output,
                             )
@@ -232,6 +244,8 @@ impl super::super::service::KernelSession<'_, '_> {
                                     InvocationFailure::Semantic(OperatingError::NotRun)
                                 })?,
                                 workspace,
+                                #[cfg(test)]
+                                &mut scratch.probe,
                                 context,
                                 output,
                             )
@@ -316,6 +330,8 @@ impl super::super::service::KernelSession<'_, '_> {
                                             InvocationFailure::Semantic(OperatingError::NotRun)
                                         })?,
                                         workspace,
+                                        #[cfg(test)]
+                                        &mut scratch.probe,
                                         context,
                                         output,
                                     )

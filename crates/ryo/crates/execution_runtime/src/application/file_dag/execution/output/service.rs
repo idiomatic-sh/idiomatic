@@ -1,10 +1,8 @@
 //! The `output` application operation.
 
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
-use ryo_execution_domain::domain::{
-    operating::{errors::OperatingError, types::Memo},
-    table_scratch::types::OperatorScratch,
-};
+use ryo_execution_domain::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers;
 use ryo_language::domain::symbols::{service::query_reborrow, types::QuerySymbols};
 use ryo_relations::domain::relations::types::Value;
 
@@ -40,27 +38,28 @@ impl<'a> Headers<'a> {
         &self,
         emit: &mut dyn Emit,
         symbols: &mut QuerySymbols<'_>,
-        scratch: &mut OperatorScratch,
-        memo: &mut Vec<Memo>,
+        buffers: &mut DownstreamBuffers,
         row: &[Value],
     ) -> Result<(), OperatingError> {
-        let mut downstream = OperatorContext {
-            phase: self.phase,
-            semantic: self.semantic,
-            prepared_matchers: self.prepared_matchers,
-            matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(
-                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
-            ),
-            prepared_kinds: self.prepared_kinds,
-            bindings: self.bindings,
-            symbols: query_reborrow(symbols),
-            source: self.source,
-            paths: self.paths,
-            arenas: self.arenas,
-            memo,
-            scratch,
-        };
-        emit.row(&mut downstream, row)
+        buffers.lend(|scratch, memo| {
+            let mut downstream = OperatorContext {
+                phase: self.phase,
+                semantic: self.semantic,
+                prepared_matchers: self.prepared_matchers,
+                matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(
+                    &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+                ),
+                prepared_kinds: self.prepared_kinds,
+                bindings: self.bindings,
+                symbols: query_reborrow(symbols),
+                source: self.source,
+                paths: self.paths,
+                arenas: self.arenas,
+                memo,
+                scratch,
+            };
+            emit.row(&mut downstream, row)
+        })
     }
 }
 
@@ -75,8 +74,7 @@ pub(crate) fn replay(
     struct Delivery<'call, 'headers> {
         headers: Headers<'headers>,
         output: &'call mut dyn Emit,
-        scratch: OperatorScratch,
-        memo: Vec<Memo>,
+        buffers: DownstreamBuffers,
     }
     impl Emit for Delivery<'_, '_> {
         fn row(
@@ -84,20 +82,14 @@ pub(crate) fn replay(
             context: &mut OperatorContext<'_>,
             row: &[Value],
         ) -> Result<(), OperatingError> {
-            self.headers.row(
-                self.output,
-                &mut context.symbols,
-                &mut self.scratch,
-                &mut self.memo,
-                row,
-            )
+            self.headers
+                .row(self.output, &mut context.symbols, &mut self.buffers, row)
         }
     }
     let mut delivery = Delivery {
         headers: Headers::from_context(context),
         output,
-        scratch: OperatorScratch::default(),
-        memo: Vec::new(),
+        buffers: DownstreamBuffers::default(),
     };
     ryo_execution_domain::domain::replay::service::scan(
         rows,

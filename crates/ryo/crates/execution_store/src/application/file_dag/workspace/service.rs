@@ -1,4 +1,3 @@
-// ignore: idiomatic.arch/file-length - the invocation workspace and the input admissions of one demand scope, each method stating its errors; a split would part the admissions from the workspace they borrow
 //! The invocation workspace admits an operator's inputs and acquires the derived view they demand.
 use crate::application::file_dag::relations::admission::service::BorrowedInput;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -8,7 +7,7 @@ use ryo_values::domain::plan_parts::types::InputNumber;
 
 impl InvocationWorkspace {
     /// The admissions of `inputs` for this invocation.
-    pub fn inputs<'a, 'f>(
+    pub(crate) fn inputs<'a, 'f>(
         &'a self,
         inputs: &'a [RepresentationInput<'f>],
     ) -> InputAdmissions<'a, 'f> {
@@ -24,7 +23,7 @@ impl InvocationWorkspace {
     ///
     /// [`OperatingError::MissingInput`] for a place beyond the captured publications, [`OperatingError::NotRun`] for a
     /// place whose publication was not captured, and the owner's refusal to admit `rows` for it.
-    pub fn admit<'a>(
+    pub(crate) fn admit<'a>(
         &self,
         place: InputNumber,
         rows: RepresentationInput<'a>,
@@ -60,10 +59,7 @@ pub struct InvocationWorkspace {
     relation_owner: std::rc::Rc<super::super::relations::service::RelationOwner>,
     pub(super) publications:
         Vec<Option<crate::application::file_dag::relations::handle::service::Publication>>,
-    #[cfg(any(test, feature = "fixtures"))]
-    observation: ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
-    downstream_scratch: ryo_execution_domain::domain::table_scratch::types::OperatorScratch,
-    downstream_memo: Vec<ryo_execution_domain::domain::operating::types::Memo>,
+    downstream: ryo_execution_domain::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers,
     predicates: ryo_execution_domain::domain::table_scratch::types::LazyScratch<
         ryo_execution_domain::domain::table_scratch::types::SelectScratch,
     >,
@@ -107,33 +103,22 @@ impl InvocationWorkspace {
             derived_scratch: Default::default(),
             relation_owner: owner,
             publications: Default::default(),
-            downstream_scratch: Default::default(),
-            downstream_memo: Default::default(),
+            downstream: Default::default(),
             predicates: Default::default(),
             predicate_memo: Default::default(),
             predicate_names: Default::default(),
             literal_regex: Default::default(),
             primitive: Default::default(),
-            #[cfg(any(test, feature = "fixtures"))]
-            observation: Default::default(),
         }
     }
 
     /// What the invocation's allocations measure now, for the proofs of their reuse and release.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// fn rows_held(workspace: &InvocationWorkspace) -> usize {
-    ///     workspace.measured().row_capacity
-    /// }
-    /// ```
     #[cfg(any(test, feature = "fixtures"))]
-    pub fn measured(
+    pub(crate) fn measured(
         &self,
     ) -> ryo_execution_domain::domain::operating::fixtures::ExecutionObservation {
-        let mut observed = self.observation;
+        let mut observed =
+            ryo_execution_domain::domain::operating::fixtures::ExecutionObservation::default();
         observed.regexes = self
             .predicates
             .0
@@ -176,32 +161,11 @@ impl InvocationWorkspace {
 
 impl InvocationWorkspace {
     /// Releases the admitted publications.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// use ryo_execution_store::application::file_dag::relations::handle::service::Publication;
-    /// fn invoked(workspace: &mut InvocationWorkspace, publications: Vec<Publication>) {
-    ///     workspace.capture_admitted(publications);
-    ///     workspace.release_inputs();
-    /// }
-    /// ```
-    pub fn release_inputs(&mut self) {
+    pub(crate) fn release_inputs(&mut self) {
         self.publications.clear();
     }
     /// Holds `publications` as the invocation's admitted inputs.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// use ryo_execution_store::application::file_dag::relations::handle::service::Publication;
-    /// fn admitted(workspace: &mut InvocationWorkspace, publications: Vec<Publication>) {
-    ///     workspace.capture_admitted(publications);
-    /// }
-    /// ```
-    pub fn capture_admitted(
+    pub(crate) fn capture_admitted(
         &mut self,
         publications: Vec<super::super::relations::handle::service::Publication>,
     ) {
@@ -209,107 +173,38 @@ impl InvocationWorkspace {
     }
 
     /// The relation owner the invocation reads through.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// fn owned(workspace: &InvocationWorkspace) -> usize {
-    ///     workspace.owner().derived().owned_bytes().0
-    /// }
-    /// ```
-    pub fn owner(&self) -> &super::super::relations::service::RelationOwner {
+    pub(crate) fn owner(&self) -> &super::super::relations::service::RelationOwner {
         &self.relation_owner
     }
 
     /// The rows each input was found to hold, counted as the kernels report them.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// use ryo_execution_domain::domain::operator::contract::lease::service::take_totals;
-    /// use ryo_execution_domain::domain::operator::contract::types::WorkTotals;
-    /// fn found(workspace: &InvocationWorkspace) -> WorkTotals {
-    ///     take_totals(workspace.work())
-    /// }
-    /// ```
-    pub fn work(&self) -> &ryo_execution_domain::domain::operator::contract::types::WorkCounters {
+    pub(crate) fn work(
+        &self,
+    ) -> &ryo_execution_domain::domain::operator::contract::types::WorkCounters {
         &self.work
     }
     /// The route profile position this invocation was opened at.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::OriginScope;
-    /// fn resumed(workspace: &InvocationWorkspace) -> OriginScope {
-    ///     workspace.progress_origin().resume()
-    /// }
-    /// ```
     #[cfg(feature = "diagnostic-row-progress")]
-    pub fn progress_origin(&self) -> &super::super::route_counts::profile::service::CapturedOrigin {
+    pub(crate) fn progress_origin(
+        &self,
+    ) -> &super::super::route_counts::profile::service::CapturedOrigin {
         &self.progress_origin
     }
     /// The primitive operators' working allocations, to read what they hold.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// fn positions(workspace: &InvocationWorkspace) -> usize {
-    ///     workspace.primitive().positions.len()
-    /// }
-    /// ```
-    pub fn primitive(
+    pub(crate) fn primitive(
         &self,
     ) -> &ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace {
         &self.primitive
     }
     /// The primitive operators' working allocations, lent to a kernel.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// fn cleared(workspace: &mut InvocationWorkspace) {
-    ///     workspace.primitive_mut().positions.clear();
-    /// }
-    /// ```
-    pub fn primitive_mut(
+    pub(crate) fn primitive_mut(
         &mut self,
     ) -> &mut ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace {
         &mut self.primitive
     }
-    /// What the proofs observe of this invocation's work.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// fn observed(workspace: &mut InvocationWorkspace) -> usize {
-    ///     workspace.observation_mut().row_capacity
-    /// }
-    /// ```
-    #[cfg(any(test, feature = "fixtures"))]
-    pub fn observation_mut(
-        &mut self,
-    ) -> &mut ryo_execution_domain::domain::operating::fixtures::ExecutionObservation {
-        &mut self.observation
-    }
     /// Every working allocation a kernel uses, each lent apart from the others so one evaluation can hold them
-    /// at once; the admitted publications and the proofs' observation stay with the workspace.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// fn positions(workspace: &mut InvocationWorkspace) -> usize {
-    ///     workspace.parts().primitive.positions.len()
-    /// }
-    /// ```
-    pub fn parts(&mut self) -> super::types::WorkspaceParts<'_> {
+    /// at once; the admitted publications stay with the workspace.
+    pub(crate) fn parts(&mut self) -> super::types::WorkspaceParts<'_> {
         super::types::WorkspaceParts {
             owner: &self.relation_owner,
             work: &self.work,
@@ -318,8 +213,7 @@ impl InvocationWorkspace {
             predicate_memo: &mut self.predicate_memo,
             predicate_names: &mut self.predicate_names,
             primitive: &mut self.primitive,
-            downstream_scratch: &mut self.downstream_scratch,
-            downstream_memo: &mut self.downstream_memo,
+            downstream: &mut self.downstream,
         }
     }
     pub(crate) fn owner_handle(
@@ -405,17 +299,10 @@ impl<'f> InputAdmissions<'_, 'f> {
     /// # Errors
     ///
     /// [`OperatingError::MissingInput`] when the invocation has no input at `place`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
-    /// use ryo_values::domain::plan_parts::types::InputNumber;
-    /// fn admitted(admissions: &InputAdmissions<'_, '_>) -> bool {
-    ///     admissions.input(InputNumber(0)).is_ok()
-    /// }
-    /// ```
-    pub fn input(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
+    pub(crate) fn input(
+        &self,
+        place: InputNumber,
+    ) -> Result<RepresentationInput<'f>, OperatingError> {
         self.inputs
             .get(place.0)
             .copied()
@@ -429,17 +316,10 @@ impl<'f> InputAdmissions<'_, 'f> {
     ///
     /// [`OperatingError::WrongOperation`] for a place beyond the three an operator reads,
     /// [`OperatingError::MissingInput`] when the invocation has no input there, and the refusal of admitting it.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
-    /// use ryo_values::domain::plan_parts::types::InputNumber;
-    /// fn held(admissions: &InputAdmissions<'_, '_>) -> bool {
-    ///     admissions.rows(InputNumber(0)).is_ok()
-    /// }
-    /// ```
-    pub fn rows(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
+    pub(crate) fn rows(
+        &self,
+        place: InputNumber,
+    ) -> Result<RepresentationInput<'f>, OperatingError> {
         Ok(self.proof(place)?.rows())
     }
     pub(crate) fn proof(&self, place: InputNumber) -> Result<&BorrowedInput<'f>, OperatingError> {

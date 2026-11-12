@@ -1,6 +1,6 @@
 //! A graph demand reaches the cache only through the owner of a prepared file; before
 //! preparation and after retirement it is refused, never traversed by another route.
-use super::fixtures::{ENDPOINTS, SOURCE, graph_of};
+use super::fixtures::{ENDPOINTS, SOURCE, admitted_graph_of, graph_of};
 use crate::application::file_dag::derived::owner::{
     fixtures::graph::GraphFixture, index::service::LIMIT,
 };
@@ -29,6 +29,9 @@ enum Demand {
     ProjectRetired,
     /// A file owner is asked to serve the project.
     FileServingProject,
+    /// A prepared file owner is asked, through the admitted views port, for an axis's graph over two functions admitted at
+    /// its three places.
+    AdmittedAxis,
 }
 
 /// What the demand answered.
@@ -75,6 +78,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             vertices: 3,
             builds: 1,
         }),
+    },
+    Case {
+        name: CaseName("a_prepared_owner_answers_an_axis_through_the_admitted_views_port"),
+        word: Word::Succeeds,
+        input: || Demand::AdmittedAxis,
+        expect: Expect::Value(Answer::Prepared),
     },
     Case {
         name: CaseName("a_project_owner_refuses_the_graph_before_it_serves_the_project"),
@@ -147,6 +156,28 @@ fn subject(input: Input) -> Result<Value, Failure> {
             Ok(Answer::Graph {
                 vertices: graph.graph().vertices().len(),
                 builds: fixture.snapshot().counts.builds,
+            })
+        }
+        Demand::AdmittedAxis => {
+            // Two functions, ids 1 and 2, in the columns the axis contract reads: id, name, file and span.
+            let columns = [
+                FactColumn(vec![1, 2]),
+                FactColumn(vec![0, 0]),
+                FactColumn(vec![0, 0]),
+                FactColumn(vec![0, 0]),
+            ];
+            let rows = Rows::Stored(ColumnsView {
+                kinds: ryo_relations::domain::relations::service::kinds(Relation::Function),
+                columns: &columns,
+            });
+            let fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
+            fixture.cache_ready()?;
+            admitted_graph_of(&fixture.owner, &rows).map(|prepared| {
+                if prepared {
+                    Answer::Prepared
+                } else {
+                    Answer::Declined
+                }
             })
         }
         Demand::ProjectBeforeServing => axis_graph(&project_owner()),

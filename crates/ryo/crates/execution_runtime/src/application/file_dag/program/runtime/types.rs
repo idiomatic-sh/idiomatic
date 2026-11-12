@@ -23,6 +23,9 @@ pub(crate) struct KernelScratch {
         Option<ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace>,
     pub ordered_row: Vec<Value>,
     pub ordered: ryo_operators::domain::ordered_existence::types::OrderedExistenceScratch,
+    /// What the proofs observe of the workspace's invocations: it lives as long as the workspace beside it.
+    #[cfg(test)]
+    pub probe: ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
 }
 pub(crate) enum KernelInput<'a> {
     Admitted(&'a [AdmittedInput]),
