@@ -22,3 +22,13 @@ pub(crate) const UNSPECIFIED_CODE: &str = "unspecified";
 
 /// The configuration identity of a parse that takes no configuration.
 pub(crate) const NO_CONFIGURATION: &str = "";
+
+/// The node property that holds how an identifier reference uses its name, as the catalog's context word (`value`, `type`, `write`
+/// or `read-write`), from the parser's semantic pass.
+pub(crate) const REFERENCE_FLAGS: ryo::languages::PropertyId = ryo::languages::PropertyId(3);
+/// The node property that holds, in decimal, where the name a resolved identifier reference resolves to is first declared: the start
+/// of that declaration's binding identifier. An unresolved reference has none.
+pub(crate) const REFERENCE_DECLARATION: ryo::languages::PropertyId = ryo::languages::PropertyId(4);
+/// The node property that holds, in decimal, where a binding identifier that declares a name again first declared it: the start of
+/// the first declaration's binding identifier. A name's first declaration has none.
+pub(crate) const REDECLARATION_OF: ryo::languages::PropertyId = ryo::languages::PropertyId(5);

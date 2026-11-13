@@ -1,5 +1,6 @@
 //! The parser's diagnostics, including malformed UTF-8 and recovered syntax.
 
+use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::{INCOMPLETE_IMPACT, PARSE_PHASE, UNSPECIFIED_CODE};
 use crate::domain::syntax::service::kind_bits;
@@ -10,7 +11,7 @@ use ryo::languages;
 pub(crate) struct SyntaxErrorItem;
 
 ryo::reads! {
-    SyntaxErrorItem => languages::SyntaxError |tree, at, symbols| {
+    SyntaxErrorItem => languages::SyntaxError, model(ReadIndexes) |tree, _model, at, symbols| {
         kinds: [Kind::Node(Node::Program)] as kind_bits,
         each (languages::diagnostics(tree.elements)) as (number, diagnostic) {
             given phase = languages::intern_derived(symbols, tree.source, languages::NameText(PARSE_PHASE));

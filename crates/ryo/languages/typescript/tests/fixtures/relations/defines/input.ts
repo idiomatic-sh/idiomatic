@@ -15,3 +15,8 @@ namespace Space { export let inner = 1; }
 class Box { size = 1; grow() {} }
 let changing = 2;
 outer: for (;;) { break outer; }
+try {} catch (caught) {}
+const named = function inner() {};
+const made = class Made {};
+const arrow = (a, { b }) => a;
+{ using held = open(); }
