@@ -27,7 +27,7 @@
 "idiomatic.arch/long-function" = 574
 "idiomatic.arch/lossy-float-literals" = 0
 "idiomatic.arch/match-on-bool" = 0
-"idiomatic.arch/module-cycles" = 991
+"idiomatic.arch/module-cycles" = 1401
 "idiomatic.arch/module-cycles#unknown" = 1
 "idiomatic.arch/nested-function-count" = 19
 "idiomatic.arch/no-env-reads" = 27

@@ -6,10 +6,10 @@ use crate::{counting, ruff};
 use ryo_core::inbound::use_cases::lint::types::Rule;
 
 /// The most memory, in bytes, a warm run over ruff that finds nothing changed may peak at, in a test process of its own: a regression
-/// guard at the peak measured (96 MB, rounded up to 100 MB). The goal is the peak of the release build's run (87 MB), and this bound
-/// is lowered when the run reaches it.
+/// guard at the peak measured (112-116 MB at checkpoint 336, rounded up to 125 MB; raised by the owner, who said the warm peak must not
+/// block). The goal is the peak of the release build's run (87 MB), and this bound is lowered when the run reaches it.
 #[cfg(target_os = "linux")]
-const WARM_PEAK_BYTES_BOUND: u64 = 100_000_000;
+const WARM_PEAK_BYTES_BOUND: u64 = 125_000_000;
 
 /// The argument that names the directory a child process runs the warm run over, and so marks the process as the child.
 #[cfg(target_os = "linux")]
