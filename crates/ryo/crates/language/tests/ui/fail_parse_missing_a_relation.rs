@@ -41,6 +41,10 @@ impl ParseUseCase for Missing {
     ) {
     }
 
+    fn semantics(&self) -> Option<&dyn ryo_language::domain::semantics::types::Semantics> {
+        None
+    }
+
     fn completion_requirement(&self) -> ryo_language::domain::elements::types::CompletionRequirement {
         ryo_language::domain::elements::types::CompletionRequirement::Independent
     }

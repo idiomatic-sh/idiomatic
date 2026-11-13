@@ -1,3 +1,7 @@
+# language 0.4.6
+
+Places `contract` 0.4.0, whose `parse` contract answers the required `semantics` method with `None`. The language fixtures' parse contracts carry it. Everything else is as in 0.4.5.
+
 # language 0.4.5
 
 Places its benchmark at `benchmark@0.2.3`, which places the linter adapters at `adapter@0.4.0`. Everything else is as in 0.4.4.

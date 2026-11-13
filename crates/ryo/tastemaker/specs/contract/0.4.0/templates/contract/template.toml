@@ -40,6 +40,10 @@ impl Parse for {{ part | pascal }}Contract {
     ) {
     }
 
+    fn semantics(&self) -> Option<&dyn languages::Semantics> {
+        None
+    }
+
     fn completion_requirement(&self) -> languages::CompletionRequirement {
         languages::CompletionRequirement::Independent
     }
@@ -458,6 +462,10 @@ impl Parse for ParseContract {
     ) {
     }
 
+    fn semantics(&self) -> Option<&dyn languages::Semantics> {
+        None
+    }
+
     fn completion_requirement(&self) -> languages::CompletionRequirement {
         languages::CompletionRequirement::Independent
     }
@@ -799,6 +807,10 @@ impl Parse for ParseContract {
         _tree: &languages::Elements,
         _slot: &mut languages::SemanticSlot,
     ) {
+    }
+
+    fn semantics(&self) -> Option<&dyn languages::Semantics> {
+        None
     }
 
     fn completion_requirement(&self) -> languages::CompletionRequirement {
@@ -1155,6 +1167,10 @@ impl Parse for OtherContract {
     ) {
     }
 
+    fn semantics(&self) -> Option<&dyn languages::Semantics> {
+        None
+    }
+
     fn completion_requirement(&self) -> languages::CompletionRequirement {
         languages::CompletionRequirement::Independent
     }
@@ -1455,6 +1471,7 @@ impl Parse for OtherContract {
 '''
 # The Parse template now requires numeric_literal; this deliberate negative mutation rejects that member too.
 then.findings = [
+  { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
@@ -1576,6 +1593,10 @@ impl Different for ParseContract {
     ) {
     }
 
+    fn semantics(&self) -> Option<&dyn languages::Semantics> {
+        None
+    }
+
     fn completion_requirement(&self) -> languages::CompletionRequirement {
         languages::CompletionRequirement::Independent
     }
@@ -1949,6 +1970,7 @@ then.findings = [
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
 ]
 [[scenarios]]
 id = 'no-impl'
@@ -1985,6 +2007,7 @@ impl ParseContract {
 '''
 # The Parse template now requires numeric_literal; this deliberate negative mutation rejects that member too.
 then.findings = [
+  { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
@@ -2195,6 +2218,10 @@ impl Parse for ParseContract {
         _tree: &languages::Elements,
         _slot: &mut languages::SemanticSlot,
     ) {
+    }
+
+    fn semantics(&self) -> Option<&dyn languages::Semantics> {
+        None
     }
 
     fn completion_requirement(&self) -> languages::CompletionRequirement {
@@ -2541,6 +2568,10 @@ impl Parse for ParseContract {
         _tree: &languages::Elements,
         _slot: &mut languages::SemanticSlot,
     ) {
+    }
+
+    fn semantics(&self) -> Option<&dyn languages::Semantics> {
+        None
     }
 
     fn completion_requirement(&self) -> languages::CompletionRequirement {
