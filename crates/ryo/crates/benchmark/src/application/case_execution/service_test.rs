@@ -98,8 +98,8 @@ impl LinterPort for ObservedPrepare {
         &self,
         tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
     ) -> ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine {
-        ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine(
-            format!("{} {}", tool.tool, tool.version).into(),
+        ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine::from(
+            tool,
         )
     }
 }
