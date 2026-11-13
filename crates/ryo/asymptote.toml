@@ -198,8 +198,8 @@ inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "c
 [[tools]]
 id = "correctness-python-ruff-candidates"
 group = "ruff-candidates"
-# This job checks authoring guards and optimized Python release behavior. The dedicated
-# ruff-all-defaults CI job owns strict 413-rule verification and its receipts.
+# This job checks authoring guards and optimized Python release behavior.
+# The bench-correctness CI job (tool bench-correctness) owns strict all-default verification and its receipts.
 run = ["python3", "-c", "import os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\nself_test = subprocess.run([sys.executable, str(helper), '--self-test'])\nif self_test.returncode:\n    sys.exit(self_test.returncode)\nrelease_tests = [\n    ['cargo', 'test', '--release', '--locked', '-p', 'idiomatic-sh-ryo-python', '--lib', 'boolean_parser_payload_is_written_in_optimized_builds'],\n]\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\nfor command in release_tests:\n    result = subprocess.run(command, env=environment)\n    if result.returncode:\n        sys.exit(result.returncode)\nsys.exit(0)"]
 timeout-seconds = 3600
 inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]

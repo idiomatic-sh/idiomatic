@@ -1,15 +1,12 @@
-//! What the `artifacts` port asks of the outside, in the core's own vocabulary: plain data in and out.
+//! What the `executables` port asks of the outside, in the core's own vocabulary: plain data in and out.
 //! It never takes an adapter's configuration (the build tool, the search path): the port's factory takes that.
-use super::types::Sealed;
-use crate::domain::operations::types::BenchDirectory;
-use crate::inbound::use_cases::operate::types::OperationVerdict;
+use super::types::{BenchPackage, RunArguments, RunVerdict, Sealed};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
-use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-/// What every `artifacts` adapter implements: where builds go, the reference tool, sealed copies and their runs.
-pub trait ArtifactsPort {
+/// What every `executables` adapter implements: where builds go, the reference tool, sealed copies and their runs.
+pub trait ExecutablesPort {
     /// The build target directory every operation writes under.
     ///
     /// # Errors
@@ -25,7 +22,7 @@ pub trait ArtifactsPort {
     ///
     /// # Errors
     /// Refuses a failed build, no or several bench executables, and a platform where a nested build blocks.
-    fn seal_worker(&self, bench: &BenchDirectory, sealed: &Path) -> Result<Sealed, Error>;
+    fn seal_worker(&self, bench: &BenchPackage, sealed: &Path) -> Result<Sealed, Error>;
     /// Seal the running executable at `sealed`.
     ///
     /// # Errors
@@ -38,7 +35,7 @@ pub trait ArtifactsPort {
     fn run_sealed(
         &self,
         executable: &Path,
-        arguments: &[OsString],
+        arguments: &RunArguments,
         output: &mut dyn std::io::Write,
-    ) -> Result<OperationVerdict, Error>;
+    ) -> Result<RunVerdict, Error>;
 }

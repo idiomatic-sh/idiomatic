@@ -11,3 +11,4 @@ pub fn bmf(output: Box<dyn Write + Send>, comparison: Box<dyn Write + Send>) -> 
         parity: std::sync::Mutex::default(),
     })
 }
+

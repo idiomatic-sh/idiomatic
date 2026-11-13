@@ -100,21 +100,25 @@ impl InventoryPort for InventoryFake {
         Ok(CapturedBytes(b"{}\n".to_vec()))
     }
     fn store(&self, path: &Path, _registration: &Registration) -> Result<(), Error> {
+        let _directory = std::fs::metadata(path.parent().unwrap_or(path))?;
         let _new = self.state().stored.insert(path.to_owned());
         Ok(())
     }
     fn stage_profile(
         &self,
-        _source: &Path,
+        source: &Path,
         _destination: &Path,
         _projection: &ProfileProjection,
     ) -> Result<(), Error> {
+        let _source = std::fs::metadata(source)?;
         Ok(())
     }
-    fn case_inventory(&self, _stage: &Path) -> Result<CaseDocuments, Error> {
+    fn case_inventory(&self, stage: &Path) -> Result<CaseDocuments, Error> {
+        let _stage = std::fs::metadata(stage)?;
         Ok(CaseDocuments(Vec::new()))
     }
-    fn instance(&self, _record: &RuleInstanceRecord) -> Result<CanonicalJson, Error> {
+    fn instance(&self, record: &RuleInstanceRecord) -> Result<CanonicalJson, Error> {
+        let _stage = std::fs::metadata(&record.stage)?;
         Ok(CanonicalJson("{}".into()))
     }
 }

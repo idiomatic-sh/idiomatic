@@ -5,10 +5,13 @@ use crate::application::inventory_verification::service as inventory_verificatio
 use crate::application::registration::service::register;
 use crate::domain::operations::constants::{COLLECTOR, INVENTORY, WORKER};
 use crate::domain::operations::service::{layout, worker_arguments};
-use crate::domain::operations::types::Operation;
+use crate::domain::operations::types::BenchOperation;
 use crate::domain::suite::types::inventory::value::InventoryVerdict;
 use crate::outbound::{
-    artifacts::{interface::ArtifactsPort, types::Sealed},
+    executables::{
+        interface::ExecutablesPort,
+        types::{BenchPackage, RunArguments, Sealed},
+    },
     execution::interface::ExecutionPort,
     inventory::interface::InventoryPort,
     receipts::interface::ReceiptsPort,
@@ -22,7 +25,7 @@ use std::sync::Arc;
 /// `operate`, over only the ports it calls, each injected by the edge.
 pub struct OperateUseCaseImpl {
     /// Builds, seals and runs the executables.
-    artifacts: Arc<dyn ArtifactsPort>,
+    executables: Arc<dyn ExecutablesPort>,
     /// The bench's profile and files.
     suite: Arc<dyn SuitePort>,
     /// The registration and the inventory's results.
@@ -37,14 +40,14 @@ impl OperateUseCaseImpl {
     /// `operate` over the ports it calls, which the edge injects.
     #[must_use]
     pub fn new(
-        artifacts: Arc<dyn ArtifactsPort>,
+        executables: Arc<dyn ExecutablesPort>,
         suite: Arc<dyn SuitePort>,
         inventory: Arc<dyn InventoryPort>,
         receipts: Arc<dyn ReceiptsPort>,
         execution: Arc<dyn ExecutionPort>,
     ) -> Self {
         Self {
-            artifacts,
+            executables,
             suite,
             inventory,
             receipts,
@@ -59,18 +62,18 @@ impl OperateUseCase for OperateUseCaseImpl {
         request: &OperationRequest,
         output: &mut dyn std::io::Write,
     ) -> Result<OperationReport, Error> {
-        let layout = layout(&self.artifacts.target()?, &request.bench, request.operation)?;
+        let layout = layout(&self.executables.target()?, &request.bench, request.operation)?;
         let profile = self.suite.profile(ArtifactPath(&request.bench.0))?;
-        let tool = self.artifacts.reference(&profile.tool)?;
+        let tool = self.executables.reference(&profile.tool)?;
         let reference = Sealed {
             sha256: Sha256Text(self.suite.digest(ArtifactPath(&tool))?.0),
             path: tool,
         };
         let worker = self
-            .artifacts
-            .seal_worker(&request.bench, &layout.root.join(WORKER))?;
-        let verdict = match request.operation {
-            Operation::Correctness => {
+            .executables
+            .seal_worker(&BenchPackage(request.bench.0.clone()), &layout.root.join(WORKER))?;
+        let answer = match request.operation {
+            BenchOperation::Correctness => {
                 let registration = register(
                     self.suite.as_ref(),
                     self.inventory.as_ref(),
@@ -92,8 +95,8 @@ impl OperateUseCase for OperateUseCaseImpl {
                     InventoryVerdict::Failed => OperationVerdict::Failed,
                 }
             }
-            Operation::Measure => {
-                let _collector = self.artifacts.seal_current(&layout.root.join(COLLECTOR))?;
+            BenchOperation::Measure => {
+                let _collector = self.executables.seal_current(&layout.root.join(COLLECTOR))?;
                 let _registration = register(
                     self.suite.as_ref(),
                     self.inventory.as_ref(),
@@ -102,19 +105,19 @@ impl OperateUseCase for OperateUseCaseImpl {
                     &worker,
                     &layout.root,
                 )?;
-                self.artifacts.run_sealed(
+                OperationVerdict::from(self.executables.run_sealed(
                     &worker.path,
-                    &worker_arguments(Operation::Measure, &layout, &reference.path),
+                    &RunArguments(worker_arguments(BenchOperation::Measure, &layout, &reference.path)),
                     output,
-                )?
+                )?)
             }
-            Operation::Parity => self.artifacts.run_sealed(
+            BenchOperation::Parity => OperationVerdict::from(self.executables.run_sealed(
                 &worker.path,
-                &worker_arguments(Operation::Parity, &layout, &reference.path),
+                &RunArguments(worker_arguments(BenchOperation::Parity, &layout, &reference.path)),
                 output,
-            )?,
+            )?),
         };
-        Ok(OperationReport { verdict })
+        Ok(OperationReport { verdict: answer })
     }
 }
 

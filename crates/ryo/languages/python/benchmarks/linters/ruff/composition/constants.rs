@@ -60,8 +60,6 @@ pub(crate) const PER_RULE: &str = "per-rule.json";
 pub(crate) const EVIDENCE_DIRECTORY: &str = "profiles/evidence";
 /// The suffix of a project's accepted-differences file, after the project's name.
 pub(crate) const ACCEPTED_SUFFIX: &str = "-accepted-differences.json";
-/// The refusal when a stream's lock was poisoned by a panic.
-pub(crate) const POISONED_STREAM: &str = "parity stream lock poisoned";
 /// Required argument or refusal for expected executable.
 pub(crate) const EXPECTED_EXECUTABLE: &str = "expected executable path";
 /// CLI usage shown when command dispatch fails.

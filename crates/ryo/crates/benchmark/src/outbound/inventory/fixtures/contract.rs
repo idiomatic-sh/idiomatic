@@ -2,7 +2,14 @@
 use super::data::{row, summary};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::inventory::interface::InventoryPort;
-use crate::outbound::inventory::types::ReceiptFile;
+use crate::outbound::inventory::types::{
+    ProfileProjection, ProviderName, ReceiptFile, Registration, RegistrationAuthority,
+    RuleInstanceRecord,
+};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{PathText, RuleName, Sha256Text};
+use ryo_benchmark_contracts::domain::requests::types::ParserSelection;
+use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use std::collections::BTreeMap;
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -28,6 +35,14 @@ pub enum Operation {
     MalformedInvocationIsRefused,
     /// A missing context is refused.
     MissingContextIsRefused,
+    /// A registration whose directory does not exist is refused.
+    StoreWithoutDirectoryIsRefused,
+    /// A missing settings profile is refused.
+    MissingSettingsProfileIsRefused,
+    /// A missing stage has no cases.
+    MissingStageIsRefused,
+    /// A missing stage has no instance.
+    MissingInstanceStageIsRefused,
 }
 
 /// What a contract row is refused with.
@@ -102,6 +117,30 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Operation::MissingContextIsRefused,
         expect: Expect::Error(Refusal::Other),
     },
+    Case {
+        name: CaseName("a registration whose directory does not exist is refused"),
+        word: Word::Refuses,
+        input: || Operation::StoreWithoutDirectoryIsRefused,
+        expect: Expect::Error(Refusal::Other),
+    },
+    Case {
+        name: CaseName("a missing settings profile is not staged"),
+        word: Word::Refuses,
+        input: || Operation::MissingSettingsProfileIsRefused,
+        expect: Expect::Error(Refusal::Other),
+    },
+    Case {
+        name: CaseName("a missing stage registers no case"),
+        word: Word::Refuses,
+        input: || Operation::MissingStageIsRefused,
+        expect: Expect::Error(Refusal::Other),
+    },
+    Case {
+        name: CaseName("a missing stage has no instance"),
+        word: Word::Refuses,
+        input: || Operation::MissingInstanceStageIsRefused,
+        expect: Expect::Error(Refusal::Other),
+    },
 ];
 
 /// Run the contract's rows against one implementation: the fake, or an adapter.
@@ -163,6 +202,53 @@ fn observe(adapter: &impl InventoryPort, operation: Operation) -> Result<(), Err
             .decode_invocation(&streams)
             .map(|_| ())
             .map_err(|error| Error::Io(std::io::Error::other(error.to_string()))),
+        Operation::StoreWithoutDirectoryIsRefused => adapter
+            .store(&scratch.path().join("absent/registration.json"), &Registration {
+                authority: RegistrationAuthority::ReceiptOnly,
+                provider: ProviderName(String::new()),
+                defaults: Vec::new(),
+                rules: Vec::new(),
+                identity: BTreeMap::new(),
+            })
+            .map_err(|error| Error::Io(std::io::Error::other(error.to_string()))),
+        Operation::MissingSettingsProfileIsRefused => adapter
+            .stage_profile(
+                &scratch.path().join("absent.toml"),
+                &scratch.path().join("staged.toml"),
+                &ProfileProjection {
+                    defaults: Vec::new(),
+                    supporting_rules: Vec::new(),
+                    parser_configuration: ParserSelection::Unspecified,
+                    query_modules: BTreeMap::new(),
+                    rule_applicability: BTreeMap::new(),
+                },
+            )
+            .map_err(|error| Error::Io(std::io::Error::other(error.to_string()))),
+        Operation::MissingStageIsRefused => adapter
+            .case_inventory(&scratch.path().join("absent-stage"))
+            .map(|_| ())
+            .map_err(|error| Error::Io(std::io::Error::other(error.to_string()))),
+        Operation::MissingInstanceStageIsRefused => {
+            let digest = Sha256Text(String::new());
+            adapter
+                .instance(&RuleInstanceRecord {
+                    stage: scratch.path().join("absent-stage"),
+                    rule: RuleName(String::new()),
+                    query_file: PathText(String::new()),
+                    query_sha256: digest.clone(),
+                    cases_file: PathText(String::new()),
+                    cases_sha256: digest.clone(),
+                    case_count: CaseCount(0),
+                    settings_source: PathText(String::new()),
+                    settings_source_sha256: digest.clone(),
+                    parser_configuration: ParserSelection::Unspecified,
+                    evidence_source_root: PathText(String::new()),
+                    profile_sha256: digest,
+                    module_sha256: BTreeMap::new(),
+                })
+                .map(|_| ())
+                .map_err(|error| Error::Io(std::io::Error::other(error.to_string())))
+        }
         Operation::MissingContextIsRefused => adapter
             .context_files(&scratch.path().join("context"))
             .map(|_| ())

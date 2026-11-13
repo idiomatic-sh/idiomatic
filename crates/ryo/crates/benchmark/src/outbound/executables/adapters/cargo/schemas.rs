@@ -1,5 +1,7 @@
-//! Cargo's documents: the workspace metadata, the build's compiler-artifact messages, and the seal record written beside a sealed executable.
+//! The build tool's documents: the workspace metadata, the build's compiler-artifact messages, and the seal record written
+//! beside a sealed executable.
 use super::constants::{LOCKED, ONE_BENCH_EXECUTABLE};
+use crate::outbound::executables::types::Sealed;
 use cargo_metadata::{Message, MetadataCommand, TargetKind};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Serialize;
@@ -17,13 +19,13 @@ pub(super) fn target_directory(cargo: &OsStr) -> Result<PathBuf, Error> {
         .map_err(|error| Error::Invalid(error.to_string()))
 }
 
-/// The one bench executable of the package at `manifest` among a build's messages: a compiler artifact of
-/// that package whose target is a bench built as a test harness.
-pub(super) fn bench_executable(messages: &[u8], manifest: &Path) -> Result<PathBuf, Error> {
+/// The one bench executable of the package in `package` among a build's messages: a compiler artifact of that
+/// package whose target is a bench built as a test harness.
+pub(super) fn bench_executable(messages: &[u8], package: &Path) -> Result<PathBuf, Error> {
     let mut found = Vec::new();
     for message in Message::parse_stream(messages) {
         if let Message::CompilerArtifact(artifact) = message?
-            && artifact.manifest_path.as_std_path() == manifest
+            && artifact.manifest_path.as_std_path().parent() == Some(package)
             && artifact.target.is_kind(TargetKind::Bench)
             && artifact.profile.test
             && let Some(executable) = artifact.executable
@@ -44,13 +46,19 @@ struct SealSchema<'a> {
     source_artifact: &'a Path,
 }
 
-/// The seal record of an executable copied from `source` with this digest, one JSON line.
-pub(super) fn seal_record(source: &Path, sha256: &str) -> Result<Vec<u8>, Error> {
-    let mut record = serde_json::to_vec(&SealSchema {
-        sha256,
-        source_artifact: source,
-    })
-    .map_err(|error| Error::Json(Box::new(error)))?;
+impl<'a> From<(&'a Path, &'a Sealed)> for SealSchema<'a> {
+    fn from((source, sealed): (&'a Path, &'a Sealed)) -> Self {
+        Self {
+            sha256: &sealed.sha256.0,
+            source_artifact: source,
+        }
+    }
+}
+
+/// The seal record of an executable copied from `source`, one JSON line.
+pub(super) fn seal_record(source: &Path, sealed: &Sealed) -> Result<Vec<u8>, Error> {
+    let mut record = serde_json::to_vec(&SealSchema::from((source, sealed)))
+        .map_err(|error| Error::Json(Box::new(error)))?;
     record.push(b'\n');
     Ok(record)
 }

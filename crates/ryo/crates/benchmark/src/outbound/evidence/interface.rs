@@ -25,8 +25,8 @@ pub trait EvidencePort {
         contract: ComparisonContract,
     ) -> Result<(), Error>;
     /// Publish the differing-rule and unaccepted-difference counts of a corpus parity as metrics, and its
-    /// per-rule document on the comparison stream. Each publication writes the counts of every parity published
-    /// through this boundary, each under its reference's name, so the last document holds every corpus.
+    /// per-rule document on the comparison stream. The counts of every parity published through this boundary
+    /// are one document, each under its reference's name, written when the boundary is done.
     ///
     /// # Errors
     /// Returns encoding, stream-write or flush failures.

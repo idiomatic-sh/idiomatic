@@ -62,7 +62,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(scenario: Input) -> Result<serde_json::Value, Failure> {
     let parity = match scenario {
         Scenario::ParityRules => Some((schemas::parity_rules(&publication()), PER_RULE)),
-        Scenario::ParityMetrics => Some((schemas::parity_metrics(&publication()), PARITY_METRICS)),
+        Scenario::ParityMetrics => Some((schemas::parity_document(&std::collections::BTreeMap::from([schemas::parity_counts(&publication())])), PARITY_METRICS)),
         Scenario::Resources | Scenario::Absent | Scenario::InexactResident => None,
     };
     if let Some((bytes, expected)) = parity {

@@ -1,16 +1,16 @@
-//! The `artifacts` port's fake runs the port's contract.
+//! The `executables` port's fake runs the port's contract.
 
 use super::super::contract::check;
-use super::ArtifactsFake;
-use crate::inbound::use_cases::operate::types::OperationVerdict;
+use super::ExecutablesFake;
+use crate::outbound::executables::types::RunVerdict;
 
 #[test]
 fn succeeds() {
-    check(&ArtifactsFake {
+    check(&ExecutablesFake {
         target: std::path::PathBuf::from("target"),
         tools: Vec::new(),
         stdout: Vec::new(),
-        verdict: OperationVerdict::Passed,
+        verdict: RunVerdict::Passed,
         history: std::sync::Mutex::default(),
     });
 }

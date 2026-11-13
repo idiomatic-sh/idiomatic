@@ -183,5 +183,7 @@ pub fn use_case_with(outside: Outside) -> CompareCorpusUseCaseImpl {
         Arc::new(ContextFake),
         Arc::new(SuiteFake::default()),
         Arc::new(EvidenceFake),
+        Arc::new(crate::outbound::discovery::fixtures::fake::DiscoveryFake { files: Vec::new() }),
+        Arc::new(crate::outbound::workspace::fixtures::fake::WorkspaceFake),
     )
 }

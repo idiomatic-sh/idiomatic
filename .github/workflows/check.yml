@@ -292,11 +292,15 @@ jobs:
           include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 7
-  ruff-all-defaults:
-    # Deliberately strict: the Ruff authoring guard and native subset jobs are
-    # separate; this job records every pinned default.
+  bench-correctness:
+    # Every default of every linter bench, verified by the shared collector on one Linux runner (asymptote group
+    # bench-correctness, never a check matrix row). The job's limit is above the tool's 21600-second timeout, so asymptote
+    # reports a timeout before the runner cancels the job.
     runs-on: ubuntu-26.04
-    timeout-minutes: 360
+    timeout-minutes: 390
+    env:
+      RAYON_NUM_THREADS: "1"
+      CARGO_BUILD_JOBS: "6"
     defaults:
       run:
         shell: bash
@@ -323,7 +327,7 @@ jobs:
         with:
           cache-bin: false
           cache-workspace-crates: true
-          shared-key: ubuntu-26.04-ruff-all-defaults-ryo
+          shared-key: ubuntu-26.04-bench-correctness-ryo
           save-if: true
           cache-on-failure: true
           workspaces: crates/ryo -> ../../target
@@ -351,72 +355,13 @@ jobs:
             ~/.cargo/.crates.toml
             ~/.cargo/.crates2.json
           key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-${{ github.sha }}
-      - name: Build one Ruff worker and seal its artifact
-        run: |
-          mkdir -p target/checks/ruff-all-defaults
-          cd crates/ryo
-          CARGO_BUILD_JOBS=6 cargo bench --no-run --locked -p idiomatic-sh-ryo-python-ruff-benchmark --bench ruff --message-format=json \
-            > ../../target/checks/ruff-all-defaults/worker-build.jsonl \
-            2> ../../target/checks/ruff-all-defaults/worker-build.stderr
-          python3 ../../ci/scripts/checks/seal_cargo_artifact.py \
-            ../../target/checks/ruff-all-defaults/worker-build.jsonl \
-            ruff bench /languages/python/benchmarks/linters/ruff/bench.rs true \
-            ../../target/checks/ruff-all-defaults/worker
-      - name: Build shared benchmark inventory runner
-        run: |
-          cd crates/ryo
-          CARGO_BUILD_JOBS=6 cargo build --release --locked -p idiomatic-sh-ryo-benchmark \
-            --bin ryo-benchmark-collector --message-format=json \
-            > ../../target/checks/ruff-all-defaults/inventory-build.jsonl \
-            2> ../../target/checks/ruff-all-defaults/inventory-build.stderr
-          python3 -m unittest discover -s ../../ci/scripts/checks -p 'seal_cargo_artifact_test.py'
-          python3 ../../ci/scripts/checks/seal_cargo_artifact.py \
-            ../../target/checks/ruff-all-defaults/inventory-build.jsonl \
-            ryo-benchmark-collector bin /crates/benchmark/src/main.rs false \
-            ../../target/checks/ruff-all-defaults/inventory-runner
-      - name: Verify all 413 pinned Ruff defaults
-        working-directory: crates/ryo
-        env:
-          RAYON_NUM_THREADS: "1"
-        run: |
-          ruff --version
-          set +e
-          python3 languages/python/benchmarks/linters/ruff/verify_profiles.py "$(command -v ruff)" \
-            --full-inventory \
-            --worker "$GITHUB_WORKSPACE/target/checks/ruff-all-defaults/worker" \
-            --inventory-runner "$GITHUB_WORKSPACE/target/checks/ruff-all-defaults/inventory-runner" \
-            --output-dir "$GITHUB_WORKSPACE/target/checks/ruff-all-defaults/execution"
-          inventory_status=$?
-          set -e
-          python3 - <<'PY'
-          import json
-          from collections import Counter
-          from pathlib import Path
-
-          summary = Path("../../target/checks/ruff-all-defaults/execution/summary.json")
-          if not summary.is_file():
-              print("Ruff all-defaults runner produced no inventory summary")
-          else:
-              data = json.loads(summary.read_text())
-              rows = data.get("rules", [])
-              counts = data.get("counts", {})
-              failures = Counter(str(row.get("reason") or "unspecified") for row in rows if row.get("status") == "FAIL")
-              print(json.dumps({
-                  "provider": data.get("provider"),
-                  "total": len(rows),
-                  "counts": counts,
-                  "run_state": data.get("run_state"),
-                  "all_passed": len(rows) == 413 and counts.get("PASS") == 413 and counts.get("FAIL") == 0,
-                  "failure_reasons_top10": failures.most_common(10),
-              }, sort_keys=True))
-          PY
-          exit "$inventory_status"
-      - name: All-defaults inventory and per-rule receipts
+      - run: asymptote check --root crates/ryo --groups bench-correctness
+      - name: Bench correctness summaries and per-rule receipts
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: ruff-all-defaults-${{ github.run_attempt }}
-          path: target/checks/ruff-all-defaults/
+          name: bench-correctness-${{ github.run_attempt }}
+          path: target/benchmark/
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7

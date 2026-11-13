@@ -36,6 +36,7 @@ wait4.workspace = true
 divan.workspace = true
 tempfile.workspace = true
 cucumber.workspace = true
+cargo_metadata.workspace = true
 tokio.workspace = true
 idiomatic-sh-ryo-benchmark = { path = ".", features = ["fixtures"] }
 

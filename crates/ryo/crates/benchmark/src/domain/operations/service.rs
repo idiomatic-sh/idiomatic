@@ -3,7 +3,7 @@ use super::constants::{
     BENCH_COMPONENTS, BENCHMARK, BENCHMARKS, CASE_INVENTORY, COLLECTOR, LANGUAGES, LINTERS,
     NOT_A_BENCH_DIRECTORY, PARITY, REGISTRATION, STATE, VERIFY_INVENTORY,
 };
-use super::types::{BenchDirectory, Operation, OperationLayout};
+use super::types::{BenchDirectory, BenchOperation, OperationLayout, OperationVerb};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use ryo_benchmark_contracts::domain::requests::constants::MEASURE_ACCOUNTED_VALID;
 use std::ffi::OsString;
@@ -11,19 +11,19 @@ use std::path::{Component, Path};
 
 /// The operation a collector verb names.
 #[must_use]
-pub fn operation(verb: &str) -> Option<Operation> {
-    [Operation::Correctness, Operation::Measure, Operation::Parity]
+pub fn operation(verb: OperationVerb<'_>) -> Option<BenchOperation> {
+    [BenchOperation::Correctness, BenchOperation::Measure, BenchOperation::Parity]
         .into_iter()
-        .find(|operation| verb_of(*operation) == verb)
+        .find(|operation| verb_of(*operation).0 == verb.0)
 }
 
 /// The collector verb of an operation.
-pub(crate) fn verb_of(operation: Operation) -> &'static str {
-    match operation {
-        Operation::Correctness => VERIFY_INVENTORY,
-        Operation::Measure => MEASURE_ACCOUNTED_VALID,
-        Operation::Parity => PARITY,
-    }
+pub(crate) fn verb_of(operation: BenchOperation) -> OperationVerb<'static> {
+    OperationVerb(match operation {
+        BenchOperation::Correctness => VERIFY_INVENTORY,
+        BenchOperation::Measure => MEASURE_ACCOUNTED_VALID,
+        BenchOperation::Parity => PARITY,
+    })
 }
 
 /// Where an operation of a bench writes, under the cargo target: `<target>/benchmark/<lang>/<linter>/<verb>`.
@@ -33,7 +33,7 @@ pub(crate) fn verb_of(operation: Operation) -> &'static str {
 pub fn layout(
     target: &Path,
     bench: &BenchDirectory,
-    operation: Operation,
+    operation: BenchOperation,
 ) -> Result<OperationLayout, ReportsError> {
     let names = bench
         .0
@@ -52,7 +52,7 @@ pub fn layout(
                     .join(BENCHMARK)
                     .join(language)
                     .join(linter)
-                    .join(verb_of(operation)),
+                    .join(verb_of(operation).0),
             })
         }
         Some(_) | None => Err(ReportsError::Invalid(NOT_A_BENCH_DIRECTORY.into())),
@@ -61,13 +61,13 @@ pub fn layout(
 
 /// The arguments the sealed worker of a bench runs an operation with; the correctness operation runs no worker.
 pub(crate) fn worker_arguments(
-    operation: Operation,
+    operation: BenchOperation,
     layout: &OperationLayout,
     tool: &Path,
 ) -> Vec<OsString> {
     match operation {
-        Operation::Correctness => Vec::new(),
-        Operation::Measure => {
+        BenchOperation::Correctness => Vec::new(),
+        BenchOperation::Measure => {
             let mut inventory = OsString::from(CASE_INVENTORY);
             inventory.push(layout.root.join(REGISTRATION));
             vec![
@@ -78,6 +78,6 @@ pub(crate) fn worker_arguments(
                 inventory,
             ]
         }
-        Operation::Parity => vec![PARITY.into(), tool.into(), layout.root.clone().into()],
+        BenchOperation::Parity => vec![PARITY.into(), tool.into(), layout.root.clone().into()],
     }
 }

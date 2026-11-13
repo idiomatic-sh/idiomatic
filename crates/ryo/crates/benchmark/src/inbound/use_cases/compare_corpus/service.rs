@@ -1,6 +1,11 @@
 //! Both contestants run once through the shared measurement; each configured rule is compared and judged.
-use super::constants::{SELECTION_DIFFERS, UNACCEPTED};
-use super::types::{AcceptedDifferencesFile, CorpusParity, ParityBoundaries, SourceTexts};
+use super::constants::{
+    PROJECT_FAILED, PROJECT_SEPARATOR, PROJECTS_FAILED, SELECTION_DIFFERS, UNACCEPTED,
+    UNTRACKED_SOURCE,
+};
+use super::types::{
+    AcceptedDifferencesFile, Corpus, CorpusParity, ParityBoundaries, ProjectsParity, SourceTexts,
+};
 use crate::application::measurement::{service::run_with, types::Pinning};
 use crate::domain::corpus_discrepancy::types::ObservedDifferences;
 use crate::outbound::suite::types::ArtifactPath;
@@ -14,19 +19,95 @@ use ryo_benchmark_contracts::domain::requests::types::CohortSelection;
 
 use std::collections::BTreeSet;
 
-/// Refuse the wrong rule set or corpus, run both contestants, compare and judge each rule, and publish.
+/// Compare one built request, or every project of a language's benchmark, each published under its own name; a
+/// project that fails is reported and the others still run.
 pub(super) fn compare_corpus(
     boundaries: &ParityBoundaries<'_>,
     parity: &CorpusParity<'_>,
     observations: &mut dyn std::io::Write,
 ) -> Result<(), Error> {
-    let request = parity.request;
+    let projects = match parity.corpus {
+        Corpus::Request { request, accepted } => {
+            return compare_request(boundaries, parity, request, accepted, parity.reference, observations);
+        }
+        Corpus::Projects(projects) => projects,
+    };
+    let mut failures = Vec::new();
+    for project in projects.projects {
+        let name = [project.name.0.as_str(), parity.reference.0].join(PROJECT_SEPARATOR);
+        let result = compare_project(boundaries, parity, &projects, project, ContestantName(&name), observations);
+        if let Err(error) = result {
+            writeln!(observations, "{}: {PROJECT_FAILED}: {error}", project.name)?;
+            failures.push(project.name.0.clone());
+        }
+    }
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(Error::Invalid(format!("{PROJECTS_FAILED}: {failures:?}")))
+    }
+}
+
+/// Check out one project, take the sources the reference discovers with the language's suffixes, build its request and
+/// compare it, judged by the project's accepted-differences file when it has one.
+fn compare_project(
+    boundaries: &ParityBoundaries<'_>,
+    parity: &CorpusParity<'_>,
+    projects: &ProjectsParity<'_>,
+    project: &ryo_benchmark_contracts::domain::workloads::types::Project,
+    name: ContestantName<'_>,
+    observations: &mut dyn std::io::Write,
+) -> Result<(), Error> {
+    let workspace = boundaries.workspace.prepare(project)?;
+    let files = boundaries
+        .discovery
+        .files(workspace.root())?
+        .into_iter()
+        .filter(|file| projects.suffixes.iter().any(|suffix| file.0.ends_with(suffix.0)))
+        .collect::<Vec<_>>();
+    let tracked = boundaries.workspace.tracked_files(&workspace)?.0;
+    if files.iter().any(|file| !tracked.iter().any(|path| path.as_str() == file.0.as_ref())) {
+        return Err(Error::Invalid(UNTRACKED_SOURCE.into()));
+    }
+    let request = crate::application::project_request::service::request(
+        boundaries.context,
+        &crate::application::project_request::types::ProjectCorpus {
+            cohort: projects.cohort,
+            rule_context: projects.rule_context,
+            search_roots: projects.search_roots,
+            context_mode: projects.context_mode,
+        },
+        workspace.root(),
+        &files,
+        &tracked.iter().map(std::path::PathBuf::from).collect::<Vec<_>>(),
+        projects.state.join(&project.name.0),
+    )?;
+    let mut file_name = project.name.0.clone();
+    file_name.push_str(projects.accepted_suffix.0);
+    let accepted_file = projects.accepted.join(file_name);
+    let accepted = match boundaries.suite.digest(ArtifactPath(&accepted_file)) {
+        Ok(_digest) => AcceptedDifferencesFile::Declared(&accepted_file),
+        Err(Error::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => AcceptedDifferencesFile::Absent,
+        Err(error) => return Err(error),
+    };
+    compare_request(boundaries, parity, &request, accepted, name, observations)
+}
+
+/// Refuse the wrong rule set or corpus, run both contestants, compare and judge each rule, and publish.
+fn compare_request(
+    boundaries: &ParityBoundaries<'_>,
+    parity: &CorpusParity<'_>,
+    request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
+    accepted_file: AcceptedDifferencesFile<'_>,
+    reference_name: ContestantName<'_>,
+    observations: &mut dyn std::io::Write,
+) -> Result<(), Error> {
     let selected = select(request, parity.configured)?;
     let corpus = crate::domain::corpus_discrepancy::service::corpus_digest(
         &request.files,
         &request.context_manifest,
     );
-    let accepted = match parity.accepted {
+    let accepted = match accepted_file {
         AcceptedDifferencesFile::Declared(file) => {
             crate::domain::corpus_discrepancy::service::admit_accepted(
                 &boundaries.suite.accepted_differences(ArtifactPath(file))?,
@@ -90,7 +171,7 @@ pub(super) fn compare_corpus(
     writeln!(
         observations,
         "{} parity: {identical} identical of {} rules; {} unaccepted",
-        parity.reference.0,
+        reference_name.0,
         rules.len(),
         problems.len()
     )?;
@@ -99,7 +180,7 @@ pub(super) fn compare_corpus(
     }
     let unaccepted = problems.len();
     boundaries.evidence.parity(&ParityReport {
-        reference: parity.reference,
+        reference: reference_name,
         candidate: ContestantName(CANDIDATE_NAME),
         rules,
         problems,

@@ -1,6 +1,6 @@
 //! The operation's standard output is the worker's alone, and an absent reference tool is named.
 use cucumber::then;
-use ryo_benchmark::domain::operations::types::Operation;
+use ryo_benchmark::domain::operations::types::BenchOperation;
 use ryo_benchmark::inbound::use_cases::operate::{
     fixtures::{Scenario, run},
     types::OperationVerdict,
@@ -10,7 +10,7 @@ use ryo_benchmark::inbound::use_cases::operate::{
 fn parity(world: &mut crate::Behavior) {
     let _: &mut crate::Behavior = world;
     let observed = run(Scenario {
-        operation: Operation::Parity,
+        operation: BenchOperation::Parity,
         tool_found: true,
         verdict: OperationVerdict::Passed,
     });
@@ -22,7 +22,7 @@ fn parity(world: &mut crate::Behavior) {
 fn absent(world: &mut crate::Behavior) {
     let _: &mut crate::Behavior = world;
     let observed = run(Scenario {
-        operation: Operation::Measure,
+        operation: BenchOperation::Measure,
         tool_found: false,
         verdict: OperationVerdict::Passed,
     });

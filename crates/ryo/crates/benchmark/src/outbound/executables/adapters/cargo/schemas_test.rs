@@ -70,7 +70,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn subject(messages: Input) -> Result<Value, Failure> {
-    bench_executable(messages.join("\n").as_bytes(), Path::new(MANIFEST))
+    bench_executable(messages.join("\n").as_bytes(), Path::new(MANIFEST).parent().expect("the package directory"))
         .map(|path| Cow::Owned(path.display().to_string()))
         .map_err(|error| if error.to_string() == ONE_BENCH { ONE_BENCH } else { "another refusal" })
 }

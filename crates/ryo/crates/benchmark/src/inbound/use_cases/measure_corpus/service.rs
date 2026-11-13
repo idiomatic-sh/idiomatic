@@ -1,4 +1,3 @@
-// ignore: idiomatic.arch/file-length - one corpus workflow read top to bottom: the cohort guard, the project loop, one project's ordered trials and the requests they send share CorpusBoundaries and CorpusMeasurement, and no placed role splits them
 //! Every project is measured in both orders and compared cold, retained and edited.
 use super::constants::{
     CANDIDATE_EDITED, CANDIDATE_FIRST, CANDIDATE_RETAINED, CLEAN_EDITED_DIRECTORY,

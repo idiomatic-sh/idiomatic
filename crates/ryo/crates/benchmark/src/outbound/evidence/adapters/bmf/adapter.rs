@@ -55,7 +55,7 @@ impl EvidencePort for EvidenceBmfAdapter {
         &self,
         parity: &ryo_benchmark_contracts::domain::reports::types::ParityReport<'_>,
     ) -> Result<(), Error> {
-        let metrics = {
+        {
             let mut reports = self
                 .connection
                 .parity
@@ -63,17 +63,8 @@ impl EvidencePort for EvidenceBmfAdapter {
                 .map_err(|_poisoned| Error::Invalid(constants::POISONED.into()))?;
             let (name, counts) = schemas::parity_counts(parity);
             let _previous = reports.insert(name, counts);
-            schemas::parity_document(&reports)?
-        };
+        }
         let rules = schemas::parity_rules(parity)?;
-        let mut output = self
-            .connection
-            .output
-            .lock()
-            .map_err(|_poisoned| Error::Invalid(constants::POISONED.into()))?;
-        output.write_all(&metrics)?;
-        output.write_all(constants::NEWLINE)?;
-        output.flush()?;
         let mut comparison = self
             .connection
             .comparison
@@ -83,5 +74,18 @@ impl EvidencePort for EvidenceBmfAdapter {
         comparison.write_all(constants::NEWLINE)?;
         comparison.flush()?;
         Ok(())
+    }
+}
+
+impl Drop for EvidenceBmfAdapter {
+    /// The counts of every parity report are one document, written once, when the comparisons are done.
+    fn drop(&mut self) {
+        let document = match self.connection.parity.lock() {
+            Ok(reports) if !reports.is_empty() => schemas::parity_document(&reports),
+            Ok(_) | Err(_) => return,
+        };
+        if let (Ok(document), Ok(mut output)) = (document, self.connection.output.lock()) {
+            drop(output.write_all(&document).and_then(|()| output.write_all(constants::NEWLINE)).and_then(|()| output.flush()));
+        }
     }
 }

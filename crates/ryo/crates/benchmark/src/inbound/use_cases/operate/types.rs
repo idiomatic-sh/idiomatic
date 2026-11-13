@@ -1,5 +1,5 @@
 //! What one operation is asked for and what it answers.
-use crate::domain::operations::types::{BenchDirectory, Operation};
+use crate::domain::operations::types::{BenchDirectory, BenchOperation};
 
 /// Whether an operation passed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -14,7 +14,7 @@ pub enum OperationVerdict {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OperationRequest {
     /// The operation to run.
-    pub operation: Operation,
+    pub operation: BenchOperation,
     /// The bench it runs on.
     pub bench: BenchDirectory,
 }
@@ -24,4 +24,13 @@ pub struct OperationRequest {
 pub struct OperationReport {
     /// Whether it passed.
     pub verdict: OperationVerdict,
+}
+
+impl From<crate::outbound::executables::types::RunVerdict> for OperationVerdict {
+    fn from(run: crate::outbound::executables::types::RunVerdict) -> Self {
+        match run {
+            crate::outbound::executables::types::RunVerdict::Passed => Self::Passed,
+            crate::outbound::executables::types::RunVerdict::Failed => Self::Failed,
+        }
+    }
 }

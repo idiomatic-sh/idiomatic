@@ -48,12 +48,6 @@ use std::{
     io::{Read as _, Write as _},
     sync::Arc,
 };
-/// The variable cargo sets to the cargo executable that started a `cargo run`.
-const CARGO: &str = "CARGO";
-/// The cargo executable when no `cargo run` started this one.
-const CARGO_COMMAND: &str = "cargo";
-/// The search path the reference tool is found on.
-const SEARCH_PATH: &str = "PATH";
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let arguments = std::env::args_os().skip(1).collect::<Vec<_>>();
     if arguments
@@ -84,15 +78,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(operation) = arguments
         .first()
         .and_then(|argument| argument.to_str())
+        .map(ryo_benchmark::domain::operations::types::OperationVerb)
         .and_then(ryo_benchmark::domain::operations::service::operation)
     {
         let [_verb, bench] = arguments.as_slice() else {
             return Err(operate_constants::USAGE.into());
         };
         let operate = OperateUseCaseImpl::new(
-            Arc::new(ryo_benchmark::outbound::artifacts::factory::cargo(
-                std::env::var_os(CARGO).unwrap_or_else(|| CARGO_COMMAND.into()),
-                std::env::var_os(SEARCH_PATH).unwrap_or_default(),
+            Arc::new(ryo_benchmark::outbound::executables::factory::cargo(
+                operate_constants::BUILD_TOOL.into(),
+                // ignore: idiomatic.arch/no-env-reads - the reference tool is the first of its name on the search path, the operating system's convention for finding a command
+                std::env::var_os(operate_constants::SEARCH_PATH).unwrap_or_default(),
             )),
             Arc::new(ryo_benchmark::outbound::suite::factory::local()),
             Arc::new(inventory::factory::local()),

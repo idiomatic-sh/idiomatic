@@ -275,12 +275,18 @@ impl InventoryPort for InventoryLocalAdapter {
         destination: &Path,
         projection: &ProfileProjection,
     ) -> Result<(), Error> {
-        todo!("stage {} to {} as {projection:?}", source.display(), destination.display())
+        let bytes = std::fs::read(source)?;
+        let text = std::str::from_utf8(&bytes).map_err(|error| Error::Invalid(error.to_string()))?;
+        match super::profile::schemas::projected(text, projection)? {
+            Some(projected) => std::fs::write(destination, projected)?,
+            None => std::fs::write(destination, &bytes)?,
+        }
+        Ok(())
     }
     fn case_inventory(&self, stage: &Path) -> Result<CaseDocuments, Error> {
-        todo!("cases of {}", stage.display())
+        super::authored::schemas::case_inventory(stage)
     }
     fn instance(&self, record: &RuleInstanceRecord) -> Result<CanonicalJson, Error> {
-        todo!("instance of {record:?}")
+        super::instance::schemas::instance(record)
     }
 }
