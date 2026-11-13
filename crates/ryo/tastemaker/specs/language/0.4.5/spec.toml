@@ -1323,110 +1323,6 @@ impl Parse for ParseContract {
         languages::source_locations()
     }
 
-    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-
-    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
 
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
@@ -1568,14 +1464,6 @@ impl Parse for ParseContract {
     }
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 }
@@ -15054,26 +14942,6 @@ impl Parse for ParseContract {
         languages::ParseConfigurationIdentity("")
     }
 
-    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
         languages::native_semantic_syntax()
     }
@@ -15086,78 +14954,6 @@ impl Parse for ParseContract {
         languages::source_locations()
     }
 
-    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-
-    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
 
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
@@ -15299,14 +15095,6 @@ impl Parse for ParseContract {
     }
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 }
@@ -15828,7 +15616,7 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.ryo/language/thiserror-in-errors']
 then.findings = [
-  { rule = 'idiomatic.ryo/language/thiserror-in-errors', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 330 },
+  { rule = 'idiomatic.ryo/language/thiserror-in-errors', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 230 },
 ]
 
 [[scenarios]]
@@ -16154,26 +15942,6 @@ impl Parse for ParseContract {
         languages::ParseConfigurationIdentity("")
     }
 
-    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
         languages::native_semantic_syntax()
     }
@@ -16186,78 +15954,6 @@ impl Parse for ParseContract {
         languages::source_locations()
     }
 
-    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-
-    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
 
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
@@ -16399,14 +16095,6 @@ impl Parse for ParseContract {
     }
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 }
@@ -16929,7 +16617,7 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.ryo/language/error-shape']
 then.findings = [
-  { rule = 'idiomatic.ryo/language/error-shape', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 333 },
+  { rule = 'idiomatic.ryo/language/error-shape', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 233 },
 ]
 
 [[scenarios]]
@@ -17224,26 +16912,6 @@ impl Parse for ParseContract {
         languages::ParseConfigurationIdentity("")
     }
 
-    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
         languages::native_semantic_syntax()
     }
@@ -17256,78 +16924,6 @@ impl Parse for ParseContract {
         languages::source_locations()
     }
 
-    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-
-    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
 
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
@@ -17469,14 +17065,6 @@ impl Parse for ParseContract {
     }
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 }
@@ -18321,26 +17909,6 @@ impl Parse for ParseContract {
         languages::ParseConfigurationIdentity("")
     }
 
-    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
         languages::native_semantic_syntax()
     }
@@ -18353,78 +17921,6 @@ impl Parse for ParseContract {
         languages::source_locations()
     }
 
-    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-
-    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
 
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
@@ -18566,14 +18062,6 @@ impl Parse for ParseContract {
     }
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 }
@@ -19419,26 +18907,6 @@ impl Parse for ParseContract {
         languages::ParseConfigurationIdentity("")
     }
 
-    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
         languages::native_semantic_syntax()
     }
@@ -19451,78 +18919,6 @@ impl Parse for ParseContract {
         languages::source_locations()
     }
 
-    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-
-    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
 
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
@@ -19664,14 +19060,6 @@ impl Parse for ParseContract {
     }
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 }
@@ -20193,7 +19581,7 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.arch/io-at-boundary']
 then.findings = [
-  { rule = 'idiomatic.arch/io-at-boundary', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 331 },
+  { rule = 'idiomatic.arch/io-at-boundary', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 231 },
 ]
 
 [[scenarios]]

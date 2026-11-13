@@ -1,6 +1,6 @@
 # language 0.4.5
 
-Places `contract` 0.4.0, whose `parse` contract answers the required `semantics` method with `None`. The language fixtures' parse contracts carry it. Everything else is as in 0.4.4.
+Places `contract` 0.4.0, whose `parse` contract answers the required `semantics` method with `None` and no longer answers the relations the catalog declares `optional`. The language fixtures' parse contracts carry it. Everything else is as in 0.4.4.
 
 # language 0.4.4
 
