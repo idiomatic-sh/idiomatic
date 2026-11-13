@@ -20,6 +20,8 @@ macro_rules! identifier {
             expected { /// Independently stated identifier occurrence.
                 IdentifierExpectedRow },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The syntax occurrence carrying the identifier, not its raw token.
                 id Id: NodeId => Node;

@@ -35,9 +35,9 @@ use crate::domain::terms::types::{Vocabulary, WordBlock};
 /// What the lookups over the catalog are made of, generated from the list in `each_relation`.
 macro_rules! catalog_lookups {
     (
-        syntax { $( $variant:ident $module:ident $row:ident $column:ident ; )* }
-        manifest { $( $manifest_variant:ident $manifest_module:ident $manifest_row:ident $manifest_column:ident ; )* }
-        engine { $( $engine_variant:ident $engine_module:ident $engine_row:ident $engine_column:ident ; )* }
+        syntax { $( $variant:ident $module:ident $row:ident $column:ident $capability:ident ; )* }
+        manifest { $( $manifest_variant:ident $manifest_module:ident $manifest_row:ident $manifest_column:ident $manifest_capability:ident ; )* }
+        engine { $( $engine_variant:ident $engine_module:ident $engine_row:ident $engine_column:ident $engine_capability:ident ; )* }
     ) => {
         /// Every relation, in the order the catalog lists them: the ones a language reads from a tree,
         /// the ones it reads from the manifests, and the ones the engine gives.
@@ -146,10 +146,49 @@ macro_rules! catalog_lookups {
                 $( Relation::$engine_variant => Provenance::Engine, )*
             }
         }
+
+        /// The explicit optional promise of a relation; all other relations remain mandatory.
+        #[must_use]
+        pub fn optional_capability(
+            relation: Relation,
+        ) -> Option<crate::domain::catalog::types::OptionalCapability> {
+            match relation {
+                $( Relation::$variant => capability!($capability $variant), )*
+                $( Relation::$manifest_variant => capability!($manifest_capability $manifest_variant), )*
+                $( Relation::$engine_variant => capability!($engine_capability $engine_variant), )*
+            }
+        }
     };
 }
 
-crate::each_relation!(catalog_lookups);
+/// The capability a relation the catalog declares `optional` or `baseline` is promised by.
+macro_rules! capability {
+    (optional $variant:ident) => {
+        Some(crate::domain::catalog::types::OptionalCapability::$variant)
+    };
+    (baseline $variant:ident) => {
+        None
+    };
+}
+
+crate::each_relation!(@declared catalog_lookups);
+
+/// The map from each optional capability to its relation, generated from the relations the catalog declares `optional`.
+macro_rules! capability_lookups {
+    ( $( $variant:ident )* ) => {
+        /// The catalog relation promised by an optional capability.
+        #[must_use]
+        pub const fn capability_relation(
+            capability: crate::domain::catalog::types::OptionalCapability,
+        ) -> Relation {
+            match capability {
+                $( crate::domain::catalog::types::OptionalCapability::$variant => Relation::$variant, )*
+            }
+        }
+    };
+}
+
+crate::each_relation!(@declared crate::optional_relations, capability_lookups);
 
 /// Every relation, in the order the catalog lists them.
 #[must_use]
@@ -275,57 +314,6 @@ pub fn location(span: Span) -> crate::domain::relations::types::Locatedness {
         crate::domain::relations::types::Locatedness::Absent
     } else {
         crate::domain::relations::types::Locatedness::Located
-    }
-}
-
-/// The explicit optional promise of a relation; all other relations remain mandatory.
-#[must_use]
-pub fn optional_capability(
-    relation: Relation,
-) -> Option<crate::domain::capabilities::types::OptionalCapability> {
-    super::constants::OPTIONAL_CAPABILITIES
-        .iter()
-        .copied()
-        .find(|capability| capability_relation(*capability) == relation)
-}
-
-/// The catalog relation promised by an optional capability.
-#[must_use]
-pub const fn capability_relation(
-    capability: crate::domain::capabilities::types::OptionalCapability,
-) -> Relation {
-    use crate::domain::capabilities::types::OptionalCapability;
-    match capability {
-        OptionalCapability::Identifier => Relation::Identifier,
-        OptionalCapability::QualifiedName => Relation::QualifiedName,
-        OptionalCapability::EmbeddedExpression => Relation::EmbeddedExpression,
-        OptionalCapability::ExpressionShape => Relation::ExpressionShape,
-        OptionalCapability::BindingEvent => Relation::BindingEvent,
-        OptionalCapability::BindingRead => Relation::BindingRead,
-        OptionalCapability::BindingUse => Relation::BindingUse,
-        OptionalCapability::BindingShadow => Relation::BindingShadow,
-        OptionalCapability::ImplicitSymbol => Relation::ImplicitSymbol,
-        OptionalCapability::LiteralProperties => Relation::LiteralProperties,
-        OptionalCapability::NumericLiteral => Relation::NumericLiteral,
-        OptionalCapability::TokenLink => Relation::TokenLink,
-        OptionalCapability::InterpolatedStringLiteral => Relation::InterpolatedStringLiteral,
-        OptionalCapability::BytesLiteral => Relation::BytesLiteral,
-        OptionalCapability::FormatSpecification => Relation::FormatSpecification,
-        OptionalCapability::LanguageTarget => Relation::LanguageTarget,
-        OptionalCapability::StandardLibraryImport => Relation::StandardLibraryImport,
-        OptionalCapability::CompilerFeature => Relation::CompilerFeature,
-        OptionalCapability::ConstantKey => Relation::ConstantKey,
-        OptionalCapability::FormatParse => Relation::FormatParse,
-        OptionalCapability::FormatField => Relation::FormatField,
-        OptionalCapability::BraceFormatParse => Relation::BraceFormatParse,
-        OptionalCapability::BraceFormatField => Relation::BraceFormatField,
-        OptionalCapability::FunctionTerminal => Relation::FunctionTerminal,
-        OptionalCapability::ExpressionType => Relation::ExpressionType,
-        OptionalCapability::RawFormatSegment => Relation::RawFormatSegment,
-        OptionalCapability::RawFormatField => Relation::RawFormatField,
-        OptionalCapability::ModuleIdentity => Relation::ModuleIdentity,
-        OptionalCapability::ProjectNamespaceMembership => Relation::ProjectNamespaceMembership,
-        OptionalCapability::LiteralExpressionParse => Relation::LiteralExpressionParse,
     }
 }
 

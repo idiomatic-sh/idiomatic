@@ -24,9 +24,7 @@ pub struct ParseUseCaseImpl;
 impl ParseUseCase for ParseUseCaseImpl {
     type FileModel = ();
 
-    fn capabilities(
-        &self,
-    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability] {
+    fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
         &[]
     }
 
@@ -42,6 +40,10 @@ impl ParseUseCase for ParseUseCaseImpl {
         _tree: &Elements,
         _slot: &mut SemanticSlot,
     ) {
+    }
+
+    fn semantics(&self) -> Option<&dyn crate::domain::semantics::types::Semantics> {
+        None
     }
 
     fn completion_requirement(&self) -> CompletionRequirement {
@@ -89,9 +91,7 @@ impl ParseUseCase for ParseUseCaseImpl {
 
 /// Every `ParseUseCase` is a `ParseEngine`: the engine reads it through the use case's own drive.
 impl<P: ParseUseCase> ParseEngine for P {
-    fn capabilities(
-        &self,
-    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability] {
+    fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
         ParseUseCase::capabilities(self)
     }
 

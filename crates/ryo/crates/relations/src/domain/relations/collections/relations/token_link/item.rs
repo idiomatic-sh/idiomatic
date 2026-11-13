@@ -22,6 +22,8 @@ macro_rules! token_link {
             expected { /// Independently expected token links.
                 TokenLinkExpectedRow },
             class Lexical,
+            scope File,
+            notes Unneeded,
             columns {
                 /// Existing native source token identity.
                 source Source: NodeId => Node;

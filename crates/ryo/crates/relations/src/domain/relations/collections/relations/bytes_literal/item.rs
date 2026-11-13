@@ -20,6 +20,8 @@ macro_rules! bytes_literal {
             expected { /// Independently expected decoded bytes.
                 BytesLiteralExpectedRow },
             class Literal,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The literal occurrence, including adjacent joined pieces.
                 occurrence Occurrence: NodeId => Node;

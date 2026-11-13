@@ -12,6 +12,7 @@ use crate::domain::lowering::types::{
 };
 use crate::domain::resolving::service::{column_of, relation_fields, step_of};
 use ryo_values::domain::plan_parts::types as parts;
+use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::program::types as syntax;
 use ryo_values::domain::query_tokens::types as tokens;
@@ -19,43 +20,6 @@ use ryo_values::domain::query_tokens::types as tokens;
 /// The step the next one pushed onto `items` will be.
 pub(crate) fn next_step<T>(items: &[T]) -> parts::StepId {
     parts::StepId(u32::try_from(items.len()).unwrap_or(u32::MAX))
-}
-
-/// What a step reads, in the order its operator reads its inputs.
-pub(crate) fn inputs_of(operation: &plans::Operation) -> Vec<parts::Input> {
-    match operation {
-        plans::Operation::SpanBetween { from, .. }
-        | plans::Operation::SpanBounds { from, .. }
-        | plans::Operation::SourceMatches { from, .. }
-        | plans::Operation::RenderSyntax { from, .. }
-        | plans::Operation::FitsRendered { from, .. }
-        | plans::Operation::Replace { from, .. }
-        | plans::Operation::Select { from, .. }
-        | plans::Operation::Project { from, .. }
-        | plans::Operation::Extend { from, .. }
-        | plans::Operation::GroupCount { from, .. }
-        | plans::Operation::GroupDigest { from, .. }
-        | plans::Operation::Capture { from, .. }
-        | plans::Operation::Rank { from, .. }
-        | plans::Operation::Words { from, .. } => vec![*from],
-        plans::Operation::OrderedMatch { left, right, .. }
-        | plans::Operation::Join { left, right, .. }
-        | plans::Operation::Union { left, right }
-        | plans::Operation::Intersection { left, right }
-        | plans::Operation::Difference { left, right }
-        | plans::Operation::Antijoin { left, right, .. } => vec![*left, *right],
-        plans::Operation::OrderedDfs { from, edges, .. } => vec![*from, *edges],
-        plans::Operation::Axis {
-            from,
-            edges,
-            domain,
-            ..
-        } => vec![*from, *edges, *domain],
-        plans::Operation::Closure { edges, .. } | plans::Operation::Cycles { edges, .. } => {
-            vec![*edges]
-        }
-        plans::Operation::Rows { .. } | plans::Operation::Hosted { .. } => Vec::new(),
-    }
 }
 
 /// Whether a row holding these fields is kept in its file: one of them is held in its file by `held`.
@@ -217,7 +181,7 @@ pub(crate) fn frontier_of(steps: &[plans::PlanStep]) -> Vec<parts::Input> {
         .iter()
         .filter(|step| step.scope == ryo_values::domain::plan_parts::types::StepScope::CrossFile)
     {
-        for input in inputs_of(&step.operation) {
+        for &input in named(&inputs_of(&step.operation)) {
             let handed_over = match input {
                 parts::Input::Relation(_) | parts::Input::BoundObservation(_) => true,
                 parts::Input::Step(id) => {
@@ -305,9 +269,9 @@ pub(crate) fn push(
     operation: plans::Operation,
     fields: Vec<PlannedColumn>,
 ) {
-    let inputs: Vec<ScopedInput> = inputs_of(&operation)
-        .into_iter()
-        .map(|input| scoped(builder, input))
+    let inputs: Vec<ScopedInput> = named(&inputs_of(&operation))
+        .iter()
+        .map(|input| scoped(builder, *input))
         .collect();
     let scope = scope_of(&operation, &inputs, &fields);
     builder.steps.push(plans::PlanStep { operation, scope });

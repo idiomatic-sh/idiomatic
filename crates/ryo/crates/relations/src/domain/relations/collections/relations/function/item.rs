@@ -30,6 +30,8 @@ macro_rules! function {
                 FunctionExpectedRow
             },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The function: its file and where it starts.
                 id Id: NodeId => Node;

@@ -29,6 +29,8 @@ enum Question {
     SemanticEdges(Reading),
     /// What the visit wants of a plan that reads this relation, when the catalog lists these.
     Wants(Relation, Vec<Relation>, Aspect),
+    /// For each relation of the catalog, whether a plan that reads it alone wants the notes exactly when its item declares it needs them.
+    NotesAsDeclared,
 }
 
 /// Which part of what a visit wants a row asks about.
@@ -234,6 +236,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(0),
     },
     Case {
+        name: CaseName("notes_are_wanted_exactly_for_relations_that_declare_them"),
+        word: Word::Succeeds,
+        input: || Question::NotesAsDeclared,
+        expect: Expect::Value(69),
+    },
+    Case {
         name: CaseName("a_plan_reading_a_relation_the_catalog_lacks_is_refused_by_the_visit_wants"),
         word: Word::Refuses,
         input: || Question::Wants(Relation::Function, Vec::new(), Aspect::Wanted),
@@ -316,6 +324,22 @@ fn subject(input: Question) -> Result<Value, Failure> {
                 Aspect::Walked => wants.walked.len(),
                 Aspect::Noted => usize::from(wants.noted == Noting::Wanted),
             })
+        }
+        Question::NotesAsDeclared => {
+            let catalog = ryo_relations::domain::relations::service::all();
+            let noted = catalog
+                .iter()
+                .map(|relation| wants(&[plan_reading(*relation)], catalog).map(|wants| wants.noted))
+                .collect::<Result<Vec<Noting>, VisitError>>()?;
+            Ok(catalog
+                .iter()
+                .zip(noted)
+                .filter(|(relation, noted)| {
+                    (*noted == Noting::Wanted)
+                        == (ryo_relations::domain::catalog::service::needs_notes(**relation)
+                            == ryo_relations::domain::catalog::types::RelationNotes::Needed)
+                })
+                .count())
         }
         Question::Bytes(bytes) => {
             Ok(usize::try_from(lines_in(BorrowedBytes(bytes)).0).unwrap_or(usize::MAX))

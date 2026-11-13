@@ -30,6 +30,8 @@ macro_rules! analyzed_source {
                 AnalyzedSourceExpectedRow
             },
             class Manifest,
+            scope Project,
+            notes Needed,
             columns {
                 /// The file.
                 path Path: FileId => File;

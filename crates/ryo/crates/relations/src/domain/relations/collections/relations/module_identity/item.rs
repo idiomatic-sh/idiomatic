@@ -19,6 +19,8 @@ macro_rules! module_identity {
             expected { /// Authored module identity row.
                 ModuleIdentityExpectedRow },
             class Manifest,
+            scope Project,
+            notes Unneeded,
             columns {
                 /// Actual requested source file.
                 file File: FileId => File;

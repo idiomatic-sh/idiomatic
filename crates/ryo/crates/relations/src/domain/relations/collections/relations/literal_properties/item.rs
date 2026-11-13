@@ -30,6 +30,8 @@ macro_rules! literal_properties {
                 LiteralPropertiesExpectedRow
             },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The original primitive literal occurrence.
                 id Id: NodeId => Node;

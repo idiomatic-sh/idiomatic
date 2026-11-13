@@ -86,7 +86,7 @@ impl<const FORBIDDEN: bool>
 }
 /// Explicit advertised promises, independent of the reader implementations.
 pub(crate) struct Promised(
-    pub(crate) &'static [ryo_relations::domain::capabilities::types::OptionalCapability],
+    pub(crate) &'static [ryo_relations::domain::catalog::types::OptionalCapability],
     pub(crate) bool,
 );
 macro_rules! forwarded_optional_method {
@@ -121,6 +121,10 @@ impl ParseUseCase for Promised {
     ) {
     }
 
+    fn semantics(&self) -> Option<&dyn crate::domain::semantics::types::Semantics> {
+        None
+    }
+
     fn completion_requirement(&self) -> crate::domain::elements::types::CompletionRequirement {
         crate::domain::elements::types::CompletionRequirement::Independent
     }
@@ -139,9 +143,7 @@ impl ParseUseCase for Promised {
     ) -> crate::inbound::use_cases::parse::types::Recognition {
         crate::inbound::use_cases::parse::types::Recognition::Declines
     }
-    fn capabilities(
-        &self,
-    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability] {
+    fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
         self.0
     }
 

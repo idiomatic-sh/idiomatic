@@ -9,8 +9,10 @@ use crate::domain::operation_schema::types::bindings::value::BindingShape;
 use crate::domain::table_cells::types::TreeForm;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Side};
+use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_operators::types::OperationKind;
 use {
     crate::domain::table_model::service::check_columns,
     ryo_values::domain::rows::service::column_in,
@@ -34,33 +36,33 @@ impl<'a> TraversalShape<'a> {
         operation: &Operation,
         bindings: &[ParameterBinding],
     ) -> Result<Vec<CellKind>, OperatingError> {
-        match operation {
-            Operation::Axis { .. } => axis_schema(operation, self.inputs, bindings),
-            Operation::OrderedMatch { .. } => ordered_schema(operation, self.inputs),
-            Operation::OrderedDfs { .. } => dfs_schema(operation, self.inputs),
-            Operation::Select { .. }
-            | Operation::Project { .. }
-            | Operation::Extend { .. }
-            | Operation::Join { .. }
-            | Operation::Union { .. }
-            | Operation::Intersection { .. }
-            | Operation::Difference { .. }
-            | Operation::Antijoin { .. }
-            | Operation::GroupCount { .. }
-            | Operation::GroupDigest { .. }
-            | Operation::Capture { .. }
-            | Operation::Rank { .. }
-            | Operation::Replace { .. }
-            | Operation::Words { .. }
-            | Operation::SpanBounds { .. }
-            | Operation::SourceMatches { .. }
-            | Operation::RenderSyntax { .. }
-            | Operation::FitsRendered { .. }
-            | Operation::SpanBetween { .. }
-            | Operation::Closure { .. }
-            | Operation::Cycles { .. }
-            | Operation::Rows { .. }
-            | Operation::Hosted { .. } => Err(OperatingError::WrongOperation),
+        match kind_of(operation) {
+            OperationKind::Axis => axis_schema(operation, self.inputs, bindings),
+            OperationKind::OrderedMatch => ordered_schema(operation, self.inputs),
+            OperationKind::OrderedDfs => dfs_schema(operation, self.inputs),
+            OperationKind::Select
+            | OperationKind::Project
+            | OperationKind::Extend
+            | OperationKind::Join
+            | OperationKind::Union
+            | OperationKind::Intersection
+            | OperationKind::Difference
+            | OperationKind::Antijoin
+            | OperationKind::GroupCount
+            | OperationKind::GroupDigest
+            | OperationKind::Capture
+            | OperationKind::Rank
+            | OperationKind::Replace
+            | OperationKind::Words
+            | OperationKind::SpanBounds
+            | OperationKind::SourceMatches
+            | OperationKind::RenderSyntax
+            | OperationKind::FitsRendered
+            | OperationKind::SpanBetween
+            | OperationKind::Closure
+            | OperationKind::Cycles
+            | OperationKind::Rows
+            | OperationKind::Hosted => Err(OperatingError::WrongOperation),
         }
     }
 }

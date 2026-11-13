@@ -27,6 +27,8 @@ macro_rules! expression_type {
                 ExpressionTypeExpectedRow
             },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// Original expression node.
                 id Id: NodeId => Node;

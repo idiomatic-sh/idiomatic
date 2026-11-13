@@ -3,7 +3,7 @@
 use super::{answers, duplicates, listed, needs_answer, ships};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::answers::types::AbsenceCause;
-use ryo_relations::domain::capabilities::types::OptionalCapability;
+use ryo_relations::domain::catalog::types::OptionalCapability;
 use ryo_relations::domain::relations::types::Relation;
 
 /// What the case gives: the answers of a language, as a function of the relation; or the command line's manifest a language

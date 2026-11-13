@@ -144,9 +144,7 @@ pub struct KindNames(pub Vec<ryo_relations::domain::terms::types::NameText<'stat
 /// out of each file kept inside the call, so that languages of different models are held side by side. Every `ParseUseCase` is one.
 pub trait ParseEngine: Send + Sync {
     /// Explicit optional promises, preserved across the erased provider boundary.
-    fn capabilities(
-        &self,
-    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability];
+    fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability];
 
     /// Canonical parser settings included in persisted-result cache identity.
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_>;

@@ -21,7 +21,7 @@ pub use ryo_language::domain::semantics::errors::SemanticsError;
 pub use ryo_language::domain::semantics::types::{
     RenderContext, RenderOutcome, RenderRequest, RenderedNode,
 };
-pub use ryo_language::domain::semantics::types::{SemanticSession, SemanticSlot};
+pub use ryo_language::domain::semantics::types::{SemanticSession, SemanticSlot, Semantics};
 
 pub use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 
@@ -330,7 +330,7 @@ pub use ryo_relations::domain::relations::types::Locatedness;
 
 pub use ryo_language::domain::answers::service::{native_semantic_child, native_semantic_syntax};
 
-pub use ryo_relations::domain::capabilities::types::OptionalCapability;
+pub use ryo_relations::domain::catalog::types::OptionalCapability;
 
 /// What a completion was given: a prepared model only when the request reads what completion adds.
 pub use ryo_language::application::completion::service::completion_requirement;
