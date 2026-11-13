@@ -1,8 +1,8 @@
+import unique_bindings from "typescript/oxlint/unique-bindings";
 input references: relation<reference: node, file: file>;
 output relation<reference: node, file: file, value: node, keyword: symbol, pattern: symbol>;
-let uses = select l.reference as reference, l.file as file, r.binding as binding from references as l join "binding-use" as r on l.reference = r.reference and l.file = r.file where r.certainty = "unique";
-let declarators = select id from "semantic-syntax" where kind = "variable-declarator";
-let declared = select l.reference as reference, l.file as file, l.binding as binding from uses as l join declarators as r on l.binding = r.id;
+let bound = unique_bindings(references=references);
+let declared = select reference, file, binding from bound where kind = "variable-declarator";
 let initialized = select l.reference as reference, l.file as file, l.binding as binding, r.child as value from declared as l join "semantic-child" as r on l.binding = r.parent where r.field = "init";
 let patterns = select l.parent as binding, r.kind as pattern from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "id";
 let shaped = select l.reference as reference, l.file as file, l.binding as binding, l.value as value, r.pattern as pattern from initialized as l join patterns as r on l.binding = r.binding;
