@@ -121,9 +121,10 @@ fn a_language_not_linked_begins_no_semantic_session(language: &dyn LanguagePort)
         roles: RoleWriting::Unwanted,
     };
     let not_linked = LanguageNumber(language.linked().0.len());
-    language
-        .begin_semantics(not_linked, file, &mut Elements::default())
-        .is_none()
+    matches!(
+        language.begin_semantics(not_linked, file, &mut Elements::default()),
+        ryo_language::domain::semantics::types::SemanticSlot::Empty
+    )
 }
 
 /// Whether the entries a project of no manifests and no files asks for are each named once, in order.
@@ -143,6 +144,7 @@ fn the_entries_a_project_asks_for_are_named_once_in_order(language: &dyn Languag
     };
     language
         .project_entries(&input)
+        .0
         .windows(2)
         .all(|pair| pair[0] < pair[1])
 }

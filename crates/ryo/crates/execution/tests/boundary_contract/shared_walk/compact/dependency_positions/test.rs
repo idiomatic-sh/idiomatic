@@ -90,7 +90,7 @@ fn grouped_dependency_and_original_source_join_in_both_input_positions() {
             .subject = ColumnIndex(0);
         let program = engine.prepare(authored).unwrap();
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
         let columns = [
             FactColumn(vec![to_bits(Value::File(FileId(0))).0; 2]),
             FactColumn(vec![

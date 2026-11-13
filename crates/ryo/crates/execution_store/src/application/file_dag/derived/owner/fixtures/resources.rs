@@ -162,7 +162,7 @@ impl DerivedPort for RecordedDerived {
     fn prepare(
         &self,
         request: ryo_derived::domain::request::types::DerivedRequest,
-        schemas: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
+        schemas: ryo_derived::domain::contract::types::InputSchemas,
     ) -> ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived {
         crate::application::file_dag::fixtures::derived().prepare(request, schemas)
     }
@@ -175,9 +175,7 @@ impl DerivedPort for RecordedDerived {
         prepared: &ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived,
         inputs: ryo_derived::domain::contract::types::BuildInputs<'_>,
         room: &mut ryo_derived::domain::contract::types::BuildWorkspace,
-        recycled: Option<
-            ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload,
-        >,
+        recycled: ryo_derived::domain::contract::types::Recycled,
     ) -> Result<
         ryo_derived::domain::contract::types::BuildOutcome,
         ryo_derived::domain::fault::types::DerivedFault,

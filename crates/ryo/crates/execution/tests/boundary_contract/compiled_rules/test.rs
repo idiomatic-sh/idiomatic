@@ -63,7 +63,7 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
         })
         .expect("exact compiled declarations accepted");
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
     let read = |relation| {
         if relation == Relation::Function {
@@ -197,7 +197,7 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
         }];
         let program = engine.prepare(input).expect("closure plan");
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
         let elements = ryo_language::domain::elements::types::Elements::default();
         let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
         for delivery in [0, 1, 2] {

@@ -1,7 +1,7 @@
 //! The portable contract that builds the payload of a prepared derived request from finite borrowed inputs.
 use crate::domain::contract::types::derived_payload::value::DerivedPayload;
 use crate::domain::contract::types::prepared_derived::value::PreparedDerived;
-use crate::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace};
+use crate::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, Recycled};
 use crate::domain::fault::types::DerivedFault;
 
 /// A build neither acquires inputs nor retains them; a complete implementation compiles.
@@ -9,12 +9,12 @@ use crate::domain::fault::types::DerivedFault;
 /// ```
 /// use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
 /// use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
-/// use ryo_derived::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace};
+/// use ryo_derived::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, Recycled};
 /// use ryo_derived::domain::fault::types::DerivedFault;
 /// use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
 /// struct Item;
 /// impl BuildUseCase for Item {
-///     fn build(&self, _prepared: &PreparedDerived, _inputs: BuildInputs<'_>, _room: &mut BuildWorkspace, _recycled: Option<DerivedPayload>) -> Result<BuildOutcome, DerivedFault> { unimplemented!() }
+///     fn build(&self, _prepared: &PreparedDerived, _inputs: BuildInputs<'_>, _room: &mut BuildWorkspace, _recycled: Recycled) -> Result<BuildOutcome, DerivedFault> { unimplemented!() }
 /// }
 /// ```
 ///
@@ -35,6 +35,6 @@ pub trait BuildUseCase: Sync {
         prepared: &PreparedDerived,
         inputs: BuildInputs<'_>,
         room: &mut BuildWorkspace,
-        recycled: Option<DerivedPayload>,
+        recycled: Recycled,
     ) -> Result<BuildOutcome, DerivedFault>;
 }

@@ -55,7 +55,7 @@ fn subject(column: Input) -> Result<Value, Failure> {
         DerivedRequest::Equality {
             columns: vec![column],
         },
-        vec![vec![CellKind::Number]],
+        vec![vec![CellKind::Number]].into(),
     );
     let calls = fake.calls.load(Ordering::Relaxed);
     prepared

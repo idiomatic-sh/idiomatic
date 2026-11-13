@@ -52,15 +52,15 @@ pub trait MetadataUseCase {
         plan: &Plan,
         vocabularies: &KindVocabularies,
         matching: &impl ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
-    ) -> Option<KindRefusal>;
-    fn kinds_asked(&self, plan: &Plan, bound: &[ParameterBinding]) -> Vec<AskedKind>;
+    ) -> KindRefusalFound;
+    fn kinds_asked(&self, plan: &Plan, bound: &[ParameterBinding]) -> AskedKinds;
     fn first_unknown(
         &self,
         plans: &[Plan],
-        bindings: &[Vec<ParameterBinding>],
+        bindings: PlanBindings<'_>,
         vocabularies: &KindVocabularies,
         matching: &impl ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
-    ) -> Option<UnknownKind>;
+    ) -> UnknownKindFound;
     fn unknown_kind_message(&self, word: &KindWord, vocabularies: &KindVocabularies)
     -> KindRefusal;
 
@@ -70,24 +70,24 @@ pub trait MetadataUseCase {
     fn governed(&self, mask: &Mask) -> Governing;
     fn unplace(&self, mask: &mut Mask, rule: RuleNumber);
 
-    fn feature_catalog(&self) -> Vec<Feature>;
+    fn feature_catalog(&self) -> FeatureCatalog;
     fn work_over(
         &self,
         metadata: &[ryo_values::domain::run_metadata::types::RuleRunMetadata],
-        fed: &[Vec<RowsFed>],
-    ) -> Vec<Vec<StepWork>>;
+        fed: FedRows<'_>,
+    ) -> StepWorks;
     fn fed_over(
         &self,
         metadata: &[ryo_values::domain::run_metadata::types::RuleRunMetadata],
-        fed: &[Vec<RowsFed>],
-    ) -> Vec<FeatureRows>;
+        fed: FedRows<'_>,
+    ) -> FeatureRowsByRule;
 
     fn partial_of(
         &self,
         said: &[ReadInPart],
         recovery: Recovery,
         wanted: &[Relation],
-    ) -> Vec<Partial>;
+    ) -> PartialReads;
     fn unknown_message(&self, partial: &Partial, scope: CoverageScope<'_>) -> Message;
     /// The ordinals of the files a partial project publication affects, sorted and once each: every file when a cause has no
     /// file.
@@ -99,7 +99,7 @@ pub trait MetadataUseCase {
     -> Result<FileOrdinals, OperatingError>;
 
     fn scoped_needs(&self, plan: &Plan) -> Needs;
-    fn observed_reads(&self, plan: &Plan) -> Vec<RelationRead>;
+    fn observed_reads(&self, plan: &Plan) -> ObservedReads;
     fn matters(&self, read: &RelationRead, partial: &Partial) -> Bearing;
     fn blocked(&self, needs: &[RelationRead], partial: &[Partial]) -> Blocking;
     fn project_unknowns(
@@ -108,7 +108,7 @@ pub trait MetadataUseCase {
         named: &[FilePath],
         needs: &[Needs],
         ids: &[RuleId],
-    ) -> Vec<Unknown>;
+    ) -> ProjectUnknowns;
 
     fn operators(&self) -> &'static [QueryOperator];
     fn describe(&self, operator: QueryOperator) -> OperatorDescription;

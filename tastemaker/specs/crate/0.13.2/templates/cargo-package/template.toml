@@ -142,12 +142,6 @@ distribution = []
 
 [lints]
 workspace = true
-{%- if present["language-conformance-test"] | default(false) %}
-
-# Its `allocation` test target sets `dhat` as the global allocator, which machete does not see.
-[package.metadata.cargo-machete]
-ignored = ["dhat"]
-{%- endif %}
 {%- if distribution == "shipped" %}
 
 # cargo-binstall's prebuilt binary: the GitHub Release of the package's own tag, `<package>-v<version>`, holds one archive

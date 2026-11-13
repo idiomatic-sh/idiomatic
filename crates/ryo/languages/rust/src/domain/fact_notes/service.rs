@@ -3,7 +3,7 @@
 
 use crate::domain::module_tree::constants::{CRATE, SELF, SUPER};
 use crate::domain::module_tree::types::{
-    Body, Cleanliness, EnclosingBlock, Facts, Gate, ModDeclaration, Exposure, Segment, Spelling,
+    Body, Cleanliness, EnclosingBlock, Exposure, Facts, Gate, ModDeclaration, Segment, Spelling,
     Written,
 };
 use crate::domain::paths::types::Section;

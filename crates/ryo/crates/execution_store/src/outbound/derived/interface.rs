@@ -3,16 +3,15 @@
 use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
 use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
 use ryo_derived::domain::contract::types::{
-    BuildInputs, BuildOutcome, BuildWorkspace, DerivedView,
+    BuildInputs, BuildOutcome, BuildWorkspace, DerivedView, InputSchemas, Recycled,
 };
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::request::types::DerivedRequest;
-use ryo_relations::domain::relations::types::CellKind;
 
 /// What every `derived` adapter implements.
 pub trait DerivedPort: Send + Sync + std::fmt::Debug {
     /// Checks a request against the schemas of its inputs; the answer is validated by the caller.
-    fn prepare(&self, request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived;
+    fn prepare(&self, request: DerivedRequest, schemas: InputSchemas) -> PreparedDerived;
 
     /// Builds the payload of a prepared request from borrowed rows, over a workspace and a payload to recycle.
     ///
@@ -24,7 +23,7 @@ pub trait DerivedPort: Send + Sync + std::fmt::Debug {
         prepared: &PreparedDerived,
         inputs: BuildInputs<'_>,
         room: &mut BuildWorkspace,
-        recycled: Option<DerivedPayload>,
+        recycled: Recycled,
     ) -> Result<BuildOutcome, DerivedFault>;
 
     /// A view over a built payload.

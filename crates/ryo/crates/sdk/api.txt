@@ -209,6 +209,7 @@ pub use ryo::languages::ParseRequest
 pub use ryo::languages::Position
 pub use ryo::languages::PrimaryFileRole
 pub use ryo::languages::Project
+pub use ryo::languages::ProjectEntries
 pub use ryo::languages::ProjectError
 pub use ryo::languages::ProjectNamespaceMembership
 pub use ryo::languages::ProjectNamespaceMembershipColumn

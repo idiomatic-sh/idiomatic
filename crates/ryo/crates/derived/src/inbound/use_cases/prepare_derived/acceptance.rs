@@ -24,7 +24,7 @@ fn runs(world: &mut Behavior) {
         DerivedRequest::Equality {
             columns: vec![column],
         },
-        vec![vec![CellKind::Number]],
+        ryo_derived::domain::contract::types::InputSchemas(vec![vec![CellKind::Number]]),
     );
     world.answer = match prepared.validate() {
         Ok(()) => format!("prepared {}", prepared.schemas().len()),

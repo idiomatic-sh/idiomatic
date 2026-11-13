@@ -90,7 +90,7 @@ pub(crate) fn prepared_test_program(
             })
             .expect("valid prepared test request"),
     );
-    let request = ExecutionUseCaseImpl::new().execution(&program, corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, corpus, None.into());
     (program, request)
 }
 

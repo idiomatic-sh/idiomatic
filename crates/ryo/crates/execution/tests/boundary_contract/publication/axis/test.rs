@@ -89,7 +89,7 @@ x
             .step = StepId(0);
         let prepared = engine.prepare(input).expect("prepare real native Axis");
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
         let (elements, mut symbols, root, children) = native_tree(bytes);
         let mut roots = source();
         roots.cells[0] = Value::Node(node_id(FileId(0), root));
@@ -174,7 +174,7 @@ fn ordinary_select_does_not_publish_a_prefix_before_late_predicate_failure() {
         .prepare(input)
         .expect("prepare actual incremental Select");
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let (elements, mut symbols, _root, _children) = native_tree(bytes);
     let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
     let mut file = request

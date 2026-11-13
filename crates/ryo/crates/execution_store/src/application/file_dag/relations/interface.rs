@@ -77,7 +77,7 @@ pub(crate) mod sealed {
 ///         _: ProducerId,
 ///         _: &NumberRequirement,
 ///         _: RepresentationInput<'_>,
-///     ) -> Result<Option<AdmittedNumber<'a>>, OperatingError> { todo!() }
+///     ) -> Result<ryo_execution_store::application::file_dag::relations::types::Sought<AdmittedNumber<'a>>, OperatingError> { todo!() }
 ///     fn rows<'r, 'f: 'r>(
 ///         &self,
 ///         _: &'r Publication,
@@ -145,7 +145,10 @@ pub trait RelationsPort: sealed::Sealed {
         producer: ProducerId,
         required: &NumberRequirement,
         rows: RepresentationInput<'_>,
-    ) -> Result<Option<AdmittedNumber<'a>>, OperatingError>;
+    ) -> Result<
+        crate::application::file_dag::relations::types::Sought<AdmittedNumber<'a>>,
+        OperatingError,
+    >;
     /// The rows of a publication, read through `read` when they are a source's.
     ///
     /// # Errors

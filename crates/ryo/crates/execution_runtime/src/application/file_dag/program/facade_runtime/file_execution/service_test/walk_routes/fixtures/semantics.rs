@@ -94,7 +94,11 @@ impl Derived {
     }
 }
 impl DerivedPort for Derived {
-    fn prepare(&self, request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
+    fn prepare(
+        &self,
+        request: DerivedRequest,
+        schemas: ryo_derived::domain::contract::types::InputSchemas,
+    ) -> PreparedDerived {
         ryo_execution_store::application::file_dag::fixtures::derived().prepare(request, schemas)
     }
     fn build(
@@ -102,7 +106,7 @@ impl DerivedPort for Derived {
         prepared: &PreparedDerived,
         inputs: BuildInputs<'_>,
         room: &mut BuildWorkspace,
-        recycled: Option<DerivedPayload>,
+        recycled: ryo_derived::domain::contract::types::Recycled,
     ) -> Result<BuildOutcome, DerivedFault> {
         self.calls.lock().unwrap().push(prepared.request().clone());
         ryo_execution_store::application::file_dag::fixtures::derived()

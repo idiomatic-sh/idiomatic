@@ -193,8 +193,11 @@ fn visits(
             .map(|(_, table)| SourceRows::Computed(table))
             .ok_or(OperatingError::NotRead)
     };
-    let request = super::super::super::super::fixtures::requests::execution()
-        .execution(&program, &corpus, None);
+    let request = super::super::super::super::fixtures::requests::execution().execution(
+        &program,
+        &corpus,
+        None.into(),
+    );
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut file = request.open_file(
         FileInput {

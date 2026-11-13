@@ -197,8 +197,12 @@ fn subject(asked: Input) -> Result<Value, Failure> {
             let vocabularies = vocabularies();
             let refusal = metadata.kind_refusal(&plan, &vocabularies, &MatchingUseCaseImpl);
             let plans = [plan.clone()];
-            let unknown =
-                metadata.first_unknown(&plans, &[Vec::new()], &vocabularies, &MatchingUseCaseImpl);
+            let unknown = metadata.first_unknown(
+                &plans,
+                (&[Vec::new()][..]).into(),
+                &vocabularies,
+                &MatchingUseCaseImpl,
+            );
             Ok(Expected::KnownKind {
                 asked: metadata.kinds_asked(&plan, &[]).len(),
                 refused: refusal.is_some(),
@@ -209,10 +213,14 @@ fn subject(asked: Input) -> Result<Value, Failure> {
             let plan = plan(Relation::SyntaxTree, Some("ghost"));
             let vocabularies = vocabularies();
             let plans = [plan.clone()];
-            let unknown =
-                metadata.first_unknown(&plans, &[Vec::new()], &vocabularies, &MatchingUseCaseImpl);
+            let unknown = metadata.first_unknown(
+                &plans,
+                (&[Vec::new()][..]).into(),
+                &vocabularies,
+                &MatchingUseCaseImpl,
+            );
             let refusal = metadata.kind_refusal(&plan, &vocabularies, &MatchingUseCaseImpl);
-            let (Some(unknown), Some(refusal)) = (unknown, refusal) else {
+            let (Some(unknown), Some(refusal)) = (unknown.0, refusal.0) else {
                 return Ok(Expected::KnownKind {
                     asked: metadata.kinds_asked(&plan, &[]).len(),
                     refused: false,
@@ -321,8 +329,8 @@ fn subject(asked: Input) -> Result<Value, Failure> {
             let plan = plan(Relation::Function, None);
             let rules = ryo_values::domain::run_metadata::service::from_plans(&[plan]);
             let fed = [vec![RowsFed([3, 0, 0])]];
-            let work = metadata.work_over(&rules, &fed)[0][0].rows.0;
-            let rows = metadata.fed_over(&rules, &fed);
+            let work = metadata.work_over(&rules, (&fed[..]).into())[0][0].rows.0;
+            let rows = metadata.fed_over(&rules, (&fed[..]).into());
             let count = |feature| {
                 rows.iter()
                     .find(|item| item.feature == feature)

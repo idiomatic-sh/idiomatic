@@ -47,17 +47,17 @@ impl super::super::service::KernelSession<'_, '_> {
         let rows = input
             .rows(&self.owner, self.read)
             .map_err(InvocationFailure::Semantic)?;
-        let Some(number) = self
-            .owner
-            .admit_number(
-                publication,
-                ryo_execution_store::application::file_dag::relations::types::ProducerId(
-                    shape.source.0,
-                ),
-                &shape.number,
-                RepresentationInput::from(&rows),
-            )
-            .map_err(InvocationFailure::Semantic)?
+        let ryo_execution_store::application::file_dag::relations::types::Sought::Found(number) =
+            self.owner
+                .admit_number(
+                    publication,
+                    ryo_execution_store::application::file_dag::relations::types::ProducerId(
+                        shape.source.0,
+                    ),
+                    &shape.number,
+                    RepresentationInput::from(&rows),
+                )
+                .map_err(InvocationFailure::Semantic)?
         else {
             // The region was classified ordered at compile; a source the number
             // admission refuses is a refusal, never a run of the other path.

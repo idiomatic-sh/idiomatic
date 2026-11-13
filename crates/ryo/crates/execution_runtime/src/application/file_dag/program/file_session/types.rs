@@ -162,3 +162,42 @@ pub(crate) struct RuleFile<'a> {
 pub struct FileSession<'a, 'facts> {
     pub(crate) parts: SessionParts<'a, 'facts>,
 }
+
+/// The frontiers a rule captured for the cross-file steps, one per captured input.
+#[derive(Default)]
+pub struct FrontierCaptures(
+    pub Vec<ryo_execution_domain::domain::frontier_capture::types::FrontierCapture>,
+);
+
+impl std::ops::Deref for FrontierCaptures {
+    type Target = Vec<ryo_execution_domain::domain::frontier_capture::types::FrontierCapture>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for FrontierCaptures {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl IntoIterator for FrontierCaptures {
+    type Item = ryo_execution_domain::domain::frontier_capture::types::FrontierCapture;
+    type IntoIter =
+        std::vec::IntoIter<ryo_execution_domain::domain::frontier_capture::types::FrontierCapture>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a FrontierCaptures {
+    type Item = &'a ryo_execution_domain::domain::frontier_capture::types::FrontierCapture;
+    type IntoIter = std::slice::Iter<
+        'a,
+        ryo_execution_domain::domain::frontier_capture::types::FrontierCapture,
+    >;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}

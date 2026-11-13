@@ -104,7 +104,7 @@ pub(crate) fn prepare<'f>(
         .transpose()?
         .unwrap_or(false);
     if !empty_domain {
-        resources.cached_graph = admitted.prepare_graph(contract, program, originals)?;
+        resources.cached_graph = admitted.prepare_graph(contract, program, originals)?.into();
         if resources.cached_graph.is_some() {
             return Ok(resources);
         }
@@ -159,7 +159,8 @@ pub(crate) fn prepare<'f>(
                         ryo_derived::domain::request::types::DerivedKind::NativeLookup,
                     )?;
                     admitted
-                        .try_native_lookup(use_)?
+                        .try_native_lookup(use_)
+                        .map(Option::<AcquiredView>::from)?
                         .map(|acquired| (tree, acquired))
                 } else {
                     None

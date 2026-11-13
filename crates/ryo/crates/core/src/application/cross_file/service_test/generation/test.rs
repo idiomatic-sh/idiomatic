@@ -89,7 +89,8 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation()
         seen.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
         phase.finish().unwrap();
 
-        rules.request = ExecutionUseCaseImpl::new().execution(&rules.program, &rules.files, None);
+        rules.request =
+            ExecutionUseCaseImpl::new().execution(&rules.program, &rules.files, None.into());
         let phase = rules.request.project_phase().unwrap();
         let result = evaluate_fixture(
             &rules,

@@ -9,10 +9,6 @@ use crate::domain::{
 use ryo_relations::domain::relations::types::{FileId, Position};
 
 /// Take the existing worker room, invalidating readiness when its concrete model differs.
-#[expect(
-    clippy::unnecessary_box_returns,
-    reason = "the existing worker-owned model box is reused between files"
-)]
 pub(crate) fn take_model<M: Default + Send + 'static>(elements: &mut Elements) -> Box<M> {
     if let Some(kept) = engine_mut(elements).scratch.0.take() {
         match kept.downcast::<M>() {

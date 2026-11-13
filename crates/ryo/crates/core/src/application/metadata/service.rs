@@ -42,7 +42,7 @@ impl<Metadata: MetadataUseCase> RunDecisions for Metadata {
         recovery: Recovery,
         wanted: &[Relation],
     ) -> Vec<Partial> {
-        MetadataUseCase::partial_of(self, said, recovery, wanted)
+        MetadataUseCase::partial_of(self, said, recovery, wanted).0
     }
     fn matters(&self, read: &RelationRead, partial: &Partial) -> Bearing {
         MetadataUseCase::matters(self, read, partial)

@@ -47,7 +47,7 @@ use std::sync::Arc;
 impl ProgramRequestExecutionPort for RequestExecution {
     fn observations<'a>(
         &'a self,
-        arenas: &'a mut Vec<ryo_values::domain::stored_facts::types::ArenaBytes>,
+        arenas: &'a mut crate::application::file_dag::program::request_execution::types::ObservationArenas,
     ) -> Result<ObservationStage<'a>, OperatingError> {
         let metadata = self
             .program
@@ -58,7 +58,7 @@ impl ProgramRequestExecutionPort for RequestExecution {
             crate::application::file_dag::observations::types::CrossPublications::new(
                 metadata,
                 &phase.publication,
-                arenas,
+                &mut arenas.0,
             );
         Ok(ObservationStage {
             phase,
@@ -357,7 +357,7 @@ fn rest_of_rule(
         return Ok(RuleAfter::Stopped(FileStop::Facts(error)));
     }
     let mut captures = Vec::with_capacity(captured.len());
-    for each in captured {
+    for each in captured.0 {
         if let Ok(kept) = &each.outcome {
             if let Err(error) = facts.keep(
                 kept.bucket,

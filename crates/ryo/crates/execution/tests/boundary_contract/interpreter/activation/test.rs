@@ -17,7 +17,7 @@ fn an_undemanded_file_opens_without_a_readiness_evaluation() {
     let engine = engine();
     let prepared = prepared_rules(&engine, 3);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let read = |_| Err(OperatingError::NotRead);
     let elements = Elements::default();
     let mut symbols = Symbols::default();

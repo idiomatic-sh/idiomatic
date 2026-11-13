@@ -142,7 +142,7 @@ fn exercise(case: Case) {
         };
     }
     corpus.push(second);
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let table = source();
     let read = |_| Ok(SourceRows::Computed(&table));
     let elements = ryo_language::domain::elements::types::Elements::default();

@@ -13,7 +13,11 @@ use ryo_relations::domain::relations::types::CellKind;
 #[derive(Debug)]
 pub(super) struct RefusingBuild;
 impl DerivedPort for RefusingBuild {
-    fn prepare(&self, request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
+    fn prepare(
+        &self,
+        request: DerivedRequest,
+        schemas: ryo_derived::domain::contract::types::InputSchemas,
+    ) -> PreparedDerived {
         crate::application::file_dag::fixtures::derived().prepare(request, schemas)
     }
     fn build(
@@ -21,7 +25,7 @@ impl DerivedPort for RefusingBuild {
         _: &PreparedDerived,
         _: BuildInputs<'_>,
         _: &mut BuildWorkspace,
-        _: Option<DerivedPayload>,
+        _: ryo_derived::domain::contract::types::Recycled,
     ) -> Result<BuildOutcome, DerivedFault> {
         Err(DerivedFault::DuplicateOrder)
     }

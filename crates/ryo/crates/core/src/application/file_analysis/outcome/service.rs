@@ -52,7 +52,7 @@ impl FileAnalysis {
             });
         }
         let moved = moved_words(tables, number, base)?;
-        let layout = setting.program.observation_layout();
+        let layout = setting.program.observation_layout().0;
         let (observations, slots) = match (tables.current_observations.as_deref(), layout) {
             (
                 Some(map),

@@ -54,7 +54,7 @@ fn distinct_native_heads_keep_reordered_duplicate_columns_and_source_row_order()
     }
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
@@ -134,7 +134,7 @@ fn fused_select_reads_projected_ordinals_and_forwards_exact_rows_in_source_order
             .step = StepId(1);
         let program = engine.prepare(authored).unwrap();
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
         let (elements, mut symbols) = tree(FileId(0), b"abc");
         let intents = [FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
@@ -181,7 +181,7 @@ fn mixed_intents_keep_excluded_errors_unreachable_while_an_active_neighbor_walks
         ],
     );
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"[bc");
     let intents = [
         FileRuleIntent::Skipped(ApplicabilityReason::SyntaxRejected),
@@ -230,7 +230,7 @@ fn a_run_intent_with_no_enabled_roots_does_not_evaluate_its_predicates() {
     let (engine, _) = engine();
     let program = prepared(&engine, &[Selector::BadRegex, Selector::Kind("other")]);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = [
         FileRuleIntent::Run {

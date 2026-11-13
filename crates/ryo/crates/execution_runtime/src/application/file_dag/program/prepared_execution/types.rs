@@ -95,3 +95,134 @@ pub struct ReplayClosure {
     pub reuse: Reuse,
     pub buckets: Vec<Bucket>,
 }
+
+/// The order the program runs its rules in: the dependency order when rules depend on others, otherwise each rule by
+/// its index.
+#[derive(Clone, Debug)]
+pub enum RuleOrder<'a> {
+    /// Rules that depend on others, in dependency order.
+    Dependencies(std::slice::Iter<'a, ryo_execution_domain::domain::coverage::types::RuleIndex>),
+    /// Independent rules, by index: the next to run and the end.
+    Independent {
+        /// The next rule to run.
+        next: ryo_execution_domain::domain::coverage::types::RuleIndex,
+        /// One past the last rule.
+        end: ryo_execution_domain::domain::coverage::types::RuleIndex,
+    },
+}
+
+impl Iterator for RuleOrder<'_> {
+    type Item = ryo_execution_domain::domain::coverage::types::RuleIndex;
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Dependencies(order) => order.next().copied(),
+            Self::Independent { next, end } => (next.0 < end.0).then(|| {
+                let rule = *next;
+                next.0 += 1;
+                rule
+            }),
+        }
+    }
+}
+
+/// The batches the observation rules run in, when the program has observation rules.
+#[derive(Clone, Copy, Debug)]
+pub struct RuleBatches<'a>(
+    pub Option<&'a [Vec<ryo_execution_domain::domain::coverage::types::RuleIndex>]>,
+);
+
+/// The demand of each rule, by rule index.
+#[derive(Clone, Debug, Default)]
+pub struct Demands(pub Vec<Demand>);
+
+/// The named layout of the program's observations, when it declares any.
+pub struct ObservationLayout<'a>(pub Option<NamedLayout<'a>>);
+
+/// The relations a rule's observation reads.
+#[derive(Clone, Debug, Default)]
+pub struct RelationReads(pub Vec<ryo_execution_domain::domain::trust::types::RelationRead>);
+
+/// The observation bindings each frontier input of a rule depends on, by input.
+#[derive(Clone, Copy, Debug)]
+pub struct FrontierDependencies<'a>(
+    pub &'a [Vec<ryo_values::domain::plan_parts::types::ObservationBindingId>],
+);
+
+impl<'a> std::ops::Deref for RuleBatches<'a> {
+    type Target = Option<&'a [Vec<ryo_execution_domain::domain::coverage::types::RuleIndex>]>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::Deref for Demands {
+    type Target = Vec<Demand>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for Demands {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl IntoIterator for Demands {
+    type Item = Demand;
+    type IntoIter = std::vec::IntoIter<Demand>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a Demands {
+    type Item = &'a Demand;
+    type IntoIter = std::slice::Iter<'a, Demand>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+impl<'a> std::ops::Deref for ObservationLayout<'a> {
+    type Target = Option<NamedLayout<'a>>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::Deref for RelationReads {
+    type Target = Vec<ryo_execution_domain::domain::trust::types::RelationRead>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for RelationReads {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl IntoIterator for RelationReads {
+    type Item = ryo_execution_domain::domain::trust::types::RelationRead;
+    type IntoIter = std::vec::IntoIter<ryo_execution_domain::domain::trust::types::RelationRead>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a RelationReads {
+    type Item = &'a ryo_execution_domain::domain::trust::types::RelationRead;
+    type IntoIter = std::slice::Iter<'a, ryo_execution_domain::domain::trust::types::RelationRead>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+impl<'a> std::ops::Deref for FrontierDependencies<'a> {
+    type Target = &'a [Vec<ryo_values::domain::plan_parts::types::ObservationBindingId>];
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}

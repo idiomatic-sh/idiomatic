@@ -119,7 +119,7 @@ fn a_partial_input_and_an_inapplicable_input_merge_into_a_partial_answer() {
     ];
     let mut answers = vec![];
     for read_in_part in [false, true] {
-        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
         let mut symbols = Symbols::default();
         let publication: &[_] = if read_in_part { &partial } else { &[] };
         let stored = Buckets(

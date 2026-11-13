@@ -7,7 +7,9 @@ use crate::outbound::lint_store::adapters::postcard::constants::MISSING_SPOOL_RE
 use crate::outbound::lint_store::adapters::postcard::constants::MISSING_SPOOL_WRITER;
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_BUCKET_SEEK_EXCEEDS_ITS_SECTION;
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_BUCKET_SEEK_UNDERFLOWS;
+#[cfg(unix)]
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_ROW_POSITION_OVERFLOWS;
+#[cfg(unix)]
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_ROW_SEEK_UNDERFLOWS;
 use crate::outbound::lint_store::adapters::postcard::constants::STAGED_OFFSET_OVERFLOWS;
 use crate::outbound::lint_store::adapters::postcard::constants::STAGED_PAYLOAD_EXCEEDS_ADDRESSABLE_MEMORY;
@@ -297,6 +299,7 @@ pub(super) fn copy_buffered(
 }
 
 /// Reads the old snapshot at a position of its own, leaving the file's own cursor where it is.
+#[cfg(unix)]
 pub(super) struct PositionalReader<'a> {
     pub file: &'a std::fs::File,
     pub at: FileOffset,
@@ -318,22 +321,7 @@ impl Read for PositionalReader<'_> {
     }
 }
 
-#[cfg(not(unix))]
-impl Read for PositionalReader<'_> {
-    fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
-        let mut file = self.file;
-        let _position = file.seek(SeekFrom::Start(self.at.0))?;
-        let read = file.read(into)?;
-        self.at = FileOffset(
-            self.at
-                .0
-                .checked_add(u64::try_from(read).map_err(std::io::Error::other)?)
-                .ok_or_else(|| invalid(OLD_ROW_POSITION_OVERFLOWS))?,
-        );
-        Ok(read)
-    }
-}
-
+#[cfg(unix)]
 impl Seek for PositionalReader<'_> {
     fn seek(&mut self, from: SeekFrom) -> std::io::Result<u64> {
         let at = match from {

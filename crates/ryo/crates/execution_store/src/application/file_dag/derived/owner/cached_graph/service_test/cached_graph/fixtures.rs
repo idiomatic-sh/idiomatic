@@ -100,9 +100,12 @@ pub(super) fn admitted_graph_of(
     let originals = published
         .iter()
         .map(|publication| {
-            owner.resolve(publication.as_ref(), &|relation| match relation {
-                Relation::Function => Ok(rows.clone()),
-                _ => Err(OperatingError::NotRead),
+            owner.resolve(publication.as_ref(), &|relation| {
+                if relation == Relation::Function {
+                    Ok(rows.clone())
+                } else {
+                    Err(OperatingError::NotRead)
+                }
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -114,7 +117,8 @@ pub(super) fn admitted_graph_of(
         published
             .iter()
             .map(|publication| Publication::of(publication.clone()))
-            .collect(),
+            .collect::<Vec<_>>()
+            .into(),
     );
     let inputs = originals
         .iter()
@@ -122,5 +126,10 @@ pub(super) fn admitted_graph_of(
         .collect::<Vec<_>>();
     let admitted = WorkspacePort::inputs(&workspace, &inputs);
     DerivedAdmittedViewsPort::prepare_graph(&admitted, contract, &contract.resources, &originals)
-        .map(|graph| graph.is_some())
+        .map(|graph| {
+            matches!(
+                graph,
+                crate::application::file_dag::relations::types::Sought::Found(_)
+            )
+        })
 }

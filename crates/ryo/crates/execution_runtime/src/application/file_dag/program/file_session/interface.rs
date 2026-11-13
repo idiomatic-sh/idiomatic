@@ -100,7 +100,10 @@ pub trait ProgramFileSessionPort {
         first: Bucket,
         symbols: &mut Symbols,
         capture: CaptureContext<'_>,
-    ) -> Result<Vec<FrontierCapture>, OperatingError>;
+    ) -> Result<
+        crate::application::file_dag::program::file_session::types::FrontierCaptures,
+        OperatingError,
+    >;
     /// Commits one captured frontier input of the rule.
     ///
     /// # Errors

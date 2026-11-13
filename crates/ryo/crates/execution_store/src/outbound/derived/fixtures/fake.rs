@@ -19,7 +19,11 @@ pub struct DerivedFake {
 }
 
 impl DerivedPort for DerivedFake {
-    fn prepare(&self, request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
+    fn prepare(
+        &self,
+        request: DerivedRequest,
+        schemas: ryo_derived::domain::contract::types::InputSchemas,
+    ) -> PreparedDerived {
         self.calls.fetch_add(1, Ordering::Relaxed);
         semantics().prepare(request, schemas)
     }
@@ -28,7 +32,7 @@ impl DerivedPort for DerivedFake {
         prepared: &PreparedDerived,
         inputs: BuildInputs<'_>,
         room: &mut BuildWorkspace,
-        recycled: Option<DerivedPayload>,
+        recycled: ryo_derived::domain::contract::types::Recycled,
     ) -> Result<BuildOutcome, DerivedFault> {
         self.calls.fetch_add(1, Ordering::Relaxed);
         semantics().build(prepared, inputs, room, recycled)

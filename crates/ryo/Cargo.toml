@@ -21,7 +21,7 @@ allow = [
 ]
 
 [workspace.package]
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
 rust-version = "1.97"
 license = "MIT"
@@ -84,14 +84,15 @@ unexpected_cfgs = { level = "warn", check-cfg = ["cfg(bless)"] }
 dead_code = "deny"
 private_interfaces = "deny"
 unnameable_types = "deny"
-# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.100.0).
 # Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
 # if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
-# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.100.0,
 # so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
 # resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
 # multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
-# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# unstable_features. New at 1.100.0 and unknown at the 1.97 MSRV: implicit_provenance_casts, raw_borrows_via_references.
+# linker_info is diagnostic noise; unused_crate_dependencies is cargo's unused_dependencies lint.
 # variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
 unused = { level = "warn", priority = -1 }
 # A dropped Result or other must_use value hides a failure (a fixture check that returns its setup error passes with no cases).
@@ -263,8 +264,12 @@ verbose_file_reads = "warn"
 cargo = { level = "warn", priority = -1 }
 multiple_crate_versions = "allow"
 
+[workspace.lints.cargo]
+unused_dependencies = "deny"
+unused_workspace_dependencies = "deny"
+
 [workspace.lints.rustdoc]
-# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# Every rustdoc lint (rustdoc -W help, 1.100.0) but missing_doc_code_examples and private_doc_tests, which are
 # feature-gated.
 missing_crate_level_docs = "deny"
 broken_intra_doc_links = "deny"

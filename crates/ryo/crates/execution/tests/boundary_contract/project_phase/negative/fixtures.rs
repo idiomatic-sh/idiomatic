@@ -88,13 +88,14 @@ pub(crate) fn with_held<T>(
 ) -> T {
     let prepared = program(engine, entry, rule_count);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let covered = [Covered {
         file: FileId(0),
         rules: (0..rule_count).map(RuleIndex).collect(),
         partial: vec![],
     }];
-    let mut arenas = Vec::new();
+    let mut arenas =
+        ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
     let held = match entry {
         Entry::Phase => Held::Phase(request.project_phase().unwrap()),
         Entry::Stage => Held::Stage(request.observations(&mut arenas).unwrap()),

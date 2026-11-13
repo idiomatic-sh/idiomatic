@@ -92,7 +92,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                 .step = StepId(1);
             let program = engine.prepare(authored).unwrap();
             let corpus = corpus();
-            let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+            let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
             let (elements, mut symbols) = tree(FileId(0), b"abc");
             let intents = [FileRuleIntent::Run {
                 diagnostic: DiagnosticDelivery::Collected,
@@ -181,7 +181,7 @@ fn direct_pure_projections_share_source_scan_including_zero_columns_and_repeats(
     }
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,

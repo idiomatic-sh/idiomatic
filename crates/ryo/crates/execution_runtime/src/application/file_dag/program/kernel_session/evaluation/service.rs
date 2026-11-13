@@ -177,7 +177,7 @@ impl super::super::service::KernelSession<'_, '_> {
                             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
                     }
 
-                    workspace.capture_admitted(publications.clone());
+                    workspace.capture_admitted(publications.clone().into());
                     InvocationResources::validate_row_metadata(contract, &views)
                         .map_err(InvocationFailure::Semantic)?;
                     let meaning = &contract.semantics;

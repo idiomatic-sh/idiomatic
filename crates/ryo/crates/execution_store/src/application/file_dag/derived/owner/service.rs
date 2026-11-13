@@ -42,7 +42,7 @@ impl DerivedAccess {
         request: DerivedRequest,
         schemas: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
     ) -> Arc<PreparedDerived> {
-        Arc::new(self.port.prepare(request, schemas))
+        Arc::new(self.port.prepare(request, schemas.into()))
     }
     /// The same capability, whose route accounting writes its documents through `routes`.
     ///

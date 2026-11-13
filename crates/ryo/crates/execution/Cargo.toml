@@ -13,30 +13,30 @@ autobenches = false
 name = "ryo_execution"
 
 [dependencies]
-ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../execution_domain", version = "0.1.3" }
-ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.3" }
-ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.1.3" }
-ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.3" }
-ryo_execution_store = { package = "idiomatic-sh-ryo-execution-store", path = "../execution_store", version = "0.1.3" }
-ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../execution_runtime", version = "0.1.3" }
+ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../execution_domain", version = "0.1.4" }
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.4" }
+ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.1.4" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.4" }
+ryo_execution_store = { package = "idiomatic-sh-ryo-execution-store", path = "../execution_store", version = "0.1.4" }
+ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../execution_runtime", version = "0.1.4" }
 thiserror.workspace = true
 tracing.workspace = true
-ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.3" }
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.3" }
-ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.1.3" }
-ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.3" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.4" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.4" }
+ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.1.4" }
+ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.4" }
 dhat = { workspace = true, optional = true }
 
 [dev-dependencies]
 idiomatic-sh-ryo-execution = { path = ".", features = ["fixtures"] }
-ryo_execution_store = { package = "idiomatic-sh-ryo-execution-store", path = "../execution_store", version = "0.1.3", features = ["fixtures"] }
-ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../execution_runtime", version = "0.1.3", features = ["fixtures"] }
+ryo_execution_store = { package = "idiomatic-sh-ryo-execution-store", path = "../execution_store", version = "0.1.4", features = ["fixtures"] }
+ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../execution_runtime", version = "0.1.4", features = ["fixtures"] }
 dhat.workspace = true
 libtest-mimic.workspace = true
-ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.3", features = ["fixtures"] }
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.3", features = ["fixtures"] }
-ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.3", features = ["fixtures"] }
-ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.3", features = ["fixtures"] }
+ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.4", features = ["fixtures"] }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.4", features = ["fixtures"] }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.4", features = ["fixtures"] }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.4", features = ["fixtures"] }
 cargo_metadata.workspace = true
 cucumber.workspace = true
 tokio.workspace = true

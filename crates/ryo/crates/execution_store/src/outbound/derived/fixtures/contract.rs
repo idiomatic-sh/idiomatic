@@ -107,19 +107,20 @@ pub fn check(adapter: &impl DerivedPort) {
             DerivedRequest::Equality {
                 columns: vec![request.column],
             },
-            vec![vec![CellKind::Number]],
+            vec![vec![CellKind::Number]].into(),
         );
         prepared.validate()?;
         let mut room = BuildWorkspace::default();
         match request.stage {
             Stage::Prepared => Ok(Answer::Schemas(prepared.schemas().len())),
             Stage::BuiltFromRows => {
-                let built = adapter.build(&prepared, BuildInputs::Rows(&rows), &mut room, None)?;
+                let built =
+                    adapter.build(&prepared, BuildInputs::Rows(&rows), &mut room, None.into())?;
                 Ok(Answer::Built(matches!(built, BuildOutcome::Built(_))))
             }
             Stage::Viewed => {
                 let BuildOutcome::Built(payload) =
-                    adapter.build(&prepared, BuildInputs::Rows(&rows), &mut room, None)?
+                    adapter.build(&prepared, BuildInputs::Rows(&rows), &mut room, None.into())?
                 else {
                     return Err(DerivedFault::NotRun);
                 };
@@ -133,7 +134,7 @@ pub fn check(adapter: &impl DerivedPort) {
                     &prepared,
                     BuildInputs::Native(ryo_derived::domain::native::types::NativeForm::Edges),
                     &mut room,
-                    None,
+                    None.into(),
                 )?;
                 Ok(Answer::Built(matches!(built, BuildOutcome::Built(_))))
             }

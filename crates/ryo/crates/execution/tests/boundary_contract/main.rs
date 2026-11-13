@@ -67,7 +67,7 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
         .step = StepId(1);
     let program = engine.prepare(input).expect("prepare real count");
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
     let read = |relation| {
         if relation == Relation::Function {
@@ -151,7 +151,7 @@ fn a_refused_sink_is_retried_from_the_publication_without_another_evaluation() {
         .step = StepId(1);
     let program = engine.prepare(input).expect("prepare a count");
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
     let read = |relation| {
         if relation == Relation::Function {

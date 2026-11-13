@@ -30,7 +30,7 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         let prepared = super::fixtures::producer_and_consumers(&engine);
         let relation = Relation::ModuleIdentity;
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
         let covered = [Covered {
             file: FileId(0),
             rules: vec![RuleIndex(0), RuleIndex(1), RuleIndex(2)],
@@ -42,7 +42,8 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         };
         let project = ProjectFacts::new(relation);
         let project_symbols = Symbols::default();
-        let mut arenas = vec![];
+        let mut arenas =
+            ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
         let stage = request.observations(&mut arenas).unwrap();
         let mut symbols = Symbols::default();
         let partials = Partials::default();
@@ -144,7 +145,7 @@ fn every_callback_numbers_an_occurrence_by_its_place_among_all_declared_occurren
     let engine = engine();
     let prepared = super::fixtures::producer_and_consumers(&engine);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let covered = [Covered {
         file: FileId(0),
         rules: vec![RuleIndex(0), RuleIndex(1), RuleIndex(2)],
@@ -163,7 +164,8 @@ fn every_callback_numbers_an_occurrence_by_its_place_among_all_declared_occurren
     let refusals =
         vec![ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(); 3];
     let seen = RefCell::new(Vec::new());
-    let mut arenas = vec![];
+    let mut arenas =
+        ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
     let stage = request.observations(&mut arenas).unwrap();
     let mut symbols = Symbols::default();
     stage
@@ -253,7 +255,7 @@ fn a_publication_held_past_its_stage_is_refused_by_the_next_stage() {
     let engine = engine();
     let prepared = super::fixtures::producer_and_consumers(&engine);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let covered = [Covered {
         file: FileId(0),
         rules: vec![RuleIndex(0), RuleIndex(1), RuleIndex(2)],
@@ -273,7 +275,8 @@ fn a_publication_held_past_its_stage_is_refused_by_the_next_stage() {
         vec![ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(); 3];
     let held = RefCell::new(None);
     let run = |swap: bool| {
-        let mut arenas = vec![];
+        let mut arenas =
+            ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
         let stage = request.observations(&mut arenas).unwrap();
         crate::project_phase::source_facts::fixtures::run_observations_with(
             stage,

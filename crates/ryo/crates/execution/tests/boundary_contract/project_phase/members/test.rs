@@ -123,7 +123,7 @@ fn each_member_of_a_binding_reads_its_own_producer() {
         .prepare(authored)
         .expect("two producers and one consumer");
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let covered = [Covered {
         file: FileId(0),
         rules: vec![RuleIndex(0), RuleIndex(1), RuleIndex(2)],
@@ -141,7 +141,8 @@ fn each_member_of_a_binding_reads_its_own_producer() {
         ];
     let refusals =
         vec![ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(); 3];
-    let mut arenas = vec![];
+    let mut arenas =
+        ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
     let stage = request.observations(&mut arenas).unwrap();
     let mut symbols = Symbols::default();
     let occurrence = |batch, rule| BatchOccurrence {

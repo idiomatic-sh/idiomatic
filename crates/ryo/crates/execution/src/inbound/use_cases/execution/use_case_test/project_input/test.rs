@@ -92,7 +92,7 @@ fn evaluate(occurrences: Occurrences) -> Result<Value, Failure> {
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = fixtures::requests::execution().execution(&program, &corpus, None);
+    let request = fixtures::requests::execution().execution(&program, &corpus, None.into());
     let covered = [Covered {
         file: FileId(0),
         rules: vec![RuleIndex(0)],

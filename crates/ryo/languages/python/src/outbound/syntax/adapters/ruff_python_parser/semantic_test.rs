@@ -59,9 +59,11 @@ fn subject(begun: Input) -> Result<Value, Failure> {
         Begun::FromTheRead => languages::take_semantics(&mut elements),
         Begun::FromNothing => languages::SemanticSlot::Empty,
     };
-    let mut session = adapter
-        .begin_semantics(&elements, PythonSourceKind::Python, retained)
-        .ok_or(())?;
+    let languages::SemanticSlot::Begun(mut session) =
+        adapter.begin_semantics(&elements, PythonSourceKind::Python, retained)
+    else {
+        return Err(());
+    };
     let at = languages::positions(&elements)
         .find(|&at| {
             languages::start_at(&elements, at) == languages::Offset(4)

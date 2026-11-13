@@ -119,14 +119,16 @@ pub(crate) fn prepared_payload(
     use ryo_derived::domain::fault::types::DerivedFault;
     let prepared = PrepareDerivedUseCaseImpl::new().prepare_derived(
         request,
-        vec![crate::domain::table_model::service::kinds_of(rows).to_vec()],
+        ryo_derived::domain::contract::types::InputSchemas(vec![
+            crate::domain::table_model::service::kinds_of(rows).to_vec(),
+        ]),
     );
     let input = SemanticRows(rows.clone());
     match BuildUseCaseImpl::new().build(
         &prepared,
         BuildInputs::Rows(&input),
         &mut BuildWorkspace::default(),
-        None,
+        ryo_derived::domain::contract::types::Recycled::Nothing,
     ) {
         Ok(BuildOutcome::Built(payload)) => Ok(payload),
         Err(DerivedFault::NoSuchColumn { column }) => {
@@ -165,7 +167,9 @@ pub(crate) fn prepared_order(
     let payload = prepared_payload(request.clone(), rows)?;
     let plan = PrepareDerivedUseCaseImpl::new().prepare_derived(
         request,
-        vec![crate::domain::table_model::service::kinds_of(rows).to_vec()],
+        ryo_derived::domain::contract::types::InputSchemas(vec![
+            crate::domain::table_model::service::kinds_of(rows).to_vec(),
+        ]),
     );
     let DerivedView::PartitionOrder(order) = ViewUseCaseImpl::new()
         .view(&plan, &payload)

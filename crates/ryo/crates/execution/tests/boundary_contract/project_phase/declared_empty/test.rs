@@ -90,7 +90,7 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
         .prepare(declared())
         .expect("closed empty declaration");
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let reads = Cell::new(0);
     let read = |_| {
         reads.set(reads.get() + 1);
@@ -162,7 +162,8 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
         rules: vec![RuleIndex(0)],
         partial: vec![],
     }];
-    let mut arenas = vec![];
+    let mut arenas =
+        ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
     let stage = request.observations(&mut arenas).unwrap();
     let project_symbols = Symbols::default();
     let partials = Partials::default();
@@ -225,7 +226,7 @@ fn project_refuses(input: PrepareRequest, expected: &str) {
         .prepare(input)
         .expect("valid declaration with deferred admission refusal");
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let stored = CapturedFacts {
         captures: vec![],
         reads: AtomicUsize::new(0),
@@ -236,7 +237,8 @@ fn project_refuses(input: PrepareRequest, expected: &str) {
         rules: vec![RuleIndex(0)],
         partial: vec![],
     }];
-    let mut arenas = vec![];
+    let mut arenas =
+        ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
     let stage = request.observations(&mut arenas).unwrap();
     let mut symbols = Symbols::default();
     let project_symbols = Symbols::default();

@@ -38,7 +38,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<ryo::languages::FilePath>,
+        _entries: &mut ryo::languages::ProjectEntries,
     ) {
     }
 

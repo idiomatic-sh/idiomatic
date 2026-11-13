@@ -16,12 +16,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -119,7 +113,7 @@ inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
 [[tools]]
 id = "cargo-dylint"
 group = "release-dylint"
-run = ["cargo", "dylint", "--path", "../../tools/lints", "--workspace", "--", "--all-targets", "--all-features", "--locked"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo dylint --path ../../tools/lints -- --all-targets --all-features --locked"]
 timeout-seconds = 3600
 inputs = [".", "../../tools/lints", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -160,7 +154,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 

@@ -266,7 +266,7 @@ impl LanguagePort for LanguageUseCaseAdapter {
         language: LanguageNumber,
         file: FileToRead<'_>,
         tree: &mut Elements,
-    ) -> Option<Box<dyn SemanticSession>> {
+    ) -> SemanticSlot {
         // What the language's read kept for the session (its parsed tree) is handed to it, so the file is not parsed again.
         let mut slot = ryo_language::domain::elements::service::take_semantics(tree);
         if let Some(handle) = self.languages.get(language.0) {
@@ -275,22 +275,26 @@ impl LanguagePort for LanguageUseCaseAdapter {
                 .begin_semantics(&parse_request(file), tree, &mut slot);
         }
         match slot {
-            SemanticSlot::Begun(session) => Some(session),
-            SemanticSlot::Empty | SemanticSlot::Retained(_) => None,
+            SemanticSlot::Begun(session) => SemanticSlot::Begun(session),
+            SemanticSlot::Empty | SemanticSlot::Retained(_) => SemanticSlot::Empty,
         }
     }
 
-    fn project_entries(&self, input: &ProjectToRead<'_>) -> Vec<FilePath> {
-        let mut entries = Vec::new();
+    fn project_entries(
+        &self,
+        input: &ProjectToRead<'_>,
+    ) -> ryo_language::domain::files::types::ProjectEntries {
+        let mut appended = ryo_language::domain::files::types::ProjectEntries::default();
         for (number, language) in self.languages.iter().enumerate() {
             language.project.project_entries(
                 &project_request(input, LanguageNumber(number)),
-                &mut entries,
+                &mut appended,
             );
         }
+        let mut entries = appended.0;
         entries.sort();
         entries.dedup();
-        entries
+        entries.into()
     }
 
     fn project(

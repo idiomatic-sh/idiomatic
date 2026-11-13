@@ -23,7 +23,7 @@ jsonc-parser = "=0.34.0"
 # fixtures use them.
 serde_json = { workspace = true, optional = true }
 json5 = { version = "=1.3.3", optional = true }
-ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.3" }
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.4" }
 
 [dev-dependencies]
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", features = ["fixtures"] }
@@ -51,10 +51,6 @@ fixtures = ["ryo/fixtures", "dep:serde_json", "dep:json5"]
 
 [lints]
 workspace = true
-
-# Its `allocation` test target (`harness = false`) sets `dhat` as the global allocator, which machete does not see.
-[package.metadata.cargo-machete]
-ignored = ["dhat"]
 
 # Established generated parser timing identities; native CPU/RSS are not inferred from Divan.
 [package.metadata.ryo.performance]

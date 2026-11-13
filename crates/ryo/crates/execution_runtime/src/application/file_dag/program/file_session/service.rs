@@ -65,7 +65,10 @@ impl ProgramFileSessionPort for FileSession<'_, '_> {
         first: Bucket,
         symbols: &mut Symbols,
         capture: CaptureContext<'_>,
-    ) -> Result<Vec<FrontierCapture>, OperatingError> {
+    ) -> Result<
+        crate::application::file_dag::program::file_session::types::FrontierCaptures,
+        OperatingError,
+    > {
         let read = |relation| {
             source_rows(
                 self.parts.read,
@@ -87,6 +90,7 @@ impl ProgramFileSessionPort for FileSession<'_, '_> {
         self.parts
             .inner
             .capture_frontiers(rule, first, &read, symbols, bound)
+            .map(crate::application::file_dag::program::file_session::types::FrontierCaptures)
     }
     fn commit_frontier(
         &mut self,

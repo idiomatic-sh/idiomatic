@@ -31,17 +31,17 @@ fn subject(threads: Input) -> Value {
     let inside = AtomicBool::new(true);
     pool.install(|| {
         let inside = &inside;
-        let jobs = (0..16)
+        let mut jobs = (0..16)
             .map(|_| {
-                let job: Box<dyn FnOnce() + Send + '_> = Box::new(move || {
+                let job: Box<dyn FnMut() + Send + '_> = Box::new(move || {
                     if rayon::current_thread_index().is_none_or(|index| index >= threads) {
                         inside.store(false, Ordering::Relaxed);
                     }
                 });
                 job
             })
-            .collect();
-        JobSchedulingRayonAdapter.run(jobs);
+            .collect::<Vec<_>>();
+        JobSchedulingRayonAdapter.run(&mut jobs);
     });
     inside.load(Ordering::Relaxed)
 }

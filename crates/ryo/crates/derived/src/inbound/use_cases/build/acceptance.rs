@@ -28,7 +28,7 @@ fn runs(world: &mut Behavior) {
         DerivedRequest::Equality {
             columns: vec![ColumnIndex(0)],
         },
-        vec![vec![CellKind::Number]],
+        ryo_derived::domain::contract::types::InputSchemas(vec![vec![CellKind::Number]]),
     );
     let inputs = if world.input == "raw words" {
         BuildInputs::Native(ryo_derived::domain::native::types::NativeForm::Edges)
@@ -36,7 +36,12 @@ fn runs(world: &mut Behavior) {
         BuildInputs::Rows(&rows)
     };
     let mut room = BuildWorkspace::default();
-    world.answer = match BuildUseCaseImpl::new().build(&prepared, inputs, &mut room, None) {
+    world.answer = match BuildUseCaseImpl::new().build(
+        &prepared,
+        inputs,
+        &mut room,
+        ryo_derived::domain::contract::types::Recycled::Nothing,
+    ) {
         Ok(BuildOutcome::Built(_)) => "built".to_owned(),
         Ok(BuildOutcome::Declined) => "declined".to_owned(),
         Err(DerivedFault::WrongOperation) => "wrong operation".to_owned(),

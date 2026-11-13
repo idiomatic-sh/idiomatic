@@ -8,7 +8,7 @@ use crate::domain::membership::types::{MarkSpace, MembershipView};
 use crate::domain::native::types::{NativeFinding, NativeForm};
 use crate::domain::ordered::types::OrderedMatching;
 use crate::domain::row_cells::types::{CanonicalTexts, RowCells, ValueTexts};
-use ryo_relations::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::rows::types::RowIndex;
 
 /// Unsupported readable native/oversized layouts decline distinctly from faults.
@@ -94,3 +94,28 @@ pub struct BuildWorkspace {
 pub mod prepared_derived;
 
 pub mod derived_payload;
+
+/// The payload whose buffers a build reuses, when the caller holds one.
+#[derive(Debug)]
+pub enum Recycled {
+    /// A payload of an earlier build, its buffers reused.
+    Payload(derived_payload::value::DerivedPayload),
+    /// Nothing to reuse: the build allocates.
+    Nothing,
+}
+
+/// The column kinds of each input a derived request reads: one list per input, in input order.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct InputSchemas(pub Vec<Vec<CellKind>>);
+
+impl From<Option<derived_payload::value::DerivedPayload>> for Recycled {
+    fn from(payload: Option<derived_payload::value::DerivedPayload>) -> Self {
+        payload.map_or(Self::Nothing, Self::Payload)
+    }
+}
+
+impl From<Vec<Vec<CellKind>>> for InputSchemas {
+    fn from(schemas: Vec<Vec<CellKind>>) -> Self {
+        Self(schemas)
+    }
+}

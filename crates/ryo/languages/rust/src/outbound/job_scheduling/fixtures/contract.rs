@@ -33,18 +33,19 @@ pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
 pub(crate) fn turns(adapter: &impl JobSchedulingPort, count: u32) -> Vec<u32> {
     let next = AtomicU32::new(0);
     let mut turns: Vec<Option<u32>> = (0..count).map(|_| None).collect();
-    let jobs = turns
+    let mut jobs = turns
         .iter_mut()
         .map(|turn| {
             let next = &next;
             {
-                let job: Box<dyn FnOnce() + Send + '_> =
+                let job: Box<dyn FnMut() + Send + '_> =
                     Box::new(move || *turn = Some(next.fetch_add(1, Ordering::Relaxed)));
                 job
             }
         })
-        .collect();
-    adapter.run(jobs);
+        .collect::<Vec<_>>();
+    adapter.run(&mut jobs);
+    drop(jobs);
     turns.into_iter().flatten().collect()
 }
 

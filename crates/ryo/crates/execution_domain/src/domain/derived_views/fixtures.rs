@@ -36,7 +36,11 @@ impl Semantics {
         request: DerivedRequest,
         schemas: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
     ) -> PreparedDerived {
-        PrepareDerivedUseCase::prepare_derived(&self.prepare, request, schemas)
+        PrepareDerivedUseCase::prepare_derived(
+            &self.prepare,
+            request,
+            ryo_derived::domain::contract::types::InputSchemas(schemas),
+        )
     }
 
     /// Builds the payload of a prepared request.
@@ -47,6 +51,10 @@ impl Semantics {
         room: &mut BuildWorkspace,
         recycled: Option<DerivedPayload>,
     ) -> Result<BuildOutcome, DerivedFault> {
+        let recycled = match recycled {
+            Some(payload) => ryo_derived::domain::contract::types::Recycled::Payload(payload),
+            None => ryo_derived::domain::contract::types::Recycled::Nothing,
+        };
         BuildUseCase::build(&self.build, prepared, inputs, room, recycled)
     }
 

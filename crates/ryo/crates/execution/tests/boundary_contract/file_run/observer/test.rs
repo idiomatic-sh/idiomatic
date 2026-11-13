@@ -39,7 +39,7 @@ fn a_file_run_answers_the_same_with_or_without_the_counting_observer() {
     let run = |observer: Option<
         Arc<dyn ryo_execution::inbound::use_cases::execution::interface::ObserverPort>,
     >| {
-        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, observer);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, observer.into());
         let worker = super::super::fixtures::function_rows(&facts, FileId(0), &[1, 2, 3]);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let mut symbols = Symbols::default();
@@ -122,7 +122,7 @@ fn each_fused_step_is_counted_for_the_rows_it_was_fed() {
     let shared = Arc::clone(&counting);
     let observer: Arc<dyn ryo_execution::inbound::use_cases::execution::interface::ObserverPort> =
         shared;
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, Some(observer));
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, Some(observer).into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let facts = ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake::default();
     let worker = facts.open_worker().expect("a fake worker");

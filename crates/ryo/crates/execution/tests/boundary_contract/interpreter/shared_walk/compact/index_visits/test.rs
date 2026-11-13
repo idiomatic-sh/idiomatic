@@ -99,7 +99,7 @@ fn indexed_join_counts_actual_matching_rhs_visits_and_does_no_work_on_replay() {
         plan.emit.step = StepId(2);
         let program = engine.prepare(authored).unwrap();
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
         let mut symbols = Symbols::default();
         let elements = Elements::default();
         let read = |_| Err(OperatingError::NotRead);

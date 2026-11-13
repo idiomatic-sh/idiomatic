@@ -2,6 +2,7 @@
 
 use crate::outbound::lint_store::adapters::postcard::connection::BUFFER_BYTES;
 use crate::outbound::lint_store::adapters::postcard::connection::BucketReader;
+#[cfg(unix)]
 use crate::outbound::lint_store::adapters::postcard::connection::PositionalReader;
 use crate::outbound::lint_store::adapters::postcard::connection::StagingConnection;
 use crate::outbound::lint_store::adapters::postcard::connection::copy_buffered;

@@ -74,7 +74,10 @@ impl LanguagePort for Forgetful {
     ) -> crate::outbound::language::types::FileReading {
         self.0.parse(file, table, symbols, out)
     }
-    fn project_entries(&self, input: &ProjectToRead<'_>) -> Vec<FilePath> {
+    fn project_entries(
+        &self,
+        input: &ProjectToRead<'_>,
+    ) -> ryo_language::domain::files::types::ProjectEntries {
         self.0.project_entries(input)
     }
     fn project(

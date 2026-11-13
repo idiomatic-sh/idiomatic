@@ -217,8 +217,11 @@ impl LanguagePort for LanguageFake {
         FileReading::Read(LanguageNumber(0))
     }
 
-    fn project_entries(&self, _input: &ProjectToRead<'_>) -> Vec<FilePath> {
-        self.project_entry_paths.clone()
+    fn project_entries(
+        &self,
+        _input: &ProjectToRead<'_>,
+    ) -> ryo_language::domain::files::types::ProjectEntries {
+        self.project_entry_paths.clone().into()
     }
 
     fn project(

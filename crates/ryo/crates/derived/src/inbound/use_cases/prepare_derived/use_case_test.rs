@@ -45,7 +45,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         DerivedRequest::Equality {
             columns: vec![column],
         },
-        vec![vec![CellKind::Number]],
+        crate::domain::contract::types::InputSchemas(vec![vec![CellKind::Number]]),
     );
     prepared.validate()?;
     Ok(prepared.schemas().len())

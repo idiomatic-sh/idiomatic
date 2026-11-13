@@ -50,7 +50,7 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
         vec![Input::Step(StepId(0))];
     let prepared = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let mut symbols = Symbols::default();
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut file = request

@@ -34,6 +34,7 @@ pub(super) const FRONTIER_PROOFS_HAVE_DUPLICATE_OR_UNORDERED: &str =
 pub(super) const NO_STAGING_SESSION_WAS_READ: &str = "no staging session was read";
 
 /// The text "old bucket end overflows".
+#[cfg(unix)]
 pub(super) const OLD_BUCKET_END_OVERFLOWS: &str = "old bucket end overflows";
 
 /// The text "old row bucket or span is absent".
@@ -47,16 +48,19 @@ pub(super) const OLD_ROW_BELONGS_TO_ANOTHER_STORE: &str =
 pub(super) const STORE_SNAPSHOT_IDENTITIES_EXHAUSTED: &str = "store snapshot identities exhausted";
 
 /// The text "old row bucket is absent".
+#[cfg(unix)]
 pub(super) const OLD_ROW_BUCKET_IS_ABSENT: &str = "old row bucket is absent";
 
 /// The text "old bucket seek exceeds its section".
 pub(super) const OLD_BUCKET_SEEK_EXCEEDS_ITS_SECTION: &str = "old bucket seek exceeds its section";
 
 /// The text "old bucket logical position overflows".
+#[cfg(unix)]
 pub(super) const OLD_BUCKET_LOGICAL_POSITION_OVERFLOWS: &str =
     "old bucket logical position overflows";
 
 /// The text "old bucket position overflows".
+#[cfg(unix)]
 pub(super) const OLD_BUCKET_POSITION_OVERFLOWS: &str = "old bucket position overflows";
 
 /// The text "store offset overflows".
@@ -155,9 +159,11 @@ pub(super) const FRESH_ROW_COUNT_OVERFLOWS: &str = "fresh row count overflows";
 pub(super) const OLD_BUCKET_SEEK_UNDERFLOWS: &str = "old bucket seek underflows";
 
 /// The text "old row seek underflows".
+#[cfg(unix)]
 pub(super) const OLD_ROW_SEEK_UNDERFLOWS: &str = "old row seek underflows";
 
 /// The text "old row position overflows".
+#[cfg(unix)]
 pub(super) const OLD_ROW_POSITION_OVERFLOWS: &str = "old row position overflows";
 
 /// The text "copy size overflows".

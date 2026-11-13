@@ -48,3 +48,19 @@ pub enum ViewInputs<'a, 's> {
         arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
     },
 }
+
+/// The publications an invocation admits, captured together.
+#[derive(Debug, Default)]
+pub struct AdmittedPublications(
+    pub Vec<crate::application::file_dag::relations::handle::service::Publication>,
+);
+
+impl From<Vec<crate::application::file_dag::relations::handle::service::Publication>>
+    for AdmittedPublications
+{
+    fn from(
+        publications: Vec<crate::application::file_dag::relations::handle::service::Publication>,
+    ) -> Self {
+        Self(publications)
+    }
+}

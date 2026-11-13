@@ -54,7 +54,7 @@ pub(crate) fn build(
                     &plan.semantic,
                     ryo_derived::domain::contract::types::BuildInputs::Native(form),
                     &mut scratch.semantic,
-                    recycled,
+                    recycled.into(),
                 )
             } else {
                 let source = AdmittedRows {
@@ -65,7 +65,7 @@ pub(crate) fn build(
                     &plan.semantic,
                     ryo_derived::domain::contract::types::BuildInputs::Rows(&source),
                     &mut scratch.semantic,
-                    recycled,
+                    recycled.into(),
                 )
             }
         }
@@ -89,7 +89,7 @@ pub(crate) fn build(
                     texts: &DerivedTexts(*texts),
                 },
                 &mut scratch.semantic,
-                recycled,
+                recycled.into(),
             )
         }
         DerivedInputs::Membership { rows, space } => {
@@ -120,7 +120,7 @@ pub(crate) fn build(
                     space,
                 },
                 &mut scratch.semantic,
-                recycled,
+                recycled.into(),
             )
         }
         DerivedInputs::Partition {
@@ -140,7 +140,7 @@ pub(crate) fn build(
                     key,
                 },
                 &mut scratch.semantic,
-                recycled,
+                recycled.into(),
             )
         }
         DerivedInputs::Dfs {
@@ -174,7 +174,7 @@ pub(crate) fn build(
                     texts: &mut texts,
                 },
                 &mut scratch.semantic,
-                recycled,
+                recycled.into(),
             )
         }
         DerivedInputs::Adjacency { rows, source } => {
@@ -206,7 +206,7 @@ pub(crate) fn build(
                         endpoints: source.endpoints,
                         keys: keys.clone(),
                     },
-                    plan.schemas.clone(),
+                    plan.schemas.clone().into(),
                 ))
             };
             built_plan = Arc::clone(&prepared);
@@ -214,7 +214,7 @@ pub(crate) fn build(
                 &prepared,
                 ryo_derived::domain::contract::types::BuildInputs::Rows(&rows),
                 &mut scratch.semantic,
-                recycled,
+                recycled.into(),
             )
         }
     };

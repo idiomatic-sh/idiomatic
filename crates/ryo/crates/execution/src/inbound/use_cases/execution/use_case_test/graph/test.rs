@@ -74,7 +74,7 @@ fn build(
             endpoints,
             keys: keys.to_vec(),
         },
-        vec![ryo_execution_domain::domain::table_model::service::kinds_of(rows).to_vec()],
+        vec![ryo_execution_domain::domain::table_model::service::kinds_of(rows).to_vec()].into(),
     );
     let Rows::Computed(table) = rows else {
         return Err(OperatingError::WrongOperation);
@@ -85,7 +85,7 @@ fn build(
             &prepared,
             BuildInputs::Rows(&complete),
             &mut BuildWorkspace::default(),
-            None,
+            None.into(),
         )
         .map_err(ryo_execution_domain::domain::operating::service::derived_fault)?
     {

@@ -56,15 +56,15 @@ pub trait LanguagePort: Send + Sync {
         _language: LanguageNumber,
         _file: FileToRead<'_>,
         _tree: &mut Elements,
-    ) -> Option<Box<dyn SemanticSession>> {
-        None
+    ) -> ryo_language::domain::semantics::types::SemanticSlot {
+        ryo_language::domain::semantics::types::SemanticSlot::Empty
     }
 
     /// Candidate project entries the linked languages need for the requested relations; no IO is performed.
     fn project_entries(
         &self,
         input: &ProjectToRead<'_>,
-    ) -> Vec<ryo_language::domain::files::types::FilePath>;
+    ) -> ryo_language::domain::files::types::ProjectEntries;
 
     /// Reads the manifests with every linked language, writing into `out`.
     ///

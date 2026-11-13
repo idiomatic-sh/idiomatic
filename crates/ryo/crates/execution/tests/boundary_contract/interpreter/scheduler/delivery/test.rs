@@ -40,7 +40,7 @@ fn sink_refusal_replays_delivery_without_restarting_the_shared_dependency_graph(
     }
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
     let reads = Cell::new(0);
     let refuse = Cell::new(false);
@@ -151,7 +151,7 @@ fn an_unbound_rule_cannot_schedule_an_independent_provider_after_a_failed_siblin
         };
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let reads = Cell::new(0);
     let read = |relation| {
         assert_eq!(

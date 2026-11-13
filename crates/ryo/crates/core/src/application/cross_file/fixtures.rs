@@ -213,7 +213,7 @@ pub(super) fn world_with_applicability(
         Arc::<ryo_execution_runtime::outbound::observer::fixtures::fake::ObserverFake>::clone(
             &observer,
         );
-    let request = ExecutionUseCaseImpl::new().execution(&program, &files, Some(observing));
+    let request = ExecutionUseCaseImpl::new().execution(&program, &files, Some(observing).into());
     World {
         observer,
         placed: ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes {

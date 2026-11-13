@@ -75,7 +75,7 @@ impl language::interface::LanguagePort for Counting {
     fn project_entries(
         &self,
         input: &language::types::ProjectToRead<'_>,
-    ) -> Vec<ryo_language::domain::files::types::FilePath> {
+    ) -> ryo_language::domain::files::types::ProjectEntries {
         self.language.project_entries(input)
     }
 

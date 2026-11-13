@@ -266,9 +266,9 @@ impl crate::application::file_dag::workspace::interface::WorkspacePort for Invoc
     }
     fn capture_admitted(
         &mut self,
-        publications: Vec<crate::application::file_dag::relations::handle::service::Publication>,
+        publications: crate::application::file_dag::workspace::types::AdmittedPublications,
     ) {
-        InvocationWorkspace::capture_admitted(self, publications);
+        InvocationWorkspace::capture_admitted(self, publications.0);
     }
     fn release_inputs(&mut self) {
         InvocationWorkspace::release_inputs(self);
@@ -303,8 +303,10 @@ impl<'f> super::interface::DerivedAdmittedViewsPort<'f> for InputAdmissions<'_, 
     fn try_native_lookup(
         &self,
         use_: &PreparedViewUse,
-    ) -> Result<Option<AcquiredView>, OperatingError> {
+    ) -> Result<crate::application::file_dag::relations::types::Sought<AcquiredView>, OperatingError>
+    {
         InputAdmissions::try_native_lookup(self, use_)
+            .map(crate::application::file_dag::relations::types::Sought::from)
     }
     fn acquire_rows(
         &self,
@@ -339,12 +341,15 @@ impl<'f> super::interface::DerivedAdmittedViewsPort<'f> for InputAdmissions<'_, 
         program: &ryo_execution_domain::domain::operator::contract::resources::types::ResourceProgram,
         rows: &[ryo_execution_domain::domain::table_model::types::Rows<'_>],
     ) -> Result<
-        Option<crate::application::file_dag::derived::owner::cached_graph::service::CachedGraph>,
+        crate::application::file_dag::relations::types::Sought<
+            crate::application::file_dag::derived::owner::cached_graph::service::CachedGraph,
+        >,
         OperatingError,
     > {
         self.workspace
             .owner()
             .derived()
             .prepare_graph(contract, self.workspace, program, rows)
+            .map(crate::application::file_dag::relations::types::Sought::from)
     }
 }

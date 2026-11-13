@@ -14,17 +14,28 @@ use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_values::domain::stored_facts::types::{Bucket, Digest};
 use std::sync::Arc;
 impl ProgramPreparedExecutionPort for PreparedExecutionProgram {
-    fn observation_batches(&self) -> Option<&[Vec<RuleIndex>]> {
-        self.parts.inner.observation_batches()
+    fn observation_batches(
+        &self,
+    ) -> crate::application::file_dag::program::prepared_execution::types::RuleBatches<'_> {
+        crate::application::file_dag::program::prepared_execution::types::RuleBatches(
+            self.parts.inner.observation_batches(),
+        )
     }
     fn rule_count(&self) -> RuleTotal {
         self.parts.inner.rule_count()
     }
-    fn rule_order(&self) -> impl Iterator<Item = RuleIndex> + '_ {
+    fn rule_order(
+        &self,
+    ) -> crate::application::file_dag::program::prepared_execution::types::RuleOrder<'_> {
         self.parts.inner.rule_order()
     }
-    fn demanded_rules(&self, governs: impl Fn(RuleIndex) -> Demand) -> Vec<Demand> {
-        self.parts.inner.demanded_rules(governs)
+    fn demanded_rules(
+        &self,
+        governs: impl Fn(RuleIndex) -> Demand,
+    ) -> crate::application::file_dag::program::prepared_execution::types::Demands {
+        crate::application::file_dag::program::prepared_execution::types::Demands(
+            self.parts.inner.demanded_rules(governs),
+        )
     }
     fn emit(
         &self,
@@ -51,11 +62,25 @@ impl ProgramPreparedExecutionPort for PreparedExecutionProgram {
     fn semantic_needed(&self) -> SemanticNeed {
         self.parts.inner.semantic_needed()
     }
-    fn observation_layout(&self) -> Option<NamedLayout<'_>> {
-        self.parts.inner.observation_layout()
+    fn observation_layout(
+        &self,
+    ) -> crate::application::file_dag::program::prepared_execution::types::ObservationLayout<'_>
+    {
+        crate::application::file_dag::program::prepared_execution::types::ObservationLayout(
+            self.parts.inner.observation_layout(),
+        )
     }
-    fn observation_reads(&self, rule: RuleIndex) -> Result<Vec<RelationRead>, OperatingError> {
-        self.parts.inner.observation_reads(rule)
+    fn observation_reads(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<
+        crate::application::file_dag::program::prepared_execution::types::RelationReads,
+        OperatingError,
+    > {
+        self.parts
+            .inner
+            .observation_reads(rule)
+            .map(crate::application::file_dag::program::prepared_execution::types::RelationReads)
     }
     fn has_observation_contract(
         &self,
@@ -66,9 +91,13 @@ impl ProgramPreparedExecutionPort for PreparedExecutionProgram {
     fn frontier_dependencies(
         &self,
         rule: RuleIndex,
-    ) -> Result<&[Vec<ryo_values::domain::plan_parts::types::ObservationBindingId>], OperatingError>
-    {
-        self.parts.inner.frontier_dependencies(rule)
+    ) -> Result<
+        crate::application::file_dag::program::prepared_execution::types::FrontierDependencies<'_>,
+        OperatingError,
+    > {
+        self.parts.inner.frontier_dependencies(rule).map(
+            crate::application::file_dag::program::prepared_execution::types::FrontierDependencies,
+        )
     }
 }
 /// The prepared program's matchers, for the execution crate's use-case proofs of lazy matcher compilation.

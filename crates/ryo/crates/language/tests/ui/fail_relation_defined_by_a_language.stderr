@@ -7,16 +7,18 @@ error[E0277]: the trait bound `[u64; 0]: AsRef<[Bits]>` is not satisfied
 help: the following other types implement trait `AsRef<T>`
   --> $RUST/core/src/convert/mod.rs
    |
-   | impl<T> const AsRef<[T]> for [T] {
+   | const impl<T> AsRef<[T]> for [T] {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `[T]`
    |
   ::: $RUST/core/src/array/mod.rs
    |
-   | impl<T, const N: usize> const AsRef<[T]> for [T; N] {
+   | const impl<T, const N: usize> AsRef<[T]> for [T; N] {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `[T; N]`
 note: required by a bound in `ryo_relations::domain::relations::collections::relations::interface::RelationsItem::Words`
   --> $WORKSPACE/crates/relations/src/domain/relations/collections/relations/interface.rs
    |
+   | pub trait RelationsItem: sealed::Sealed + 'static {
+...
    |     type Words: AsRef<[Bits]>;
    |                 ^^^^^^^^^^^^^ required by this bound in `RelationsItem::Words`
 

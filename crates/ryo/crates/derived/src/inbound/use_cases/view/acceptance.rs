@@ -32,19 +32,29 @@ fn runs(world: &mut Behavior) {
         DerivedRequest::Equality {
             columns: vec![ColumnIndex(0)],
         },
-        vec![vec![CellKind::Number]],
+        ryo_derived::domain::contract::types::InputSchemas(vec![vec![CellKind::Number]]),
     );
     let raw = PrepareDerivedUseCaseImpl::new().prepare_derived(
         DerivedRequest::PartitionOrder {
             keys: vec![ColumnIndex(0)],
         },
-        vec![vec![CellKind::Number]],
+        ryo_derived::domain::contract::types::InputSchemas(vec![vec![CellKind::Number]]),
     );
     let mut room = BuildWorkspace::default();
     let built = if world.input == "partition order payload" {
-        BuildUseCaseImpl::new().build(&raw, BuildInputs::Rows(&rows), &mut room, None)
+        BuildUseCaseImpl::new().build(
+            &raw,
+            BuildInputs::Rows(&rows),
+            &mut room,
+            ryo_derived::domain::contract::types::Recycled::Nothing,
+        )
     } else {
-        BuildUseCaseImpl::new().build(&equality, BuildInputs::Rows(&rows), &mut room, None)
+        BuildUseCaseImpl::new().build(
+            &equality,
+            BuildInputs::Rows(&rows),
+            &mut room,
+            ryo_derived::domain::contract::types::Recycled::Nothing,
+        )
     };
     let Ok(BuildOutcome::Built(payload)) = built else {
         panic!("the payload must build");

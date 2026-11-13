@@ -19,7 +19,7 @@ name = "ryo_css"
 strum.workspace = true
 # Servo's CSS Syntax 3 tokenizer and rule parsers, the ones Firefox's style engine and lightningcss read with.
 cssparser = "=0.38.0"
-ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.3" }
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.4" }
 
 [dev-dependencies]
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", features = ["fixtures"] }
@@ -47,10 +47,6 @@ fixtures = ["ryo/fixtures"]
 
 [lints]
 workspace = true
-
-# Its `allocation` test target (`harness = false`) sets `dhat` as the global allocator, which machete does not see.
-[package.metadata.cargo-machete]
-ignored = ["dhat"]
 
 # Established generated parser timing identities; native CPU/RSS are not inferred from Divan.
 [package.metadata.ryo.performance]

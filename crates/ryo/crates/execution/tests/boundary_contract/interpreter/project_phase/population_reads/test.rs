@@ -35,7 +35,7 @@ fn a_deferred_project_root_feeds_no_file_step_and_its_frontier_walks_the_source_
         let engine = engine();
         let prepared = mixed_program(&engine, relation);
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
         let table = source();
         let file_reads = Cell::new(0);
         let read = |actual| {

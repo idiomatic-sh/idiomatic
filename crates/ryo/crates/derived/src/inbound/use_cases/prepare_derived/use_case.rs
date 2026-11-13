@@ -1,8 +1,8 @@
 //! The `prepare` use case: stateless; concrete construction belongs at a composition edge.
 use super::interface::PrepareDerivedUseCase;
+use crate::domain::contract::types::InputSchemas;
 use crate::domain::contract::types::prepared_derived::value::PreparedDerived;
 use crate::domain::request::types::DerivedRequest;
-use ryo_relations::domain::relations::types::CellKind;
 
 /// `prepare`, over no port: it holds no state.
 #[derive(Clone, Copy, Debug)]
@@ -17,11 +17,7 @@ impl PrepareDerivedUseCaseImpl {
 }
 
 impl PrepareDerivedUseCase for PrepareDerivedUseCaseImpl {
-    fn prepare_derived(
-        &self,
-        request: DerivedRequest,
-        schemas: Vec<Vec<CellKind>>,
-    ) -> PreparedDerived {
-        crate::domain::preparation::service::prepare(request, schemas)
+    fn prepare_derived(&self, request: DerivedRequest, schemas: InputSchemas) -> PreparedDerived {
+        crate::domain::preparation::service::prepare(request, schemas.0)
     }
 }

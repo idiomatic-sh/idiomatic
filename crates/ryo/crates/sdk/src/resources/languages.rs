@@ -308,6 +308,8 @@ pub use ryo_language::inbound::use_cases::project::types::Resolved;
 
 pub use ryo_language::domain::files::types::FilePath;
 
+pub use ryo_language::domain::files::types::ProjectEntries;
+
 pub use ryo_relations::domain::parameter_kind::types::ParameterKind;
 
 pub use ryo_relations::domain::relations::types::Rows;

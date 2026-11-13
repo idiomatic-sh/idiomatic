@@ -2,7 +2,7 @@
 use super::interface::BuildUseCase;
 use crate::domain::contract::types::derived_payload::value::DerivedPayload;
 use crate::domain::contract::types::prepared_derived::value::PreparedDerived;
-use crate::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace};
+use crate::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, Recycled};
 use crate::domain::fault::types::DerivedFault;
 
 /// `build`, over no port: it holds no state.
@@ -23,8 +23,12 @@ impl BuildUseCase for BuildUseCaseImpl {
         prepared: &PreparedDerived,
         inputs: BuildInputs<'_>,
         room: &mut BuildWorkspace,
-        recycled: Option<DerivedPayload>,
+        recycled: Recycled,
     ) -> Result<BuildOutcome, DerivedFault> {
+        let recycled = match recycled {
+            Recycled::Payload(payload) => Some(payload),
+            Recycled::Nothing => None,
+        };
         crate::domain::dispatch::service::build(prepared, inputs, room, recycled)
     }
 }

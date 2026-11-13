@@ -11,7 +11,7 @@ fn every_prepared_rule_requires_exactly_one_file_start_intent() {
     let engine = engine();
     let program = prepared_rules(&engine, 2);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |_| panic!("malformed intent vectors cannot read a provider");
     let mut symbols = Symbols::default();
@@ -33,7 +33,7 @@ fn absent_skipped_and_refused_rules_cannot_acquire_any_root() {
     let engine = engine();
     let program = prepared(&engine);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |_| panic!("undeclared roots cannot read a provider");
     for intent in [
@@ -81,7 +81,7 @@ fn rule_demand_is_immutable_and_capture_cannot_be_added_after_open() {
     let engine = engine();
     let program = prepared(&engine);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let elements = ryo_language::domain::elements::types::Elements::default();
     let reads = Cell::new(0);
     let table = source();

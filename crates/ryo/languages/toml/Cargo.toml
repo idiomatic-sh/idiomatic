@@ -20,7 +20,7 @@ strum.workspace = true
 toml_parser = "=1.1.5"
 # The `toml` crate's recoverable parse is what says a document's errors of meaning: the parser above leaves them to its consumer.
 toml.workspace = true
-ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.3" }
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.4" }
 
 [dev-dependencies]
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", features = ["fixtures"] }
@@ -48,10 +48,6 @@ fixtures = ["ryo/fixtures"]
 
 [lints]
 workspace = true
-
-# Its `allocation` test target (`harness = false`) sets `dhat` as the global allocator, which machete does not see.
-[package.metadata.cargo-machete]
-ignored = ["dhat"]
 
 # Established generated parser timing identities; native CPU/RSS are not inferred from Divan.
 [package.metadata.ryo.performance]

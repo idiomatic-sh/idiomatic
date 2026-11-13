@@ -35,7 +35,7 @@ fn runs(
         observations: ObservationIdentity::Independent,
     })?;
     ExecutionUseCaseImpl::new()
-        .execution(&prepared, &[], None)
+        .execution(&prepared, &[], None.into())
         .finish();
     world.answer = "complete".to_owned();
     Ok(())

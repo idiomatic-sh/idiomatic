@@ -34,7 +34,7 @@ fn three_rules_over_three_files_answer_the_recorded_file_rules() {
         corpus.push(more);
     }
     let facts = ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake::default();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let mut answered = String::new();
     for (file, ids) in [(0, vec![1, 2]), (1, vec![]), (2, vec![7, 8, 9])] {
         let worker = super::super::fixtures::function_rows(&facts, FileId(file), &ids);
