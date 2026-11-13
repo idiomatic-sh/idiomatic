@@ -5,11 +5,10 @@
 use std::sync::Arc;
 
 use ryo::languages::{
-    self, AbsenceCause, ByteSlice, Completion, CompletionRequirement, Count, Elements,
-    EmbeddedExpression, FormatSpecification, InterpolatedStringLiteral, KindNames,
-    LiteralExpressionParse, NoteRequest, OptionalCapability, Parse, ParseConfigurationIdentity,
-    ParseError, ParseRequest, Position, Reader, Recognition, SemanticSlot, SkippedDirectory,
-    Support, TableBuilder, Tree, UnknownName,
+    self, AbsenceCause, ByteSlice, Completion, CompletionRequirement, Count, Elements, KindNames,
+    NoteRequest, OptionalCapability, Parse, ParseConfigurationIdentity, ParseError, ParseRequest,
+    Position, Reader, Recognition, SemanticSlot, SkippedDirectory, Support, TableBuilder, Tree,
+    UnknownName,
 };
 
 use crate::domain::language::service::{reading_of, reads, recognized};
