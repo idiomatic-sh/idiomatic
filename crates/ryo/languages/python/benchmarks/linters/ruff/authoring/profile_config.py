@@ -7,10 +7,6 @@ from pathlib import Path
 RUFF_DIR = Path(__file__).resolve().parents[1]
 REPOSITORY = RUFF_DIR.parents[6]
 PROFILE_DIR = RUFF_DIR / 'profiles'
-DISCREPANCY_SOURCE_ROOTS = {
-    'UP031': RUFF_DIR,
-    'F821': PROFILE_DIR / 'F821-stub-annotation-context',
-}
 MANIFEST = Path(os.environ.get('RYO_RUFF_PREPARED_MANIFEST', PROFILE_DIR / 'prepared.json'))
 SHAPE_PROFILE = 'shape-110'
 RULE_PHASES_FILE = PROFILE_DIR / 'pinned-rule-phases.json'
@@ -26,7 +22,7 @@ ENTRYPOINT = RUFF_DIR / 'verify_profiles.py'
 
 def discrepancy_source_root(rule: str, profile: Path) -> Path:
     """Return the declared source of pinned evidence for a profile's rule."""
-    return DISCREPANCY_SOURCE_ROOTS.get(rule, profile.parent)
+    return profile.parent
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()

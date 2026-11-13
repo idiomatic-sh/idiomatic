@@ -27,13 +27,13 @@ def full_inventory_settings(rule: str, manifest: dict[str, object]) -> tuple[Pat
     explicit = [(name, entry) for name, entry in prepared if 'profile_file' in entry]
     if len(explicit) > 1:
         raise ValueError('ambiguous explicit singleton settings')
-    if explicit:
-        name, entry = explicit[0]
-        return (profile_sources.prepared_profile_path(name, entry), entry.get('target_version'), 'prepared per-rule settings')
     dedicated = profile_config.RUFF_DIR / 'profiles' / rule / 'benchmark.toml'
     if dedicated.is_file():
         target = prepared[0][1].get('target_version') if len(prepared) == 1 else None
         return (dedicated, target, 'dedicated singleton profile (existing parser default contract)')
+    if explicit:
+        name, entry = explicit[0]
+        return (profile_sources.prepared_profile_path(name, entry), entry.get('target_version'), 'prepared per-rule settings')
     cohorts = [(name, entry) for name, entry in manifest.get('combined_profiles', {}).items() if rule in entry.get('selected_rules', [])]
     signatures = set()
     resolved = []
