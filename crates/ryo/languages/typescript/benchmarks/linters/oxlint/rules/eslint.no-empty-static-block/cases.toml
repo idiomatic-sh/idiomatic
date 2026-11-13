@@ -1,0 +1,44 @@
+[[cases]]
+name = "empty"
+files = { "case.ts" = "class A { static {} }\n" }
+expected = [{ file = "case.ts", start = 10, end = 19 }]
+
+[[cases]]
+name = "whitespace"
+files = { "case.ts" = "class A {\n  static {\n  }\n}\n" }
+expected = [{ file = "case.ts", start = 12, end = 24 }]
+
+[[cases]]
+name = "line-comment"
+files = { "case.ts" = "class A { static { // reason\n } }\n" }
+expected = []
+
+[[cases]]
+name = "block-comment"
+files = { "case.ts" = "class A { static { /* reason */ } }\n" }
+expected = []
+
+[[cases]]
+name = "statement"
+files = { "case.ts" = "class A { static { f(); } }\n" }
+expected = []
+
+[[cases]]
+name = "empty-statement"
+files = { "case.ts" = "class A { static { ; } }\n" }
+expected = []
+
+[[cases]]
+name = "class-expression"
+files = { "case.ts" = "const A = class { static {} };\n" }
+expected = [{ file = "case.ts", start = 18, end = 27 }]
+
+[[cases]]
+name = "two-blocks"
+files = { "case.ts" = "class A { static {} static {} }\n" }
+expected = [{ file = "case.ts", start = 10, end = 19 }, { file = "case.ts", start = 20, end = 29 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "class A {\n  // eslint-disable-next-line no-empty-static-block\n  static {}\n}\n" }
+expected = []

@@ -32,6 +32,8 @@ macro_rules! parameter {
                 ParameterExpectedRow
             },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The parameter: its file and where it starts.
                 id Id: NodeId => Node;

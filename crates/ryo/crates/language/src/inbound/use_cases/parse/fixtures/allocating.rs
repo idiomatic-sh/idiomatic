@@ -152,6 +152,10 @@ impl ParseUseCase for AllocatingLanguage {
     ) {
     }
 
+    fn semantics(&self) -> Option<&dyn crate::domain::semantics::types::Semantics> {
+        None
+    }
+
     fn completion_requirement(&self) -> crate::domain::elements::types::CompletionRequirement {
         crate::domain::elements::types::CompletionRequirement::Independent
     }
@@ -162,9 +166,7 @@ impl ParseUseCase for AllocatingLanguage {
         Recognition::Declines
     }
 
-    fn capabilities(
-        &self,
-    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability] {
+    fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
         &[]
     }
 

@@ -1,0 +1,114 @@
+[[cases]]
+name = "if-double-negation"
+files = { "case.ts" = "if (!!a) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 7 }]
+
+[[cases]]
+name = "if-boolean"
+files = { "case.ts" = "if (Boolean(a)) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 14 }]
+
+[[cases]]
+name = "while"
+files = { "case.ts" = "while (!!a) {}\n" }
+expected = [{ file = "case.ts", start = 7, end = 10 }]
+
+[[cases]]
+name = "do-while"
+files = { "case.ts" = "do {} while (Boolean(a));\n" }
+expected = [{ file = "case.ts", start = 13, end = 23 }]
+
+[[cases]]
+name = "for"
+files = { "case.ts" = "for (; !!a; ) {}\n" }
+expected = [{ file = "case.ts", start = 7, end = 10 }]
+
+[[cases]]
+name = "ternary"
+files = { "case.ts" = "const x = !!a ? b : c;\n" }
+expected = [{ file = "case.ts", start = 10, end = 13 }]
+
+[[cases]]
+name = "ternary-branch"
+files = { "case.ts" = "const x = c ? !!a : b;\n" }
+expected = []
+
+[[cases]]
+name = "negated-double"
+files = { "case.ts" = "const x = !!!a;\n" }
+expected = [{ file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "negated-boolean"
+files = { "case.ts" = "const x = !Boolean(a);\n" }
+expected = [{ file = "case.ts", start = 11, end = 21 }]
+
+[[cases]]
+name = "boolean-of-double"
+files = { "case.ts" = "const x = Boolean(!!a);\n" }
+expected = [{ file = "case.ts", start = 18, end = 21 }]
+
+[[cases]]
+name = "new-boolean"
+files = { "case.ts" = "const x = new Boolean(!!a);\n" }
+expected = [{ file = "case.ts", start = 22, end = 25 }]
+
+[[cases]]
+name = "second-argument"
+files = { "case.ts" = "const x = Boolean(b, !!a);\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized"
+files = { "case.ts" = "if ((!!a)) {}\n" }
+expected = [{ file = "case.ts", start = 5, end = 8 }]
+
+[[cases]]
+name = "parenthesized-inner"
+files = { "case.ts" = "if (!(!a)) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 9 }]
+
+[[cases]]
+name = "as-test"
+files = { "case.ts" = "if ((!!a) as any) {}\n" }
+expected = []
+
+[[cases]]
+name = "logical"
+files = { "case.ts" = "if (!!a && b) {}\n" }
+expected = []
+
+[[cases]]
+name = "assignment"
+files = { "case.ts" = "const x = !!a;\n" }
+expected = []
+
+[[cases]]
+name = "call"
+files = { "case.ts" = "f(!!a);\n" }
+expected = []
+
+[[cases]]
+name = "optional-boolean"
+files = { "case.ts" = "if (Boolean?.(a)) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 16 }]
+
+[[cases]]
+name = "boolean-no-argument"
+files = { "case.ts" = "if (Boolean()) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 13 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.ts" = "function f(Boolean: any) { if (Boolean(a)) {} }\n" }
+expected = [{ file = "case.ts", start = 31, end = 41 }]
+
+[[cases]]
+name = "member-boolean"
+files = { "case.ts" = "if (x.Boolean(a)) {}\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-extra-boolean-cast\nif (!!a) {}\n" }
+expected = []

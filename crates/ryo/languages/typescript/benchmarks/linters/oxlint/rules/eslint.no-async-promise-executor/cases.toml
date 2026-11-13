@@ -1,0 +1,74 @@
+[[cases]]
+name = "async-arrow"
+files = { "case.ts" = "new Promise(async () => {});\n" }
+expected = [{ file = "case.ts", start = 12, end = 17 }]
+
+[[cases]]
+name = "async-function"
+files = { "case.ts" = "new Promise(async function () {});\n" }
+expected = [{ file = "case.ts", start = 12, end = 17 }]
+
+[[cases]]
+name = "async-named-function"
+files = { "case.ts" = "new Promise(async function run(resolve) {});\n" }
+expected = [{ file = "case.ts", start = 12, end = 17 }]
+
+[[cases]]
+name = "parenthesized-executor"
+files = { "case.ts" = "new Promise((async () => {}));\n" }
+expected = [{ file = "case.ts", start = 13, end = 18 }]
+
+[[cases]]
+name = "as-executor"
+files = { "case.ts" = "new Promise((async () => {}) as any);\n" }
+expected = [{ file = "case.ts", start = 13, end = 18 }]
+
+[[cases]]
+name = "parenthesized-callee"
+files = { "case.ts" = "new (Promise)(async () => {});\n" }
+expected = [{ file = "case.ts", start = 14, end = 19 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.ts" = "function f(Promise: any) { new Promise(async () => {}); }\n" }
+expected = [{ file = "case.ts", start = 39, end = 44 }]
+
+[[cases]]
+name = "sync-arrow"
+files = { "case.ts" = "new Promise(() => {});\n" }
+expected = []
+
+[[cases]]
+name = "second-argument"
+files = { "case.ts" = "new Promise(f, async () => {});\n" }
+expected = []
+
+[[cases]]
+name = "call"
+files = { "case.ts" = "Promise(async () => {});\n" }
+expected = []
+
+[[cases]]
+name = "member-callee"
+files = { "case.ts" = "new globalThis.Promise(async () => {});\n" }
+expected = []
+
+[[cases]]
+name = "other-class"
+files = { "case.ts" = "new Thing(async () => {});\n" }
+expected = []
+
+[[cases]]
+name = "generic"
+files = { "case.ts" = "new Promise<void>(async () => {});\n" }
+expected = [{ file = "case.ts", start = 18, end = 23 }]
+
+[[cases]]
+name = "as-callee"
+files = { "case.ts" = "new (Promise as any)(async () => {});\n" }
+expected = [{ file = "case.ts", start = 21, end = 26 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-async-promise-executor\nnew Promise(async () => {});\n" }
+expected = []

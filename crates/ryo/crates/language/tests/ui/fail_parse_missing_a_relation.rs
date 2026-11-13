@@ -41,6 +41,10 @@ impl ParseUseCase for Missing {
     ) {
     }
 
+    fn semantics(&self) -> Option<&dyn ryo_language::domain::semantics::types::Semantics> {
+        None
+    }
+
     fn completion_requirement(&self) -> ryo_language::domain::elements::types::CompletionRequirement {
         ryo_language::domain::elements::types::CompletionRequirement::Independent
     }
@@ -62,7 +66,7 @@ impl ParseUseCase for Missing {
 
     fn capabilities(
         &self,
-    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability] {
+    ) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
         &[]
     }
 

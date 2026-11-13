@@ -1,0 +1,84 @@
+[[cases]]
+name = "with-export-const"
+files = { "case.ts" = "export const a = 1;\nexport {};\n" }
+expected = [{ file = "case.ts", start = 20, end = 30 }]
+
+[[cases]]
+name = "with-export-star"
+files = { "case.ts" = "export * from \"m\";\nexport {};\n" }
+expected = [{ file = "case.ts", start = 19, end = 29 }]
+
+[[cases]]
+name = "star-after"
+files = { "case.ts" = "export {};\nexport * from \"m\";\n" }
+expected = [{ file = "case.ts", start = 0, end = 10 }]
+
+[[cases]]
+name = "with-default"
+files = { "case.ts" = "const a = 1;\nexport default a;\nexport {};\n" }
+expected = [{ file = "case.ts", start = 31, end = 41 }]
+
+[[cases]]
+name = "with-named"
+files = { "case.ts" = "const a = 1;\nexport { a };\nexport {};\n" }
+expected = [{ file = "case.ts", start = 27, end = 37 }]
+
+[[cases]]
+name = "with-import"
+files = { "case.ts" = "import { a } from \"m\";\nexport {};\n" }
+expected = []
+
+[[cases]]
+name = "alone"
+files = { "case.ts" = "export {};\n" }
+expected = []
+
+[[cases]]
+name = "two-empty"
+files = { "case.ts" = "export {};\nexport {};\n" }
+expected = []
+
+[[cases]]
+name = "with-export-equals"
+files = { "case.ts" = "export = {};\nexport {};\n" }
+expected = []
+
+[[cases]]
+name = "with-type-export"
+files = { "case.ts" = "export type T = string;\nexport {};\n" }
+expected = [{ file = "case.ts", start = 24, end = 34 }]
+
+[[cases]]
+name = "with-interface"
+files = { "case.ts" = "export interface I {}\nexport {};\n" }
+expected = [{ file = "case.ts", start = 22, end = 32 }]
+
+[[cases]]
+name = "with-function"
+files = { "case.ts" = "export function f() {}\nexport {};\n" }
+expected = [{ file = "case.ts", start = 23, end = 33 }]
+
+[[cases]]
+name = "with-reexport"
+files = { "case.ts" = "export { a } from \"m\";\nexport {};\n" }
+expected = [{ file = "case.ts", start = 23, end = 33 }]
+
+[[cases]]
+name = "with-namespace-star"
+files = { "case.ts" = "export * as ns from \"m\";\nexport {};\n" }
+expected = [{ file = "case.ts", start = 25, end = 35 }]
+
+[[cases]]
+name = "empty-from"
+files = { "case.ts" = "export {} from \"m\";\nexport const a = 1;\n" }
+expected = [{ file = "case.ts", start = 0, end = 19 }]
+
+[[cases]]
+name = "declare-module"
+files = { "case.ts" = "declare module \"m\" {\n  export {};\n  export const a: number;\n}\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "export const a = 1;\n// eslint-disable-next-line no-useless-empty-export\nexport {};\n" }
+expected = []

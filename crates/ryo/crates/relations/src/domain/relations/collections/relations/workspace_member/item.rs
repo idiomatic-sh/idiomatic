@@ -29,6 +29,8 @@ macro_rules! workspace_member {
                 WorkspaceMemberExpectedRow
             },
             class Manifest,
+            scope Project,
+            notes Unneeded,
             columns {
                 /// The workspace: its manifest.
                 workspace Workspace: FileId => File;

@@ -9,7 +9,7 @@ use super::super::types::ParseEngine;
 use super::findings::Findings;
 use crate::inbound::use_cases::project::types::ProjectEngine;
 use ryo_relations::domain::answers::types::AbsenceCause;
-use ryo_relations::domain::capabilities::types::OptionalCapability;
+use ryo_relations::domain::catalog::types::OptionalCapability;
 use ryo_relations::domain::relations::service::{all, folder_of, provenance_of};
 use ryo_relations::domain::relations::types::{Provenance, Relation};
 

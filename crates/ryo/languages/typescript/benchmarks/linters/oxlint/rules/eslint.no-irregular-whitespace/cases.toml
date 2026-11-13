@@ -1,0 +1,104 @@
+[[cases]]
+name = "nbsp"
+files = { "case.ts" = "const a = 1;\n" }
+expected = [{ file = "case.ts", start = 5, end = 7 }]
+
+[[cases]]
+name = "vertical-tab"
+files = { "case.ts" = "const a =\u000b1;\n" }
+expected = [{ file = "case.ts", start = 9, end = 10 }]
+
+[[cases]]
+name = "form-feed"
+files = { "case.ts" = "const a = 1;\f\n" }
+expected = [{ file = "case.ts", start = 12, end = 13 }]
+
+[[cases]]
+name = "ideographic"
+files = { "case.ts" = "const a　= 1;\n" }
+expected = [{ file = "case.ts", start = 7, end = 10 }]
+
+[[cases]]
+name = "zero-width-space"
+files = { "case.ts" = "const a =​1;\n" }
+expected = [{ file = "case.ts", start = 9, end = 12 }]
+
+[[cases]]
+name = "en-quad"
+files = { "case.ts" = "const a = 1;\n" }
+expected = [{ file = "case.ts", start = 9, end = 12 }]
+
+[[cases]]
+name = "line-separator"
+files = { "case.ts" = "const a = 1; const b = 2;\n" }
+expected = [{ file = "case.ts", start = 12, end = 15 }]
+
+[[cases]]
+name = "paragraph-separator"
+files = { "case.ts" = "const a = 1; \n" }
+expected = [{ file = "case.ts", start = 12, end = 15 }]
+
+[[cases]]
+name = "narrow-nbsp"
+files = { "case.ts" = "const a = 1;\n" }
+expected = [{ file = "case.ts", start = 9, end = 12 }]
+
+[[cases]]
+name = "nel"
+files = { "case.ts" = "const a =1;\n" }
+expected = [{ file = "case.ts", start = 9, end = 11 }]
+
+[[cases]]
+name = "two"
+files = { "case.ts" = "const a = 1;\n" }
+expected = [{ file = "case.ts", start = 5, end = 7 }, { file = "case.ts", start = 8, end = 10 }]
+
+[[cases]]
+name = "bom-start"
+files = { "case.ts" = "﻿const a = 1;\n" }
+expected = []
+
+[[cases]]
+name = "bom-middle"
+files = { "case.ts" = "const a =﻿1;\n" }
+expected = [{ file = "case.ts", start = 9, end = 12 }]
+
+[[cases]]
+name = "in-string"
+files = { "case.ts" = "const a = \" \";\n" }
+expected = []
+
+[[cases]]
+name = "in-template"
+files = { "case.ts" = "const a = ` `;\n" }
+expected = []
+
+[[cases]]
+name = "in-template-expression"
+files = { "case.ts" = "const a = `${ b}`;\n" }
+expected = [{ file = "case.ts", start = 13, end = 15 }]
+
+[[cases]]
+name = "in-regex"
+files = { "case.ts" = "const a = / /;\n" }
+expected = []
+
+[[cases]]
+name = "in-line-comment"
+files = { "case.ts" = "//  \n" }
+expected = []
+
+[[cases]]
+name = "in-block-comment"
+files = { "case.ts" = "/*   */\n" }
+expected = []
+
+[[cases]]
+name = "plain"
+files = { "case.ts" = "const a = 1;\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-irregular-whitespace\nconst a = 1;\n" }
+expected = []

@@ -1,0 +1,414 @@
+[[cases]]
+name = "if-true"
+files = { "case.ts" = "if (true) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 8 }]
+
+[[cases]]
+name = "if-number"
+files = { "case.ts" = "if (1) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 5 }]
+
+[[cases]]
+name = "if-zero"
+files = { "case.ts" = "if (0) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 5 }]
+
+[[cases]]
+name = "if-string"
+files = { "case.ts" = "if (\"a\") {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 7 }]
+
+[[cases]]
+name = "if-object"
+files = { "case.ts" = "if ({}) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 6 }]
+
+[[cases]]
+name = "if-array"
+files = { "case.ts" = "if ([]) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 6 }]
+
+[[cases]]
+name = "if-function"
+files = { "case.ts" = "if (function () {}) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 18 }]
+
+[[cases]]
+name = "if-arrow"
+files = { "case.ts" = "if (() => {}) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 12 }]
+
+[[cases]]
+name = "if-class"
+files = { "case.ts" = "if (class {}) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 12 }]
+
+[[cases]]
+name = "if-identifier"
+files = { "case.ts" = "if (a) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-undefined"
+files = { "case.ts" = "if (undefined) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 13 }]
+
+[[cases]]
+name = "if-undefined-declared"
+files = { "case.ts" = "const undefined = 1;\nif (undefined) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-null"
+files = { "case.ts" = "if (null) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 8 }]
+
+[[cases]]
+name = "if-regex"
+files = { "case.ts" = "if (/a/) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 7 }]
+
+[[cases]]
+name = "if-template"
+files = { "case.ts" = "if (`a`) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 7 }]
+
+[[cases]]
+name = "if-empty-template"
+files = { "case.ts" = "if (``) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 6 }]
+
+[[cases]]
+name = "if-template-expression"
+files = { "case.ts" = "if (`${a}`) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-template-text-expression"
+files = { "case.ts" = "if (`a${b}`) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 11 }]
+
+[[cases]]
+name = "if-template-constant-expression"
+files = { "case.ts" = "if (`${1}`) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 10 }]
+
+[[cases]]
+name = "if-not"
+files = { "case.ts" = "if (!a) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-not-constant"
+files = { "case.ts" = "if (!1) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 6 }]
+
+[[cases]]
+name = "if-typeof"
+files = { "case.ts" = "if (typeof a) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 12 }]
+
+[[cases]]
+name = "if-typeof-comparison"
+files = { "case.ts" = "if (typeof a === \"string\") {}\n" }
+expected = []
+
+[[cases]]
+name = "if-void"
+files = { "case.ts" = "if (void a) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 10 }]
+
+[[cases]]
+name = "if-negative"
+files = { "case.ts" = "if (-1) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 6 }]
+
+[[cases]]
+name = "if-negative-identifier"
+files = { "case.ts" = "if (-a) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-binary-constant"
+files = { "case.ts" = "if (1 + 2) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 9 }]
+
+[[cases]]
+name = "if-binary-mixed"
+files = { "case.ts" = "if (a + 1) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-in"
+files = { "case.ts" = "if (\"a\" in b) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-instanceof"
+files = { "case.ts" = "if (1 instanceof 2) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 18 }]
+
+[[cases]]
+name = "if-or-identity"
+files = { "case.ts" = "if (a || true) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 13 }]
+
+[[cases]]
+name = "if-or-left-identity"
+files = { "case.ts" = "if (true || a) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 13 }]
+
+[[cases]]
+name = "if-and-identity"
+files = { "case.ts" = "if (a && false) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 14 }]
+
+[[cases]]
+name = "if-and-left-identity"
+files = { "case.ts" = "if (false && a) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 14 }]
+
+[[cases]]
+name = "if-or-non-identity"
+files = { "case.ts" = "if (a || 0) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-and-non-identity"
+files = { "case.ts" = "if (a && 1) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-both-constant"
+files = { "case.ts" = "if (1 && 2) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 10 }]
+
+[[cases]]
+name = "if-coalesce"
+files = { "case.ts" = "if (a ?? 1) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-coalesce-constant"
+files = { "case.ts" = "if (1 ?? a) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-new"
+files = { "case.ts" = "if (new Foo()) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 13 }]
+
+[[cases]]
+name = "if-call"
+files = { "case.ts" = "if (f()) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-boolean-call"
+files = { "case.ts" = "if (Boolean(1)) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 14 }]
+
+[[cases]]
+name = "if-boolean-call-variable"
+files = { "case.ts" = "if (Boolean(a)) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-boolean-no-argument"
+files = { "case.ts" = "if (Boolean()) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 13 }]
+
+[[cases]]
+name = "if-assignment"
+files = { "case.ts" = "if (a = 1) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 9 }]
+
+[[cases]]
+name = "if-assignment-variable"
+files = { "case.ts" = "if (a = b) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-or-assignment"
+files = { "case.ts" = "if (a ||= true) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 14 }]
+
+[[cases]]
+name = "if-and-assignment"
+files = { "case.ts" = "if (a &&= b) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-plus-assignment"
+files = { "case.ts" = "if (a += 1) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-sequence"
+files = { "case.ts" = "if ((a, 1)) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 10 }]
+
+[[cases]]
+name = "if-sequence-variable"
+files = { "case.ts" = "if ((1, a)) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-parenthesized"
+files = { "case.ts" = "if ((1)) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 7 }]
+
+[[cases]]
+name = "if-as"
+files = { "case.ts" = "if (1 as any) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-member"
+files = { "case.ts" = "if (a.b) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-array-elements"
+files = { "case.ts" = "if ([a]) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 7 }]
+
+[[cases]]
+name = "if-not-array"
+files = { "case.ts" = "if (![a]) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 8 }]
+
+[[cases]]
+name = "if-negated-array"
+files = { "case.ts" = "if (-[a]) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-negated-constant-array"
+files = { "case.ts" = "if (-[1]) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 8 }]
+
+[[cases]]
+name = "if-nested-logical"
+files = { "case.ts" = "if ((a || true) && b) {}\n" }
+expected = []
+
+[[cases]]
+name = "ternary"
+files = { "case.ts" = "const x = 1 ? a : b;\n" }
+expected = [{ file = "case.ts", start = 10, end = 11 }]
+
+[[cases]]
+name = "ternary-variable"
+files = { "case.ts" = "const x = a ? b : c;\n" }
+expected = []
+
+[[cases]]
+name = "while-true"
+files = { "case.ts" = "while (true) {}\n" }
+expected = []
+
+[[cases]]
+name = "while-parenthesized-true"
+files = { "case.ts" = "while ((true)) {}\n" }
+expected = [{ file = "case.ts", start = 7, end = 13 }]
+
+[[cases]]
+name = "while-one"
+files = { "case.ts" = "while (1) {}\n" }
+expected = [{ file = "case.ts", start = 7, end = 8 }]
+
+[[cases]]
+name = "while-variable"
+files = { "case.ts" = "while (a) {}\n" }
+expected = []
+
+[[cases]]
+name = "do-while"
+files = { "case.ts" = "do {} while (1);\n" }
+expected = [{ file = "case.ts", start = 13, end = 14 }]
+
+[[cases]]
+name = "do-while-true"
+files = { "case.ts" = "do {} while (true);\n" }
+expected = [{ file = "case.ts", start = 13, end = 17 }]
+
+[[cases]]
+name = "for"
+files = { "case.ts" = "for (; 1; ) {}\n" }
+expected = [{ file = "case.ts", start = 7, end = 8 }]
+
+[[cases]]
+name = "for-true"
+files = { "case.ts" = "for (; true; ) {}\n" }
+expected = [{ file = "case.ts", start = 7, end = 11 }]
+
+[[cases]]
+name = "for-empty"
+files = { "case.ts" = "for (;;) {}\n" }
+expected = []
+
+[[cases]]
+name = "generator-while-yield"
+files = { "case.ts" = "function* g() { while (1) { yield 1; } }\n" }
+expected = []
+
+[[cases]]
+name = "generator-while-no-yield"
+files = { "case.ts" = "function* g() { while (1) {} }\n" }
+expected = [{ file = "case.ts", start = 23, end = 24 }]
+
+[[cases]]
+name = "generator-nested-function"
+files = { "case.ts" = "function* g() { while (1) { function f() { return 1; } } }\n" }
+expected = [{ file = "case.ts", start = 23, end = 24 }]
+
+[[cases]]
+name = "generator-for-yield"
+files = { "case.ts" = "function* g() { for (; 1; ) { yield; } }\n" }
+expected = []
+
+[[cases]]
+name = "and-hex-zero"
+files = { "case.ts" = "if (a && 0x0) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 12 }]
+
+[[cases]]
+name = "and-bigint-zero"
+files = { "case.ts" = "if (a && 0n) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 11 }]
+
+[[cases]]
+name = "and-empty-string"
+files = { "case.ts" = "if (a && '') {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 11 }]
+
+[[cases]]
+name = "and-fraction"
+files = { "case.ts" = "if (a && 0.5) {}\n" }
+expected = []
+
+[[cases]]
+name = "or-fraction"
+files = { "case.ts" = "if (a || 0.5) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 12 }]
+
+[[cases]]
+name = "or-zero-exponent"
+files = { "case.ts" = "if (a || .0e5) {}\n" }
+expected = []
+
+[[cases]]
+name = "generator-arrow-loop"
+files = { "case.ts" = "function* g() { const f = () => { while (1) {} }; yield; }\n" }
+expected = [{ file = "case.ts", start = 41, end = 42 }]
+
+[[cases]]
+name = "generator-yield-in-test"
+files = { "case.ts" = "function* g() { for (; 1; ) {} yield; }\n" }
+expected = [{ file = "case.ts", start = 23, end = 24 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-constant-condition\nif (1) {}\n" }
+expected = []

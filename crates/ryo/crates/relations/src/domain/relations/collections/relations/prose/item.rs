@@ -31,6 +31,8 @@ macro_rules! prose {
                 ProseExpectedRow
             },
             class Document,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The run: its file and where it starts.
                 id Id: NodeId => Node;

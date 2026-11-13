@@ -20,6 +20,8 @@ macro_rules! implicit_symbol {
         expected { /// Independently specified catalog entry.
         ImplicitSymbolExpectedRow },
         class Code,
+        scope File,
+        notes Unneeded,
         columns {
         /// Canonical bare name potentially supplied by the language environment.
         name Name: Symbol => Symbol;

@@ -173,7 +173,7 @@ fn succeeds() {
 /// Every optional promise names exactly one relation; required projections stay outside this set.
 fn optional_promises_are_closed() -> usize {
     use super::service::{capability_relation, optional_capability};
-    use crate::domain::capabilities::types::OptionalCapability;
+    use crate::domain::catalog::types::OptionalCapability;
     let capabilities = [
         OptionalCapability::ModuleIdentity,
         OptionalCapability::Identifier,

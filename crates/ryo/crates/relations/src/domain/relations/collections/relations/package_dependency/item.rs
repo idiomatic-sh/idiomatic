@@ -33,6 +33,8 @@ macro_rules! package_dependency {
                 PackageDependencyExpectedRow
             },
             class Manifest,
+            scope Project,
+            notes Unneeded,
             columns {
                 /// The package that depends: its manifest.
                 source Source: FileId => File;

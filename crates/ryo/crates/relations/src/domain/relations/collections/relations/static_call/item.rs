@@ -30,6 +30,8 @@ macro_rules! static_call {
                 StaticCallExpectedRow
             },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The call: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

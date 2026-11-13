@@ -30,6 +30,8 @@ macro_rules! annotates {
                 AnnotatesExpectedRow
             },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The annotation: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

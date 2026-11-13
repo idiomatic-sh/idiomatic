@@ -1,0 +1,13 @@
+import directives from "typescript/oxlint/eslint-directives";
+let named_exports = select id, file, span from "semantic-syntax" where kind = "export-named-declaration";
+let filled = select parent as id from "semantic-child" where field = "declaration" or field = "specifiers";
+let empty = antijoin(left=named_exports, right=filled, left-on=["id"], right-on=["id"]);
+let programs = select id, file from "semantic-syntax" where kind = "program";
+let top_level = select l.child as id, r.file as file from "semantic-child" as l join programs as r on l.parent = r.id;
+let top_named = select l.id as id, l.file as file from top_level as l join named_exports as r on l.id = r.id;
+let top_filled = select l.file as file from top_named as l join filled as r on l.id = r.id;
+let top_others = select l.file as file from top_level as l join "semantic-syntax" as r on l.id = r.id where r.kind = "export-all-declaration" or r.kind = "export-default-declaration";
+let exporting = union(left=top_filled, right=top_others);
+let found = select l.id as id, l.file as file, l.span as span from empty as l join exporting as r on l.file = r.file;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-useless-empty-export(?:,|$)");
+emit violations subject file key(id);

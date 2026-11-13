@@ -24,6 +24,8 @@ macro_rules! interpolated_string_literal {
             expected { /// One row of `interpolated-string-literal` as a fixture states it.
                 InterpolatedStringLiteralExpectedRow },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The literal element occurrence.
                 id Id: NodeId => Node;

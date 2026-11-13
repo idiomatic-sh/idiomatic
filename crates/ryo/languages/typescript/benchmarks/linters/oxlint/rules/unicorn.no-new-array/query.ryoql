@@ -1,0 +1,16 @@
+import directives from "typescript/oxlint/eslint-directives";
+import parenthesized from "typescript/oxlint/parenthesized";
+let tokens = select file, span, text from "semantic-syntax" where kind = "identifier-token";
+let identifiers = select id, file, span from "semantic-syntax" where kind = "identifier";
+let array_names = select l.id as id, l.file as file, l.span as span from identifiers as l join tokens as r on l.file = r.file and l.span = r.span where r.text = "Array";
+let news = select id, file, span from "semantic-syntax" where kind = "new-expression";
+let callees = select l.parent as id, l.child as callee from "semantic-child" as l join news as r on l.parent = r.id where l.field = "callee";
+let named = select l.id as id, r.id as callee, r.file as file, r.span as span from callees as l join array_names as r on l.callee = r.id;
+let callee_rows = select callee as id, file, span from named;
+let wrapped = parenthesized(candidates=callee_rows);
+let bare = antijoin(left=named, right=wrapped, left-on=["callee"], right-on=["id"]);
+let arguments = select l.parent as id, l.child as argument from "semantic-child" as l join bare as r on l.parent = r.id where l.field = "arguments";
+let counts = group-count(from=arguments, keys=["id"], count="arguments");
+let single = select l.id as id, l.file as file, l.span as span from news as l join counts as r on l.id = r.id where r.arguments = 1;
+let violations = directives(candidates=single, names="(?:^|,)(?:[^,]*/)?no-new-array(?:,|$)");
+emit violations subject file key(id);

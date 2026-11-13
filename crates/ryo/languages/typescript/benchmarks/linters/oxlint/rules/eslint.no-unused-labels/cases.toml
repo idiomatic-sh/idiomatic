@@ -1,0 +1,49 @@
+[[cases]]
+name = "unused"
+files = { "case.ts" = "L: for (;;) { break; }\n" }
+expected = [{ file = "case.ts", start = 0, end = 1 }]
+
+[[cases]]
+name = "used-break"
+files = { "case.ts" = "L: for (;;) { break L; }\n" }
+expected = []
+
+[[cases]]
+name = "used-continue"
+files = { "case.ts" = "L: for (;;) { continue L; }\n" }
+expected = []
+
+[[cases]]
+name = "block"
+files = { "case.ts" = "A: { f(); }\n" }
+expected = [{ file = "case.ts", start = 0, end = 1 }]
+
+[[cases]]
+name = "block-used"
+files = { "case.ts" = "A: { break A; }\n" }
+expected = []
+
+[[cases]]
+name = "nested-unused"
+files = { "case.ts" = "A: B: for (;;) { break A; }\n" }
+expected = [{ file = "case.ts", start = 3, end = 4 }]
+
+[[cases]]
+name = "deep-use"
+files = { "case.ts" = "A: for (;;) { for (;;) { if (x) { break A; } } }\n" }
+expected = []
+
+[[cases]]
+name = "other-label"
+files = { "case.ts" = "A: for (;;) { B: for (;;) { break B; } }\n" }
+expected = [{ file = "case.ts", start = 0, end = 1 }]
+
+[[cases]]
+name = "in-function"
+files = { "case.ts" = "function f() { L: while (x) {} }\n" }
+expected = [{ file = "case.ts", start = 15, end = 16 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-unused-labels\nL: for (;;) {}\n" }
+expected = []

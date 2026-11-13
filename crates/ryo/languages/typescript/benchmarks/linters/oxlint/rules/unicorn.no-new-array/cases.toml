@@ -1,0 +1,64 @@
+[[cases]]
+name = "number"
+files = { "case.ts" = "const a = new Array(1);\n" }
+expected = [{ file = "case.ts", start = 10, end = 22 }]
+
+[[cases]]
+name = "identifier"
+files = { "case.ts" = "const a = new Array(n);\n" }
+expected = [{ file = "case.ts", start = 10, end = 22 }]
+
+[[cases]]
+name = "string"
+files = { "case.ts" = "const a = new Array(\"1\");\n" }
+expected = [{ file = "case.ts", start = 10, end = 24 }]
+
+[[cases]]
+name = "spread"
+files = { "case.ts" = "const a = new Array(...xs);\n" }
+expected = [{ file = "case.ts", start = 10, end = 26 }]
+
+[[cases]]
+name = "generic"
+files = { "case.ts" = "const a = new Array<number>(5);\n" }
+expected = [{ file = "case.ts", start = 10, end = 30 }]
+
+[[cases]]
+name = "no-arguments"
+files = { "case.ts" = "const a = new Array();\n" }
+expected = []
+
+[[cases]]
+name = "no-parentheses"
+files = { "case.ts" = "const a = new Array;\n" }
+expected = []
+
+[[cases]]
+name = "two-arguments"
+files = { "case.ts" = "const a = new Array(1, 2);\n" }
+expected = []
+
+[[cases]]
+name = "call"
+files = { "case.ts" = "const a = Array(1);\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-callee"
+files = { "case.ts" = "const a = new (Array)(1);\n" }
+expected = []
+
+[[cases]]
+name = "other-class"
+files = { "case.ts" = "const a = new Set(1);\n" }
+expected = []
+
+[[cases]]
+name = "member-callee"
+files = { "case.ts" = "const a = new globalThis.Array(1);\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-new-array\nconst a = new Array(1);\n" }
+expected = []

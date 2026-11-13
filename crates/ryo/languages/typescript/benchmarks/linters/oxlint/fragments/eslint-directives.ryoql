@@ -44,7 +44,7 @@ let open_disables = antijoin(left=all_disables, right=closed_blocks, left-on=["i
 let open_starts = select id, file, finish as begin from open_disables;
 let open_blocks = extend(from=open_starts, values={last: 4294967295});
 let blocks = union(left=closed_blocks, right=open_blocks);
-let block_hits = select l.id as id, l.file as file, l.span as span from candidate_bounds as l join blocks as r on l.file = r.file where l.begin >= r.begin and l.begin < r.last;
+let block_hits = select l.id as id, l.file as file, l.span as span from candidate_bounds as l join blocks as r on l.file = r.file where l.finish > r.begin and l.begin < r.last;
 let line_suppressed = union(left=next_line_suppressed, right=leading_suppressed);
 let near_suppressed = union(left=line_suppressed, right=trailing_suppressed);
 let suppressed = union(left=near_suppressed, right=block_hits);

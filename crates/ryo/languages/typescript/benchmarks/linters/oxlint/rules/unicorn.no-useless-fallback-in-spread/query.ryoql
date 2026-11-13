@@ -1,0 +1,13 @@
+import directives from "typescript/oxlint/eslint-directives";
+let logicals = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "operator" and (r.text = "||" or r.text = "??");
+let rights = select l.id as id, c.child as right from logicals as l join "semantic-child" as c on l.id = c.parent where c.field = "right";
+let objects = select l.id as id, l.right as right from rights as l join "semantic-syntax" as r on l.right = r.id where r.kind = "object-expression";
+let filled = select parent as id from "semantic-child" where field = "properties";
+let empty_fallbacks = antijoin(left=objects, right=filled, left-on=["right"], right-on=["id"]);
+let fallback_logicals = select l.id as id from empty_fallbacks as l join "semantic-syntax" as r on l.id = r.id where r.kind = "logical-expression";
+let spreads = select l.parent as spread from "semantic-child" as l join fallback_logicals as r on l.child = r.id where l.field = "argument";
+let spread_rows = select r.id as id, r.file as file, r.span as span from spreads as l join "semantic-syntax" as r on l.spread = r.id where r.kind = "spread-element";
+let in_objects = select l.child as id from "semantic-child" as l join "semantic-syntax" as r on l.parent = r.id where l.field = "properties" and r.kind = "object-expression";
+let found = select l.id as id, l.file as file, l.span as span from spread_rows as l join in_objects as r on l.id = r.id;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-useless-fallback-in-spread(?:,|$)");
+emit violations subject file key(id);

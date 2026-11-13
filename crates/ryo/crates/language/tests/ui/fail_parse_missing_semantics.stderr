@@ -1,0 +1,7 @@
+error[E0046]: not all trait items implemented, missing: `semantics`
+   --> tests/ui/fail_parse_missing_semantics.rs:102:1
+    |
+102 | impl ParseUseCase for Language {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `semantics` in implementation
+    |
+    = help: implement the missing item: `fn semantics(&self) -> Option<&dyn Semantics> { todo!() }`

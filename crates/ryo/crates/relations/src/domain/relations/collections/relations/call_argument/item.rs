@@ -30,6 +30,8 @@ macro_rules! call_argument {
                 CallArgumentExpectedRow
             },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The call: the `occurrence` of its `static_call` row.
                 call Call: NodeId => Node;

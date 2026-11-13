@@ -6,6 +6,19 @@ use ryo_relations::domain::relations::types::NodeId;
 use ryo_relations::domain::terms::types::UnknownReason;
 use std::sync::Arc;
 
+/// What a language answers of the optional semantic capabilities (`OptionalCapability`) beyond its syntax. A language that answers none
+/// of them implements no `Semantics` and says so once, with `None` from `ParseUseCase::semantics`.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::semantics::types::Semantics;
+///
+/// let answers: Option<&dyn Semantics> = None;
+/// assert!(answers.is_none());
+/// ```
+pub trait Semantics: Send + Sync {}
+
 /// A language's private rendering state. The common application owns its lifetime and cache.
 pub trait SemanticSession: Send {
     /// Answer a batch in request order, atomically. A successful answer has exactly one result per request.

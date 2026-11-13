@@ -1,0 +1,39 @@
+[[cases]]
+name = "identifier"
+files = { "case.ts" = "delete x;\n" }
+expected = [{ file = "case.ts", start = 0, end = 8 }]
+
+[[cases]]
+name = "in-function"
+files = { "case.ts" = "function f() { delete x; }\n" }
+expected = [{ file = "case.ts", start = 15, end = 23 }]
+
+[[cases]]
+name = "parenthesized"
+files = { "case.ts" = "delete (x);\n" }
+expected = []
+
+[[cases]]
+name = "member"
+files = { "case.ts" = "delete x.y;\n" }
+expected = []
+
+[[cases]]
+name = "computed"
+files = { "case.ts" = "delete x[\"y\"];\n" }
+expected = []
+
+[[cases]]
+name = "other-unary"
+files = { "case.ts" = "void x;\n" }
+expected = []
+
+[[cases]]
+name = "non-null"
+files = { "case.ts" = "delete x!;\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-delete-var\ndelete x;\n" }
+expected = []

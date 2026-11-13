@@ -20,6 +20,8 @@ macro_rules! compiler_feature {
             expected { /// An independently expected compiler feature row.
                 CompilerFeatureExpectedRow },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The source file whose compiler mode was computed.
                 file File: FileId => File;

@@ -12,8 +12,6 @@ use ryo::languages::{
     Support, TableBuilder, Tree, UnknownName,
 };
 
-use crate::domain::fact_notes::service::noted;
-use crate::domain::fields::service::name_vocabulary;
 use crate::domain::language::service::{reading_of, reads, recognized};
 use crate::domain::relations::collections::relations::{
     assigns::item::AssignsItem, call_argument::item::CallArgumentItem, comment::item::CommentItem,
@@ -27,11 +25,11 @@ use crate::domain::relations::collections::relations::{
 use crate::domain::syntax::constants::NO_CONFIGURATION;
 use crate::domain::syntax::service::{kind_name, kinds};
 use crate::domain::syntax::types::{Goal, Scripting, Stretch, Written};
+use crate::domain::{fact_notes::service::noted, fields::service::name_vocabulary};
 use crate::outbound::embedded::interface::EmbeddedPort;
 use crate::outbound::embedded::types::{Dialect, Markup};
 use crate::outbound::notes::interface::NotesPort;
-use crate::outbound::syntax::interface::SyntaxPort;
-use crate::outbound::syntax::types::SourceText;
+use crate::outbound::syntax::{interface::SyntaxPort, types::SourceText};
 
 /// `parse`, implementing `ryo::Parse`.
 pub(crate) struct ParseContract {
@@ -89,6 +87,10 @@ impl Parse for ParseContract {
     type FileModel = ();
 
     fn begin_semantics(&self, _: &ParseRequest<'_>, _: &Elements, _: &mut SemanticSlot) {}
+
+    fn semantics(&self) -> Option<&dyn languages::Semantics> {
+        None
+    }
 
     fn completion_requirement(&self) -> CompletionRequirement {
         CompletionRequirement::Independent

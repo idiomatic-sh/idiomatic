@@ -1,0 +1,17 @@
+import directives from "typescript/oxlint/eslint-directives";
+let awaits = select id from "semantic-syntax" where kind = "await-expression";
+let arguments = select l.parent as id, l.child as argument from "semantic-child" as l join awaits as r on l.parent = r.id where l.field = "argument";
+let sequences = select id from "semantic-syntax" where kind = "sequence-expression";
+let parts = select l.parent as sequence, l.child as part, l.ordinal as ordinal from "semantic-child" as l join sequences as r on l.parent = r.id where l.field = "expressions";
+let earlier = select l.sequence as sequence, l.part as part from parts as l join parts as r on l.sequence = r.sequence where l.ordinal < r.ordinal;
+let lasts = antijoin(left=parts, right=earlier, left-on=["sequence", "part"], right-on=["sequence", "part"]);
+let last_edges = select sequence as outer, part as inner from lasts;
+let reached = closure(edges=last_edges, source="outer", destination="inner");
+let direct_values = select id, argument as value from arguments;
+let reached_values = select l.id as id, r.inner as value from arguments as l join reached as r on l.argument = r.outer;
+let values = union(left=direct_values, right=reached_values);
+let settled = select l.id as id from values as l join "semantic-syntax" as r on l.value = r.id where r.kind = "array-expression" or r.kind = "arrow-function-expression" or r.kind = "await-expression" or r.kind = "binary-expression" or r.kind = "class-expression" or r.kind = "function-expression" or r.kind = "jsx-element" or r.kind = "jsx-fragment" or r.kind = "literal" or r.kind = "template-literal" or r.kind = "unary-expression" or r.kind = "update-expression";
+let keywords = select l.parent as owner, r.id as id, r.file as file, r.span as span from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.text = "await" and (r.kind = "keyword" or r.kind = "identifier-token");
+let found = select l.id as id, l.file as file, l.span as span from keywords as l join settled as r on l.owner = r.id;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-unnecessary-await(?:,|$)");
+emit violations subject file key(id);

@@ -121,96 +121,71 @@ defaults = [
 
 [query-modules]
 "typescript/oxlint/eslint-directives" = "fragments/eslint-directives.ryoql"
+"typescript/oxlint/parenthesized" = "fragments/parenthesized.ryoql"
+"typescript/oxlint/constness" = "fragments/constness.ryoql"
 
-# Defaults deferred: those blocked by a documented limitation (the TypeScript provider answers the binding relations,
-# `numeric_literal` and no regular expression relation absent, and its ESTree kinds keep no parentheses), and the unauthored.
+# Defaults deferred, each under the limitation that blocks it: the TypeScript provider answers the binding relations,
+# `numeric_literal` and `expression_shape` absent and has no regular expression or control flow relation; oxlint reports
+# the `typescript_silent` rules on no TypeScript file.
 [deferred]
+# Rules that resolve a name to its binding: writes to a const, class, function, import or catch parameter, builtins,
+# shadowing, and the value a `const` initializer gives (unicorn.no-thenable follows `const k = "then"` into `o[k]`).
 binding_relations = [
-  "eslint.no-unused-vars",
-  "eslint.no-const-assign",
-  "eslint.no-func-assign",
   "eslint.no-class-assign",
-  "eslint.no-import-assign",
+  "eslint.no-const-assign",
   "eslint.no-ex-assign",
+  "eslint.no-func-assign",
   "eslint.no-global-assign",
-  "eslint.no-obj-calls",
+  "eslint.no-import-assign",
   "eslint.no-new-native-nonconstructor",
+  "eslint.no-obj-calls",
+  "eslint.no-unassigned-vars",
+  "eslint.no-unused-vars",
+  "oxc.bad-match-all-arg",
+  "oxc.bad-replace-all-arg",
+  "oxc.only-used-in-recursion",
+  "typescript.no-unnecessary-parameter-property-assignment",
+  "unicorn.no-invalid-fetch-options",
+  "unicorn.no-thenable",
+  "unicorn.prefer-set-size",
 ]
+# Rules that compare numbers by value: `1`, `1.0` and `0x1` are one number (typescript.prefer-as-const compares
+# `let x: 1 = 1.0` so).
 numeric_literal = [
   "eslint.no-compare-neg-zero",
+  "eslint.no-dupe-keys",
+  "eslint.no-loss-of-precision",
+  "oxc.bad-min-max-func",
+  "oxc.const-comparisons",
+  "oxc.erasing-op",
+  "oxc.number-arg-out-of-range",
+  "typescript.no-duplicate-enum-values",
+  "typescript.prefer-as-const",
+]
+# Rules that compare two expressions by structure (oxc.double-comparisons treats `a.x` and `a.x` as one operand).
+expression_shape = [
+  "eslint.no-dupe-else-if",
+  "eslint.no-duplicate-case",
+  "oxc.double-comparisons",
 ]
 regular_expressions = [
   "eslint.no-control-regex",
   "eslint.no-empty-character-class",
   "eslint.no-invalid-regexp",
-]
-parenthesized_expression = [
-  "eslint.no-cond-assign",
-]
-# Defaults no relation blocks, not yet authored; deferred rather than pending so that verify-cases runs the authored subset.
-unauthored = [
-  "eslint.constructor-super",
-  "eslint.getter-return",
-  "eslint.no-async-promise-executor",
-  "eslint.no-constant-binary-expression",
-  "eslint.no-constant-condition",
-  "eslint.no-delete-var",
-  "eslint.no-dupe-class-members",
-  "eslint.no-dupe-else-if",
-  "eslint.no-dupe-keys",
-  "eslint.no-duplicate-case",
-  "eslint.no-empty-static-block",
-  "eslint.no-eval",
-  "eslint.no-extra-boolean-cast",
-  "eslint.no-irregular-whitespace",
-  "eslint.no-iterator",
-  "eslint.no-loss-of-precision",
   "eslint.no-misleading-character-class",
-  "eslint.no-setter-return",
-  "eslint.no-this-before-super",
-  "eslint.no-unassigned-vars",
-  "eslint.no-unreachable",
-  "eslint.no-unsafe-optional-chaining",
-  "eslint.no-unused-expressions",
-  "eslint.no-unused-labels",
-  "eslint.no-unused-private-class-members",
   "eslint.no-useless-backreference",
   "eslint.no-useless-escape",
-  "eslint.no-with",
-  "eslint.require-yield",
-  "oxc.bad-array-method-on-arguments",
-  "oxc.bad-char-at-comparison",
-  "oxc.bad-comparison-sequence",
-  "oxc.bad-match-all-arg",
-  "oxc.bad-min-max-func",
-  "oxc.bad-object-literal-comparison",
-  "oxc.bad-replace-all-arg",
-  "oxc.const-comparisons",
-  "oxc.double-comparisons",
-  "oxc.erasing-op",
-  "oxc.missing-throw",
-  "oxc.number-arg-out-of-range",
-  "oxc.only-used-in-recursion",
-  "oxc.uninvoked-array-callback",
-  "typescript.no-duplicate-enum-values",
-  "typescript.no-unnecessary-parameter-property-assignment",
-  "typescript.no-unsafe-declaration-merging",
-  "typescript.no-useless-empty-export",
-  "typescript.no-wrapper-object-types",
-  "typescript.prefer-as-const",
-  "typescript.prefer-namespace-keyword",
-  "typescript.triple-slash-reference",
-  "unicorn.no-await-in-promise-methods",
-  "unicorn.no-empty-file",
-  "unicorn.no-invalid-fetch-options",
-  "unicorn.no-invalid-remove-event-listener",
-  "unicorn.no-new-array",
-  "unicorn.no-single-promise-in-promise-methods",
-  "unicorn.no-thenable",
-  "unicorn.no-unnecessary-await",
-  "unicorn.no-useless-fallback-in-spread",
-  "unicorn.no-useless-length-check",
-  "unicorn.no-useless-spread",
-  "unicorn.prefer-set-size",
   "unicorn.prefer-string-starts-ends-with",
+]
+control_flow = [
+  "eslint.constructor-super",
+  "eslint.no-this-before-super",
+  "eslint.no-unreachable",
+]
+# oxlint 1.76.0 reports none of these on `.ts`, `.mts`, `.cts` or `.tsx`: getter-return runs on JavaScript only, oxc's
+# TypeScript check reports a duplicate class member with no rule attached, and `with` does not parse in TypeScript.
+typescript_silent = [
+  "eslint.getter-return",
+  "eslint.no-dupe-class-members",
+  "eslint.no-with",
 ]

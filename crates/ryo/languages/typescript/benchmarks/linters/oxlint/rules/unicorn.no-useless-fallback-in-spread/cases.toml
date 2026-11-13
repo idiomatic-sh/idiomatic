@@ -1,0 +1,74 @@
+[[cases]]
+name = "or"
+files = { "case.ts" = "const o = { ...(foo || {}) };\n" }
+expected = [{ file = "case.ts", start = 12, end = 26 }]
+
+[[cases]]
+name = "coalesce"
+files = { "case.ts" = "const o = { ...(foo ?? {}) };\n" }
+expected = [{ file = "case.ts", start = 12, end = 26 }]
+
+[[cases]]
+name = "parenthesized-object"
+files = { "case.ts" = "const o = { ...(foo ?? (( {} ))) };\n" }
+expected = [{ file = "case.ts", start = 12, end = 32 }]
+
+[[cases]]
+name = "multiple-parentheses"
+files = { "case.ts" = "const o = { ...(( (( foo )) ?? (( {} )) )) };\n" }
+expected = [{ file = "case.ts", start = 12, end = 42 }]
+
+[[cases]]
+name = "and"
+files = { "case.ts" = "const o = { ...(foo && {}) };\n" }
+expected = []
+
+[[cases]]
+name = "array-spread"
+files = { "case.ts" = "const a = [...(foo || {})];\n" }
+expected = []
+
+[[cases]]
+name = "call-spread"
+files = { "case.ts" = "f(...(foo || {}));\n" }
+expected = []
+
+[[cases]]
+name = "non-empty"
+files = { "case.ts" = "const o = { ...(foo || { a: 1 }) };\n" }
+expected = []
+
+[[cases]]
+name = "object-left"
+files = { "case.ts" = "const o = { ...({} || foo) };\n" }
+expected = []
+
+[[cases]]
+name = "member"
+files = { "case.ts" = "const o = { ...(foo || {}).bar };\n" }
+expected = []
+
+[[cases]]
+name = "as-object"
+files = { "case.ts" = "const o = { ...((foo || {}) as any) };\n" }
+expected = []
+
+[[cases]]
+name = "trailing-comma"
+files = { "case.ts" = "const o = { ...(foo || {}), };\n" }
+expected = [{ file = "case.ts", start = 12, end = 26 }]
+
+[[cases]]
+name = "nested"
+files = { "case.ts" = "const o = { ...((foo ?? {}) || {}) };\n" }
+expected = [{ file = "case.ts", start = 12, end = 34 }]
+
+[[cases]]
+name = "pattern"
+files = { "case.ts" = "const { ...rest } = o;\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-useless-fallback-in-spread\nconst o = { ...(foo || {}) };\n" }
+expected = []

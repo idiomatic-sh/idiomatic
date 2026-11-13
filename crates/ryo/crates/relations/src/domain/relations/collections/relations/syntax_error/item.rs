@@ -30,6 +30,8 @@ macro_rules! syntax_error {
                 SyntaxErrorExpectedRow
             },
             class Structure,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The error: its file and where it is.
                 id Id: NodeId => Node;

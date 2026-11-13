@@ -14,12 +14,12 @@ use crate::resources::linter::lint::types::LintRequest;
 use crate::resources::linter::lint::types::Rule;
 use crate::resources::linter::lint::types::RuleId;
 use crate::resources::linter::lint::types::Workers;
-use ryo_relations::domain::capabilities::types::OptionalCapability;
+use ryo_relations::domain::catalog::types::OptionalCapability;
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
 
 pub(crate) fn capability_cache(query: &str) -> Result<Outcome, LintError> {
-    use ryo_relations::domain::capabilities::types::OptionalCapability;
+    use ryo_relations::domain::catalog::types::OptionalCapability;
     let advertised_capabilities: &'static [OptionalCapability] = if query == RAW_FORMAT_POSITIVE {
         &[
             OptionalCapability::RawFormatSegment,

@@ -22,6 +22,8 @@ macro_rules! language_target {
             expected { /// One `language-target` fixture row.
                 LanguageTargetExpectedRow },
             class Engine,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The source file whose parser configuration is described.
                 file File: FileId => File;

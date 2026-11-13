@@ -30,6 +30,8 @@ macro_rules! mention {
                 MentionExpectedRow
             },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The use: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

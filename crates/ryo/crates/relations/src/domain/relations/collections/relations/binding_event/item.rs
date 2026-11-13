@@ -20,6 +20,8 @@ macro_rules! binding_event {
         expected { /// Independently specified observation.
         BindingEventExpectedRow },
         class Code,
+        scope File,
+        notes Unneeded,
         columns {
         /// Real syntax occurrence; declaration events reuse defines.id and cleanup uses its handler.
         occurrence Occurrence: NodeId => Node;
