@@ -65,6 +65,35 @@ fn kind_name_at(elements: &Elements, at: Position) -> Symbol {
         .unwrap_or(Symbol(0))
 }
 
+/// The tree's readers, walked for one relation: what an adapter composed over the syntax adapter builds a relation of the language
+/// with, keeping it as its own.
+pub(crate) trait Walks {
+    /// The columns of `relation`, walked alone now; names its readers make are interned in `symbols`.
+    fn walked(&self, relation: Relation, symbols: &mut Symbols) -> Vec<FactColumn>;
+}
+
+impl Walks for FactsSyntaxAdapter<'_> {
+    fn walked(&self, relation: Relation, symbols: &mut Symbols) -> Vec<FactColumn> {
+        let mut columns = vec![FactColumn::default(); kinds(relation).len()];
+        {
+            let mut writer: ColumnsMut<'_> = [(relation, columns.as_mut_slice())]
+                .into_iter()
+                .collect();
+            let mut elements = self.elements.borrow_mut();
+            ryo_language::inbound::use_cases::parse::service::walk(
+                self.language,
+                &mut elements,
+                symbols,
+                ByteSlice(self.source),
+                self.file,
+                &[relation],
+                &mut writer,
+            );
+        }
+        columns
+    }
+}
+
 impl Facts for FactsSyntaxAdapter<'_> {
     fn walk(&self, kinds: Kinds<'_>, visit: &mut dyn FnMut(Position, KindBits)) {
         let elements = self.elements.borrow();
@@ -122,23 +151,7 @@ impl Facts for FactsSyntaxAdapter<'_> {
             .get(place)
             .ok_or(FactsError::Unserved { relation })?;
         if cell.get().is_none() {
-            let mut columns = vec![FactColumn::default(); kinds(relation).len()];
-            {
-                let mut writer: ColumnsMut<'_> = [(relation, columns.as_mut_slice())]
-                    .into_iter()
-                    .collect();
-                let mut elements = self.elements.borrow_mut();
-                ryo_language::inbound::use_cases::parse::service::walk(
-                    self.language,
-                    &mut elements,
-                    symbols,
-                    ByteSlice(self.source),
-                    self.file,
-                    &[relation],
-                    &mut writer,
-                );
-            }
-            drop(cell.set(columns));
+            drop(cell.set(self.walked(relation, symbols)));
         }
         Ok(ColumnsView {
             kinds: kinds(relation),
