@@ -31,7 +31,8 @@ fn inputs_mut(operation: &mut Operation) -> Option<Vec<&mut Input>> {
         | Operation::Capture { from, .. }
         | Operation::Replace { from, .. }
         | Operation::SourceMatches { from, .. }
-        | Operation::SpanBounds { from, .. } => vec![from],
+        | Operation::SpanBounds { from, .. }
+        | Operation::SpanBetween { from, .. } => vec![from],
         Operation::Join { left, right, .. } => vec![left, right],
         Operation::Union { left, right }
         | Operation::Intersection { left, right }
@@ -65,7 +66,6 @@ fn inputs_mut(operation: &mut Operation) -> Option<Vec<&mut Input>> {
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }
-        | Operation::SpanBetween { .. }
         | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. } => return None,
     })

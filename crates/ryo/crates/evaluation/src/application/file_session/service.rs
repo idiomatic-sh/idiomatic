@@ -27,7 +27,9 @@ use ryo_operators::domain::source_matches::types::{
     BaseLine, CaptureRequest, LineBytes, SourceBase, SourceMatchesInput, TextRowDriver,
 };
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase as _;
-use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::types::{OperatorAnswer, OperatorCall};
+use ryo_operators::domain::contract::types::SourceByteLength;
+use ryo_execution_domain::domain::operating::service::portable_fault;
 use ryo_relations::domain::relations::constants::NO_SPAN;
 use ryo_relations::domain::relations::service::{all, from_bits};
 use ryo_relations::domain::relations::types::{
@@ -643,6 +645,34 @@ impl<'s> Session<'s> {
                 }
                 Ok(answer)
             }
+            Operation::SpanBetween { from, start, end } => {
+                if self.ready(*from)? {
+                    return Ok(Rows::default());
+                }
+                let rows = self.input(*from)?;
+                let mut answer = empty(rows.width + 1);
+                let mut made = Vec::with_capacity(answer.width);
+                for each in each(rows) {
+                    let OperatorAnswer::SpanBetween(span) = self
+                        .program
+                        .operators
+                        .operators(OperatorCall::SpanBetween {
+                            row: each,
+                            start: *start,
+                            end: *end,
+                            source_len: SourceByteLength(self.source.len()),
+                        })
+                        .map_err(portable_fault)?
+                    else {
+                        return Err(OperatingError::WrongOperation);
+                    };
+                    made.clear();
+                    made.extend_from_slice(each);
+                    made.push(span);
+                    push(&mut answer, &made);
+                }
+                Ok(answer)
+            }
             Operation::Capture {
                 from,
                 path,
@@ -864,7 +894,6 @@ impl<'s> Session<'s> {
             | Operation::Cycles { .. }
             | Operation::Rows { .. }
             | Operation::Hosted { .. }
-            | Operation::SpanBetween { .. }
             | Operation::RenderSyntax { .. }
             | Operation::FitsRendered { .. } => Err(OperatingError::NotRun),
         }
