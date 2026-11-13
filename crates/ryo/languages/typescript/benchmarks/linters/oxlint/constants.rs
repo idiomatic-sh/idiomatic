@@ -1,5 +1,12 @@
 //! The pinned tool's process protocol and boundary refusals.
 
+/// Read the configuration file named next instead of any the working directory holds.
+pub(crate) const CONFIG: &str = "-c";
+/// The configuration file a run writes into its own state: a project's `oxlint.config.ts`, which this standalone executable
+/// cannot load, or `.oxlintrc.json`, is never read.
+pub(crate) const CONFIG_NAME: &str = "oxlint.json";
+/// The configuration that file holds: nothing, so only the command line's rules run.
+pub(crate) const EMPTY_CONFIG: &str = "{}";
 /// Allow the rules or category named next: with `all`, every rule starts off.
 pub(crate) const ALLOW: &str = "-A";
 /// Every category, so that only the denied rules run.

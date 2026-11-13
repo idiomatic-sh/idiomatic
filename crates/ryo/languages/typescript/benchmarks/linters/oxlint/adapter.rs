@@ -34,7 +34,15 @@ impl LinterPort for LinterOxlintAdapter {
         if matches!(request.rule_context, RuleContextPreparation::Prepared(_)) {
             return Err(Error::Invalid(constants::UNSUPPORTED_RULE_CONTEXT.into()));
         }
-        let mut arguments = vec![constants::ALLOW.into(), constants::ALL.into()];
+        std::fs::create_dir_all(&request.state)?;
+        let configuration = request.state.join(constants::CONFIG_NAME);
+        std::fs::write(&configuration, constants::EMPTY_CONFIG)?;
+        let mut arguments = vec![
+            constants::CONFIG.into(),
+            configuration.into_os_string(),
+            constants::ALLOW.into(),
+            constants::ALL.into(),
+        ];
         for rule in &self.selected(request) {
             arguments.push(constants::DENY.into());
             arguments.push(schemas::selector_of_rule(rule)?.into());

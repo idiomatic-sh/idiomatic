@@ -28,8 +28,10 @@ enum Call {
     Contract,
     /// The version line of the committed profile.
     VersionLine,
-    /// The invocation over the named files, rendered as its arguments.
+    /// The invocation over the named files, rendered as its arguments, the request's state spelled `state`.
     Prepare(&'static [&'static str]),
+    /// Prepare one file, then read the file the invocation names after `-c`.
+    Configuration,
     /// Prepare one file, then decode what a run of it printed with this exit status.
     Decode(i32, &'static str),
 }
@@ -65,8 +67,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Call::Prepare(&["src/a.ts", "b.tsx"]),
         expect: Expect::Value(Cow::Borrowed(
-            "root: -A all -D typescript/no-this-alias --format json --threads 1 --disable-nested-config -- src/a.ts b.tsx",
+            "root: -c state/oxlint.json -A all -D typescript/no-this-alias --format json --threads 1 --disable-nested-config -- src/a.ts b.tsx",
         )),
+    },
+    Case {
+        name: CaseName(
+            "the run passes -c to an empty configuration in its state, so a project's own oxlint configuration is never read",
+        ),
+        word: Word::Succeeds,
+        input: || Call::Configuration,
+        expect: Expect::Value(Cow::Borrowed("{}")),
     },
     Case {
         name: CaseName("exit_one_with_findings_decodes"),
@@ -115,8 +125,8 @@ fn adapter() -> Result<LinterOxlintAdapter, Failure> {
                 .collect(),
     }))
 }
-/// A request of the named files that runs the pinned defaults.
-fn request(files: &[&str]) -> RunRequest {
+/// A request of the named files that runs the pinned defaults, keeping its state under `state`.
+fn request(files: &[&str], state: &std::path::Path) -> RunRequest {
     RunRequest {
         performance: Default::default(),
         selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
@@ -132,7 +142,7 @@ fn request(files: &[&str]) -> RunRequest {
             ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
         context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: "root".into(),
-        state: "state".into(),
+        state: state.to_owned(),
         files: files
             .iter()
             .map(|file| RelativePath((*file).into()))
@@ -157,8 +167,10 @@ fn subject(input: Input) -> Result<Value, Failure> {
             Ok(adapter.version_line(&tool).0.into_string().into())
         }
         Call::Prepare(files) => {
+            let temporary = tempfile::tempdir().map_err(|_error| Refusal::Unexpected)?;
+            let state = temporary.path().join("state");
             let invocation = adapter
-                .prepare(&request(files))
+                .prepare(&request(files, &state))
                 .map_err(|error| refusal(&error))?;
             Ok(format!(
                 "{}: {}",
@@ -170,10 +182,27 @@ fn subject(input: Input) -> Result<Value, Failure> {
                     .collect::<Vec<_>>()
                     .join(" ")
             )
+            .replace(&format!("{}/", temporary.path().display()), "")
             .into())
         }
+        Call::Configuration => {
+            let temporary = tempfile::tempdir().map_err(|_error| Refusal::Unexpected)?;
+            let invocation = adapter
+                .prepare(&request(&["a.ts"], &temporary.path().join("state")))
+                .map_err(|error| refusal(&error))?;
+            let configuration = invocation
+                .arguments
+                .iter()
+                .skip_while(|argument| *argument != "-c")
+                .nth(1)
+                .ok_or(Refusal::Unexpected)?;
+            Ok(std::fs::read_to_string(configuration)
+                .map_err(|_error| Refusal::Unexpected)?
+                .into())
+        }
         Call::Decode(status, stdout) => {
-            let request = request(&["alias.ts"]);
+            let temporary = tempfile::tempdir().map_err(|_error| Refusal::Unexpected)?;
+            let request = request(&["alias.ts"], &temporary.path().join("state"));
             let report = adapter
                 .decode(
                     &request,
