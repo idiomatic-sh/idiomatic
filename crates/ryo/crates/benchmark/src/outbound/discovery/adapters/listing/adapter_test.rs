@@ -8,13 +8,15 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 #[derive(Clone, Copy, Debug)]
 enum Command {
     ListsTwoFiles,
+    ListsTwoFilesRelativeToTheRoot,
     ListsNothing,
     ListsAFileOutsideTheRoot,
     Missing,
     Contract,
 }
 type Input = Command;
-type Value = usize;
+/// The listed paths, as the adapter yields them.
+type Value = &'static [&'static str];
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Refusal {
     Invalid,
@@ -28,13 +30,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("the listed files are relative to the root and sorted"),
         word: Word::Succeeds,
         input: || Command::ListsTwoFiles,
-        expect: Expect::Value(2),
+        expect: Expect::Value(&["a.txt", "b.txt"]),
+    },
+    Case {
+        name: CaseName("files listed relative to the root yield the paths absolute ones do"),
+        word: Word::Succeeds,
+        input: || Command::ListsTwoFilesRelativeToTheRoot,
+        expect: Expect::Value(&["a.txt", "b.txt"]),
     },
     Case {
         name: CaseName("the listing adapter satisfies the discovery contract"),
         word: Word::Succeeds,
         input: || Command::Contract,
-        expect: Expect::Value(2),
+        expect: Expect::Value(&["a.txt", "b.txt"]),
     },
     Case {
         name: CaseName("an empty listing is refused"),
@@ -60,6 +68,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn adapter(command: Command) -> DiscoveryListingAdapter {
     let script = match command {
         Command::ListsTwoFiles | Command::Contract => r#"echo "$PWD/b.txt"; echo "$PWD/a.txt""#,
+        Command::ListsTwoFilesRelativeToTheRoot => "echo b.txt; echo ./a.txt",
         Command::ListsAFileOutsideTheRoot => "echo /elsewhere/a.txt",
         Command::ListsNothing | Command::Missing => "true",
     };
@@ -86,7 +95,14 @@ fn subject(command: Input) -> Result<Value, Failure> {
     }
     adapter(command)
         .files(&canonical)
-        .map(|files| files.len())
+        .map(|files| {
+            &*Box::leak(
+                files
+                    .into_iter()
+                    .map(|file| &*Box::leak(file.0))
+                    .collect::<Box<[_]>>(),
+            )
+        })
         .map_err(|error| match error {
             Error::Invalid(_) => Refusal::Invalid,
             Error::Io(error) if error.kind() == std::io::ErrorKind::NotFound => Refusal::Missing,

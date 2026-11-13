@@ -1,4 +1,4 @@
-//! The listing adapter runs the tool's command in the worktree and reads one path per line.
+//! The listing adapter runs the tool's command in the worktree and reads one path per line, absolute or relative to the root.
 use super::constants::{DISCOVERED_OUTSIDE, EMPTY_DISCOVERY, NON_UTF8_PATH};
 use crate::outbound::discovery::interface::DiscoveryPort;
 use ryo::linter::RelativePath;
@@ -40,7 +40,9 @@ impl DiscoveryPort for DiscoveryListingAdapter {
             .map_err(|error| Error::Invalid(error.to_string()))?;
         let mut files = Vec::new();
         for line in text.lines() {
-            let path = Path::new(line)
+            // A relative line is relative to the root the command ran in; joining makes it absolute like the others.
+            let absolute = root.join(line);
+            let path = absolute
                 .strip_prefix(root)
                 .map_err(|_outside_root| Error::Invalid(DISCOVERED_OUTSIDE.into()))?;
             let file = path
