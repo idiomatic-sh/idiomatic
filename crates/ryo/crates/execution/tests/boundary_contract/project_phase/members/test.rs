@@ -141,7 +141,8 @@ fn each_member_of_a_binding_reads_its_own_producer() {
         ];
     let refusals =
         vec![ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(); 3];
-    let mut arenas = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas::default();
+    let mut arenas =
+        ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
     let stage = request.observations(&mut arenas).unwrap();
     let mut symbols = Symbols::default();
     let occurrence = |batch, rule| BatchOccurrence {

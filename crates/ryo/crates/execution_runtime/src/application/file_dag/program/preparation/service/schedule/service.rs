@@ -22,7 +22,10 @@ impl PreparedProgram {
     ) -> crate::application::file_dag::program::prepared_execution::types::RuleOrder<'_> {
         use crate::application::file_dag::program::prepared_execution::types::RuleOrder;
         match &self.schedule {
-            RuleSchedule::Independent => RuleOrder::Independent(0..self.rules.len()),
+            RuleSchedule::Independent => RuleOrder::Independent {
+                next: RuleIndex(0),
+                end: RuleIndex(self.rules.len()),
+            },
             RuleSchedule::Dependencies { order, .. } => RuleOrder::Dependencies(order.iter()),
         }
     }

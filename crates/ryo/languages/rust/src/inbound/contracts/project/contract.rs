@@ -100,18 +100,18 @@ impl ProjectContract {
     {
         let mut answers: Vec<Option<R>> =
             std::iter::repeat_with(|| None).take(items.len()).collect();
-        let jobs = answers
+        let mut jobs = answers
             .iter_mut()
             .zip(items)
             .enumerate()
             .map(|(at, (answer, item))| {
-                let job: Box<dyn FnOnce() + Send + '_> =
+                let job: Box<dyn FnMut() + Send + '_> =
                     Box::new(move || *answer = Some(each(ListIndex(at), item)));
                 job
             })
-            .collect();
-        self.scheduler
-            .run(crate::outbound::job_scheduling::types::Jobs(jobs));
+            .collect::<Vec<_>>();
+        self.scheduler.run(&mut jobs);
+        drop(jobs);
         answers.into_iter().flatten().collect()
     }
 

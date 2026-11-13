@@ -10,7 +10,7 @@ use crate::outbound::job_scheduling::interface::JobSchedulingPort;
 pub(crate) struct JobSchedulingRayonAdapter;
 
 impl JobSchedulingPort for JobSchedulingRayonAdapter {
-    fn run(&self, jobs: crate::outbound::job_scheduling::types::Jobs<'_>) {
-        jobs.0.into_par_iter().for_each(|job| job());
+    fn run(&self, jobs: &mut [Box<dyn FnMut() + Send + '_>]) {
+        jobs.par_iter_mut().for_each(|job| job());
     }
 }

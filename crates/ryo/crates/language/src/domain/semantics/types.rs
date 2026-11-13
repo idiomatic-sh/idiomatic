@@ -33,6 +33,15 @@ pub enum SemanticSlot {
     Begun(Box<dyn SemanticSession>),
 }
 
+impl From<SemanticSlot> for Option<Box<dyn SemanticSession>> {
+    fn from(slot: SemanticSlot) -> Self {
+        match slot {
+            SemanticSlot::Begun(session) => Some(session),
+            SemanticSlot::Empty | SemanticSlot::Retained(_) => None,
+        }
+    }
+}
+
 /// The role in which a rendered syntax node will be embedded.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum RenderContext {

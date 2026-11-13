@@ -94,7 +94,8 @@ pub(crate) fn with_held<T>(
         rules: (0..rule_count).map(RuleIndex).collect(),
         partial: vec![],
     }];
-    let mut arenas = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas::default();
+    let mut arenas =
+        ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
     let held = match entry {
         Entry::Phase => Held::Phase(request.project_phase().unwrap()),
         Entry::Stage => Held::Stage(request.observations(&mut arenas).unwrap()),

@@ -47,7 +47,7 @@ impl super::super::service::KernelSession<'_, '_> {
         let rows = input
             .rows(&self.owner, self.read)
             .map_err(InvocationFailure::Semantic)?;
-        let ryo_execution_store::application::file_dag::relations::types::Lookup::Found(number) =
+        let ryo_execution_store::application::file_dag::relations::types::Sought::Found(number) =
             self.owner
                 .admit_number(
                     publication,

@@ -67,24 +67,24 @@ pub struct ProducerCapacity(pub usize);
 
 /// An answer a port may find or not: named at the boundary so no port signature carries a bare `Option`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Lookup<T> {
+pub enum Sought<T> {
     /// The answer was found.
     Found(T),
     /// Nothing answers the request.
     Absent,
 }
 
-impl<T> From<Option<T>> for Lookup<T> {
+impl<T> From<Option<T>> for Sought<T> {
     fn from(found: Option<T>) -> Self {
         found.map_or(Self::Absent, Self::Found)
     }
 }
 
-impl<T> From<Lookup<T>> for Option<T> {
-    fn from(lookup: Lookup<T>) -> Self {
+impl<T> From<Sought<T>> for Option<T> {
+    fn from(lookup: Sought<T>) -> Self {
         match lookup {
-            Lookup::Found(found) => Some(found),
-            Lookup::Absent => None,
+            Sought::Found(found) => Some(found),
+            Sought::Absent => None,
         }
     }
 }

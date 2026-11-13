@@ -79,30 +79,3 @@ named!(
     /// The unknowns of a project.
     ProjectUnknowns(Vec<ryo_execution_domain::domain::coverage::types::Unknown>)
 );
-
-/// The observer a request execution tells of the engine's work, when the caller asks for one.
-#[derive(Clone)]
-pub enum Observing {
-    /// Tell this observer.
-    Observer(
-        std::sync::Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort>,
-    ),
-    /// Tell no one.
-    Unobserved,
-}
-
-impl
-    From<
-        Option<
-            std::sync::Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort>,
-        >,
-    > for Observing
-{
-    fn from(
-        observer: Option<
-            std::sync::Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort>,
-        >,
-    ) -> Self {
-        observer.map_or(Self::Unobserved, Self::Observer)
-    }
-}

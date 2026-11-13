@@ -1,8 +1,8 @@
 //! What a caller may read of a prepared program.
 use crate::application::file_dag::program::preparation::types::RuleTotal;
 use crate::application::file_dag::program::prepared_execution::types::{
-    Demand, Demands, FrontierDependencies, ObservationBatches, ObservationContract,
-    ObservationLayout, RelationReads, ReplayClosure, RuleOrder,
+    Demand, Demands, FrontierDependencies, ObservationContract, ObservationLayout, RelationReads,
+    ReplayClosure, RuleBatches, RuleOrder,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -21,7 +21,7 @@ use ryo_values::domain::stored_facts::types::Bucket;
 /// }
 /// ```
 pub trait ProgramPreparedExecutionPort {
-    fn observation_batches(&self) -> ObservationBatches<'_>;
+    fn observation_batches(&self) -> RuleBatches<'_>;
     fn rule_count(&self) -> RuleTotal;
     fn rule_order(&self) -> RuleOrder<'_>;
     fn demanded_rules(&self, governs: impl Fn(RuleIndex) -> Demand) -> Demands;

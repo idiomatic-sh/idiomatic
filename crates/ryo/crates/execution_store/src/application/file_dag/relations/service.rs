@@ -185,11 +185,11 @@ impl super::interface::RelationsPort for RelationOwner {
         required: &ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement,
         rows: RepresentationInput<'_>,
     ) -> Result<
-        crate::application::file_dag::relations::types::Lookup<AdmittedNumber<'a>>,
+        crate::application::file_dag::relations::types::Sought<AdmittedNumber<'a>>,
         OperatingError,
     > {
         RelationOwner::admit_number(self, publication.input()?, producer, required, rows)
-            .map(crate::application::file_dag::relations::types::Lookup::from)
+            .map(crate::application::file_dag::relations::types::Sought::from)
     }
     fn rows<'r, 'f: 'r>(
         &self,

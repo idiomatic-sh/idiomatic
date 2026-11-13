@@ -199,7 +199,8 @@ pub(super) fn exercise_with(
     // The producer is restored, not selected; rule 1 publishes in the first batch, and rule 2 reads its population in the second.
     // `forge` relabels rule 1's publication Complete before the stage installs it.
     let run = |forge: bool, project: &ProjectFacts| {
-        let mut arenas = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas::default();
+        let mut arenas =
+            ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
         let stage = request.observations(&mut arenas).unwrap();
         let mut symbols = Symbols::default();
         crate::project_phase::source_facts::fixtures::run_observations_with(

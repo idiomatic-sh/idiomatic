@@ -102,8 +102,13 @@ pub struct ReplayClosure {
 pub enum RuleOrder<'a> {
     /// Rules that depend on others, in dependency order.
     Dependencies(std::slice::Iter<'a, ryo_execution_domain::domain::coverage::types::RuleIndex>),
-    /// Independent rules, by index.
-    Independent(std::ops::Range<usize>),
+    /// Independent rules, by index: the next to run and the end.
+    Independent {
+        /// The next rule to run.
+        next: ryo_execution_domain::domain::coverage::types::RuleIndex,
+        /// One past the last rule.
+        end: ryo_execution_domain::domain::coverage::types::RuleIndex,
+    },
 }
 
 impl Iterator for RuleOrder<'_> {
@@ -111,16 +116,18 @@ impl Iterator for RuleOrder<'_> {
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             Self::Dependencies(order) => order.next().copied(),
-            Self::Independent(order) => order
-                .next()
-                .map(ryo_execution_domain::domain::coverage::types::RuleIndex),
+            Self::Independent { next, end } => (next.0 < end.0).then(|| {
+                let rule = *next;
+                next.0 += 1;
+                rule
+            }),
         }
     }
 }
 
 /// The batches the observation rules run in, when the program has observation rules.
 #[derive(Clone, Copy, Debug)]
-pub struct ObservationBatches<'a>(
+pub struct RuleBatches<'a>(
     pub Option<&'a [Vec<ryo_execution_domain::domain::coverage::types::RuleIndex>]>,
 );
 
@@ -141,7 +148,7 @@ pub struct FrontierDependencies<'a>(
     pub &'a [Vec<ryo_values::domain::plan_parts::types::ObservationBindingId>],
 );
 
-impl<'a> std::ops::Deref for ObservationBatches<'a> {
+impl<'a> std::ops::Deref for RuleBatches<'a> {
     type Target = Option<&'a [Vec<ryo_execution_domain::domain::coverage::types::RuleIndex>]>;
     fn deref(&self) -> &Self::Target {
         &self.0

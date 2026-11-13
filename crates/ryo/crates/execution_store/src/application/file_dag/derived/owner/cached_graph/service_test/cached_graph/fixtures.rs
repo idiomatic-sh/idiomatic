@@ -129,7 +129,7 @@ pub(super) fn admitted_graph_of(
         .map(|graph| {
             matches!(
                 graph,
-                crate::application::file_dag::relations::types::Lookup::Found(_)
+                crate::application::file_dag::relations::types::Sought::Found(_)
             )
         })
 }

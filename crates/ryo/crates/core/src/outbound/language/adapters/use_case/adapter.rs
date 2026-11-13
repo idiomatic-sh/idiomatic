@@ -266,7 +266,7 @@ impl LanguagePort for LanguageUseCaseAdapter {
         language: LanguageNumber,
         file: FileToRead<'_>,
         tree: &mut Elements,
-    ) -> crate::outbound::language::types::BegunSemantics {
+    ) -> SemanticSlot {
         // What the language's read kept for the session (its parsed tree) is handed to it, so the file is not parsed again.
         let mut slot = ryo_language::domain::elements::service::take_semantics(tree);
         if let Some(handle) = self.languages.get(language.0) {
@@ -275,12 +275,8 @@ impl LanguagePort for LanguageUseCaseAdapter {
                 .begin_semantics(&parse_request(file), tree, &mut slot);
         }
         match slot {
-            SemanticSlot::Begun(session) => {
-                crate::outbound::language::types::BegunSemantics::Begun(session)
-            }
-            SemanticSlot::Empty | SemanticSlot::Retained(_) => {
-                crate::outbound::language::types::BegunSemantics::Unsupported
-            }
+            SemanticSlot::Begun(session) => SemanticSlot::Begun(session),
+            SemanticSlot::Empty | SemanticSlot::Retained(_) => SemanticSlot::Empty,
         }
     }
 
@@ -295,7 +291,7 @@ impl LanguagePort for LanguageUseCaseAdapter {
                 &mut appended,
             );
         }
-        let mut entries = appended.into_paths();
+        let mut entries = appended.0;
         entries.sort();
         entries.dedup();
         entries.into()

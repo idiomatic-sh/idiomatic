@@ -23,13 +23,13 @@ impl ExecutionUseCase for ExecutionUseCaseImpl {
         &self,
         program: &PreparedExecutionProgram,
         corpus: &[CorpusInput],
-        observer: crate::inbound::use_cases::metadata::types::Observing,
+        observer: crate::inbound::use_cases::execution::interface::Observing<dyn ObserverPort>,
     ) -> RequestExecution {
         let observer = match observer {
-            crate::inbound::use_cases::metadata::types::Observing::Observer(observer) => {
+            crate::inbound::use_cases::execution::interface::Observing::Observer(observer) => {
                 Some(observer)
             }
-            crate::inbound::use_cases::metadata::types::Observing::Unobserved => None,
+            crate::inbound::use_cases::execution::interface::Observing::Unobserved => None,
         };
         begin(program, corpus, observer)
     }

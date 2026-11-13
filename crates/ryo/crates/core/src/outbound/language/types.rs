@@ -178,32 +178,3 @@ pub struct LinkedNames(pub Vec<LinkedName>);
 /// What every linked language answers for a relation, in the order they were linked.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Answers(pub Vec<RelationAnswer>);
-
-/// The semantic session a language began for a file, or none when the language offers no semantic analysis for it.
-pub enum BegunSemantics {
-    /// The session the language began.
-    Begun(Box<dyn ryo_language::domain::semantics::types::SemanticSession>),
-    /// The language offers no semantic analysis.
-    Unsupported,
-}
-
-impl From<Option<Box<dyn ryo_language::domain::semantics::types::SemanticSession>>>
-    for BegunSemantics
-{
-    fn from(
-        session: Option<Box<dyn ryo_language::domain::semantics::types::SemanticSession>>,
-    ) -> Self {
-        session.map_or(Self::Unsupported, Self::Begun)
-    }
-}
-
-impl From<BegunSemantics>
-    for Option<Box<dyn ryo_language::domain::semantics::types::SemanticSession>>
-{
-    fn from(begun: BegunSemantics) -> Self {
-        match begun {
-            BegunSemantics::Begun(session) => Some(session),
-            BegunSemantics::Unsupported => None,
-        }
-    }
-}

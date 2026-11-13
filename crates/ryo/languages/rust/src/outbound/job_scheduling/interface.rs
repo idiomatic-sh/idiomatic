@@ -5,5 +5,5 @@
 pub(crate) trait JobSchedulingPort: Send + Sync {
     /// Runs each job once, and returns when every job is done. The jobs run on the workers of the pool the caller runs on; the adapter
     /// starts none of its own.
-    fn run(&self, jobs: super::types::Jobs<'_>);
+    fn run(&self, jobs: &mut [Box<dyn FnMut() + Send + '_>]);
 }

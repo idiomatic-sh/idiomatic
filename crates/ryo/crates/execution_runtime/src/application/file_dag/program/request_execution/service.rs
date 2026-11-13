@@ -352,14 +352,12 @@ fn rest_of_rule(
     refused: &RefCell<Option<FactsError>>,
 ) -> Result<RuleAfter, OperatingError> {
     let first = *at.first.get(at.rule.0).ok_or(OperatingError::NotRun)?;
-    let captured = session
-        .capture_frontiers(at.rule, first, symbols, capture)?
-        .0;
+    let captured = session.capture_frontiers(at.rule, first, symbols, capture)?;
     if let Some(error) = refused.take() {
         return Ok(RuleAfter::Stopped(FileStop::Facts(error)));
     }
     let mut captures = Vec::with_capacity(captured.len());
-    for each in captured {
+    for each in captured.0 {
         if let Ok(kept) = &each.outcome {
             if let Err(error) = facts.keep(
                 kept.bucket,

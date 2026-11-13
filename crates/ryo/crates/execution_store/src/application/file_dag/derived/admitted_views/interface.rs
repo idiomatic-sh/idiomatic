@@ -128,13 +128,13 @@ pub trait DerivedAdmittedViewsPort<'f>: sealed::Sealed {
     /// use ryo_execution_store::application::file_dag::derived::admitted_views::interface::DerivedAdmittedViewsPort;
     /// use ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse;
     /// fn native<'f>(admissions: &impl DerivedAdmittedViewsPort<'f>, use_: &PreparedViewUse) -> bool {
-    ///     matches!(admissions.try_native_lookup(use_), Ok(ryo_execution_store::application::file_dag::relations::types::Lookup::Found(_)))
+    ///     matches!(admissions.try_native_lookup(use_), Ok(ryo_execution_store::application::file_dag::relations::types::Sought::Found(_)))
     /// }
     /// ```
     fn try_native_lookup(
         &self,
         use_: &PreparedViewUse,
-    ) -> Result<crate::application::file_dag::relations::types::Lookup<AcquiredView>, OperatingError>;
+    ) -> Result<crate::application::file_dag::relations::types::Sought<AcquiredView>, OperatingError>;
     /// Acquires the row view `use_` names.
     ///
     /// # Errors
@@ -251,5 +251,5 @@ pub trait DerivedAdmittedViewsPort<'f>: sealed::Sealed {
         contract: &OperatorContract,
         program: &ResourceProgram,
         rows: &[Rows<'_>],
-    ) -> Result<crate::application::file_dag::relations::types::Lookup<CachedGraph>, OperatingError>;
+    ) -> Result<crate::application::file_dag::relations::types::Sought<CachedGraph>, OperatingError>;
 }

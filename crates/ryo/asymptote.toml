@@ -113,7 +113,7 @@ inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
 [[tools]]
 id = "cargo-dylint"
 group = "release-dylint"
-run = ["cargo", "dylint", "--path", "../../tools/lints", "--workspace", "--", "--all-targets", "--all-features", "--locked"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo dylint --path ../../tools/lints -- --all-targets --all-features --locked"]
 timeout-seconds = 3600
 inputs = [".", "../../tools/lints", "../../rust-toolchain.toml", "../../.cargo"]
 

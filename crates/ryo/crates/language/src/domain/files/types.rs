@@ -20,15 +20,7 @@ impl std::fmt::Display for FilePath {
 
 /// The candidate entry paths a language asks the project to read, in the order the language appends them.
 #[derive(Debug, Default)]
-pub struct ProjectEntries(Vec<FilePath>);
-
-impl ProjectEntries {
-    /// The appended paths, in the order they were appended.
-    #[must_use]
-    pub fn into_paths(self) -> Vec<FilePath> {
-        self.0
-    }
-}
+pub struct ProjectEntries(pub Vec<FilePath>);
 
 impl From<Vec<FilePath>> for ProjectEntries {
     fn from(paths: Vec<FilePath>) -> Self {

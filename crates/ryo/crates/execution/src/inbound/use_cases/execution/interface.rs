@@ -15,6 +15,7 @@ pub use ryo_execution_runtime::application::file_dag::program::file_session::typ
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileSession;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileStop;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FinishedReadiness;
+pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FrontierCaptures;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::RanRule;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::RuleAfter;
@@ -45,6 +46,7 @@ pub use ryo_execution_runtime::application::file_dag::program::project_phase::ty
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseStop;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;
 pub use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort;
+pub use ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas;
 pub use ryo_execution_runtime::application::file_dag::program::request_execution::types::RequestExecution;
 pub use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
 pub use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectObservation;
@@ -89,6 +91,20 @@ pub trait ExecutionUseCase {
         &self,
         program: &PreparedExecutionProgram,
         corpus: &[CorpusInput],
-        observer: crate::inbound::use_cases::metadata::types::Observing,
+        observer: Observing<dyn ObserverPort>,
     ) -> RequestExecution;
+}
+
+/// The observer a request execution tells of the engine's work, when the caller asks for one.
+pub enum Observing<O: ?Sized> {
+    /// Tell this observer.
+    Observer(std::sync::Arc<O>),
+    /// Tell no one.
+    Unobserved,
+}
+
+impl<O: ?Sized> From<Option<std::sync::Arc<O>>> for Observing<O> {
+    fn from(observer: Option<std::sync::Arc<O>>) -> Self {
+        observer.map_or(Self::Unobserved, Self::Observer)
+    }
 }

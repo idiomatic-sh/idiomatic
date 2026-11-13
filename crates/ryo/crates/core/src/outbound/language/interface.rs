@@ -56,8 +56,8 @@ pub trait LanguagePort: Send + Sync {
         _language: LanguageNumber,
         _file: FileToRead<'_>,
         _tree: &mut Elements,
-    ) -> crate::outbound::language::types::BegunSemantics {
-        crate::outbound::language::types::BegunSemantics::Unsupported
+    ) -> ryo_language::domain::semantics::types::SemanticSlot {
+        ryo_language::domain::semantics::types::SemanticSlot::Empty
     }
 
     /// Candidate project entries the linked languages need for the requested relations; no IO is performed.

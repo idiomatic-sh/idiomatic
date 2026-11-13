@@ -314,7 +314,8 @@ fn an_observed_population_is_a_separate_acquisition_with_the_same_answer() {
         stored.reads.load(Ordering::SeqCst),
         project.reads.load(Ordering::SeqCst),
     );
-    let mut arenas = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas::default();
+    let mut arenas =
+        ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
     let stage = request
         .observations(&mut arenas)
         .expect("a named program opens its stage");

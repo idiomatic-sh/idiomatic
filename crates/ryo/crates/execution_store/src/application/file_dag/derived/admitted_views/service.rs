@@ -303,10 +303,10 @@ impl<'f> super::interface::DerivedAdmittedViewsPort<'f> for InputAdmissions<'_, 
     fn try_native_lookup(
         &self,
         use_: &PreparedViewUse,
-    ) -> Result<crate::application::file_dag::relations::types::Lookup<AcquiredView>, OperatingError>
+    ) -> Result<crate::application::file_dag::relations::types::Sought<AcquiredView>, OperatingError>
     {
         InputAdmissions::try_native_lookup(self, use_)
-            .map(crate::application::file_dag::relations::types::Lookup::from)
+            .map(crate::application::file_dag::relations::types::Sought::from)
     }
     fn acquire_rows(
         &self,
@@ -341,7 +341,7 @@ impl<'f> super::interface::DerivedAdmittedViewsPort<'f> for InputAdmissions<'_, 
         program: &ryo_execution_domain::domain::operator::contract::resources::types::ResourceProgram,
         rows: &[ryo_execution_domain::domain::table_model::types::Rows<'_>],
     ) -> Result<
-        crate::application::file_dag::relations::types::Lookup<
+        crate::application::file_dag::relations::types::Sought<
             crate::application::file_dag::derived::owner::cached_graph::service::CachedGraph,
         >,
         OperatingError,
@@ -350,6 +350,6 @@ impl<'f> super::interface::DerivedAdmittedViewsPort<'f> for InputAdmissions<'_, 
             .owner()
             .derived()
             .prepare_graph(contract, self.workspace, program, rows)
-            .map(crate::application::file_dag::relations::types::Lookup::from)
+            .map(crate::application::file_dag::relations::types::Sought::from)
     }
 }

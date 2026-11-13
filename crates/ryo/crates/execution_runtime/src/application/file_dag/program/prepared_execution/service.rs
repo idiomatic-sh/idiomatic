@@ -16,9 +16,8 @@ use std::sync::Arc;
 impl ProgramPreparedExecutionPort for PreparedExecutionProgram {
     fn observation_batches(
         &self,
-    ) -> crate::application::file_dag::program::prepared_execution::types::ObservationBatches<'_>
-    {
-        crate::application::file_dag::program::prepared_execution::types::ObservationBatches(
+    ) -> crate::application::file_dag::program::prepared_execution::types::RuleBatches<'_> {
+        crate::application::file_dag::program::prepared_execution::types::RuleBatches(
             self.parts.inner.observation_batches(),
         )
     }

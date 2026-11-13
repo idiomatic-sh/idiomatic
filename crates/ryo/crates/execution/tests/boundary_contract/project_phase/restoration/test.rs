@@ -175,7 +175,8 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
             captures,
             reads: AtomicUsize::new(0),
         };
-        let mut arenas = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas::default();
+        let mut arenas =
+            ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
         let stage = request.observations(&mut arenas).unwrap();
         let covered = [Covered {
             file: FileId(0),

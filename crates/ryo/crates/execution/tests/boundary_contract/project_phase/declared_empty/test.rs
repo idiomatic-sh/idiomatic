@@ -162,7 +162,8 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
         rules: vec![RuleIndex(0)],
         partial: vec![],
     }];
-    let mut arenas = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas::default();
+    let mut arenas =
+        ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
     let stage = request.observations(&mut arenas).unwrap();
     let project_symbols = Symbols::default();
     let partials = Partials::default();
@@ -236,7 +237,8 @@ fn project_refuses(input: PrepareRequest, expected: &str) {
         rules: vec![RuleIndex(0)],
         partial: vec![],
     }];
-    let mut arenas = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas::default();
+    let mut arenas =
+        ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
     let stage = request.observations(&mut arenas).unwrap();
     let mut symbols = Symbols::default();
     let project_symbols = Symbols::default();

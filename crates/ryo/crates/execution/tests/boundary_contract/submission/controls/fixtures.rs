@@ -89,7 +89,8 @@ pub(in super::super) fn observations_need_a_named_program() -> Vec<Probe> {
     let corpus = corpus();
     let unnamed = prepared_rules(&engine, 2);
     let request = ExecutionUseCaseImpl::new().execution(&unnamed, &corpus, None.into());
-    let mut arenas = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas::default();
+    let mut arenas =
+        ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
     let mut probes = vec![probe(
         "the stage of an unnamed program",
         request.observations(&mut arenas).map(|_| ()),
@@ -97,7 +98,8 @@ pub(in super::super) fn observations_need_a_named_program() -> Vec<Probe> {
     request.finish();
     let named = engine.prepare(named_request()).expect("named request");
     let request = ExecutionUseCaseImpl::new().execution(&named, &corpus, None.into());
-    let mut arenas = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas::default();
+    let mut arenas =
+        ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
     let ran = request.observations(&mut arenas).map(|stage| {
         stage
             .run_batches(

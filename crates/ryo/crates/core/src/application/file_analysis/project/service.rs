@@ -78,7 +78,7 @@ impl FileAnalysis {
         symbols: &mut Symbols,
         facts: &mut dyn FactsWorker,
     ) -> Result<Projected, FileAnalysisError> {
-        let mut candidates = self.language.project_entries(input).into_paths();
+        let mut candidates = self.language.project_entries(input).0;
         candidates.sort_unstable();
         candidates.dedup();
         let observed_entries = ryo_language::domain::project_context::service::observed(

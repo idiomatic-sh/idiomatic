@@ -89,7 +89,7 @@ impl CrossFile {
         answered: &mut Answered,
         guard: impl FnMut(RuleIndex) -> Result<(), CrossFileError>,
     ) -> Result<(), CrossFileError> {
-        let mut held = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas(
+        let mut held = ryo_execution::inbound::use_cases::execution::interface::ObservationArenas(
             std::mem::take(arenas),
         );
         let answer = self.observations_into(run, &mut held, answered, guard);
@@ -101,7 +101,7 @@ impl CrossFile {
     fn observations_into(
         &self,
         run: ObservationRun<'_>,
-        arenas: &mut ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas,
+        arenas: &mut ryo_execution::inbound::use_cases::execution::interface::ObservationArenas,
         answered: &mut Answered,
         guard: impl FnMut(RuleIndex) -> Result<(), CrossFileError>,
     ) -> Result<(), CrossFileError> {

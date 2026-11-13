@@ -42,7 +42,8 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         };
         let project = ProjectFacts::new(relation);
         let project_symbols = Symbols::default();
-        let mut arenas = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas::default();
+        let mut arenas =
+            ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
         let stage = request.observations(&mut arenas).unwrap();
         let mut symbols = Symbols::default();
         let partials = Partials::default();
@@ -163,7 +164,8 @@ fn every_callback_numbers_an_occurrence_by_its_place_among_all_declared_occurren
     let refusals =
         vec![ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(); 3];
     let seen = RefCell::new(Vec::new());
-    let mut arenas = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas::default();
+    let mut arenas =
+        ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
     let stage = request.observations(&mut arenas).unwrap();
     let mut symbols = Symbols::default();
     stage
@@ -273,7 +275,8 @@ fn a_publication_held_past_its_stage_is_refused_by_the_next_stage() {
         vec![ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(); 3];
     let held = RefCell::new(None);
     let run = |swap: bool| {
-        let mut arenas = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas::default();
+        let mut arenas =
+            ryo_execution::inbound::use_cases::execution::interface::ObservationArenas::default();
         let stage = request.observations(&mut arenas).unwrap();
         crate::project_phase::source_facts::fixtures::run_observations_with(
             stage,
