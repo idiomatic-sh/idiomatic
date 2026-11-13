@@ -248,6 +248,7 @@ fn independent_providers() -> Result<InventoryVerdict, Error> {
             ),
             &execution,
             &crate::outbound::inventory::factory::local(),
+            &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
         )?;
         let summary = summary_of(root.path());
         assert_eq!(summary["counts"], json!({"PASS": 1, "FAIL": 2}));
@@ -280,6 +281,7 @@ fn unknown_rule() -> Result<InventoryVerdict, Error> {
         ),
         &execution,
         &crate::outbound::inventory::factory::local(),
+        &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
     );
     let snapshot = summary_of(root.path());
     assert_eq!(snapshot["counts"], json!({"PASS": 0, "FAIL": 3}));
@@ -318,6 +320,7 @@ fn undeclared_modules() -> Result<InventoryVerdict, Error> {
         ),
         &execution,
         &crate::outbound::inventory::factory::local(),
+        &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
     );
     assert!(execution.calls.lock().unwrap().is_empty());
     let summary = summary_of(output.path());

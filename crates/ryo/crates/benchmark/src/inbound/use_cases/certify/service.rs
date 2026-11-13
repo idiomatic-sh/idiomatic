@@ -91,6 +91,7 @@ pub(super) fn certify(
         ryo_benchmark_contracts::domain::requests::types::CertificationCases::Registered {
             registration,
             output,
+            coverage,
         } => {
             let RegisteredContext {
                 registration,
@@ -104,11 +105,13 @@ pub(super) fn certify(
                 selected_rules,
                 reference_executable,
                 candidate_executable,
+                coverage,
             )?;
             paths.extend(context_paths);
             PreparedCases::Registered {
                 registration,
                 output: output.clone(),
+                coverage: coverage.clone(),
             }
         }
     };
@@ -139,6 +142,7 @@ pub(super) fn certify(
         PreparedCases::Registered {
             registration,
             output,
+            coverage,
         } => crate::application::inventory_verification::service::certify_registered(
             registration,
             output,
@@ -146,6 +150,7 @@ pub(super) fn certify(
             receipts,
             execution,
             inventory_store,
+            coverage,
         )?,
     };
     let after = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
@@ -186,6 +191,7 @@ pub(super) fn prepare(
     rules: &Path,
     reference: &Path,
     candidate: &Path,
+    coverage: &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage,
 ) -> Result<RegisteredContext, Error> {
     let loaded = store.load(registration)?;
     crate::application::inventory_verification::authority::service::require_authority(
@@ -200,6 +206,7 @@ pub(super) fn prepare(
         rules,
         reference,
         candidate,
+        coverage,
     )?;
     for entry in &loaded.rules {
         crate::application::inventory_verification::authority::service::verify_context(

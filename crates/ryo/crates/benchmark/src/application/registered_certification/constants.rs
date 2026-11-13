@@ -17,3 +17,17 @@ pub(super) const CASE_INVENTORY_EXECUTABLE_IDENTITIES_DIFFER: &str =
 /// The registered context must hold the tested query.
 pub(super) const REGISTERED_CONTEXT_LACKS_TESTED_QUERY: &str =
     "registered context lacks tested query";
+/// The selected rules must be exactly the measured profile's defaults, all of them registered.
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "declared for the red tests; the next commit refuses with it")
+)]
+pub(crate) const SELECTED_RULES_DIFFER_FROM_MEASURED: &str =
+    "selected registered rules differ from measured profile defaults";
+/// The selected profile must be staged from the registered authority's profile.
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "declared for the red tests; the next commit refuses with it")
+)]
+pub(crate) const SELECTED_SOURCE_DIFFERS_FROM_AUTHORITY: &str =
+    "selected source profile differs from registered authority";

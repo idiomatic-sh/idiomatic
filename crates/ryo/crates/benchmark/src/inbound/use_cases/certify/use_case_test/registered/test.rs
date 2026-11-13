@@ -1,7 +1,7 @@
 //! Registered certification retains independent artifact namespaces and refuses changed authority.
 use super::fixtures::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::requests::types::CertificationCases;
+use ryo_benchmark_contracts::domain::requests::types::{BenchmarkCoverage, CertificationCases};
 use std::borrow::Cow;
 
 const ARTIFACT: &str = "registered case artifact changed";
@@ -27,6 +27,14 @@ enum Scenario {
     MissingRule,
     /// The registered module inventory omits or adds a module.
     Modules(&'static str),
+    /// A diagnostic run selects rule A from a profile narrowed to it.
+    Selected,
+    /// An accounted run selects rule A.
+    SelectedAccounted,
+    /// A diagnostic run selects rule A but measures both registered rules.
+    SelectedUnnarrowed,
+    /// A diagnostic run selects rule A from a copy of the registered profile.
+    SelectedElsewhere,
 }
 
 type Input = Scenario;
@@ -96,7 +104,77 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::Modules("unexpected"),
         expect: Expect::Error(Cow::Borrowed(MODULE_INVENTORY)),
     },
+    Case {
+        name: CaseName("diagnostic certifies only the selected registered rules"),
+        word: Word::Succeeds,
+        input: || Scenario::Selected,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("accounted refuses a selected registration"),
+        word: Word::Refuses,
+        input: || Scenario::SelectedAccounted,
+        expect: Expect::Error(Cow::Borrowed(
+            crate::inbound::use_cases::certify::constants::SELECTED_COVERAGE_REQUIRES_INTERIM,
+        )),
+    },
+    Case {
+        name: CaseName("selected refuses rules other than the measured profile's"),
+        word: Word::Refuses,
+        input: || Scenario::SelectedUnnarrowed,
+        expect: Expect::Error(Cow::Borrowed(
+            crate::application::registered_certification::constants::SELECTED_RULES_DIFFER_FROM_MEASURED,
+        )),
+    },
+    Case {
+        name: CaseName("selected refuses a source other than the registered authority"),
+        word: Word::Refuses,
+        input: || Scenario::SelectedElsewhere,
+        expect: Expect::Error(Cow::Borrowed(
+            crate::application::registered_certification::constants::SELECTED_SOURCE_DIFFERS_FROM_AUTHORITY,
+        )),
+    },
 ];
+
+/// The number of cases a certificate of rule A alone holds.
+fn selected_subset() -> Result<Value, Failure> {
+    let f = Fixture::new();
+    let measured = narrowed(&f, &["A"]);
+    let certificate = selected(&f, &measured, BenchmarkCoverage::Interim, &f.profile)
+        .map_err(|error| failed(&error))?;
+    Ok(certificate.cases().0)
+}
+
+/// An accounted run never certifies a selected coverage, and refuses before any case runs.
+fn selected_accounted() -> Result<Value, Failure> {
+    let f = Fixture::new();
+    let measured = narrowed(&f, &["A"]);
+    let reason = crate::inbound::use_cases::certify::constants::SELECTED_COVERAGE_REQUIRES_INTERIM;
+    selected(&f, &measured, BenchmarkCoverage::Accounted, &f.profile)
+        .map(|_| 0)
+        .map_err(|error| refusal(&f, &error, reason, 0))
+}
+
+/// Selecting rule A while the measured profile holds A and B refuses before any case runs.
+fn selected_unnarrowed() -> Result<Value, Failure> {
+    let f = Fixture::new();
+    let reason = crate::application::registered_certification::constants::SELECTED_RULES_DIFFER_FROM_MEASURED;
+    selected(&f, &f.profile, BenchmarkCoverage::Interim, &f.profile)
+        .map(|_| 0)
+        .map_err(|error| refusal(&f, &error, reason, 0))
+}
+
+/// A source with the registered bytes at another path is not the registered authority.
+fn selected_elsewhere() -> Result<Value, Failure> {
+    let f = Fixture::new();
+    let measured = narrowed(&f, &["A"]);
+    let elsewhere = f._root.path().join("elsewhere");
+    copy_measured_profile(&f, &elsewhere);
+    let reason = crate::application::registered_certification::constants::SELECTED_SOURCE_DIFFERS_FROM_AUTHORITY;
+    selected(&f, &measured, BenchmarkCoverage::Interim, &elsewhere)
+        .map(|_| 0)
+        .map_err(|error| refusal(&f, &error, reason, 0))
+}
 
 fn executes() -> Result<Value, Failure> {
     let f = Fixture::new();
@@ -129,6 +207,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Drift { change, reason } => drift(change, reason),
         Scenario::MissingRule => missing_rule(),
         Scenario::Modules(change) => modules(change, MODULE_INVENTORY),
+        Scenario::Selected => selected_subset(),
+        Scenario::SelectedAccounted => selected_accounted(),
+        Scenario::SelectedUnnarrowed => selected_unnarrowed(),
+        Scenario::SelectedElsewhere => selected_elsewhere(),
     }
 }
 

@@ -13,7 +13,9 @@ use ryo_benchmark::inbound::use_cases::stage_suite::{
 use ryo_benchmark::outbound::suite::interface::SuitePort;
 use ryo_benchmark::outbound::suite::types::{ArtifactPath, ArtifactText};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{BenchmarkCoverage, CertificationCases};
+use ryo_benchmark_contracts::domain::requests::types::{
+    BenchmarkCoverage, CertificationCases, RegisteredCoverage,
+};
 use ryo_benchmark_contracts::domain::workloads::types::rule_count::value::RuleCount;
 use ryo_benchmark_contracts::domain::workloads::types::{StagePurpose, Tool};
 use std::{
@@ -73,6 +75,7 @@ fn registered_cases(
         output: suite_source
             .retained_directory(ArtifactPath(cache), ArtifactText(REGISTERED_CASE_RESULTS))?
             .0,
+        coverage: RegisteredCoverage::Full,
     })
 }
 

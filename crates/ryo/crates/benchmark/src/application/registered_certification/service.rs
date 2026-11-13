@@ -8,6 +8,7 @@ use crate::outbound::{
     suite::{interface::SuitePort, types::ArtifactPath},
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
 use std::path::{Path, PathBuf};
 
@@ -24,6 +25,7 @@ pub fn admit(
     rules: &Path,
     reference: &Path,
     candidate: &Path,
+    _coverage: &RegisteredCoverage,
 ) -> Result<Vec<PathBuf>, Error> {
     let expected: std::collections::BTreeSet<_> =
         tool.defaults.iter().map(ToString::to_string).collect();

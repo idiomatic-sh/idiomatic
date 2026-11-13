@@ -33,3 +33,10 @@ pub(super) const CANDIDATE_RETAINED: &str = "candidate retained-cache";
 pub(super) const REFERENCE_EDITED: &str = "reference edited retained vs fresh";
 /// The comparison of the candidate's edited retained report and its fresh report.
 pub(super) const CANDIDATE_EDITED: &str = "candidate edited retained vs fresh";
+/// An explicit cohort is measured only within the rules its certificate covers.
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "declared for the red tests; the next commit refuses with it")
+)]
+pub(super) const COHORT_OUTSIDE_CERTIFICATE: &str =
+    "measured cohort names a rule the certificate does not cover";
