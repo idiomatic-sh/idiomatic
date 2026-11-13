@@ -267,6 +267,7 @@ pub use ryo::languages::SemanticSlot
 pub use ryo::languages::SemanticSyntax
 pub use ryo::languages::SemanticSyntaxColumn
 pub use ryo::languages::SemanticSyntaxRow
+pub use ryo::languages::Semantics
 pub use ryo::languages::SemanticsError
 pub use ryo::languages::SequenceElement
 pub use ryo::languages::SequenceElementColumn

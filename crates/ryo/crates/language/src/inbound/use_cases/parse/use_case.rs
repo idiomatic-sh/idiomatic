@@ -44,6 +44,10 @@ impl ParseUseCase for ParseUseCaseImpl {
     ) {
     }
 
+    fn semantics(&self) -> Option<&dyn crate::domain::semantics::types::Semantics> {
+        None
+    }
+
     fn completion_requirement(&self) -> CompletionRequirement {
         CompletionRequirement::Independent
     }

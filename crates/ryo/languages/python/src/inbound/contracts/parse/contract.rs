@@ -30,8 +30,7 @@ use crate::domain::relations::collections::relations::{
     syntax_tree::item::SyntaxTreeItem,
 };
 use crate::domain::syntax::service::{kind_name, kinds};
-use crate::outbound::notes::interface::NotesPort;
-use crate::outbound::syntax::interface::SyntaxPort;
+use crate::outbound::{notes::interface::NotesPort, syntax::interface::SyntaxPort};
 use crate::settings::PythonParserSettings;
 use ryo::languages::{self, AbsenceCause, Parse, Reader, Support, UnknownName};
 use std::sync::Arc;
@@ -73,6 +72,10 @@ impl Parse for ParseContract {
         slot: &mut languages::SemanticSlot,
     ) {
         begin_file(self.syntax.as_ref(), request, tree, slot);
+    }
+
+    fn semantics(&self) -> Option<&dyn languages::Semantics> {
+        None
     }
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
