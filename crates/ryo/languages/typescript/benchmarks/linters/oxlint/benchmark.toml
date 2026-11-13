@@ -128,17 +128,13 @@ defaults = [
 # `numeric_literal` and `expression_shape` absent and has no regular expression or control flow relation; oxlint reports
 # the `typescript_silent` rules on no TypeScript file.
 [deferred]
-# Rules that resolve a name to its binding, not yet written: calls of builtins, shadowing, the uses of a binding, and the
-# value a `const` initializer gives (unicorn.no-thenable follows `const k = "then"` into `o[k]`).
+# Rules that resolve a name to its binding, not yet written: calls of builtins, shadowing, and the value a `const`
+# initializer gives (unicorn.no-thenable follows `const k = "then"` into `o[k]`).
 binding_relations = [
   "eslint.no-new-native-nonconstructor",
   "eslint.no-obj-calls",
-  "eslint.no-unassigned-vars",
-  "eslint.no-unused-vars",
   "oxc.bad-match-all-arg",
   "oxc.bad-replace-all-arg",
-  "oxc.only-used-in-recursion",
-  "typescript.no-unnecessary-parameter-property-assignment",
   "unicorn.no-invalid-fetch-options",
   "unicorn.no-thenable",
   "unicorn.prefer-set-size",
