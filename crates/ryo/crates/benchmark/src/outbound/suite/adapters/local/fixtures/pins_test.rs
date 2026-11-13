@@ -3,7 +3,16 @@ use super::super::adapter::SuiteLocalAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::types::ArtifactPath;
 #[cfg(unix)]
-type PinCase = Case<(&'static [&'static str], &'static str, PinFixture), (), Failure>;
+type PinCase = Case<
+    (
+        &'static [&'static str],
+        &'static str,
+        PinFixture,
+        &'static str,
+    ),
+    (),
+    Failure,
+>;
 /// Immutable executables differ in bytes; refused non-executables are independently provisioned.
 #[derive(Clone, Copy)]
 enum PinFixture {
@@ -30,6 +39,7 @@ const CASES: &[PinCase] = &[
                 &["b145a69e05e755a39d063badddeffe112a67d4f55993e373cc4db2074b984c0b"],
                 "1.0",
                 PinFixture::Original,
+                "fixture 1.0",
             )
         },
         expect: Expect::Value(()),
@@ -45,6 +55,7 @@ const CASES: &[PinCase] = &[
                 ],
                 "1.0",
                 PinFixture::Alternate,
+                "fixture 1.0",
             )
         },
         expect: Expect::Value(()),
@@ -52,7 +63,7 @@ const CASES: &[PinCase] = &[
     Case {
         name: CaseName("an empty pin set refuses before executing"),
         word: Word::Refuses,
-        input: || (&[], "1.0", PinFixture::NonExecutable),
+        input: || (&[], "1.0", PinFixture::NonExecutable, "fixture 1.0"),
         expect: Expect::Error(Failure::Hash),
     },
     Case {
@@ -63,6 +74,7 @@ const CASES: &[PinCase] = &[
                 &["wrong", "another-wrong-pin"],
                 "1.0",
                 PinFixture::NonExecutable,
+                "fixture 1.0",
             )
         },
         expect: Expect::Error(Failure::Hash),
@@ -75,6 +87,20 @@ const CASES: &[PinCase] = &[
                 &["b145a69e05e755a39d063badddeffe112a67d4f55993e373cc4db2074b984c0b"],
                 "2.0",
                 PinFixture::Original,
+                "fixture 2.0",
+            )
+        },
+        expect: Expect::Error(Failure::Version),
+    },
+    Case {
+        name: CaseName("the same executable refuses a version line in another tool's spelling"),
+        word: Word::Refuses,
+        input: || {
+            (
+                &["b145a69e05e755a39d063badddeffe112a67d4f55993e373cc4db2074b984c0b"],
+                "1.0",
+                PinFixture::Original,
+                "Version: 1.0",
             )
         },
         expect: Expect::Error(Failure::Version),
@@ -86,7 +112,9 @@ const CASES: &[PinCase] = &[
     clippy::expect_used,
     reason = "fixed executable pin fixtures must be created before testing verification"
 )]
-fn verify_pin((sha256, version, fixture): (&[&str], &str, PinFixture)) -> Result<(), Failure> {
+fn verify_pin(
+    (sha256, version, fixture, line): (&[&str], &str, PinFixture, &str),
+) -> Result<(), Failure> {
     use crate::outbound::suite::interface::SuitePort as _;
     use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
     use ryo_benchmark_contracts::domain::workloads::types::Tool;
@@ -135,7 +163,13 @@ fn verify_pin((sha256, version, fixture): (&[&str], &str, PinFixture)) -> Result
         defaults: vec!["E722".try_into().expect("rule identifier")],
     };
     SuiteLocalAdapter
-        .verify_tool(ArtifactPath(&path), &tool)
+        .verify_tool(
+            ArtifactPath(&path),
+            &tool,
+            &ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine(
+                line.into(),
+            ),
+        )
         .map_err(|error| match error {
             Error::Invalid(message) if message == "tool executable hash differs from pin" => {
                 Failure::Hash

@@ -15,6 +15,7 @@ use ryo_benchmark_contracts::domain::requests::types::{
     ApplicabilityPolicy, CohortSelection, ContextSeal, InputDeclaration, ParserSelection,
     RuleLabel, WorkerRequest,
 };
+use ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
 use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 use std::path::PathBuf;
 #[derive(Debug)]
@@ -164,5 +165,8 @@ impl LinterPort for LinterRyoAdapter {
     }
     fn rule_context_text(&self, prepared: &PreparedRuleContext) -> CanonicalText {
         CanonicalText::from(prepared)
+    }
+    fn version_line(&self, tool: &Tool) -> VersionLine {
+        VersionLine(format!("{} {}", tool.tool, tool.version).into())
     }
 }

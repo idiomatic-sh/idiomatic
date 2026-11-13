@@ -142,6 +142,12 @@ impl LinterPort for DriftingReference {
     ) -> crate::outbound::linter::types::CanonicalText {
         LinterFake::default().rule_context_text(prepared)
     }
+    fn version_line(
+        &self,
+        tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine {
+        LinterFake::default().version_line(tool)
+    }
 }
 
 fn mode_drift(scenario: Scenario) -> Result<Value, Error> {

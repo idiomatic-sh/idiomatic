@@ -131,6 +131,14 @@ impl LinterPort for LinterRuffAdapter {
     ) -> CanonicalText {
         CanonicalText::from(prepared)
     }
+    fn version_line(
+        &self,
+        tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine {
+        ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine(
+            format!("{} {}", tool.tool, tool.version).into(),
+        )
+    }
 }
 
 impl LinterRuffAdapter {

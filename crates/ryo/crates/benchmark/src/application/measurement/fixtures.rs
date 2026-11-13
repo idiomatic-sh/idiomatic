@@ -91,6 +91,14 @@ impl crate::outbound::linter::interface::LinterPort for Empty {
     ) -> crate::outbound::linter::types::CanonicalText {
         crate::outbound::linter::types::CanonicalText(format!("{prepared:?}"))
     }
+    fn version_line(
+        &self,
+        tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine {
+        ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine(
+            format!("{} {}", tool.tool, tool.version).into(),
+        )
+    }
 }
 impl crate::outbound::execution::interface::ExecutionPort for Empty {
     fn profile(&self) -> ExecutionProfile {
@@ -146,6 +154,14 @@ impl crate::outbound::linter::interface::LinterPort for Pinned {
         prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext,
     ) -> crate::outbound::linter::types::CanonicalText {
         crate::outbound::linter::fixtures::fake::LinterFake::default().rule_context_text(prepared)
+    }
+    fn version_line(
+        &self,
+        tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine {
+        ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine(
+            format!("{} {}", tool.tool, tool.version).into(),
+        )
     }
 }
 

@@ -25,6 +25,7 @@ use ryo_benchmark::inbound::use_cases::{
     verify_cases::interface::VerifyCasesUseCase as _,
     verify_reference_cases::interface::VerifyReferenceCasesUseCase as _,
 };
+use ryo_benchmark::outbound::linter::interface::LinterPort as _;
 use ryo_benchmark::outbound::suite::{
     interface::SuitePort,
     types::{ArtifactPath, ArtifactText},
@@ -150,7 +151,8 @@ pub(super) fn verify_cases(
     let parser_configuration = tool.parser_configuration.clone();
     let source_language = tool.source_language.clone();
     let project_context_mode = tool.project_context_mode;
-    suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
+    let expected = reference(executable.clone(), tool.clone())?.version_line(&tool);
+    suite_source.verify_tool(ArtifactPath(&executable), &tool, &expected)?;
     let audit = ryo_benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(
         Arc::clone(&suite_source),
     )
@@ -224,7 +226,8 @@ pub(super) fn verify_reference_cases(
         .next()
         .map_or_else(directory, |argument| PathBuf::from(argument.0));
     let tool = suite_source.profile(ArtifactPath(&source))?;
-    suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
+    let expected = reference(executable.clone(), tool.clone())?.version_line(&tool);
+    suite_source.verify_tool(ArtifactPath(&executable), &tool, &expected)?;
     let reference = reference(executable, tool)?;
     let scratch = default_scratch(
         &suite_source,

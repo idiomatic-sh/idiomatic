@@ -241,7 +241,13 @@ pub fn check(adapter: &impl SuitePort) -> std::io::Result<()> {
                 .map(|_| 0)
                 .map_err(classify),
             Operation::Verify => adapter
-                .verify_tool(ArtifactPath(&missing), &tool)
+                .verify_tool(
+                    ArtifactPath(&missing),
+                    &tool,
+                    &ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine(
+                        format!("{} {}", tool.tool, tool.version).into(),
+                    ),
+                )
                 .map(|()| 0)
                 .map_err(classify),
             Operation::Fingerprint => adapter

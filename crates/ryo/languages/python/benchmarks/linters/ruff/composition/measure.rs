@@ -57,7 +57,8 @@ pub(super) fn measure(
         collector_path,
     } = paths(args, suite_source)?;
     let mut tool = suite_source.profile(ArtifactPath(&directory()))?;
-    suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
+    let expected = commands::reference(executable.clone(), tool.clone())?.version_line(&tool);
+    suite_source.verify_tool(ArtifactPath(&executable), &tool, &expected)?;
     let declared_inventory = tool.defaults.clone();
     let audit = ryo_benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(
         Arc::clone(&suite_source),
