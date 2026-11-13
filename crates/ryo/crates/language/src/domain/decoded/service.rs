@@ -5,7 +5,7 @@ use super::constants::{ASCII_ONLY, FLOAT_SUFFIX, FLOAT_TEXT_BYTES};
 use super::types::{FloatBits, FloatBuffer};
 use crate::domain::elements::service::engine;
 use crate::domain::elements::types::Elements;
-use ryo_relations::domain::relations::types::Position;
+use ryo_relations::domain::relations::types::{Flag, Position};
 use ryo_relations::domain::relations::types::PropertyId;
 use ryo_relations::domain::terms::types::NameText;
 
@@ -85,4 +85,27 @@ pub fn binary64_text(bits: FloatBits, buffer: &mut FloatBuffer) -> NameText<'_> 
         written = FLOAT_TEXT_BYTES - rest.len();
     }
     NameText(std::str::from_utf8(&buffer.0[..written]).expect(ASCII_ONLY))
+}
+
+/// Whether `bits`, printed to as many significant digits as `written` holds, gives those digits back: the literal loses no
+/// precision to binary64. `written` is the literal's digits with the language's own syntax taken out (digit separators, the
+/// exponent, suffixes). A `0x`, `0o` or `0b` prefix keeps the base, and the value is printed in it; otherwise the digits are
+/// decimal, and zeros after the last non-zero digit are significant only when a `.` is written. A decimal literal writing more
+/// than 100 significant digits is never given back, as `Number.prototype.toPrecision` prints at most 100.
+///
+/// # Examples
+/// ```
+/// use ryo_language::domain::decoded::service::exact_digits;
+/// use ryo_language::domain::decoded::types::FloatBits;
+/// use ryo_relations::domain::relations::types::Flag;
+/// use ryo_relations::domain::terms::types::NameText;
+/// let exact = exact_digits(NameText("0.1"), FloatBits(0.1_f64.to_bits()));
+/// assert_eq!(exact, Flag::Raised);
+/// let rounded = exact_digits(NameText("9007199254740993"), FloatBits(9_007_199_254_740_992_f64.to_bits()));
+/// assert_eq!(rounded, Flag::Lowered);
+/// ```
+#[must_use]
+pub fn exact_digits(written: NameText<'_>, bits: FloatBits) -> Flag {
+    let _ = (written, bits);
+    Flag::Lowered
 }

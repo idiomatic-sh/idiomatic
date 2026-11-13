@@ -1,7 +1,7 @@
 //! Canonical numeric payloads retain the original occurrence and source interval.
 
 use super::super::interface::RelationsItem;
-use crate::domain::relations::types::{FileId, NodeId, Span};
+use crate::domain::relations::types::{FileId, Flag, NodeId, Span};
 use crate::domain::terms::types::Symbol;
 
 /// The optional `numeric-literal` relation.
@@ -38,6 +38,9 @@ macro_rules! numeric_literal {
                 /// Canonical decimal integer or round-trip binary64 text. Floats keep a dot or
                 /// exponent marker, except the explicit `inf`, `-inf`, and `NaN` spellings.
                 value Value: Symbol => Symbol;
+                /// Whether the value printed to as many significant digits as the literal writes gives the written digits
+                /// back, in the base the literal is written in; an integer of any size always does.
+                exact_digits ExactDigits: Flag => Flag;
                 /// File containing the occurrence.
                 file File: FileId => File;
                 /// Original numeric literal source interval.

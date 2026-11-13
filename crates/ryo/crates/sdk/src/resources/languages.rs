@@ -321,6 +321,7 @@ pub use ryo_language::domain::builders::service::{
 };
 pub use ryo_language::domain::decoded::constants::FLOAT_TEXT_BYTES;
 pub use ryo_language::domain::decoded::service::binary64_text;
+pub use ryo_language::domain::decoded::service::exact_digits;
 pub use ryo_language::domain::decoded::service::property_at;
 pub use ryo_language::domain::decoded::types::{FloatBits, FloatBuffer};
 pub use ryo_language::domain::elements::service::source_order;
