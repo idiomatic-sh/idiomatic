@@ -43,7 +43,7 @@ pub trait ProjectUseCase: Send + Sync {
     fn project_entries(
         &self,
         request: &ProjectRequest,
-        entries: &mut Vec<crate::domain::files::types::FilePath>,
+        entries: &mut crate::domain::files::types::ProjectEntries,
     );
 
     /// Reads the manifests through the language's own tools and answers what the readers below read their

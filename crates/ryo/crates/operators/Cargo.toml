@@ -40,5 +40,3 @@ fixtures = []
 [lints]
 workspace = true
 
-[package.metadata.cargo-machete]
-ignored = ["idiomatic-sh-ryo-operators"]

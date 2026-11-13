@@ -2,7 +2,7 @@
 //! constructor and no inherent impl.
 
 use super::errors::ProjectError;
-use crate::domain::files::types::{FilePath, ManifestName};
+use crate::domain::files::types::{FilePath, ManifestName, ProjectEntries};
 use crate::domain::project_context::types::{
     EntryObservation, GivenProjectInventory, ObservedEntries, ProjectSearchScope,
 };
@@ -188,7 +188,7 @@ pub trait ProjectEngine: Send + Sync {
     ) -> crate::domain::files::types::PrimaryFileRole;
 
     /// Appends to `entries` the candidate entry paths needed for requested project relations.
-    fn project_entries(&self, request: &ProjectRequest, entries: &mut Vec<FilePath>);
+    fn project_entries(&self, request: &ProjectRequest, entries: &mut ProjectEntries);
 
     /// The names of the files the language reads as manifests.
     fn manifest_names(&self) -> &'static [ManifestName];

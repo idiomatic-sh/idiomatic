@@ -240,7 +240,17 @@ pub(super) fn read_through_the_ports(
     let read = match input {
         Held::BeyondProofSlots => DerivedAdmittedViewsPort::rows(&admitted, InputNumber(3))?,
         Held::PastInputs(place) => DerivedAdmittedViewsPort::input(&admitted, InputNumber(place))?,
-        _ => DerivedAdmittedViewsPort::rows(&admitted, InputNumber(0))?,
+        Held::Nothing
+        | Held::EmptySlot
+        | Held::Captured
+        | Held::Unpublished
+        | Held::Released
+        | Held::TwoViews(_)
+        | Held::TwoRights(_)
+        | Held::Normalized
+        | Held::Recaptured(_)
+        | Held::Prepared
+        | Held::AfterRelease => DerivedAdmittedViewsPort::rows(&admitted, InputNumber(0))?,
     };
     Ok(Answered::Read {
         count: read.count().0,

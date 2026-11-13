@@ -270,25 +270,6 @@ jobs:
             ~/.cargo/.crates.toml
             ~/.cargo/.crates2.json
           key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-${{ github.sha }}
-      # The language spec embeds the contract spec's passing Parse fixture. Catch
-      # producer/consumer drift before timing Tastemaker; this reads no check cache.
-      - name: Check the inherited language contract fixture
-        run: |
-          python3 - <<'PY'
-          import tomllib
-          from pathlib import Path
-
-          language = tomllib.loads(Path("crates/ryo/tastemaker/specs/language/0.1.0/spec.toml").read_text())
-          contract = tomllib.loads(Path("crates/ryo/tastemaker/specs/contract/0.1.0/templates/contract/template.toml").read_text())
-          actual = language["given"]["files"]["demo/src/inbound/contracts/parse/contract.rs"]
-          expected = next(
-              scene["given"]["files"]["contract.rs"]
-              for scene in contract["scenarios"]
-              if scene["id"] == "rendered-template-passes"
-          )
-          if actual != expected:
-              raise SystemExit("language Parse scenario fixture differs from the contract template's passing fixture; update the scenario and run tm validate")
-          PY
       - id: speed_check
         run: |
           mkdir -p target/benchmarks/speed

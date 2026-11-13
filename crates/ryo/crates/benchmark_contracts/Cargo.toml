@@ -31,6 +31,3 @@ fixtures = []
 [lints]
 workspace = true
 
-# serde_json is the dev-dependency of the crate doctest (src/lib.rs) that serializes a metadata value: no source file names it.
-[package.metadata.cargo-machete]
-ignored = ["serde_json"]

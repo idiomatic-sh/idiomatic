@@ -44,5 +44,3 @@ diagnostic-row-progress = ["ryo_execution_domain/diagnostic-row-progress"]
 [lints]
 workspace = true
 
-[package.metadata.cargo-machete]
-ignored = ["idiomatic-sh-ryo-execution-store"]

@@ -30,7 +30,7 @@ impl ProjectUseCase for ProjectUseCaseImpl {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<crate::domain::files::types::FilePath>,
+        _entries: &mut crate::domain::files::types::ProjectEntries,
     ) {
     }
 

@@ -55,10 +55,6 @@ fixtures = ["ryo/fixtures"]
 [lints]
 workspace = true
 
-# Its `allocation` test target (`harness = false`) sets `dhat` as the global allocator, which machete does not see.
-[package.metadata.cargo-machete]
-ignored = ["dhat"]
-
 # Established generated parser timing identities; native CPU/RSS are not inferred from Divan.
 [package.metadata.ryo.performance]
 schema = "divan-timing/v1"

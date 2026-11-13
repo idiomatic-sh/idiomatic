@@ -18,6 +18,24 @@ impl std::fmt::Display for FilePath {
     }
 }
 
+/// The candidate entry paths a language asks the project to read, in the order the language appends them.
+#[derive(Debug, Default)]
+pub struct ProjectEntries(Vec<FilePath>);
+
+impl ProjectEntries {
+    /// The appended paths, in the order they were appended.
+    #[must_use]
+    pub fn into_paths(self) -> Vec<FilePath> {
+        self.0
+    }
+}
+
+impl Extend<FilePath> for ProjectEntries {
+    fn extend<I: IntoIterator<Item = FilePath>>(&mut self, paths: I) {
+        self.0.extend(paths);
+    }
+}
+
 /// A path as a file has it in a repository, from the root of the run, borrowed from where the caller holds it: what a file is read as, and what a target it writes is resolved against.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SourcePath<'a>(pub &'a str);

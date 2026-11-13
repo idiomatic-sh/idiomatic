@@ -280,10 +280,6 @@ fixtures = ["ryo/fixtures"]
 [lints]
 workspace = true
 
-# Its `allocation` test target (`harness = false`) sets `dhat` as the global allocator, which machete does not see.
-[package.metadata.cargo-machete]
-ignored = ["dhat"]
-
 [package.metadata.ryo.performance]
 schema = "divan-timing/v1"
 workloads = { generated_every_relation = [2500, 10000] }
@@ -7850,10 +7846,6 @@ fixtures = ["ryo/fixtures"]
 [lints]
 workspace = true
 
-# Its `allocation` test target (`harness = false`) sets `dhat` as the global allocator, which machete does not see.
-[package.metadata.cargo-machete]
-ignored = ["dhat"]
-
 [package.metadata.ryo.performance]
 schema = "divan-timing/v1"
 workloads = { generated_every_relation = [2500, 10000] }
@@ -8704,10 +8696,6 @@ fixtures = ["ryo/fixtures"]
 
 [lints]
 workspace = true
-
-# Its `allocation` test target sets `dhat` as the global allocator, which machete does not see.
-[package.metadata.cargo-machete]
-ignored = ["dhat"]
 
 [package.metadata.ryo.performance]
 schema = "divan-timing/v1"

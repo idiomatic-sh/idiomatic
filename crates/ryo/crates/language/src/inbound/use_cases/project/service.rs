@@ -126,7 +126,7 @@ impl<P: ProjectUseCase> ProjectEngine for P {
     fn project_entries(
         &self,
         request: &ProjectRequest,
-        entries: &mut Vec<crate::domain::files::types::FilePath>,
+        entries: &mut crate::domain::files::types::ProjectEntries,
     ) {
         ProjectUseCase::project_entries(self, request, entries);
     }

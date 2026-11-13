@@ -281,13 +281,14 @@ impl LanguagePort for LanguageUseCaseAdapter {
     }
 
     fn project_entries(&self, input: &ProjectToRead<'_>) -> Vec<FilePath> {
-        let mut entries = Vec::new();
+        let mut appended = ryo_language::domain::files::types::ProjectEntries::default();
         for (number, language) in self.languages.iter().enumerate() {
             language.project.project_entries(
                 &project_request(input, LanguageNumber(number)),
-                &mut entries,
+                &mut appended,
             );
         }
+        let mut entries = appended.into_paths();
         entries.sort();
         entries.dedup();
         entries

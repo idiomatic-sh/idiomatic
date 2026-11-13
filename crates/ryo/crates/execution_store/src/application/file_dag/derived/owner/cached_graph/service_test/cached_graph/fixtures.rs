@@ -100,9 +100,12 @@ pub(super) fn admitted_graph_of(
     let originals = published
         .iter()
         .map(|publication| {
-            owner.resolve(publication.as_ref(), &|relation| match relation {
-                Relation::Function => Ok(rows.clone()),
-                _ => Err(OperatingError::NotRead),
+            owner.resolve(publication.as_ref(), &|relation| {
+                if relation == Relation::Function {
+                    Ok(rows.clone())
+                } else {
+                    Err(OperatingError::NotRead)
+                }
             })
         })
         .collect::<Result<Vec<_>, _>>()?;

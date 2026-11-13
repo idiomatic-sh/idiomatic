@@ -185,7 +185,7 @@ impl Project for ProjectContract {
         crate::domain::language::service::primary_role(path, self.manifests())
     }
 
-    fn project_entries(&self, request: &ProjectRequest, entries: &mut Vec<languages::FilePath>) {
+    fn project_entries(&self, request: &ProjectRequest, entries: &mut languages::ProjectEntries) {
         if !request
             .wanted
             .contains(&languages::Relation::ProjectNamespaceMembership)

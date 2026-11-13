@@ -31,6 +31,3 @@ fixtures = []
 [lints]
 workspace = true
 
-# The crate names itself as a dev-dependency to switch its own `fixtures` feature on for its tests: no source names it.
-[package.metadata.cargo-machete]
-ignored = ["idiomatic-sh-ryo-values"]

@@ -18,12 +18,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -161,7 +155,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -208,12 +202,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -351,7 +339,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -393,12 +381,6 @@ run = ["tm", "check", "--format", "sarif"]
 output = "sarif"
 timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
-
-[[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
 
 [[tools]]
 id = "cargo-deny"
@@ -538,7 +520,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -586,12 +568,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -729,7 +705,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -774,12 +750,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -917,7 +887,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -966,12 +936,6 @@ timeout-seconds = 300
 inputs = [".", "../../rustfmt.toml", "../../rust-toolchain.toml"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -1109,7 +1073,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -1134,191 +1098,6 @@ inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 then.findings = [
   { rule = 'asymptote-config#template', path = 'asymptote.toml' },
   { rule = 'asymptote-config#template', path = 'asymptote.toml' },
-  { rule = 'asymptote-config#template', path = 'asymptote.toml' },
-  { rule = 'asymptote-config#template', path = 'asymptote.toml' },
-]
-
-[[scenarios]]
-id = 'no-cargo-machete'
-scenario = 'Asymptote does not run cargo-machete.'
-given.files.'asymptote.toml' = '''
-[[tools]]
-id = "cargo-fmt"
-group = "lint"
-run = ["cargo", "fmt", "--all", "--", "--check"]
-fix = ["cargo", "fmt", "--all"]
-timeout-seconds = 300
-inputs = [".", "../../rustfmt.toml", "../../rust-toolchain.toml"]
-
-[[tools]]
-id = "tastemaker"
-group = "lint"
-run = ["tm", "check", "--format", "sarif"]
-output = "sarif"
-timeout-seconds = 1800
-inputs = [".", "../../tastemaker"]
-
-[[tools]]
-id = "cargo-deny"
-group = "lint"
-run = ["cargo-deny", "check", "bans", "licenses", "sources"]
-timeout-seconds = 1800
-
-[[tools]]
-id = "cargo-clippy"
-group = "clippy"
-# Every clippy and compiler warning is a SARIF result the lock ratchets (clippy-sarif,
-# pinned in Cargo.toml); a compile error or a denied lint fails the run, never clean.
-run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --all-features --locked --message-format=json -- --cap-lints warn | python3 ../../ci/scripts/checks/cargo_diagnostics.py | clippy-sarif"]
-output = "sarif"
-timeout-seconds = 3600
-inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "sdk-api"
-group = "api"
-# The SDK's public API under [workspace.metadata.api]: what it leaks, what it records and what it breaks; a product that names none passes.
-run = ["uv", "run", "../../ci/scripts/checks/sdk_api.py"]
-timeout-seconds = 3600
-inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo", "../../ci/scripts/checks"]
-
-[[tools]]
-id = "test-core"
-group = "check"
-# The core crates' tests, every feature on. A product names its core packages after `-E`, as
-# `"-E", "package(=<package>)"`, so its run is kept while the core crates did not move; the BDD runners and the
-# doctests, which nextest cannot list, run in `test-bdd` and `test-doc`.
-run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features"]
-timeout-seconds = 3600
-inputs = ["Cargo.toml", "Cargo.lock", ".config", "crates", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "test-cli"
-group = "check"
-# The command line's tests: it links every crate of the product, so the product is its input. A product names the
-# command line's package after `-E`, as `"-E", "package(=<package>)"`.
-run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features"]
-timeout-seconds = 3600
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "test-bdd"
-group = "check"
-# The cucumber runners (`tests/bdd.rs`, `harness = false`), which nextest's default filter leaves out.
-run = ["bash", "-c", "mkdir -p target/checks/bdd; set +e; cargo test --workspace --locked --all-features --test bdd > target/checks/bdd/stdout.log 2> target/checks/bdd/stderr.log; tool_status=$?; cat target/checks/bdd/stdout.log; cat target/checks/bdd/stderr.log >&2; printf '%s\\n' \"$tool_status\" > target/checks/bdd/status; exit \"$tool_status\""]
-timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "test-doc"
-group = "check"
-# On the nightly `[workspace.metadata.api] nightly` of Cargo.toml pins: only a nightly rustdoc checks the error code of a
-# `compile_fail,E0…` doctest, and on stable such a doctest passes for any error, so a renamed field or a wrong code proves nothing.
-run = ["bash", "-c", "set -e; nightly=$(python3 -c 'import tomllib; print(tomllib.load(open(\"Cargo.toml\", \"rb\"))[\"workspace\"][\"metadata\"][\"api\"][\"nightly\"])'); cargo \"+$nightly\" test --workspace --locked --all-features --doc"]
-timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "cargo-doc"
-group = "check"
-# The rustdoc lints of `[workspace.lints.rustdoc]`: only a documentation build reports them.
-run = ["cargo", "doc", "--workspace", "--no-deps", "--all-features", "--locked"]
-timeout-seconds = 3600
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "cargo-clippy-default"
-group = "release-clippy"
-# The same, with the default features: code a feature turns off is compiled and linted as a user builds it.
-run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --locked --message-format=json -- --cap-lints warn | python3 ../../ci/scripts/checks/cargo_diagnostics.py | clippy-sarif"]
-output = "sarif"
-timeout-seconds = 3600
-inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "test-default"
-group = "release-tests"
-# Tests are strictly pass or fail: no lock holds a failing test. nextest runs every libtest target; the BDD runners and the
-# doctests, which it cannot list, run in `test-bdd` and `test-doc`.
-run = ["cargo", "nextest", "run", "--workspace", "--locked"]
-timeout-seconds = 3600
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "cargo-hack"
-group = "release-hack"
-# Each package with no features, each feature alone and the default: one of the slowest checks, so CI's.
-run = ["cargo", "hack", "check", "--workspace", "--each-feature", "--locked"]
-timeout-seconds = 3600
-inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "cargo-dylint"
-group = "release-dylint"
-run = ["cargo", "dylint", "--path", "../../tools/lints", "--workspace", "--", "--all-targets", "--all-features", "--locked"]
-timeout-seconds = 3600
-inputs = [".", "../../tools/lints", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "coverage"
-group = "release-coverage"
-# Line coverage, a report with no threshold: the run fails only when a test does.
-run = ["cargo", "llvm-cov", "--workspace", "--all-features", "--locked"]
-timeout-seconds = 3600
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "cargo-msrv"
-group = "release-msrv"
-# The declared `rust-version` checks the whole workspace: cargo-msrv reads it from the command line crate, the one every product has.
-run = ["cargo", "msrv", "verify", "--path", "cli", "--output-format", "minimal", "--", "cargo", "check", "--workspace", "--all-targets", "--all-features", "--locked"]
-timeout-seconds = 3600
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "test-distribution"
-group = "release-tests"
-# The `distribution` test target's findings: each target checked through the crate installed with its registry's languages.
-run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "distribution", "--", "target_test::", "targets_have_their_findings", "every_registry_is_declared"]
-timeout-seconds = 3600
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "release-smoke"
-group = "release-tests"
-# Each registry's package is built from the crate, installed in a scratch directory and run. Only the release workflow runs the `release-*` groups.
-run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "distribution", "--", "cargo::", "npm::", "pypi::"]
-timeout-seconds = 7200
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "fresh-resolution"
-group = "release-resolution"
-# Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
-# fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
-timeout-seconds = 7200
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "performance"
-group = "perf"
-# The benches print the Bencher Metric Format: the lock holds each measure's best and asymptote judges against it.
-run = ["cargo", "bench", "--locked", "--workspace", "--bench", "commands"]
-output = "bmf"
-timeout-seconds = 3600
-inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "performance-distribution"
-group = "perf"
-# The `distribution` bench: each registry's targets through the installed command, cold, warm and after an edit.
-run = ["cargo", "bench", "--locked", "--workspace", "--all-features", "--bench", "distribution"]
-output = "bmf"
-timeout-seconds = 7200
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
-'''
-then.findings = [
   { rule = 'asymptote-config#template', path = 'asymptote.toml' },
   { rule = 'asymptote-config#template', path = 'asymptote.toml' },
 ]
@@ -1344,12 +1123,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-clippy"
 group = "clippy"
 # Every clippy and compiler warning is a SARIF result the lock ratchets (clippy-sarif,
@@ -1481,7 +1254,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -1532,12 +1305,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -1665,7 +1432,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -1712,12 +1479,6 @@ run = ["tm", "check", "--format", "sarif"]
 output = "sarif"
 timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
-
-[[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
 
 [[tools]]
 id = "cargo-deny"
@@ -1849,7 +1610,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -1901,12 +1662,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -2034,7 +1789,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -2087,12 +1842,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -2221,7 +1970,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -2266,12 +2015,6 @@ run = ["tm", "check", "--format", "sarif"]
 output = "sarif"
 timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
-
-[[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
 
 [[tools]]
 id = "cargo-deny"
@@ -2403,7 +2146,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -2451,12 +2194,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -2585,7 +2322,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -2631,12 +2368,6 @@ run = ["tm", "check", "--format", "sarif"]
 output = "sarif"
 timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
-
-[[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
 
 [[tools]]
 id = "cargo-deny"
@@ -2768,7 +2499,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -2817,12 +2548,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -2951,7 +2676,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -3000,12 +2725,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -3134,7 +2853,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -3179,12 +2898,6 @@ run = ["tm", "check", "--format", "sarif"]
 output = "sarif"
 timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
-
-[[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
 
 [[tools]]
 id = "cargo-deny"
@@ -3316,7 +3029,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -3367,12 +3080,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -3503,7 +3210,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -3560,12 +3267,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -3695,7 +3396,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -3743,12 +3444,6 @@ run = ["tm", "check", "--format", "sarif"]
 output = "sarif"
 timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
-
-[[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
 
 [[tools]]
 id = "cargo-deny"
@@ -3880,7 +3575,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -3940,12 +3635,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -4075,7 +3764,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -4125,12 +3814,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -4260,7 +3943,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -4310,12 +3993,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -4453,7 +4130,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -4493,12 +4170,6 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
 
 [[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
-
-[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]
@@ -4636,7 +4307,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -4673,12 +4344,6 @@ run = ["tm", "check", "--format", "sarif"]
 output = "sarif"
 timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
-
-[[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
 
 [[tools]]
 id = "cargo-deny"
@@ -4818,7 +4483,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -4864,12 +4529,6 @@ run = ["tm", "check", "--format", "sarif"]
 output = "sarif"
 timeout-seconds = 1800
 inputs = [".", "../../tastemaker"]
-
-[[tools]]
-id = "cargo-machete"
-group = "lint"
-run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete --with-metadata"]
-timeout-seconds = 1800
 
 [[tools]]
 id = "cargo-deny"

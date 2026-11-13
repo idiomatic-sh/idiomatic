@@ -64,10 +64,6 @@ fixtures = ["ryo/fixtures"]
 [lints]
 workspace = true
 
-# The crate names itself as a dev-dependency to switch its own `fixtures` feature on for its tests: no source names it. Its `harness = false` test targets use dhat, which machete does not see. unicode-ident and unicode-properties are version pins no source names.
-[package.metadata.cargo-machete]
-ignored = ["idiomatic-sh-ryo-rust", "dhat", "unicode-ident", "unicode-properties"]
-
 # Established generated parser timing identities; native CPU/RSS are not inferred from Divan.
 [package.metadata.ryo.performance]
 schema = "divan-timing/v1"

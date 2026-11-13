@@ -215,7 +215,7 @@ impl ProjectUseCase for Language {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<ryo_language::domain::files::types::FilePath>,
+        _entries: &mut ryo_language::domain::files::types::ProjectEntries,
     ) {
     }
 

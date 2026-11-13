@@ -63,7 +63,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
             ),
             BuildInputs::Rows(&rows),
             &mut room,
-            None,
+            crate::domain::contract::types::Recycled::Nothing,
         )?,
         Scenario::UnsupportedNativeDeclines => BuildUseCaseImpl::new().build(
             &prepare(
@@ -76,7 +76,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
             ),
             BuildInputs::Native(NativeForm::Edges),
             &mut room,
-            None,
+            crate::domain::contract::types::Recycled::Nothing,
         )?,
         Scenario::InputsOfAnotherKind => BuildUseCaseImpl::new().build(
             &prepare(
@@ -87,7 +87,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
             ),
             BuildInputs::Native(NativeForm::Edges),
             &mut room,
-            None,
+            crate::domain::contract::types::Recycled::Nothing,
         )?,
     };
     Ok(usize::from(matches!(outcome, BuildOutcome::Built(_))))

@@ -1,7 +1,7 @@
 //! The portable contract that checks a derived request against the schemas of its inputs.
+use crate::domain::contract::types::InputSchemas;
 use crate::domain::contract::types::prepared_derived::value::PreparedDerived;
 use crate::domain::request::types::DerivedRequest;
-use ryo_relations::domain::relations::types::CellKind;
 
 /// Preparation never reads rows; a complete implementation compiles.
 ///
@@ -24,9 +24,5 @@ use ryo_relations::domain::relations::types::CellKind;
 /// ```
 pub trait PrepareDerivedUseCase: Sync {
     /// Keeps the request with its literals in canonical order and the verdict of its metadata check.
-    fn prepare_derived(
-        &self,
-        request: DerivedRequest,
-        schemas: Vec<Vec<CellKind>>,
-    ) -> PreparedDerived;
+    fn prepare_derived(&self, request: DerivedRequest, schemas: InputSchemas) -> PreparedDerived;
 }
