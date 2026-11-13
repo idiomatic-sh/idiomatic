@@ -1,0 +1,155 @@
+[[cases]]
+name = "duplicate"
+comparison = "full"
+files = { "case.py" = "from enum import Enum, auto\nclass C(Enum):\n    A = 1\n    B = 1\n" }
+expected = [{ file = "case.py", start = 57, end = 62, rule = "PIE796" }]
+
+[[cases]]
+name = "third"
+comparison = "full"
+files = { "case.py" = "from enum import Enum, auto\nclass C(Enum):\n    A = 1\n    B = 1\n    C = 1\n" }
+expected = [{ file = "case.py", start = 57, end = 62, rule = "PIE796" }, { file = "case.py", start = 67, end = 72, rule = "PIE796" }]
+
+[[cases]]
+name = "numeric-spelling"
+comparison = "full"
+files = { "case.py" = "from enum import Enum, auto\nclass C(Enum):\n    A = 16\n    B = 0x10\n" }
+expected = [{ file = "case.py", start = 58, end = 66, rule = "PIE796" }]
+
+[[cases]]
+name = "numeric-kind"
+comparison = "full"
+files = { "case.py" = "from enum import Enum, auto\nclass C(Enum):\n    A = 1\n    B = 1.0\n" }
+expected = []
+
+[[cases]]
+name = "boolean-kind"
+comparison = "full"
+files = { "case.py" = "from enum import Enum, auto\nclass C(Enum):\n    A = 1\n    B = True\n" }
+expected = []
+
+[[cases]]
+name = "decoded-string"
+comparison = "full"
+files = { "case.py" = "from enum import Enum, auto\nclass C(Enum):\n    A = \"a\"\n    B = \"\\x61\"\n" }
+expected = [{ file = "case.py", start = 59, end = 69, rule = "PIE796" }]
+
+[[cases]]
+name = "different"
+comparison = "full"
+files = { "case.py" = "from enum import Enum, auto\nclass C(Enum):\n    A = 1\n    B = 2\n" }
+expected = []
+
+[[cases]]
+name = "annotated"
+comparison = "full"
+files = { "case.py" = "from enum import Enum, auto\nclass C(Enum):\n    A: int = 1\n    B: int = 1\n" }
+expected = []
+
+[[cases]]
+name = "chain-target"
+comparison = "full"
+files = { "case.py" = "from enum import Enum, auto\nclass C(Enum):\n    A = ALIAS = 1\n    B = 1\n" }
+expected = [{ file = "case.py", start = 65, end = 70, rule = "PIE796" }]
+
+[[cases]]
+name = "auto"
+comparison = "full"
+files = { "case.py" = "from enum import Enum, auto\nclass C(Enum):\n    A = auto()\n    B = auto()\n" }
+expected = []
+
+[[cases]]
+name = "tuple-auto"
+comparison = "full"
+files = { "case.py" = "from enum import Enum, auto\nclass C(Enum):\n    A = (auto(), 1)\n    B = (auto(), 1)\n" }
+expected = []
+
+[[cases]]
+name = "nested-tuple-auto"
+comparison = "full"
+files = { "case.py" = "from enum import Enum, auto\nclass C(Enum):\n    A = ((auto(),), 1)\n    B = ((auto(),), 1)\n" }
+expected = [{ file = "case.py", start = 70, end = 88, rule = "PIE796" }]
+
+[[cases]]
+name = "list-auto"
+comparison = "full"
+files = { "case.py" = "from enum import Enum, auto\nclass C(Enum):\n    A = [auto()]\n    B = [auto()]\n" }
+expected = [{ file = "case.py", start = 64, end = 76, rule = "PIE796" }]
+
+[[cases]]
+name = "plain-class"
+comparison = "full"
+files = { "case.py" = "from enum import Enum, auto\nclass C(object):\n    A = 1\n    B = 1\n" }
+expected = []
+
+[[cases]]
+name = "int-enum"
+comparison = "full"
+files = { "case.py" = "from enum import IntEnum\nclass C(IntEnum):\n    A = 1\n    B = 1\n" }
+expected = []
+
+[[cases]]
+name = "qualified"
+comparison = "full"
+files = { "case.py" = "import enum\nclass C(enum.Enum):\n    A = 1\n    B = 1\n" }
+expected = [{ file = "case.py", start = 46, end = 51, rule = "PIE796" }]
+
+[[cases]]
+name = "py-ellipsis"
+comparison = "full"
+files = { "case.py" = "from enum import Enum, auto\nclass C(Enum):\n    A = ...\n    B = ...\n" }
+expected = [{ file = "case.py", start = 59, end = 66, rule = "PIE796" }]
+
+[[cases]]
+name = "stub-ellipsis"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum, auto\nclass C(Enum):\n    A = ...\n    B = ...\n" }
+expected = []
+
+[[cases]]
+name = "stub-cast"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nfrom typing import cast\nclass C(Enum):\n    A = cast(int, ...)\n    B = cast(int, ...)\n" }
+expected = []
+
+[[cases]]
+name = "py-cast"
+comparison = "full"
+files = { "case.py" = "from enum import Enum\nfrom typing import cast\nclass C(Enum):\n    A = cast(int, ...)\n    B = cast(int, ...)\n" }
+expected = [{ file = "case.py", start = 88, end = 106, rule = "PIE796" }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "from enum import Enum, auto\nclass C(Enum):\n    A = 1\n    B = 1 # noqa: PIE796\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-enum"
+comparison = "full"
+files = { "case.py" = "from enum import Enum\nEnum = object\nclass C(Enum):\n    A = 1\n    B = 1\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-auto"
+comparison = "full"
+files = { "case.py" = "from enum import Enum, auto\nauto = custom\nclass C(Enum):\n    A = auto()\n    B = auto()\n" }
+expected = [{ file = "case.py", start = 76, end = 86, rule = "PIE796" }]
+
+[[cases]]
+name = "nested-body"
+comparison = "full"
+files = { "case.py" = "from enum import Enum\nclass C(Enum):\n    if ready:\n        A = 1\n        B = 1\n" }
+expected = []
+
+[[cases]]
+name = "stub-keyword-cast"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nfrom typing import cast\nclass C(Enum):\n    A = cast(int, val=...)\n    B = cast(int, val=...)\n" }
+expected = [{ file = "case.pyi", start = 92, end = 114, rule = "PIE796" }]
+
+[[cases]]
+name = "stub-extension-cast-alias"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nfrom typing_extensions import cast as typed\nclass C(Enum):\n    A = typed(int, ...)\n    B = typed(int, ...)\n" }
+expected = []

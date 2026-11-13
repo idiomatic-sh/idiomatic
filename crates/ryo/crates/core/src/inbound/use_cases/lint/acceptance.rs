@@ -9,7 +9,6 @@ use std::sync::Arc;
 use ryo_core::inbound::use_cases::lint::types::{LintRequest, Rule};
 use ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl;
 use ryo_core::outbound::corpus::fixtures::fake::CorpusFake;
-use ryo_core::outbound::digest::fixtures::fake::DigestFake;
 use ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::inbound::use_cases::project::types::RootPath;
@@ -18,22 +17,24 @@ use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::runs::types::Session;
 
 use ryo_core::outbound::language::fixtures::fake::LanguageFake;
-use ryo_core::outbound::matching::fixtures::fake::MatchingFake;
 use ryo_core::outbound::memory::fixtures::fake::MemoryFake;
-use ryo_core::outbound::query_language::fixtures::fake::QueryLanguageFake;
-use ryo_core::outbound::rows;
-use ryo_core::outbound::rows::interface::RowsPort;
+use ryo_core::outbound::row_sink;
+use ryo_core::outbound::row_sink::interface::RowSinkPort;
 use ryo_core::outbound::scheduler::fixtures::fake::SchedulerFake;
-use ryo_language::domain::relations::types::Relation;
+use ryo_execution::outbound::matching::fixtures::fake::MatchingFake;
+use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::plan_parts::types::StepId;
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 
 /// A file of the corpus at `path`, holding one function.
 fn file(path: &str) -> CorpusFile {
     CorpusFile {
+        executable: Default::default(),
         path: FilePath(path.into()),
         bytes: FileBytes(b"fn main() {}".to_vec()),
     }
@@ -42,6 +43,8 @@ fn file(path: &str) -> CorpusFile {
 /// A plan that keeps every row of the `function` relation.
 fn every_function() -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
             operation: Operation::Select {
@@ -58,6 +61,7 @@ fn every_function() -> Plan {
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
 }
 
@@ -86,8 +90,8 @@ fn runs(world: &mut Behavior) {
         plan: every_function(),
         ..QueryLanguageFake::default()
     };
-    let collected = rows::types::Collector::default();
-    let kept: Arc<dyn RowsPort> = Arc::new(rows::factory::collect(collected.clone()));
+    let collected = row_sink::factory::CollectorConnection::default();
+    let kept: Arc<dyn RowSinkPort> = Arc::new(row_sink::factory::collect(collected.clone()));
     let use_case = {
         let analysis_corpus: Arc<dyn ryo_core::outbound::corpus::interface::CorpusPort> =
             Arc::new(corpus);
@@ -95,8 +99,7 @@ fn runs(world: &mut Behavior) {
             Arc::new(LanguageFake::default());
         let analysis_memory: Arc<dyn ryo_core::outbound::memory::interface::MemoryPort> =
             Arc::new(MemoryFake::default());
-        let analysis_digest: Arc<dyn ryo_core::outbound::digest::interface::DigestPort> =
-            Arc::new(DigestFake);
+        let analysis_digest = ryo_core::inbound::use_cases::lint::fixtures::engine::digest();
         LintUseCaseImpl::new(
             ryo_core::application::file_analysis::service::FileAnalysis::new(
                 Arc::clone(&analysis_corpus),
@@ -104,15 +107,18 @@ fn runs(world: &mut Behavior) {
                 Arc::clone(&analysis_digest),
                 Arc::clone(&analysis_memory),
             ),
-            ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(
-                &analysis_corpus,
-            )),
+            ryo_core::application::cross_file::service::CrossFile::new(
+                Arc::clone(&analysis_corpus),
+                ryo_core::inbound::use_cases::lint::fixtures::engine::publication(),
+            ),
             Arc::clone(&analysis_corpus),
-            Arc::new(ryo_core::outbound::facts::factory::memory()),
+            ryo_core::inbound::use_cases::lint::fixtures::engine::facts(),
             Arc::clone(&analysis_language),
             Arc::new(MatchingFake),
             Arc::new(query_language),
             Arc::clone(&analysis_memory),
+            ryo_core::inbound::use_cases::lint::fixtures::engine::operators(),
+            ryo_core::inbound::use_cases::lint::fixtures::engine::derived(),
             Arc::new(SchedulerFake::default()),
             ryo_core::outbound::scheduler::types::WorkerCount(1),
             Arc::clone(&kept),
@@ -126,16 +132,23 @@ fn runs(world: &mut Behavior) {
         "a query"
     };
     let request = LintRequest {
+        source_language: ryo_core::inbound::use_cases::lint::types::SourceProvider::Recognized,
         answer: ryo_values::domain::runs::types::AnswerShape::Findings,
         hosted: Vec::new(),
         session: Session {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(".".into()),
         },
         files: Vec::new(),
         rules: vec![Rule {
+            observations: Vec::new(),
             id: RuleId("rule".into()),
-            query: QueryText(query.into()),
+            query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(
+                query.into(),
+            )),
+            applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
             parameters: Vec::new(),
             include: Vec::new(),
             exclude: Vec::new(),

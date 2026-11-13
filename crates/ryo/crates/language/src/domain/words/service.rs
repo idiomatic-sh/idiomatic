@@ -1,11 +1,11 @@
 //! The `words` service: free functions named by verb over the relations' types, with no IO and no
 //! ports. A value is written as a tag and the words it holds, and read back from them.
 
-use crate::domain::relations::types::{
+use ryo_relations::domain::relations::types::{
     Bits, CellKind, FileId, Flag, Half, Integer, Name, NamePlace, NodeId, Offset, Origin,
     PlaceNumber, Span, TextHash, Value, Words, WorkerNumber,
 };
-use crate::domain::terms::types::Symbol;
+use ryo_relations::domain::terms::types::Symbol;
 
 /// The words a kind is written as.
 fn kind_word(kind: CellKind) -> Bits {

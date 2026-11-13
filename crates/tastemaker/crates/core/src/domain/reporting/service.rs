@@ -286,9 +286,11 @@ pub fn mismatch(
 ) -> Vec<Finding> {
     use crate::domain::blocks::service::{blocks, sequence};
     use crate::domain::contracts::service::{compare, facts, message};
-    use crate::domain::contracts::types::{ComparedText, Shape};
+    use crate::domain::contracts::types::{ComparedText, DeclarationName, Shape};
     use crate::domain::declarations::service::declarations;
+    use crate::domain::definitions::constants::{VARIABLES_KEY, WORKSPACE_FILE};
     use crate::domain::keyed::service::compare_data;
+    use crate::domain::paths::service::name;
     let Compared {
         data,
         unread,
@@ -335,7 +337,12 @@ pub fn mismatch(
             .chain(departure(contract, text).filter(|_| verbatim))
             .collect();
         }
-        Shape::Data => compare_data(&expected, &found, contract.exact),
+        Shape::Data => {
+            // A manifest's variables are the instance's values: its own may hold more than its template's.
+            let instance_values = (&*name(&contract.target).0 == WORKSPACE_FILE)
+                .then(|| DeclarationName(VARIABLES_KEY.into()));
+            compare_data(&expected, &found, contract.exact, instance_values.as_ref())
+        }
         Shape::Code | Shape::Blind => compare(
             &declarations(&expected),
             &declarations(&found),

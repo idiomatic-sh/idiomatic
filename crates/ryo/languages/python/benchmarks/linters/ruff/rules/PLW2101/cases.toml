@@ -1,0 +1,204 @@
+[[cases]]
+name="Lock"
+comparison="full"
+files={"case.py" = "import threading\nwith threading.Lock(): pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 22, "end" = 38}]
+
+[[cases]]
+name="Lock-alias"
+comparison="full"
+files={"case.py" = "from threading import Lock as factory\nwith factory(): pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 43, "end" = 52}]
+
+[[cases]]
+name="RLock"
+comparison="full"
+files={"case.py" = "import threading\nwith threading.RLock(): pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 22, "end" = 39}]
+
+[[cases]]
+name="RLock-alias"
+comparison="full"
+files={"case.py" = "from threading import RLock as factory\nwith factory(): pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 44, "end" = 53}]
+
+[[cases]]
+name="Condition"
+comparison="full"
+files={"case.py" = "import threading\nwith threading.Condition(): pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 22, "end" = 43}]
+
+[[cases]]
+name="Condition-alias"
+comparison="full"
+files={"case.py" = "from threading import Condition as factory\nwith factory(): pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 48, "end" = 57}]
+
+[[cases]]
+name="Semaphore"
+comparison="full"
+files={"case.py" = "import threading\nwith threading.Semaphore(): pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 22, "end" = 43}]
+
+[[cases]]
+name="Semaphore-alias"
+comparison="full"
+files={"case.py" = "from threading import Semaphore as factory\nwith factory(): pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 48, "end" = 57}]
+
+[[cases]]
+name="BoundedSemaphore"
+comparison="full"
+files={"case.py" = "import threading\nwith threading.BoundedSemaphore(): pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 22, "end" = 50}]
+
+[[cases]]
+name="BoundedSemaphore-alias"
+comparison="full"
+files={"case.py" = "from threading import BoundedSemaphore as factory\nwith factory(): pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 55, "end" = 64}]
+
+[[cases]]
+name="module-alias"
+comparison="full"
+files={"case.py" = "import threading as t\nwith t.Lock(): pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 27, "end" = 35}]
+
+[[cases]]
+name="async-with"
+comparison="full"
+files={"case.py" = "import threading\nasync def f():\n    async with threading.Lock(): pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 47, "end" = 63}]
+
+[[cases]]
+name="arguments"
+comparison="full"
+files={"case.py" = "from threading import Semaphore\nwith Semaphore(value=3): pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 37, "end" = 55}]
+
+[[cases]]
+name="shared-lock"
+comparison="full"
+files={"case.py" = "import threading\nlock=threading.Lock()\nwith lock: pass\n"}
+expected=[]
+
+[[cases]]
+name="unrelated-lock"
+comparison="full"
+files={"case.py" = "from asyncio import Lock\nasync def f():\n    async with Lock(): pass\n"}
+expected=[]
+
+[[cases]]
+name="unresolved-name"
+comparison="full"
+files={"case.py" = "with Lock(): pass\n"}
+expected=[]
+
+[[cases]]
+name="local-module-shadow"
+comparison="full"
+files={"case.py" = "import threading\ndef f(threading):\n    with threading.Lock(): pass\n"}
+expected=[]
+
+[[cases]]
+name="local-factory-shadow"
+comparison="full"
+files={"case.py" = "from threading import Lock\ndef f(Lock):\n    with Lock(): pass\n"}
+expected=[]
+
+[[cases]]
+name="reassigned-module"
+comparison="full"
+files={"case.py" = "import threading\nthreading = other\nwith threading.Lock(): pass\n"}
+expected=[]
+
+[[cases]]
+name="reassigned-factory"
+comparison="full"
+files={"case.py" = "from threading import Lock\nLock = other\nwith Lock(): pass\n"}
+expected=[]
+
+[[cases]]
+name="deleted-import"
+comparison="full"
+files={"case.py" = "from threading import Lock\ndel Lock\nwith Lock(): pass\n"}
+expected=[]
+
+[[cases]]
+name="later-import"
+comparison="full"
+files={"case.py" = "with Lock(): pass\nfrom threading import Lock\n"}
+expected=[]
+
+[[cases]]
+name="local-constructor"
+comparison="full"
+files={"case.py" = "class Lock:\n    pass\nwith Lock(): pass\n"}
+expected=[]
+
+[[cases]]
+name="other-threading-api"
+comparison="full"
+files={"case.py" = "import threading\nwith threading.Event(): pass\n"}
+expected=[]
+
+[[cases]]
+name="nested-call"
+comparison="full"
+files={"case.py" = "import threading\nwith wrap(threading.Lock()): pass\n"}
+expected=[]
+
+[[cases]]
+name="multiple-locks"
+comparison="full"
+files={"case.py" = "import threading\nwith threading.Lock(), threading.RLock(): pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 22, "end" = 38}, {"rule" = "PLW2101", "file" = "case.py", "start" = 40, "end" = 57}]
+
+[[cases]]
+name="noncall-before-lock"
+comparison="full"
+files={"case.py" = "import threading\nwith shared, threading.Lock(): pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 30, "end" = 46}]
+
+[[cases]]
+name = "unrelated-call-before-lock"
+comparison = "full"
+files = { "case.py" = "import threading\nwith resource(), threading.Lock(): pass\n" }
+expected = [{ "rule" = "PLW2101", "file" = "case.py", "start" = 34, "end" = 50 }]
+reference-discrepancy = { "expected" = [], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "2180d320a0b5867c6b7dbe3c8427ba30fc6e7ccfa673e30929a7b22cba833184", "settings-sha256" = "ebf4728f05bed66ae4fe850765bdf3dced2599f24f495e4553afa6893e77e8af", "source-sha256" = "0373e4c5c3d5282a45d61443ac0d5a0f374790a3ad70a951f40bdb3e3772f2d0", "reference-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a", "intended-output-sha256" = "5641f8ead720b7822bd6ac75e2ffa1ec0ddd4900311bf29eafe3428897fdfaa8" }, "evidence" = [{ "path" = "evidence/cpython310-exact.json", "sha256" = "9615e14d0c6f92b0de61fcd0801c6d4c360f62e31518b53517bd3cf0bb34d809", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact source compile(dont_inherit=True) with a controlled resource context and observed real threading.Lock constructor: the earlier context call does not suppress evaluating the fresh-lock item. Target3.10 matches interpreter3.10.19." }, { "path" = "evidence/cpython310-exact.py", "sha256" = "beec1b0957aa0356dc78a94d6aa28b6054dc1b65fc0ac2075fecbf3a97786ffe", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Source of the exact independent run; actual threading.Lock is wrapped only to record construction and release. The controlled first context succeeds; every later context is still evaluated." }], "reason" = "All with-context items evaluate from left to right. A fresh lock in a later item is still constructed and immediately confined to that context; an earlier unrelated call does not exempt it from the ineffective-fresh-lock policy." }
+
+[[cases]]
+name="unrelated-call-after-lock"
+comparison="full"
+files={"case.py" = "import threading\nwith threading.Lock(), resource(): pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 22, "end" = 38}]
+
+[[cases]]
+name="suppressed"
+comparison="full"
+files={"case.py" = "import threading\nwith threading.Lock(): pass  # noqa: PLW2101\n"}
+expected=[]
+
+[[cases]]
+name="file-suppressed"
+comparison="full"
+files={"case.py" = "# ruff: noqa: PLW2101\nimport threading\nwith threading.Lock(): pass\n"}
+expected=[]
+
+[[cases]]
+name="different-noqa"
+comparison="full"
+files={"case.py" = "import threading\nwith threading.Lock(): pass  # noqa: F401\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 22, "end" = 38}]
+
+[[cases]]
+name="unicode"
+comparison="full"
+files={"case.py" = "import threading\nlabel=\"é\"\nwith threading.Lock(): pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 33, "end" = 49}]
+
+[[cases]]
+name="multiline"
+comparison="full"
+files={"case.py" = "import threading\nwith (\n    threading.Lock()\n):\n    pass\n"}
+expected=[{"rule" = "PLW2101", "file" = "case.py", "start" = 28, "end" = 44}]

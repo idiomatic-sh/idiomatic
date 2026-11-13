@@ -1,13 +1,12 @@
 //! The `reporting` service's cases, on values alone.
 
-use ryo_language::domain::relations::types::{FileId, Integer, Value as Cell};
+use ryo_relations::domain::relations::types::{FileId, Integer, Value as Cell};
 
-use ryo_values::domain::records::types::RowTotal;
+use ryo_values::domain::row_texts::types::RowTotal;
 
 use super::service::{order_found, report_refused, room_left, totals};
 use super::types::RowCounts;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::finish::types::{ColumnNumber, FileLine, FoundRow, Point, RuleNumber};
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::reasons::types::ToolMessage;
 use ryo_values::domain::descriptions::types::LanguageName;
@@ -15,6 +14,11 @@ use ryo_values::domain::records::types::Unread;
 use ryo_values::domain::records::types::Unreadable;
 use ryo_values::domain::runs::types::ManifestRefused;
 use ryo_values::domain::stored_facts::types::ReadFailure;
+use {
+    crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine,
+    crate::domain::finish::types::FoundRow, crate::domain::finish::types::Point,
+    ryo_values::domain::runs::types::RuleNumber,
+};
 
 /// What a row of the cases does.
 #[derive(Clone, Copy)]

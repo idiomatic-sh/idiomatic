@@ -1,7 +1,7 @@
 # The todo API in JavaScript on Hono, one rule, spec or template per row of the Tastemaker README's table. Each row has
 # one violation planted in the code and commented `// planted: <row>`, so `tm check` reports each row once.
 closed = false
-tastemaker = "0.1.0"
+tastemaker = "0.1.2"
 workspace = { name = "local", dependencies = [{ package = "local", path = "tastemaker" }] }
 rules = [
   { rule = "local/top-level-directories", include = ["."], params = { allowed = [

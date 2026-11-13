@@ -15,3 +15,7 @@ class Bench(typing.Protocol):
         """Runs `bench` of `product` in `tree` and returns each of its measures, `<benchmark>/<measure>`, with the value the
         bench reports for it; `label` names the run (`head`, `base-1`) where the document is kept."""
         ...
+
+    def required(self, tree: Path, product: str, bench: str) -> set[str] | None:
+        """Declared metric identities, independent of observed results; None means the legacy bench has no declared registry."""
+        return None

@@ -5,15 +5,18 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use ryo_core::outbound::facts::errors::FactsError;
-use ryo_core::outbound::facts::interface::{FactsFinish, FactsPort, FactsWorker};
-use ryo_core::outbound::facts::types::{ColumnsMut, WordsToKeep};
 use ryo_core::outbound::lint_store::errors::LintStoreError;
 use ryo_core::outbound::lint_store::interface::{LintStorePort, ReadStore};
-use ryo_language::domain::relations::types::ColumnsView;
-use ryo_language::domain::relations::types::Relation;
+use ryo_execution_runtime::outbound::facts::errors::FactsError;
+use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
+use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
+use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
+use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
+use ryo_relations::domain::relations::types::ColumnsView;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored, StoredHanded};
+use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored};
 
 /// The adapter, counting the words the files leave for the finish.
 pub(crate) struct Counting {
@@ -30,15 +33,26 @@ pub(crate) struct CountingWorker {
 }
 
 impl FactsWorker for CountingWorker {
+    fn resident_stability(
+        &self,
+    ) -> ryo_execution_runtime::outbound::facts::types::ResidentStability {
+        self.inner.resident_stability()
+    }
+
     fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
         self.inner.columns_mut()
     }
     fn rows(&self, relation: Relation) -> Result<ColumnsView<'_>, FactsError> {
         self.inner.rows(relation)
     }
-    fn keep(&mut self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
+    fn keep(&self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
         // A packed word ends at the byte whose high bit is clear: the count is of words, not of bytes.
-        let count = words.0.0.iter().filter(|byte| *byte & 0x80 == 0).count();
+        let count = words
+            .words
+            .0
+            .iter()
+            .filter(|byte| *byte & 0x80 == 0)
+            .count();
         let _before = self.words.fetch_add(count, Ordering::Relaxed);
         self.inner.keep(bucket, words)
     }
@@ -68,7 +82,7 @@ impl FactsPort for Counting {
 /// The complete emitted output and report of a run, which the cache must give again unchanged.
 pub(crate) struct Complete {
     /// The emitted columns, ordered cells, unread reasons and summary.
-    pub output: ryo_core::outbound::rows::types::Collected,
+    pub output: ryo_core::outbound::row_sink::types::Collected,
     /// The successful report, with its unknowns and work counters.
     pub report: ryo_core::inbound::use_cases::lint::types::LintReport,
 }
@@ -129,8 +143,40 @@ impl ReadStore for CountingRead {
     fn tables(&self) -> Stored {
         self.read.tables()
     }
-    fn handed(&self, wanted: &BucketsWanted) -> Result<StoredHanded, LintStoreError> {
+    fn handed(
+        &self,
+        wanted: &BucketsWanted,
+    ) -> Result<ryo_values::domain::stores::types::ReadHanded, LintStoreError> {
         self.read.handed(wanted)
+    }
+    fn stage_words(
+        &self,
+        words: ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<ryo_values::domain::records::types::RecordWords, LintStoreError> {
+        self.read.stage_words(words)
+    }
+    fn read_old(
+        &self,
+        words: &ryo_values::domain::stores::types::OldWords,
+        into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<(), LintStoreError> {
+        self.read.read_old(words, into)
+    }
+    fn read_staged(
+        &self,
+        words: &ryo_values::domain::records::types::StagedWords,
+        into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<(), LintStoreError> {
+        self.read.read_staged(words, into)
+    }
+    fn begin_old_rows(
+        &self,
+        _wanted: &BucketsWanted,
+    ) -> Result<
+        Option<Box<dyn ryo_core::outbound::lint_store::interface::OldRowBatch>>,
+        LintStoreError,
+    > {
+        Ok(None)
     }
     fn keep(&self, stored: Stored, kept: &KeptRows) -> Result<(), LintStoreError> {
         let mut files: Vec<u32> = stored
@@ -138,7 +184,9 @@ impl ReadStore for CountingRead {
             .frontier
             .iter()
             .map(|each| each.file.0)
+            .chain(kept.staged.iter().map(|each| each.file.0))
             .collect();
+        files.sort_unstable();
         files.dedup();
         self.handed_files.store(files.len(), Ordering::Relaxed);
         self.files_again

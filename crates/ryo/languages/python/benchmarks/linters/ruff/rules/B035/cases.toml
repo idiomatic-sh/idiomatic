@@ -1,0 +1,50 @@
+[[cases]]
+name = "static_integer_key"
+files = { "case.py" = "mapping = {0: value for value in values}\n" }
+expected = [{ rule = "B035", file = "case.py", start = 11, end = 12 }]
+
+[[cases]]
+name = "static_string_key"
+files = { "case.py" = "mapping = {\"fixed\": value for value in values}\n" }
+expected = [{ rule = "B035", file = "case.py", start = 11, end = 18 }]
+
+[[cases]]
+name = "iteration_variable_key"
+files = { "case.py" = "mapping = {value: value for value in values}\n" }
+expected = []
+
+[[cases]]
+name = "module_constant_attribute_key"
+files = { "case.py" = "mapping = {constants.KEY: value for value in values}\n" }
+expected = [{ rule = "B035", file = "case.py", start = 11, end = 24 }]
+
+[[cases]]
+name = "static_tuple_key"
+files = { "case.py" = "mapping = {(1, 2): value for value in values}\n" }
+expected = [{ rule = "B035", file = "case.py", start = 11, end = 17 }]
+
+[[cases]]
+name = "unbound_name_key_is_static"
+files = { "case.py" = "mapping = {FIXED: value for value in values}\n" }
+expected = [{ rule = "B035", file = "case.py", start = 11, end = 16 }]
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-static_integer_key"
+files = { "case.py" = "mapping = {0: value for value in values}  # noqa: E501, B035\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-static_integer_key"
+files = { "case.py" = "mapping = {0: value for value in values}  # noqa: E501,B035\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-static_integer_key"
+files = { "case.py" = "mapping = {0: value for value in values}  # noqa: B035 # why\n" }
+expected = []
+
+[[cases]]
+name = "redirect-source-noqa-suppresses"
+comparison = "full"
+files = { "case.py" = "mapping = {0: value for value in values}  # noqa: RUF011\n" }
+expected = []

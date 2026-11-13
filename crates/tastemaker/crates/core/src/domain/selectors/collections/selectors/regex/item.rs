@@ -45,6 +45,7 @@ impl SelectorsItem for RegexItem {
                 glob: GlobForm::Bound,
             }),
             values: context.values.clone(),
+            directories: Vec::new(),
         })))
     }
 }

@@ -1,0 +1,21 @@
+# use-case 0.1.3
+
+A group of the use case's cases may hold groups of its own: the group module and its test are placed at any depth beneath `use_case_test/` (`{*group}`, where 0.1.2 placed one level, `{group}`), and a group's test support `use_case_test/{*group}/fixtures.rs` is placed with `count = { min = 0 }`. A group module is `test-group-module@0.2.0`, held by `test-group-namespace@0.1.0`: it declares modules only, and a group that only gathers nested groups is a namespace. A group test, `use_case_test/{*group}/test.rs`, is a `unit-test` with its own case table and runners, as in 0.1.2, read by `test-shape` at any depth. The optional `service_test.rs` is a case table or the namespace of its groups, placed by `test-group-module@0.2.0` and held by `test-group-namespace` with `case-table = "exempt"`, which holds a case table to the skeleton the `unit-test` template writes. Scenarios `nested-use-case-test-group` (placed) and `nested-group-test-plain-scenario` (refused). Places `no-runtime-fixtures@0.2.0` and `public-fields@0.3.0`, where 0.1.2 named their earlier versions, so a product that places it locks one version of each rule. 0.1.2 is removed with this version, not kept as published: no lock names it, nothing has been released.
+
+Edited in place: the module file of a directory is `<dir>.rs` beside it, never `<dir>/mod.rs` (owner, 2026-11-11; `mod_module_files` denied by cargo-workspace 0.13.0). A group's module file is `use_case_test/<group>.rs`, at any depth, never `mod.rs` (`group-mod-rs-is-closed`). The optional `service_test.rs` is placed by `idiomatic.arch/service-test@0.1.0` (`kind = "use-case"`), whose scaffold is a case table.
+
+Edited in place: places `test-directory-layout@0.2.0`, which accepts a group's module file `use_case_test/<group>.rs` beside its directory; the group scenarios read that rule too (`then.only`), so a layout conflict shows.
+
+Edited in place: places `unit-cases@0.2.0`, which reads a namespace `*_test.rs` with the tables of its groups.
+
+Edited in place: the `unit-cases` entry also reads the group tests (`*_test/**/test.rs`), so a namespace `service_test.rs` is judged by its groups' rows (scenario `namespace-service-test-rows-in-its-groups` in concept).
+
+Edited in place: the `unit-cases` entry reads `*_test/**/*.rs` beside its own files, the flat groups and the group directories of a namespace test, which the rule reads only when its entry includes them.
+
+# use-case 0.1.2
+
+A use case places its test support along concept as `fixtures/<concept>.rs`, which `fixtures.rs` declares, with no contract: `contract-only-files` refuses only a directory below `fixtures/` and a file of another kind. The rules that excuse `fixtures.rs` excuse these files too.
+
+# use-case 0.1.1
+
+Places the corrected rules (`public-fields@0.2.0`, `constants-once@0.2.0`, `mirrored-types@0.2.0`, `no-json-in-process@0.4.0`) and the specs that place them at their corrected versions, where 0.1.0 named the earlier ones. Nothing else changes.

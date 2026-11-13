@@ -1,0 +1,77 @@
+{
+ "counts": {
+  "FAIL": 0,
+  "PASS": 1
+ },
+ "identity": {
+  "collector_sha256": "68af3283c411ebf816ebae148f4f137c2f366693dd3a5d3004e6d7dbffa94fd0",
+  "inventory_sha256": "02816f355dcbf13771a5dfdecb13ada8ddbde121049326efc466c9986db3b1d4",
+  "phase_registry_sha256": "4520b056ef5c94924be98477ee160c5405ddb9d4dc92dd40f72e78a23f959f0c",
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "worker_sha256": "bde1335bd1a8031cc8f2310f48b5b0baad182c8190c09e4d6dad0c8f8a99019b"
+ },
+ "provider": "ruff",
+ "rules": [
+  {
+   "case_count": 12,
+   "case_results_sha256": "11a5406bba8a04c9ba2086b59327425f0f6da0a68e51c9fc19cb244ff106049f",
+   "contract_only": 0,
+   "documented_discrepancies": 0,
+   "instance": {
+    "case_count": 12,
+    "cases_file": "rules/PLE0116/cases.toml",
+    "cases_sha256": "db28cecfd461a9cd42780f183f4b29987fa3f4cfdd9aaa371fe2e92d26fa3b18",
+    "effective_settings": {
+     "defaults": [
+      "PLE0116"
+     ],
+     "flags": {},
+     "parser_configuration": "python-target=3.7",
+     "performance": {
+      "diagnostics": {
+       "execution": false,
+       "joins": false,
+       "lifecycle_memory": false,
+       "prefixes": false,
+       "resource_routes": false,
+       "row_progress": false,
+       "selection_detail": false,
+       "steps": false,
+       "subplans": false
+      }
+     },
+     "project_context_mode": "isolated",
+     "rule_applicability": {
+      "PLE0116": "accepted-syntax"
+     }
+    },
+    "evidence_source_root": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0116",
+    "module_sha256": {
+     "python/ruff/noqa-blankets": "438d927c4ad3bedb056bdede908376ba11b39e27cff9b1d20eef5f0a2ba7bb64",
+     "python/ruff/noqa-codes": "93a60e7ff93e06ec119a96e07659582dc2a007b6e7f5eb0587213df7849422e1",
+     "python/ruff/noqa-heads": "bd663293ae9cd98162ff31fcda7db60562d90848f06ab4f1fde339bc76bf8642",
+     "python/ruff/noqa-line-map": "01cd5685c5ec8d55dd0cd8ad2305feb6d9df6c36ff3620fe0e3635cd156d2b57",
+     "python/ruff/noqa-locations": "bb1565408ec60c168ee5b82b76b1025dbe63f1f9ead2c2613e20801cc2f9a3b4",
+     "python/ruff/noqa-ranges": "eb0bcf792cf195a4d616fb7ee44979bbb4ac1c2220a269b6b37c5bd12a07ca01",
+     "python/ruff/noqa-suppressions": "7dbd11392fe7e37a2ae88ef03fd539a569ce4ffc687b489063fa294fc23dddcf",
+     "python/ruff/suppress-matches": "3cb6d0f8321d4364e8dfa1c4f31f2ff5281eea688d091417dc90d3cb160ca986"
+    },
+    "native_descriptor_sha256": null,
+    "native_settings": null,
+    "parser_configuration": "python-target=3.7",
+    "profile_sha256": "7b004004abc94cec309829cfc8c7583b4e5f5cf406fa109e2247eb6f7b8df11f",
+    "query_file": "rules/PLE0116/query.ryoql",
+    "query_sha256": "e98268b93320026d7684a07dc91d039a0de16070f2abee10d1a5451f9ed8d6a9",
+    "settings_scope": "target control settings",
+    "settings_source": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0116/benchmark.toml",
+    "settings_source_sha256": "8c03c6883b0c0e47f84dcca86cd92b9f8b95891a1a86ac51385e5149b3bcfbb3"
+   },
+   "raw_exact": 12,
+   "reason": null,
+   "rule_id": "PLE0116",
+   "status": "PASS"
+  }
+ ],
+ "run_state": "complete",
+ "schema": "benchmark-inventory/v1"
+}

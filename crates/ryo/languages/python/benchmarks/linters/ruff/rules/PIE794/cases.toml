@@ -1,0 +1,149 @@
+[[cases]]
+name = "direct"
+files = { "case.py" = "class C:\n    x = 1\n    x = 2\n" }
+expected = [{ file = "case.py", start = 23, end = 28 }]
+
+[[cases]]
+name = "annotated"
+files = { "case.py" = "class C:\n    x: int\n    x: str\n" }
+expected = [{ file = "case.py", start = 24, end = 30 }]
+
+[[cases]]
+name = "mixed"
+files = { "case.py" = "class C:\n    x = 1\n    x: int = 2\n" }
+expected = [{ file = "case.py", start = 23, end = 33 }]
+
+[[cases]]
+name = "self-reference"
+files = { "case.py" = "class C:\n    x = 1\n    x = x + 1\n" }
+expected = []
+
+[[cases]]
+name = "ignored-first"
+files = { "case.py" = "class C:\n    x = x + 1\n    x = 2\n" }
+expected = []
+
+[[cases]]
+name = "nested-reference"
+files = { "case.py" = "class C:\n    x = 1\n    x = f([x])\n" }
+expected = []
+
+[[cases]]
+name = "attribute-not-reference"
+files = { "case.py" = "class C:\n    x = 1\n    x = obj.x\n" }
+expected = [{ file = "case.py", start = 23, end = 32 }]
+
+[[cases]]
+name = "string-not-reference"
+files = { "case.py" = "class C:\n    x = 1\n    x = \"x\"\n" }
+expected = [{ file = "case.py", start = 23, end = 30 }]
+
+[[cases]]
+name = "nested-class"
+files = { "case.py" = "class C:\n    x = 1\n    class D:\n        x = 2\n" }
+expected = []
+
+[[cases]]
+name = "nested-suite"
+files = { "case.py" = "class C:\n    x = 1\n    if flag:\n        x = 2\n" }
+expected = []
+
+[[cases]]
+name = "module"
+files = { "case.py" = "x = 1\nx = 2\n" }
+expected = []
+
+[[cases]]
+name = "method"
+files = { "case.py" = "class C:\n    x = 1\n    def f(self):\n        x = 2\n" }
+expected = []
+
+[[cases]]
+name = "chain"
+files = { "case.py" = "class C:\n    x = y = 1\n    x = 2\n" }
+expected = []
+
+[[cases]]
+name = "tuple"
+files = { "case.py" = "class C:\n    x, y = values\n    x = 2\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "class C:\n    x = 1\n    x = 2  # noqa: PIE794\n" }
+expected = []
+
+[[cases]]
+name = "three"
+files = { "case.py" = "class C:\n    x = 1\n    x = 2\n    x = 3\n" }
+expected = [{ file = "case.py", start = 23, end = 28 }, { file = "case.py", start = 33, end = 38 }]
+
+[[cases]]
+name = "nfkc-semantic-identifier"
+files = { "case.py" = "class C:\n    x = 1\n    \uff58 = 2\n" }
+expected = [{ file = "case.py", start = 23, end = 30 }]
+
+[[cases]]
+name = "rooted-root-name-self-reference"
+files = { "case.py" = "class C:\n    x = 1\n    x = x\n    x = 2\n" }
+expected = [{ "rule" = "PIE794", "file" = "case.py", "start" = 33, "end" = 38 }]
+
+[[cases]]
+name = "rooted-lambda-default-intermediate-nodes"
+files = { "case.py" = "class C:\n    x = 1\n    x = lambda arg=x: 0\n    x = 2\n" }
+expected = [{ "rule" = "PIE794", "file" = "case.py", "start" = 47, "end" = 52 }]
+
+[[cases]]
+name = "rooted-lambda-parameter-is-not-name-expression"
+files = { "case.py" = "class C:\n    x = 1\n    x = lambda x: 0\n" }
+expected = [{ "rule" = "PIE794", "file" = "case.py", "start" = 23, "end" = 38 }]
+
+[[cases]]
+name = "rooted-lambda-shadowed-body-still-syntactic-self-reference"
+files = { "case.py" = "class C:\n    x = 1\n    x = lambda x: x\n    x = 2\n" }
+expected = [{ "rule" = "PIE794", "file" = "case.py", "start" = 43, "end" = 48 }]
+
+[[cases]]
+name = "rooted-comprehension-target-self-reference"
+files = { "case.py" = "class C:\n    x = 1\n    x = [1 for x in values]\n    x = 2\n" }
+expected = [{ "rule" = "PIE794", "file" = "case.py", "start" = 51, "end" = 56 }]
+
+[[cases]]
+name = "rooted-comprehension-nonself-name"
+files = { "case.py" = "class C:\n    x = 1\n    x = [value for other in values]\n" }
+expected = [{ "rule" = "PIE794", "file" = "case.py", "start" = 23, "end" = 54 }]
+
+[[cases]]
+name = "rooted-fstring-format-spec-self-reference"
+files = { "case.py" = "class C:\n    x = 1\n    x = f\"{1:{x}}\"\n    x = 2\n" }
+expected = [{ "rule" = "PIE794", "file" = "case.py", "start" = 42, "end" = 47 }]
+
+[[cases]]
+name = "rooted-fstring-literal-format-is-not-name"
+files = { "case.py" = "class C:\n    x = 1\n    x = f\"{1:x}\"\n" }
+expected = [{ "rule" = "PIE794", "file" = "case.py", "start" = 23, "end" = 35 }]
+
+[[cases]]
+name = "rooted-breadth-order-does-not-change-existence"
+files = { "case.py" = "class C:\n    x = 1\n    x = call(deep(other(1 + x)), shallow)\n    x = 2\n" }
+expected = [{ "rule" = "PIE794", "file" = "case.py", "start" = 65, "end" = 70 }]
+
+[[cases]]
+name = "rooted-unicode-multiline"
+files = { "case.py" = "class C:\n    café = 1\n    café = (\n        call(\n            café, other\n        )\n    )\n    café = 2\n" }
+expected = [{ "rule" = "PIE794", "file" = "case.py", "start" = 96, "end" = 105 }]
+
+[[cases]]
+name = "rooted-annotated-no-value-root-and-self-reference"
+files = { "case.py" = "class C:\n    x: int\n    x: int = x\n    x: int\n" }
+expected = [{ "rule" = "PIE794", "file" = "case.py", "start" = 39, "end" = 45 }]
+
+[[cases]]
+name = "rooted-distinct-class-owners"
+files = { "case.py" = "class A:\n    x = 1\n    x = call(other)\nclass B:\n    x = 1\n    x = call(deep(x))\n" }
+expected = [{ "rule" = "PIE794", "file" = "case.py", "start" = 23, "end" = 38 }]
+
+[[cases]]
+name = "rooted-reused-ids-two-files"
+files = { "a.py" = "class C:\n    x = 1\n    x = x\n    x = 2\n", "b.py" = "class C:\n    x = 1\n    x = [1 for x in values]\n    x = 2\n" }
+expected = [{ "rule" = "PIE794", "file" = "a.py", "start" = 33, "end" = 38 }, { "rule" = "PIE794", "file" = "b.py", "start" = 51, "end" = 56 }]

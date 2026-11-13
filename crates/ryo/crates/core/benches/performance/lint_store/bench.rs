@@ -9,7 +9,7 @@
 )]
 
 use ryo_core::outbound::lint_store::factory::{discard, memory, postcard};
-use ryo_core::outbound::lint_store::fixtures::fake::stored;
+use ryo_core::outbound::lint_store::fixtures::tables::stored;
 use ryo_core::outbound::lint_store::interface::LintStorePort;
 use ryo_core::outbound::lint_store::types::{BuildIdentity, CacheDirectory, Store};
 use ryo_values::domain::stores::types::{BucketsWanted, KeptRows};

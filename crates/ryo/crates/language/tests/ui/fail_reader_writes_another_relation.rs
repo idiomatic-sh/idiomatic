@@ -1,8 +1,8 @@
 //! reader_writes_another_relation: the compiler rejects this.
 
-use ryo_language::domain::relations::collections::relations::function::item::FunctionRow;
-use ryo_language::domain::relations::collections::relations::scope::item::ScopeRow;
-use ryo_language::domain::relations::types::{FileId, NodeId, Offset, Position, Rows, Span};
+use ryo_relations::domain::relations::collections::relations::function::item::FunctionRow;
+use ryo_relations::domain::relations::collections::relations::scope::item::ScopeRow;
+use ryo_relations::domain::relations::types::{FileId, NodeId, Offset, Position, Rows, Span};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::domain::elements::types::Tree;
 

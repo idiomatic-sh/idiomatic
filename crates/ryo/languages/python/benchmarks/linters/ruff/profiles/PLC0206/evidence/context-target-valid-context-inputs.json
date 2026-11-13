@@ -1,0 +1,32 @@
+[
+  {
+    "rule": "RUF051",
+    "name": "context-self-return-uninferred",
+    "source": "class Manager(dict):\n def __enter__(self): return self\n def __exit__(self,*args): pass\nmanager=Manager(x=1)\nwith manager as d:\n if \"x\" in d: del d[\"x\"]\nassert d is manager and d=={}\n"
+  },
+  {
+    "rule": "RUF051",
+    "name": "context-different-return-uninferred",
+    "source": "class Entry:\n def __contains__(self,key): return key==\"x\"\n def __delitem__(self,key): self.deleted=key\nclass Manager(dict):\n def __enter__(self): return Entry()\n def __exit__(self,*args): pass\nwith Manager() as d:\n if \"x\" in d: del d[\"x\"]\nassert d.deleted==\"x\" and not hasattr(d,\"pop\")\n"
+  },
+  {
+    "rule": "RUF051",
+    "name": "async-context-self-return-uninferred",
+    "source": "import asyncio\nclass Manager(dict):\n async def __aenter__(self): return self\n async def __aexit__(self,*args): pass\nasync def run():\n manager=Manager(x=1)\n async with manager as d:\n  if \"x\" in d: del d[\"x\"]\n assert d is manager and d=={}\nasyncio.run(run())\n"
+  },
+  {
+    "rule": "RUF051",
+    "name": "async-context-different-return-uninferred",
+    "source": "import asyncio\nclass Entry:\n def __contains__(self,key): return key==\"x\"\n def __delitem__(self,key): self.deleted=key\nclass Manager(dict):\n async def __aenter__(self): return Entry()\n async def __aexit__(self,*args): pass\nasync def run():\n async with Manager() as d:\n  if \"x\" in d: del d[\"x\"]\n assert d.deleted==\"x\" and not hasattr(d,\"pop\")\nasyncio.run(run())\n"
+  },
+  {
+    "rule": "FURB122",
+    "name": "context-different-return-uninferred",
+    "source": "import io\nclass Sink:\n def __init__(self): self.values=[]\n def write(self,value): self.values.append(value)\n def writelines(self,values): raise AssertionError(\"not equivalent\")\nclass Manager(io.StringIO):\n def __enter__(self): return Sink()\nwith Manager() as fp:\n for line in [\"a\",\"b\"]:\n  fp.write(line)\nassert fp.values==[\"a\",\"b\"] and not isinstance(fp,io.IOBase)\n"
+  },
+  {
+    "rule": "FURB129",
+    "name": "context-different-return-uninferred",
+    "source": "import io\nclass Source:\n def readlines(self): return [\"a\"]\n def __iter__(self): raise AssertionError(\"not equivalent\")\nclass Manager(io.StringIO):\n def __enter__(self): return Source()\nseen=[]\nwith Manager() as fp:\n for line in fp.readlines():\n  seen.append(line)\nassert seen==[\"a\"] and not isinstance(fp,io.IOBase)\n"
+  }
+]

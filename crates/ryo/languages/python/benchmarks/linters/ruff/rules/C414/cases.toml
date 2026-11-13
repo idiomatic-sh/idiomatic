@@ -1,0 +1,89 @@
+[[cases]]
+name = "list-list"
+comparison = "full"
+files = { "case.py" = "result = list(list(items))\n" }
+expected = [{ rule = "C414", file = "case.py", start = 9, end = 26 }]
+
+[[cases]]
+name = "tuple-list"
+comparison = "full"
+files = { "case.py" = "result = tuple(list(items))\n" }
+expected = [{ rule = "C414", file = "case.py", start = 9, end = 27 }]
+
+[[cases]]
+name = "set-tuple"
+comparison = "full"
+files = { "case.py" = "result = set(tuple(items))\n" }
+expected = [{ rule = "C414", file = "case.py", start = 9, end = 26 }]
+
+[[cases]]
+name = "sorted-list-with-outer-key"
+comparison = "full"
+files = { "case.py" = "result = sorted(list(items), key=key)\n" }
+expected = [{ rule = "C414", file = "case.py", start = 9, end = 37 }]
+
+[[cases]]
+name = "sorted-sorted-same-key"
+comparison = "full"
+files = { "case.py" = "result = sorted(sorted(items, key=key), key=key)\n" }
+expected = [{ rule = "C414", file = "case.py", start = 9, end = 48 }]
+
+[[cases]]
+name = "sorted-sorted-different-key"
+comparison = "full"
+files = { "case.py" = "result = sorted(sorted(items, key=first), key=second)\n" }
+expected = []
+
+[[cases]]
+name = "set-reversed"
+comparison = "full"
+files = { "case.py" = "result = set(reversed(items))\n" }
+expected = [{ rule = "C414", file = "case.py", start = 9, end = 29 }]
+
+[[cases]]
+name = "not-a-pair"
+comparison = "full"
+files = { "case.py" = "result = list(set(items))\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-builtin"
+comparison = "full"
+files = { "case.py" = "def list(value):\n    return value\nresult = list(list(items))\n" }
+expected = []
+
+[[cases]]
+name = "builtins-import-alias"
+comparison = "full"
+files = { "case.py" = "import builtins as b\nresult = b.list(b.list(items))\n" }
+expected = [{ rule = "C414", file = "case.py", start = 30, end = 51 }]
+
+[[cases]]
+name = "direct-builtin-import-alias"
+comparison = "full"
+files = { "case.py" = "from builtins import list as L\nresult = L(L(items))\n" }
+expected = [{ rule = "C414", file = "case.py", start = 40, end = 51 }]
+
+[[cases]]
+name = "sorted-sorted-no-keywords"
+comparison = "full"
+files = { "case.py" = "result = sorted(sorted(items))\n" }
+expected = [{ rule = "C414", file = "case.py", start = 9, end = 30 }]
+
+[[cases]]
+name = "noqa-suppression"
+comparison = "full"
+files = { "case.py" = "result = list(list(items))  # noqa: C414\n" }
+expected = []
+
+[[cases]]
+name = "code-in-the-reason-does-not-suppress"
+comparison = "full"
+files = { "case.py" = "result = list(list(items))  # noqa: E501 # C414\n" }
+expected = [{ "rule" = "C414", "file" = "case.py", "start" = 9, "end" = 26 }]
+
+[[cases]]
+name = "concatenated-codes-suppress"
+comparison = "full"
+files = { "case.py" = "result = list(list(items))  # noqa: E501C414\n" }
+expected = []

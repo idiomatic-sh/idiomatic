@@ -1,13 +1,16 @@
 description = "One outbound port of a core: the trait the core's use cases call, its contract every implementation runs, and its plain types, errors and schemas."
 why = "A port is a call across a boundary named in the core's own vocabulary: one trait, `<Name>Port`, and the contract rows the core's fake and every adapter run. Its types are plain data, its errors one enum, and it carries schemas only where its data has a shape we do not control. A name is the directory's stem and a file the snake_case of it. A persistent adapter receives its externally supplied resource or filesystem identity and, where the store is partitioned, typed partition binding through its factory; an existing directory binding needs no invented connection wrapper; methods take entities or IDs rather than asking callers to reopen or choose a storage partition. A store port speaks the core's own rows, never a whole-state image: its settings (the directory and the build) go to the factory, its reads are empty when the store is absent, of another build or undecodable, and each `keep_…` writes once, when the run succeeds, to a temporary file renamed over the store. A store port may exchange its product's flat tables together (`load() -> Tables`, `replace(Tables)`) when every run replaces them all, through that temporary file and rename; a nested whole-state value, or a write that replaces some of the tables and keeps the rest, is not that. Pure algorithm ports need neither a connection nor a partition. Contract cases prove partition isolation, stale-handle refusal and publication behavior where relevant; syntax rules do not establish those semantics. The nu-hex places each port."
 specs = [
-  { spec = "idiomatic.arch/adapter@0.2.0", include = ["adapters/{implementation}"], count = { min = 0 }, description = "The implementations of the port, one part each; a port the SDK exposes as an extension point has none, every other port has at least one." },
+  { spec = "idiomatic.arch/adapter@0.2.0", params = { core = "crate" }, include = ["adapters/{implementation}"], count = { min = 0 }, description = "The implementations of the port, one part each; a port the SDK exposes as an extension point has none, every other port has at least one." },
 ]
 templates = [
+  { template = "idiomatic.arch/value-module@0.1.0", file = "types/{value}.rs", count = { min = 0 }, description = "An optional behavior-owning boundary value module with its implementation and adjacent proof." },
+  { template = "idiomatic.arch/value@0.1.0", file = "types/{value}/value.rs", count = { min = 0 }, description = "A boundary value owns its private representation and invariant-preserving behavior; placement alone grants no workflow authority." },
+  { template = "idiomatic.arch/value-test@0.1.0", file = "types/{value}/value_test.rs", count = { min = 0 }, description = "Independent proof of the boundary value's behavior and refused construction or mutation where relevant." },
   # The adapters of the port: the list of its implementations, the factory the edge calls, and each implementation's module file. Each implementation is a part of kind adapter.
   { template = "adapters", file = "adapters.rs", count = { min = 0 }, description = "The list of the port's implementations, one module each." },
   { template = "factory", file = "factory.rs", count = { min = 0 }, description = "The functions an edge calls to build each adapter of the port from the connection and settings it passes in; no test of its own: each adapter it builds is proven by its own adapter_test.rs." },
-  { template = "adapter-module", file = "adapters/{implementation}.rs", count = { min = 0 }, description = "One implementation's module file, declaring its adapter, its test and its settings when it has them." },
+  { template = "idiomatic.arch/adapter-module@0.2.0", file = "adapters/{implementation}.rs", count = { min = 0 }, description = "One implementation's module file, declaring its adapter, its test and its settings when it has them." },
   { template = "idiomatic.arch/interface@0.1.0", file = "interface.rs", params = { kind = "port", exposed = { param = "exposed" }, methods = "one" }, description = "The part's one trait: a use case's `<Part>UseCase` declaring its one method, or a port's `<Part>Port`, in the core's own vocabulary." },
   { template = "fixtures", file = "fixtures.rs", description = "The port's test support module file, declaring its contract and its fake; the port's module file declares it under the `fixtures` gate." },
   { template = "contract", file = "fixtures/contract.rs", description = "A port's contract: the rows every implementation of the port must pass, run by the core's fake and by each of its adapters." },
@@ -20,6 +23,7 @@ templates = [
   { template = "idiomatic.arch/schemas-test@0.1.0", file = "schemas_test.rs", count = { min = 0 }, params = { kind = "port" }, description = "The accepted and the refused inputs of the part's schemas." },
 ]
 rules = [
+  { rule = "idiomatic.arch/value-companions@0.1.0", include = ["types/**"], description = "Every boundary value keeps its declared module, implementation and proof together; no arbitrary helper files are admitted." },
   { rule = "idiomatic.arch/no-vacuous-tests@0.1.0", include = ["*_test.rs"], description = "Proofs execute a real subject over nonempty cases." },
   { rule = "factory-name", include = ["factory.rs"], description = "Each function of a port's factory.rs is named for the adapter directory it builds." },
   { rule = "idiomatic.arch/kind-suffix@0.1.0", include = ["interface.rs"], params = { kind = "port", exposed = { param = "exposed" } }, description = "A use case's or a port's interface.rs declares exactly one pub trait, named <Dir>UseCase or <Dir>Port." },
@@ -29,7 +33,7 @@ rules = [
   { rule = "config-in-factory", include = ["factory.rs", "interface.rs"], description = "A type the factory takes is not taken again by a port method, and no port method takes a PathBuf, Directory, Settings or Budget: the factory injects configuration." },
   { rule = "contract-methods", include = ["interface.rs", "fixtures/contract.rs"], description = "A port's contract calls every method the port trait declares." },
   { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["types.rs"], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block." },
-  { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["types.rs"], description = "A part's types.rs declares at least one type." },
+  { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["types.rs", "types/*.rs", "types/*/value.rs"], description = "A part owns a nominal type directly or through its declared canonical behavior value." },
   { rule = "idiomatic.arch/public-fields@0.1.0", include = ["types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data." },
   { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["types.rs", "errors.rs"], description = "A part's types and errors are nominal types, never type aliases." },
   { rule = "idiomatic.arch/error-name@0.1.0", include = ["errors.rs"], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type." },
@@ -5873,7 +5877,7 @@ given.files.'src/outbound/names/factory.rs' = '''
 
 /// The memory names adapter, built from the clients the edge passes.
 #[must_use]
-pub fn memory(root: crate::domain::root::types::Root, budget: u64) -> impl crate::outbound::names::interface::NamesPort {
+pub fn memory(root: crate::outbound::names::types::Root, budget: u64) -> impl crate::outbound::names::interface::NamesPort {
     super::adapters::memory::adapter::NamesMemoryAdapter
 }
 '''
@@ -6604,7 +6608,7 @@ given.files.'src/outbound/names/factory.rs' = '''
 
 /// The memory names adapter, built from the clients the edge passes.
 #[must_use]
-pub fn memory(root: crate::domain::root::types::Root, budget: u64) -> impl crate::outbound::names::interface::NamesPort {
+pub fn memory(root: crate::outbound::names::types::Root, budget: u64) -> impl crate::outbound::names::interface::NamesPort {
     super::adapters::memory::adapter::NamesMemoryAdapter
 }
 '''
@@ -6682,3 +6686,55 @@ pub trait NamesPort {
     fn stored(&self, name: &str) -> Option<&'static str>;
 }
 '''
+
+[[scenarios]]
+id = "behavior-value-files-are-placed"
+scenario = "A boundary value uses the same exact module, implementation and adjacent proof roles as a concept value."
+given.at = 'src/outbound/{port}'
+given.params = { exposed = [] }
+given.files.'src/outbound/evidence/types/token.rs' = '''
+//! One value with behaviour: its declaration and impls, and its proof.
+pub mod value;
+#[cfg(test)]
+mod value_test;
+'''
+given.files.'src/outbound/evidence/types/token/value.rs' = '''
+//! One value: its declaration and its hand-written impls, trait impls included.
+pub struct Token(String);
+'''
+given.files.'src/outbound/evidence/types/token/value_test.rs' = '''
+//! Proves one value's behaviour.
+'''
+then.only = ['idiomatic.arch/port#closed']
+
+[[scenarios]]
+id = "behavior-value-rejects-arbitrary-helper"
+scenario = "The canonical value role admits no arbitrary helper implementation."
+given.at = 'src/outbound/{port}'
+given.params = { exposed = [] }
+given.files.'src/outbound/evidence/types/token/helper.rs' = 'pub fn bypass() {}'
+then.only = ['idiomatic.arch/port#closed']
+then.findings = [{ rule = 'idiomatic.arch/port#closed', path = 'src/outbound/evidence/types/token/helper.rs' }]
+
+[[scenarios]]
+id = "behavior-value-requires-proof"
+scenario = "A port value implementation needs its own adjacent proof."
+given.at = 'src/outbound/{port}'
+given.params = { exposed = [] }
+given.files.'src/outbound/evidence/types/token.rs' = 'pub mod value;'
+given.files.'src/outbound/evidence/types/token/value.rs' = 'pub struct Token(String);'
+then.only = ['idiomatic.arch/value-companions']
+then.findings = [{ rule = 'idiomatic.arch/value-companions', path = 'src/outbound/evidence/types/token/value.rs' }]
+
+[[scenarios]]
+id = "behavior-value-proof-cannot-belong-to-other-port"
+scenario = "A different port's value proof does not complete this port's value."
+given.at = 'src/outbound/{port}'
+given.params = { exposed = [] }
+given.files.'src/outbound/evidence/types/token.rs' = 'pub mod value;'
+given.files.'src/outbound/evidence/types/token/value.rs' = 'pub struct Token(String);'
+given.files.'src/outbound/other/types/token.rs' = 'pub mod value;'
+given.files.'src/outbound/other/types/token/value.rs' = 'pub struct Token(String);'
+given.files.'src/outbound/other/types/token/value_test.rs' = '// adjacent proof'
+then.only = ['idiomatic.arch/value-companions']
+then.findings = [{ rule = 'idiomatic.arch/value-companions', path = 'src/outbound/evidence/types/token/value.rs' }]

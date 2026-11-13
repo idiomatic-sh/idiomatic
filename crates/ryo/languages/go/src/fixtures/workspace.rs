@@ -1,9 +1,9 @@
 //! The rows the manifest relations must give for the project in `manifests/workspace/`.
 
 use ryo::languages::contract::{
-    AnalyzedSourceExpectedRow, FilePackageExpectedRow, ManifestExpected,
-    PackageDependencyExpectedRow, SourceDependencyExpectedRow, WorkspaceMemberExpectedRow, file,
-    name, span,
+    AnalyzedSourceExpectedRow, FilePackageExpectedRow, ManifestDiagnosticExpectedRow,
+    ManifestExpected, PackageDependencyExpectedRow, SourceDependencyExpectedRow,
+    WorkspaceMemberExpectedRow, file, name, span,
 };
 
 #[expect(
@@ -13,6 +13,15 @@ use ryo::languages::contract::{
 /// The rows every manifest relation must give for the project in `manifests/workspace/`.
 pub(super) fn expected() -> ManifestExpected {
     ManifestExpected::of("workspace")
+        .rows(&[ManifestDiagnosticExpectedRow {
+            file: file("skip/go.mod"),
+            span: span((1, 1), (1, 1)),
+            location_kind: name("file-origin"),
+            phase: name("parse"),
+            schema: name("go-module"),
+            code: name("invalid-go-mod"),
+            message: name("the go.mod has no module directive"),
+        }])
         .rows(&[
             AnalyzedSourceExpectedRow {
                 path: file("app/internal/greet/greet.go"),

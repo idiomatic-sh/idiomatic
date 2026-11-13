@@ -8,6 +8,68 @@
 use ryo::languages::Why;
 use ryo::languages::contract::{Expected, Unfilled, Unshown};
 
+/// Independently expected canonical lexical names.
+mod expression_shape {
+    include!("../../tests/fixtures/relations/expression_shape/expected.rs");
+}
+/// Primitive parsed-literal properties retain their source identity.
+mod literal_properties {
+    include!("../../tests/fixtures/relations/literal_properties/expected.rs");
+}
+/// Numeric parser payloads retain real source identity and exact integer values.
+mod numeric_literal {
+    include!("../../tests/fixtures/relations/numeric_literal/expected.rs");
+}
+/// Basic per-expression type classifications.
+mod expression_type {
+    include!("../../tests/fixtures/relations/expression_type/expected.rs");
+}
+/// Structured terminal outcomes for functions.
+mod function_terminal {
+    include!("../../tests/fixtures/relations/function_terminal/expected.rs");
+}
+/// Decoded text fragments are scoped to their owning f-string.
+mod format_specification {
+    include!("../../tests/fixtures/relations/format_specification/expected.rs");
+}
+mod bytes_literal {
+    include!("../../tests/fixtures/relations/bytes_literal/expected.rs");
+}
+mod interpolated_string_literal {
+    include!("../../tests/fixtures/relations/interpolated_string_literal/expected.rs");
+}
+/// Parser-target metadata is present even for an empty Python file.
+mod language_target {
+    include!("../../tests/fixtures/relations/language_target/expected.rs");
+}
+/// Normalized parser-owned constant expression keys.
+mod constant_key {
+    include!("../../tests/fixtures/relations/constant_key/expected.rs");
+}
+/// Percent-format outcomes retain parser status and source identity.
+mod format_parse {
+    include!("../../tests/fixtures/relations/format_parse/expected.rs");
+}
+/// Percent-format conversion fields retain argument order.
+mod format_field {
+    include!("../../tests/fixtures/relations/format_field/expected.rs");
+}
+/// Raw format token outcomes preserve source identity.
+mod raw_format_segment {
+    include!("../../tests/fixtures/relations/raw_format_segment/expected.rs");
+}
+/// Successful raw fields retain both local and global order.
+mod raw_format_field {
+    include!("../../tests/fixtures/relations/raw_format_field/expected.rs");
+}
+/// Independently expected identifier spellings.
+mod identifier {
+    include!("../../tests/fixtures/relations/identifier/expected.rs");
+}
+/// Independently specified lexical provenance fixtures.
+mod qualified_name {
+    include!("../../tests/fixtures/relations/qualified_name/expected.rs");
+}
 /// The rows the `resolves` relation must give for its fixture input.
 mod resolves {
     include!("../../tests/fixtures/relations/resolves/expected.rs");
@@ -64,6 +126,10 @@ mod static_call {
 mod static_import {
     include!("../../tests/fixtures/relations/static_import/expected.rs");
 }
+/// The rows the `standard-library-import` relation must give for its fixture.
+mod standard_library_import {
+    include!("../../tests/fixtures/relations/standard_library_import/expected.rs");
+}
 /// The rows the `string-literal` relation must give for its fixture.
 mod string_literal {
     include!("../../tests/fixtures/relations/string_literal/expected.rs");
@@ -81,9 +147,26 @@ mod syntax_tree {
     include!("../../tests/fixtures/relations/syntax_tree/expected.rs");
 }
 
+/// Independently expected source coordinates for a minimal input.
+mod source_location {
+    include!("../../tests/fixtures/relations/source_location/expected.rs");
+}
+
+/// The independently authored lexical-region fixture.
+mod indent_region {
+    include!("../../tests/fixtures/relations/indent_region/expected.rs");
+}
+
 /// The expected rows of every relation the language reads from trees, one entry for each.
 pub(super) fn expected() -> Vec<Expected> {
     vec![
+        binding_event::expected(),
+        binding_read::expected(),
+        binding_use::expected(),
+        binding_shadow::expected(),
+        implicit_symbol::expected(),
+        brace_format_parse::expected(),
+        brace_format_field::expected(),
         annotates::expected(),
         assigns::expected(),
         comment::expected(),
@@ -96,12 +179,37 @@ pub(super) fn expected() -> Vec<Expected> {
         scope::expected(),
         static_call::expected(),
         resolves::expected(),
+        qualified_name::expected(),
+        identifier::expected(),
+        expression_shape::expected(),
+        literal_properties::expected(),
+        numeric_literal::expected(),
+        token_link::expected(),
+        literal_expression_parse::expected(),
+        expression_type::expected(),
+        function_terminal::expected(),
+        interpolated_string_literal::expected(),
+        bytes_literal::expected(),
+        format_specification::expected(),
+        language_target::expected(),
+        compiler_feature::expected(),
+        constant_key::expected(),
+        format_parse::expected(),
+        format_field::expected(),
+        raw_format_segment::expected(),
+        raw_format_field::expected(),
         call_argument::expected(),
         static_import::expected(),
+        standard_library_import::expected(),
         string_literal::expected(),
         syntax_child::expected(),
+        semantic_child::expected(),
         syntax_error::expected(),
         syntax_tree::expected(),
+        semantic_syntax::expected(),
+        embedded_expression::expected(),
+        source_location::expected(),
+        indent_region::expected(),
     ]
 }
 
@@ -167,4 +275,69 @@ fn words(
         unshown: Unshown::Word(word),
         reason: Why(reason),
     })
+}
+
+/// Native syntax is preserved by the semantic projection.
+mod semantic_syntax {
+    include!("../../tests/fixtures/relations/semantic_syntax/expected.rs");
+}
+
+/// Native syntax is preserved by the semantic projection.
+mod semantic_child {
+    include!("../../tests/fixtures/relations/semantic_child/expected.rs");
+}
+
+/// Independent source mapping and owner identity for a quoted annotation.
+mod embedded_expression {
+    include!("../../tests/fixtures/relations/embedded_expression/expected.rs");
+}
+
+/// Syntactic outcomes preserve original carrier identity and span.
+mod literal_expression_parse {
+    include!("../../tests/fixtures/relations/literal_expression_parse/expected.rs");
+}
+
+/// A valid Python module future mode comes from the frontend-owned compiler flag.
+mod compiler_feature {
+    include!("../../tests/fixtures/relations/compiler_feature/expected.rs");
+}
+
+/// Canonical positive fixture for `binding_event`.
+mod binding_event {
+    include!("../../tests/fixtures/relations/binding_event/expected.rs");
+}
+
+/// Canonical positive fixture for `binding_read`.
+mod binding_read {
+    include!("../../tests/fixtures/relations/binding_read/expected.rs");
+}
+
+/// Canonical positive fixture for `binding_use`.
+mod binding_use {
+    include!("../../tests/fixtures/relations/binding_use/expected.rs");
+}
+
+/// Canonical positive fixture for `binding_shadow`.
+mod binding_shadow {
+    include!("../../tests/fixtures/relations/binding_shadow/expected.rs");
+}
+
+/// Canonical positive fixture for `implicit_symbol`.
+mod implicit_symbol {
+    include!("../../tests/fixtures/relations/implicit_symbol/expected.rs");
+}
+
+/// Canonical positive fixture for `brace_format_parse`.
+mod brace_format_parse {
+    include!("../../tests/fixtures/relations/brace_format_parse/expected.rs");
+}
+
+/// Canonical positive fixture for `brace_format_field`.
+mod brace_format_field {
+    include!("../../tests/fixtures/relations/brace_format_field/expected.rs");
+}
+
+/// Optional physical lexical edges over existing token IDs.
+mod token_link {
+    include!("../../tests/fixtures/relations/token_link/expected.rs");
 }

@@ -1,0 +1,30 @@
+{
+  "description": "The Django differences between ryo and the pinned Ruff 0.16.5 that Ruff parity accepts, each pinned by finding. The Ruff benchmark's parity command (asymptote tool performance-python-ruff-parity) reads this file and refuses it before either contestant runs for a request whose corpus digest (its file list and sealed context entries, as the benchmark's canonical text spells them) differs, or when a rule is named twice. Any unmatched finding not named here, any named finding that no longer occurs and any end-position difference fails the run.",
+  "corpus": "37e6bfef83fd9a9e098bab0b6788da60f94c21801c1b009b5ad11a61a2a08ee1",
+  "differences": [
+    {
+      "rule": "FURB122",
+      "reason": "django/utils/translation/template.py writes in loops through out = StringIO(\"\") (from io import StringIO). The pinned Ruff 0.16.5 treats only open(), io.open(), io.open_code(), os.open() and pathlib.Path(...).open() initializers as IO objects, so it omits these loops; ryo reports them under the certified reference discrepancy io-binding-4 in rules/FURB122/cases.toml, whose CPython 3.10 evidence (profiles/FURB122/evidence/independent-io-cpython310.json) shows io.StringIO is a TextIOBase with write and writelines.",
+      "findings": [
+        {
+          "kind": "extra",
+          "file": "django/utils/translation/template.py",
+          "line": 108,
+          "column": 25
+        },
+        {
+          "kind": "extra",
+          "file": "django/utils/translation/template.py",
+          "line": 208,
+          "column": 21
+        },
+        {
+          "kind": "extra",
+          "file": "django/utils/translation/template.py",
+          "line": 224,
+          "column": 21
+        }
+      ]
+    }
+  ]
+}

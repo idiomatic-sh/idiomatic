@@ -1,7 +1,15 @@
+# A variant with a `#[from]` field is constructed: the derived `From` impl builds it whenever `?` converts (owner, checkpoint 336), so
+# `InvalidRuffSchema` (crates/ruff_server/src/session/settings.rs) and `VersionsParseError` (crates/ty_module_resolver/src/settings.rs),
+# both `#[from]`, are no longer findings. The six `FormatSpecError` variants of crates/ruff_python_literal/src/format.rs from
+# `PlaceholderRecursionExceeded` to `NotImplemented` are findings: no expression of ruff names `FormatSpecError::` with any of them.
 rows = [
   { path = "crates/ruff_formatter/src/diagnostics.rs", key = "1295..1305" },
+  { path = "crates/ruff_python_literal/src/format.rs", key = "12898..12926" },
+  { path = "crates/ruff_python_literal/src/format.rs", key = "12932..12949" },
   { path = "crates/ruff_python_literal/src/format.rs", key = "12967..12984" },
+  { path = "crates/ruff_python_literal/src/format.rs", key = "13010..13029" },
+  { path = "crates/ruff_python_literal/src/format.rs", key = "13035..13045" },
+  { path = "crates/ruff_python_literal/src/format.rs", key = "13065..13080" },
   { path = "crates/ruff_python_literal/src/format.rs", key = "13086..13100" },
-  { path = "crates/ruff_server/src/session/settings.rs", key = "5065..5082" },
-  { path = "crates/ty_module_resolver/src/settings.rs", key = "3233..3251" },
+  { path = "crates/ruff_python_literal/src/format.rs", key = "13106..13120" },
 ]

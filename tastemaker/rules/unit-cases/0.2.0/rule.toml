@@ -1,0 +1,639 @@
+description = "A part's unit test, its own table or, when it is the namespace of its groups, the tables of the groups beneath `<part>_test/`, has at least one `succeeds` row, and a `refuses` row where the errors.rs beside it has a variant of its own, one that wraps no other error with `#[from]`."
+why = "A part's test states what the part does and what it refuses, so a table with no `succeeds` row proves nothing happens and a part with a variant of its own and no `refuses` row proves none of them; a variant that wraps another error (`#[from]`) is a dependency's failure, which a `fails` row states, so a part with only those owes no `refuses` row. Read as written: in each `*_test.rs`, a record field `word:` whose value is `Word::Succeeds`; and where the file is a part's main test (`service`, `use_case`, `adapter`, `item`, `schemas`, `command`, `entry`) and a variant with no `#[from]` field attribute is declared in the `errors.rs` of the same directory, one with `Word::Refuses`. A component explicitly constructing a declared wrapped dependency variant requires a `fails` row. Implicit From propagation across arbitrary traits is not inferred; its dependency outcomes need runtime evidence. Shared unused wrappers do not create obligations. Infallible components require no invented failure. A row written by a macro is not seen."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let files = select * from tree-nodes where kind = "source-file";
+let all-tests = capture(from=files, path="file", pattern="{*dir}/{part}_test.rs", captures=["dir", "part"]);
+let own-tests = select * from all-tests where not glob_any(file, "**/*_test/**");
+let unit-tests = project(from=own-tests, columns=["file", "span", "dir", "part"]);
+let main-tests = select * from unit-tests where glob_any(part, "{service,use_case,adapter,item,schemas,command,entry}");
+let fields = select * from tree-nodes where kind = "record-expr-field";
+let field-edges = select l."id" as "field", l."file" as "file", r."child" as "node" from fields as l join "syntax-child" as r on l."id" = r."parent";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let field-names = select l."field" as "field", l."file" as "file", l."node" as "ref" from field-edges as l join name-refs as r on l."node" = r."id";
+let field-name-tokens = select l."field" as "field", l."file" as "file", r."child" as "token" from field-names as l join "syntax-child" as r on l."ref" = r."parent";
+let field-name-texts = select l."field" as "field", l."file" as "file", r."text" as "text" from field-name-tokens as l join tree-tokens as r on l."token" = r."id";
+let word-fields = select * from field-name-texts where text = "word";
+let word-field-ids = project(from=word-fields, columns=["field"]);
+let path-exprs = select * from tree-nodes where kind = "path-expr";
+let value-exprs = select l."field" as "field", l."file" as "file", l."node" as "expr" from field-edges as l join path-exprs as r on l."node" = r."id";
+let word-values = select l."file" as "file", l."expr" as "expr" from value-exprs as l join word-field-ids as r on l."field" = r."field";
+let expr-edges = select l."file" as "file", l."expr" as "expr", r."child" as "node" from word-values as l join "syntax-child" as r on l."expr" = r."parent";
+let paths = select * from tree-nodes where kind = "path";
+let expr-paths = select l."file" as "file", l."expr" as "expr", l."node" as "word-path" from expr-edges as l join paths as r on l."node" = r."id";
+let word-path-edges = select l."file" as "file", l."expr" as "expr", r."child" as "node" from expr-paths as l join "syntax-child" as r on l."word-path" = r."parent";
+let segments = select * from tree-nodes where kind = "path-segment";
+let word-segments = select l."file" as "file", l."expr" as "expr", l."node" as "segment" from word-path-edges as l join segments as r on l."node" = r."id";
+let segment-edges = select l."file" as "file", l."expr" as "expr", r."child" as "node" from word-segments as l join "syntax-child" as r on l."segment" = r."parent";
+let word-refs = select l."file" as "file", l."expr" as "expr", l."node" as "ref" from segment-edges as l join name-refs as r on l."node" = r."id";
+let ref-edges = select l."file" as "file", l."expr" as "expr", r."child" as "token" from word-refs as l join "syntax-child" as r on l."ref" = r."parent";
+let own-words = select l."file" as "file", r."text" as "word" from ref-edges as l join tree-tokens as r on l."token" = r."id";
+let group-word-files = capture(from=own-words, path="file", pattern="{*dir}/{part}_test/{*rest}", captures=["dir", "part", "rest"]);
+let group-words = select r."file" as "file", l."word" as "word" from group-word-files as l join unit-tests as r on l."dir" = r."dir" and l."part" = r."part";
+let words = union(left=own-words, right=group-words);
+let succeeding = select * from words where word = "Succeeds";
+let succeeding-paths = project(from=succeeding, columns=["file"]);
+let refusing = select * from words where word = "Refuses";
+let refusing-paths = project(from=refusing, columns=["file"]);
+let without-succeeds = antijoin(left=unit-tests, right=succeeding-paths, left-on=["file"], right-on=["file"]);
+let succeeds-rows = project(from=without-succeeds, columns=["file", "span"]);
+let succeeds-findings = extend(from=succeeds-rows, values={"problem": "has no `succeeds` row"});
+let variants = select * from tree-nodes where kind = "variant";
+let error-variants = capture(from=variants, path="file", pattern="{*dir}/errors.rs", captures=["dir"]);
+let v-attributes = select * from tree-nodes where kind = "attr";
+let v-attribute-nodes = axis(from=error-variants, relation="syntax-child", direction=descendant, domain=v-attributes);
+let v-attribute-ids = project(from=v-attribute-nodes, columns=["id", "related"]);
+let v-meta-edges = select l."id" as "variant", r."child" as "child" from v-attribute-ids as l join "syntax-child" as r on l."related" = r."parent";
+let v-metas = select * from tree-nodes where glob_any(kind, "*-meta");
+let v-attribute-metas = select l."variant" as "variant", r."id" as "meta" from v-meta-edges as l join v-metas as r on l."child" = r."id";
+let v-meta-path-edges = select l."variant" as "variant", r."child" as "child" from v-attribute-metas as l join "syntax-child" as r on l."meta" = r."parent";
+let v-paths = select * from tree-nodes where kind = "path";
+let v-meta-paths = select l."variant" as "variant", r."id" as "path-node" from v-meta-path-edges as l join v-paths as r on l."child" = r."id";
+let v-segment-edges = select l."variant" as "variant", r."child" as "child" from v-meta-paths as l join "syntax-child" as r on l."path-node" = r."parent";
+let v-segments = select * from tree-nodes where kind = "path-segment";
+let v-meta-segments = select l."variant" as "variant", r."id" as "segment" from v-segment-edges as l join v-segments as r on l."child" = r."id";
+let v-ref-edges = select l."variant" as "variant", r."child" as "child" from v-meta-segments as l join "syntax-child" as r on l."segment" = r."parent";
+let v-name-refs = select * from tree-nodes where kind = "name-ref";
+let v-meta-refs = select l."variant" as "variant", r."id" as "ref" from v-ref-edges as l join v-name-refs as r on l."child" = r."id";
+let v-token-edges = select l."variant" as "variant", r."child" as "token" from v-meta-refs as l join "syntax-child" as r on l."ref" = r."parent";
+let v-idents = select * from tree-tokens where kind = "ident";
+let v-attribute-words = select l."variant" as "variant", r."text" as "text" from v-token-edges as l join v-idents as r on l."token" = r."id";
+let v-from-words = select * from v-attribute-words where text = "from";
+let v-wrapping = project(from=v-from-words, columns=["variant"]);
+let own-variants = antijoin(left=error-variants, right=v-wrapping, left-on=["id"], right-on=["variant"]);
+let variant-dirs = project(from=own-variants, columns=["dir"]);
+let needing = select l."file" as "file", l."span" as "span" from main-tests as l join variant-dirs as r on l."dir" = r."dir";
+let without-refuses = antijoin(left=needing, right=refusing-paths, left-on=["file"], right-on=["file"]);
+let refuses-rows = project(from=without-refuses, columns=["file", "span"]);
+let refuses-findings = extend(from=refuses-rows, values={"problem": "has no `refuses` row though the errors.rs beside it has a variant of its own, one that wraps no other error with `#[from]`"});
+let failing = select * from words where word = "Fails";
+let failing-paths = project(from=failing, columns=["file"]);
+let wrapped-errors = select l."id" as "id", l."dir" as "dir" from error-variants as l join v-wrapping as r on l."id" = r."variant";
+let declaration-names = select * from tree-nodes where kind = "name";
+let enum-nodes = select * from tree-nodes where kind = "enum";
+let wrapped-enums = axis(from=wrapped-errors, relation="syntax-child", direction=ancestor, domain=enum-nodes);
+let enum-name-edges = select l."id" as "variant-id", r."child" as "child" from wrapped-enums as l join "syntax-child" as r on l."related" = r."parent";
+let enum-names = select l."variant-id" as "variant-id", r."id" as "id" from enum-name-edges as l join declaration-names as r on l."child" = r."id";
+let enum-token-edges = select l."variant-id" as "variant-id", r."child" as "child" from enum-names as l join "syntax-child" as r on l."id" = r."parent";
+let enum-words = select l."variant-id" as "variant-id", r."text" as "error" from enum-token-edges as l join v-idents as r on l."child" = r."id";
+let wrapped-name-edges = select l."id" as "variant-id", l."dir" as "dir", r."child" as "child" from wrapped-errors as l join "syntax-child" as r on l."id" = r."parent";
+let wrapped-names = select l."variant-id" as "variant-id", l."dir" as "dir", r."id" as "id" from wrapped-name-edges as l join declaration-names as r on l."child" = r."id";
+let wrapped-token-edges = select l."variant-id" as "variant-id", l."dir" as "dir", r."child" as "child" from wrapped-names as l join "syntax-child" as r on l."id" = r."parent";
+let variant-words = select l."variant-id" as "variant-id", l."dir" as "dir", r."text" as "variant" from wrapped-token-edges as l join v-idents as r on l."child" = r."id";
+let wrapped-words = select l."dir" as "dir", l."variant" as "variant", r."error" as "error" from variant-words as l join enum-words as r on l."variant-id" = r."variant-id";
+let qualified-calls = capture(from="static-call", path="target", pattern="{*qualifier}::{variant}", captures=["qualifier", "variant"]);
+let component-calls = capture(from=qualified-calls, path="file", pattern="{*dir}/{part}.rs", captures=["dir", "part"]);
+let wrapped-calls = select l."dir" as "dir", l."part" as "part" from component-calls as l join wrapped-words as r on l."dir" = r."dir" and l."variant" = r."variant" and l."qualifier" = r."error";
+let effect-tests = select * from main-tests where glob_any(part, "{service,use_case,adapter,command,entry}");
+let needing-failure = select l."file" as "file", l."span" as "span" from effect-tests as l join wrapped-calls as r on l."dir" = r."dir" and l."part" = r."part";
+let without-fails = antijoin(left=needing-failure, right=failing-paths, left-on=["file"], right-on=["file"]);
+let fails-rows = project(from=without-fails, columns=["file", "span"]);
+let fails-findings = extend(from=fails-rows, values={"problem": "has no `fails` row though the component explicitly constructs a declared wrapped dependency failure"});
+let local-findings = union(left=succeeds-findings, right=refuses-findings);
+let findings = union(left=local-findings, right=fails-findings);
+emit findings subject "file" key("span", "problem");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this test {problem}"
+help = "Add the row to the file's `CASES`: a `succeeds` row naming the value the part returns, and a `refuses` row naming the error variant for an input the part refuses. A part whose errors only wrap its dependencies' (`#[from]`) states them as `fails` rows and needs no `refuses` row; with a variant of its own it states that one as a `refuses` row beside them. Static dependency enforcement recognizes explicit wrapped-variant construction; implicit From propagation across arbitrary traits still needs runtime evidence."
+
+[[scenarios]]
+id = 'wrapped-dependency-needs-failure'
+scenario = "A service that wraps a dependency's error needs a failure row in its test, and is reported without one."
+given.files.'src/read/errors.rs' = 'pub enum Failure { Read(#[from] ReadError) }'
+given.files.'src/read/service.rs' = 'fn read(error: ReadError) -> Failure { Failure::Read(error) }'
+given.files.'src/read/service_test.rs' = 'const CASES: &[Case] = &[Case { word: Word::Succeeds }];'
+then.findings = [
+  { path = 'src/read/service_test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'wrapped-dependency-with-failure'
+scenario = "A service that wraps a dependency's error, with a test that has the failure row, is not reported."
+given.files.'src/read/errors.rs' = 'pub enum Failure { Read(#[from] ReadError) }'
+given.files.'src/read/service.rs' = 'fn read(error: ReadError) -> Failure { Failure::Read(error) }'
+given.files.'src/read/service_test.rs' = 'const CASES: &[Case] = &[Case { word: Word::Succeeds }, Case { word: Word::Fails }];'
+
+[[scenarios]]
+id = 'infallible-operation-needs-no-invented-error'
+scenario = 'An operation that cannot fail needs no invented error row and is not reported.'
+given.files.'src/read/service_test.rs' = 'const CASES: &[Case] = &[Case { word: Word::Succeeds }];'
+
+[[scenarios]]
+id = 'schemas-share-errors-without-calling-dependencies'
+scenario = 'Schemas that share errors without calling a dependency need no failure row and are not reported.'
+given.files.'src/read/errors.rs' = 'pub enum Failure { Read(#[from] ReadError) }'
+given.files.'src/read/schemas_test.rs' = 'const CASES: &[Case] = &[Case { word: Word::Succeeds }];'
+
+[[scenarios]]
+id = 'unused-wrapper-with-local-refusal-propagation'
+scenario = 'An unused wrapper beside a refusal the service propagates itself is not reported.'
+given.files.'src/read/errors.rs' = 'pub enum Failure { Local, Read(#[from] ReadError) }'
+given.files.'src/read/service.rs' = 'fn check() -> Result<(), Failure> { Err(Failure::Local) } fn read() -> Result<(), Failure> { check()?; Ok(()) }'
+given.files.'src/read/service_test.rs' = 'const CASES: &[Case] = &[Case { word: Word::Succeeds }, Case { word: Word::Refuses }];'
+
+[[scenarios]]
+id = 'unrelated-qualified-constructor-is-not-a-wrapper'
+scenario = 'A qualified constructor of an unrelated type is not mistaken for a wrapper and is not reported.'
+given.files.'src/read/errors.rs' = 'pub enum Failure { Read(#[from] ReadError) }'
+given.files.'src/read/service.rs' = 'fn read() -> Other { Other::Read(3) }'
+given.files.'src/read/service_test.rs' = 'const CASES: &[Case] = &[Case { word: Word::Succeeds }];'
+
+[[scenarios]]
+id = 'table-succeeds-refuses-row'
+scenario = 'A table with a succeeds and a refuses row.'
+given.include = ['**/*_test.rs', '**/errors.rs']
+given.files.'src/greeting/domain/short/errors.rs' = '''
+//! The short concept's failures.
+
+/// Why a short operation failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ShortError {
+    /// The input was empty.
+    #[error("empty")]
+    Empty,
+}
+'''
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+    Case { name: "zero is refused", word: Word::Refuses, input: zero, expect: Expect::Error(Failure::Empty) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+
+[[scenarios]]
+id = 'no-variants'
+scenario = 'An errors.rs without variants.'
+given.include = ['**/*_test.rs', '**/errors.rs']
+given.files.'src/greeting/domain/short/errors.rs' = '''
+//! The short concept's failures.
+
+/// Why a short operation failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ShortError {}
+'''
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+
+[[scenarios]]
+id = 'no-errors-file'
+scenario = 'No errors.rs at all.'
+given.include = ['**/*_test.rs', '**/errors.rs']
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+
+[[scenarios]]
+id = 'no-succeeds'
+scenario = 'No succeeds row: it is reported.'
+given.include = ['**/*_test.rs', '**/errors.rs']
+given.files.'src/greeting/domain/short/errors.rs' = '''
+//! The short concept's failures.
+
+/// Why a short operation failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ShortError {
+    /// The input was empty.
+    #[error("empty")]
+    Empty,
+}
+'''
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "zero is refused", word: Word::Refuses, input: zero, expect: Expect::Error(Failure::Empty) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { path = 'src/greeting/domain/short/service_test.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'empty-table'
+scenario = 'An empty table: it is reported.'
+given.include = ['**/*_test.rs', '**/errors.rs']
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { path = 'src/greeting/domain/short/service_test.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'no-refuses'
+scenario = 'Variants and no refuses row.'
+given.include = ['**/*_test.rs', '**/errors.rs']
+given.files.'src/greeting/domain/short/errors.rs' = '''
+//! The short concept's failures.
+
+/// Why a short operation failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ShortError {
+    /// The input was empty.
+    #[error("empty")]
+    Empty,
+}
+'''
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { path = 'src/greeting/domain/short/service_test.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'fails-without-refuses'
+scenario = 'A fails row does not stand for a refuses row.'
+given.include = ['**/*_test.rs', '**/errors.rs']
+given.files.'src/greeting/domain/short/errors.rs' = '''
+//! The short concept's failures.
+
+/// Why a short operation failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ShortError {
+    /// The input was empty.
+    #[error("empty")]
+    Empty,
+}
+'''
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+    Case { name: "the store fails", word: Word::Fails, input: one, expect: Expect::Error(Failure::Store) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { path = 'src/greeting/domain/short/service_test.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'wrapper-only'
+scenario = 'Errors that only wrap other errors, stated as a fails row, need no refuses row.'
+given.include = ['**/*_test.rs', '**/errors.rs']
+given.files.'src/greeting/domain/short/errors.rs' = '''
+//! The short concept's failures.
+
+use crate::outbound::names::errors::NamesError;
+
+/// Why a short operation failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ShortError {
+    /// The names port refused the name.
+    #[error("the names port refused the name")]
+    Names(#[from] NamesError),
+    /// The store failed.
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+}
+'''
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+    Case { name: "the names port fails", word: Word::Fails, input: one, expect: Expect::Error(Failure::Names(NamesError::Missing)) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+'''
+
+[[scenarios]]
+id = 'mixed-without-refuses'
+scenario = 'A variant of its own beside a wrapping one still needs a refuses row.'
+given.include = ['**/*_test.rs', '**/errors.rs']
+given.files.'src/greeting/domain/short/errors.rs' = '''
+//! The short concept's failures.
+
+use crate::outbound::names::errors::NamesError;
+
+/// Why a short operation failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ShortError {
+    /// The input was empty.
+    #[error("empty")]
+    Empty,
+    /// The names port refused the name.
+    #[error("the names port refused the name")]
+    Names(#[from] NamesError),
+}
+'''
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+    Case { name: "the names port fails", word: Word::Fails, input: one, expect: Expect::Error(Failure::Names(NamesError::Missing)) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+'''
+then.findings = [
+  { path = 'src/greeting/domain/short/service_test.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'namespace-whose-groups-hold-the-rows'
+scenario = 'A `service_test.rs` that only declares its groups is read with the tables of its groups: their `succeeds` and `refuses` rows are its rows, and it passes.'
+given.include = ['**/*.rs']
+given.files.'src/greeting/domain/short/errors.rs' = '''
+//! The short concept's failures.
+
+/// Why a short operation failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ShortError {
+    /// The input was empty.
+    #[error("empty")]
+    Empty,
+}
+'''
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! The short service's cases, in groups.
+
+#[cfg(test)]
+mod order;
+'''
+given.files.'src/greeting/domain/short/service_test/order.rs' = '#[cfg(test)] pub(super) mod test;'
+given.files.'src/greeting/domain/short/service_test/order/test.rs' = '''
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+    Case { name: "zero is refused", word: Word::Refuses, input: zero, expect: Expect::Error(Failure::Empty) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'namespace-whose-groups-refuse-nothing'
+scenario = 'A namespace `service_test.rs` whose groups hold no `refuses` row, beside an errors.rs with a variant of its own, is reported at it.'
+given.include = ['**/*.rs']
+given.files.'src/greeting/domain/short/errors.rs' = '''
+//! The short concept's failures.
+
+/// Why a short operation failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ShortError {
+    /// The input was empty.
+    #[error("empty")]
+    Empty,
+}
+'''
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! The short service's cases, in groups.
+
+#[cfg(test)]
+mod order;
+'''
+given.files.'src/greeting/domain/short/service_test/order.rs' = '#[cfg(test)] pub(super) mod test;'
+given.files.'src/greeting/domain/short/service_test/order/test.rs' = '''
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { path = 'src/greeting/domain/short/service_test.rs', line = 3 },
+]
+[[scenarios]]
+id = 'namespace-read-through-the-language-placement'
+scenario = 'The same namespace read through the include the language placement gives, the files beside the part and their group tests (`src/domain/*/*.rs`, `src/domain/*/*_test/**/test.rs`): its groups are read, and it passes. The rule reads only the files its entry includes, so each entry that places it on a part also includes the group tests of the part.'
+given.include = ['src/greeting/domain/*/*.rs', 'src/greeting/domain/*/*_test/**/*.rs']
+given.files.'src/greeting/domain/short/errors.rs' = '''
+//! The short concept's failures.
+
+/// Why a short operation failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ShortError {
+    /// The input was empty.
+    #[error("empty")]
+    Empty,
+}
+'''
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! The short service's cases, in groups.
+
+#[cfg(test)]
+mod order;
+'''
+given.files.'src/greeting/domain/short/service_test/order.rs' = '#[cfg(test)] pub(super) mod test;'
+given.files.'src/greeting/domain/short/service_test/order/test.rs' = '''
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+    Case { name: "zero is refused", word: Word::Refuses, input: zero, expect: Expect::Error(Failure::Empty) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'namespace-without-succeeds-read-through-the-language-placement'
+scenario = 'A namespace read through the language placement whose groups hold no `succeeds` row is reported at the namespace.'
+given.include = ['src/greeting/domain/*/*.rs', 'src/greeting/domain/*/*_test/**/*.rs']
+given.files.'src/greeting/domain/short/errors.rs' = '''
+//! The short concept's failures.
+
+/// Why a short operation failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ShortError {
+    /// The input was empty.
+    #[error("empty")]
+    Empty,
+}
+'''
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! The short service's cases, in groups.
+
+#[cfg(test)]
+mod order;
+'''
+given.files.'src/greeting/domain/short/service_test/order.rs' = '#[cfg(test)] pub(super) mod test;'
+given.files.'src/greeting/domain/short/service_test/order/test.rs' = '''
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Refuses, input: one, expect: Expect::Error(Failure::Empty) },
+    Case { name: "zero is refused", word: Word::Refuses, input: zero, expect: Expect::Error(Failure::Empty) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { path = 'src/greeting/domain/short/service_test.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'group-file-is-read-as-rows-not-as-a-unit-test'
+scenario = 'A `*_test.rs` beneath a group directory (a flat group, an engine test under `engine_test/`) is read for the rows of the namespace above it, and is not itself a unit test that needs a `succeeds` row.'
+given.include = ['**/*.rs']
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+#[cfg(test)]
+mod order_test;
+'''
+given.files.'src/greeting/domain/short/service_test/order_test.rs' = '''
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+];
+'''
+given.files.'src/greeting/domain/short/service_test/plain_test.rs' = '''
+#[test]
+fn keeps_order() {}
+'''

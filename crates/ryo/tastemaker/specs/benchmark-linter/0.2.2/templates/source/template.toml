@@ -1,0 +1,14 @@
+description = "The language-local benchmark composition and external linter adapter."
+why = "The benchmark audit validates content before execution; scaffolded placeholders are not acceptance evidence."
+content = ''
+
+[given]
+file = 'artifact.txt'
+[[scenarios]]
+id = 'present'
+scenario = 'The required artifact exists.'
+given.files.'artifact.txt' = ''
+[[scenarios]]
+id = 'missing'
+scenario = 'A required artifact is absent.'
+then.findings = [{ rule = 'source#count', path = '.' }]

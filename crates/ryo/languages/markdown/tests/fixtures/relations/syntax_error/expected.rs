@@ -11,6 +11,9 @@ pub(super) fn expected() -> Expected {
         message: name(
             "invalid UTF-8: a Markdown file is UTF-8 text, and the parser reads it no further",
         ),
+        phase: name("parse"),
+        impact: name("incomplete"),
+        code: name("unspecified"),
         file: file("syntax_error/input.md"),
         span: span((3, 1), (4, 1)),
     }])

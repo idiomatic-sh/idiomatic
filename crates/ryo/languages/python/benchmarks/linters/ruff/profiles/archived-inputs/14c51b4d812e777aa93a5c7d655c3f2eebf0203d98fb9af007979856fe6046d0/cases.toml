@@ -1,0 +1,94 @@
+[[cases]]
+name = "equal"
+files = { "case.py" = "a == b\n" }
+expected = [{ file = "case.py", start = 0, end = 6 }]
+
+[[cases]]
+name = "chained"
+files = { "case.py" = "a < b < c\n" }
+expected = [{ file = "case.py", start = 0, end = 9 }]
+
+[[cases]]
+name = "assert"
+files = { "case.py" = "assert a == b\n" }
+expected = []
+
+[[cases]]
+name = "assign"
+files = { "case.py" = "value = a == b\n" }
+expected = []
+
+[[cases]]
+name = "return"
+files = { "case.py" = "def f(a,b):\n    return a == b\n" }
+expected = []
+
+[[cases]]
+name = "function"
+files = { "case.py" = "def f(a,b):\n    a == b\n" }
+expected = [{ file = "case.py", start = 16, end = 22 }]
+
+[[cases]]
+name = "parenthesized"
+files = { "case.py" = "(a is b)\n" }
+expected = [{ file = "case.py", start = 1, end = 7 }]
+
+[[cases]]
+name = "membership"
+files = { "case.py" = "a in b\n" }
+expected = [{ file = "case.py", start = 0, end = 6 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "a == b # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "a == b # noqa: B015\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "a == b # noqa: F401\n" }
+expected = [{ file = "case.py", start = 0, end = 6 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\na == b\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[B015]\na == b\n\n# ruff: enable[B015]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[B015]\n# ruff: enable[B015]\na == b\n" }
+expected = [{ file = "case.py", start = 43, end = 49 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[B015]\na == b\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\na == b\n" }
+expected = [{ file = "case.py", start = 22, end = 28 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[B015]\na == b\n" }
+expected = []
+
+[[cases]]
+name = "block-requires-whole-diagnostic-range"
+files = { "case.py" = "# ruff: disable[B015]\n(\na ==\n# ruff: enable[B015]\nb\n)\n" }
+expected = [{ file = "case.py", start = 24, end = 51 }]
+
+[[cases]]
+name = "ignore-needs-only-diagnostic-start"
+files = { "case.py" = "(\n a == # ruff: ignore[B015]\n b\n)\n" }
+expected = []

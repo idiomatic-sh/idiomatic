@@ -1,0 +1,188 @@
+//! The `row_population` service's cases, on values alone.
+use super::super::super::service::semantics;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::query_operators::types::OperationKind;
+
+/// A row's input: the registered operation kind.
+type Input = OperationKind;
+
+/// How many driving row populations the kind's contract declares.
+type Value = u8;
+
+/// Reading a contract never fails.
+type Failure = ();
+
+/// The rows: one per registered kind.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("select_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Select,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("project_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Project,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("extend_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Extend,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("join_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Join,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("union_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Union,
+        expect: Expect::Value(3),
+    },
+    Case {
+        name: CaseName("intersection_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Intersection,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("difference_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Difference,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("antijoin_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Antijoin,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("groupcount_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::GroupCount,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("groupdigest_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::GroupDigest,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("capture_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Capture,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("rank_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Rank,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("words_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Words,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("replace_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Replace,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("orderedmatch_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::OrderedMatch,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("axis_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Axis,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("closure_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Closure,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("cycles_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Cycles,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("ordereddfs_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::OrderedDfs,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("rows_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Rows,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("hosted_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Hosted,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("spanbetween_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::SpanBetween,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("sourcematches_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::SourceMatches,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("rendersyntax_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::RenderSyntax,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("fitsrendered_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::FitsRendered,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("spanbounds_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::SpanBounds,
+        expect: Expect::Value(1),
+    },
+];
+
+/// Reads the kind's declared driving populations.
+fn subject(kind: Input) -> Result<Value, Failure> {
+    Ok(semantics(kind).contract.row_inputs.0)
+}
+
+#[test]
+fn succeeds() {
+    assert_eq!(
+        CASES.len(),
+        OperationKind::ALL.len(),
+        "every registered kind has an independent expected row population"
+    );
+    run(CASES, Word::Succeeds, subject);
+}

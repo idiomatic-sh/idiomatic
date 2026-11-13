@@ -1,59 +1,41 @@
 //! The `answers` service's cases, on values alone.
 
-use super::constants::reason_name;
-use super::service::{is_key, vocabulary_of};
-use super::types::AbsenceCause;
+use super::service::{absent, source_locations};
+use super::types::{Answer, Support};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::relations::collections::relations::defines::item::DefinesColumn;
-use crate::domain::relations::collections::relations::function::item::FunctionColumn;
-use crate::domain::relations::types::{Column, ColumnKeyness};
-use crate::domain::terms::types::{Vocabulary, WordBlock};
+use ryo_relations::domain::answers::types::AbsenceCause;
 
 /// A scenario: what a row asks of the service.
-type Input = fn() -> usize;
-/// What a scenario answers: a count.
-type Value = usize;
+type Input = fn() -> bool;
+/// What a scenario answers: whether it holds.
+type Value = bool;
 type Failure = ();
 
-fn every_reason_has_a_name_of_its_own() -> usize {
-    let mut names: Vec<&str> = [
-        AbsenceCause::NoSuchConstruct,
-        AbsenceCause::NotCode,
-        AbsenceCause::NotAKeyedDocument,
-        AbsenceCause::NoManifests,
-    ]
-    .into_iter()
-    .map(reason_name)
-    .collect();
-    names.sort_unstable();
-    names.dedup();
-    names.len()
+fn a_relation_the_language_lacks_is_answered_with_its_reason() -> bool {
+    let support: Support<()> = absent(AbsenceCause::NoSuchConstruct);
+    matches!(
+        support.as_ref(),
+        Answer::NotInThisLanguage(AbsenceCause::NoSuchConstruct)
+    )
 }
 
-/// The kind of a declaration is a closed set of words and its id is open; the id of a function is a key and its name is not.
-fn a_column_has_its_vocabulary_and_its_keyness() -> usize {
-    usize::from(
-        vocabulary_of(Column::Defines(DefinesColumn::Kind))
-            == Vocabulary::Closed(WordBlock::Declaration)
-            && vocabulary_of(Column::Defines(DefinesColumn::Id)) == Vocabulary::Open
-            && is_key(Column::Function(FunctionColumn::Id)) == ColumnKeyness::Key
-            && is_key(Column::Defines(DefinesColumn::Kind)) == ColumnKeyness::Plain,
-    )
+fn the_engine_source_locations_are_a_reader() -> bool {
+    matches!(source_locations::<()>().as_ref(), Answer::Reads(_))
 }
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("every_reason_has_a_name_of_its_own"),
+        name: CaseName("a_relation_the_language_lacks_is_answered_with_its_reason"),
         word: Word::Succeeds,
-        input: || every_reason_has_a_name_of_its_own,
-        expect: Expect::Value(4),
+        input: || a_relation_the_language_lacks_is_answered_with_its_reason,
+        expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("a_column_has_its_vocabulary_and_its_keyness"),
+        name: CaseName("the_engine_source_locations_are_a_reader"),
         word: Word::Succeeds,
-        input: || a_column_has_its_vocabulary_and_its_keyness,
-        expect: Expect::Value(1),
+        input: || the_engine_source_locations_are_a_reader,
+        expect: Expect::Value(true),
     },
 ];
 

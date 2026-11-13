@@ -1,0 +1,164 @@
+description = "Every field of a `struct` declared in a `types.rs` is at least as visible as the struct: a `pub` struct's fields are `pub`, a `pub(crate)` struct's are `pub(crate)` or `pub`, unless the struct's doc holds a `compile_fail` example that proves the privacy."
+why = "A type is its data: the plain types of a part are read by the code beside them and by the parts that import them, so no field is hidden from a reader who can see the type, and no constructor or accessor stands between a caller and the data. The reach of the data is the reach of the type: a `pub` type has `pub` fields, and a type sealed to its crate (`pub(crate)`, an engine's internal record) has fields its crate reads, `pub(crate)` or wider, so sealing a type does not force its fields public and undo the seal. A field narrower than its type (a private field of a `pub` or `pub(crate)` type, a `pub(super)` field of a `pub(crate)` type) makes the type something other than plain data. A type whose privacy is the contract (a capability only its crate may make) says so in a `compile_fail` doctest of its doc, which rustdoc fails the build on when the field becomes reachable: that struct is not read. Visibility is ranked `pub`, then `pub(crate)`, then any narrower restriction (`pub(super)`, `pub(in …)`, `pub(self)`), then none. Enum variant fields are public by the language and are not read."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let fields = select * from tree-nodes where glob_any(kind, "{record-field,tuple-field}");
+let structs = select * from tree-nodes where kind = "struct";
+let visibilities = select * from tree-nodes where kind = "visibility";
+let restrictions = select * from tree-nodes where kind = "visibility-inner";
+let restricted-edges = select l."parent" as "id", l."child" as "inner" from "syntax-child" as l join restrictions as r on l."child" = r."id";
+let restricted = project(from=restricted-edges, columns=["id"]);
+let public = antijoin(left=visibilities, right=restricted, left-on=["id"], right-on=["id"]);
+let crate-words = select * from tree-tokens where text = "crate";
+let crate-inners = axis(from=crate-words, relation="syntax-child", direction=nearest-ancestor, domain=restrictions);
+let crate-scoped = select l."id" as "id" from restricted-edges as l join crate-inners as r on l."inner" = r."related";
+let crate-ids = project(from=crate-scoped, columns=["id"]);
+let narrower = antijoin(left=restricted, right=crate-ids, left-on=["id"], right-on=["id"]);
+let public-ids = project(from=public, columns=["id"]);
+let public-levels = extend(from=public-ids, values={"level": 3});
+let crate-levels = extend(from=crate-ids, values={"level": 2});
+let narrower-levels = extend(from=narrower, values={"level": 1});
+let wide-levels = union(left=public-levels, right=crate-levels);
+let levels = union(left=wide-levels, right=narrower-levels);
+let owned-levels = select r."parent" as "owner", l."level" as "level" from levels as l join "syntax-child" as r on l."id" = r."child";
+let field-ids = project(from=fields, columns=["id"]);
+let struct-ids = project(from=structs, columns=["id"]);
+let visible-fields = select l."id" as "id", r."level" as "level" from field-ids as l join owned-levels as r on l."id" = r."owner";
+let unmarked-fields = antijoin(left=field-ids, right=visible-fields, left-on=["id"], right-on=["id"]);
+let private-fields = extend(from=unmarked-fields, values={"level": 0});
+let field-levels = union(left=visible-fields, right=private-fields);
+let visible-structs = select l."id" as "id", r."level" as "level" from struct-ids as l join owned-levels as r on l."id" = r."owner";
+let unmarked-structs = antijoin(left=struct-ids, right=visible-structs, left-on=["id"], right-on=["id"]);
+let private-structs = extend(from=unmarked-structs, values={"level": 0});
+let struct-levels = union(left=visible-structs, right=private-structs);
+let listed = select l."id" as "field", l."file" as "file", l."span" as "span", r."parent" as "list" from fields as l join "syntax-child" as r on l."id" = r."child";
+let struct-lists = select l."id" as "struct", r."child" as "list" from structs as l join "syntax-child" as r on l."id" = r."parent";
+let field-structs = select l."field" as "field", l."file" as "file", l."span" as "span", r."struct" as "struct" from listed as l join struct-lists as r on l."list" = r."list";
+let with-field-level = select l."field" as "field", l."file" as "file", l."span" as "span", l."struct" as "struct", r."level" as "field-level" from field-structs as l join field-levels as r on l."field" = r."id";
+let compared = select l."file" as "file", l."span" as "span", l."struct" as "struct", l."field-level" as "field-level", r."level" as "struct-level" from with-field-level as l join struct-levels as r on l."struct" = r."id";
+let hidden = select * from compared where field-level < struct-level;
+let doc-proofs = select l."id" as "id", l."text" as "text" from "comment" as l where glob_any(l."text", "*compile_fail*");
+let proof-parents = select r."parent" as "id" from doc-proofs as l join "syntax-child" as r on l."id" = r."child";
+let proven = select l."id" as "struct" from structs as l join proof-parents as r on l."id" = r."id";
+let unproven = antijoin(left=hidden, right=proven, left-on=["struct"], right-on=["struct"]);
+let reported = project(from=unproven, columns=["file", "span"]);
+emit reported subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this field of a plain type is not `pub`"
+help = "Make the field as visible as its type (`pub` on a `pub` type, `pub(crate)` on a `pub(crate)` type): a part's type is plain data. Where a value needs a rule, put the rule in the part's service or in a schemas.rs conversion, not in a private field. Where the privacy is the type's contract, prove it in a `compile_fail` doctest of the struct's doc."
+
+[given]
+include = ['**/types.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/greeting.rs' = '''
+pub mod types;
+'''
+files.'src/lib.rs' = '''
+pub mod greeting;
+'''
+
+[[scenarios]]
+id = 'public-fields'
+scenario = 'Public fields, a public tuple struct and an enum with variant fields.'
+given.files.'src/greeting/types.rs' = '''
+pub struct Request {
+    pub input: String,
+}
+
+pub struct Pair(pub u8, pub u8);
+
+pub enum Shape {
+    Named { text: String },
+    Plain(u8),
+}
+'''
+
+[[scenarios]]
+id = 'private-field'
+scenario = 'A private field: it is reported.'
+given.files.'src/greeting/types.rs' = '''
+pub struct Request {
+    input: String,
+}
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'restricted-field'
+scenario = 'A restricted field: it is reported.'
+given.files.'src/greeting/types.rs' = '''
+pub struct Request {
+    pub(crate) input: String,
+}
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'private-tuple-field'
+scenario = 'A private field of a tuple struct.'
+given.files.'src/greeting/types.rs' = '''
+pub struct Pair(pub u8, u8);
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'private-field-proved-by-compile-fail'
+scenario = 'A capability whose private field a compile_fail doctest of its doc depends on: it is not reported, while the private field of a type without that proof still is.'
+given.files.'src/greeting/types.rs' = '''
+/// Authority to greet, made only in this crate.
+///
+/// ```compile_fail
+/// let forged = fixture::greeting::types::Permit(());
+/// ```
+pub struct Permit(pub(super) ());
+
+pub struct Request {
+    input: String,
+}
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 9 },
+]
+
+[[scenarios]]
+id = 'crate-sealed-type-with-crate-fields'
+scenario = 'A type sealed to its crate with fields its crate reads passes: sealing the type does not force its fields public.'
+given.files.'src/greeting/types.rs' = '''
+pub(crate) struct Ledger {
+    pub(crate) rows: u8,
+    pub size: u8,
+}
+
+pub(crate) struct Pair(pub(crate) u8, pub(crate) u8);
+'''
+
+[[scenarios]]
+id = 'crate-sealed-type-with-a-narrower-field'
+scenario = 'A field narrower than its crate-sealed type, private or `pub(super)`, is reported.'
+given.files.'src/greeting/types.rs' = '''
+pub(crate) struct Ledger {
+    rows: u8,
+    pub(super) size: u8,
+    pub(crate) kept: u8,
+}
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 2 },
+  { path = 'src/greeting/types.rs', line = 3 },
+]

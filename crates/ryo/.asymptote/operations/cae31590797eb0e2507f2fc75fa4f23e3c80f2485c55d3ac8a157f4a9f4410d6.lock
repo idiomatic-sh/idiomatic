@@ -1,0 +1,15 @@
+version = 1
+parents = ["8b23405652a6fa297c4ce3fa32a24dbe0b513809ccfb60d7676b19b81caa3fd6"]
+
+removed = [
+  { tool = "cargo-clippy", rule = "clippy::wildcard_enum_match_arm", path = "crates/execution_runtime/src/application/file_dag/axis_resources/service.rs", level = "warning", fingerprint = "ad92168c3d612c4d" },
+  { tool = "cargo-clippy", rule = "clippy::wildcard_enum_match_arm", path = "crates/execution_runtime/src/application/file_dag/invocation/types.rs", level = "warning", fingerprint = "f883f31daf6aeda7" },
+  { tool = "cargo-clippy", rule = "clippy::missing_errors_doc", path = "crates/execution_runtime/src/application/file_dag/program/prepared_execution/service.rs", level = "warning", fingerprint = "19c070d35b8ddb82" },
+]
+
+[[accepted]]
+reasons = ["owned by the fused rewrite (owner decision)"]
+records = [
+  { tool = "cargo-clippy", rule = "clippy::wildcard_enum_match_arm", path = "crates/execution_runtime/src/application/file_dag/derived/axis_resources/service.rs", level = "warning", fingerprint = "ad92168c3d612c4d", count = 1, message = "wildcard match will also match any future added variants", since_rev = "60a0466eeb68dab2f5dd44d8ebb708213b909a27", since = "2026-11-10" },
+  { tool = "cargo-clippy", rule = "clippy::wildcard_enum_match_arm", path = "crates/execution_runtime/src/application/file_dag/derived/invocation/types.rs", level = "warning", fingerprint = "f883f31daf6aeda7", count = 1, message = "wildcard match will also match any future added variants", since_rev = "60a0466eeb68dab2f5dd44d8ebb708213b909a27", since = "2026-11-10" },
+]

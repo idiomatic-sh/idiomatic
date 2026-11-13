@@ -82,7 +82,8 @@ fn uv_lines(root: &Path) -> BTreeSet<String> {
             let depended = resolution
                 .get(text_at(dependency, "id"))
                 .unwrap_or(&Value::Null);
-            let target = member_of(root, depended).unwrap_or_default();
+            let target =
+                member_of(root, depended).unwrap_or_else(|| crate::base::ABSENT.to_owned());
             // An extra depends on its own package, which is no dependency the manifest writes.
             if target == source {
                 continue;
@@ -103,9 +104,7 @@ fn ryo_says_what_uv_says_of_the_manifests_of_a_workspace() {
     let root = fixture("uv");
     let ours = ryo_lines(
         &root,
-        vec![ryo_core::outbound::language::types::LanguageHandles::from(
-            ryo_python::linked(),
-        )],
+        vec![ryo_core::outbound::language::factory::LanguageConnection::from(ryo_python::linked())],
         DEPENDENCIES,
     );
     let theirs = uv_lines(&root);

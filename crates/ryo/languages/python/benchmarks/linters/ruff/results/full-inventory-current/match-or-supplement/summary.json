@@ -1,0 +1,179 @@
+{
+  "schema": "benchmark-inventory/v1",
+  "provider": "ruff",
+  "run_state": "complete",
+  "identity": {
+    "collector_sha256": "813f50ad3cf909b23a48da6801a50d756c349ab47129e7dd07815c6e277dd004",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "worker_sha256": "e0092188f1af6786f4981680a7129445f33117050343388ba9cb69016891266a"
+  },
+  "counts": {
+    "FAIL": 0,
+    "PASS": 4
+  },
+  "rules": [
+    {
+      "rule_id": "F842",
+      "status": "PASS",
+      "reason": null,
+      "instance": {
+        "case_count": 22,
+        "cases_file": "rules/F842/cases.toml",
+        "cases_sha256": "f1be48099f4bca82781c8b9876330ce61c21a3c8b2902168cb5a0834158e7a73",
+        "effective_settings": {
+          "defaults": [
+            "F842"
+          ],
+          "flags": {},
+          "parser_configuration": "python-target=3.10",
+          "project_context_mode": "isolated",
+          "rule_applicability": {
+            "F842": "accepted-syntax"
+          }
+        },
+        "module_sha256": {
+          "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+          "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+        },
+        "parser_configuration": "python-target=3.10",
+        "profile_sha256": "a8ccf6f5df1ca57a30cb8b4845b0d299e701d13a235c2a0266a4e0cb15d6dcb4",
+        "query_file": "rules/F842/query.ryoql",
+        "query_sha256": "b1746f50639efa7f4ba58e6a022cf914d39c50ddba317b0f53678ac3a3c32125",
+        "settings_scope": "dedicated singleton profile (existing parser default contract)",
+        "settings_source": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F842/benchmark.toml",
+        "settings_source_sha256": "d9d20696f7325323eb43c28dce4e79ffb85e28361b5bb5a4be11e31404524858"
+      },
+      "case_results_sha256": "39e6c67bf54055a9f8471a7d0f66e97fad7c819d07896d6a461fd099fa216ad8",
+      "case_count": 22,
+      "raw_exact": 22,
+      "documented_discrepancies": 0
+    },
+    {
+      "rule_id": "FURB132",
+      "status": "PASS",
+      "reason": null,
+      "instance": {
+        "case_count": 103,
+        "cases_file": "rules/FURB132/cases.toml",
+        "cases_sha256": "d5cf017c15303ac0dca739ad0896cb7ce2f511125fee9da47888cdf0075a640b",
+        "effective_settings": {
+          "defaults": [
+            "FURB132"
+          ],
+          "flags": {},
+          "parser_configuration": "python-target=3.10",
+          "project_context_mode": "isolated",
+          "rule_applicability": {
+            "FURB132": "accepted-syntax"
+          }
+        },
+        "module_sha256": {
+          "python/ruff/annotation-evaluation-context": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+          "python/ruff/assigned-values": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86",
+          "python/ruff/binding-type": "24acc8ec7efcd738bf2379d02ed355932c87aa0dfa8e92c9254b2784635a8141",
+          "python/ruff/checker-type-scope-events": "73e0c247d934179dbf5ac9a80c1a1d051384245fa141b3734b94ebf48b7fca43",
+          "python/ruff/deferred-type-reads": "dc3906fdde5e7278fa69ae0b365f414d3e77add6b7c2c59b336660cb7ab019f6",
+          "python/ruff/future-annotation-context": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+          "python/ruff/lookup-symbol-events": "b0fb09349eb9b0acde95944add1760c9ce104fc66df1bd218261b40b4f895dfb",
+          "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+          "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d",
+          "python/ruff/type-definition-context": "a0451b6cf5bebeea9a8cae4fe8c66555d66bca72fdfa1c64c1f159e2d9d957ce",
+          "python/ruff/type-match-at-check": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b",
+          "python/ruff/without-effect": "ebf2050f8e9314a4964318cc5b0965c8fabd5d237185573e95569d46c550f4a7"
+        },
+        "parser_configuration": "python-target=3.10",
+        "profile_sha256": "f05dc25a4d96569752a370e51b4556cac6472707a93cad525adc21c4a56eb7ae",
+        "query_file": "rules/FURB132/query.ryoql",
+        "query_sha256": "9bc45af83e0d885ef2a3041dbc81c6fb277820d126bd488fc953a400b07a66f3",
+        "settings_scope": "dedicated singleton profile (existing parser default contract)",
+        "settings_source": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/FURB132/benchmark.toml",
+        "settings_source_sha256": "5a5c1a280dc5ce047ed9ed304eb0bd444c8a6ab123e647532fdc26a0d2637bf6"
+      },
+      "case_results_sha256": "07b5fa9c132863945f5294eaf5cf427b86b779df04ec8328efbf0b165878cbe4",
+      "case_count": 103,
+      "raw_exact": 102,
+      "documented_discrepancies": 1
+    },
+    {
+      "rule_id": "PERF402",
+      "status": "PASS",
+      "reason": null,
+      "instance": {
+        "case_count": 67,
+        "cases_file": "rules/PERF402/cases.toml",
+        "cases_sha256": "c81a4bd28d241959d26a27e93ac081766e354067552abb7942e01b916b42eb34",
+        "effective_settings": {
+          "defaults": [
+            "PERF402"
+          ],
+          "flags": {},
+          "parser_configuration": "python-target=3.10",
+          "project_context_mode": "isolated",
+          "rule_applicability": {
+            "PERF402": "accepted-syntax"
+          }
+        },
+        "module_sha256": {
+          "python/ruff/annotation-evaluation-context": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+          "python/ruff/assigned-values": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86",
+          "python/ruff/binding-type": "24acc8ec7efcd738bf2379d02ed355932c87aa0dfa8e92c9254b2784635a8141",
+          "python/ruff/checker-type-scope-events": "73e0c247d934179dbf5ac9a80c1a1d051384245fa141b3734b94ebf48b7fca43",
+          "python/ruff/deferred-type-reads": "dc3906fdde5e7278fa69ae0b365f414d3e77add6b7c2c59b336660cb7ab019f6",
+          "python/ruff/future-annotation-context": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+          "python/ruff/lookup-symbol-events": "b0fb09349eb9b0acde95944add1760c9ce104fc66df1bd218261b40b4f895dfb",
+          "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+          "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d",
+          "python/ruff/type-definition-context": "a0451b6cf5bebeea9a8cae4fe8c66555d66bca72fdfa1c64c1f159e2d9d957ce",
+          "python/ruff/type-match-at-check": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b"
+        },
+        "parser_configuration": "python-target=3.10",
+        "profile_sha256": "9c5617d195a8da4be01ed9a4ebb5c7f372b0cc75ff9eda94945a01c16804d365",
+        "query_file": "rules/PERF402/query.ryoql",
+        "query_sha256": "23a647f43ab0ba49f1377b3fe965062357ead4f5660cea9aab3c504c5b34248c",
+        "settings_scope": "dedicated singleton profile (existing parser default contract)",
+        "settings_source": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PERF402/benchmark.toml",
+        "settings_source_sha256": "ecadfe14091c233740ea7ec8582ab904ad41ccf74848a5326bf92e5849998864"
+      },
+      "case_results_sha256": "742111a4234d2a09cdc4ec4a49026bac0bc87297b0be11b6ce211a919d4fd38d",
+      "case_count": 67,
+      "raw_exact": 66,
+      "documented_discrepancies": 1
+    },
+    {
+      "rule_id": "PLW0177",
+      "status": "PASS",
+      "reason": null,
+      "instance": {
+        "case_count": 26,
+        "cases_file": "rules/PLW0177/cases.toml",
+        "cases_sha256": "8e4650cb8b27c4bb79631420a8eca0b3ae800ae837be4b310e9652bfc479b78e",
+        "effective_settings": {
+          "defaults": [
+            "PLW0177"
+          ],
+          "flags": {},
+          "parser_configuration": "python-target=3.10",
+          "project_context_mode": "isolated",
+          "rule_applicability": {
+            "PLW0177": "accepted-syntax"
+          }
+        },
+        "module_sha256": {
+          "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+          "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+        },
+        "parser_configuration": "python-target=3.10",
+        "profile_sha256": "96828ea7e9f697e49f98c4331c08b5b72d91ce1b70cc19147f1d52d98de29489",
+        "query_file": "rules/PLW0177/query.ryoql",
+        "query_sha256": "76623c68ce4ebeebb644caef960a48cffb6256c7b052a5779515c4922f569266",
+        "settings_scope": "dedicated singleton profile (existing parser default contract)",
+        "settings_source": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLW0177/benchmark.toml",
+        "settings_source_sha256": "bfbdde8db1be4d13319f82dcd5f3e0e864d9bffea8715cb51fe44f33e0491d19"
+      },
+      "case_results_sha256": "55a85e71f0686192df46d21e1d8dc18ea19b480fe087ab8578f898f669ff7a40",
+      "case_count": 26,
+      "raw_exact": 26,
+      "documented_discrepancies": 0
+    }
+  ]
+}

@@ -41,7 +41,10 @@ fn subject(source: Input) -> Result<Value, Failure> {
         .zip(UNKNOWN_REASONS)
         .all(|(reason, each)| unknown(reason) == languages::unknown_symbol(each.reason));
     if !numbered
-        || reasons != declared
+        || declared.get(..reasons.len()) != Some(reasons.as_slice())
+        || declared.len() != reasons.len() + 1
+        || declared.last() != Some(&"semantic-rendering-unsupported")
+        || UNKNOWN_REASONS[reasons.len()].reason != languages::UnknownReason(24)
         || unknown(Unresolved::WildcardImport) == unknown(Unresolved::StarBase)
     {
         return Err(());

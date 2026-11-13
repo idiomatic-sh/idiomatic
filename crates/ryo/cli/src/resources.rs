@@ -62,6 +62,7 @@ fn store() -> ryo_core::outbound::lint_store::types::CacheDirectory {
 pub fn edge_at(
     start: ryo_language::inbound::use_cases::project::types::RootPath,
     here: ryo_language::inbound::use_cases::project::types::RootPath,
+    machine: ryo_values::domain::runs::types::MachineWorkers,
     format: crate::output::Format,
 ) -> crate::edge::Edge {
     crate::edge::Edge {
@@ -72,22 +73,31 @@ pub fn edge_at(
             concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION")).into(),
         ),
         format,
+        machine,
     }
 }
 
 /// Parses the command line and runs the command it names; a panic is reported as an
 /// internal error and ends as one.
 #[must_use]
-pub fn run(here: String) -> std::process::ExitCode {
+pub fn run(
+    here: String,
+    machine: ryo_values::domain::runs::types::MachineWorkers,
+) -> std::process::ExitCode {
     report_panics();
-    let outcome = std::panic::catch_unwind(|| run_from(std::env::args_os().collect(), here))
-        .unwrap_or(crate::outcome::Outcome::Error);
+    let outcome =
+        std::panic::catch_unwind(|| run_from(std::env::args_os().collect(), here, machine))
+            .unwrap_or(crate::outcome::Outcome::Error);
     crate::output::progress::settle();
     std::process::ExitCode::from(outcome)
 }
 
 /// Runs the command line `arguments`, the program's name first.
-fn run_from(arguments: Vec<std::ffi::OsString>, here: String) -> crate::outcome::Outcome {
+fn run_from(
+    arguments: Vec<std::ffi::OsString>,
+    here: String,
+    machine: ryo_values::domain::runs::types::MachineWorkers,
+) -> crate::outcome::Outcome {
     let started = std::time::Instant::now();
     color(&arguments);
     crate::output::quiet(&arguments);
@@ -108,7 +118,7 @@ fn run_from(arguments: Vec<std::ffi::OsString>, here: String) -> crate::outcome:
         || here.clone(),
         |root| ryo_language::inbound::use_cases::project::types::RootPath(root.into()),
     );
-    let edge = edge_at(start, here, cli.output.format());
+    let edge = edge_at(start, here, machine, cli.output.format());
     match cli.resource {
         Resource::Operator(command) => operator::run(command, &edge),
         Resource::Query(command) => query::run(command, &edge),

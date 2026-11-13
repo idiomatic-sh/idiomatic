@@ -3,7 +3,7 @@ why = "Holds one implementation of the core's port behind the port's name, so th
 content = '''
 //! The {{ port }} port, implemented with {{ part }}.
 
-use crate::outbound::{{ port }}::interface::{{ port | pascal }}Port;
+use {{ core }}::outbound::{{ port }}::interface::{{ port | pascal }}Port;
 {%- if present.settings | default(false) %}
 use super::settings::{{ port | pascal }}{{ part | pascal }}Settings;
 
@@ -30,6 +30,7 @@ impl {{ port | pascal }}Port for {{ port | pascal }}{{ part | pascal }}Adapter {
 '''
 
 [params]
+core = { type = "identifier", description = "The Rust crate that owns the port and contract." }
 port = { type = "identifier", from = "directory-name", description = "The outbound port the adapter implements, captured from the path of its part; the directory's own name where the part has no port." }
 part = { type = "identifier", from = "directory-name", description = "The adapter's directory name: the implementation." }
 
@@ -37,7 +38,7 @@ part = { type = "identifier", from = "directory-name", description = "The adapte
 id = 'example-adapter'
 scenario = 'The rendered template passes.'
 given.file = 'src/names/adapters/memory/adapter.rs'
-given.params = { port = 'names', part = 'memory' }
+given.params = { core = 'crate', port = 'names', part = 'memory' }
 given.files.'src/names/adapters/memory/adapter.rs' = '''
 //! The names port, implemented with memory.
 
@@ -54,7 +55,7 @@ impl NamesPort for NamesMemoryAdapter {}
 id = 'extra-content'
 scenario = 'A file may carry more than its template.'
 given.file = 'src/names/adapters/memory/adapter.rs'
-given.params = { port = 'names', part = 'memory' }
+given.params = { core = 'crate', port = 'names', part = 'memory' }
 given.files.'src/names/adapters/memory/adapter.rs' = '''
 //! The names port, implemented with memory.
 
@@ -75,7 +76,7 @@ impl NamesPort for NamesMemoryAdapter {}
 id = 'store-adapter'
 scenario = 'A store adapter: built from its settings, empty when its file is absent, of another build or undecodable, and kept once on success through a temporary file and a rename.'
 given.file = 'src/outbound/check_store/adapters/postcard/adapter.rs'
-given.params = { port = 'check_store', part = 'postcard' }
+given.params = { core = 'crate', port = 'check_store', part = 'postcard' }
 given.files.'src/outbound/check_store/adapters/postcard/settings.rs' = '''
 //! What the postcard check_store adapter is configured with.
 
@@ -131,7 +132,7 @@ impl CheckStorePort for CheckStorePostcardAdapter {
 id = 'crate-adapter'
 scenario = 'The adapter is public so the factory can build it.'
 given.file = 'src/names/adapters/memory/adapter.rs'
-given.params = { port = 'names', part = 'memory' }
+given.params = { core = 'crate', port = 'names', part = 'memory' }
 given.files.'src/names/adapters/memory/adapter.rs' = '''
 //! The names port, implemented with memory.
 
@@ -148,7 +149,7 @@ impl NamesPort for NamesMemoryAdapter {}
 id = 'file-missing'
 scenario = 'The file is missing.'
 given.file = 'src/names/adapters/memory/adapter.rs'
-given.params = { port = 'names', part = 'memory' }
+given.params = { core = 'crate', port = 'names', part = 'memory' }
 then.findings = [
   { rule = 'adapter#count', path = '.' },
 ]
@@ -157,7 +158,7 @@ then.findings = [
 id = 'adapter-s-struct-named-port-part'
 scenario = "The adapter's struct is not named for its port and part."
 given.file = 'src/names/adapters/memory/adapter.rs'
-given.params = { port = 'names', part = 'memory' }
+given.params = { core = 'crate', port = 'names', part = 'memory' }
 given.files.'src/names/adapters/memory/adapter.rs' = '''
 //! The names port, implemented with memory.
 
@@ -177,7 +178,7 @@ then.findings = [
 id = 'retired-interface-suffix'
 scenario = "An adapter that implements the retired `Interface` trait is not the port's adapter."
 given.file = 'src/names/adapters/memory/adapter.rs'
-given.params = { port = 'names', part = 'memory' }
+given.params = { core = 'crate', port = 'names', part = 'memory' }
 given.files.'src/names/adapters/memory/adapter.rs' = '''
 //! The names port, implemented with memory.
 
@@ -197,7 +198,7 @@ then.findings = [
 id = 'multi-word-adapter'
 scenario = 'An adapter named by several words is named for all of them.'
 given.file = 'src/user_names/adapters/in_memory/adapter.rs'
-given.params = { port = 'user_names', part = 'in_memory' }
+given.params = { core = 'crate', port = 'user_names', part = 'in_memory' }
 given.files.'src/user_names/adapters/in_memory/adapter.rs' = '''
 //! The user_names port, implemented with in_memory.
 
@@ -208,4 +209,16 @@ use crate::outbound::user_names::interface::UserNamesPort;
 pub(crate) struct UserNamesInMemoryAdapter;
 
 impl UserNamesPort for UserNamesInMemoryAdapter {}
+'''
+
+[[scenarios]]
+id = 'external-owner-bound'
+scenario = 'An external adapter must import the exact bound port owner.'
+given.file = 'edge/adapter.rs'
+given.params = { core = 'foreign_core', port = 'names', part = 'edge' }
+given.files.'edge/adapter.rs' = '''
+use foreign_core::outbound::names::interface::NamesPort;
+#[derive(Debug)]
+pub(crate) struct NamesEdgeAdapter;
+impl NamesPort for NamesEdgeAdapter {}
 '''

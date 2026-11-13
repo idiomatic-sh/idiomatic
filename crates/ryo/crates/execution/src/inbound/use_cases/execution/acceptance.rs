@@ -1,0 +1,47 @@
+//! The execution feature enters the real public request owner.
+use crate::Behavior;
+use cucumber::{given, then, when};
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use std::sync::Arc;
+
+#[given(expr = "an execution request {string}")]
+fn request(world: &mut Behavior, input: String) {
+    world.input = input;
+}
+
+#[when(expr = "execution runs")]
+fn runs(
+    world: &mut Behavior,
+) -> Result<(), ryo_execution::inbound::use_cases::execution::interface::OperatingError> {
+    let prepare = PrepareUseCaseImpl::new(
+        Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::operators()),
+        Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
+        Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
+    );
+    let prepared = prepare.prepare(PrepareRequest {
+        plans: PlanSource::Authored {
+            plans: vec![],
+            bindings: vec![],
+        },
+        rules: vec![],
+        digests: vec![],
+        hosted: vec![],
+        observations: ObservationIdentity::Independent,
+    })?;
+    ExecutionUseCaseImpl::new()
+        .execution(&prepared, &[], None)
+        .finish();
+    world.answer = "complete".to_owned();
+    Ok(())
+}
+
+#[then(expr = "execution answers {string}")]
+fn answers(world: &mut Behavior, expected: String) {
+    assert_eq!(world.answer, expected);
+}

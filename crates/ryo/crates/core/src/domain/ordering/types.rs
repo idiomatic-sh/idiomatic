@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 
 use ryo_values::domain::files::types::FileSize;
-use ryo_values::domain::records::types::RowTotal;
+use ryo_values::domain::row_texts::types::RowTotal;
 
 use crate::domain::render::types::Rendered;
 

@@ -1,0 +1,65 @@
+[[cases]]
+name = "try-and-finally"
+comparison = "full"
+files = { "case.py" = "def f():\n    try:\n        return 1\n    finally:\n        return 2\n" }
+expected = [{ rule = "SIM107", file = "case.py", start = 56, end = 64 }]
+
+[[cases]]
+name = "except-and-finally"
+comparison = "full"
+files = { "case.py" = "def f():\n    try:\n        raise ValueError()\n    except ValueError:\n        return 1\n    finally:\n        return 2\n" }
+expected = [{ rule = "SIM107", file = "case.py", start = 106, end = 114 }]
+
+[[cases]]
+name = "first-finally-return"
+comparison = "full"
+files = { "case.py" = "def f():\n    try:\n        return 1\n    finally:\n        return 2\n        return 3\n" }
+expected = [{ rule = "SIM107", file = "case.py", start = 56, end = 64 }]
+
+[[cases]]
+name = "no-earlier-return"
+comparison = "full"
+files = { "case.py" = "def f():\n    try:\n        pass\n    except ValueError:\n        pass\n    finally:\n        return 2\n" }
+expected = []
+
+[[cases]]
+name = "no-finally-return"
+comparison = "full"
+files = { "case.py" = "def f():\n    try:\n        return 1\n    finally:\n        print(2)\n" }
+expected = []
+
+[[cases]]
+name = "nested-try-return"
+comparison = "full"
+files = { "case.py" = "def f(flag):\n    try:\n        if flag:\n            return 1\n    finally:\n        return 2\n" }
+expected = []
+
+[[cases]]
+name = "return-in-else"
+comparison = "full"
+files = { "case.py" = "def f():\n    try:\n        pass\n    except ValueError:\n        pass\n    else:\n        return 1\n    finally:\n        return 2\n" }
+expected = []
+
+[[cases]]
+name = "try-star-body-return"
+comparison = "full"
+files = { "case.py" = "def f():\n    try:\n        return 1\n    except* ValueError:\n        pass\n    finally:\n        return 2\n" }
+expected = [{ rule = "SIM107", file = "case.py", start = 93, end = 101 }]
+
+[[cases]]
+name = "async-function"
+comparison = "full"
+files = { "case.py" = "async def f():\n    try:\n        return 1\n    finally:\n        return 2\n" }
+expected = [{ rule = "SIM107", file = "case.py", start = 62, end = 70 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "def f():\n    try:\n        return 1\n    finally:\n        return 2  # noqa: SIM107\n" }
+expected = []
+
+[[cases]]
+name = "upstream-ruff-0.16.5-fixture"
+comparison = "full"
+files = { "SIM107.py" = "# Bad: This example returns 3!\ndef foo():\n    try:\n        1 / 0\n        return \"1\"\n    except:\n        return \"2\"\n    finally:\n        return \"3\"\n\n\n# Good\ndef foo():\n    return_value = None\n    try:\n        1 / 0\n        return_value = \"1\"\n    except:\n        return_value = \"2\"\n    finally:\n        return_value = \"3\"  # you might also want to check if \"except\" happened\n    return return_value\n" }
+expected = [{ rule = "SIM107", file = "SIM107.py", start = 136, end = 146 }]

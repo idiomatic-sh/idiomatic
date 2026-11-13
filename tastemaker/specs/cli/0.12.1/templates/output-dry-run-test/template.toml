@@ -1,0 +1,22 @@
+description = "The proof of a command line's `-n/--dry-run`, beside `src/output/dry_run.rs`: the switch, and what `planned` says of each change."
+why = "Every placed logic file has its test beside it: a dry run promises to write nothing and to say what it would write, proven where the switch and `planned` are written."
+content = '''
+//! Proves `-n/--dry-run`: what a command that writes would write, and nothing written.
+'''
+
+[given]
+file = 'cli/src/output/dry_run_test.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'cli/src/output/dry_run_test.rs' = '''
+//! Proves `-n/--dry-run`: what a command that writes would write, and nothing written.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'output-dry-run-test#count', path = '.' },
+]

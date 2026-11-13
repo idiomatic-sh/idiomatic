@@ -1,0 +1,271 @@
+description = "Within one crate, inbound may depend on application, domain and outbound; application on domain and outbound; domain and outbound on no other layer."
+why = "Each layer owns its vocabulary. Inbound coordinates application operations and translates values at its boundary. Application coordinates domain behavior and outbound contracts. Domain and outbound remain independent of every other layer, including each other. Same-layer modules, the standard library and external crates are allowed by this matrix; separate rules may impose stricter boundaries, including the existing application sibling-service ban. The rule compares resolved source-dependency paths with the same crate source root, including src/{layer}.rs and src/{layer}/**. Aliases and relative or qualified references are checked when the Rust frontend resolves them. Runtime benchmark code and test files under those layers are included, without blanket exemptions. Macro expansion dependencies, unresolved paths and nonstandard source layouts are not inferred from text. No exception is encoded."
+
+query = '''
+let source-directories = capture(from="source-dependency", path="source", pattern="{*source-root}/{from-layer}/{*source-rest}", captures=["source-root", "from-layer", "source-rest"]);
+let source-modules = capture(from="source-dependency", path="source", pattern="{*source-root}/{from-layer}.rs", captures=["source-root", "from-layer"]);
+let directory-sources = select source, target, span, source-root, from-layer from source-directories;
+let module-sources = select source, target, span, source-root, from-layer from source-modules;
+let source-rows = union(left=directory-sources, right=module-sources);
+let source-layers = select * from source-rows where from-layer = "inbound" or from-layer = "application" or from-layer = "domain" or from-layer = "outbound";
+let sources = select * from source-layers where glob_any(source-root, "{src,**/src}");
+let target-directories = capture(from=sources, path="target", pattern="{*target-root}/{to-layer}/{*target-rest}", captures=["target-root", "to-layer", "target-rest"]);
+let target-modules = capture(from=sources, path="target", pattern="{*target-root}/{to-layer}.rs", captures=["target-root", "to-layer"]);
+let directory-targets = select source, span, source-root, from-layer, target-root, to-layer from target-directories;
+let module-targets = select source, span, source-root, from-layer, target-root, to-layer from target-modules;
+let target-rows = union(left=directory-targets, right=module-targets);
+let local-rows = select * from target-rows where source-root = target-root;
+let layers = select * from local-rows where to-layer = "inbound" or to-layer = "application" or to-layer = "domain" or to-layer = "outbound";
+let cross-layer = select * from layers where from-layer != to-layer;
+let refused = select source as file, span, from-layer, to-layer from cross-layer where from-layer = "domain" or from-layer = "outbound" or (from-layer = "application" and to-layer = "inbound");
+emit refused subject file key(span);
+'''
+
+[diagnostic]
+primary = "span"
+message = "the {from-layer} layer depends on the {to-layer} layer"
+help = "Keep this layer's values and behavior in its own modules. Translate at inbound or application boundaries and pass outbound-owned values to outbound contracts. Domain and outbound do not import each other. External crates and same-layer modules remain allowed; application sibling services remain subject to their separate stricter rule."
+
+[given]
+include = ["src/**"]
+files.'Cargo.toml' = '''
+[package]
+name = "matrix_fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = 'pub mod inbound; pub mod application; pub mod domain; pub mod outbound;'
+files.'src/inbound.rs' = 'pub mod service; pub mod types;'
+files.'src/application.rs' = 'pub mod service; pub mod types;'
+files.'src/domain.rs' = 'pub mod service; pub mod types;'
+files.'src/outbound.rs' = 'pub mod service; pub mod types;'
+files.'src/inbound/service.rs' = 'pub fn run() {}'
+files.'src/application/service.rs' = 'pub fn run() {}'
+files.'src/domain/service.rs' = 'pub fn run() {}'
+files.'src/outbound/service.rs' = 'pub fn run() {}'
+files.'src/inbound/types.rs' = 'pub struct Token;'
+files.'src/application/types.rs' = 'pub struct Token;'
+files.'src/domain/types.rs' = 'pub struct Token;'
+files.'src/outbound/types.rs' = 'pub struct Token;'
+
+[[scenarios]]
+id = "inbound-to-inbound"
+scenario = "inbound to inbound is allowed by the explicit matrix."
+given.files.'src/inbound/service.rs' = 'use crate::inbound::types::Token;'
+
+[[scenarios]]
+id = "inbound-to-application"
+scenario = "inbound to application is allowed by the explicit matrix."
+given.files.'src/inbound/service.rs' = 'use crate::application::types::Token;'
+
+[[scenarios]]
+id = "inbound-to-domain"
+scenario = "inbound to domain is allowed by the explicit matrix."
+given.files.'src/inbound/service.rs' = 'use crate::domain::types::Token;'
+
+[[scenarios]]
+id = "inbound-to-outbound"
+scenario = "inbound to outbound is allowed by the explicit matrix."
+given.files.'src/inbound/service.rs' = 'use crate::outbound::types::Token;'
+
+[[scenarios]]
+id = "application-to-inbound"
+scenario = "application to inbound is forbidden by the explicit matrix."
+given.files.'src/application/service.rs' = 'use crate::inbound::types::Token;'
+then.findings = [{ path = "src/application/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "application-to-application"
+scenario = "application to application is allowed by the explicit matrix."
+given.files.'src/application/service.rs' = 'use crate::application::types::Token;'
+
+[[scenarios]]
+id = "application-to-domain"
+scenario = "application to domain is allowed by the explicit matrix."
+given.files.'src/application/service.rs' = 'use crate::domain::types::Token;'
+
+[[scenarios]]
+id = "application-to-outbound"
+scenario = "application to outbound is allowed by the explicit matrix."
+given.files.'src/application/service.rs' = 'use crate::outbound::types::Token;'
+
+[[scenarios]]
+id = "domain-to-inbound"
+scenario = "domain to inbound is forbidden by the explicit matrix."
+given.files.'src/domain/service.rs' = 'use crate::inbound::types::Token;'
+then.findings = [{ path = "src/domain/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "domain-to-application"
+scenario = "domain to application is forbidden by the explicit matrix."
+given.files.'src/domain/service.rs' = 'use crate::application::types::Token;'
+then.findings = [{ path = "src/domain/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "domain-to-domain"
+scenario = "domain to domain is allowed by the explicit matrix."
+given.files.'src/domain/service.rs' = 'use crate::domain::types::Token;'
+
+[[scenarios]]
+id = "domain-to-outbound"
+scenario = "domain to outbound is forbidden by the explicit matrix."
+given.files.'src/domain/service.rs' = 'use crate::outbound::types::Token;'
+then.findings = [{ path = "src/domain/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "outbound-to-inbound"
+scenario = "outbound to inbound is forbidden by the explicit matrix."
+given.files.'src/outbound/service.rs' = 'use crate::inbound::types::Token;'
+then.findings = [{ path = "src/outbound/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "outbound-to-application"
+scenario = "outbound to application is forbidden by the explicit matrix."
+given.files.'src/outbound/service.rs' = 'use crate::application::types::Token;'
+then.findings = [{ path = "src/outbound/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "outbound-to-domain"
+scenario = "outbound to domain is forbidden by the explicit matrix."
+given.files.'src/outbound/service.rs' = 'use crate::domain::types::Token;'
+then.findings = [{ path = "src/outbound/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "outbound-to-outbound"
+scenario = "outbound to outbound is allowed by the explicit matrix."
+given.files.'src/outbound/service.rs' = 'use crate::outbound::types::Token;'
+
+[[scenarios]]
+id = "module-file-source-and-target"
+scenario = "A layer's module file is checked, including a target layer's module file."
+given.files.'src/outbound.rs' = '''
+pub mod service; pub mod types;
+use crate::domain;
+'''
+then.findings = [{ path = "src/outbound.rs", line = 2 }]
+
+[[scenarios]]
+id = "relative-path"
+scenario = "A relative path resolves to the same forbidden layer."
+given.files.'src/outbound/service.rs' = 'use super::super::domain::types::Token;'
+then.findings = [{ path = "src/outbound/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "renamed-import"
+scenario = "Renaming a forbidden import does not change its layer."
+given.files.'src/outbound/service.rs' = 'use crate::domain::types::Token as Renamed;'
+then.findings = [{ path = "src/outbound/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "qualified-code-reference"
+scenario = "Qualified references in code are checked without a use declaration."
+given.files.'src/outbound/service.rs' = 'pub fn run() { let _value = crate::domain::types::Token; }'
+then.findings = [{ path = "src/outbound/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "standard-library"
+scenario = "A layer may use the standard library."
+given.files.'src/domain/service.rs' = 'use std::collections::BTreeMap;'
+
+[[scenarios]]
+id = "external-crate-layer-is-not-local"
+scenario = "A renamed external crate's public domain module is not this crate's domain layer."
+given.files.'Cargo.toml' = '''
+[package]
+name = "matrix_fixture"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+renamed = { package = "another_crate", path = "external" }
+'''
+given.files.'external/Cargo.toml' = '''
+[package]
+name = "another_crate"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'external/src/lib.rs' = 'pub mod domain;'
+given.files.'external/src/domain.rs' = 'pub mod types;'
+given.files.'external/src/domain/types.rs' = 'pub struct Token;'
+given.files.'src/outbound/service.rs' = 'use renamed::domain::types::Token;'
+
+[[scenarios]]
+id = "test-file-is-not-exempt"
+scenario = "A source test under a layer does not bypass the matrix."
+given.files.'src/outbound.rs' = 'pub mod service; pub mod types; #[cfg(test)] mod service_test;'
+given.files.'src/outbound/service_test.rs' = 'use crate::domain::types::Token;'
+then.findings = [{ path = "src/outbound/service_test.rs", line = 1 }]
+
+[[scenarios]]
+id = "benchmark-runtime-is-not-exempt"
+scenario = "Runtime code of a benchmark crate is subject to the same matrix."
+given.include = ["**/src/**"]
+given.files.'Cargo.toml' = '''
+[package]
+name = "matrix_fixture"
+version = "0.1.0"
+edition = "2024"
+[workspace]
+members = ["crates/benchmark"]
+resolver = "3"
+'''
+given.files.'crates/benchmark/Cargo.toml' = '''
+[package]
+name = "benchmark"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crates/benchmark/src/lib.rs' = 'pub mod outbound; pub mod domain;'
+given.files.'crates/benchmark/src/domain.rs' = 'pub struct Token;'
+given.files.'crates/benchmark/src/outbound.rs' = 'pub mod service;'
+given.files.'crates/benchmark/src/outbound/service.rs' = 'use crate::domain::Token;'
+then.findings = [{ path = "crates/benchmark/src/outbound/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "domain-cannot-construct-application-executor"
+scenario = "Runtime construction in a domain algorithm depends on the application definition even without a use declaration."
+given.files.'src/application.rs' = 'pub mod dispatch;'
+given.files.'src/application/dispatch.rs' = 'pub mod execution;'
+given.files.'src/application/dispatch/execution.rs' = 'pub struct Runner;'
+given.files.'src/domain/service.rs' = 'pub fn run() { let _executor = crate::application::dispatch::execution::Runner; }'
+then.findings = [{ path = "src/domain/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "application-owns-executor-construction"
+scenario = "The identical real executor dependency is allowed when runtime coordination lives in application."
+given.files.'src/application.rs' = 'pub mod dispatch; pub mod service;'
+given.files.'src/application/dispatch.rs' = 'pub mod execution;'
+given.files.'src/application/dispatch/execution.rs' = 'pub struct Runner;'
+given.files.'src/application/service.rs' = 'pub fn run() { let _executor = crate::application::dispatch::execution::Runner; }'
+
+[[scenarios]]
+id = "domain-test-cannot-import-application-helper"
+scenario = "A test module in domain cannot alias a real application execution helper through a relative path."
+given.files.'src/application.rs' = 'pub mod dispatch;'
+given.files.'src/application/dispatch.rs' = 'pub mod testing;'
+given.files.'src/application/dispatch/testing.rs' = 'pub fn run() {}'
+given.files.'src/domain.rs' = 'pub mod service; pub mod types; #[cfg(test)] mod service_test;'
+given.files.'src/domain/service_test.rs' = 'use super::super::application::dispatch::testing::run as ordinary;'
+then.findings = [{ path = "src/domain/service_test.rs", line = 1 }]
+
+[[scenarios]]
+id = "application-test-may-use-its-execution-helper"
+scenario = "The execution fixture remains legitimate after its behavioral test is placed beside the application owner."
+given.files.'src/application.rs' = 'pub mod dispatch;'
+given.files.'src/application/dispatch.rs' = 'pub mod testing; #[cfg(test)] mod owner_test;'
+given.files.'src/application/dispatch/testing.rs' = 'pub fn run() {}'
+given.files.'src/application/dispatch/owner_test.rs' = 'use super::testing::run as ordinary;'
+
+[[scenarios]]
+id = "application-coordinates-domain-reading-port"
+scenario = "Application may invoke a domain-owned reading interface without moving pure interfaces out of domain."
+given.files.'src/domain/service.rs' = 'pub trait Reading { fn read(&self) -> u32; }'
+given.files.'src/application/service.rs' = 'pub fn run(source: &dyn crate::domain::service::Reading) -> u32 { source.read() }'
+
+[[scenarios]]
+id = "domain-message-is-not-a-runtime-dependency"
+scenario = "A diagnostic string containing an application path is not a resolved source dependency."
+given.files.'src/application.rs' = 'pub mod dispatch;'
+given.files.'src/application/dispatch.rs' = 'pub mod execution;'
+given.files.'src/application/dispatch/execution.rs' = 'pub struct Runner;'
+given.files.'src/domain/service.rs' = """pub fn describe() -> &'static str { "crate::application::dispatch::execution::Runner" }"""

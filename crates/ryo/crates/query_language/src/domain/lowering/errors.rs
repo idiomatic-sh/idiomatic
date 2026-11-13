@@ -1,11 +1,102 @@
 //! The `lowering` concept's failures.
 
 use super::types::ArgumentFault;
-use ryo_values::domain::program::types::QuerySpan;
+use ryo_values::domain::query_tokens::types::{QueryOrigin, QuerySpan};
 
 /// Why a program does not lower to a plan.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum LoweringError {
+    /// A semantic rendering or display-width call has an extra or repeated argument.
+    #[error("semantic call has an extra or repeated argument `{name}`")]
+    SemanticArgument { name: String, span: QuerySpan },
+    /// Semantic rendering and physical line width require per-file input.
+    #[error("semantic call requires per-file input")]
+    CrossFileSemantic { span: QuerySpan },
+    /// The requested rendering role or physical line width is invalid.
+    #[error("semantic call has an invalid context or width")]
+    InvalidSemanticLiteral { span: QuerySpan },
+    /// A span endpoint projection has an extra or repeated named argument.
+    #[error("span-bounds has an extra or repeated argument `{name}`")]
+    SpanBoundsArgument { name: String, span: QuerySpan },
+    /// A source occurrence projection has an extra or repeated named argument.
+    #[error("source-matches has an extra or repeated argument `{name}`")]
+    SourceMatchesArgument { name: String, span: QuerySpan },
+    /// Physical source bytes are only available during per-file evaluation.
+    #[error("source-matches requires per-file input")]
+    CrossFileSourceMatches { span: QuerySpan },
+    #[error("source-matches requires both `base-line` and `line-output`, or neither")]
+    SourceMatchesLinePair { span: QuerySpan },
+    #[error(
+        "source-matches requires `capture` with `capture-output`, and capture-line-output requires `base-line`"
+    )]
+    SourceMatchesCapturePair { span: QuerySpan },
+    #[error("source-matches regex has no named capture `{name}`")]
+    SourceMatchesCaptureMissing { name: String, span: QuerySpan },
+    /// A span projection has an extra or repeated named argument.
+    #[error("span-between has an extra or repeated argument `{name}`")]
+    SpanArgument {
+        /// The unexpected argument.
+        name: String,
+        /// The containing call.
+        span: QuerySpan,
+    },
+    /// Span offsets can only be composed while the file's bytes are available.
+    #[error("span-between requires per-file input")]
+    CrossFileSpan {
+        /// The call that cannot run after the files.
+        span: QuerySpan,
+    },
+    /// A step compares rows on spans alone, with no file or node key, over rows made after the files: a span states no file, so
+    /// equal spans of two files would meet.
+    #[error("a step keyed on spans alone needs per-file input; key it by `file` or a node as well")]
+    CrossFileSpanKey {
+        /// The statement whose step compares on spans alone.
+        span: QuerySpan,
+    },
+    /// A closure or cycles step walks from a source to a destination of another kind.
+    #[error("a closure or cycles step needs a source and a destination of one kind")]
+    MixedVertices {
+        /// The statement whose step walks between two kinds.
+        span: QuerySpan,
+    },
+    /// The diagnostic-only comparison origin table cannot represent another entry.
+    #[error("too many comparison source origins")]
+    TooManyComparisonOrigins {
+        /// The comparison that exceeded the checked index space.
+        span: QuerySpan,
+    },
+    /// A failure in a linked step attributed to its original module source.
+    #[error("{error}")]
+    Located {
+        /// The original source and import/call trace.
+        origin: QueryOrigin,
+        /// The lowering refusal.
+        error: Box<LoweringError>,
+    },
+    /// A fragment's declared relation shape does not match an actual input or output.
+    #[error("fragment relation contract is not satisfied: {message}")]
+    FragmentContract {
+        /// Why the actual relation differs.
+        message: String,
+        /// The original declaration and call trace.
+        origin: QueryOrigin,
+    },
+    /// An appended output would hide an existing column.
+    #[error("output column `{name}` already exists")]
+    DuplicateOutput {
+        /// Repeated output name.
+        name: String,
+        /// Call containing the duplicate.
+        span: QuerySpan,
+    },
+    /// A literal regular expression is invalid even if the query will read no rows.
+    #[error("invalid regular expression: {reason}")]
+    InvalidRegex {
+        /// The pattern compiler's explanation.
+        reason: String,
+        /// The comparison containing the invalid pattern.
+        span: QuerySpan,
+    },
     /// A query reads a relation ryo does not own.
     #[error("no relation named `{name}`")]
     UnknownRelation {
@@ -119,6 +210,9 @@ pub(crate) enum LoweringError {
 impl std::fmt::Display for ArgumentFault {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
+            ArgumentFault::MatchingGraphEntities => "expected root, source and destination columns of the same kind",
+            ArgumentFault::MatchingGraphKeys => "expected matching partition key kinds in roots and edges",
+            ArgumentFault::NumericGraphOrder => "expected a numeric edge order column",
             ArgumentFault::Missing => "the argument is missing",
             ArgumentFault::ExpectedName => "expected one name",
             ArgumentFault::ExpectedNames => "expected a list of names",

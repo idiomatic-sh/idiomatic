@@ -23,11 +23,13 @@ fn every_inventoried_file_is_a_row_whatever_it_holds() {
     std::fs::write(root.path().join("lib.rs"), "fn run() {}\n").expect("a file");
     std::fs::write(root.path().join("notes.md"), "# notes\n").expect("a file");
     let rule = Rule {
+        observations: Vec::new(),
         id: RuleId("all-files".into()),
-        query: QueryText(
+        query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(
             "let files = select * from \"filesystem.file\"; emit files subject path key(path);"
                 .into(),
-        ),
+        )),
+        applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         parameters: Vec::new(),
         include: vec![Glob("**".into())],
         exclude: Vec::new(),
@@ -35,7 +37,7 @@ fn every_inventoried_file_is_a_row_whatever_it_holds() {
     let (rows, _) = base::lint_with(
         root.path(),
         vec![rule],
-        Arc::new(ryo_core::outbound::facts::factory::memory()),
+        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
     )
     .expect("the rule runs");
@@ -58,6 +60,7 @@ fn public_sdk_cache_tracks_given_source_edits_deletion_and_filters() {
     let cache = tempfile::tempdir().expect("consumer cache");
     let languages = Languages(vec![ryo_rust::linked()]);
     let source = |name: &str, text: &str| CaseSource {
+        executable: Default::default(),
         path: RelativePath(name.into()),
         text: SourceText(text.into()),
     };

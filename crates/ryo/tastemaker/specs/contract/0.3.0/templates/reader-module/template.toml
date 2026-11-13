@@ -1,0 +1,28 @@
+description = "One reader concept's module file, beside its directory."
+why = "Declares the parts of one reader concept (its composition, its service, its types, its constants and its tests) so none is left uncompiled; it lies outside the directory, like a use case's module file."
+content = '''
+//! The `{{ concept }}` readers of the contract.
+'''
+
+[params]
+concept = { type = "identifier", description = "The reader concept, captured from its path." }
+
+[given]
+file = 'readers/format.rs'
+params = { concept = 'format' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'readers/format.rs' = '''
+//! The `format` readers of the contract.
+
+pub(crate) mod composition;
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'reader-module#count', path = '.' },
+]

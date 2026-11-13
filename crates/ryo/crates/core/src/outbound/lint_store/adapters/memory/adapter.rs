@@ -40,17 +40,59 @@ impl ReadStore for MemoryRead {
         }
     }
 
-    fn handed(&self, wanted: &BucketsWanted) -> Result<StoredHanded, LintStoreError> {
+    fn handed(
+        &self,
+        wanted: &BucketsWanted,
+    ) -> Result<ryo_values::domain::stores::types::ReadHanded, LintStoreError> {
         let mut handed = self.was.handed.clone();
         if let BucketsWanted::These(buckets) = wanted {
             handed
                 .frontier
                 .retain(|each| buckets.binary_search(&each.bucket).is_ok());
+            handed
+                .proofs
+                .retain(|each| buckets.binary_search(&each.bucket).is_ok());
         }
-        Ok(handed)
+        Ok(ryo_values::domain::stores::service::read_handed(handed))
+    }
+
+    fn read_old(
+        &self,
+        _words: &ryo_values::domain::stores::types::OldWords,
+        _into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<(), LintStoreError> {
+        Err(LintStoreError::NothingRead)
+    }
+
+    fn begin_old_rows(
+        &self,
+        _wanted: &ryo_values::domain::stores::types::BucketsWanted,
+    ) -> Result<Option<Box<dyn crate::outbound::lint_store::interface::OldRowBatch>>, LintStoreError>
+    {
+        Ok(None)
+    }
+
+    fn stage_words(
+        &self,
+        words: ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<ryo_values::domain::records::types::RecordWords, LintStoreError> {
+        Ok(ryo_values::domain::records::types::RecordWords::Inline(
+            words,
+        ))
+    }
+
+    fn read_staged(
+        &self,
+        _words: &ryo_values::domain::records::types::StagedWords,
+        _into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<(), LintStoreError> {
+        Err(LintStoreError::NothingRead)
     }
 
     fn keep(&self, mut stored: Stored, kept: &KeptRows) -> Result<(), LintStoreError> {
+        if !kept.staged.is_empty() {
+            return Err(LintStoreError::NothingRead);
+        }
         if *self.was == Stored::default()
             && !(kept.unchanged.is_empty() && kept.file_again.is_empty())
         {
@@ -87,6 +129,11 @@ impl ReadStore for MemoryRead {
             .handed
             .frontier
             .sort_by_key(|each| (each.file, each.bucket));
+        ryo_values::domain::stores::service::carry_proofs(
+            &mut stored.handed,
+            &self.was.handed,
+            kept,
+        );
         *self.cell.0.lock().unwrap_or_else(PoisonError::into_inner) = Arc::new(stored);
         Ok(())
     }

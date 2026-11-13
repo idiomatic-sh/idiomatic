@@ -16,6 +16,7 @@ use crate::domain::links::service::linked;
 use crate::domain::links::types::Linked;
 use crate::domain::manifests::collections::manifests::analyzed_source::item::AnalyzedSourceItem;
 use crate::domain::manifests::collections::manifests::file_package::item::FilePackageItem;
+use crate::domain::manifests::collections::manifests::manifest_diagnostic::item::ManifestDiagnosticItem;
 use crate::domain::manifests::collections::manifests::package_dependency::item::PackageDependencyItem;
 use crate::domain::manifests::collections::manifests::source_dependency::item::SourceDependencyItem;
 use crate::domain::manifests::collections::manifests::workspace_member::item::WorkspaceMemberItem;
@@ -55,7 +56,11 @@ impl ProjectContract {
                 if bytes.0.is_empty() {
                     None
                 } else {
-                    self.notes.note_in(bytes).ok() // ignore: idiomatic.arch/no-ok-on-result - the one error of a notes read is bytes that hold no note: a file the parse noted nothing of
+                    // the one error of a notes read is bytes that hold no note: a file the parse noted nothing of
+                    let Ok(note) = self.notes.note_in(bytes) else {
+                        return None;
+                    };
+                    Some(note)
                 }
             })
             .collect()
@@ -96,6 +101,17 @@ impl Project for ProjectContract {
         MANIFESTS
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(path, self.manifests().iter().copied())
+    }
+
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<ryo::languages::FilePath>,
+    ) {
+    }
+
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<Linked>, ProjectError> {
         let modules = self.modules(request);
         let refused = modules
@@ -121,6 +137,7 @@ impl Project for ProjectContract {
             }
         };
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused,
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -138,6 +155,22 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, Linked>> {
         languages::reads_manifests::<SourceDependencyItem>()
+    }
+
+    fn manifest_diagnostic(
+        &self,
+    ) -> Support<ManifestReader<languages::ManifestDiagnostic, Linked>> {
+        languages::reads_manifests::<ManifestDiagnosticItem>()
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, Linked>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, Linked>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, Linked>> {

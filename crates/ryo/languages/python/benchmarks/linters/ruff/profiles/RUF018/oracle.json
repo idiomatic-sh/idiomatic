@@ -1,0 +1,98 @@
+{
+  "assert-only": {
+    "source": "assert (value := compute())\n",
+    "expected": []
+  },
+  "used-after-assert": {
+    "source": "assert (value := compute())\nprint(value)\n",
+    "expected": [
+      {
+        "rule": "RUF018",
+        "file": "case.py",
+        "start": 8,
+        "end": 26
+      }
+    ]
+  },
+  "used-before-and-after": {
+    "source": "value = 1\nassert (value := compute())\nprint(value)\n",
+    "expected": [
+      {
+        "rule": "RUF018",
+        "file": "case.py",
+        "start": 18,
+        "end": 36
+      }
+    ]
+  },
+  "unused-walrus": {
+    "source": "assert (value := compute())\n",
+    "expected": []
+  },
+  "non-assert": {
+    "source": "value = (compute() if (value := condition) else None)\n",
+    "expected": []
+  },
+  "in-call-in-assert": {
+    "source": "assert check((value := compute()))\nuse(value)\n",
+    "expected": [
+      {
+        "rule": "RUF018",
+        "file": "case.py",
+        "start": 14,
+        "end": 32
+      }
+    ]
+  },
+  "assert-message": {
+    "source": "assert condition, (message := build())\nuse(message)\n",
+    "expected": [
+      {
+        "rule": "RUF018",
+        "file": "case.py",
+        "start": 19,
+        "end": 37
+      }
+    ]
+  },
+  "assert-only-lambda": {
+    "source": "assert (value := (lambda: value))\n",
+    "expected": []
+  },
+  "other-assert-use": {
+    "source": "assert (value := compute())\nassert value\n",
+    "expected": []
+  },
+  "noqa": {
+    "source": "assert (value := compute())\nuse(value) # noqa: RUF018\n",
+    "expected": [
+      {
+        "rule": "RUF018",
+        "file": "case.py",
+        "start": 8,
+        "end": 26
+      }
+    ]
+  },
+  "file-noqa": {
+    "source": "# ruff: noqa: RUF018\nassert (value := compute())\nuse(value)\n",
+    "expected": []
+  },
+  "multiple": {
+    "source": "assert (left := one())\nuse(left)\nassert (right := two())\nuse(right)\n",
+    "expected": [
+      {
+        "rule": "RUF018",
+        "file": "case.py",
+        "start": 8,
+        "end": 21
+      },
+      {
+        "rule": "RUF018",
+        "file": "case.py",
+        "start": 41,
+        "end": 55
+      }
+    ]
+  }
+}

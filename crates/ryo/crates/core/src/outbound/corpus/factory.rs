@@ -19,6 +19,7 @@ pub fn ignore(
 #[must_use]
 pub fn memory(
     files: Vec<ryo_values::domain::files::types::CorpusFile>,
+    inventory: ryo_language::domain::project_context::types::GivenProjectInventory,
 ) -> impl crate::outbound::corpus::interface::CorpusPort {
-    super::adapters::memory::adapter::CorpusMemoryAdapter::new(files)
+    super::adapters::memory::adapter::CorpusMemoryAdapter::new(files, inventory)
 }

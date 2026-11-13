@@ -24,6 +24,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 want_name(
                     "invalid UTF-8: a Markdown file is UTF-8 text, and the parser reads it no further",
                 ),
+                want_name("parse"),
+                want_name("incomplete"),
+                want_name("unspecified"),
                 want_file(SHOWN),
                 want_span((2, 1), (3, 1)),
             ]],

@@ -9,14 +9,14 @@ use super::super::errors::ParseError;
 use super::super::service::{baseline, read as read_file};
 use super::super::types::ParseEngine;
 use super::super::types::{ParseRequest, SourceFile};
-use super::contract::Collect;
+use super::collect::Collect;
 use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
-use crate::domain::relations::service::all;
-use crate::domain::relations::types::FileId;
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest};
+use ryo_relations::domain::relations::service::all;
+use ryo_relations::domain::relations::types::FileId;
 use std::path::Path;
 
 /// Runs the allocation row against one implementation: after a warm-up, reading a file allocates
@@ -101,7 +101,7 @@ pub fn samples_in(fixtures: &Path) -> Vec<SourceFile> {
             .collect();
         folders.sort();
         for folder in folders {
-            if let Some(input) = super::findings::input_in(&folder) {
+            for input in super::findings::inputs_in(&folder) {
                 push_sample(&mut samples, fixtures, &input);
             }
         }

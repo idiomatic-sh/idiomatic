@@ -76,6 +76,8 @@ enum Scenario {
     Again,
     /// The fake refuses the rule's query.
     Refused,
+    /// The engine fails the rule's scenarios.
+    EngineFails,
     /// The workspace names a package no source holds.
     NoPackage,
     /// Validated again after only a template's content changed: the proof is made again.
@@ -239,6 +241,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_rule_whose_query_ryo_refuses_does_not_hold"),
         word: Word::Succeeds,
         input: || Scenario::Refused,
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("an_engine_that_fails_leaves_the_version_unproved"),
+        word: Word::Succeeds,
+        input: || Scenario::EngineFails,
         expect: Expect::Value(String::new()),
     },
     Case {
@@ -433,6 +441,7 @@ fn only_for(scenario: Scenario) -> &'static str {
         Scenario::Proven
         | Scenario::Again
         | Scenario::Refused
+        | Scenario::EngineFails
         | Scenario::NoPackage
         | Scenario::Broken
         | Scenario::Local
@@ -460,6 +469,7 @@ fn repository_for(scenario: Scenario, package: &str) -> RepositoryFake {
         | Scenario::Proven
         | Scenario::Again
         | Scenario::Refused
+        | Scenario::EngineFails
         | Scenario::NoPackage
         | Scenario::ContentChanged
         | Scenario::ChangedOften
@@ -645,6 +655,11 @@ fn judged(scenario: Scenario, proved: &Proved) -> Value {
             format!("{:?}", proved.proving)
         };
     }
+    if matches!(scenario, Scenario::EngineFails)
+        && !matches!(&proved.proof, Proof::Failed(problems) if problems.iter().any(|problem| problem.0.contains("the check fails: the analysis failed: the fake fails")))
+    {
+        return format!("{:?}", proved.proof);
+    }
     let expected = match scenario {
         Scenario::NoMatch
         | Scenario::Proven
@@ -668,7 +683,7 @@ fn judged(scenario: Scenario, proved: &Proved) -> Value {
         | Scenario::ListsAgainNextRun
         | Scenario::CachesStayWithinTheirBounds => (true, Proving::Made),
         Scenario::Again => (true, Proving::Kept),
-        Scenario::Refused => (false, Proving::Made),
+        Scenario::Refused | Scenario::EngineFails => (false, Proving::Made),
     };
     let answered = (proved.proof == Proof::Proven, proved.proving);
     if answered == expected {
@@ -687,6 +702,7 @@ fn analysis_for(scenario: Scenario) -> AnalysisFake {
     if matches!(scenario, Scenario::Refused) {
         analysis.invalid.push("MARKER".into());
     }
+    analysis.fails = matches!(scenario, Scenario::EngineFails);
     analysis
 }
 
@@ -818,6 +834,7 @@ fn lifecycle(scenario: Scenario) -> Option<Result<Value, Failure>> {
         | Scenario::Proven
         | Scenario::Again
         | Scenario::Refused
+        | Scenario::EngineFails
         | Scenario::NoPackage
         | Scenario::ContentChanged
         | Scenario::ChangedOften

@@ -11,8 +11,8 @@ use super::types::{Block, Directive, Line, LineNumber, LineText, Word};
 use crate::domain::literals::service::unquoted;
 use crate::domain::literals::types::Written;
 use crate::domain::modules::types::{
-    Declared, Indirectness, Manifestness, Member, ModulePath, ModuleVersion, Replacement,
-    Requirement, Target,
+    Declared, Indirectness, Manifestness, Member, ModulePath, ModuleReplacementTarget,
+    ModuleVersion, Replacement, Requirement,
 };
 use crate::outbound::manifest_reading::errors::ManifestReadingError;
 use crate::outbound::manifest_reading::interface::ManifestReadingPort;
@@ -147,7 +147,7 @@ fn declare(
             declared.replacements.push(Replacement {
                 from: ModulePath(from.0.as_str().into()),
                 version: version_of(arguments.get(1)),
-                to: Target(to.0.as_str().into()),
+                to: ModuleReplacementTarget(to.0.as_str().into()),
                 to_version: version_of(arguments.get(arrow + 2)),
             });
         }

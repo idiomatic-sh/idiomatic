@@ -25,9 +25,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(super::types::Scope::Continues),
     },
 ];
+/// Whether the row's kind opens a scope.
+fn subject(input: Input) -> Result<Value, Failure> {
+    Ok(super::service::opens(input))
+}
+
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, |input| {
-        Ok(super::service::opens(input))
-    });
+    run(CASES, Word::Succeeds, subject);
 }

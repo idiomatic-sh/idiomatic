@@ -1,0 +1,161 @@
+[[cases]]
+name = "missing-zone"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", \"%Y\")\n" }
+expected = [{ rule = "DTZ007", file = "case.py", start = 16, end = 56 }]
+
+[[cases]]
+name = "timezone-directive"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", \"%Y %z\")\n" }
+expected = []
+
+[[cases]]
+name = "format-keyword"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", format=\"%Y\")\n" }
+expected = [{ rule = "DTZ007", file = "case.py", start = 16, end = 63 }]
+
+[[cases]]
+name = "format-keyword-zone"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", format=\"%Y %z\")\n" }
+expected = [{ rule = "DTZ007", file = "case.py", start = 16, end = 66 }]
+
+[[cases]]
+name = "alias-module"
+comparison = "full"
+files = { "case.py" = "import datetime as dt\ndt.datetime.strptime(\"2024\", \"%Y\")\n" }
+expected = [{ rule = "DTZ007", file = "case.py", start = 22, end = 56 }]
+
+[[cases]]
+name = "from-import"
+comparison = "full"
+files = { "case.py" = "from datetime import datetime as dt\ndt.strptime(\"2024\", \"%Y\")\n" }
+expected = [{ rule = "DTZ007", file = "case.py", start = 36, end = 61 }]
+
+[[cases]]
+name = "safe-timezone-replace"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", \"%Y\").replace(tzinfo=datetime.timezone.utc)\n" }
+expected = []
+
+[[cases]]
+name = "unsafe-null-replace"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", \"%Y\").replace(tzinfo=None)\n" }
+expected = [{ rule = "DTZ007", file = "case.py", start = 16, end = 56 }]
+
+[[cases]]
+name = "unsafe-replace-missing-tzinfo"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", \"%Y\").replace(year=2024)\n" }
+expected = [{ rule = "DTZ007", file = "case.py", start = 16, end = 56 }]
+
+[[cases]]
+name = "safe-astimezone"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", \"%Y\").astimezone()\n" }
+expected = []
+
+[[cases]]
+name = "safe-replace-then-astimezone"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", \"%Y\").replace().replace(month=1).astimezone()\n" }
+expected = []
+
+[[cases]]
+name = "bare-astimezone-attribute"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", \"%Y\").astimezone\n" }
+expected = []
+
+[[cases]]
+name = "fstring-literal-zone"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", f\"%Y %z {zone}\")\n" }
+expected = []
+
+[[cases]]
+name = "fstring-tail-zone"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", f\"{zone} %z\")\n" }
+expected = []
+
+[[cases]]
+name = "fstring-format-spec-zone"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", f\"{zone:%z}\")\n" }
+expected = [{ rule = "DTZ007", file = "case.py", start = 16, end = 64 }]
+
+[[cases]]
+name = "fstring-expression-string-zone"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", f\"{'%z'}\")\n" }
+expected = [{ rule = "DTZ007", file = "case.py", start = 16, end = 61 }]
+
+[[cases]]
+name = "fstring-nested-expression-zone"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", f\"{f'%z'}\")\n" }
+expected = [{ rule = "DTZ007", file = "case.py", start = 16, end = 62 }]
+
+[[cases]]
+name = "fstring-format-spec-tail-zone"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", f\"{zone:{width}%z}\")\n" }
+expected = [{ rule = "DTZ007", file = "case.py", start = 16, end = 71 }]
+
+[[cases]]
+name = "concatenated-zone"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", \"%Y \" \"%z\")\n" }
+expected = []
+
+[[cases]]
+name = "non-string-format"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", format_value)\n" }
+expected = [{ rule = "DTZ007", file = "case.py", start = 16, end = 64 }]
+
+[[cases]]
+name = "no-format"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\")\n" }
+expected = [{ rule = "DTZ007", file = "case.py", start = 16, end = 50 }]
+
+[[cases]]
+name = "wrapped-astimezone"
+comparison = "full"
+files = { "case.py" = "import datetime\nconsume(datetime.datetime.strptime(\"2024\", \"%Y\")).astimezone()\n" }
+expected = [{ rule = "DTZ007", file = "case.py", start = 24, end = 64 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", \"%Y\")  # noqa: DTZ007\n" }
+expected = []
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: DTZ007\nimport datetime\ndatetime.datetime.strptime(\"2024\", \"%Y\")\n" }
+expected = []
+
+[[cases]]
+name = "starred-before-positional-format"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", *formats, \"%Y %z\")\n" }
+expected = [{ rule = "DTZ007", file = "case.py", start = 16, end = 69 }]
+
+[[cases]]
+name = "starred-positional-format"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", *formats)\n" }
+expected = [{ rule = "DTZ007", file = "case.py", start = 16, end = 60 }]
+
+[[cases]]
+name = "unrelated-two-argument-call"
+comparison = "full"
+files = { "case.py" = "convert(value, format_string)\n" }
+expected = []

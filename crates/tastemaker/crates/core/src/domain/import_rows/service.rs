@@ -4,17 +4,18 @@
 use std::collections::BTreeMap;
 
 use super::constants::{
-    BINDING, EDGE_KEY, EDGES_RELATION, FILE_COLUMN, NAME_KEY, NAMES_RELATION, OWNER_KEY,
+    BINDING, BLOCK_KIND, FILE_COLUMN, KIND, MODULE_KIND, NAME_KEY, NAMES_RELATION, OWNER_KEY,
     OWNERS_RELATION, PACKAGE, PACKAGE_KEY, PACKAGES_RELATION, PATH_COLUMN, SOURCE_COLUMN, TARGET,
     WRITTEN,
 };
 use crate::domain::applications::types::CellText;
+use crate::domain::comments::types::ByteSpan;
 use crate::domain::contracts::types::Holding;
 use crate::domain::definitions::types::QueryText;
 use crate::domain::imports::constants::JOINERS;
 use crate::domain::imports::types::{
     Import, ImportColumn, ImportPlace, ImportRows, ModuleName, Name, Owner, Package,
-    PackageBinding, Relation, Target, WrittenPath,
+    PackageBinding, Relation, Scope, ScopeKind, Target, WrittenPath,
 };
 use crate::domain::module_paths::service::segments;
 use crate::domain::paths::types::RepoPath;
@@ -23,7 +24,8 @@ use crate::domain::paths::types::RepoPath;
 #[must_use]
 pub fn query(relation: Relation) -> QueryText {
     let (name, subject, key) = match relation {
-        Relation::Edges => (EDGES_RELATION, SOURCE_COLUMN, EDGE_KEY),
+        Relation::Edges => return QueryText(super::constants::SEMANTIC_EDGES.into()),
+        Relation::Scopes => return QueryText(super::constants::SCOPES.into()),
         Relation::Names => (NAMES_RELATION, FILE_COLUMN, NAME_KEY),
         Relation::Packages => (PACKAGES_RELATION, SOURCE_COLUMN, PACKAGE_KEY),
         Relation::Owners => (OWNERS_RELATION, PATH_COLUMN, OWNER_KEY),
@@ -73,6 +75,7 @@ pub fn keep(
                 rows.names.push(Name {
                     source: path,
                     written: WrittenPath(written.0),
+                    binding: column(ImportColumn(BINDING)).map(|binding| ModuleName(binding.0)),
                     span: place,
                 });
             }
@@ -93,6 +96,20 @@ pub fn keep(
         Relation::Owners => {
             if let Some(package) = file(PACKAGE) {
                 rows.owners.push(Owner { path, package });
+            }
+        }
+        Relation::Scopes => {
+            let kind = match column(ImportColumn(KIND)).as_ref().map(|cell| &*cell.0) {
+                Some(BLOCK_KIND) => ScopeKind::Block,
+                Some(MODULE_KIND) => ScopeKind::Module,
+                _ => return,
+            };
+            let scope = Scope { span: place, kind };
+            match rows.scopes.get_mut(&path) {
+                Some(scopes) => scopes.push(scope),
+                None => {
+                    let _: Option<Vec<Scope>> = rows.scopes.insert(path, vec![scope]);
+                }
             }
         }
     }
@@ -125,9 +142,46 @@ fn holds(outer: ImportPlace, inner: ImportPlace) -> Holding {
     }
 }
 
+/// The innermost of `sorted` (spans sorted by start, each two nested or apart) that holds `span`: of those that start at
+/// or before it, found by bisection, the latest to start that also ends at or after it.
+fn innermost(sorted: &[ByteSpan], span: ImportPlace) -> Option<ByteSpan> {
+    let ImportPlace::At(span) = span else {
+        return None;
+    };
+    let before = sorted.partition_point(|scope| scope.start <= span.start);
+    sorted
+        .get(..before)
+        .unwrap_or_default()
+        .iter()
+        .rev()
+        .find(|scope| span.end <= scope.end)
+        .copied()
+}
+
+/// Whether an import whose innermost scope is `around` (the whole file when `None`) binds where `edge` is written.
+///
+/// The rule: a `use` binds within the innermost block or inline module that holds it, and everything nested in that
+/// scope sees it (items nested in a block are held by the block's span), except what lies in an inline module nested
+/// in it, for a module sees no `use` written outside it. So `around` must hold the edge, and the innermost inline module
+/// that holds the edge, `module`, must be `around` itself or lie outside it. A glob import binds no single name, so a
+/// path through one is never matched to it and stays an import of its own.
+fn in_scope(around: Option<ByteSpan>, module: Option<ByteSpan>, edge: ImportPlace) -> Holding {
+    let within = |inner: ImportPlace| {
+        around.map_or(Holding::Holds, |outer| holds(ImportPlace::At(outer), inner))
+    };
+    match module {
+        Some(module)
+            if Some(module) != around && within(ImportPlace::At(module)) == Holding::Holds =>
+        {
+            Holding::Apart
+        }
+        Some(_) | None => within(edge),
+    }
+}
+
 /// Every import the files make, read from the rows of the import relations: each path that names another file of the
-/// repository, written as the `use` that holds it writes it, or as the edge's `written` column says the file writes it, and
-/// each other name an import brings in, which reaches the manifest of a package of the repository the file's own package
+/// repository, written as the `use` that holds it writes it, or as the edge's `written` column says the file writes it
+/// when no import of the file binds the name it starts at (a path through an import is that import's), and each other name an import brings in, which reaches the manifest of a package of the repository the file's own package
 /// depends on by a binding its first names are written with, or a module outside it. A file's package is the one
 /// `file-package` says, whatever language's manifest it is.
 #[must_use]
@@ -159,10 +213,47 @@ pub fn imports(rows: &ImportRows) -> Vec<Import> {
     let mut found = Vec::new();
     for (source, paths) in &edges {
         let brought = names.get(source).map(Vec::as_slice).unwrap_or_default();
+        let spans = |only: Option<ScopeKind>| {
+            let mut spans = rows
+                .scopes
+                .get(*source)
+                .into_iter()
+                .flatten()
+                .filter(|scope| only.is_none_or(|kind| scope.kind == kind))
+                .filter_map(|scope| match scope.span {
+                    ImportPlace::At(span) => Some(span),
+                    ImportPlace::Unplaced => None,
+                })
+                .collect::<Vec<_>>();
+            spans.sort();
+            spans
+        };
+        let scopes = spans(None);
+        let modules = spans(Some(ScopeKind::Module));
+        // Each import's innermost scope, read once: the bindings a use-site path may start at, where each binds.
+        let bindings = brought
+            .iter()
+            .filter_map(|name| Some((name.binding.as_ref()?, innermost(&scopes, name.span))))
+            .collect::<Vec<_>>();
         for edge in paths {
-            let text = brought
+            let held = brought
                 .iter()
-                .find(|name| holds(name.span, edge.span) == Holding::Holds)
+                .find(|name| holds(name.span, edge.span) == Holding::Holds);
+            // A path written at a use site that starts at a name an import binds where the path is written reaches
+            // through that import, which is judged where it is written: the path is no import of its own. An ignore of
+            // that import therefore covers the path too: the path is the import, used, and an import judged once is
+            // exempted once.
+            if held.is_none()
+                && segments(&edge.written).first().is_some_and(|first| {
+                    let module = innermost(&modules, edge.span);
+                    bindings.iter().any(|(binding, around)| {
+                        *binding == first && in_scope(*around, module, edge.span) == Holding::Holds
+                    })
+                })
+            {
+                continue;
+            }
+            let text = held
                 .map(|name| name.written.clone())
                 .or_else(|| match edge.span {
                     ImportPlace::At(_) => Some(edge.written.clone()),

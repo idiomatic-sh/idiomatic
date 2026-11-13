@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 
-use tastemaker_core::domain::captures::service::pieces;
+use tastemaker_core::domain::captures::service::{pieces, written_piece};
 use tastemaker_core::domain::captures::types::{PatternPiece, Template};
 use tastemaker_core::domain::entries::types::Setting;
 use tastemaker_core::domain::packages::types::DefinitionKind;
@@ -128,10 +128,12 @@ pub(super) fn answer(
         let instance: String = pieces(Template(&at.0))
             .into_iter()
             .map(|piece| match piece {
-                PatternPiece::Capture(name) | PatternPiece::Span(name) => format!("<{}>", name.0),
+                PatternPiece::Capture(name)
+                | PatternPiece::Span(name)
+                | PatternPiece::Directory(name) => format!("<{}>", name.0),
                 PatternPiece::Literal(character) => character.0.to_string(),
-                PatternPiece::Star => "*".to_owned(),
-                PatternPiece::Question => "?".to_owned(),
+                // A wildcard, or a piece a later core adds, is written as the pattern writes it.
+                other => written_piece(other).0,
             })
             .collect();
         rooted(

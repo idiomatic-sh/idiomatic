@@ -1,0 +1,42 @@
+{
+  "scope": "Bounded40 existing F811/F841 failures; no binding/query changes or selected F811/F841 findings removed. Reporting-policy differences on recovered/invalid programs are not blanket allegations of an upstream semantic bug.",
+  "namespace": {
+    "grammar_and_unaliased_validation": "invalid-syntax",
+    "future_placement": "Dedicated F404 namespace, whether selected or not; complete validity fact retained.",
+    "unknown_future_feature": "Dedicated F407 namespace, whether selected or not; complete validity fact retained.",
+    "lazy_future_prohibition": "Separate future-lazy-invalid cause has no dedicated lint alias and stays generic. Newworker required."
+  },
+  "ranges": "One name-token span per same-scope global/nonlocal conflict; full type-parameter bracket span for unsupported PEP695 atpy310; lazy keyword for unsupported3.15 syntax; separate complete lazy-future statement; NamedExpr AST span only under an enabled legal absolute module-prefix future. CPython first-error order does not establish multi-error count or these chosen ranges.",
+  "primary_basis": [
+    {
+      "url": "https://docs.python.org/3.10/reference/simple_stmts.html#the-nonlocal-statement",
+      "basis": "A name cannot be both global and nonlocal in one scope."
+    },
+    {
+      "url": "https://docs.python.org/3.10/reference/simple_stmts.html#future-statements",
+      "basis": "Future grammar uses absolute __future__ statements in the module prefix; nested/late imports do not establish a valid module feature."
+    },
+    {
+      "url": "https://github.com/python/cpython/issues/118216",
+      "basis": "Older CPython incorrectly enabled features for dotted imports; maintainers fixed3.13, deliberately left3.12 unchanged."
+    },
+    {
+      "url": "https://github.com/python/cpython/pull/118267",
+      "basis": "The merged fix requires zero leading dots. Preserve this intended language rule rather than reproduce the older target compiler bug."
+    },
+    {
+      "url": "https://peps.python.org/pep-0695/",
+      "basis": "Generic declaration parameter-list syntax starts in3.12; configured3.10 cannot use it."
+    },
+    {
+      "url": "https://peps.python.org/pep-0810/",
+      "basis": "Explicit lazy syntax starts in3.15 and future statements cannot be lazy imports."
+    },
+    {
+      "url": "https://typing.python.org/en/latest/spec/annotations.html#type-and-annotation-expressions",
+      "basis": "Python grammar permits expressions beyond the portable typing-expression subset. Unsupported stub typing expressions are not automatically Python grammar errors."
+    }
+  ],
+  "independent_controls": "Actual CPython3.10.19 original39-source run and42 changed counterparts are preserved.41 counterparts compile; the remaining relative-future counterpart exposes the documented old-compiler bug, not a positive target result. Static span oracle uses a separately labeled CPython3.13 AST/tokenizer and is not target-runtime proof. It removes only a leading lazy marker to obtain AST shape, maps original token offsets, and never changes canonical files.",
+  "status": "Source/evidence draft. No native PASS until new future-lazy cause worker executes complete120/106 cases."
+}

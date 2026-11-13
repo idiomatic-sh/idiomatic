@@ -1,0 +1,835 @@
+
+[[cases]]
+name = "tagged-PYI019_0.py"
+comparison = "full"
+files = { "PYI019_0.py" = "from typing import TypeVar, Self, Type, cast\n\n_S = TypeVar(\"_S\", bound=BadClass)\n_S2 = TypeVar(\"_S2\", BadClass, GoodClass)\n\nclass BadClass:\n    def __new__(cls: type[_S], *args: str, **kwargs: int) -> _S: ...  # PYI019\n\n\n    def bad_instance_method(self: _S, arg: bytes) -> _S: ...  # PYI019\n\n\n    @classmethod\n    def bad_class_method(cls: type[_S], arg: int) -> _S: ...  # PYI019\n\n\n    @classmethod\n    def bad_posonly_class_method(cls: type[_S], /) -> _S: ...  # PYI019\n\n\n    @classmethod\n    def excluded_edge_case(cls: Type[_S], arg: int) -> _S: ...  # Ok\n\n\nclass GoodClass:\n    def __new__(cls: type[Self], *args: list[int], **kwargs: set[str]) -> Self: ...\n    def good_instance_method_1(self: Self, arg: bytes) -> Self: ...\n    def good_instance_method_2(self, arg1: _S2, arg2: _S2) -> _S2: ...\n    @classmethod\n    def good_cls_method_1(cls: type[Self], arg: int) -> Self: ...\n    @classmethod\n    def good_cls_method_2(cls, arg1: _S, arg2: _S) -> _S: ...\n    @staticmethod\n    def static_method(arg1: _S) -> _S: ...\n\n\n# Python > 3.12\nclass PEP695BadDunderNew[T]:\n  def __new__[S](cls: type[S], *args: Any, ** kwargs: Any) -> S: ...  # PYI019\n\n\n  def generic_instance_method[S](self: S) -> S: ...  # PYI019\n\n\nclass PEP695GoodDunderNew[T]:\n  def __new__(cls, *args: Any, **kwargs: Any) -> Self: ...\n\n\nclass CustomClassMethod:\n   # Should be recognised as a classmethod decorator\n   # due to `foo_classmethod being listed in `pep8_naming.classmethod-decorators`\n   # in the settings for this test:\n   @foo_classmethod\n   def foo[S](cls: type[S]) -> S: ...  # PYI019\n\n\n_S695 = TypeVar(\"_S695\", bound=\"PEP695Fix\")\n\n\nclass PEP695Fix:\n    def __new__[S: PEP695Fix](cls: type[S]) -> S: ...\n\n    def __init_subclass__[S](cls: type[S]) -> S: ...\n\n    def __neg__[S: PEP695Fix](self: S) -> S: ...\n\n    def __pos__[S](self: S) -> S: ...\n\n    def __add__[S: PEP695Fix](self: S, other: S) -> S: ...\n\n    def __sub__[S](self: S, other: S) -> S: ...\n\n    @classmethod\n    def class_method_bound[S: PEP695Fix](cls: type[S]) -> S: ...\n\n    @classmethod\n    def class_method_unbound[S](cls: type[S]) -> S: ...\n\n    def instance_method_bound[S: PEP695Fix](self: S) -> S: ...\n\n    def instance_method_unbound[S](self: S) -> S: ...\n\n    def instance_method_bound_with_another_parameter[S: PEP695Fix](self: S, other: S) -> S: ...\n\n    def instance_method_unbound_with_another_parameter[S](self: S, other: S) -> S: ...\n\n    def multiple_type_vars[S, *Ts, T](self: S, other: S, /, *args: *Ts, a: T, b: list[T]) -> S: ...\n\n    def mixing_old_and_new_style_type_vars[T](self: _S695, a: T, b: T) -> _S695: ...\n\n\nclass InvalidButWeDoNotPanic:\n    @classmethod\n    def m[S](cls: type[S], /) -> S[int]: ...\n    def n(self: S) -> S[int]: ...\n\n\nimport builtins\n\nclass UsesFullyQualifiedType:\n    @classmethod\n    def m[S](cls: builtins.type[S]) -> S: ...  # False negative (#15821)\n\n\ndef shadowed_type():\n    type = 1\n    class A:\n        @classmethod\n        def m[S](cls: type[S]) -> S: ...  # no error here\n\n\nclass SubscriptReturnType:\n    @classmethod\n    def m[S](cls: type[S]) -> type[S]: ...  # PYI019\n\n\nclass SelfNotUsedInReturnAnnotation:\n    def m[S](self: S, other: S) -> int: ...\n    @classmethod\n    def n[S](cls: type[S], other: S) -> int: ...\n\n\nclass _NotATypeVar: ...\n\n# Our stable-mode logic uses heuristics and thinks this is a `TypeVar`\n# because `self` and the return annotation use the same name as their annotation,\n# but our preview-mode logic is smarter about this.\nclass Foo:\n    def x(self: _NotATypeVar) -> _NotATypeVar: ...\n    @classmethod\n    def y(self: type[_NotATypeVar]) -> _NotATypeVar: ...\n\n\nclass NoReturnAnnotations:\n    def m[S](self: S, other: S): ...\n    @classmethod\n    def n[S](cls: type[S], other: S): ...\n\nclass MultipleBoundParameters:\n    def m[S: int, T: int](self: S, other: T) -> S: ...\n    def n[T: (int, str), S: (int, str)](self: S, other: T) -> S: ...\n\nclass MethodsWithBody:\n    def m[S](self: S, other: S) -> S:\n        x: S = other\n        return x\n\n    @classmethod\n    def n[S](cls: type[S], other: S) -> S:\n        x: type[S] = type(other)\n        return x()\n\nclass StringizedReferencesCanBeFixed:\n    def m[S](self: S) -> S:\n        x = cast(\"list[tuple[S, S]]\", self)\n        return x\n\nclass ButStrangeStringizedReferencesCannotBeFixed:\n    def m[_T](self: _T) -> _T:\n        x = cast('list[_\\x54]', self)\n        return x\n\nclass DeletionsAreNotTouched:\n    def m[S](self: S) -> S:\n        # `S` is not a local variable here, and `del` can only be used with local variables,\n        # so `del S` here is not actually a reference to the type variable `S`.\n        # This `del` statement is therefore not touched by the autofix (it raises `UnboundLocalError`\n        # both before and after the autofix)\n        del S\n        return self\n\nclass NamesShadowingTypeVarAreNotTouched:\n    def m[S](self: S) -> S:\n        type S = int\n        print(S)  # not a reference to the type variable, so not touched by the autofix\n        return 42\n\n\nMetaType = TypeVar(\"MetaType\")\n\nclass MetaTestClass(type):\n    def m(cls: MetaType) -> MetaType:\n        return cls\n\n\nfrom __future__ import annotations\n\nclass BadClassWithStringTypeHints:\n    def bad_instance_method_with_string_annotations(self: \"_S\", arg: str) -> \"_S\": ... # PYI019\n\n    @classmethod\n    def bad_class_method_with_string_annotations(cls: \"type[_S]\") -> \"_S\": ... # PYI019\n\n\n    @classmethod\n    def bad_class_method_with_mixed_annotations_1(cls: \"type[_S]\") -> _S: ... # PYI019\n\n\n    @classmethod\n    def bad_class_method_with_mixed_annotations_1(cls: type[_S]) -> \"_S\": ... # PYI019\n\n\nclass BadSubscriptReturnTypeWithStringTypeHints:\n    @classmethod\n    def m[S](cls: \"type[S]\") -> \"type[S]\": ...  # PYI019\n\n\nclass GoodClassWiStringTypeHints:\n    @classmethod\n    def good_cls_method_with_mixed_annotations(cls: \"type[Self]\", arg: str) -> Self: ...\n    @staticmethod\n    def good_static_method_with_string_annotations(arg: \"_S\") -> \"_S\": ...\n    @classmethod\n    def good_class_method_with_args_string_annotations(cls, arg1: \"_S\", arg2: \"_S\") -> \"_S\": ...\n" }
+expected = [{ rule = "PYI019", file = "PYI019_0.py", start = 155, end = 203 }, { rule = "PYI019", file = "PYI019_0.py", start = 248, end = 276 }, { rule = "PYI019", file = "PYI019_0.py", start = 335, end = 366 }, { rule = "PYI019", file = "PYI019_0.py", start = 433, end = 457 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 1068, end = 1071 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 1086, end = 1089 }, { rule = "PYI019", file = "PYI019_0.py", start = 1086, end = 1136 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 1183, end = 1186 }, { rule = "PYI019", file = "PYI019_0.py", start = 1183, end = 1200 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 1243, end = 1246 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 1535, end = 1538 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 1653, end = 1667 }, { rule = "PYI019", file = "PYI019_0.py", start = 1653, end = 1686 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 1718, end = 1721 }, { rule = "PYI019", file = "PYI019_0.py", start = 1718, end = 1740 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 1762, end = 1776 }, { rule = "PYI019", file = "PYI019_0.py", start = 1762, end = 1790 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 1812, end = 1815 }, { rule = "PYI019", file = "PYI019_0.py", start = 1812, end = 1829 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 1851, end = 1865 }, { rule = "PYI019", file = "PYI019_0.py", start = 1851, end = 1889 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 1911, end = 1914 }, { rule = "PYI019", file = "PYI019_0.py", start = 1911, end = 1938 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 1988, end = 2002 }, { rule = "PYI019", file = "PYI019_0.py", start = 1988, end = 2021 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 2073, end = 2076 }, { rule = "PYI019", file = "PYI019_0.py", start = 2073, end = 2095 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 2131, end = 2145 }, { rule = "PYI019", file = "PYI019_0.py", start = 2131, end = 2159 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 2197, end = 2200 }, { rule = "PYI019", file = "PYI019_0.py", start = 2197, end = 2214 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 2273, end = 2287 }, { rule = "PYI019", file = "PYI019_0.py", start = 2273, end = 2311 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 2372, end = 2375 }, { rule = "PYI019", file = "PYI019_0.py", start = 2372, end = 2399 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 2432, end = 2443 }, { rule = "PYI019", file = "PYI019_0.py", start = 2432, end = 2500 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 2473, end = 2476 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 2549, end = 2552 }, { rule = "PYI019", file = "PYI019_0.py", start = 2549, end = 2586 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 2650, end = 2653 }, { rule = "PYI019", file = "PYI019_0.py", start = 2650, end = 2680 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 2795, end = 2798 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 2942, end = 2945 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 3042, end = 3045 }, { rule = "PYI019", file = "PYI019_0.py", start = 3042, end = 3070 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 3134, end = 3137 }, { rule = "PYI019", file = "PYI019_0.py", start = 3134, end = 3163 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 3195, end = 3198 }, { rule = "PYI019", file = "PYI019_0.py", start = 3195, end = 3229 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 3641, end = 3644 }, { rule = "PYI019", file = "PYI019_0.py", start = 3641, end = 3663 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 3695, end = 3698 }, { rule = "PYI019", file = "PYI019_0.py", start = 3695, end = 3722 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 3769, end = 3785 }, { rule = "PYI019", file = "PYI019_0.py", start = 3769, end = 3809 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 3824, end = 3854 }, { rule = "PYI019", file = "PYI019_0.py", start = 3824, end = 3878 }, { rule = "PYI019", file = "PYI019_0.py", start = 3917, end = 3944 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 3917, end = 3920 }, { rule = "PYI019", file = "PYI019_0.py", start = 4011, end = 4043 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 4011, end = 4014 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 4145, end = 4148 }, { rule = "PYI019", file = "PYI019_0.py", start = 4145, end = 4162 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 4286, end = 4290 }, { rule = "PYI019", file = "PYI019_0.py", start = 4286, end = 4306 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 4403, end = 4406 }, { rule = "PYI019", file = "PYI019_0.py", start = 4403, end = 4420 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 4828, end = 4831 }, { rule = "PYI019", file = "PYI019_0.py", start = 4828, end = 4845 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 4855, end = 4859 }, { rule = "PYI019", file = "PYI019_0.py", start = 5216, end = 5246 }, { rule = "PYI019", file = "PYI019_0.py", start = 5327, end = 5352 }, { rule = "PYI019", file = "PYI019_0.py", start = 5435, end = 5458 }, { rule = "PYI019", file = "PYI019_0.py", start = 5541, end = 5564 }, { rule = "invalid-syntax", file = "PYI019_0.py", start = 5656, end = 5659 }, { rule = "PYI019", file = "PYI019_0.py", start = 5656, end = 5688 }]
+
+[[cases]]
+name = "tagged-PYI019_0.pyi"
+comparison = "full"
+files = { "PYI019_0.pyi" = "from typing import TypeVar, Self, Type\n\n_S = TypeVar(\"_S\", bound=BadClass)\n_S2 = TypeVar(\"_S2\", BadClass, GoodClass)\n\nclass BadClass:\n    def __new__(cls: type[_S], *args: str, **kwargs: int) -> _S: ...  # PYI019\n\n\n    def bad_instance_method(self: _S, arg: bytes) -> _S: ...  # PYI019\n\n\n    @classmethod\n    def bad_class_method(cls: type[_S], arg: int) -> _S: ...  # PYI019\n\n\n    @classmethod\n    def bad_posonly_class_method(cls: type[_S], /) -> _S: ...  # PYI019\n\n\n    @classmethod\n    def excluded_edge_case(cls: Type[_S], arg: int) -> _S: ...  # Ok\n\n\nclass GoodClass:\n    def __new__(cls: type[Self], *args: list[int], **kwargs: set[str]) -> Self: ...\n    def good_instance_method_1(self: Self, arg: bytes) -> Self: ...\n    def good_instance_method_2(self, arg1: _S2, arg2: _S2) -> _S2: ...\n    @classmethod\n    def good_cls_method_1(cls: type[Self], arg: int) -> Self: ...\n    @classmethod\n    def good_cls_method_2(cls, arg1: _S, arg2: _S) -> _S: ...\n    @staticmethod\n    def static_method(arg1: _S) -> _S: ...\n\n\n# Python > 3.12\nclass PEP695BadDunderNew[T]:\n  def __new__[S](cls: type[S], *args: Any, ** kwargs: Any) -> S: ...  # PYI019\n\n\n  def generic_instance_method[S](self: S) -> S: ...  # PYI019\n\n\nclass PEP695GoodDunderNew[T]:\n  def __new__(cls, *args: Any, **kwargs: Any) -> Self: ...\n\n\nclass CustomClassMethod:\n   # Should be recognised as a classmethod decorator\n   # due to `foo_classmethod being listed in `pep8_naming.classmethod-decorators`\n   # in the settings for this test:\n   @foo_classmethod\n   def foo[S](cls: type[S]) -> S: ...  # PYI019\n\n\n_S695 = TypeVar(\"_S695\", bound=\"PEP695Fix\")\n\n\nclass PEP695Fix:\n    def __new__[S: PEP695Fix](cls: type[S]) -> S: ...\n\n    def __init_subclass__[S](cls: type[S]) -> S: ...\n\n    def __neg__[S: PEP695Fix](self: S) -> S: ...\n\n    def __pos__[S](self: S) -> S: ...\n\n    def __add__[S: PEP695Fix](self: S, other: S) -> S: ...\n\n    def __sub__[S](self: S, other: S) -> S: ...\n\n    @classmethod\n    def class_method_bound[S: PEP695Fix](cls: type[S]) -> S: ...\n\n    @classmethod\n    def class_method_unbound[S](cls: type[S]) -> S: ...\n\n    def instance_method_bound[S: PEP695Fix](self: S) -> S: ...\n\n    def instance_method_unbound[S](self: S) -> S: ...\n\n    def instance_method_bound_with_another_parameter[S: PEP695Fix](self: S, other: S) -> S: ...\n\n    def instance_method_unbound_with_another_parameter[S](self: S, other: S) -> S: ...\n\n    def multiple_type_vars[S, *Ts, T](self: S, other: S, /, *args: *Ts, a: T, b: list[T]) -> S: ...\n\n    def mixing_old_and_new_style_type_vars[T](self: _S695, a: T, b: T) -> _S695: ...\n\n\nclass InvalidButWeDoNotPanic:\n    @classmethod\n    def m[S](cls: type[S], /) -> S[int]: ...\n    def n(self: S) -> S[int]: ...\n\n\nimport builtins\n\nclass UsesFullyQualifiedType:\n    @classmethod\n    def m[S](cls: builtins.type[S]) -> S: ...  # False negative (#15821)\n\n\ndef shadowed_type():\n    type = 1\n    class A:\n        @classmethod\n        def m[S](cls: type[S]) -> S: ...  # no error here\n\n\nclass SubscriptReturnType:\n    @classmethod\n    def m[S](cls: type[S]) -> type[S]: ...  # PYI019\n\n\nclass PEP695TypeParameterAtTheVeryEndOfTheList:\n    def f[T, S](self: S) -> S: ...\n\n\nclass PEP695Again:\n    def mixing_and_nested[T](self: _S695, a: list[_S695], b: dict[_S695, str | T | set[_S695]]) -> _S695: ...\n    def also_uses_s695_but_should_not_be_edited(self, v: set[tuple[_S695]]) -> _S695: ...\n\n    @classmethod\n    def comment_in_fix_range[T, S](\n        cls: type[  # Lorem ipsum\n            S\n        ],\n        a: T,\n        b: tuple[S, T]\n    ) -> S: ...\n\n    def comment_outside_fix_range[T, S](\n        self: S,\n        a: T,\n        b: tuple[\n            # Lorem ipsum\n            S, T\n        ]\n    ) -> S: ...\n\n\nclass SelfNotUsedInReturnAnnotation:\n    def m[S](self: S, other: S) -> int: ...\n    @classmethod\n    def n[S](cls: type[S], other: S) -> int: ...\n\n\nclass _NotATypeVar: ...\n\n# Our stable-mode logic uses heuristics and thinks this is a `TypeVar`\n# because `self` and the return annotation use the same name as their annotation,\n# but our preview-mode logic is smarter about this.\nclass Foo:\n    def x(self: _NotATypeVar) -> _NotATypeVar: ...\n    @classmethod\n    def y(self: type[_NotATypeVar]) -> _NotATypeVar: ...\n\nclass NoReturnAnnotations:\n    def m[S](self: S, other: S): ...\n    @classmethod\n    def n[S](cls: type[S], other: S): ...\n\nclass MultipleBoundParameters:\n    def m[S: int, T: int](self: S, other: T) -> S: ...\n    def n[T: (int, str), S: (int, str)](self: S, other: T) -> S: ...\n\n\nMetaType = TypeVar(\"MetaType\")\n\nclass MetaTestClass(type):\n    def m(cls: MetaType) -> MetaType:\n        return cls\n\n\nfrom __future__ import annotations\n\n\nclass BadClassWithStringTypeHints:\n    def bad_instance_method_with_string_annotations(self: \"_S\", arg: str) -> \"_S\": ... # PYI019\n\n    @classmethod\n    def bad_class_method_with_string_annotations(cls: \"type[_S]\") -> \"_S\": ... # PYI019\n\n\n    @classmethod\n    def bad_class_method_with_mixed_annotations_1(cls: \"type[_S]\") -> _S: ... # PYI019\n\n\n    @classmethod\n    def bad_class_method_with_mixed_annotations_1(cls: type[_S]) -> \"_S\": ... # PYI019\n\n\nclass BadSubscriptReturnTypeWithStringTypeHints:\n    @classmethod\n    def m[S](cls: \"type[S]\") -> \"type[S]\": ...  # PYI019\n\n\nclass GoodClassWithStringTypeHints:\n    @classmethod\n    def good_cls_method_with_mixed_annotations(cls: \"type[Self]\", arg: str) -> Self: ...\n    @staticmethod\n    def good_static_method_with_string_annotations(arg: \"_S\") -> \"_S\": ...\n    @classmethod\n    def good_class_method_with_args_string_annotations(cls, arg1: \"_S\", arg2: \"_S\") -> \"_S\": ...\n\n" }
+expected = [{ rule = "PYI019", file = "PYI019_0.pyi", start = 149, end = 197 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 242, end = 270 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 329, end = 360 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 427, end = 451 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 1062, end = 1065 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 1080, end = 1083 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 1080, end = 1130 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 1177, end = 1180 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 1177, end = 1194 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 1237, end = 1240 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 1529, end = 1532 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 1647, end = 1661 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 1647, end = 1680 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 1712, end = 1715 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 1712, end = 1734 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 1756, end = 1770 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 1756, end = 1784 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 1806, end = 1809 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 1806, end = 1823 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 1845, end = 1859 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 1845, end = 1883 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 1905, end = 1932 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 1905, end = 1908 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 1982, end = 1996 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 1982, end = 2015 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 2067, end = 2070 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 2067, end = 2089 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 2125, end = 2139 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 2125, end = 2153 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 2191, end = 2194 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 2191, end = 2208 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 2267, end = 2281 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 2267, end = 2305 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 2366, end = 2369 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 2366, end = 2393 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 2426, end = 2437 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 2426, end = 2494 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 2467, end = 2470 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 2543, end = 2546 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 2543, end = 2580 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 2644, end = 2647 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 2644, end = 2674 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 2789, end = 2792 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 2936, end = 2939 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 3036, end = 3039 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 3036, end = 3064 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 3139, end = 3159 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 3139, end = 3145 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 3211, end = 3214 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 3211, end = 3290 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 3432, end = 3438 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 3432, end = 3546 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 3586, end = 3592 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 3586, end = 3706 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 3760, end = 3763 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 3760, end = 3789 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 3821, end = 3824 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 3821, end = 3855 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 4266, end = 4269 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 4266, end = 4288 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 4320, end = 4323 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 4320, end = 4347 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 4394, end = 4410 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 4394, end = 4434 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 4449, end = 4479 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 4449, end = 4503 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 4752, end = 4782 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 4863, end = 4888 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 4971, end = 4994 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 5077, end = 5100 }, { rule = "invalid-syntax", file = "PYI019_0.pyi", start = 5192, end = 5195 }, { rule = "PYI019", file = "PYI019_0.pyi", start = 5192, end = 5224 }]
+
+[[cases]]
+name = "tagged-PYI019_1.pyi"
+comparison = "full"
+files = { "PYI019_1.pyi" = "import typing\n\nclass F:\n    def m[S](self: S) -> S: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "PYI019_1.pyi", start = 33, end = 36 }, { rule = "PYI019", file = "PYI019_1.pyi", start = 33, end = 50 }]
+
+[[cases]]
+name = "instance"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    def m(self: T) -> T: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }, { rule = "PYI019", file = "case.pyi", start = 104, end = 118 }]
+
+[[cases]]
+name = "no-return"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    def m(self: T): ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }, { rule = "PYI019", file = "case.pyi", start = 104, end = 113 }]
+
+[[cases]]
+name = "class"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    @classmethod\n    def m(cls: type[T]) -> T: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }, { rule = "PYI019", file = "case.pyi", start = 121, end = 140 }]
+
+[[cases]]
+name = "new"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    def __new__(cls: type[T]) -> T: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }, { rule = "PYI019", file = "case.pyi", start = 110, end = 129 }]
+
+[[cases]]
+name = "implicit-class"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    def __class_getitem__(cls: type[T]) -> T: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }, { rule = "PYI019", file = "case.pyi", start = 120, end = 139 }]
+
+[[cases]]
+name = "generic"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    def m[S](self: S) -> int: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }, { rule = "invalid-syntax", file = "case.pyi", start = 104, end = 107 }, { rule = "PYI019", file = "case.pyi", start = 104, end = 123 }]
+
+[[cases]]
+name = "string"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    def m(self: \"T\") -> \"T\": ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }, { rule = "PYI019", file = "case.pyi", start = 104, end = 122 }]
+
+[[cases]]
+name = "static"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    @staticmethod\n    def m(self: T) -> T: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }]
+
+[[cases]]
+name = "abstract"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    @abc.abstractmethod\n    def m(self: T) -> T: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }]
+
+[[cases]]
+name = "abstract-class"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    @abc.abstractclassmethod\n    def m(cls: type[T]) -> T: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }]
+
+[[cases]]
+name = "abstract-property"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    @abc.abstractproperty\n    def m(self: T) -> T: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }]
+
+[[cases]]
+name = "overload"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    @overload\n    def m(self: T) -> T: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }]
+
+[[cases]]
+name = "property"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    @property\n    def m(self: T) -> T: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }, { rule = "PYI019", file = "case.pyi", start = 118, end = 132 }]
+
+[[cases]]
+name = "nested-parameter"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    def m(self: list[T]) -> T: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }]
+
+[[cases]]
+name = "no-parameters"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    def m() -> T: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }]
+
+[[cases]]
+name = "keyword-only"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    def m(*, self: T) -> T: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }]
+
+[[cases]]
+name = "positional-only"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    def m(self: T, /): ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }, { rule = "PYI019", file = "case.pyi", start = 104, end = 116 }]
+
+[[cases]]
+name = "typevar-class-parameter"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    def m(self: U) -> U: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }]
+
+[[cases]]
+name = "not-a-typevar"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    def m(self: int) -> int: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }]
+
+[[cases]]
+name = "whitespace-after-name"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    def m  (self: T) -> T: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }, { rule = "PYI019", file = "case.pyi", start = 104, end = 120 }]
+
+[[cases]]
+name = "unicode"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    def m\u00e9thode(self: T) -> T: ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }, { rule = "PYI019", file = "case.pyi", start = 111, end = 125 }]
+
+[[cases]]
+name = "inline-suppression"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nimport abc\nfrom typing import overload\nclass C[U]:\n    def m(self: T) -> T: ...  # noqa: PYI019\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 90, end = 93 }]
+
+[[cases]]
+name = "local-shadowing"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nclass C:\n    T = int\n    def m(self: T) -> T: ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 74, end = 88 }]
+
+[[cases]]
+name = "other-scope-typevar"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nclass Other:\n    T=TypeVar(\"T\")\nclass C:\n    def m(self: T) -> T: ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nclass C(type):\n    def m(self: T): ...\n" }
+expected = []
+
+[[cases]]
+name = "transitive-metaclass"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\nclass A(type): ...\nclass C(A):\n    def m(self: T): ...\n" }
+expected = []
+
+[[cases]]
+name = "bound-generic"
+comparison = "full"
+files = { "case.pyi" = "class C:\n    def m[T: int](self: T): ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 18, end = 26 }, { rule = "PYI019", file = "case.pyi", start = 18, end = 35 }]
+
+[[cases]]
+name = "paramspec"
+comparison = "full"
+files = { "case.pyi" = "class C:\n    def m[**P](self: P): ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 18, end = 23 }]
+
+[[cases]]
+name = "typevartuple"
+comparison = "full"
+files = { "case.pyi" = "class C:\n    def m[*Ts](self: Ts): ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 18, end = 23 }]
+
+[[cases]]
+name = "class-shadow-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n T=int\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "class-shadow-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n T=int\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 64, end = 72 }]
+
+[[cases]]
+name = "class-shadow-future"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n T=int\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.py", start = 99, end = 107 }]
+
+[[cases]]
+name = "class-only-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nclass C:\n T=TypeVar(\"T\")\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.py", start = 58, end = 66 }]
+
+[[cases]]
+name = "class-only-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nclass C:\n T=TypeVar(\"T\")\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 58, end = 66 }]
+
+[[cases]]
+name = "class-only-future"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import TypeVar\nclass C:\n T=TypeVar(\"T\")\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.py", start = 93, end = 101 }]
+
+[[cases]]
+name = "module-rebound-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n def m(self:T): ...\nT=int\n" }
+expected = [{ rule = "PYI019", file = "case.py", start = 57, end = 65 }]
+
+[[cases]]
+name = "module-rebound-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n def m(self:T): ...\nT=int\n" }
+expected = []
+
+[[cases]]
+name = "module-rebound-future"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n def m(self:T): ...\nT=int\n" }
+expected = []
+
+[[cases]]
+name = "module-forward-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nclass C:\n def m(self:T): ...\nT=TypeVar(\"T\")\n" }
+expected = []
+
+[[cases]]
+name = "module-forward-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nclass C:\n def m(self:T): ...\nT=TypeVar(\"T\")\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 42, end = 50 }]
+
+[[cases]]
+name = "module-forward-future"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import TypeVar\nclass C:\n def m(self:T): ...\nT=TypeVar(\"T\")\n" }
+expected = [{ rule = "PYI019", file = "case.py", start = 77, end = 85 }]
+
+[[cases]]
+name = "outer-local-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\ndef f():\n T=TypeVar(\"T\")\n class C:\n  def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.py", start = 69, end = 77 }]
+
+[[cases]]
+name = "outer-local-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\ndef f():\n T=TypeVar(\"T\")\n class C:\n  def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 69, end = 77 }]
+
+[[cases]]
+name = "outer-local-future"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import TypeVar\ndef f():\n T=TypeVar(\"T\")\n class C:\n  def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.py", start = 104, end = 112 }]
+
+[[cases]]
+name = "outer-shadow-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\ndef f():\n T=int\n class C:\n  def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "outer-shadow-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\ndef f():\n T=int\n class C:\n  def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 75, end = 83 }]
+
+[[cases]]
+name = "outer-shadow-future"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import TypeVar\nT=TypeVar(\"T\")\ndef f():\n T=int\n class C:\n  def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.py", start = 110, end = 118 }]
+
+[[cases]]
+name = "class-shadows-type-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n type=int\n @classmethod\n def m(cls:type[T]): ...\n" }
+expected = []
+
+[[cases]]
+name = "class-shadows-type-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n type=int\n @classmethod\n def m(cls:type[T]): ...\n" }
+expected = []
+
+[[cases]]
+name = "class-shadows-type-future"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n type=int\n @classmethod\n def m(cls:type[T]): ...\n" }
+expected = []
+
+[[cases]]
+name = "module-shadows-type-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\ntype=int\nclass C:\n @classmethod\n def m(cls:type[T]): ...\n" }
+expected = []
+
+[[cases]]
+name = "module-shadows-type-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\ntype=int\nclass C:\n @classmethod\n def m(cls:type[T]): ...\n" }
+expected = []
+
+[[cases]]
+name = "module-shadows-type-future"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import TypeVar\nT=TypeVar(\"T\")\ntype=int\nclass C:\n @classmethod\n def m(cls:type[T]): ...\n" }
+expected = []
+
+[[cases]]
+name = "reused-function-name-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n def m(self:T): ...\n def m(self): ...\n" }
+expected = [{ rule = "PYI019", file = "case.py", start = 57, end = 65 }]
+
+[[cases]]
+name = "reused-function-name-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n def m(self:T): ...\n def m(self): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 57, end = 65 }]
+
+[[cases]]
+name = "reused-function-name-future"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n def m(self:T): ...\n def m(self): ...\n" }
+expected = [{ rule = "PYI019", file = "case.py", start = 92, end = 100 }]
+
+[[cases]]
+name = "local-future-typevar-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\ndef f():\n class C:\n  def m(self:T): ...\n T=TypeVar(\"T\")\n" }
+expected = []
+
+[[cases]]
+name = "local-future-typevar-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\ndef f():\n class C:\n  def m(self:T): ...\n T=TypeVar(\"T\")\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 53, end = 61 }]
+
+[[cases]]
+name = "local-future-typevar-future"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import TypeVar\ndef f():\n class C:\n  def m(self:T): ...\n T=TypeVar(\"T\")\n" }
+expected = [{ rule = "PYI019", file = "case.py", start = 88, end = 96 }]
+
+[[cases]]
+name = "string-module-preference"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n T=int\n def m(self:\"T\"): ...\n" }
+expected = [{ rule = "PYI019", file = "case.py", start = 64, end = 74 }]
+
+[[cases]]
+name = "string-class-type-preference"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n type=int\n @classmethod\n def m(cls:\"type[T]\"): ...\n" }
+expected = []
+
+[[cases]]
+name = "multiassign-typevar"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=U=TypeVar(\"T\")\nclass C:\n def m(self:T): ...\n def n(self:U): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 59, end = 67 }, { rule = "PYI019", file = "case.pyi", start = 79, end = 87 }]
+
+[[cases]]
+name = "annotated-typevar"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT: object=TypeVar(\"T\")\nclass C:\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "typevartuple-call"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVarTuple\nT=TypeVarTuple(\"T\")\nclass C:\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "assignment-alias-not-typevar"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nU=T\nclass C:\n def m(self:U): ...\n" }
+expected = []
+
+[[cases]]
+name = "parameter-shadow-typevar"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n def m[T](self:T): ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 57, end = 60 }, { rule = "PYI019", file = "case.pyi", start = 57, end = 68 }]
+
+[[cases]]
+name = "nested-function-excluded"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n def f(self):\n  def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "conditional-method"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n if flag:\n  def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 68, end = 76 }]
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.pyi" = "# ruff: noqa: PYI019\nfrom typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-predicate-0"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport abc,enum\nclass C(type):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-predicate-1"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport abc,enum\nclass C(type[int]):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-predicate-2"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport abc,enum\nclass C(type[int][str]):\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 89, end = 97 }]
+
+[[cases]]
+name = "metaclass-predicate-3"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport abc,enum\nclass C(type(Protocol)):\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 89, end = 97 }]
+
+[[cases]]
+name = "metaclass-predicate-4"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport abc,enum\nclass C(type()):\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 81, end = 89 }]
+
+[[cases]]
+name = "metaclass-predicate-5"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport abc,enum\nclass C(abc.ABCMeta):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-predicate-6"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport abc,enum\nclass C(abc.ABCMeta[int]):\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 91, end = 99 }]
+
+[[cases]]
+name = "metaclass-predicate-7"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport abc,enum\nclass C(enum.EnumMeta):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-predicate-8"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport abc,enum\nclass C(enum.EnumType):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-predicate-9"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport abc,enum\nclass C(unknown):\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 82, end = 90 }]
+
+[[cases]]
+name = "metaclass-predicate-10"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport abc,enum\nclass C(unknown(), type):\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 90, end = 98 }]
+
+[[cases]]
+name = "metaclass-predicate-11"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport abc,enum\nclass C(type, unknown()):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "boundary-formfeed"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n def m\f(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 57, end = 66 }]
+
+[[cases]]
+name = "boundary-backslash"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass C:\n def m\\\n   (self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 57, end = 70 }]
+
+[[cases]]
+name = "boundary-unicode-generic"
+comparison = "full"
+files = { "case.pyi" = "class C:\n def m\u00e9thode[T](self:T): ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 22, end = 25 }, { rule = "PYI019", file = "case.pyi", start = 22, end = 33 }]
+
+[[cases]]
+name = "metaclass-maybe-signature"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass C(unknown):\n def __new__(cls,name:str,bases:tuple,attrs:dict,**kw): ...\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 126, end = 134 }]
+
+[[cases]]
+name = "metaclass-transitive"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass A(type): ...\nclass Subject(A):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-attribute"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass Outer:\n class A(type): ...\nclass Subject(Outer.A):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-deep-attribute"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass Outer:\n class Inner:\n  class A(type): ...\nclass Subject(Outer.Inner.A):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-attribute-subscript"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass Outer:\n class A(type): ...\nclass Subject(Outer.A[int]):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-inherited-attribute-excluded"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass Outer:\n class A(type): ...\nclass Sub(Outer): ...\nclass Subject(Sub.A):\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 134, end = 142 }]
+
+[[cases]]
+name = "metaclass-rebound-base"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass A(type): ...\nclass Middle(A): ...\nA=unknown\nclass Subject(Middle):\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 130, end = 138 }]
+
+[[cases]]
+name = "metaclass-sibling-shadow"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass A(type): ...\nclass Outer:\n class A: ...\nclass Subject(A):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-forward-local"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass Subject(A):\n def m(self:T): ...\n\nclass A(type): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-later-rebound"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass A(type): ...\nclass Subject(A):\n def m(self:T): ...\n\nA=unknown\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 94, end = 102 }]
+
+[[cases]]
+name = "metaclass-class-local-shadow"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass A(type): ...\nclass Subject(A):\n class A: ...\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-typecall"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass Subject(type(Protocol)):\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 88, end = 96 }]
+
+[[cases]]
+name = "metaclass-typecall-zero-before"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass Subject(type(), type):\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 86, end = 94 }]
+
+[[cases]]
+name = "metaclass-typecall-two-before"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass Subject(type(1,2), type):\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 89, end = 97 }]
+
+[[cases]]
+name = "metaclass-subscript-type"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass Subject(type[int]):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-nested-subscript"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass Subject(type[int][str]):\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 88, end = 96 }]
+
+[[cases]]
+name = "metaclass-signature-kwonly"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass Subject(unknown):\n def __new__(cls, *, name:str, bases:tuple, attrs:dict, **kw): ...\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 148, end = 156 }]
+
+[[cases]]
+name = "metaclass-signature-wrong-order"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass Subject(unknown):\n def __new__(cls, name:dict, bases:tuple, attrs:str, **kw): ...\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 145, end = 153 }]
+
+[[cases]]
+name = "metaclass-signature-nested-branch"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass Subject(unknown):\n if flag:\n  def __new__(cls, name:str, bases:tuple, attrs:dict, **kw): ...\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 156, end = 164 }]
+
+[[cases]]
+name = "metaclass-inherited-call-before"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass A(unknown(),type): ...\nclass Subject(A):\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 104, end = 112 }]
+
+[[cases]]
+name = "metaclass-inherited-call-after"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass A(type,unknown()): ...\nclass Subject(A):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-cyclic-order"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass A(B,unknown(),type): ...\nclass B(A,unknown()): ...\nclass Subject(A):\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 132, end = 140 }]
+
+[[cases]]
+name = "metaclass-cyclic-no-call"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar,Protocol\nT=TypeVar(\"T\")\nclass A(B,type): ...\nclass B(A): ...\nclass Subject(A):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-deferred-global-bind"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass A(type): ...\ndef change():\n global A\n class A: ...\nclass Subject(A):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-deferred-global-bind-reverse"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass A: ...\ndef change():\n global A\n class A(type): ...\nclass Subject(A):\n def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 123, end = 131 }]
+
+[[cases]]
+name = "metaclass-header-walrus-typescope"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass A(type): ...\nclass Subject(A,(A:=unknown)):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-function-annotation-typescope"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass A(type): ...\ndef outer(x:(A:=unknown)):\n class Subject(A):\n  def m(self:T): ...\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "end" = 84, "file" = "case.pyi", "rule" = "invalid-syntax", "start" = 74 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "1706bfd85bc77cd78d21197b518ee13fcd7ba4b9912cb1f64e0257fea20504ea", "settings-sha256" = "23545dda92510636096f63750f718ecf65b75c7a1be65045801f7624d36795b2", "source-sha256" = "b38b47b9963787a2d18ae4629ebafb24a779dca06fa9475521e20446d0011d70", "reference-output-sha256" = "77358f597e9bf684bfd7b3b06046929749de817f3909f7131500e0763f4c73c4", "intended-output-sha256" = "e93b85cd43c2675f047e57a261d4e0c05ee25b053127ea52a195c8fae373b496" }, "evidence" = [{ "path" = "evidence/audit.py", "sha256" = "1d7c7ff0f6a0f3d8d1a4cec8e1d3482e17b6f1b836a62927fd4c44ca97ef595e", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual configured-target CPython3.10.19 parses and compiles the exact unchanged .pyi source with future_annotations disabled. Only those two metaclass annotation cases in the archived39-source output are used; .pyi type-system validity is distinguished from compiler syntax by the linked official typing specification. Existing canonical positive cases are unchanged." }, { "path" = "evidence/exact-current-failed-sources.json", "sha256" = "a14b4d9b58379042dabc06ea974274a2db691002008409f1183488a4e311eb59", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual configured-target CPython3.10.19 parses and compiles the exact unchanged .pyi source with future_annotations disabled. Only those two metaclass annotation cases in the archived39-source output are used; .pyi type-system validity is distinguished from compiler syntax by the linked official typing specification. Existing canonical positive cases are unchanged." }, { "path" = "evidence/compiler-stdout.json", "sha256" = "1be10823b1c009a66a01a6622fb4901713177cd58847f8f0e30795ddeb33edc3", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual configured-target CPython3.10.19 parses and compiles the exact unchanged .pyi source with future_annotations disabled. Only those two metaclass annotation cases in the archived39-source output are used; .pyi type-system validity is distinguished from compiler syntax by the linked official typing specification. Existing canonical positive cases are unchanged." }, { "path" = "evidence/compiler-invocation.json", "sha256" = "b94c6e83647c35a996d6dde5e1a05498530daaa27abeb745798907b017b1b1b2", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual configured-target CPython3.10.19 parses and compiles the exact unchanged .pyi source with future_annotations disabled. Only those two metaclass annotation cases in the archived39-source output are used; .pyi type-system validity is distinguished from compiler syntax by the linked official typing specification. Existing canonical positive cases are unchanged." }, { "path" = "evidence/stub-syntax-contract.json", "sha256" = "8f37ea3c081abbb7a1f4ffdb8bbbbd3325b72d6aa5af299131290f9d763958ea", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual configured-target CPython3.10.19 parses and compiles the exact unchanged .pyi source with future_annotations disabled. Only those two metaclass annotation cases in the archived39-source output are used; .pyi type-system validity is distinguished from compiler syntax by the linked official typing specification. Existing canonical positive cases are unchanged." }], "reason" = "Exact generic-syntax false positive on a .pyi parameter annotation containing a named expression. The exact source parses and compiles on actual CPython3.10.19 without future annotations. Official stub/type specifications distinguish Python grammar from the restricted type-expression subset; unsupported typing constructs need not be valid portable types, and this certificate does not claim they are. Preserve the complete pinned Ruff generic invalid-syntax finding, while intended output asserts no selected PYI019/PYI034 finding and no Python grammar error. No other source or diagnostic is waived." }
+
+[[cases]]
+name = "metaclass-function-default-realbind"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass A(type): ...\ndef outer(x=(A:=unknown)):\n class Subject(A):\n  def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 114, end = 122 }]
+
+[[cases]]
+name = "metaclass-function-local-shadow"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass A(type): ...\ndef outer():\n class A: ...\n class Subject(A):\n  def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "metaclass-function-local-meta"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass A: ...\ndef outer():\n class A(type): ...\n class Subject(A):\n  def m(self:T): ...\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 114, end = 122 }]
+
+[[cases]]
+name = "origin-class-shadows-type-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass Subject(type):\n type=unknown\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "origin-class-shadows-type-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass Subject(type):\n type=unknown\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "origin-class-shadows-abc-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport abc\nclass Subject(abc.ABCMeta):\n abc=unknown\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "origin-class-shadows-abc-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport abc\nclass Subject(abc.ABCMeta):\n abc=unknown\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "origin-class-shadows-alias-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\nfrom abc import ABCMeta as M\nclass Subject(M):\n M=unknown\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "origin-class-shadows-alias-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nfrom abc import ABCMeta as M\nclass Subject(M):\n M=unknown\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "origin-module-rebinds-type-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass Subject(type):\n def m(self:T): ...\ntype=unknown\n" }
+expected = []
+
+[[cases]]
+name = "origin-module-rebinds-type-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass Subject(type):\n def m(self:T): ...\ntype=unknown\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 69, end = 77 }]
+
+[[cases]]
+name = "origin-module-rebinds-abc-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport abc\nclass Subject(abc.ABCMeta):\n def m(self:T): ...\nabc=unknown\n" }
+expected = []
+
+[[cases]]
+name = "origin-module-rebinds-abc-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport abc\nclass Subject(abc.ABCMeta):\n def m(self:T): ...\nabc=unknown\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 87, end = 95 }]
+
+[[cases]]
+name = "origin-local-import-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\ndef outer():\n import abc as a\n class Subject(a.ABCMeta):\n  def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "origin-local-import-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\ndef outer():\n import abc as a\n class Subject(a.ABCMeta):\n  def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "origin-local-import-rebound-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\ndef outer():\n import abc as a\n class Subject(a.ABCMeta):\n  def m(self:T): ...\n a=unknown\n" }
+expected = []
+
+[[cases]]
+name = "origin-local-import-rebound-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\ndef outer():\n import abc as a\n class Subject(a.ABCMeta):\n  def m(self:T): ...\n a=unknown\n" }
+expected = [{ rule = "PYI019", file = "case.pyi", start = 106, end = 114 }]
+
+[[cases]]
+name = "origin-delete-type-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass Subject(type):\n del type\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "origin-delete-type-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass Subject(type):\n del type\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "origin-delete-module-type-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass Subject(type):\n def m(self:T): ...\ndel type\n" }
+expected = []
+
+[[cases]]
+name = "origin-delete-module-type-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nclass Subject(type):\n def m(self:T): ...\ndel type\n" }
+expected = []
+
+[[cases]]
+name = "origin-imported-builtins-type-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\nfrom builtins import type as TMeta\nclass Subject(TMeta):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "origin-imported-builtins-type-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nfrom builtins import type as TMeta\nclass Subject(TMeta):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "origin-qualified-type-py"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport builtins as b\nclass Subject(b.type):\n def m(self:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "origin-qualified-type-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\nimport builtins as b\nclass Subject(b.type):\n def m(self:T): ...\n" }
+expected = []

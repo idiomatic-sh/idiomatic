@@ -8,6 +8,9 @@ use ryo::languages::contract::{
 const ROWS: &[SyntaxErrorExpectedRow] = &[SyntaxErrorExpectedRow {
     id: node(2_147_483_648),
     message: name("Unexpected close brace on line 1 column 12"),
+    phase: name("parse"),
+    impact: name("incomplete"),
+    code: name("unspecified"),
     file: file("syntax_error/input.json"),
     span: span((1, 12), (1, 13)),
 }];

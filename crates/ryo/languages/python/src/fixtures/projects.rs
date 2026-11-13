@@ -33,7 +33,7 @@ pub(crate) struct Shown<'a> {
 
 impl Shown<'_> {
     /// A name, as its text.
-    fn name(&self, symbol: languages::Symbol) -> String {
+    pub(crate) fn name(&self, symbol: languages::Symbol) -> String {
         format!(
             "{:?}",
             languages::text_of(self.symbols, languages::ByteSlice(&[]), symbol)
@@ -42,7 +42,7 @@ impl Shown<'_> {
     }
 
     /// A file, by its path.
-    fn file(&self, file: languages::FileId) -> &str {
+    pub(crate) fn file(&self, file: languages::FileId) -> &str {
         usize::try_from(file.0)
             .ok()
             .and_then(|place| self.files.get(place))
@@ -175,7 +175,13 @@ fn adapters(available: &[languages::ManifestFile]) -> Vec<Arc<dyn ManifestReadin
 /// The notes the language's own parse leaves of the file at `path` whose text is `text`; none for a file it does not read.
 #[must_use]
 pub(crate) fn notes_of(path: &str, text: &str) -> languages::Bytes {
-    let parse = ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()));
+    let parse = ParseContract::new(
+        crate::settings::PythonParserSettings::default(),
+        Arc::new(ruff_python_parser(
+            crate::settings::PythonParserSettings::default(),
+        )),
+        Arc::new(postcard()),
+    );
     let (mut elements, mut symbols) = (languages::Elements::default(), Symbols::default());
     let built = languages::contract::build(
         &parse,
@@ -196,7 +202,7 @@ pub(crate) fn notes_of(path: &str, text: &str) -> languages::Bytes {
 }
 
 /// What the item writes for the repository whose files are `files`, each with its path and its text, shown with every column: the
-/// run asks for the links between the files, and the language's own parse notes each.
+/// run asks for the item's own relation and the links between the files, and the language's own parse notes each.
 ///
 /// # Panics
 ///
@@ -211,7 +217,10 @@ where
     sorted.sort_unstable();
     let paths: Vec<&str> = sorted.iter().map(|(path, _)| *path).collect();
     let request = languages::ProjectRequest {
-        repository: languages::Repository::Disk,
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
+        repository: languages::Repository::Given,
         root: languages::RootPath("".into()),
         manifests: files
             .iter()
@@ -231,9 +240,14 @@ where
         wanted: vec![
             languages::Relation::SourceDependency,
             languages::Relation::AnalyzedSource,
+            <Item::Relation as languages::CatalogRelation>::relation(),
         ],
     };
-    let contract = ProjectContract::new(adapters, Arc::new(postcard()));
+    let contract = ProjectContract::new(
+        adapters,
+        Arc::new(postcard()),
+        Arc::new(crate::outbound::module_context::factory::filesystem()),
+    );
     let resolved = contract
         .resolve(&request)
         .expect("the manifests are resolved");

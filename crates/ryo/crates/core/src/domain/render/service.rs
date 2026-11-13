@@ -3,9 +3,10 @@
 //! time, as the row is made; no cell becomes text for a reader in the core.
 
 use ryo_language::domain::elements::service::start_at;
-use ryo_language::domain::relations::service::{node_file, node_position};
-use ryo_language::domain::relations::types::{Integer, Name, NodeId, Value};
-use ryo_language::domain::symbols::service::{place_of, places_of};
+use ryo_language::domain::names::service::places_of;
+use ryo_language::domain::symbols::service::place_of;
+use ryo_relations::domain::relations::service::{node_file, node_position};
+use ryo_relations::domain::relations::types::{Integer, Name, NodeId, Value};
 
 use super::constants::rule_heading;
 use super::types::{
@@ -17,16 +18,23 @@ use crate::domain::finish::errors::FinishError;
 use crate::domain::finish::service::{
     column_cell, fill_line_starts, line_cell, offset_of, place_in,
 };
-use crate::domain::finish::types::{ColumnNumber, FileLine, LineStarts, Point, RuleNumber};
-use crate::domain::table_cells::types::RowIndex;
-use crate::domain::table_model::service::{cell, positions, row_in};
+use {
+    crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine,
+    crate::domain::finish::types::LineStarts, crate::domain::finish::types::Point,
+    ryo_values::domain::runs::types::RuleNumber,
+};
+
 use crate::domain::value_cells::service::value_cell;
 use crate::domain::value_cells::types::Scene;
 use ryo_values::domain::plan_parts::types::Heading;
 use ryo_values::domain::plans::types::{Emit, Plan};
 use ryo_values::domain::records::service::{keep, lent};
-use ryo_values::domain::records::types::{
+use ryo_values::domain::row_texts::types::{
     Cell, CellText, RowEnds, RowTotal, RowsTextView, TextRange,
+};
+use {
+    ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::positions,
+    ryo_values::domain::rows::service::row_in,
 };
 
 /// The answer of the rules' own columns over `plans`, at most `limit` rows of it written. One rule's columns are the answer's; with
@@ -161,7 +169,7 @@ pub(crate) fn render_rows(
         let implied = (at < scene.elements.start.len())
             .then(|| scene.elements.flags.get(at))
             .flatten()
-            .map(|flags| flags.0 & ryo_language::domain::relations::constants::IMPLIED.0 != 0);
+            .map(|flags| flags.0 & ryo_relations::domain::relations::constants::IMPLIED.0 != 0);
         (node_file(node) == scene.file && implied == Some(false))
             .then(|| start_at(scene.elements, position))
     };
@@ -334,3 +342,5 @@ pub(crate) fn finding_parts<T>(cells: &[Option<Cell<T>>]) -> Option<FindingParts
         column,
     })
 }
+
+use ryo_values::domain::rows::types::RowIndex;

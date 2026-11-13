@@ -1,0 +1,1 @@
+Supporting cohort rule for RUF100. Builtin eval calls use resolved Python qualified-name facts; shadowed names and bare references are excluded. Explicit pre-suppression matches are published through the shared suppression-edge fragment. This definition adds no shipped-default inventory credit. Runtime parity remains pending.

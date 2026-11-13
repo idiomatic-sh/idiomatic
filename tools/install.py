@@ -22,13 +22,14 @@ Where a version is declared:
 - the nightly toolchain, in `crates/ryo/Cargo.toml` (`[workspace.metadata.api] nightly`).
 - everything that is not Rust, in `TOOLS` below: it has no manifest here; the package managers ryo's tests compare against, which npm
   installs, in `NODE_TOOLS`.
+- the `gh` extensions, in `GH_EXTENSIONS` below: `gh extension install <repository> --pin <tag>`.
 - `cargo-binstall`, which installs the prebuilt Rust tools, in `BINSTALL` below: its official release archive for this machine, checked
   against the SHA-256 recorded there, never compiled.
 
 A Rust tool is fetched prebuilt with `cargo binstall`, which may not compile it: no tool is compiled. A tool with no prebuilt release for a
 machine is named in its `unavailable` (the machine's target) with the reason, and is not installed there: the groups that run it do not run
-on that machine. Any other missing prebuilt fails the install. A tool whose release ships plain archives cargo-binstall does not find is in
-`ARCHIVES`, each archive's SHA-256 recorded. Our own published tools come prebuilt from the GitHub Release of their tag, the installed
+on that machine. Any other missing prebuilt fails the install. A tool whose release ships archives cargo-binstall does not find (a gzipped
+executable, or a tar.gz or zip holding it), Rust or not, is in `ARCHIVES`, each archive's SHA-256 recorded. Our own published tools come prebuilt from the GitHub Release of their tag, the installed
 command checked against the archive the release's `SHA256SUMS` names. A tool whose installed version is the declared one is left as it
 is.
 """
@@ -124,7 +125,7 @@ TOOLS = {
     "actionlint": {"package": "actionlint-py", "version": "1.7.12.24"},
     "shellcheck": {"package": "shellcheck-py", "version": "0.11.0.1"},
     "cz": {"package": "commitizen", "version": "4.17.0"},
-    "pytest": {"package": "pytest", "version": "9.1.1", "with": ["pyyaml==6.0.3"]},
+    "pytest": {"package": "pytest", "version": "9.1.1", "python": "3.12", "with": ["pyyaml==6.0.3"]},
     "ruff": {"package": "ruff", "version": "0.16.5"},
     # The release job builds wheels with maturin.
     "maturin": {"package": "maturin", "version": "1.15.0"},
@@ -132,6 +133,8 @@ TOOLS = {
 
 # The package managers ryo's replay tests ask what a JavaScript workspace resolves to, installed by npm: command -> version.
 NODE_TOOLS = {"pnpm": "11.25.0", "bun": "1.4.4"}
+# The gh extensions, by repository, each at the release tag it is pinned to: gh-stack opens the stacked pull requests.
+GH_EXTENSIONS = {"github/gh-stack": "v0.2.1"}
 
 
 def declared_crates(root: Path = ROOT, shared: list[Crate] = ROOT_CRATES) -> list[Crate]:
@@ -190,7 +193,7 @@ def install_dist(version: str) -> None:
 
 
 def nightly(root: Path = ROOT) -> str:
-    """The nightly toolchain that writes rustdoc's JSON for the `sdk-api` tool."""
+    """The nightly toolchain that writes rustdoc's JSON for the `sdk-api` tool and runs the doctests of `test-doc`."""
     return tomllib.loads((root / "crates/ryo/Cargo.toml").read_text(encoding="utf-8"))["workspace"]["metadata"]["api"]["nightly"]
 
 
@@ -208,6 +211,24 @@ def installed_node(command: str) -> str:
     return answered.stdout.strip() if answered.returncode == 0 else ""
 
 
+def installed_gh_extensions() -> dict[str, str]:
+    """The extensions `gh extension list` names: repository -> pinned tag."""
+    listing = run(["gh", "extension", "list"], capture=True).stdout
+    return {fields[1]: fields[2] for line in listing.splitlines() if len(fields := line.split("\t")) >= 3}
+
+
+def install_gh_extensions(installed: dict[str, str]) -> list[str]:
+    """Installs each of `GH_EXTENSIONS` not installed at its pinned tag, replacing one at another tag; returns the ones it installed."""
+    done = []
+    for repository, tag in GH_EXTENSIONS.items():
+        if installed.get(repository) == tag:
+            continue
+        replace = ["--force"] if repository in installed else []
+        run(["gh", "extension", "install", repository, "--pin", tag, *replace])
+        done.append(f"{repository}@{tag}")
+    return done
+
+
 def installed_crates() -> dict[str, tuple[str, str]]:
     """The crates `cargo install` and `cargo binstall` left: crate -> (version, source)."""
     listing = run(["cargo", "install", "--list"], capture=True).stdout
@@ -219,10 +240,30 @@ def installed_crates() -> dict[str, tuple[str, str]]:
     return found
 
 
-def installed_python() -> dict[str, str]:
-    """The packages `uv tool install` left: package -> version."""
-    listing = run(["uv", "tool", "list"], capture=True).stdout
-    return {m[1]: m[2] for line in listing.splitlines() if (m := re.fullmatch(r"(\S+) v(\S+)", line))}
+def installed_python() -> dict[str, tuple[str, frozenset[str], str]]:
+    """The packages `uv tool install` left: package -> (version, the requirements installed with it, its Python's minor version)."""
+    listing = run(["uv", "tool", "list", "--show-with", "--show-python"], capture=True).stdout
+    found = {}
+    for line in listing.splitlines():
+        matched = re.fullmatch(r"(\S+) v(\S+)(?: \[with: ([^]]*)\])? \[\w+ (\d+\.\d+)\S*\]", line)
+        if matched:
+            found[matched[1]] = (matched[2], frozenset(filter(None, (matched[3] or "").split(", "))), matched[4])
+    return found
+
+
+def stale_tool(tool: dict, installed: dict[str, tuple[str, frozenset[str], str]]) -> str | None:
+    """Why the installed Python tool is not the declared one (its version, what is installed with it, or its Python); None where it is."""
+    have = installed.get(tool["package"])
+    if have is None:
+        return "not installed"
+    version, extras, python = have
+    if version != tool["version"]:
+        return f"installed {version}, declared {tool['version']}"
+    if extras != frozenset(tool.get("with", [])):
+        return f"installed with {', '.join(sorted(extras)) or 'nothing'}, declared with {', '.join(tool.get('with', [])) or 'nothing'}"
+    if "python" in tool and python != tool["python"]:
+        return f"installed on Python {python}, declared {tool['python']}"
+    return None
 
 
 def meets(installed: str, declared: str) -> bool:
@@ -312,6 +353,20 @@ ARCHIVES = {
             "aarch64-pc-windows-msvc": ("windows-aarch64", "c16a9a1248bdd746fde657b0196bfc47c8bede1e50ae73b7d9d33088a6682180"),
         },
     },
+    # The secret scanner of the root's lint group. Its release ships each executable in a tar.gz (a zip on Windows), beside the
+    # LICENSE and README; each SHA-256 is the one its `gitleaks_<version>_checksums.txt` names.
+    "gitleaks": {
+        "version": "8.30.1",
+        "url": "https://github.com/gitleaks/gitleaks/releases/download/v{version}/gitleaks_{version}_{asset}",
+        "assets": {
+            "x86_64-unknown-linux-gnu": ("linux_x64.tar.gz", "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"),
+            "aarch64-unknown-linux-gnu": ("linux_arm64.tar.gz", "e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080"),
+            "aarch64-apple-darwin": ("darwin_arm64.tar.gz", "b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5"),
+            "x86_64-apple-darwin": ("darwin_x64.tar.gz", "dfe101a4db2255fc85120ac7f3d25e4342c3c20cf749f2c20a18081af1952709"),
+            "x86_64-pc-windows-msvc": ("windows_x64.zip", "d29144deff3a68aa93ced33dddf84b7fdc26070add4aa0f4513094c8332afc4e"),
+            "aarch64-pc-windows-msvc": ("windows_arm64.zip", "b95f5e4f5c425cedca7ee203d9afd29597e692c4924a12ed42f970537c72cc0f"),
+        },
+    },
 }
 
 
@@ -326,6 +381,21 @@ def fetched(url: str, sha256: str) -> bytes:
     return data
 
 
+def unpacked(data: bytes, asset: str, name: str) -> bytes:
+    """The executable `name` from a release archive: the member of that name of a `.tar.gz` or a `.zip`, or the whole of a plain
+    `.gz`."""
+    if asset.endswith(".tar.gz"):
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
+            member = archive.extractfile(name)
+            if member is None:
+                sys.exit(f"{asset}: {name} is not a file")
+            return member.read()
+    if asset.endswith(".zip"):
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            return archive.read(name)
+    return gzip.decompress(data)
+
+
 def install_archive(command: str, host: str, bin_dir: Path) -> str:
     """Puts `command`'s release executable for `host` in `bin_dir` unless the one there answers its version."""
     tool = ARCHIVES[command]
@@ -336,7 +406,7 @@ def install_archive(command: str, host: str, bin_dir: Path) -> str:
     if host not in tool["assets"]:
         sys.exit(f"{command} {tool['version']} has no archive recorded for {host}")
     asset, sha256 = tool["assets"][host]
-    data = gzip.decompress(fetched(tool["url"].format(version=tool["version"], asset=asset), sha256))
+    data = unpacked(fetched(tool["url"].format(version=tool["version"], asset=asset), sha256), asset, name)
     bin_dir.mkdir(parents=True, exist_ok=True)
     (bin_dir / name).write_bytes(data)
     (bin_dir / name).chmod(0o755)
@@ -405,16 +475,19 @@ def main(argv: list[str]) -> int:
         print(f"{name}: {done}", flush=True)
     have = installed_python()
     for command, tool in TOOLS.items():
-        why = None if have.get(tool["package"]) == tool["version"] else f"installed {have.get(tool['package'], 'nothing')}, declared {tool['version']}"
-        if why:
+        if stale_tool(tool, have):
             extra = [part for each in tool.get("with", []) for part in ("--with", each)]
-            run(["uv", "tool", "install", "--force", *extra, f"{tool['package']}=={tool['version']}"])
+            python = ["--python", tool["python"]] if "python" in tool else []
+            run(["uv", "tool", "install", "--force", *python, *extra, f"{tool['package']}=={tool['version']}"])
     stale = [f"{command}@{version}" for command, version in NODE_TOOLS.items() if installed_node(command) != version]
     if stale:
         npm = shutil.which("npm")
         if npm is None:
             sys.exit(f"npm installs {', '.join(stale)}: install Node.js first")
         run([npm, "install", "--global", *stale])
+    if shutil.which("gh") is None:
+        sys.exit(f"gh installs {', '.join(GH_EXTENSIONS)}: install the GitHub CLI first")
+    install_gh_extensions(installed_gh_extensions())
     version = dist_version()
     if dist_installed() != version:
         install_dist(version)

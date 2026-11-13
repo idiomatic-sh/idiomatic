@@ -12,7 +12,9 @@ use crate::domain::syntax::service::{kind_name, kind_of};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::interface::SyntaxPort as _;
+use crate::outbound::syntax::types::PythonSourceKind;
 use crate::outbound::syntax::types::SourceText;
+use crate::settings::PythonParserSettings;
 use ryo::languages::{
     ByteSlice, Elements, FileId, Position, Symbols, TOKEN, Tree, children as children_at, end_at,
     kind_at, start_at, table_builder,
@@ -265,7 +267,9 @@ fn project(tree: &Tree<'_>, text: &str, at: Position, inherited: &str, out: &mut
             }
             out.push(Shape {
                 field: field.to_owned(),
-                name: kind_name(kind).0.to_owned(),
+                // The reference AST stores Async* and TryStar as distinct constructors. Our lossless tree retains Async* kinds,
+                // but its syntax-token keyword is not an AST child, so normalize these names to the documented split boundary.
+                name: unsplit(kind_name(kind).0.to_owned()),
                 children,
             });
         }
@@ -285,8 +289,13 @@ fn is_self_documenting(elements: &Elements, at: Position) -> bool {
 #[must_use]
 pub(crate) fn projected(text: &str) -> Option<Shape> {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    SyntaxRuffPythonParserAdapter.read(
+    SyntaxRuffPythonParserAdapter {
+        settings: PythonParserSettings::default(),
+        ..Default::default()
+    }
+    .read(
         SourceText(text.as_bytes()),
+        PythonSourceKind::Python,
         &mut table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes())),
     );
     let tree = Tree {

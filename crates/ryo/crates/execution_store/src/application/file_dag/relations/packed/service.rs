@@ -1,0 +1,15 @@
+//! Owned cross-root words use the same required backing ledger as resident publications.
+use crate::application::file_dag::accounting::ledger::service::ResourceLease;
+use crate::application::file_dag::accounting::ledger::types::Backing;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_values::domain::stored_facts::types::{ArenaBytes, KeptWords};
+use std::sync::Arc;
+
+/// Coordinator-local lease. Only the immutable words, never this lease, enter a worker closure.
+#[derive(Clone, Debug)]
+pub(crate) struct PackedPublication {
+    _words: Arc<KeptWords>,
+    _lease: Arc<ResourceLease>,
+}
+
+mod issuance;

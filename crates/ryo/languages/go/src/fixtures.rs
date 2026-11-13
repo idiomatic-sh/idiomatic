@@ -2,6 +2,8 @@
 //! each fixture must give. It reads the manifests of a Go project: the rows they give are the fixture's.
 
 pub mod contracts;
+#[cfg(not(bless))]
+mod invalid_module;
 pub(crate) mod kinds;
 #[cfg(test)]
 pub(crate) mod projects;
@@ -22,6 +24,7 @@ pub fn expected() -> Fixtures {
         kinds: kinds::shown(),
         relations: stated_relations(),
         manifests: stated_manifests(),
+        semantic: Vec::new(),
         shape: Shape::Standard(library::walk()),
         oracle: library::oracle(),
         unfilled: stated_unfilled(),
@@ -43,7 +46,7 @@ fn stated_relations() -> Vec<ryo::languages::contract::Expected> {
 /// The rows the manifest relations are held to.
 #[cfg(not(bless))]
 fn stated_manifests() -> Vec<ryo::languages::contract::ManifestExpected> {
-    vec![workspace::expected()]
+    vec![invalid_module::expected(), workspace::expected()]
 }
 
 /// The rows the manifest relations are held to: none while the relations' are written (`--bless`).

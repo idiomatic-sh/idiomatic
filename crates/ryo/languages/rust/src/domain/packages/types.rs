@@ -17,7 +17,7 @@ use crate::domain::workspaces::types::Reason;
 
 /// A package that belongs to a workspace, each by its manifest, relative to the repository root.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct Membership {
+pub(crate) struct WorkspacePackageMembership {
     /// The workspace's manifest.
     pub workspace: RepoPath,
     /// The member package's manifest.
@@ -54,6 +54,15 @@ pub(crate) struct Dependency {
     pub replacement: Section<Replacement>,
 }
 
+/// The library of a package: its root file, and the name the code of a dependent that does not rename it writes for it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Library {
+    /// The library's root file, relative to the repository root.
+    pub root: RepoPath,
+    /// The name its dependents' code writes for it.
+    pub name: crate::domain::targets::types::TargetName,
+}
+
 /// A manifest that cannot be read as Cargo reads it.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct Refusal {
@@ -63,15 +72,37 @@ pub(crate) struct Refusal {
     pub reason: Reason,
 }
 
+/// The stage at which a manifest was refused.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Stage {
+    /// The reader could not read the manifest.
+    Parse,
+    /// The manifest was read and its workspace is not consistent with it.
+    Validation,
+}
+
+/// A manifest refused, as the relation `manifest_diagnostic` says of it: the file, the stage and what the reader said.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Diagnosed {
+    /// The manifest, by its place among the files of the run.
+    pub file: ryo::languages::FileId,
+    /// The stage.
+    pub stage: Stage,
+    /// What the reader said.
+    pub reason: Reason,
+}
+
 /// What the manifests of a repository declare.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Packages {
     /// Each workspace with its members, in order.
-    pub members: Vec<Membership>,
+    pub members: Vec<WorkspacePackageMembership>,
     /// Each dependency on a package of the repository, in order.
     pub dependencies: Vec<Dependency>,
     /// The source file of every target Cargo declares for each package, by the directory of the package.
     pub roots: BTreeMap<RepoPath, BTreeSet<RepoPath>>,
+    /// The library of each package that has one, by the package's manifest.
+    pub libraries: BTreeMap<RepoPath, Library>,
     /// The directories the workspaces write their outputs to: no package holds what lies in them.
     pub outputs: Vec<RepoPath>,
     /// The manifests that could not be read, with why: the others were read.

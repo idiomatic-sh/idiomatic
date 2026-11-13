@@ -16,6 +16,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: &[&[
                 want_node(2_147_483_648),
                 want_name("Unexpected token"),
+                want_name("parse"),
+                want_name("incomplete"),
+                want_name("unspecified"),
                 want_file("item.ts"),
                 want_span((1, 7), (1, 8)),
             ]],
@@ -32,6 +35,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 want_name(
                     "'infer' declarations are only permitted in the 'extends' clause of a conditional type.",
                 ),
+                want_name("parse"),
+                want_name("incomplete"),
+                want_name("unspecified"),
                 want_file("item.ts"),
                 want_span((1, 8), (1, 15)),
             ]],

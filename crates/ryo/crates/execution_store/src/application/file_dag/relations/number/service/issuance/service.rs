@@ -1,0 +1,89 @@
+//! Owner-dependent admission logic lives below its private data representation.
+use crate::application::file_dag::relations::handle::service::PublishedInput;
+use crate::application::file_dag::relations::number::service::service::AdmittedNumber;
+use crate::application::file_dag::relations::publication::types::{
+    ProducerKey, ProducerPopulation,
+};
+use crate::application::file_dag::relations::service::*;
+use crate::application::file_dag::relations::types::Sameness;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::{PhysicalShape, RepresentationKind};
+use ryo_relations::domain::relations::types::CellKind;
+impl RelationOwner {
+    /// Admits a numeric source for the producer that requires it, the one way to mint the witness.
+    pub(crate) fn admit_number<'a>(
+        &self,
+        publication: &'a PublishedInput,
+        producer: crate::application::file_dag::relations::types::ProducerId,
+        required: &NumberRequirement,
+        rows: RepresentationInput<'_>,
+    ) -> Result<Option<AdmittedNumber<'a>>, OperatingError> {
+        let record = publication.as_ref();
+        let scope = match record.producer_scope.get() {
+            Some(scope) => *scope,
+            None => return Ok(None),
+        };
+        let expected = self
+            .producer_populations
+            .borrow()
+            .get(&ProducerKey { scope, producer })
+            .copied();
+        let actual = ProducerPopulation {
+            population: self.result_population(record),
+            backing: self.backing_population(record),
+        };
+        if self.matches_generation(&record.generation) == Sameness::Different
+            || expected != Some(actual)
+        {
+            return Ok(None);
+        }
+        // Original-plan lineage permits only copying operators. Every leaf must
+        // already have been read and admitted by THIS owner with a Number column
+        // and rectangular backing: stored columns of equal length, or a computed
+        // table whose cells fill its rows. No additional source read.
+        let sources = self.sources.borrow();
+        if required.origins.is_empty()
+            || required.origins.iter().any(|origin| {
+                let Some(source) = sources.get(&origin.relation) else {
+                    return true;
+                };
+                let source = &source.population;
+                !usize::try_from(origin.column.0)
+                    .is_ok_and(|at| source.kinds.get(at) == Some(&CellKind::Number))
+                    || match source.kind {
+                        RepresentationKind::Stored => {
+                            source.storage.len() != source.kinds.len()
+                                || source
+                                    .storage
+                                    .iter()
+                                    .any(|span| span.length.0 != source.rows.0)
+                        }
+                        RepresentationKind::Computed => {
+                            let cells = source.rows.0.checked_mul(source.kinds.len());
+                            source.storage.get(1).map(|span| Some(span.length.0)) != Some(cells)
+                        }
+                        RepresentationKind::Tree | RepresentationKind::Compact => true,
+                    }
+            })
+        {
+            return Ok(None);
+        }
+        drop(sources);
+        let shape = self.inspect(record, rows)?;
+        // Exact computed payload width is admitted by the owner, not inferred
+        // from the query layout. Raw hosted/Rows lineages were already refused.
+        if shape != PhysicalShape::Complete
+            || rows.kinds().len() != required.width.0
+            || !usize::try_from(required.column.0)
+                .is_ok_and(|at| rows.kinds().get(at) == Some(&CellKind::Number))
+        {
+            return Ok(None);
+        }
+        Ok(Some(AdmittedNumber {
+            publication,
+            column: required.column,
+        }))
+    }
+}

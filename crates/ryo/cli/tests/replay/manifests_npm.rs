@@ -75,7 +75,7 @@ fn npm_lines(root: &Path) -> BTreeSet<String> {
                     .or_else(|| listed.get("dependencies")?.get(name.as_str()))
                     .and_then(linked_from)
                     .map(|linked| manifest_in(linked, "package.json"))
-                    .unwrap_or_default();
+                    .unwrap_or_else(|| crate::base::ABSENT.to_owned());
                 lines.extend([format!(
                     "dependencies {source},{name},{kind},{},{target}",
                     requirement.as_str().unwrap_or_default()

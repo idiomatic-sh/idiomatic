@@ -1,0 +1,77 @@
+[[cases]]
+name = "typing-import"
+comparison = "full"
+files = { "case.pyi" = "from typing import ByteString\n" }
+expected = [{ rule = "PYI057", file = "case.pyi", start = 19, end = 29 }]
+
+[[cases]]
+name = "collections-import"
+comparison = "full"
+files = { "case.pyi" = "from collections.abc import ByteString\n" }
+expected = [{ rule = "PYI057", file = "case.pyi", start = 28, end = 38 }]
+
+[[cases]]
+name = "typing-import-as-alias"
+comparison = "full"
+files = { "case.pyi" = "from typing import ByteString as BS\n" }
+expected = [{ rule = "PYI057", file = "case.pyi", start = 19, end = 35 }]
+
+[[cases]]
+name = "typing-attribute"
+comparison = "full"
+files = { "case.pyi" = "import typing\nx: typing.ByteString\n" }
+expected = [{ rule = "PYI057", file = "case.pyi", start = 17, end = 34 }]
+
+[[cases]]
+name = "typing-qualified-module-alias"
+comparison = "full"
+files = { "case.pyi" = "import typing as t\nx: t.ByteString\n" }
+expected = [{ rule = "PYI057", file = "case.pyi", start = 22, end = 34 }]
+
+[[cases]]
+name = "collections-attribute"
+comparison = "full"
+files = { "case.pyi" = "import collections.abc\nx: collections.abc.ByteString\n" }
+expected = [{ rule = "PYI057", file = "case.pyi", start = 26, end = 52 }]
+
+[[cases]]
+name = "collections-module-alias"
+comparison = "full"
+files = { "case.pyi" = "import collections.abc as abc\nx: abc.ByteString\n" }
+expected = [{ rule = "PYI057", file = "case.pyi", start = 33, end = 47 }]
+
+[[cases]]
+name = "unrelated-import"
+comparison = "full"
+files = { "case.pyi" = "from custom import ByteString\n" }
+expected = []
+
+[[cases]]
+name = "unrelated-attribute"
+comparison = "full"
+files = { "case.pyi" = "import custom\nx: custom.ByteString\n" }
+expected = []
+
+[[cases]]
+name = "local-shadow-does-not-change-import-diagnostic"
+comparison = "full"
+files = { "case.pyi" = "from typing import ByteString as BS\nBS = custom\nx: BS\n" }
+expected = [{ rule = "PYI057", file = "case.pyi", start = 19, end = 35 }]
+
+[[cases]]
+name = "runtime-module-import"
+comparison = "full"
+files = { "case.py" = "from typing import ByteString\n" }
+expected = [{ rule = "PYI057", file = "case.py", start = 19, end = 29 }]
+
+[[cases]]
+name = "suppressed-import"
+comparison = "full"
+files = { "case.pyi" = "from typing import ByteString # noqa: PYI057\n" }
+expected = []
+
+[[cases]]
+name = "suppressed-attribute"
+comparison = "full"
+files = { "case.pyi" = "import typing\nx: typing.ByteString # noqa: PYI057\n" }
+expected = []

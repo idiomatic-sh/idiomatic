@@ -1,0 +1,72 @@
+{
+ "counts": {
+  "FAIL": 0,
+  "PASS": 1
+ },
+ "identity": {
+  "collector_sha256": "68af3283c411ebf816ebae148f4f137c2f366693dd3a5d3004e6d7dbffa94fd0",
+  "inventory_sha256": "02816f355dcbf13771a5dfdecb13ada8ddbde121049326efc466c9986db3b1d4",
+  "phase_registry_sha256": "4520b056ef5c94924be98477ee160c5405ddb9d4dc92dd40f72e78a23f959f0c",
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "worker_sha256": "bde1335bd1a8031cc8f2310f48b5b0baad182c8190c09e4d6dad0c8f8a99019b"
+ },
+ "provider": "ruff",
+ "rules": [
+  {
+   "case_count": 47,
+   "case_results_sha256": "a0b64518905615fe8735eb3598d4a81bd789ae0a47001bf9a523cd9516ef2811",
+   "contract_only": 0,
+   "documented_discrepancies": 0,
+   "instance": {
+    "case_count": 47,
+    "cases_file": "rules/RUF101/cases.toml",
+    "cases_sha256": "0a88932795ecabaa49bdbaf6d46ed21436340d9bb749dfdd33ab2ad90bd44d01",
+    "effective_settings": {
+     "defaults": [
+      "RUF101"
+     ],
+     "flags": {},
+     "parser_configuration": "python-target=3.10",
+     "performance": {
+      "diagnostics": {
+       "execution": false,
+       "joins": false,
+       "lifecycle_memory": false,
+       "prefixes": false,
+       "resource_routes": false,
+       "row_progress": false,
+       "selection_detail": false,
+       "steps": false,
+       "subplans": false
+      }
+     },
+     "project_context_mode": "isolated",
+     "rule_applicability": {
+      "RUF101": "always"
+     }
+    },
+    "evidence_source_root": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/RUF101",
+    "module_sha256": {
+     "python/ruff/noqa-blankets": "438d927c4ad3bedb056bdede908376ba11b39e27cff9b1d20eef5f0a2ba7bb64",
+     "python/ruff/noqa-codes": "93a60e7ff93e06ec119a96e07659582dc2a007b6e7f5eb0587213df7849422e1",
+     "python/ruff/noqa-heads": "bd663293ae9cd98162ff31fcda7db60562d90848f06ab4f1fde339bc76bf8642"
+    },
+    "native_descriptor_sha256": null,
+    "native_settings": null,
+    "parser_configuration": "python-target=3.10",
+    "profile_sha256": "4d0a6831f5d5fe84edfa11276c753a825137e73155d59d438d3a3bae3dd567a5",
+    "query_file": "rules/RUF101/query.ryoql",
+    "query_sha256": "e5b9c10935586381a1e1d62c645cb718771efa7132bc5b00ecb54631172a68d8",
+    "settings_scope": "target control settings",
+    "settings_source": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/RUF101/benchmark.toml",
+    "settings_source_sha256": "25460375c9c1a1e8f8717a12adc7775729dbd541a6bff10ebdcc0e33ed5443bd"
+   },
+   "raw_exact": 47,
+   "reason": null,
+   "rule_id": "RUF101",
+   "status": "PASS"
+  }
+ ],
+ "run_state": "complete",
+ "schema": "benchmark-inventory/v1"
+}

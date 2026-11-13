@@ -1,0 +1,164 @@
+[[cases]]
+name = "patch-version"
+files = { "case.pyi" = "import sys\nif sys.version_info >= (3, 10, 1):\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 44 }]
+
+[[cases]]
+name = "four-part"
+files = { "case.pyi" = "import sys\nif sys.version_info == (3, 10, 1, 0):\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 47 }]
+
+[[cases]]
+name = "invalid-member-does-not-count-as-patch"
+files = { "case.pyi" = "import sys\nif sys.version_info == (3, 10, unknown):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "tuple-subscript-four-part"
+files = { "case.pyi" = "import sys\nif sys.version_info[:2] == (3, 10, 1):\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 48 }]
+
+[[cases]]
+name = "two-part"
+files = { "case.pyi" = "import sys\nif sys.version_info >= (3, 10):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "runtime"
+files = { "case.py" = "import sys\nif sys.version_info >= (3, 10, 1):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI003-invalid-slice-upper"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info[:3] == (3, 10, 1):\n    ...\n" }
+expected = []
+
+[[cases]]
+name="policy-plain-integer"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info == 3: ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-major-tuple"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info[0] == (3,): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-negative-integer"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info[0] == -3: ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-noncondition"
+comparison="full"
+files={"case.pyi"="import sys\nx=sys.version_info == (3,10,1)\n"}
+expected=[]
+
+[[cases]]
+name="policy-while"
+comparison="full"
+files={"case.pyi"="import sys\nwhile sys.version_info == (3,10,1): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-boolean-direct"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info == (3,10,1) and True: ...\n"}
+expected=[{rule="PYI004", file="case.pyi", start=14, end=42}]
+
+[[cases]]
+name="policy-boolean-nested"
+comparison="full"
+files={"case.pyi"="import sys\nif True and (False or sys.version_info == (3,10,1)): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-chained"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info == (3,10,1) == (3,10): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-major-longtuple"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info[0] == (3,10,1): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-invalid-slice-longtuple"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info[:3] == (3,10,1): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-nested-subscript"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info[0][0] == (3,10,1): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-attribute"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info.major == (3,10,1): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-empty-tuple"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info == (): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-boolean-tuple"
+comparison="full"
+files={"case.pyi"="import sys\nif sys.version_info == (True,10,1): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-elif-only"
+comparison="full"
+files={"case.pyi"="import sys\nif False: ...\nelif sys.version_info == (3,10,1): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-shadowed-module"
+comparison="full"
+files={"case.pyi"="import sys\nsys=object()\nif sys.version_info == (3,10,1): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-shadowed-from-import"
+comparison="full"
+files={"case.pyi"="from sys import version_info\nversion_info=object()\nif version_info == (3,10,1): ...\n"}
+expected=[]
+
+[[cases]]
+name="tagged-PYI004.py"
+comparison="full"
+files={"PYI004.py"="import sys\nfrom sys import version_info\n\nif sys.version_info >= (3, 4, 3): ...  # PYI004 \nif sys.version_info < (3, 4, 3): ...  # PYI004 \nif sys.version_info == (3, 4, 3): ...  # PYI004 \nif sys.version_info != (3, 4, 3): ...  # PYI004 \n\nif sys.version_info[0] == 2: ...\nif version_info[0] == 2: ...\nif sys.version_info < (3, 5): ...\nif version_info >= (3, 5): ...\nif sys.version_info[:2] == (2, 7): ...\nif sys.version_info[:1] == (2,): ...\nif sys.platform == 'linux': ...\n"}
+expected=[]
+
+[[cases]]
+name="tagged-PYI004.pyi"
+comparison="full"
+files={"PYI004.pyi"="import sys\nfrom sys import version_info\n\nif sys.version_info >= (3, 4, 3): ...  # PYI004 \nif sys.version_info < (3, 4, 3): ...  # PYI004 \nif sys.version_info == (3, 4, 3): ...  # PYI004 \nif sys.version_info != (3, 4, 3): ...  # PYI004 \n\nif sys.version_info[0] == 2: ...\nif version_info[0] == 2: ...\nif sys.version_info < (3, 5): ...\nif version_info >= (3, 5): ...\nif sys.version_info[:2] == (2, 7): ...\nif sys.version_info[:1] == (2,): ...\nif sys.platform == 'linux': ...\n"}
+expected=[{rule="PYI004", file="PYI004.pyi", start=44, end=73}, {rule="PYI004", file="PYI004.pyi", start=93, end=121}, {rule="PYI004", file="PYI004.pyi", start=141, end=170}, {rule="PYI004", file="PYI004.pyi", start=190, end=219}]
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-patch-version"
+files = { "case.pyi" = "import sys\nif sys.version_info >= (3, 10, 1):  # noqa: E501, PYI004\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-patch-version"
+files = { "case.pyi" = "import sys\nif sys.version_info >= (3, 10, 1):  # noqa: E501,PYI004\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-patch-version"
+files = { "case.pyi" = "import sys\nif sys.version_info >= (3, 10, 1):  # noqa: PYI004 # why\n    ...\n" }
+expected = []

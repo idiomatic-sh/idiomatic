@@ -1,0 +1,84 @@
+[[cases]]
+name = "spread"
+files = { "case.py" = "value = {**{\"a\": 1}}\n" }
+expected = [{ file = "case.py", start = 11, end = 19 }]
+
+[[cases]]
+name = "empty"
+files = { "case.py" = "value = {**{}}\n" }
+expected = [{ file = "case.py", start = 11, end = 13 }]
+
+[[cases]]
+name = "value"
+files = { "case.py" = "value = {\"a\": {\"b\": 1}}\n" }
+expected = []
+
+[[cases]]
+name = "call"
+files = { "case.py" = "function(**{\"a\": 1})\n" }
+expected = []
+
+[[cases]]
+name = "variable"
+files = { "case.py" = "value = {**mapping}\n" }
+expected = []
+
+[[cases]]
+name = "two"
+files = { "case.py" = "value = {**{}, **{\"a\": 1}}\n" }
+expected = [{ file = "case.py", start = 11, end = 13 }, { file = "case.py", start = 17, end = 25 }]
+
+[[cases]]
+name = "paren"
+files = { "case.py" = "value = {**({\"a\": 1})}\n" }
+expected = [{ file = "case.py", start = 12, end = 20 }]
+
+[[cases]]
+name = "mixed"
+files = { "case.py" = "value = {**{\"a\": 1}, \"b\": {\"c\": 2}}\n" }
+expected = [{ file = "case.py", start = 11, end = 19 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "value = {**{\"a\": 1}} # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "value = {**{\"a\": 1}} # noqa: PIE800\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "value = {**{\"a\": 1}} # noqa: F401\n" }
+expected = [{ file = "case.py", start = 11, end = 19 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nvalue = {**{\"a\": 1}}\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[PIE800]\nvalue = {**{\"a\": 1}}\n\n# ruff: enable[PIE800]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[PIE800]\n# ruff: enable[PIE800]\nvalue = {**{\"a\": 1}}\n" }
+expected = [{ file = "case.py", start = 58, end = 66 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[PIE800]\nvalue = {**{\"a\": 1}}\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\nvalue = {**{\"a\": 1}}\n" }
+expected = [{ file = "case.py", start = 33, end = 41 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[PIE800]\nvalue = {**{\"a\": 1}}\n" }
+expected = []

@@ -1,0 +1,58 @@
+[[cases]]
+name = "upstream-RUF013_0"
+files = { "RUF013_0.py" = "from typing import Annotated, Any, Literal, Optional, Tuple, Union, Hashable\n\n\ndef f(arg: int):\n    pass\n\n\ndef f(arg=None):\n    pass\n\n\ndef f(arg: Any = None):\n    pass\n\n\ndef f(arg: object = None):\n    pass\n\n\ndef f(arg: int = None):  # RUF013\n    pass\n\n\ndef f(arg: str = None):  # RUF013\n    pass\n\n\ndef f(arg: Tuple[str] = None):  # RUF013\n    pass\n\n\n# Optional\n\n\ndef f(arg: Optional[int] = None):\n    pass\n\n\n# Union\n\n\ndef f(arg: Union[None] = None):\n    pass\n\n\ndef f(arg: Union[None, int] = None):\n    pass\n\n\ndef f(arg: Union[str, None] = None):\n    pass\n\n\ndef f(arg: Union[int, str, Any] = None):\n    pass\n\n\ndef f(arg: Union = None):  # RUF013\n    pass\n\n\ndef f(arg: Union[int] = None):  # RUF013\n    pass\n\n\ndef f(arg: Union[int, str] = None):  # RUF013\n    pass\n\n\n# PEP 604 Union\n\n\ndef f(arg: None | int = None):\n    pass\n\n\ndef f(arg: int | None = None):\n    pass\n\n\ndef f(arg: int | float | str | None = None):\n    pass\n\n\ndef f(arg: int | float = None):  # RUF013\n    pass\n\n\ndef f(arg: int | float | str | bytes = None):  # RUF013\n    pass\n\n\n# Literal\n\n\ndef f(arg: None = None):\n    pass\n\n\ndef f(arg: Literal[None] = None):\n    pass\n\n\ndef f(arg: Literal[1, 2, None, 3] = None):\n    pass\n\n\ndef f(arg: Literal[1] = None):  # RUF013\n    pass\n\n\ndef f(arg: Literal[1, \"foo\"] = None):  # RUF013\n    pass\n\n\n# Annotated\n\n\ndef f(arg: Annotated[Optional[int], ...] = None):\n    pass\n\n\ndef f(arg: Annotated[Union[int, None], ...] = None):\n    pass\n\n\ndef f(arg: Annotated[Any, ...] = None):\n    pass\n\n\ndef f(arg: Annotated[int, ...] = None):  # RUF013\n    pass\n\n\ndef f(arg: Annotated[Annotated[int | str, ...], ...] = None):  # RUF013\n    pass\n\n\n# Multiple arguments\n\n\ndef f(\n    arg1: Optional[int] = None,\n    arg2: Union[int, None] = None,\n    arg3: Literal[1, 2, None, 3] = None,\n):\n    pass\n\n\ndef f(\n    arg1: int = None,  # RUF013\n    arg2: Union[int, float] = None,  # RUF013\n    arg3: Literal[1, 2, 3] = None,  # RUF013\n):\n    pass\n\n\n# Nested\n\n\ndef f(arg: Literal[1, \"foo\", Literal[True, None]] = None):\n    pass\n\n\ndef f(arg: Union[int, Union[float, Union[str, None]]] = None):\n    pass\n\n\ndef f(arg: Union[int, Union[float, Optional[str]]] = None):\n    pass\n\n\ndef f(arg: Union[int, Literal[True, None]] = None):\n    pass\n\n\ndef f(arg: Union[Annotated[int, ...], Annotated[Optional[float], ...]] = None):\n    pass\n\n\ndef f(arg: Union[Annotated[int, ...], Union[str, bytes]] = None):  # RUF013\n    pass\n\n\n# Quoted\n\n\ndef f(arg: \"int\" = None):  # RUF013\n    pass\n\n\ndef f(arg: \"str\" = None):  # RUF013\n    pass\n\n\ndef f(arg: \"st\" \"r\" = None):  # RUF013\n    pass\n\n\ndef f(arg: \"Optional[int]\" = None):\n    pass\n\n\ndef f(arg: Union[\"int\", \"str\"] = None):  # RUF013\n    pass\n\n\ndef f(arg: Union[\"int\", \"None\"] = None):\n    pass\n\n\ndef f(arg: Union[\"No\" \"ne\", \"int\"] = None):\n    pass\n\n\n# Avoid flagging when there's a parse error in the forward reference\ndef f(arg: Union[\"<>\", \"int\"] = None):\n    pass\n\n\n# Type aliases\n\nText = str | bytes\n\n\ndef f(arg: Text = None):\n    pass\n\n\ndef f(arg: \"Text\" = None):\n    pass\n\n\nfrom custom_typing import MaybeInt\n\n\ndef f(arg: MaybeInt = None):\n    pass\n\n\n# Hashable\n\ndef f(arg: Hashable = None):  # OK\n    pass\n\n\ndef f(arg: Hashable | int = None):  # OK\n    pass\n" }
+expected = [{ rule = "RUF013", file = "RUF013_0.py", start = 219, end = 222 }, { rule = "RUF013", file = "RUF013_0.py", start = 264, end = 267 }, { rule = "RUF013", file = "RUF013_0.py", start = 309, end = 319 }, { rule = "RUF013", file = "RUF013_0.py", start = 620, end = 625 }, { rule = "RUF013", file = "RUF013_0.py", start = 667, end = 677 }, { rule = "RUF013", file = "RUF013_0.py", start = 719, end = 734 }, { rule = "RUF013", file = "RUF013_0.py", start = 934, end = 945 }, { rule = "RUF013", file = "RUF013_0.py", start = 987, end = 1012 }, { rule = "RUF013", file = "RUF013_0.py", start = 1201, end = 1211 }, { rule = "RUF013", file = "RUF013_0.py", start = 1253, end = 1270 }, { rule = "RUF013", file = "RUF013_0.py", start = 1512, end = 1515 }, { rule = "RUF013", file = "RUF013_0.py", start = 1583, end = 1592 }, { rule = "RUF013", file = "RUF013_0.py", start = 1804, end = 1807 }, { rule = "RUF013", file = "RUF013_0.py", start = 1836, end = 1853 }, { rule = "RUF013", file = "RUF013_0.py", start = 1882, end = 1898 }, { rule = "RUF013", file = "RUF013_0.py", start = 2322, end = 2367 }, { rule = "RUF013", file = "RUF013_0.py", start = 2421, end = 2424 }, { rule = "RUF013", file = "RUF013_0.py", start = 2468, end = 2471 }, { rule = "RUF013", file = "RUF013_0.py", start = 2514, end = 2522 }, { rule = "RUF013", file = "RUF013_0.py", start = 2611, end = 2630 }]
+
+[[cases]]
+name = "upstream-RUF013_1"
+files = { "RUF013_1.py" = "# No `typing.Optional` import\n\n\ndef f(arg: int = None):  # RUF013\n    pass\n" }
+expected = [{ rule = "RUF013", file = "RUF013_1.py", start = 43, end = 46 }]
+
+[[cases]]
+name = "upstream-RUF013_2"
+files = { "RUF013_2.py" = "from typing_extensions import Optional\n\n\ndef f(arg: Optional[int] = None):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "upstream-RUF013_3"
+files = { "RUF013_3.py" = "import typing\n\n\ndef f(arg: typing.List[str] = None):  # RUF013\n    pass\n\n\n# Optional\n\n\ndef f(arg: typing.Optional[int] = None):\n    pass\n\n\n# Union\n\n\ndef f(arg: typing.Union[int, str, None] = None):\n    pass\n\n\ndef f(arg: typing.Union[int, str] = None):  # RUF013\n    pass\n\n\n# Literal\n\n\ndef f(arg: typing.Literal[1, \"foo\", True] = None):  # RUF013\n    pass\n" }
+expected = [{ rule = "RUF013", file = "RUF013_3.py", start = 27, end = 43 }, { rule = "RUF013", file = "RUF013_3.py", start = 220, end = 242 }, { rule = "RUF013", file = "RUF013_3.py", start = 296, end = 326 }]
+
+[[cases]]
+name = "upstream-RUF013_4"
+files = { "RUF013_4.py" = "# https://github.com/astral-sh/ruff/issues/13833\n\nfrom typing import Optional\n\n\ndef no_default(arg: Optional): ...\n\n\ndef has_default(arg: Optional = None): ...\n\n\ndef multiple_1(arg1: Optional, arg2: Optional = None): ...\n\n\ndef multiple_2(arg1: Optional, arg2: Optional = None, arg3: int = None): ...\n\n\ndef return_type(arg: Optional = None) -> Optional: ...\n\n\ndef has_type_argument(arg: Optional[int] = None): ...\n" }
+expected = [{ rule = "RUF013", file = "RUF013_4.py", start = 283, end = 286 }]
+
+[[cases]]
+name = "plain-and-optional"
+files = { "case.py" = "from typing import Optional\ndef f(a: int = None, b: Optional[int] = None): ...\n" }
+expected = [{ rule = "RUF013", file = "case.py", start = 37, end = 40 }]
+
+[[cases]]
+name = "qualified-import-alias"
+files = { "case.py" = "import typing as t\ndef f(a: t.Optional[int] = None, b: t.Union[int, str] = None): ...\n" }
+expected = [{ rule = "RUF013", file = "case.py", start = 55, end = 72 }]
+
+[[cases]]
+name = "none-union"
+files = { "case.py" = "from typing import Union\ndef f(a: int | None = None, b: Union[int, None] = None, c: int | str = None): ...\n" }
+expected = [{ rule = "RUF013", file = "case.py", start = 84, end = 93 }]
+
+[[cases]]
+name = "future-annotation"
+files = { "case.py" = "from __future__ import annotations\ndef f(a: \"int\" = None, b: \"int | None\" = None): ...\n" }
+expected = [{ rule = "RUF013", file = "case.py", start = 45, end = 48 }]
+
+[[cases]]
+name = "unknown-alias"
+files = { "case.py" = "Text = str | bytes\ndef f(a: Text = None): ...\n" }
+expected = []
+
+[[cases]]
+name = "kwonly-posonly"
+files = { "case.py" = "def f(a: int = None, /, *, b: str = None): ...\n" }
+expected = [{ rule = "RUF013", file = "case.py", start = 9, end = 12 }, { rule = "RUF013", file = "case.py", start = 30, end = 33 }]
+[[cases]]
+name = "unknown-alias-in-union"
+files = { "case.py" = "from typing import Union\nText = str | None\ndef f(a: Union[Text, int] = None): ...\n" }
+expected = []

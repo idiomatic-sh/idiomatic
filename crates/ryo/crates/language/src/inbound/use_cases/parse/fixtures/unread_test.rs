@@ -2,8 +2,8 @@
 
 use super::findings;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::relations::types::KindBits;
 use crate::inbound::use_cases::parse::types::{KindName, KindSample, Sample, SampleText, Why};
+use ryo_relations::domain::relations::types::KindBits;
 
 /// What the case gives: the kinds of the language and the numbers its readers look at.
 type Input = fn() -> (Vec<KindSample>, Vec<KindBits>);

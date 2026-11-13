@@ -1,33 +1,33 @@
-// ignore: idiomatic.arch/file-length - every public function here is a path the SDK hands languages (named in the product's tastemaker.toml), over the one private `SymbolsEngine` they reach through `AsRef`/`AsMut`; the engine-level helpers beside them (interning, hashing, deriving) are what those functions share, and moving either half would move SDK paths or split a function from the private table it reads.
 //! The `symbols` service: free functions named by verb over a file's names, with no IO and no
 //! ports. A name is a number: its text is in the file or, when it is made, beside it.
 
-use crate::domain::terms::types::Wordness;
+use ryo_relations::domain::terms::types::Wordness;
 use std::hash::Hasher as _;
 
 use hashbrown::hash_table::OccupiedEntry;
 use rustc_hash::FxHasher;
 
-use crate::domain::relations::constants::NO_SYMBOL;
-use crate::domain::relations::types::{
-    Bits, Bytes, CROSS_FILE, CROSS_PLACE, Count, FileId, KindBits, Name, NameNote, NamePlace,
-    Offset, Origin, PlaceNumber, Span, TextHash, WorkerNumber,
-};
 use crate::domain::symbols::types::ByteSlice;
-use crate::domain::symbols::types::SymbolsEngine;
-use crate::domain::symbols::types::{NameStart, Noted, Symbols};
-use crate::domain::terms::service::{is_term, term_text};
-use crate::domain::terms::types::NameText;
-use crate::domain::terms::types::Symbol;
+use crate::domain::symbols::types::{Generation, QuerySymbols, Symbols};
+use crate::domain::symbols::types::{SymbolStorage, SymbolsEngine};
+use ryo_relations::domain::relations::constants::NO_SYMBOL;
+use ryo_relations::domain::relations::types::{
+    CROSS_FILE, CROSS_PLACE, FileId, KindBits, Name, NamePlace, Offset, Origin, PlaceNumber, Span,
+    TextHash,
+};
+use ryo_relations::domain::terms::service::{is_term, term_text};
+use ryo_relations::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::Symbol;
 
 /// Empties the names, keeping their room for the next file.
 pub fn clear_symbols(symbols: &mut Symbols) {
     let symbols: &mut SymbolsEngine = symbols.as_mut();
+    symbols.transport_generation = std::sync::Arc::new(());
     symbols.start.clear();
     symbols.end.clear();
     symbols.hash.clear();
     symbols.index.clear();
-    symbols.sources = Count(0);
+    symbols.storage.clear();
     symbols.derived.0.clear();
     symbols.vocabulary.clear();
     symbols.places.clear();
@@ -70,19 +70,25 @@ pub(crate) fn bytes_of<'a>(
         usize::try_from(symbols.start.get(at)?.0).unwrap_or(usize::MAX),
         usize::try_from(symbols.end.get(at)?.0).unwrap_or(usize::MAX),
     );
-    let holder = if usize::try_from(symbol.0).unwrap_or(usize::MAX) < symbols.sources.0 {
-        source
-    } else {
-        ByteSlice(&symbols.derived.0)
+    let holder = match symbols.storage.get(at)? {
+        SymbolStorage::Source => source,
+        SymbolStorage::Derived => ByteSlice(&symbols.derived.0),
     };
     holder.0.get(start..end).map(ByteSlice)
 }
 
 /// The name of a symbol made by the steps that run after the files were read, as a name that has left its file:
 /// its text stays in the derived text of `symbols`, and its place is that symbol.
+/// A source-owned or unknown symbol has no cross-file derived place and is refused.
 #[must_use]
 pub fn name_made_across(symbols: &Symbols, symbol: Symbol) -> Option<Name> {
     let symbols: &SymbolsEngine = symbols.as_ref();
+    let Ok(at) = usize::try_from(symbol.0) else {
+        return None;
+    };
+    if symbols.storage.get(at) != Some(&SymbolStorage::Derived) {
+        return None;
+    }
     Some(Name {
         hash: hash_of_symbol(symbols, symbol)?,
         place: PlaceNumber(CROSS_PLACE | symbol.0),
@@ -95,6 +101,9 @@ pub fn place_of(name: Name, places: &[NamePlace], across: &Symbols) -> Option<Na
     let number = name.place;
     if number.0 & CROSS_PLACE != 0 {
         let at = usize::try_from(number.0 & !CROSS_PLACE).unwrap_or(usize::MAX);
+        if AsRef::<SymbolsEngine>::as_ref(across).storage.get(at) != Some(&SymbolStorage::Derived) {
+            return None;
+        }
         return Some(NamePlace {
             origin: Origin::Derived(CROSS_FILE),
             file: FileId(u32::MAX),
@@ -114,9 +123,11 @@ pub fn text_of<'a>(
     source: ByteSlice<'a>,
     symbol: Symbol,
 ) -> Option<NameText<'a>> {
-    std::str::from_utf8(bytes_of(symbols.as_ref(), source, symbol)?.0)
-        .ok() // ignore: idiomatic.arch/no-ok-on-result - a name's bytes that are not text have no text, which the caller reads as no name text: the rows keep the name's place either way
-        .map(NameText)
+    // A name's bytes that are not text have no text, which the caller reads as no name text: the rows keep the name's place either way.
+    match std::str::from_utf8(bytes_of(symbols.as_ref(), source, symbol)?.0) {
+        Ok(text) => Some(NameText(text)),
+        Err(_) => None,
+    }
 }
 
 /// The hash of the text of the name `symbol` stands for.
@@ -126,7 +137,7 @@ pub fn hash_in(symbols: &Symbols, symbol: Symbol) -> Option<TextHash> {
 }
 
 /// The hash of the text of the name `symbol` stands for, read from the names as the engine keeps them.
-fn hash_of_symbol(symbols: &SymbolsEngine, symbol: Symbol) -> Option<TextHash> {
+pub(crate) fn hash_of_symbol(symbols: &SymbolsEngine, symbol: Symbol) -> Option<TextHash> {
     if is_term(symbol) == Wordness::Term {
         return term_text(symbol).map(|text| hash_of(ByteSlice(text.0.as_bytes())));
     }
@@ -138,9 +149,27 @@ fn find_or_add(
     symbols: &mut SymbolsEngine,
     source: ByteSlice<'_>,
     text: ByteSlice<'_>,
+    storage: SymbolStorage,
     add: impl FnOnce(&mut SymbolsEngine) -> Span,
 ) -> Symbol {
-    find_or_add_hashed(symbols, source, text, hash_of(text), add)
+    find_or_add_hashed(symbols, source, text, hash_of(text), storage, add)
+}
+
+/// Finds an already-interned file or derived symbol by hash and exact bytes, without adding a name: the read-only lookup
+/// behind interning. Closed-set terms are not in this index; callers comparing by text must check their aliases too.
+#[must_use]
+pub(crate) fn find_hashed_in(
+    symbols: &SymbolsEngine,
+    source: ByteSlice<'_>,
+    text: ByteSlice<'_>,
+    hash: TextHash,
+) -> Option<Symbol> {
+    symbols
+        .index
+        .find(hash.0, |symbol| {
+            bytes_of(symbols, source, *symbol) == Some(text)
+        })
+        .copied()
 }
 
 /// Finds the symbol of the name whose bytes are `text`, which hashes to `hash`, or adds it: a hit is the name only when its text is
@@ -150,16 +179,26 @@ pub(crate) fn find_or_add_hashed(
     source: ByteSlice<'_>,
     text: ByteSlice<'_>,
     hash: TextHash,
+    storage: SymbolStorage,
     add: impl FnOnce(&mut SymbolsEngine) -> Span,
 ) -> Symbol {
     let known = &*symbols;
-    if let Some(found) = known.index.find(hash.0, |symbol| {
-        bytes_of(known, source, *symbol) == Some(text)
-    }) {
-        return *found;
+    if let Some(found) = find_hashed_in(known, source, text, hash) {
+        return found;
     }
-    let symbol = Symbol(u32::try_from(symbols.start.len()).unwrap_or(u32::MAX));
     let place = add(symbols);
+    insert_name(symbols, place, hash, storage)
+}
+
+/// Append the complete identity together: no insertion path may omit its byte owner.
+pub(crate) fn insert_name(
+    symbols: &mut SymbolsEngine,
+    place: Span,
+    hash: TextHash,
+    storage: SymbolStorage,
+) -> Symbol {
+    let symbol = Symbol(u32::try_from(symbols.start.len()).unwrap_or(u32::MAX));
+    symbols.storage.push(storage);
     symbols.start.push(place.start);
     symbols.end.push(place.end);
     symbols.hash.push(hash);
@@ -183,9 +222,10 @@ pub fn intern(symbols: &mut Symbols, source: ByteSlice<'_>, start: Offset, end: 
             )
             .unwrap_or(&[]),
     );
-    let symbol = find_or_add(symbols, source, text, |_| Span { start, end });
-    symbols.sources = Count(symbols.start.len());
-    symbol
+    find_or_add(symbols, source, text, SymbolStorage::Source, |_| Span {
+        start,
+        end,
+    })
 }
 
 /// The symbol for a name that is not in the file's bytes: its text is kept in the derived text.
@@ -193,17 +233,60 @@ pub fn intern_derived(symbols: &mut Symbols, source: ByteSlice<'_>, text: NameTe
     derive(symbols.as_mut(), source, text)
 }
 
+/// Reborrows a query's symbols without handing a query operator source-name interning.
+#[must_use]
+pub fn query_reborrow<'a>(symbols: &'a mut QuerySymbols<'_>) -> QuerySymbols<'a> {
+    QuerySymbols(&mut *symbols.0)
+}
+
+/// Adds a value computed by a query, retaining existing source and derived identities.
+///
+/// ```
+/// use ryo_language::domain::symbols::service::{query_intern_derived, text_of};
+/// use ryo_language::domain::symbols::types::{ByteSlice, QuerySymbols, Symbols};
+/// use ryo_relations::domain::terms::types::NameText;
+/// let mut file = Symbols::default();
+/// let mut query = QuerySymbols::from(&mut file);
+/// let made = query_intern_derived(&mut query, ByteSlice(b""), NameText("name"));
+/// assert_eq!(text_of(query.as_ref(), ByteSlice(b""), made).map(|text| text.0), Some("name"));
+/// ```
+///
+/// ```compile_fail,E0308
+/// use ryo_language::domain::symbols::service::{intern, query_intern_derived, text_of};
+/// use ryo_language::domain::symbols::types::{ByteSlice, QuerySymbols, Symbols};
+/// use ryo_relations::domain::relations::types::Offset;
+/// use ryo_relations::domain::terms::types::NameText;
+/// let mut file = Symbols::default();
+/// let mut query = QuerySymbols::from(&mut file);
+/// let made = query_intern_derived(&mut query, ByteSlice(b""), NameText("name"));
+/// let _ = text_of(query.as_ref(), ByteSlice(b""), made);
+/// intern(&mut query, ByteSlice(b"name"), Offset(0), Offset(4));
+/// ```
+pub fn query_intern_derived(
+    symbols: &mut QuerySymbols<'_>,
+    source: ByteSlice<'_>,
+    text: NameText<'_>,
+) -> Symbol {
+    intern_derived(&mut *symbols.0, source, text)
+}
+
 /// The symbol for a name that is not in the file's bytes, in the names as the engine keeps them: its text is kept in the derived text.
 fn derive(symbols: &mut SymbolsEngine, source: ByteSlice<'_>, text: NameText<'_>) -> Symbol {
     let text = text.0;
-    find_or_add(symbols, source, ByteSlice(text.as_bytes()), |symbols| {
-        let start = Offset(u32::try_from(symbols.derived.0.len()).unwrap_or(u32::MAX));
-        symbols.derived.0.extend_from_slice(text.as_bytes());
-        Span {
-            start,
-            end: Offset(u32::try_from(symbols.derived.0.len()).unwrap_or(u32::MAX)),
-        }
-    })
+    find_or_add(
+        symbols,
+        source,
+        ByteSlice(text.as_bytes()),
+        SymbolStorage::Derived,
+        |symbols| {
+            let start = Offset(u32::try_from(symbols.derived.0.len()).unwrap_or(u32::MAX));
+            symbols.derived.0.extend_from_slice(text.as_bytes());
+            Span {
+                start,
+                end: Offset(u32::try_from(symbols.derived.0.len()).unwrap_or(u32::MAX)),
+            }
+        },
+    )
 }
 
 /// The name numbered `number` in a language's vocabulary, made from `text` the first time a file
@@ -235,203 +318,56 @@ pub fn vocabulary_symbol(
     made
 }
 
-/// Begins a name made of pieces: what is pushed next, up to [`end_name`], is its text.
-#[must_use]
-pub fn begin_name(symbols: &Symbols) -> NameStart {
-    let symbols: &SymbolsEngine = symbols.as_ref();
-    NameStart(symbols.derived.0.len())
-}
-
-/// Adds `text` to the name being made.
-pub fn push_text(symbols: &mut Symbols, text: NameText<'_>) {
-    let symbols: &mut SymbolsEngine = symbols.as_mut();
-    symbols.derived.0.extend_from_slice(text.0.as_bytes());
-}
-
-/// Adds the bytes `start..end` of the file to the name being made.
-pub fn push_span(symbols: &mut Symbols, source: ByteSlice<'_>, start: Offset, end: Offset) {
-    push_bytes(symbols.as_mut(), source, start, end);
-}
-
-/// Adds the bytes `start..end` of the file to the name being made, in the names as the engine keeps them.
-fn push_bytes(symbols: &mut SymbolsEngine, source: ByteSlice<'_>, start: Offset, end: Offset) {
-    let text = source
-        .0
-        .get(
-            usize::try_from(start.0).unwrap_or(usize::MAX)
-                ..usize::try_from(end.0).unwrap_or(usize::MAX),
-        )
-        .unwrap_or(&[]);
-    symbols.derived.0.extend_from_slice(text);
-}
-
-/// Adds the text of the name `symbol` to the name being made.
-pub fn push_name(symbols: &mut Symbols, source: ByteSlice<'_>, symbol: Symbol) {
-    let symbols: &mut SymbolsEngine = symbols.as_mut();
-    let at = usize::try_from(symbol.0).unwrap_or(usize::MAX);
-    let (Some(start), Some(end)) = (symbols.start.get(at).copied(), symbols.end.get(at).copied())
-    else {
-        return;
-    };
-    let (start, end) = (
-        usize::try_from(start.0).unwrap_or(usize::MAX),
-        usize::try_from(end.0).unwrap_or(usize::MAX),
-    );
-    if usize::try_from(symbol.0).unwrap_or(usize::MAX) < symbols.sources.0 {
-        push_bytes(
-            symbols,
-            source,
-            Offset(u32::try_from(start).unwrap_or(u32::MAX)),
-            Offset(u32::try_from(end).unwrap_or(u32::MAX)),
-        );
-        return;
-    }
-    // A derived name's text is in the derived text, unless what was pushed of it was taken back.
-    if end <= symbols.derived.0.len() {
-        symbols.derived.0.extend_from_within(start..end);
-    }
-}
-
-/// Ends the name begun at `from`: its text is what was pushed. The same text is always the same
-/// symbol, so a name the file already has is found and what was pushed is taken back.
-pub fn end_name(symbols: &mut Symbols, source: ByteSlice<'_>, from: NameStart) -> Symbol {
-    let symbols: &mut SymbolsEngine = symbols.as_mut();
-    let text = ByteSlice(symbols.derived.0.get(from.0..).unwrap_or(&[]));
-    let hash = hash_of(text);
-    let known = &*symbols;
-    if let Some(found) = known
-        .index
-        .find(hash.0, |symbol| {
-            bytes_of(known, source, *symbol) == Some(text)
-        })
-        .copied()
-    {
-        symbols.derived.0.truncate(from.0);
-        return found;
-    }
-    let symbol = Symbol(u32::try_from(symbols.start.len()).unwrap_or(u32::MAX));
-    symbols
-        .start
-        .push(Offset(u32::try_from(from.0).unwrap_or(u32::MAX)));
-    symbols.end.push(Offset(
-        u32::try_from(symbols.derived.0.len()).unwrap_or(u32::MAX),
-    ));
-    symbols.hash.push(hash);
-    let hashes = &symbols.hash;
-    let _: OccupiedEntry<'_, Symbol> = symbols.index.insert_unique(hash.0, symbol, |symbol| {
-        symbol_in(hashes, *symbol).copied().unwrap_or_default().0
-    });
-    symbol
-}
-
-/// The name a symbol of `file` becomes when it leaves the file, its place pushed onto `places`. A derived name's text is copied
-/// once into `arena`, the worker's own text, which the worker keeps for the whole run.
-#[must_use]
-pub fn name_of(
-    symbols: &Symbols,
-    source: ByteSlice<'_>,
-    symbol: Symbol,
-    file: FileId,
-    worker: WorkerNumber,
-    arena: &mut Bytes,
-    places: &mut Vec<NamePlace>,
-) -> Option<Name> {
-    let symbols: &SymbolsEngine = symbols.as_ref();
-    let bytes = bytes_of(symbols, source, symbol)?;
-    let hash = hash_of_symbol(symbols, symbol)?;
-    let place = PlaceNumber(u32::try_from(places.len()).ok()?); // ignore: idiomatic.arch/no-ok-on-result - a file of more than 2^32 names has no number for the next one: it is not placed
-    if usize::try_from(symbol.0).unwrap_or(usize::MAX) < symbols.sources.0 {
-        let (start, end) = (
-            *symbols
-                .start
-                .get(usize::try_from(symbol.0).unwrap_or(usize::MAX))?,
-            *symbols
-                .end
-                .get(usize::try_from(symbol.0).unwrap_or(usize::MAX))?,
-        );
-        places.push(NamePlace {
-            origin: Origin::Source,
-            file,
-            start,
-            end,
-        });
-        return Some(Name { hash, place });
-    }
-    let start = u32::try_from(arena.0.len()).unwrap_or(u32::MAX);
-    arena.0.extend_from_slice(bytes.0);
-    places.push(NamePlace {
-        origin: Origin::Derived(worker),
-        file,
-        start: Offset(start),
-        end: Offset(u32::try_from(arena.0.len()).unwrap_or(u32::MAX)),
-    });
-    Some(Name { hash, place })
-}
-
-/// Where the text of each name that left its file is, by the number of the place.
-#[must_use]
-pub fn places_of(symbols: &Symbols) -> &[NamePlace] {
-    let symbols: &SymbolsEngine = symbols.as_ref();
-    &symbols.places
-}
-
-/// The text the names made after their file was read are in.
-#[must_use]
-pub fn derived_of(symbols: &Symbols) -> &Bytes {
-    let symbols: &SymbolsEngine = symbols.as_ref();
-    &symbols.derived
-}
-
-/// How many names the file has so far, the ones in its bytes and the ones made.
-#[must_use]
-pub fn name_count(symbols: &Symbols) -> Count {
-    let symbols: &SymbolsEngine = symbols.as_ref();
-    Count(symbols.start.len())
-}
-
-/// The number a reader noted about the name `name` while reading the file; nothing noted is `0`.
-#[must_use]
-pub fn note_of(symbols: &Symbols, name: Symbol) -> NameNote {
-    let symbols: &SymbolsEngine = symbols.as_ref();
-    symbols // ignore: idiomatic.arch/no-unwrap-or-on-lookup - the notes hold only the names a reader noted: a name noted nothing of is `0`, as the doc says
-        .notes
-        .indexed
-        .get(usize::try_from(name.0).unwrap_or(usize::MAX))
-        .copied()
-        .unwrap_or_default()
-}
-
-/// Notes the number `value` about the name `name`, for the rest of the file.
-pub fn set_note(symbols: &mut Symbols, name: Symbol, value: NameNote) {
-    let symbols: &mut SymbolsEngine = symbols.as_mut();
-    let place = usize::try_from(name.0).unwrap_or(usize::MAX);
-    if symbols.notes.indexed.len() <= place {
-        symbols.notes.indexed.resize(place + 1, NameNote(0));
-    }
-    if let Some(slot) = symbols.notes.indexed.get_mut(place) {
-        *slot = value;
-    }
-}
-
-/// Whether a reader has noted any word while reading the file.
-#[must_use]
-pub fn has_noted_words(symbols: &Symbols) -> Noted {
-    let symbols: &SymbolsEngine = symbols.as_ref();
-    if symbols.notes.listed.0.is_empty() {
-        Noted::Nothing
-    } else {
-        Noted::Words
-    }
-}
-
-/// Notes a word for the rest of the file.
-pub fn note_word(symbols: &mut Symbols, word: Bits) {
-    let symbols: &mut SymbolsEngine = symbols.as_mut();
-    symbols.notes.listed.0.push(word.0);
-}
-
 /// Where the text of each name that left its file is, to write: the steps after the files were read make the places of their own.
 pub fn places_mut(symbols: &mut Symbols) -> &mut Vec<NamePlace> {
     let symbols: &mut SymbolsEngine = symbols.as_mut();
     &mut symbols.places
+}
+
+/// Mint a frame-admission key before the query borrows this exact symbol pool.
+/// The key is held by the application input owner and is not given to kernels.
+pub fn transport_permit(symbols: &mut Symbols) -> super::types::TransportPermit {
+    let symbols: &SymbolsEngine = symbols.as_ref();
+    super::types::TransportPermit(std::sync::Arc::clone(&symbols.transport_generation))
+}
+
+/// Whether two engine-issued frame permits name the same live symbol generation.
+/// Comparing permits exposes no place mutation to a query or semantic kernel.
+pub fn same_transport_generation(
+    first: &super::types::TransportPermit,
+    second: &super::types::TransportPermit,
+) -> Generation {
+    if std::sync::Arc::ptr_eq(&first.0, &second.0) {
+        Generation::Same
+    } else {
+        Generation::Different
+    }
+}
+
+/// Check a semantic query borrow against an application-held frame key without
+/// granting the query a way to mint keys or mutate transported name places.
+pub fn query_has_transport_generation(
+    symbols: &QuerySymbols<'_>,
+    permit: &super::types::TransportPermit,
+) -> Generation {
+    let pool: &SymbolsEngine = symbols.0.as_ref();
+    if std::sync::Arc::ptr_eq(&pool.transport_generation, &permit.0) {
+        Generation::Same
+    } else {
+        Generation::Different
+    }
+}
+
+/// Let the owner decode one demanded transport frame in place. QuerySymbols
+/// alone cannot call this: it cannot mint the key, and a stale/foreign key
+/// answers nothing before any place is appended.
+pub fn query_places_mut<'a>(
+    symbols: &'a mut QuerySymbols<'_>,
+    permit: &super::types::TransportPermit,
+) -> Option<&'a mut Vec<NamePlace>> {
+    let pool: &mut SymbolsEngine = symbols.0.as_mut();
+    if !std::sync::Arc::ptr_eq(&pool.transport_generation, &permit.0) {
+        return None;
+    }
+    Some(&mut pool.places)
 }

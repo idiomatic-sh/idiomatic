@@ -1,0 +1,151 @@
+description = "A driver port is implemented only by the engine's strategies: a trait whose name matches `traits`, declared in a `ports` file, is implemented (`impl <Trait> for T`) only in the files `implementers` lists, whether it is written by its name, by a path or through an import alias."
+why = "The operators own each kind's meaning and ask the engine for what only the engine has (its join candidates, walks, graphs and delivery) through driver ports. The engine's strategies are the one implementation of each port, so the ownership of joins, walks and graphs stays where the shared-walk and derived-owner rules guard it. Another implementation, a shortcut beside the executor, answers the operators with rows or walks no owner admitted: the class of bug those rules close. Read syntactically: an impl is matched by the last segment of the trait path it writes, and an alias by the `use` that binds it in the same file. Test code and fixtures are left out by the entry's `exclude`."
+
+query = '''
+param ports: set<string>;
+param traits: set<string>;
+param implementers: set<string>;
+let declared = select name from "defines" where kind = "trait" and glob_any(file, $ports) and glob_any(name, $traits);
+let impls = select target, file, span from "inherits" where not glob_any(file, $implementers) and not glob_any(file, $ports);
+let imports = select binding, target, file from "static-import";
+let aliased = select r.target as target, l.file as file, l.span as span from impls as l join imports as r on l.file = r.file where l.target = r.binding;
+let written = union(left=impls, right=aliased);
+let keyed-impls = extend(from=written, values={"pair": 1});
+let keyed-ports = extend(from=declared, values={"pair": 1});
+let foreign = select l.file as file, l.span as span, r.name as name from keyed-impls as l join keyed-ports as r on l.pair = r.pair where l.target = r.name or ends_with(l.target, concat("::", r.name));
+emit foreign subject "file" key("span");
+'''
+
+[params.ports]
+type = "set<string>"
+description = "The files that declare the driver ports, as path globs: the operators' domain."
+
+[params.traits]
+type = "set<string>"
+description = "The names of the driver ports among the traits of `ports`, as globs: `*Driver`."
+
+[params.implementers]
+type = "set<string>"
+description = "The files that may implement a driver port, as path globs: the engine's strategies."
+
+[diagnostic]
+primary = "span"
+message = "`{name}` is implemented outside the engine's strategies"
+help = "Implement the driver port in the strategy that owns what it answers, or reach the existing strategy through the operators' call. A new strategy belongs in the files the entry's `implementers` lists: add it there, saying why in the entry's description."
+
+[given]
+include = ["**"]
+params = { ports = ["operators/src/**"], traits = ["*Driver"], implementers = ["engine/src/domain/operator/contract.rs", "engine/src/application/ordered_existence.rs"] }
+files.'operators/Cargo.toml' = '''
+[package]
+name = "operators"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'operators/src/lib.rs' = '''
+//! The operators and their driver ports.
+
+pub mod walk;
+'''
+files.'operators/src/walk.rs' = '''
+//! The walk a kind asks the engine for.
+
+pub trait WalkDriver {
+    fn next(&mut self) -> Option<usize>;
+}
+
+pub trait WalkSummary {
+    fn total(&self) -> usize;
+}
+'''
+files.'engine/Cargo.toml' = '''
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'engine/src/lib.rs' = '''
+//! The engine.
+
+pub mod application;
+pub mod domain;
+'''
+files.'engine/src/domain.rs' = '''
+//! The engine's domain.
+
+pub mod operator;
+'''
+files.'engine/src/domain/operator.rs' = '''
+//! The engine's operator concept.
+
+pub mod contract;
+'''
+files.'engine/src/domain/operator/contract.rs' = '''
+//! The engine's strategies behind the driver ports.
+
+pub struct EngineWalk;
+
+impl operators::walk::WalkDriver for EngineWalk {
+    fn next(&mut self) -> Option<usize> {
+        None
+    }
+}
+'''
+files.'engine/src/application.rs' = '''
+//! The engine's application.
+
+pub mod executor;
+'''
+files.'engine/src/application/executor.rs' = '''
+//! The executor, which names other traits of the operators.
+
+use operators::walk::WalkSummary;
+
+pub struct Run;
+
+impl WalkSummary for Run {
+    fn total(&self) -> usize {
+        0
+    }
+}
+'''
+
+[[scenarios]]
+id = "the-strategies-implement-the-ports"
+scenario = "The strategy implements the port by its path, and the executor implements a trait that is no driver port."
+
+[[scenarios]]
+id = "a-shortcut-implements-a-port"
+scenario = "A driver port implemented in the executor is reported at the impl."
+given.files.'engine/src/application/executor.rs' = '''
+//! The executor, which answers a walk itself.
+
+use operators::walk::WalkDriver;
+
+pub struct Shortcut;
+
+impl WalkDriver for Shortcut {
+    fn next(&mut self) -> Option<usize> {
+        Some(0)
+    }
+}
+'''
+then.findings = [{ path = "engine/src/application/executor.rs", line = 7 }]
+
+[[scenarios]]
+id = "an-alias-does-not-escape"
+scenario = "Implementing the port through an import alias is reported the same."
+given.files.'engine/src/application/executor.rs' = '''
+//! The executor, which answers a walk through an alias.
+
+use operators::walk::WalkDriver as Steps;
+
+pub struct Shortcut;
+
+impl Steps for Shortcut {
+    fn next(&mut self) -> Option<usize> {
+        Some(0)
+    }
+}
+'''
+then.findings = [{ path = "engine/src/application/executor.rs", line = 7 }]

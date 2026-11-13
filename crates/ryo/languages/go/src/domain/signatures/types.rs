@@ -46,7 +46,7 @@ pub(crate) struct Callable {
 
 /// What a parameter is in Go's own words, the `refinement` of its row: `variadic`, `result`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Refinement(pub &'static str);
+pub(crate) struct SignatureRefinement(pub &'static str);
 
 /// A parameter, a receiver or a named result, as the `parameter` relation says it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -54,7 +54,7 @@ pub(crate) struct Parameter {
     /// How it takes its argument.
     pub kind: ryo::languages::ParameterKind,
     /// The same in Go's own words, the `refinement` of its row.
-    pub word: Refinement,
+    pub word: SignatureRefinement,
     /// The element whose span is the parameter's: its name, or its type when it has none.
     pub named: Position,
     /// The name, or the unknown value of a parameter with none.

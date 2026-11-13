@@ -1,0 +1,2 @@
+let known = select file, span from "qualified-name" where (provenance = "import" or provenance = "builtin") and matches(path, ".+");
+emit known subject file key(span);

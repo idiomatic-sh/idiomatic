@@ -34,7 +34,7 @@ pub(crate) struct ModuleVersion(pub Box<str>);
 /// What a `replace` sends a module to, as `go.mod` writes it: a directory of the repository when it starts with `.`, another module's
 /// path otherwise.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Target(pub Box<str>);
+pub(crate) struct ModuleReplacementTarget(pub Box<str>);
 
 /// What a `replace` writes after its arrow, as `go.mod` writes it: the module path and its version, or the directory.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -82,7 +82,7 @@ pub(crate) struct Replacement {
     /// The version of it replaced; empty when every version is (Go Modules Reference, "replace directive").
     pub version: ModuleVersion,
     /// What replaces it.
-    pub to: Target,
+    pub to: ModuleReplacementTarget,
     /// The version of the module that replaces it; empty when a directory does, which takes none.
     pub to_version: ModuleVersion,
 }
@@ -114,6 +114,17 @@ pub(crate) struct Manifest {
 pub(crate) struct Refusal {
     /// The manifest.
     pub manifest: ManifestPath,
+    /// What the tool said.
+    pub reason: Reason,
+}
+
+/// A manifest the tool refused, as the relation `manifest_diagnostic` says of it: the file, which manifest it is and what the tool said.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Diagnosed {
+    /// The manifest, by its place among the files of the run.
+    pub file: languages::FileId,
+    /// Which manifest it is.
+    pub manifest: Manifestness,
     /// What the tool said.
     pub reason: Reason,
 }

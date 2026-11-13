@@ -3,44 +3,79 @@
 //! workers, `allocations` is the allocation count, `project` is the manifests, `conformance` holds every answer to the fixtures.
 
 use ryo_language::inbound::use_cases::parse::constants::FIXTURES;
+use ryo_language::inbound::use_cases::parse::fixtures::configuration::ConfiguredFixture as EngineFixture;
 use ryo_language::inbound::use_cases::parse::fixtures::contract as parse_contract;
 use ryo_language::inbound::use_cases::parse::fixtures::samples as parse_samples;
 use ryo_language::inbound::use_cases::project::fixtures::contract as project_contract;
 
 pub use ryo_language::domain::elements::service::{element_count, notes_of};
-pub use ryo_language::domain::symbols::service::name_count;
-pub use ryo_language::inbound::use_cases::parse::fixtures::contract::{Collect, Discard};
+pub use ryo_language::domain::elements::service::{
+    has_incomplete_lexical_stream, has_incomplete_syntax,
+};
+pub use ryo_language::domain::names::service::name_count;
 pub use ryo_language::inbound::use_cases::parse::fixtures::expected::{
-    Cell, Count, Expected, ExpectedRow, FileName, Fixtures, ManifestExpected, Point, Stretch, Text,
-    Unfilled, Unshown, Want, Wanted, expected_rows, file, kept, name, node, number, span, unknown,
-    unlocated, want_file, want_flag, want_name, want_node, want_number, want_span, want_unknown,
+    Cell, Count, Expected, ExpectedRow, FileName, Fixtures, ManifestExpected, Point,
+    SemanticExpected, Stretch, Text, Unfilled, Unshown, expected_rows, file, name, node, number,
+    span, unknown,
 };
 pub use ryo_language::inbound::use_cases::parse::fixtures::expected::{
     Leafness, LibraryWalk, Oracle, OracleRows, ReferenceRefusal, RelationRows, Shape, Walked,
 };
 pub use ryo_language::inbound::use_cases::parse::fixtures::expected_rows::{
     analyzed_source::AnalyzedSourceExpectedRow, annotates::AnnotatesExpectedRow,
-    assigns::AssignsExpectedRow, call_argument::CallArgumentExpectedRow,
-    comment::CommentExpectedRow, decorates::DecoratesExpectedRow, defines::DefinesExpectedRow,
-    directive::DirectiveExpectedRow, entry::EntryExpectedRow, file_package::FilePackageExpectedRow,
+    assigns::AssignsExpectedRow, binding_event::BindingEventExpectedRow,
+    binding_read::BindingReadExpectedRow, binding_shadow::BindingShadowExpectedRow,
+    binding_use::BindingUseExpectedRow, brace_format_field::BraceFormatFieldExpectedRow,
+    brace_format_parse::BraceFormatParseExpectedRow, bytes_literal::BytesLiteralExpectedRow,
+    call_argument::CallArgumentExpectedRow, comment::CommentExpectedRow,
+    compiler_feature::CompilerFeatureExpectedRow, constant_key::ConstantKeyExpectedRow,
+    decorates::DecoratesExpectedRow, defines::DefinesExpectedRow, directive::DirectiveExpectedRow,
+    embedded_expression::EmbeddedExpressionExpectedRow, entry::EntryExpectedRow,
+    expression_shape::ExpressionShapeExpectedRow, expression_type::ExpressionTypeExpectedRow,
+    file_package::FilePackageExpectedRow, filesystem_executable::FilesystemExecutableExpectedRow,
     filesystem_file::FilesystemFileExpectedRow,
-    filesystem_line_count::FilesystemLineCountExpectedRow, function::FunctionExpectedRow,
-    inherits::InheritsExpectedRow, mapping::MappingExpectedRow, mention::MentionExpectedRow,
-    package_dependency::PackageDependencyExpectedRow, parameter::ParameterExpectedRow,
-    prose::ProseExpectedRow, reference::ReferenceExpectedRow, resolves::ResolvesExpectedRow,
-    scope::ScopeExpectedRow, sequence_element::SequenceElementExpectedRow,
-    source_dependency::SourceDependencyExpectedRow, static_call::StaticCallExpectedRow,
+    filesystem_line_count::FilesystemLineCountExpectedRow,
+    filesystem_read_failure::FilesystemReadFailureExpectedRow,
+    format_field::FormatFieldExpectedRow, format_parse::FormatParseExpectedRow,
+    format_specification::FormatSpecificationExpectedRow, function::FunctionExpectedRow,
+    function_terminal::FunctionTerminalExpectedRow, identifier::IdentifierExpectedRow,
+    implicit_symbol::ImplicitSymbolExpectedRow, indent_region::IndentRegionExpectedRow,
+    inherits::InheritsExpectedRow,
+    interpolated_string_literal::InterpolatedStringLiteralExpectedRow,
+    language_target::LanguageTargetExpectedRow,
+    literal_expression_parse::LiteralExpressionParseExpectedRow,
+    literal_properties::LiteralPropertiesExpectedRow,
+    manifest_diagnostic::ManifestDiagnosticExpectedRow, mapping::MappingExpectedRow,
+    mention::MentionExpectedRow, module_identity::ModuleIdentityExpectedRow,
+    numeric_literal::NumericLiteralExpectedRow, package_dependency::PackageDependencyExpectedRow,
+    parameter::ParameterExpectedRow,
+    project_namespace_membership::ProjectNamespaceMembershipExpectedRow, prose::ProseExpectedRow,
+    qualified_name::QualifiedNameExpectedRow, raw_format_field::RawFormatFieldExpectedRow,
+    raw_format_segment::RawFormatSegmentExpectedRow, reference::ReferenceExpectedRow,
+    resolves::ResolvesExpectedRow, scope::ScopeExpectedRow,
+    semantic_child::SemanticChildExpectedRow, semantic_syntax::SemanticSyntaxExpectedRow,
+    sequence_element::SequenceElementExpectedRow, source_dependency::SourceDependencyExpectedRow,
+    source_location::SourceLocationExpectedRow,
+    standard_library_import::StandardLibraryImportExpectedRow, static_call::StaticCallExpectedRow,
     static_import::StaticImportExpectedRow, string_literal::StringLiteralExpectedRow,
     syntax_child::SyntaxChildExpectedRow, syntax_error::SyntaxErrorExpectedRow,
-    syntax_tree::SyntaxTreeExpectedRow, visibility::VisibilityExpectedRow,
-    workspace_member::WorkspaceMemberExpectedRow,
+    syntax_tree::SyntaxTreeExpectedRow, token_link::TokenLinkExpectedRow,
+    visibility::VisibilityExpectedRow, workspace_member::WorkspaceMemberExpectedRow,
 };
 pub use ryo_language::inbound::use_cases::parse::fixtures::items::check as check_item;
 pub use ryo_language::inbound::use_cases::parse::fixtures::reading::{Reading, written};
 pub use ryo_language::inbound::use_cases::parse::fixtures::rows::point_of;
+pub use ryo_language::inbound::use_cases::parse::fixtures::wanted::{
+    Want, Wanted, kept, unlocated, want_file, want_flag, want_name, want_node, want_number,
+    want_span, want_unknown,
+};
+pub use ryo_language::inbound::use_cases::parse::fixtures::{collect::Collect, contract::Discard};
 pub use ryo_language::inbound::use_cases::parse::service::{build, read, walk};
 pub use ryo_language::inbound::use_cases::parse::types::KindSample;
+/// The engine-side interfaces `Language::parse_engine` and `Language::project` hand a language's own tests.
+pub use ryo_language::inbound::use_cases::parse::types::ParseEngine;
 pub use ryo_language::inbound::use_cases::project::service::project as read_project;
+pub use ryo_language::inbound::use_cases::project::types::ProjectEngine;
 
 use super::{CatalogRelation, Parse, Project, ReadItem, SourceFile, SourcePath};
 use std::path::Path;
@@ -104,33 +139,95 @@ pub struct ManifestDir(pub &'static str);
 ///
 /// When the name of the language is not its directory's, or an answer of the language is not held by its fixtures, listing every one.
 pub fn conformance(linked: &super::Language, manifest_dir: ManifestDir, expected: &Fixtures) {
+    conformance_with(linked, manifest_dir, expected, &|_| Ok(None));
+}
+
+/// The text of a fixture, which a language reads its declared configuration from.
+#[derive(Clone, Copy, Debug)]
+pub struct FixtureText<'a>(pub &'a str);
+
+/// Why a language refuses the configuration a fixture declares.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FixtureRefusal(pub String);
+
+/// A fixture-only language selection and matching independent references.
+pub struct ConfiguredFixture {
+    /// Immutable configured language constructed through its existing public setup.
+    pub language: super::Language,
+    /// Independent shape reference using the same declared configuration.
+    pub shape: Shape,
+    /// Independent row reference using the same declared configuration.
+    pub oracle: Oracle,
+}
+
+impl std::fmt::Debug for ConfiguredFixture {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct(stringify!(ConfiguredFixture))
+            .finish_non_exhaustive()
+    }
+}
+
+/// Run fixture conformance with language-owned metadata and immutable parser selection.
+///
+/// # Panics
+/// When the language directory, declared fixture settings, or conformance expectations fail.
+pub fn conformance_with(
+    linked: &super::Language,
+    manifest_dir: ManifestDir,
+    expected: &Fixtures,
+    configure: &dyn Fn(FixtureText<'_>) -> Result<Option<ConfiguredFixture>, FixtureRefusal>,
+) {
     let directory = Path::new(manifest_dir.0);
     assert_eq!(
         Some(&*linked.name().0),
         directory.file_name().and_then(|name| name.to_str()),
         "the name of a language is the name of its directory"
     );
-    ryo_language::inbound::use_cases::parse::fixtures::conformance::conformance(
+    ryo_language::inbound::use_cases::parse::fixtures::conformance::conformance_with(
         &linked.name().0,
         linked.parse_engine().as_ref(),
         linked.project().as_ref(),
         &directory.join(FIXTURES),
         expected,
+        &|text| {
+            configure(FixtureText(text))
+                .map_err(|refusal| refusal.0)
+                .map(|configured| {
+                    configured.map(|context| EngineFixture {
+                        parse: context.language.parse_engine(),
+                        shape: context.shape,
+                        oracle: context.oracle,
+                    })
+                })
+        },
     );
 }
 
 /// Runs the allocation row against a linked language, with its fixtures under `tests/fixtures` of its directory `manifest_dir`: reading
 /// a file allocates no more than the baseline, what the language's own `read_tree` does for the file alone through a builder that builds nothing. It runs alone in its
-/// process, with `dhat` as the global allocator, so nothing else counts.
-///
-/// # Panics
-///
-/// When reading a file allocates more than the baseline does.
+/// process, with `dhat` as the global allocator, so nothing else counts. It runs on libtest-mimic, which answers libtest's
+/// command line and reports as cargo's harness does, as the case
+/// `allocation::<language>::reading_allocates_as_the_parser_library_does`, named by the language's directory. When
+/// reading a file allocates more than the baseline does, the case is reported as failed and the process exits 101, as a
+/// failed cargo test does.
 pub fn allocations_of_linked(linked: &super::Language, manifest_dir: ManifestDir) {
-    ryo_language::inbound::use_cases::parse::fixtures::samples::allocations_of_fixtures(
-        linked.parse_engine().as_ref(),
-        &Path::new(manifest_dir.0).join(FIXTURES),
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    // The case runs on this thread, so no other thread allocates beside it.
+    arguments.test_threads = Some(1);
+    let parse = linked.parse_engine();
+    let fixtures = Path::new(manifest_dir.0).join(FIXTURES);
+    let case = libtest_mimic::Trial::test(
+        format!(
+            "allocation::{}::reading_allocates_as_the_parser_library_does",
+            linked.name().0
+        ),
+        move || {
+            parse_samples::allocations_of_fixtures(parse.as_ref(), &fixtures);
+            Ok(())
+        },
     );
+    libtest_mimic::run(&arguments, vec![case]).exit_if_failed();
 }
 
 /// What the linked language writes of the relation `Item` reads for `source`, read with its own parse as the file numbered 0 at `path`:

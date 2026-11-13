@@ -7,15 +7,14 @@ use std::sync::Arc;
 
 use ryo_core::inbound::use_cases::lint::types::{LintRequest, Rule};
 use ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl;
-use ryo_core::outbound::language::types::LanguageHandles;
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_values::domain::runs::types::Budget;
 use ryo_values::domain::runs::types::Session;
 
-use ryo_core::outbound::rows::interface::RowsPort;
-use ryo_core::outbound::{
-    corpus, digest, facts, language, matching, memory, query_language, rows, scheduler,
-};
+use ryo_core::outbound::row_sink::interface::RowSinkPort;
+use ryo_core::outbound::{corpus, language, memory, row_sink, scheduler};
+use ryo_execution::outbound::{matching, query_language};
+use ryo_execution_runtime::outbound::{digest, facts};
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
 
@@ -48,7 +47,7 @@ impl language::interface::LanguagePort for Counting {
 
     fn supports(
         &self,
-        relation: ryo_language::domain::relations::types::Relation,
+        relation: ryo_relations::domain::relations::types::Relation,
     ) -> language::types::Answers {
         self.language.supports(relation)
     }
@@ -65,7 +64,7 @@ impl language::interface::LanguagePort for Counting {
         file: language::types::FileToRead<'_>,
         table: &mut ryo_language::domain::elements::types::Elements,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
-        out: &mut dyn ryo_language::domain::relations::types::RowWriter,
+        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
     ) -> language::types::FileReading {
         let _before = self
             .reads
@@ -73,11 +72,18 @@ impl language::interface::LanguagePort for Counting {
         self.language.parse(file, table, symbols, out)
     }
 
+    fn project_entries(
+        &self,
+        input: &language::types::ProjectToRead<'_>,
+    ) -> Vec<ryo_language::domain::files::types::FilePath> {
+        self.language.project_entries(input)
+    }
+
     fn project(
         &self,
-        input: &language::types::ProjectInput<'_>,
+        input: &language::types::ProjectToRead<'_>,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
-        out: &mut dyn ryo_language::domain::relations::types::RowWriter,
+        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
     ) -> Result<language::types::ProjectAnswer, language::errors::LanguageError> {
         let _before = self
             .projects
@@ -98,10 +104,6 @@ pub(crate) struct Counted {
     /// How many times the language was asked to read the project.
     pub projects: usize,
 }
-
-/// Whether the lint runs the steps that read only the tree as operators, which the bench and the equivalence test set.
-pub(crate) static UNLOWERED: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
 
 /// Lints `root` with `rules`, keeping what it found in `lint_store`, and counts the files the language read.
 ///
@@ -149,19 +151,18 @@ pub(crate) fn lint_observing<T>(
     workers: usize,
     observe: impl FnOnce(
         Counted,
-        rows::types::Collected,
+        row_sink::types::Collected,
         ryo_core::inbound::use_cases::lint::types::LintReport,
     ) -> T,
 ) -> Result<T, String> {
     let reads = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let projects = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let rust = ryo_rust::linked();
     let compile = CompileUseCaseImpl::new(
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),
     );
-    let collected = rows::types::Collector::default();
-    let kept: Arc<dyn RowsPort> = Arc::new(rows::factory::collect(collected.clone()));
+    let collected = row_sink::factory::CollectorConnection::default();
+    let kept: Arc<dyn RowSinkPort> = Arc::new(row_sink::factory::collect(collected.clone()));
     let use_case = {
         let analysis_corpus: Arc<dyn corpus::interface::CorpusPort> =
             Arc::new(corpus::factory::ignore(
@@ -171,16 +172,28 @@ pub(crate) fn lint_observing<T>(
                 corpus::types::SkippedDirectories(vec![".ryo_cache".into()]),
             ));
         let analysis_language: Arc<dyn language::interface::LanguagePort> = Arc::new(Counting {
-            language: Arc::new(language::factory::use_case(vec![LanguageHandles::from(
-                rust,
-            )])),
+            // The replay's languages, the same the pending check asks.
+            language: Arc::new(language::factory::use_case(super::base::replay_languages())),
             reads: Arc::clone(&reads),
             projects: Arc::clone(&projects),
         });
         let analysis_memory: Arc<dyn memory::interface::MemoryPort> =
             Arc::new(memory::factory::sysinfo(Budget::Machine));
-        let analysis_digest: Arc<dyn digest::interface::DigestPort> =
-            Arc::new(digest::factory::blake3());
+        let analysis_digest: Arc<
+            dyn ryo_execution_runtime::outbound::digest::interface::DigestPort,
+        > = Arc::new(digest::factory::blake3());
+        let started = scheduler::types::WorkerCount(
+            ryo_values::domain::runs::service::workers_to_start(
+                ryo_values::domain::runs::types::WorkersAsked(workers),
+                ryo_values::domain::runs::types::MachineWorkers(
+                    u32::try_from(
+                        std::thread::available_parallelism().map_or(1, std::num::NonZero::get),
+                    )
+                    .unwrap_or(1),
+                ),
+            )
+            .0,
+        );
         LintUseCaseImpl::new(
             ryo_core::application::file_analysis::service::FileAnalysis::new(
                 Arc::clone(&analysis_corpus),
@@ -190,7 +203,7 @@ pub(crate) fn lint_observing<T>(
             ),
             ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(
                 &analysis_corpus,
-            )),
+            ), std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())),
             Arc::clone(&analysis_corpus),
             Arc::new(facts::factory::memory()),
             Arc::clone(&analysis_language),
@@ -203,24 +216,24 @@ pub(crate) fn lint_observing<T>(
                 )),
             )),
             Arc::clone(&analysis_memory),
-            Arc::new(scheduler::factory::rayon(scheduler::factory::pool(
-                ryo_values::domain::runs::types::WorkersAsked(workers),
-            ))),
-            scheduler::factory::workers(ryo_values::domain::runs::types::WorkersAsked(workers)),
+            Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
+            )),
+            ryo_execution::derived(),
+            Arc::new(scheduler::factory::rayon(started)),
+            started,
             Arc::clone(&kept),
             Arc::clone(&analysis_digest),
             lint_store,
         )
     };
-    let use_case = if UNLOWERED.load(std::sync::atomic::Ordering::Relaxed) {
-        use_case.unlowered()
-    } else {
-        use_case
-    };
     let request = LintRequest {
+        source_language: ryo_core::inbound::use_cases::lint::types::SourceProvider::Recognized,
         answer: ryo_values::domain::runs::types::AnswerShape::Findings,
         hosted: Vec::new(),
         session: Session {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(root.to_string_lossy().into()),
         },

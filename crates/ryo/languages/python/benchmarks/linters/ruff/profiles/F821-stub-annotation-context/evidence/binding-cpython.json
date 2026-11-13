@@ -1,0 +1,380 @@
+{
+  "python": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "results": [
+    {
+      "name": "class-forward-type-original",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": false,
+        "error": "SyntaxError",
+        "message": "from __future__ imports must occur at the beginning of the file (class-forward-type-original.py, line 2)"
+      }
+    },
+    {
+      "name": "class-forward-type-valid",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "class-forward-type-unbound",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": "NameError",
+        "message": "name 'Later' is not defined"
+      },
+      "expectation_matches": true
+    },
+    {
+      "name": "class-forward-type-global-bound",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": null
+      },
+      "expectation_matches": true
+    },
+    {
+      "name": "except-restoration-original",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": false,
+        "error": "SyntaxError",
+        "message": "from __future__ imports must occur at the beginning of the file (except-restoration-original.py, line 3)"
+      }
+    },
+    {
+      "name": "except-restoration-valid",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "except-restoration-outside-unbound",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": "NameError",
+        "message": "name 'Outside' is not defined"
+      },
+      "expectation_matches": true
+    },
+    {
+      "name": "except-restoration-inside-unbound",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": "NameError",
+        "message": "name 'Inside' is not defined"
+      },
+      "expectation_matches": true
+    },
+    {
+      "name": "except-restoration-all-bound",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": null
+      },
+      "expectation_matches": true
+    },
+    {
+      "name": "function-forward-type-original",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": false,
+        "error": "SyntaxError",
+        "message": "from __future__ imports must occur at the beginning of the file (function-forward-type-original.py, line 2)"
+      }
+    },
+    {
+      "name": "function-forward-type-valid",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "function-forward-type-unbound",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": "UnboundLocalError",
+        "message": "local variable 'Later' referenced before assignment"
+      },
+      "expectation_matches": true
+    },
+    {
+      "name": "function-forward-type-local-bound",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": null
+      },
+      "expectation_matches": true
+    },
+    {
+      "name": "if-else-inheritance-original",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": false,
+        "error": "SyntaxError",
+        "message": "from __future__ imports must occur at the beginning of the file (if-else-inheritance-original.py, line 2)"
+      }
+    },
+    {
+      "name": "if-else-inheritance-valid",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "if-else-inheritance-flag-unbound",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": "NameError",
+        "message": "name 'flag' is not defined"
+      },
+      "expectation_matches": true
+    },
+    {
+      "name": "if-else-inheritance-later-unbound",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": "NameError",
+        "message": "name 'Later' is not defined"
+      },
+      "expectation_matches": true
+    },
+    {
+      "name": "if-else-inheritance-all-bound",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": null
+      },
+      "expectation_matches": true
+    },
+    {
+      "name": "if-restoration-original",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": false,
+        "error": "SyntaxError",
+        "message": "from __future__ imports must occur at the beginning of the file (if-restoration-original.py, line 2)"
+      }
+    },
+    {
+      "name": "if-restoration-valid",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "if-restoration-flag-unbound",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": "NameError",
+        "message": "name 'flag' is not defined"
+      },
+      "expectation_matches": true
+    },
+    {
+      "name": "if-restoration-inside-unbound",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": "NameError",
+        "message": "name 'Inside' is not defined"
+      },
+      "expectation_matches": true
+    },
+    {
+      "name": "if-restoration-outside-unbound",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": "NameError",
+        "message": "name 'Outside' is not defined"
+      },
+      "expectation_matches": true
+    },
+    {
+      "name": "if-restoration-all-bound",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": null
+      },
+      "expectation_matches": true
+    },
+    {
+      "name": "try-handler-inheritance-original",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": false,
+        "error": "SyntaxError",
+        "message": "from __future__ imports must occur at the beginning of the file (try-handler-inheritance-original.py, line 2)"
+      }
+    },
+    {
+      "name": "try-handler-inheritance-valid",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "try-handler-inheritance-handler-unbound",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": "NameError",
+        "message": "name 'Later' is not defined"
+      },
+      "expectation_matches": true
+    },
+    {
+      "name": "try-handler-inheritance-handler-bound",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": null
+      },
+      "expectation_matches": true
+    },
+    {
+      "name": "try-handler-inheritance-try-success",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": null
+      },
+      "expectation_matches": true
+    },
+    {
+      "name": "plw-original",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": false,
+        "error": "SyntaxError",
+        "message": "name 'value' is nonlocal and global (plw-original.py, line 4)"
+      }
+    },
+    {
+      "name": "plw-valid-nonlocal-annotation-binding",
+      "ast": {
+        "accepted": true
+      },
+      "compile": {
+        "accepted": true
+      },
+      "run": {
+        "error": null
+      },
+      "expectation_matches": true
+    }
+  ]
+}

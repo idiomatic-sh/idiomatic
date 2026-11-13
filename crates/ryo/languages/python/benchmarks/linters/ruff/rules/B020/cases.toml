@@ -1,0 +1,54 @@
+[[cases]]
+name = "same-name-target-and-iterable"
+files = { "case.py" = "items = [1, 2]\nfor items in items:\n    pass\n" }
+expected = [{ rule = "B020", file = "case.py", start = 19, end = 24 }]
+
+[[cases]]
+name = "tuple-target-selects-the-overridden-name"
+files = { "case.py" = "values = {}\nfor key, values in values.items():\n    pass\n" }
+expected = [{ rule = "B020", file = "case.py", start = 21, end = 27 }]
+
+[[cases]]
+name = "lambda-parameter-shadows-iterator-name"
+files = { "case.py" = "for item in items(key=lambda item: item):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "lambda-closure-reads-iterator-name"
+files = { "case.py" = "for item in items(key=lambda: item):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "lambda-body-descendant-reads-iterator-name"
+files = { "case.py" = "for item in items(key=lambda: use(item)):\n    pass\n" }
+expected = [{ rule = "B020", file = "case.py", start = 4, end = 8 }]
+
+[[cases]]
+name = "comprehension-target-is-not-an-iterator-read"
+files = { "case.py" = "for item in [item for item in values]:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "comprehension-iterator-read-is-included"
+files = { "case.py" = "for items in [x for x in items]:\n    pass\n" }
+expected = [{ rule = "B020", file = "case.py", start = 4, end = 9 }]
+
+[[cases]]
+name = "last-repeated-target-occurrence-is-reported"
+files = { "case.py" = "for (item, item) in item:\n    pass\n" }
+expected = [{ rule = "B020", file = "case.py", start = 11, end = 15 }]
+
+[[cases]]
+name = "noqa-suppresses-loop-target"
+files = { "case.py" = "for items in items:  # noqa: B020\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "attribute-name-in-iterable-is-not-a-name-read"
+files = { "case.py" = "for many_to_many in self.opts.many_to_many:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "keyword-argument-name-in-iterable-is-not-a-name-read"
+files = { "case.py" = "for key in sorted(params, key=len):\n    pass\n" }
+expected = []

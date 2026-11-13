@@ -72,6 +72,8 @@ impl AnalysisPort for AnalysisRyoAdapter {
         match ryo::query::validate(
             &self.languages,
             ValidateRequest {
+                // A definition's query reads only the relations it names and the placed rows: no other rule's output.
+                observations: Vec::new(),
                 query: text,
                 hosted: vec![HostDeclaration { name, columns }],
             },

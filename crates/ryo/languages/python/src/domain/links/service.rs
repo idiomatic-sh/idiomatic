@@ -18,7 +18,7 @@ use super::types::{
 use crate::domain::fact_notes::types::{Form, ImportNote, Note};
 use crate::domain::language::service::reads;
 use crate::domain::packages::service::directory_of;
-use crate::domain::packages::types::{Cause, Location, Packages};
+use crate::domain::packages::types::{Cause, PackageLocation, Packages};
 use crate::domain::patterns::types::Directory;
 
 /// The number of the file at `place` among the files of the run.
@@ -59,11 +59,11 @@ pub(crate) fn packages_in<'a>(input: &languages::ManifestInput<'a, Linked>) -> &
 }
 
 /// The path `part`, its parts separated by `/`, under `directory`: `part` alone under the root.
-fn joined(directory: Directory<'_>, part: FilePlace<'_>) -> Location {
+fn joined(directory: Directory<'_>, part: FilePlace<'_>) -> PackageLocation {
     if directory.0.is_empty() {
-        Location(part.0.into())
+        PackageLocation(part.0.into())
     } else {
-        Location(format!("{}{SEPARATOR}{}", directory.0, part.0).into())
+        PackageLocation(format!("{}{SEPARATOR}{}", directory.0, part.0).into())
     }
 }
 
@@ -122,7 +122,7 @@ fn listed(listing: Listing<'_>, path: FilePlace<'_>) -> Option<FileId> {
 #[must_use]
 pub(crate) fn module_at(listing: Listing<'_>, directory: Directory<'_>, path: Dotted<'_>) -> Found {
     let stem = if path.0.is_empty() {
-        Location(directory.0.into())
+        PackageLocation(directory.0.into())
     } else {
         joined(
             directory,
@@ -172,7 +172,7 @@ fn import_at(listing: Listing<'_>, directory: Directory<'_>, import: &ImportNote
 #[must_use]
 pub(crate) fn outcome(
     listing: Listing<'_>,
-    roots: &[Location],
+    roots: &[PackageLocation],
     path: FilePlace<'_>,
     import: &ImportNote,
 ) -> ImportOutcome {
@@ -214,9 +214,9 @@ pub(crate) fn outcome(
 #[must_use]
 pub(crate) fn roots_for(
     listing: Listing<'_>,
-    packages: &[Location],
+    packages: &[PackageLocation],
     path: FilePlace<'_>,
-) -> Vec<Location> {
+) -> Vec<PackageLocation> {
     let own = packages
         .iter()
         .filter(|directory| {
@@ -239,16 +239,16 @@ pub(crate) fn roots_for(
 
 /// The directories of the packages the manifests declared, each once, in order; the root alone when they declare none.
 #[must_use]
-pub(crate) fn package_directories(packages: &Packages) -> Vec<Location> {
-    let mut directories: Vec<Location> = packages
+pub(crate) fn package_directories(packages: &Packages) -> Vec<PackageLocation> {
+    let mut directories: Vec<PackageLocation> = packages
         .packages
         .iter()
-        .map(|package| Location(directory_of(&package.manifest).0.into()))
+        .map(|package| PackageLocation(directory_of(&package.manifest).0.into()))
         .collect();
     directories.sort_by(|left, right| left.0.cmp(&right.0));
     directories.dedup();
     if directories.is_empty() {
-        directories.push(Location(ROOT.into()));
+        directories.push(PackageLocation(ROOT.into()));
     }
     directories
 }

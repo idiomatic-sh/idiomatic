@@ -1,0 +1,3 @@
+let origins = select id, path, provenance, file, span from "qualified-name";
+let empty = select file, span from origins where (provenance = "import" or provenance = "builtin") and path = "";
+emit empty subject file key(span);

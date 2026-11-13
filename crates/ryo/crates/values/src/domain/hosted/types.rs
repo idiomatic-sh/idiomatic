@@ -19,7 +19,7 @@ pub struct HostedColumn {
     /// The name a query writes for it: text that came from the host.
     pub name: ColumnLabel,
     /// What it holds.
-    pub kind: ryo_language::domain::relations::types::CellKind,
+    pub kind: ryo_relations::domain::relations::types::CellKind,
 }
 
 /// The name of a column of a relation the host declares: text that came from the host.
@@ -68,4 +68,12 @@ pub enum HostKind {
 /// One row of a relation the host declares: a cell for every column. A file is its path relative to the root, and a path the run does
 /// not list is no file; a span is no value of a column the host declares.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct HostRow(pub Vec<crate::domain::records::types::Cell>);
+pub struct HostRow(pub Vec<crate::domain::row_texts::types::Cell>);
+
+/// Versioned typed bytes for the exact host declaration and row population.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HostIdentity(pub Vec<u8>);
+
+/// Text bytes written into an identity, length first.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct HostIdentityText<'a>(pub &'a [u8]);

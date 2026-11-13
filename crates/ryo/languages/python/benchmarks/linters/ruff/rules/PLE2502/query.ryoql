@@ -1,0 +1,12 @@
+import observation_matches from "python/ruff/suppress-unmapped-matches";
+let modules = select id, file, span from "syntax-tree" where kind = "module";
+let locations = extend(from=modules, values={base_line:1});
+let affected = source-matches(from=locations, span="span", base-line="base_line", pattern="(?mR)^[^\r\n]*(?:\x{202A}|\x{202B}|\x{202C}|\x{202D}|\x{202E}|\x{2066}|\x{2067}|\x{2068}|\x{2069}|\x{200F}|\x{061C})[^\r\n]*(?:\r\n|\r|\n|$)", output="line_span", line-output="line");
+let candidates = select id, file, line_span as span, line from affected;
+let violations_matches = observation_matches(candidates=candidates, codes="^(?:PLE2502)$");
+let violations_rows = select id, file, span from candidates;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PLE2502"});
+observe ruf100_used as noqa_matches;
+emit violations subject file key(id, span);

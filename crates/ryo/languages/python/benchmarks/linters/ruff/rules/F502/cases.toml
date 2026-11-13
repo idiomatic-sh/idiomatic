@@ -1,0 +1,47 @@
+[[cases]]
+name = "mapping-format-list-right"
+comparison = "full"
+files = { "case.py" = "\"%(name)s\" % [\"value\"]\n" }
+expected = [{ rule = "F502", file = "case.py", start = 0, end = 22 }]
+
+[[cases]]
+name = "mapping-format-tuple-right"
+comparison = "full"
+files = { "case.py" = "\"%(name)s\" % (\"value\",)\n" }
+expected = [{ rule = "F502", file = "case.py", start = 0, end = 23 }]
+
+[[cases]]
+name = "mapping-format-set-right"
+comparison = "full"
+files = { "case.py" = "\"%(name)s\" % {\"value\"}\n" }
+expected = [{ rule = "F502", file = "case.py", start = 0, end = 22 }]
+
+[[cases]]
+name = "mapping-format-dict-right"
+comparison = "full"
+files = { "case.py" = "\"%(name)s\" % {\"name\": \"value\"}\n" }
+expected = []
+
+[[cases]]
+name = "mapping-format-dict-comprehension"
+comparison = "full"
+files = { "case.py" = "\"%(name)s\" % {key: value for key, value in items}\n" }
+expected = []
+
+[[cases]]
+name = "positional-format-dict-right"
+comparison = "full"
+files = { "case.py" = "\"%s %s\" % {\"a\": 1, \"b\": 2}\n" }
+expected = []
+
+[[cases]]
+name = "positional-format-list-right"
+comparison = "full"
+files = { "case.py" = "\"%s\" % [\"value\"]\n" }
+expected = []
+
+[[cases]]
+name = "dynamic-format"
+comparison = "full"
+files = { "case.py" = "format_value % [\"value\"]\n" }
+expected = []

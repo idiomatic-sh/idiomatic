@@ -4,16 +4,27 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use ryo_language::domain::files::types::SourcePath;
-use ryo_language::domain::relations::types::FileId;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::inbound::use_cases::parse::types::{
-    FieldRequest, NoteRequest, ParseEngine, ParseRequest, Recognition, SkippedDirectory,
+    FieldRequest, NoteRequest, ParseConfigurationIdentity, ParseEngine, ParseRequest, Recognition,
+    SkippedDirectory,
 };
 use ryo_language::inbound::use_cases::project::types::ProjectEngine;
+use ryo_relations::domain::relations::types::FileId;
 
 /// What a language is called: the name of its directory.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LanguageName(pub Box<str>);
+
+/// Which language reads the sources a request gives.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum SourceLanguage {
+    /// Each file is read by the language that recognises its path.
+    #[default]
+    Recognized,
+    /// Every file is read by the language of this name.
+    Named(LanguageName),
+}
 
 /// Which build of a language it is: its crate's version.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -63,10 +74,25 @@ impl Language {
         &self.name
     }
 
+    /// The provider's pure source-versus-project ownership decision for a primary path.
+    #[must_use]
+    pub fn primary_role(
+        &self,
+        path: SourcePath<'_>,
+    ) -> ryo_language::domain::files::types::PrimaryFileRole {
+        self.project.primary_role(path)
+    }
+
     /// Which build of the language this is: what a run kept of its files is used only for the same build.
     #[must_use]
     pub fn build(&self) -> &LanguageBuild {
         &self.build
+    }
+
+    /// The canonical parser settings that affect this language's trees and diagnostics.
+    #[must_use]
+    pub fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> {
+        self.engine.configuration_identity()
     }
 
     /// The names of the directories the language never reads, at any depth: the ecosystem's dependency, environment and build
@@ -143,6 +169,20 @@ impl Languages {
             Recognition::Reads
         } else {
             Recognition::Declines
+        }
+    }
+}
+
+// The conversion into the engine's choice is the crate's own: a public `From` impl would put the engine's types on the SDK's surface.
+impl SourceLanguage {
+    /// Which language reads the source, as the core takes it.
+    pub(crate) fn into_engine(self) -> ryo_core::inbound::use_cases::lint::types::SourceProvider {
+        use ryo_core::inbound::use_cases::lint::types::SourceProvider;
+        match self {
+            Self::Recognized => SourceProvider::Recognized,
+            Self::Named(name) => SourceProvider::Named(
+                ryo_values::domain::descriptions::types::LanguageName(name.0),
+            ),
         }
     }
 }

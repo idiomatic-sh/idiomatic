@@ -2,7 +2,7 @@
 
 use super::super::contract::check;
 use super::{CountingSchedulerFake, SchedulerFake};
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::outbound::scheduler::errors::SchedulerError;
 use crate::outbound::scheduler::interface::SchedulerPort as _;
 use crate::outbound::scheduler::types::{JobCount, JobNumber};
@@ -51,7 +51,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Fails,
         input: || Scenario::Failing,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, SchedulerError::Unavailable { .. }))
+            selects(Matched(matches!(error, SchedulerError::Unavailable { .. })))
         }),
     },
 ];

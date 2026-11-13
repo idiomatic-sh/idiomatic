@@ -7,6 +7,9 @@ const ROWS: &[SyntaxErrorExpectedRow] = &[
     SyntaxErrorExpectedRow {
         id: node(2_147_483_648),
         message: name("unclosed table, expected `]`"),
+        phase: name("parse"),
+        impact: name("incomplete"),
+        code: name("unspecified"),
         file: file("syntax_error/input.toml"),
         span: span((2, 9), (2, 9)),
     },

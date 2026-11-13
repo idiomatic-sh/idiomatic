@@ -28,7 +28,11 @@ let argument-nodes = select l."arguments" as "arguments" from argument-children 
 let empty-calls = antijoin(left=call-arguments, right=argument-nodes, left-on=["arguments"], right-on=["arguments"]);
 let path-queries = project(from=empty-calls, columns=["file", "span", "target"]);
 let reaches = union(left=paths, right=path-queries);
-emit reaches subject "file" key("span");
+let governed-roles = select l."path" as "file" from "tastemaker.placed" as l where l."package" = "idiomatic.arch" and l."spec" = "adapter" and glob_any(l."template", "{adapter,adapter-connection}");
+let executable-roles = select l."path" as "file" from "tastemaker.placed" as l where l."package" = "idiomatic.arch" and l."spec" = "benchmark-executable" and l."template" = "workflow";
+let boundary-roles = union(left=governed-roles, right=executable-roles);
+let outside = antijoin(left=reaches, right=boundary-roles, left-on=["file"], right-on=["file"]);
+emit outside subject "file" key("span");
 '''
 
 [diagnostic]
@@ -378,3 +382,38 @@ pub fn read(path: &str) -> String {
     fs::read_to_string(path).unwrap_or_default()
 }
 '''
+
+[[scenarios]]
+id = "governed-external-adapter-roles"
+scenario = "Only explicitly placed adapter roles gain boundary access; unplaced lookalikes and other roles remain rejected."
+given.include = ["**"]
+given.exclude = []
+given.files.'edge/adapter.rs' = 'use std::fs;'
+given.files.'edge/connection.rs' = 'use std::fs;'
+given.files.'edge/settings.rs' = 'use std::fs;'
+given.files.'domain/adapter.rs' = 'use std::fs;'
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/io-at-boundary", include = ["**"] }]
+specs = [{ spec = "idiomatic.arch/adapter", include = ["edge"], params = { core = "foreign_core", port = "names" } }]
+'''
+then.only = ['idiomatic.arch/io-at-boundary', 'idiomatic.arch/io-at-boundary#unknown']
+then.findings = [
+  { path = 'edge/settings.rs', line = 1 },
+  { path = 'domain/adapter.rs', line = 1 },
+]
+
+[[scenarios]]
+id = "owned-benchmark-workflow-boundary"
+scenario = "A placed executable workflow owns artifacts, while an unplaced composition does not."
+given.include = ["**"]
+given.exclude = []
+given.files.'owned/composition.rs' = 'fn run() { std::fs::create_dir_all("cache"); }'
+given.files.'other/composition.rs' = 'fn run() { std::fs::create_dir_all("cache"); }'
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/io-at-boundary", include = ["**"] }]
+specs = [{ spec = "idiomatic.arch/benchmark-executable", include = ["owned"] }]
+'''
+then.only = ['idiomatic.arch/io-at-boundary']
+then.findings = [{ path = 'other/composition.rs', line = 1 }]

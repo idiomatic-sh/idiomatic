@@ -1,0 +1,251 @@
+{
+  "module-before-import": {
+    "files": {
+      "case.py": "mock.mock.patch()\nimport mock\n"
+    },
+    "expected": [
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 25,
+        "end": 29
+      }
+    ]
+  },
+  "module-after-import": {
+    "files": {
+      "case.py": "import mock\nmock.mock.patch()\n"
+    },
+    "expected": [
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 7,
+        "end": 11
+      },
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 12,
+        "end": 21
+      }
+    ]
+  },
+  "same-line-before": {
+    "files": {
+      "case.py": "mock.mock.patch(); import mock\n"
+    },
+    "expected": [
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 26,
+        "end": 30
+      }
+    ]
+  },
+  "deferred-function": {
+    "files": {
+      "case.py": "def f():\n    mock.mock.patch()\nimport mock\n"
+    },
+    "expected": [
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 13,
+        "end": 22
+      },
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 38,
+        "end": 42
+      }
+    ]
+  },
+  "noqa": {
+    "files": {
+      "case.py": "mock.mock.patch()\nimport mock # noqa\n"
+    },
+    "expected": []
+  },
+  "code-noqa": {
+    "files": {
+      "case.py": "mock.mock.patch()\nimport mock # noqa: UP026\n"
+    },
+    "expected": []
+  },
+  "other-code": {
+    "files": {
+      "case.py": "mock.mock.patch()\nimport mock # noqa: F401\n"
+    },
+    "expected": [
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 25,
+        "end": 29
+      }
+    ]
+  },
+  "file-noqa": {
+    "files": {
+      "case.py": "# ruff: noqa\nmock.mock.patch()\nimport mock\n"
+    },
+    "expected": []
+  },
+  "import-mock": {
+    "files": {
+      "case.py": "import mock\n"
+    },
+    "expected": [
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 7,
+        "end": 11
+      }
+    ]
+  },
+  "import-mock-submodule": {
+    "files": {
+      "case.py": "import mock.mock\n"
+    },
+    "expected": [
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 7,
+        "end": 16
+      }
+    ]
+  },
+  "import-alias": {
+    "files": {
+      "case.py": "import mock as m\n"
+    },
+    "expected": [
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 7,
+        "end": 16
+      }
+    ]
+  },
+  "from-mock": {
+    "files": {
+      "case.py": "from mock import Mock\n"
+    },
+    "expected": [
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 0,
+        "end": 21
+      }
+    ]
+  },
+  "from-mock-module": {
+    "files": {
+      "case.py": "from mock import mock\n"
+    },
+    "expected": [
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 0,
+        "end": 21
+      }
+    ]
+  },
+  "from-mock-alias": {
+    "files": {
+      "case.py": "from mock import Mock as Fake\n"
+    },
+    "expected": [
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 0,
+        "end": 29
+      }
+    ]
+  },
+  "relative": {
+    "files": {
+      "case.py": "from . import mock\n"
+    },
+    "expected": []
+  },
+  "from-other": {
+    "files": {
+      "case.py": "from unittest import mock\n"
+    },
+    "expected": []
+  },
+  "attribute": {
+    "files": {
+      "case.py": "import mock\nmock.mock.patch()\n"
+    },
+    "expected": [
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 7,
+        "end": 11
+      },
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 12,
+        "end": 21
+      }
+    ]
+  },
+  "attribute-aliased": {
+    "files": {
+      "case.py": "import mock as m\nm.mock.patch()\n"
+    },
+    "expected": [
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 7,
+        "end": 16
+      }
+    ]
+  },
+  "no-import": {
+    "files": {
+      "case.py": "mock.mock.patch()\n"
+    },
+    "expected": []
+  },
+  "non-nested-attribute": {
+    "files": {
+      "case.py": "import mock\nmock.patch()\n"
+    },
+    "expected": [
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 7,
+        "end": 11
+      }
+    ]
+  },
+  "Unicode-offset": {
+    "files": {
+      "case.py": "π = 1\nimport mock\n"
+    },
+    "expected": [
+      {
+        "rule": "UP026",
+        "file": "case.py",
+        "start": 14,
+        "end": 18
+      }
+    ]
+  }
+}

@@ -51,14 +51,20 @@ pub(crate) fn connect(
 /// Which build runs: the size and the date of the program say which build of it, the SDK in it included, and each linked language
 /// says its own.
 pub(crate) fn build(languages: &[Language]) -> BuildIdentity {
-    let program = std::env::current_exe()
-        .ok() // ignore: idiomatic.arch/no-ok-on-result - a program the system cannot describe has no size or time: the build identity reads 0
-        .and_then(|path| std::fs::metadata(path).ok()); // ignore: idiomatic.arch/no-ok-on-result - a program the system cannot describe has no size or time: the build identity reads 0
-    let modified = program
-        .as_ref()
-        .and_then(|meta| meta.modified().ok()) // ignore: idiomatic.arch/no-ok-on-result - a program the system cannot describe has no size or time: the build identity reads 0
-        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()) // ignore: idiomatic.arch/no-ok-on-result - a program the system cannot describe has no size or time: the build identity reads 0
-        .map_or(0, |since| since.as_nanos());
+    // A program the system cannot describe has no size or time: the build identity reads 0.
+    let program = match std::env::current_exe() {
+        Ok(path) => std::fs::metadata(path),
+        Err(error) => Err(error),
+    };
+    let modified = match &program {
+        Ok(meta) => match meta.modified() {
+            Ok(time) => time
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |since| since.as_nanos()),
+            Err(_) => 0,
+        },
+        Err(_) => 0,
+    };
     let size = program.map_or(0, |meta| meta.len());
     let mut build = size.to_string();
     let parts = [modified.to_string()];
@@ -66,6 +72,37 @@ pub(crate) fn build(languages: &[Language]) -> BuildIdentity {
         [
             language.name().0.to_string(),
             language.build().0.to_string(),
+            {
+                let mut capabilities: Vec<_> = language
+                    .parse_use_case()
+                    .capabilities()
+                    .iter()
+                    .map(|capability| {
+                        ryo_relations::domain::relations::service::name(
+                            ryo_relations::domain::relations::service::capability_relation(
+                                *capability,
+                            ),
+                        )
+                        .0
+                    })
+                    .collect();
+                capabilities.sort_unstable();
+                capabilities.dedup();
+                // Release identity plus length-delimited canonical names: declaration order is irrelevant.
+                let configuration = language.configuration_identity().0;
+                let mut identity = format!(
+                    "{} config:{}:{configuration}",
+                    language.build().0,
+                    configuration.len()
+                );
+                for capability in capabilities {
+                    identity.push(' ');
+                    identity.push_str(&capability.len().to_string());
+                    identity.push(':');
+                    identity.push_str(capability);
+                }
+                identity
+            },
         ]
     });
     for part in parts.into_iter().chain(linked) {
@@ -73,4 +110,12 @@ pub(crate) fn build(languages: &[Language]) -> BuildIdentity {
         build.push_str(&part);
     }
     BuildIdentity(build.into())
+}
+
+/// How many threads the machine can run at once, which the caller's request for workers is cut to.
+pub(crate) fn machine_workers() -> ryo_values::domain::runs::types::MachineWorkers {
+    ryo_values::domain::runs::types::MachineWorkers(
+        u32::try_from(std::thread::available_parallelism().map_or(1, std::num::NonZero::get))
+            .unwrap_or(1),
+    )
 }

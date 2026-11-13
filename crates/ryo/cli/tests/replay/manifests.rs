@@ -37,8 +37,10 @@ fn a_member_of_a_workspace_the_scope_does_not_list_is_found() {
     let _beside = crate::beside();
     let root = workspace();
     let rule = Rule {
+        observations: Vec::new(),
         id: RuleId("members".into()),
-        query: QueryText("let members = select * from \"workspace-member\"; emit members subject package key(package);".into()),
+        query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText("let members = select * from \"workspace-member\"; emit members subject package key(package);".into())),
+        applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         parameters: Vec::new(),
         include: vec![Glob("**".into())],
         exclude: vec![Glob("outside/**".into())],
@@ -46,7 +48,7 @@ fn a_member_of_a_workspace_the_scope_does_not_list_is_found() {
     let (rows, _) = base::lint_with(
         root.path(),
         vec![rule],
-        Arc::new(ryo_core::outbound::facts::factory::memory()),
+        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
     )
     .expect("the rule runs");
@@ -67,7 +69,7 @@ fn a_package_the_scope_does_not_list_is_found_by_the_recorded_workspace_complete
     let (rows, _) = base::lint_with(
         root.path(),
         vec![rule],
-        Arc::new(ryo_core::outbound::facts::factory::memory()),
+        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
     )
     .expect("the rule runs");
@@ -77,8 +79,8 @@ fn a_package_the_scope_does_not_list_is_found_by_the_recorded_workspace_complete
             "workspace-completeness".to_owned(),
             "Cargo.toml".to_owned(),
             "Cargo.toml,outside/Cargo.toml".to_owned(),
-            String::new(),
-            String::new()
+            base::ABSENT.to_owned(),
+            base::ABSENT.to_owned()
         ]]
     );
 }
@@ -99,7 +101,7 @@ fn a_member_the_listing_does_not_hold_is_found_as_a_file_after_the_listed_ones()
     let (rows, _) = base::lint_with(
         root.path(),
         vec![rule],
-        Arc::new(ryo_core::outbound::facts::factory::memory()),
+        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
     )
     .expect("the rule runs");
@@ -109,8 +111,8 @@ fn a_member_the_listing_does_not_hold_is_found_as_a_file_after_the_listed_ones()
             "workspace-completeness".to_owned(),
             "Cargo.toml".to_owned(),
             "Cargo.toml,outside/Cargo.toml".to_owned(),
-            String::new(),
-            String::new()
+            base::ABSENT.to_owned(),
+            base::ABSENT.to_owned()
         ]]
     );
 }
@@ -123,8 +125,10 @@ fn a_manifest_that_does_not_parse_is_a_finding_and_the_others_are_read_cold_and_
     std::fs::create_dir_all(at.parent().expect("a parent")).expect("a directory");
     std::fs::write(&at, "[package\nbroken").expect("a file");
     let rule = Rule {
+        observations: Vec::new(),
         id: RuleId("members".into()),
-        query: QueryText("let members = select * from \"workspace-member\"; emit members subject package key(package);".into()),
+        query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText("let members = select * from \"workspace-member\"; emit members subject package key(package);".into())),
+        applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         parameters: Vec::new(),
         include: vec![Glob("**".into())],
         exclude: Vec::new(),

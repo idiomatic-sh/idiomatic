@@ -1,23 +1,24 @@
-// ignore: idiomatic.arch/file-length - the lookups pushed into a join and the filters pushed before a capture are the two pushes the planner makes and share the reading of a chain of filters.
 //! The `pushing` service: free functions named by verb over the lookups into a join of edges and elements made before the join.
 
-use ryo_language::domain::relations::types::Relation;
-
-use super::types::{
-    FilterDepth, FilterStep, FilteredElements, KeptColumns, MovedComparisons, Pushed, Skipped,
-};
+use super::types::ColumnPrefixLength;
+use super::types::FilterDepth;
+use super::types::FilterStep;
+use super::types::FilteredElements;
+use super::types::KeptColumns;
+use super::types::Pushed;
 use crate::domain::fusing::service::source_column;
-use crate::domain::pruning::service::each_input;
-use crate::domain::rewriting::types::{Planned, StepIndex};
-use crate::domain::walking::service::width_of;
-use ryo_values::domain::plan_parts::service::{columns_of, each_column, remapped};
+use crate::domain::rewriting::types::Planned;
+use crate::domain::rewriting::types::StepIndex;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::service::remapped;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::Operand;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plans::service::each_input;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
 
@@ -25,7 +26,13 @@ use ryo_values::domain::plans::types::PlanStep;
 /// asking the edges and the elements for the children of a few nodes does not need the children of every node.
 /// `Join(left, Join(edges, elements))` keyed on the parent of the edges becomes `Join(Join(left, edges), elements)`.
 #[must_use]
-pub(crate) fn push_lookups(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
+pub(crate) fn push_lookups(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
+    let steps = push_lookups_roots(steps, std::slice::from_mut(&mut emitted));
+    Planned { steps, emitted }
+}
+
+/// The same rewrite with every externally observable root protected and renumbered together.
+pub(crate) fn push_lookups_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec<PlanStep> {
     let mut place = 0;
     while place < steps.len() {
         if let Some(Pushed { below, above }) = pushed(&steps, StepIndex(place)) {
@@ -40,8 +47,10 @@ pub(crate) fn push_lookups(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Pla
                     }
                 });
             }
-            if emitted.0 >= first.0 {
-                emitted.0 += 1;
+            for root in roots.iter_mut() {
+                if root.0 >= first.0 {
+                    root.0 += 1;
+                }
             }
             #[expect(
                 clippy::indexing_slicing,
@@ -61,7 +70,7 @@ pub(crate) fn push_lookups(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Pla
         }
         place += 1;
     }
-    Planned { steps, emitted }
+    steps
 }
 
 /// The second join, reading the first at `first`.
@@ -88,12 +97,12 @@ fn element_comparisons(
     chain: &[FilterStep<'_>],
     made_output: &[JoinColumn],
     elements: FilteredElements<'_>,
-) -> Option<Vec<Comparison>> {
+) -> Option<Vec<PlanComparison>> {
     let FilteredElements {
         view: element_view,
         filter: element_filter,
     } = elements;
-    let mut filters: Vec<Comparison> = element_filter.to_vec();
+    let mut filters: Vec<PlanComparison> = element_filter.to_vec();
     for (depth, FilterStep { comparisons, .. }) in chain.iter().enumerate() {
         for comparison in *comparisons {
             let element_side = |operand: &Operand| -> Option<Operand> {
@@ -109,10 +118,11 @@ fn element_comparisons(
                     })
                 })
             };
-            filters.push(Comparison {
+            filters.push(PlanComparison {
                 test: comparison.test,
                 left: element_side(&comparison.left)?,
                 right: element_side(&comparison.right)?,
+                origin: comparison.origin,
             });
         }
     }
@@ -148,34 +158,43 @@ fn kept_columns(
     })
 }
 
-/// Where `column` is among `columns`, after `offset` columns before them.
-fn index_among(columns: &[ColumnIndex], column: ColumnIndex, offset: Skipped) -> ColumnIndex {
-    ColumnIndex(
-        u32::try_from(offset.0 + columns.iter().position(|each| *each == column).unwrap_or(0))
-            .unwrap_or(u32::MAX),
-    )
+/// Where `column` is among `columns`, after `offset` columns before them: none when it is not among them, so a rewrite that asks
+/// for a column it did not keep is refused instead of reading another column.
+pub(crate) fn index_among(
+    columns: &[ColumnIndex],
+    column: ColumnIndex,
+    offset: ColumnPrefixLength,
+) -> Option<ColumnIndex> {
+    let place = offset
+        .0
+        .checked_add(columns.iter().position(|each| *each == column)?)?;
+    match u32::try_from(place) {
+        Ok(at) => Some(ColumnIndex(at)),
+        // A place past every column number names no column.
+        Err(_past_every_column) => None,
+    }
 }
 
 /// The columns the lookup gives: the left's where the answer reads them, the edges' or the elements' where the second join finds them.
 fn answer_columns(
     output: &[JoinColumn],
     made_column: &dyn Fn(ColumnIndex) -> Option<JoinColumn>,
-    at_left: &dyn Fn(ColumnIndex) -> ColumnIndex,
-    at_edge: &dyn Fn(ColumnIndex) -> ColumnIndex,
+    at_left: &dyn Fn(ColumnIndex) -> Option<ColumnIndex>,
+    at_edge: &dyn Fn(ColumnIndex) -> Option<ColumnIndex>,
 ) -> Option<Vec<JoinColumn>> {
     let mut answer = Vec::new();
     for column in output {
         answer.push(match column.side {
             Side::Left => JoinColumn {
                 side: Side::Left,
-                column: at_left(column.column),
+                column: at_left(column.column)?,
             },
             Side::Right => {
                 let wanted = made_column(column.column)?;
                 match wanted.side {
                     Side::Left => JoinColumn {
                         side: Side::Left,
-                        column: at_edge(wanted.column),
+                        column: at_edge(wanted.column)?,
                     },
                     Side::Right => wanted,
                 }
@@ -196,6 +215,8 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
         output,
         filter,
         view,
+
+        reach: None,
     } = &steps.get(place.0)?.operation
     else {
         return None;
@@ -233,6 +254,8 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
         output: made_output,
         filter: element_filter,
         view: element_view,
+
+        reach: None,
     } = made
     else {
         return None;
@@ -272,19 +295,21 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
         left: kept_left,
         edge: kept_edge,
     } = kept_columns(output, &made_column)?;
-    let width = Skipped(kept_left.len());
-    let at_left = |column: ColumnIndex| index_among(&kept_left, column, Skipped(0));
+    let width = ColumnPrefixLength(kept_left.len());
+    let at_left = |column: ColumnIndex| index_among(&kept_left, column, ColumnPrefixLength(0));
     let at_edge = |column: ColumnIndex| index_among(&kept_edge, column, width);
     let below = edge_lookup(*left, *lookup, &kept_left, &kept_edge);
     let answer = answer_columns(output, &made_column, &at_left, &at_edge)?;
     let above = Operation::Join {
         left: Input::Step(StepId(0)),
         right: Input::Relation(Relation::SyntaxTree),
-        left_on: vec![at_edge(ColumnIndex(1))],
+        left_on: vec![at_edge(ColumnIndex(1))?],
         right_on: vec![*element_key],
         output: answer,
         filter: filters,
         view: element_view.clone(),
+
+        reach: None,
     };
     Some(Pushed { below, above })
 }
@@ -315,122 +340,7 @@ fn edge_lookup(
             .collect(),
         filter: Vec::new(),
         view: Vec::new(),
-    }
-}
 
-/// The plan with each filter on the columns a capture was given, made before the capture instead of after it: the capture matches the
-/// paths of the rows the filter lets through, not of every row. Not done when another step reads the capture.
-#[must_use]
-pub(crate) fn push_below_captures(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
-    let mut place = 0;
-    while place < steps.len() {
-        if let Some(MovedComparisons {
-            capture,
-            input,
-            before: moved,
-            rest,
-        }) = movable(&steps, StepIndex(place), emitted)
-        {
-            let capture = capture.0;
-            let before = StepId(u32::try_from(capture).unwrap_or(u32::MAX));
-            for step in &mut steps {
-                each_input(&mut step.operation, &mut |read| {
-                    if let Input::Step(id) = read
-                        && id.0 >= before.0
-                    {
-                        id.0 += 1;
-                    }
-                });
-            }
-            if emitted.0 >= before.0 {
-                emitted.0 += 1;
-            }
-            #[expect(
-                clippy::indexing_slicing,
-                clippy::wildcard_enum_match_arm,
-                clippy::unreachable,
-                reason = "`movable` found a select at `place` reading a capture at `capture`; the inputs were already renumbered, so any other step here is a bug that must crash, not a wrong plan"
-            )]
-            {
-                match &mut steps[place].operation {
-                    Operation::Select { comparisons, .. } => *comparisons = rest,
-                    _ => unreachable!(),
-                }
-                match &mut steps[capture].operation {
-                    Operation::Capture { from, .. } => *from = Input::Step(before),
-                    _ => unreachable!(),
-                }
-            }
-            #[expect(
-                clippy::indexing_slicing,
-                reason = "`movable` found a capture at `capture`"
-            )]
-            let captured = &steps[capture];
-            let scope = captured.scope;
-            steps.insert(
-                capture,
-                PlanStep {
-                    operation: Operation::Select {
-                        from: input,
-                        comparisons: moved,
-                        kept: Vec::new(),
-                    },
-                    scope,
-                },
-            );
-            place += 1;
-        }
-        place += 1;
+        reach: None,
     }
-    Planned { steps, emitted }
-}
-
-/// The filter at `place`, when it filters what a capture made on columns the capture was given: the capture, what it reads, and the
-/// comparisons that move before it and those that stay.
-fn movable(steps: &[PlanStep], place: StepIndex, emitted: StepId) -> Option<MovedComparisons> {
-    let Operation::Select {
-        from: Input::Step(read),
-        comparisons,
-        ..
-    } = &steps.get(place.0)?.operation
-    else {
-        return None;
-    };
-    let capture = usize::try_from(read.0).unwrap_or(usize::MAX);
-    let captured = steps.get(capture)?;
-    let Operation::Capture { from, .. } = &captured.operation else {
-        return None;
-    };
-    // Another step that reads the capture, or an emit of it, would see the rows the filter would take out.
-    let readers = steps
-        .iter()
-        .filter(|step| {
-            let mut reads = false;
-            let mut copy = step.operation.clone();
-            each_input(&mut copy, &mut |each| reads |= *each == Input::Step(*read));
-            reads
-        })
-        .count();
-    if readers != 1 || emitted == *read || captured.scope != steps.get(place.0)?.scope {
-        return None;
-    }
-    let width = width_of(steps, *from)?.0;
-    let (moved, rest): (Vec<Comparison>, Vec<Comparison>) =
-        comparisons.iter().cloned().partition(|comparison| {
-            let mut inside = true;
-            for operand in [&comparison.left, &comparison.right] {
-                each_column(operand, &mut |column| inside &= column.0 < width);
-            }
-            inside
-        });
-    // A filter that reads no column is no reason to move anything.
-    let reads_a_column = moved.iter().any(|comparison| {
-        !columns_of(&comparison.left).is_empty() || !columns_of(&comparison.right).is_empty()
-    });
-    (reads_a_column).then_some(MovedComparisons {
-        capture: StepIndex(capture),
-        input: *from,
-        before: moved,
-        rest,
-    })
 }

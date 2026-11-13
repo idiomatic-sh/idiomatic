@@ -7,8 +7,8 @@ use super::service::{
     holdings_in, manifestness_of, placed_in, replacement_text, resolve, wirings_in,
 };
 use super::types::{
-    Declared, Directory, Indirectness, Manifest, ManifestPath, Member, ModulePath, ModuleVersion,
-    Modules, Relative, Replacement, Requirement, Target,
+    Declared, Directory, Indirectness, Manifest, ManifestPath, Member, ModulePath,
+    ModuleReplacementTarget, ModuleVersion, Modules, Relative, Replacement, Requirement,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
@@ -208,27 +208,27 @@ fn replacements() -> Vec<Replacement> {
         Replacement {
             from: ModulePath("example.com/util".into()),
             version: ModuleVersion(Box::default()),
-            to: Target("../tools".into()),
+            to: ModuleReplacementTarget("../tools".into()),
             to_version: ModuleVersion(Box::default()),
         },
         // A `replace` of another version than the one required does not apply.
         Replacement {
             from: ModulePath("example.com/core".into()),
             version: ModuleVersion("v0.9.0".into()),
-            to: Target("../elsewhere".into()),
+            to: ModuleReplacementTarget("../elsewhere".into()),
             to_version: ModuleVersion(Box::default()),
         },
         // A `replace` of every version, written first, gives way to the one of the version required.
         Replacement {
             from: ModulePath("example.com/far".into()),
             version: ModuleVersion(Box::default()),
-            to: Target("../wild".into()),
+            to: ModuleReplacementTarget("../wild".into()),
             to_version: ModuleVersion(Box::default()),
         },
         Replacement {
             from: ModulePath("example.com/far".into()),
             version: ModuleVersion("v1.0.0".into()),
-            to: Target("example.com/fork".into()),
+            to: ModuleReplacementTarget("example.com/fork".into()),
             to_version: ModuleVersion("v1.2.0".into()),
         },
     ]

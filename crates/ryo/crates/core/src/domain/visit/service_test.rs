@@ -1,6 +1,6 @@
 //! The `visit` service's cases, on values alone.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::errors::VisitError;
 use super::service::{lines_in, roles_of, walked, wanted, wants};
@@ -10,7 +10,9 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::StepId;
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, Test};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 
 /// What a row asks: the relations a plan reads when the catalog is this, or the ones among these a visit walks.
 #[derive(Clone)]
@@ -23,6 +25,8 @@ enum Question {
     Bytes(&'static [u8]),
     /// A plan that reads the edges of the tree in this way.
     Edges(Reading),
+    /// The same consumer operations over the explicit semantic projection.
+    SemanticEdges(Reading),
     /// What the visit wants of a plan that reads this relation, when the catalog lists these.
     Wants(Relation, Vec<Relation>, Aspect),
 }
@@ -41,6 +45,8 @@ enum Aspect {
 /// How a plan reads the edges of the tree.
 #[derive(Clone, Copy)]
 enum Reading {
+    /// It filters by field but returns only a node ID.
+    FiltersField,
     /// It keeps the `field` column.
     KeepsField,
     /// It keeps the parent and the child.
@@ -62,6 +68,8 @@ fn plan_reading_function() -> Plan {
 
 fn plan_reading(relation: Relation) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
             operation: Operation::Select {
@@ -78,11 +86,38 @@ fn plan_reading(relation: Relation) -> Plan {
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
 }
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "semantic field predicates demand role computation even when field is not emitted",
+        ),
+        word: Word::Succeeds,
+        input: || Question::SemanticEdges(Reading::FiltersField),
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("native field predicates demand the same metadata"),
+        word: Word::Succeeds,
+        input: || Question::Edges(Reading::FiltersField),
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("semantic projection of field demands role computation"),
+        word: Word::Succeeds,
+        input: || Question::SemanticEdges(Reading::KeepsField),
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("semantic identity-only projection does not demand roles"),
+        word: Word::Succeeds,
+        input: || Question::SemanticEdges(Reading::KeepsParentAndChild),
+        expect: Expect::Value(0),
+    },
     Case {
         name: CaseName("a_read_relation_is_wanted_once"),
         word: Word::Succeeds,
@@ -181,6 +216,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
+        name: CaseName("namespace_membership_alone_demands_import_notes"),
+        word: Word::Succeeds,
+        input: || {
+            Question::Wants(
+                Relation::ProjectNamespaceMembership,
+                vec![Relation::ProjectNamespaceMembership],
+                Aspect::Noted,
+            )
+        },
+        expect: Expect::Value(1),
+    },
+    Case {
         name: CaseName("notes_are_not_wanted_when_no_plan_reads_what_they_are_for"),
         word: Word::Succeeds,
         input: || Question::Wants(Relation::Function, vec![Relation::Function], Aspect::Noted),
@@ -205,9 +252,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 /// A plan with one step that reads the edges of the tree as `reading` says.
-fn plan_reading_edges(reading: Reading) -> Plan {
-    let edges = PlanInput::Relation(Relation::SyntaxChild);
+fn plan_reading_edges(reading: Reading, relation: Relation) -> Plan {
+    let edges = PlanInput::Relation(relation);
     let operation = match reading {
+        Reading::FiltersField => Operation::Select {
+            from: edges,
+            comparisons: vec![PlanComparison {
+                test: Test::Equal,
+                left: Operand::Column(ColumnIndex(3)),
+                right: Operand::Column(ColumnIndex(3)),
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
+            }],
+            kept: vec![ColumnIndex(1)],
+        },
         Reading::KeepsField => Operation::Project {
             from: edges,
             columns: vec![ColumnIndex(0), ColumnIndex(3)],
@@ -225,6 +282,7 @@ fn plan_reading_edges(reading: Reading) -> Plan {
         },
         Reading::WalksThem => Operation::Closure {
             edges,
+            keys: Vec::new(),
             source: ColumnIndex(0),
             destination: ColumnIndex(1),
         },
@@ -246,7 +304,10 @@ fn subject(input: Question) -> Result<Value, Failure> {
         }
         Question::Wanted(wanted) => Ok(walked(&wanted).len()),
         Question::Edges(reading) => Ok(usize::from(
-            roles_of(&[&plan_reading_edges(reading)]) == RoleRead::Reads,
+            roles_of(&[&plan_reading_edges(reading, Relation::SyntaxChild)]) == RoleRead::Reads,
+        )),
+        Question::SemanticEdges(reading) => Ok(usize::from(
+            roles_of(&[&plan_reading_edges(reading, Relation::SemanticChild)]) == RoleRead::Reads,
         )),
         Question::Wants(read, catalog, aspect) => {
             let wants = wants(&[plan_reading(read)], &catalog)?;

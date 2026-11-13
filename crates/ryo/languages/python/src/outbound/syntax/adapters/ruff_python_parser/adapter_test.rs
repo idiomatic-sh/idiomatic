@@ -2,6 +2,8 @@
 //! the library decoded, and the tree is the library's.
 
 use super::adapter::SyntaxRuffPythonParserAdapter;
+use super::fixtures::diagnostics::diagnostics_of;
+use super::fixtures::pinned::pinned;
 use super::fixtures::standard::{differences, dumped, projected};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::extras::types::Extra;
@@ -10,11 +12,11 @@ use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::fixtures::contract::{check, elements_of};
 use crate::outbound::syntax::interface::SyntaxPort as _;
-use crate::outbound::syntax::types::SourceText;
+use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
+use crate::settings::{PythonParserSettings, PythonTargetVersion};
+use ruff_python_ast::token::Token as RuffToken;
 use ryo::languages::{self, ByteSlice, Elements, Symbols};
 
-/// What a row reads: a file whose tokens are joined again, or a file whose elements are listed.
-#[derive(Clone, Copy, Debug)]
 enum Given {
     /// The round trip of the bytes.
     Read(&'static [u8]),
@@ -29,6 +31,8 @@ enum Given {
     Refused(&'static str, &'static str),
     /// The features `from __future__ import` takes, as `CPython`'s `__future__.all_feature_names`, pinned, lists them.
     Features(&'static str),
+    /// Parser diagnostics under explicit source-kind and target-version settings.
+    ConfiguredDiagnostics(&'static str, PythonParserSettings, PythonSourceKind),
 }
 
 type Input = Given;
@@ -37,8 +41,7 @@ type Input = Given;
 type Value = Seen;
 type Failure = ();
 
-/// What a case looks at.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 enum Seen {
     /// Every element: its kind and the text it spans.
     Elements(&'static [(Kind, &'static str)]),
@@ -52,13 +55,19 @@ enum Seen {
     Features(bool),
     /// The tokens' bytes joined, the decoded texts in order, and how many diagnostics.
     Read(&'static [u8], &'static [&'static str], usize),
+    /// The parser's diagnostic messages and byte ranges, in report order.
+    Diagnostics(&'static [(&'static str, u32, u32)]),
 }
 
 /// What the adapter reads `bytes` into, as the round trip sees it.
 fn round_trip(bytes: &'static [u8]) -> Seen {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = languages::table_builder(&mut elements, &mut symbols, ByteSlice(bytes));
-    SyntaxRuffPythonParserAdapter.read(SourceText(bytes), &mut builder);
+    SyntaxRuffPythonParserAdapter {
+        settings: PythonParserSettings::default(),
+        ..Default::default()
+    }
+    .read(SourceText(bytes), PythonSourceKind::Python, &mut builder);
     let mut joined = Vec::new();
     let mut decoded = Vec::new();
     for at in languages::positions(&elements) {
@@ -114,6 +123,34 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Given::Read(b""),
         expect: Expect::Value(Seen::Read(b"", &[], 0)),
+    },
+    Case {
+        name: CaseName("the configured Python 310 parser reports unsupported type syntax"),
+        word: Word::Succeeds,
+        input: || {
+            Given::ConfiguredDiagnostics(
+                "class C[T = int, U]: ...\n",
+                PythonParserSettings::new(PythonTargetVersion::Py310),
+                PythonSourceKind::Python,
+            )
+        },
+        expect: Expect::Value(Seen::Diagnostics(&[
+            (
+                "Cannot set default type for a type parameter on Python 3.10 (syntax was added in Python 3.13)",
+                10,
+                15,
+            ),
+            (
+                "Cannot use type parameter lists on Python 3.10 (syntax was added in Python 3.12)",
+                7,
+                19,
+            ),
+            (
+                "non default type parameter `U` follows default type parameter",
+                17,
+                18,
+            ),
+        ])),
     },
     Case {
         name: CaseName("a_call_is_nodes_with_its_punctuation_as_tokens"),
@@ -215,51 +252,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// The `ast.dump` outputs pinned below `standard`, each with the file it was printed for, both by path below `fixtures`, sorted: for the
-/// corpus and the suite at the same path, and for each relation's input beside the page `standard/<relation>.ast`.
-fn pinned(
-    standard: &std::path::Path,
-    fixtures: &std::path::Path,
-) -> Vec<(std::path::PathBuf, std::path::PathBuf)> {
-    let mut found = Vec::new();
-    let mut folders = vec![standard.join("corpus"), standard.join("suite")];
-    while let Some(folder) = folders.pop() {
-        for entry in std::fs::read_dir(&folder)
-            .expect("a folder of the fixtures is read")
-            .map(|entry| entry.expect("an entry of a folder of the fixtures is read"))
-        {
-            let path = entry.path();
-            if path.is_dir() {
-                folders.push(path);
-                continue;
-            }
-            if path.extension().is_some_and(|each| each == "ast")
-                && let Ok(below) = path.strip_prefix(standard)
-                && fixtures.join(below).with_extension("py").exists()
-            {
-                found.push((below.to_path_buf(), below.with_extension("py")));
-            }
-        }
-    }
-    for entry in std::fs::read_dir(standard)
-        .expect("a folder of the fixtures is read")
-        .map(|entry| entry.expect("an entry of a folder of the fixtures is read"))
-    {
-        let path = entry.path();
-        let input = std::path::Path::new("relations")
-            .join(path.file_stem().unwrap_or_default())
-            .join("input.py");
-        if path.extension().is_some_and(|each| each == "ast") && fixtures.join(&input).exists() {
-            found.push((
-                path.strip_prefix(standard).unwrap_or(&path).to_path_buf(),
-                input,
-            ));
-        }
-    }
-    found.sort();
-    found
-}
-
 fn subject(given: Input) -> Result<Value, Failure> {
     match given {
         Given::Read(bytes) => Ok(round_trip(bytes)),
@@ -276,7 +268,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
         Given::Pinned => {
             let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
             let mut differing = Vec::new();
-            for (dump, input) in pinned(&fixtures.join("standard"), &fixtures) {
+            for (dump, input) in pinned(&fixtures.join("standard"), &fixtures).unwrap() {
                 let source = fixtures.join(&input);
                 let (Ok(text), Ok(printed)) = (
                     std::fs::read_to_string(&source),
@@ -299,7 +291,11 @@ fn subject(given: Input) -> Result<Value, Failure> {
                     ));
                 }
             }
-            if differing.is_empty() && pinned(&fixtures.join("standard"), &fixtures).is_empty() {
+            if differing.is_empty()
+                && pinned(&fixtures.join("standard"), &fixtures)
+                    .unwrap()
+                    .is_empty()
+            {
                 return Err(());
             }
             Ok(Seen::Pinned(Box::leak(differing.into_boxed_slice())))
@@ -314,7 +310,15 @@ fn subject(given: Input) -> Result<Value, Failure> {
             let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
             let mut builder =
                 languages::table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes()));
-            SyntaxRuffPythonParserAdapter.read(SourceText(text.as_bytes()), &mut builder);
+            SyntaxRuffPythonParserAdapter {
+                settings: PythonParserSettings::default(),
+                ..Default::default()
+            }
+            .read(
+                SourceText(text.as_bytes()),
+                PythonSourceKind::Python,
+                &mut builder,
+            );
             let reported = languages::diagnostics(&elements).any(|each| {
                 let start = usize::try_from(each.start.0).unwrap_or(usize::MAX);
                 let on = text
@@ -329,9 +333,12 @@ fn subject(given: Input) -> Result<Value, Failure> {
                 .lines()
                 .eq(super::constants::FUTURE_FEATURES.iter().copied()),
         )),
+        Given::ConfiguredDiagnostics(text, settings, source_kind) => Ok(Seen::Diagnostics(
+            diagnostics_of(text, source_kind, settings),
+        )),
         Given::Tree(text) => {
             let elements: Vec<(Kind, &'static str)> =
-                elements_of(&SyntaxRuffPythonParserAdapter, text)
+                elements_of(&SyntaxRuffPythonParserAdapter::default(), text)
                     .into_iter()
                     .map(|(kind, text)| (kind, &*Box::leak(text.into_boxed_str())))
                     .collect();
@@ -340,8 +347,45 @@ fn subject(given: Input) -> Result<Value, Failure> {
     }
 }
 
+fn preserves_async_statement_kinds() {
+    let source = "async def f(items):\n    async for item in items:\n        async with manager():\n            pass\n    def g():\n        for item in items:\n            with manager():\n                pass\n";
+    let seen = elements_of(&SyntaxRuffPythonParserAdapter::default(), source);
+    let kinds: Vec<_> = seen.into_iter().map(|(kind, _)| kind).collect();
+
+    assert!(kinds.contains(&Kind::Node(Node::AsyncFunctionDef)));
+    assert!(kinds.contains(&Kind::Node(Node::AsyncFor)));
+    assert!(kinds.contains(&Kind::Node(Node::AsyncWith)));
+    assert!(kinds.contains(&Kind::Node(Node::FunctionDef)));
+    assert!(kinds.contains(&Kind::Node(Node::For)));
+    assert!(kinds.contains(&Kind::Node(Node::With)));
+}
+
+/// Which of the file's cases a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Body {
+    /// The case `preserves_async_statement_kinds`.
+    PreservesAsyncStatementKinds,
+}
+
+/// The rows of the cases whose bodies assert for themselves.
+const BODIES: &[Case<Body, (), ()>] = &[Case {
+    name: CaseName("preserves_async_statement_kinds"),
+    word: Word::Succeeds,
+    input: || Body::PreservesAsyncStatementKinds,
+    expect: Expect::Value(()),
+}];
+
+/// Runs the body of one case.
+fn body(given: Body) -> Result<(), ()> {
+    match given {
+        Body::PreservesAsyncStatementKinds => preserves_async_statement_kinds(),
+    }
+    Ok(())
+}
+
 #[test]
 fn succeeds() {
-    check(&SyntaxRuffPythonParserAdapter);
+    check(&SyntaxRuffPythonParserAdapter::default());
     run(CASES, Word::Succeeds, subject);
+    run(BODIES, Word::Succeeds, body);
 }

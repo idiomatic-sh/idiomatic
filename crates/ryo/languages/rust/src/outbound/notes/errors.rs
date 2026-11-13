@@ -7,3 +7,12 @@ pub(crate) enum NotesError {
     #[error("the bytes are not exactly one note")]
     NotANote,
 }
+
+impl From<NotesError> for ryo::languages::ProjectError {
+    /// Bytes the project reads as a file's note that hold none: the links cannot be drawn without losing that file's facts.
+    fn from(error: NotesError) -> Self {
+        Self::Context {
+            reason: ryo::languages::ToolMessage(error.to_string().into()),
+        }
+    }
+}

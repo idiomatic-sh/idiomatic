@@ -1,0 +1,104 @@
+[[cases]]
+name = "static"
+files = { "case.py" = "value = f\"hello\"\n" }
+expected = [{ file = "case.py", start = 8, end = 16 }]
+
+[[cases]]
+name = "interpolated"
+files = { "case.py" = "value = f\"{name}\"\n" }
+expected = []
+
+[[cases]]
+name = "braces"
+files = { "case.py" = "value = f\"{{name}}\"\n" }
+expected = [{ file = "case.py", start = 8, end = 19 }]
+
+[[cases]]
+name = "concatenated"
+files = { "case.py" = "value = f\"one\" \"two\" f\"three\"\n" }
+expected = [{ file = "case.py", start = 8, end = 14 }, { file = "case.py", start = 21, end = 29 }]
+
+[[cases]]
+name = "mixed-interpolation"
+files = { "case.py" = "value = f\"one\" f\"{name}\"\n" }
+expected = []
+
+[[cases]]
+name = "uppercase"
+files = { "case.py" = "value = F\"hello\"\n" }
+expected = [{ file = "case.py", start = 8, end = 16 }]
+
+[[cases]]
+name = "raw-prefix"
+files = { "case.py" = "value = rf\"hello\"\n" }
+expected = [{ file = "case.py", start = 8, end = 17 }]
+
+[[cases]]
+name = "nested"
+files = { "case.py" = "value = f\"{f'hello'}\"\n" }
+expected = [{ file = "case.py", start = 11, end = 19 }]
+
+[[cases]]
+name = "empty"
+files = { "case.py" = "value = f\"\"\n" }
+expected = [{ file = "case.py", start = 8, end = 11 }]
+
+[[cases]]
+name = "multiline"
+files = { "case.py" = "value = f\"\"\"one\ntwo\"\"\"\n" }
+expected = [{ file = "case.py", start = 8, end = 22 }]
+
+[[cases]]
+name = "multiline-noqa"
+files = { "case.py" = "value = f\"\"\"one\ntwo\"\"\" # noqa\n" }
+expected = []
+
+[[cases]]
+name = "format-spec"
+files = { "case.py" = "value = f\"{name:>20}\"\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "value = f\"hello\" # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "value = f\"hello\" # noqa: F541\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "value = f\"hello\" # noqa: F401\n" }
+expected = [{ file = "case.py", start = 8, end = 16 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nvalue = f\"hello\"\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[F541]\nvalue = f\"hello\"\n\n# ruff: enable[F541]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[F541]\n# ruff: enable[F541]\nvalue = f\"hello\"\n" }
+expected = [{ file = "case.py", start = 51, end = 59 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[F541]\nvalue = f\"hello\"\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\nvalue = f\"hello\"\n" }
+expected = [{ file = "case.py", start = 30, end = 38 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[F541]\nvalue = f\"hello\"\n" }
+expected = []

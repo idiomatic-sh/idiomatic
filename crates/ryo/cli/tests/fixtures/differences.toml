@@ -1645,3 +1645,10 @@ extra = [
   { path = "crates/ty_site_packages/src/lib.rs", key = "40723..40737" },
   { path = "crates/ty_test/src/lib.rs", key = "7351..7359" },
 ]
+
+[rule.todo-comments]
+why = "The recorded rule read the comments of Rust files alone. ryo's TOML language gives its comments as `comment` rows of `syntax-tree` too, so the rule's `glob_any` over their text finds the two TODO comments ruff writes in TOML: `_typos.toml` line 35 and `crates/ruff_python_ast/ast.toml` line 257, each checked against the source at the pin."
+extra = [
+  { path = "_typos.toml", key = "1172..1253" },
+  { path = "crates/ruff_python_ast/ast.toml", key = "9611..9685" },
+]

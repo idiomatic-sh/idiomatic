@@ -1,0 +1,864 @@
+description = "A string literal (text, byte or C string) outside the paths that may hold text: inside the engine, names, kinds, columns and ids are enums and numbers, never text."
+why = "Text inside the engine is the shape that costs the most: a name compared as a string is a typo no compiler sees, a column looked up by text is a lookup that fails at run time, and a string key is a hash of bytes where an enum is one integer. Text belongs only where it enters (RyoQL source, file paths from disk) or leaves (messages, CLI and SDK output). A reached concept/test.rs normally declared as #[cfg(test)] mod test; by its reached concept.rs is test code; its role is proven from module syntax, exact cfg metadata and analyzed-source, never its filename alone. Mixed ungated declarations refuse this exception. As module membership is not a resolved fact, production include! or an explicit path/cfg_attr literal naming a generic test.rs conservatively refuses the new exception across all candidate roles, since cross-package redirection cannot be resolved from these facts; decoded literals handle escaped and raw spelling without pretending to normalize paths. Existing module-declares and test-directory-layout placements enforce the surrounding ownership. Legacy test/support placement exclusions remain as before. Every literal in a file outside `allowed-paths` and these registered test roles is reported, except a literal inside an attribute (`#[error(\"..\")]`, `#[path = \"..\"]`, `#[cfg(feature = \"..\")]`), found by walking from the literal's token up to an `attr` node. A format macro written inside another macro's tokens (`vec![format!(\"..\")]`) is not parsed as a call: its template is recognised from the tokens, a token tree whose previous sibling is a `!` whose previous sibling is the macro's name. The format string of a format-family macro (`format`, `format_args`, `write`, `writeln`, `print`, `println`, `eprint`, `eprintln`, `panic`, `unreachable`, `todo`, `unimplemented`, `assert*`, `debug_assert*`, `info`, `warn`, `error`, `debug`, `trace`, and the span macros `span`, `info_span`, `debug_span`, `trace_span`, `warn_span`, `error_span`, whose first literal is the span's name in the trace that leaves the engine) is the output text that leaves the engine and is exempt: the first string literal directly in the macro call's token tree; a second literal or a literal in a normal call is reported. A byte string (`b\"..\"`, `br\"..\"`) and a C string (`c\"..\"`) are text like any other and are reported the same way. Not seen: a literal nested in a token subtree of a macro."
+
+query = '''
+param allowed-paths: set<string>;
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let role-files = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "**/*.rs");
+let role-owners = capture(from=role-files, path="file", pattern="{*parent}/{stem}.rs", captures=["parent", "stem"]);
+let role-tests = capture(from=role-files, path="file", pattern="{*parent}/{stem}/test.rs", captures=["parent", "stem"]);
+let role-nested-pairs = select l."file" as "owner", r."file" as "file" from role-owners as l join role-tests as r on l."parent" = r."parent" and l."stem" = r."stem";
+let role-top-owners = capture(from=role-files, path="file", pattern="{stem}.rs", captures=["stem"]);
+let role-top-tests = capture(from=role-files, path="file", pattern="{stem}/test.rs", captures=["stem"]);
+let role-top-pairs = select l."file" as "owner", r."file" as "file" from role-top-owners as l join role-top-tests as r on l."stem" = r."stem";
+let role-pairs = union(left=role-nested-pairs, right=role-top-pairs);
+let role-roots = select * from tree-nodes where kind = "source-file";
+let role-top-edges = select r."child" as "id" from role-roots as l join "syntax-child" as r on l."id" = r."parent";
+let role-modules = select r."id" as "id", r."file" as "file" from role-top-edges as l join tree-nodes as r on l."id" = r."id" where r."kind" = "module";
+let role-kids = select l."id" as "decl", l."file" as "owner", r."child" as "child" from role-modules as l join "syntax-child" as r on l."id" = r."parent";
+let role-bodies = select * from tree-nodes where kind = "item-list";
+let role-inline = select l."decl" as "decl" from role-kids as l join role-bodies as r on l."child" = r."id";
+let role-names = select * from tree-nodes where kind = "name";
+let role-name-nodes = select l."decl" as "decl", l."owner" as "owner", r."id" as "name" from role-kids as l join role-names as r on l."child" = r."id";
+let role-name-edges = select l."decl" as "decl", l."owner" as "owner", r."child" as "token" from role-name-nodes as l join "syntax-child" as r on l."name" = r."parent";
+let role-named = select l."decl" as "decl", l."owner" as "owner" from role-name-edges as l join tree-tokens as r on l."token" = r."id" where r."text" = "test";
+let role-external = antijoin(left=role-named, right=role-inline, left-on=["decl"], right-on=["decl"]);
+let role-paths = select l."declaration" as "decl" from "decorates" as l where l."target" = "path";
+let role-normal = antijoin(left=role-external, right=role-paths, left-on=["decl"], right-on=["decl"]);
+let role-cfgs = select l."declaration" as "decl" from "decorates" as l where l."target" = "cfg" and l."arguments" = "test";
+let role-ungated = antijoin(left=role-external, right=role-cfgs, left-on=["decl"], right-on=["decl"]);
+let role-gated-all = select l."owner" as "owner" from role-normal as l join role-cfgs as r on l."decl" = r."decl";
+let role-gated = antijoin(left=role-gated-all, right=role-ungated, left-on=["owner"], right-on=["owner"]);
+let role-registered = select l."file" as "file", l."owner" as "owner" from role-pairs as l join role-gated as r on l."owner" = r."owner";
+let role-reached = select l."path" as "file" from "analyzed-source" as l;
+let role-live-owners = select l."file" as "file" from role-registered as l join role-reached as r on l."owner" = r."file";
+let role-candidates = select l."file" as "file" from role-live-owners as l join role-reached as r on l."file" = r."file";
+let role-literals = select * from tree-nodes where kind = "literal";
+let role-literal-values = select l."id" as "id", r."value" as "value" from role-literals as l join "string-literal" as r on l."file" = r."file" and l."span" = r."span";
+let role-test-targets = select * from role-literal-values where glob_any(value, "{test.rs,**/test.rs}");
+let role-attrs = select * from tree-nodes where kind = "attr";
+let role-target-attrs = axis(from=role-test-targets, relation="syntax-child", direction=ancestor, domain=role-attrs);
+let role-redirections = select r."declaration" as "decl", r."file" as "file" from role-target-attrs as l join "decorates" as r on l."related" = r."occurrence" where glob_any(r."target", "{path,cfg_attr}");
+let role-production-paths = antijoin(left=role-redirections, right=role-cfgs, left-on=["decl"], right-on=["decl"]);
+let role-macros = select * from tree-nodes where kind = "macro-call";
+let role-path-nodes = select * from tree-nodes where kind = "path";
+let role-macro-edges = select l."id" as "macro", l."file" as "file", r."child" as "child" from role-macros as l join "syntax-child" as r on l."id" = r."parent";
+let role-macro-paths = select l."macro" as "macro", l."file" as "file", r."id" as "id" from role-macro-edges as l join role-path-nodes as r on l."child" = r."id";
+let role-include-names = select * from tree-tokens where text = "include";
+let role-includes = axis(from=role-macro-paths, relation="syntax-child", direction=descendant, domain=role-include-names);
+let role-path-files = project(from=role-production-paths, columns=["file"]);
+let role-include-files = project(from=role-includes, columns=["file"]);
+let role-uncertain-files = union(left=role-path-files, right=role-include-files);
+let role-production-files = select * from role-uncertain-files where not glob_any(file, "{tests/**,benches/**,**/tests/**,**/benches/**,**/*_test.rs,**/fixtures.rs,**/fixtures/**}");
+let role-uncertain = extend(from=role-production-files, values={"guard": 1});
+let role-guarded = extend(from=role-candidates, values={"guard": 1});
+let test-roles = antijoin(left=role-guarded, right=role-uncertain, left-on=["guard"], right-on=["guard"]);
+let attrs = select * from tree-nodes where kind = "attr";
+let tokens = select * from tree-tokens where glob_any(kind, "{string,byte-string,c-string}");
+let literals = project(from=tokens, columns=["file", "span", "id"]);
+let parents = select l."id" as "token", r."parent" as "id" from literals as l join "syntax-child" as r on l."id" = r."child";
+let inside = axis(from=parents, relation="syntax-child", direction=ancestor, domain=attrs);
+let inside-tokens = project(from=inside, columns=["token"]);
+let bare = antijoin(left=literals, right=inside-tokens, left-on=["id"], right-on=["token"]);
+let macro-names = select * from tree-tokens where kind = "ident";
+let format-idents = select * from macro-names where glob_any(text, "{format,format_args,write,writeln,print,println,eprint,eprintln,panic,unreachable,todo,unimplemented,assert,assert_eq,assert_ne,debug_assert,debug_assert_eq,debug_assert_ne,info,warn,error,debug,trace,span,info_span,debug_span,trace_span,warn_span,error_span}");
+let ident-parents = select l."id" as "token", r."parent" as "id" from format-idents as l join "syntax-child" as r on l."id" = r."child";
+let macro-calls = select * from tree-nodes where kind = "macro-call";
+let token-trees = select * from tree-nodes where kind = "token-tree";
+let in-tokens = select l."token" as "token", l."id" as "id" from ident-parents as l join token-trees as r on l."id" = r."id";
+let named-parents = antijoin(left=ident-parents, right=in-tokens, left-on=["token"], right-on=["token"]);
+let format-calls = axis(from=named-parents, relation="syntax-child", direction=nearest-ancestor, domain=macro-calls);
+let call-edges = select r."child" as "tree" from format-calls as l join "syntax-child" as r on l."related" = r."parent";
+let parsed-format-trees = select l."tree" as "tree" from call-edges as l join token-trees as r on l."tree" = r."id";
+let bangs = select * from tree-tokens where kind = "bang";
+let tree-ids = project(from=token-trees, columns=["id"]);
+let banged = axis(from=tree-ids, relation="syntax-child", direction=previous-sibling, domain=bangs);
+let bang-ids = select l."related" as "id" from banged as l join bangs as r on l."related" = r."id";
+let named-bangs = axis(from=bang-ids, relation="syntax-child", direction=previous-sibling, domain=format-idents);
+let format-bangs = select l."id" as "bang" from named-bangs as l join format-idents as r on l."related" = r."id";
+let nested-format-trees = select l."id" as "tree" from banged as l join format-bangs as r on l."related" = r."bang";
+let format-trees = union(left=parsed-format-trees, right=nested-format-trees);
+let in-tree = select l."id" as "token", r."parent" as "tree", r."ordinal" as "ordinal" from literals as l join "syntax-child" as r on l."id" = r."child";
+let in-format = select l."token" as "token", l."tree" as "tree", l."ordinal" as "ordinal" from in-tree as l join format-trees as r on l."tree" = r."tree";
+let pairs = select l."token" as "token", l."tree" as "tree", l."ordinal" as "ordinal", r."ordinal" as "before" from in-format as l join in-format as r on l."tree" = r."tree";
+let later = select * from pairs where before < ordinal;
+let later-tokens = project(from=later, columns=["token"]);
+let template = antijoin(left=in-format, right=later-tokens, left-on=["token"], right-on=["token"]);
+let allowed = select * from bare where glob_any(file, $allowed-paths);
+let outside = antijoin(left=bare, right=allowed, left-on=["id"], right-on=["id"]);
+let production = antijoin(left=outside, right=test-roles, left-on=["file"], right-on=["file"]);
+let reported = antijoin(left=production, right=template, left-on=["id"], right-on=["token"]);
+emit reported subject "file" key("span");
+'''
+
+[params.allowed-paths]
+type = "set<string>"
+description = "Globs of the files that may hold text: the files that map an enum to its outside text, the error messages, the edges and the tests."
+
+[diagnostic]
+primary = "span"
+message = "this string literal is text inside the engine"
+help = "Use the enum or typed value; text belongs only where it enters or leaves."
+
+[given]
+include = ['**/*.rs']
+params = { allowed-paths = ['**/constants.rs', '**/*_test.rs'] }
+
+[[scenarios]]
+id = 'bare-literal'
+scenario = 'A bare literal in a domain item.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! A domain item that compares a kind as text.
+
+pub fn is_function(kind: &str) -> bool {
+    kind == "function"
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'literal-in-names'
+scenario = 'A literal in a names file.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/constants.rs' = '''
+//! The outside text of the enum.
+
+pub enum Kind {
+    Function,
+}
+
+pub fn name(kind: Kind) -> &'static str {
+    match kind {
+        Kind::Function => "function",
+    }
+}
+'''
+given.files.'src/lib.rs' = '''
+//! The crate.
+
+pub mod constants;
+'''
+
+[[scenarios]]
+id = 'literal-in-attribute'
+scenario = 'A literal in an error attribute.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! An error with its message in an attribute.
+
+#[derive(Debug)]
+pub enum Failure {
+    #[allow(clippy::enum_variant_names)]
+    Missing,
+}
+
+#[cfg(feature = "fixtures")]
+pub fn fixture() {}
+'''
+
+[[scenarios]]
+id = 'literal-in-test'
+scenario = 'A literal in a test file.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! The crate.
+
+#[cfg(test)]
+mod lib_test;
+'''
+given.files.'src/lib_test.rs' = '''
+//! A test names its case in text.
+
+#[test]
+fn compares_text() {
+    assert_eq!("function", "function");
+}
+'''
+
+[[scenarios]]
+id = 'sdk-resource-collected'
+scenario = 'A literal in an SDK resource.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/resources/query.rs' = '''
+//! The query resource.
+
+/// The name of what a query collected.
+pub fn collected() -> &'static str {
+    "collected"
+}
+'''
+then.findings = [
+  { path = 'src/resources/query.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'format-template'
+scenario = 'The format string of a format-family macro.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Formats.
+
+pub fn describe(n: u32, f: &mut String) -> String {
+    use std::fmt::Write;
+    write!(f, "wrote {n}").ok();
+    println!("done {}", n);
+    panic_if(n);
+    format!("value {n}")
+}
+
+fn panic_if(n: u32) {
+    assert!(n < 9, "too big {n}");
+}
+'''
+
+[[scenarios]]
+id = 'format-second-literal'
+scenario = 'A second string argument of a format macro.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! A second literal.
+
+pub fn label() -> String {
+    format!("{}", "x")
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'call-literal'
+scenario = 'A literal in a normal call.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! A call.
+
+pub fn run() {
+    foo("x");
+}
+
+fn foo(_text: &str) {}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'byte-string-literal'
+scenario = 'A byte string in a domain item.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! A domain item that compares a kind as bytes.
+
+pub fn is_function(kind: &[u8]) -> bool {
+    kind == b"function"
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'byte-string-in-test'
+scenario = 'A byte string in a test file.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! The crate.
+
+#[cfg(test)]
+mod lib_test;
+'''
+given.files.'src/lib_test.rs' = '''
+//! A test names its bytes.
+
+#[test]
+fn compares_bytes() {
+    assert_eq!(b"function", b"function");
+}
+'''
+
+[[scenarios]]
+id = 'span-name'
+scenario = 'The name of a tracing span.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Spans.
+
+pub fn load() {
+    let _loading = tracing::info_span!("load").entered();
+    let _placing = tracing::debug_span!("place").entered();
+}
+'''
+
+[[scenarios]]
+id = 'format-in-a-macro'
+scenario = "A format macro's template written inside another macro's tokens."
+given.files.'src/lib.rs' = '''
+//! Lines of a report.
+
+pub fn lines(n: u32) -> Vec<String> {
+    vec![format!("{n} case(s)"), format!("level {}", n)]
+}
+'''
+
+[[scenarios]]
+id = 'literal-in-a-macro'
+scenario = "A plain literal written inside another macro's tokens."
+given.files.'src/lib.rs' = '''
+//! Lines of a report.
+
+pub fn lines(n: u32) -> Vec<String> {
+    vec![format!("{n} case(s)"), "level".to_owned()]
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'registered-grouped-test-role'
+scenario = 'Normal registered directory tests may use test values.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+[features]
+runtime = []
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept.rs' = '''
+#[cfg(test)]
+mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+
+[[scenarios]]
+id = 'misleading-test-role-filename'
+scenario = 'A production module named test is production code.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+[features]
+runtime = []
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept.rs' = '''
+mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'negated-test-cfg-is-production'
+scenario = 'A negated test cfg does not establish test ownership.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+[features]
+runtime = []
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept.rs' = '''
+#[cfg(not(test))]
+mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'feature-enabled-test-name-is-production'
+scenario = 'A cfg that can enable a module in production is no test authority.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+[features]
+runtime = []
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept.rs' = '''
+#[cfg(any(test, feature = "runtime"))]
+mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'cfg-on-another-declaration'
+scenario = 'A cfg on a different module cannot authorize this test filename.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+[features]
+runtime = []
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept.rs' = '''
+#[cfg(test)]
+mod other;
+mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+given.files.'src/concept/other.rs' = ''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'unregistered-test-owner'
+scenario = 'An orphan directory and its cfg cannot establish ownership.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+[features]
+runtime = []
+'''
+given.files.'src/lib.rs' = '''
+
+'''
+given.files.'src/concept.rs' = '''
+#[cfg(test)]
+mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'inline-test-module-is-not-registration'
+scenario = 'An inline test module does not register a sibling test file.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+[features]
+runtime = []
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept.rs' = '''
+#[cfg(test)]
+mod test {}
+'''
+given.files.'src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'path-redirect-is-not-normal-registration'
+scenario = 'A cfg test declaration redirected elsewhere does not register the role.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+[features]
+runtime = []
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept.rs' = '''
+#[cfg(test)]
+#[path = "concept/other.rs"]
+mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+given.files.'src/concept/other.rs' = ''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'nested-cfg-is-not-sibling-ownership'
+scenario = 'A nested test declaration cannot authorize its production sibling.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept.rs' = '''
+mod test;
+mod nested { #[cfg(test)] mod test; }
+'''
+given.files.'src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+given.files.'src/concept/nested/test.rs' = '''
+
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'mixed-test-production-registrations'
+scenario = 'A complementary production declaration prevents test exemption.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept.rs' = '''
+#[cfg(test)] mod test;
+#[cfg(not(test))] mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'production-path-alias-of-test-role'
+scenario = 'A production path alias makes the same test file production code.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+'''
+given.files.'src/concept.rs' = '''
+#[cfg(test)] mod test;
+#[path = "concept/test.rs"] mod runtime;
+'''
+given.files.'src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'production-cross-owner-path-alias'
+scenario = 'A path alias elsewhere in the package refuses uncertain test ownership.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+#[path = "concept/test.rs"] mod runtime;
+'''
+given.files.'src/concept.rs' = '''
+#[cfg(test)] mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'production-raw-path-alias'
+scenario = 'A raw relative path alias cannot borrow the test exception.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+#[path = r#"./concept/../concept/test.rs"#] mod runtime;
+'''
+given.files.'src/concept.rs' = '''
+#[cfg(test)] mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'production-escaped-path-alias'
+scenario = 'A decoded escaped path alias cannot borrow the test exception.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+#[path = "concept/te\x73t.rs"] mod runtime;
+'''
+given.files.'src/concept.rs' = '''
+#[cfg(test)] mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'production-cfg-attr-path-alias'
+scenario = 'Conditional path redirection prevents a package test exception.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+#[cfg_attr(not(test), path = "concept/test.rs")] mod runtime;
+'''
+given.files.'src/concept.rs' = '''
+#[cfg(test)] mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+given.files.'src/runtime.rs' = '''
+
+'''
+then.findings = [
+  { path = 'src/concept/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'production-include-of-test-role'
+scenario = 'A production include can compile otherwise test-owned source.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+mod runtime { include!("concept/test.rs"); }
+'''
+given.files.'src/concept.rs' = '''
+#[cfg(test)] mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 2 },
+  { path = 'src/concept/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'production-computed-include'
+scenario = 'A computed production include refuses uncertain package ownership.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "test-role-control"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod concept;
+mod runtime { include!(concat!("concept/", "test.rs")); }
+'''
+given.files.'src/concept.rs' = '''
+#[cfg(test)] mod test;
+'''
+given.files.'src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 2 },
+  { path = 'src/lib.rs', line = 2 },
+  { path = 'src/concept/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'cross-package-production-path-alias'
+scenario = 'Unknown cross-package incoming ownership fails the new exception closed.'
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["crate_a", "crate_b"]
+resolver = "3"
+'''
+given.files.'crate_a/Cargo.toml' = '''
+[package]
+name = "crate_a"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crate_b/Cargo.toml' = '''
+[package]
+name = "crate_b"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crate_a/src/lib.rs' = '''
+#[path = "../../crate_b/src/concept/test.rs"] mod runtime;
+'''
+given.files.'crate_b/src/lib.rs' = '''
+mod concept;
+'''
+given.files.'crate_b/src/concept.rs' = '''
+#[cfg(test)] mod test;
+'''
+given.files.'crate_b/src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+then.findings = [
+  { path = 'crate_b/src/concept/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'cross-package-production-include'
+scenario = 'Unknown cross-package incoming ownership fails the new exception closed.'
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["crate_a", "crate_b"]
+resolver = "3"
+'''
+given.files.'crate_a/Cargo.toml' = '''
+[package]
+name = "crate_a"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crate_b/Cargo.toml' = '''
+[package]
+name = "crate_b"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crate_a/src/lib.rs' = '''
+include!("../../crate_b/src/concept/test.rs");
+'''
+given.files.'crate_b/src/lib.rs' = '''
+mod concept;
+'''
+given.files.'crate_b/src/concept.rs' = '''
+#[cfg(test)] mod test;
+'''
+given.files.'crate_b/src/concept/test.rs' = '''
+pub fn value() { let _text = "owned test input"; }
+'''
+then.findings = [
+  { path = 'crate_b/src/concept/test.rs', line = 1 },
+  { path = 'crate_a/src/lib.rs', line = 1 },
+]

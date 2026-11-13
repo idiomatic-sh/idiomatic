@@ -1,10 +1,22 @@
 //! The `typecheck` use case's failures.
 
-use ryo_values::domain::program::types::QuerySpan;
+use ryo_values::domain::query_tokens::types::{QueryOrigin, QuerySpan};
 
 /// Why `typecheck` failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum TypecheckError {
+    /// A lower-level refusal attributed to an original module source.
+    #[error(
+        "{error} (from `{source}` at byte {offset})",
+        source = origin.source_id.0,
+        offset = origin.span.start.0
+    )]
+    Located {
+        /// The original source and trace.
+        origin: QueryOrigin,
+        /// The underlying refusal.
+        error: Box<TypecheckError>,
+    },
     /// The text is not RyoQL.
     #[error("{message} at byte {}", span.start.0)]
     Syntax {
@@ -35,6 +47,12 @@ pub enum TypecheckError {
         /// Where.
         span: QuerySpan,
         /// What is wrong.
+        message: String,
+    },
+    /// The supplied observation declaration is invalid, independent of query text.
+    #[error("invalid observation inputs: {message}")]
+    ObservationInputs {
+        /// The declaration refusal.
         message: String,
     },
     /// The catalog of relations could not be read.

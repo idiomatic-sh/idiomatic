@@ -10,7 +10,7 @@ pub const TOPICS: &[Topic] = &[
     Topic {
         name: TopicName("selectors"),
         body: TopicBody::Text(TopicText(
-            "# Selectors\n\nWherever an entry says where, it writes a selector list: `include`, `exclude`, `rules-exclude` and `members`.\n\n| selector | written | selects |\n|---|---|---|\n| glob | `\"docs/**/*.md\"` | paths matching the pattern beneath the place; `*` one segment, `**` any depth, `?` one character, `{name}` a capture, `{*name}` whole segments |\n| regex | `{ regex = '^docs/.*\\.md$' }` | paths beneath the place the expression matches |\n| part | `{ part = \"use-case\" }` | the directories of the instances of a spec directly beneath the place |\n| recursive part | `{ part = \"use-case\", recursive = true }` | the same at any depth |\n| placed-by | `{ placed-by = \"errors\" }` | the files one template entry placed beneath the place |\n\nA selector covers what it selects and everything beneath it. `exclude` subtracts. A `{ variable = \"x\" }` in a list splices the variable's list in.\n\nA `\\` makes the character after it stand for itself: `\"data\\\\*.txt\"` is the file named `data*.txt`, never a wildcard, and `\\{`, `\\}`, `\\?` and `\\\\` the same (in a TOML basic string the backslash is written twice; a literal string, `'data\\*.txt'`, writes it once). `tm init` writes each name it finds this way.\n",
+            "# Selectors\n\nWherever an entry says where, it writes a selector list: `include`, `exclude`, `rules-exclude` and `members`.\n\n| selector | written | selects |\n|---|---|---|\n| glob | `\"docs/**/*.md\"` | paths matching the pattern beneath the place; `*` one segment, `**` any depth, `?` one character, `{name}` a capture, `{*name}` whole segments |\n| regex | `{ regex = '^docs/.*\\.md$' }` | paths beneath the place the expression matches |\n| part | `{ part = \"use-case\" }` | the directories of the instances of a spec directly beneath the place |\n| recursive part | `{ part = \"use-case\", recursive = true }` | the same at any depth |\n| placed-by | `{ placed-by = \"errors\" }` | the files one template entry placed beneath the place |\n\nA selector covers what it selects and everything beneath it. `exclude` subtracts. A `{ variable = \"x\" }` in a list splices the variable's list in. A `{name:dir}` is refused in a selector list: it is written only in a template entry's `file`.\n\nA `\\` makes the character after it stand for itself: `\"data\\\\*.txt\"` is the file named `data*.txt`, never a wildcard, and `\\{`, `\\}`, `\\?` and `\\\\` the same (in a TOML basic string the backslash is written twice; a literal string, `'data\\*.txt'`, writes it once). `tm init` writes each name it finds this way.\n",
         )),
     },
     Topic {
@@ -174,7 +174,7 @@ spec | string | optional | a spec entry's spec, written as `rule` is
 template | string | optional | a template entry's template, written as `rule` is
 include | selector list | optional | where it applies (`explain selectors`); required on rule and spec entries
 exclude | selector list | optional | what it leaves out
-file | string | optional | a template entry's file, required on it; `{name}` captures one segment, `{*name}` the rest
+file | string | optional | a template entry's file, required on it; `{name}` captures one segment, `{*name}` the rest, `{name:dir}` one segment naming a directory beside the file, written only in the last segment
 params | table | optional | the values passed; `{ param = \"x\" }` passes the spec's own, `{ variable = \"x\" }` a variable
 count | integer or table | optional | on spec and template entries, refused on a rule entry, written only where it differs from what the path says (a literal path is one, a glob or capture at least one): `n`, `{ min = n }` or `{ when = { condition = \"c\" }, then = n, else = n }`
 imports | table | optional | `{ default = \"deny\", allow = [\"…\"] }`: the modules the placed files may import",
@@ -203,7 +203,7 @@ pub const TEMPLATE_TABLES: &[KeyTable] = &[KeyTable {
         "description | string | required | what the file is, on one line
 why | string | required | what the file is for
 params | table | optional | `[params.<name>]`, as in `explain rule`
-match | string | optional | `\"declarations\"`: the file declares what the content declares and nothing more, its bodies free; `\"text\"`: the file's text is the content's, byte for byte; `\"contains\"` (the default, not written): the file holds the content's declarations and may hold more
+match | string | optional | `\"declarations\"`: the file declares what the content declares and nothing more, its bodies free, and a `tastemaker.toml` placed by a `declarations` template declares what the template writes and nothing more, except that each of its `variables` may hold values beyond the template's; `\"text\"`: the file's text is the content's, byte for byte; `\"contains\"` (the default, not written): the file holds the content's declarations and may hold more
 content | string | required | the file's text, in Jinja
 scenarios | array of tables | optional | `[[scenarios]]`, as in `explain rule`, each naming `given.file`
 given | table | optional | `[given]`: what every scenario starts from; a scenario's own `given` adds to it, a key, file or param it writes again taking its own (`explain scenarios`)",

@@ -5,14 +5,14 @@ use std::path::{Path, PathBuf};
 /// What a language's fixtures say about it, gathered before they are judged.
 pub(super) struct Findings(pub Vec<String>);
 
-/// The file called `input.<something>` in `folder`, when there is one, the first by name; none when there is no such folder.
+/// Every regular `input.<something>` file, sorted by path; absent folders have no inputs.
 #[expect(
     clippy::expect_used,
     reason = "a folder of the fixtures that cannot be read is a broken checkout: the test stops, never runs no cases"
 )]
-pub(super) fn input_in(folder: &Path) -> Option<PathBuf> {
+pub(super) fn inputs_in(folder: &Path) -> Vec<PathBuf> {
     if !folder.is_dir() {
-        return None;
+        return Vec::new();
     }
     let mut inputs: Vec<PathBuf> = std::fs::read_dir(folder)
         .expect("a folder of the fixtures is read")
@@ -29,7 +29,12 @@ pub(super) fn input_in(folder: &Path) -> Option<PathBuf> {
         })
         .collect();
     inputs.sort();
-    inputs.into_iter().next()
+    inputs
+}
+
+/// The first input, retained for callers that need only the fixture's extension.
+pub(super) fn input_in(folder: &Path) -> Option<PathBuf> {
+    inputs_in(folder).into_iter().next()
 }
 
 /// The path the language reads a fixture's file as: its own, but for an input named `input.<file name>`, whose rest holds a dot of

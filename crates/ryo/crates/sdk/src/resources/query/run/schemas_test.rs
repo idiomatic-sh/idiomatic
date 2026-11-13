@@ -4,8 +4,9 @@ use ryo_core::inbound::use_cases::lint::errors::LintError as CoreError;
 
 use super::super::errors::RunError;
 use super::RunErrorSchema;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::query::types::RyoQlQuery;
+use crate::selects;
 
 /// What a row offers the schemas.
 enum Offered {
@@ -34,7 +35,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_blank_query_is_refused"),
         word: Word::Refuses,
         input: || Offered::Query("  "),
-        expect: Expect::Refusal(|error| selects(matches!(error, RunError::Query { .. }))),
+        expect: Expect::Refusal(|error| selects!(error, RunError::Query { .. })),
     },
     Case {
         name: CaseName("fails_when_the_corpus_fails"),
@@ -68,7 +69,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 reason: String::new(),
             })
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, RunError::Language { .. }))),
+        expect: Expect::Refusal(|error| selects!(error, RunError::Language { .. })),
+    },
+    Case {
+        name: CaseName("fails_when_an_explicit_source_language_is_unavailable"),
+        word: Word::Fails,
+        input: || {
+            Offered::CoreFails(CoreError::SourceLanguage {
+                name: "missing".into(),
+            })
+        },
+        expect: Expect::Refusal(
+            |error| selects!(error, RunError::Language { reason } if !reason.is_empty()),
+        ),
     },
     Case {
         name: CaseName("fails_when_the_memory_fails"),

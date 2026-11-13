@@ -1,0 +1,10 @@
+input additional_locations: relation<id: node, file: file, line: number>;
+input mappings: relation<id: node, file: file, line: number, endline: number>;
+output relation<id: node, file: file, line: number>;
+let export_parent_lines = select id, file, line from additional_locations;
+let mapped_export_parents = select l.id as id, l.file as file, r.endline as line from export_parent_lines as l join mappings as r on l.file = r.file where l.line >= r.line and l.line <= r.endline;
+let earlier_export_parents = select l.id as id, l.line as line from mapped_export_parents as l join mapped_export_parents as r on l.id = r.id where l.line < r.line;
+let remapped_export_parents = antijoin(left=mapped_export_parents,right=earlier_export_parents,left-on=["id","line"],right-on=["id","line"]);
+let unmapped_export_parents = antijoin(left=export_parent_lines,right=mapped_export_parents,left-on=["id"],right-on=["id"]);
+let located_export_parents = union(left=remapped_export_parents,right=unmapped_export_parents);
+return located_export_parents;

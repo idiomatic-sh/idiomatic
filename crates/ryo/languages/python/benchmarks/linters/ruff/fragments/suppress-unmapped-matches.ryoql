@@ -1,0 +1,7 @@
+import noqa_suppressions from "python/ruff/noqa-suppressions";
+input candidates: relation<id: node, file: file, span: span, line: number>;
+param codes: string;
+output relation<id: node, file: file, span: span, directive: node, scope: number>;
+let candidate_locations = select id, file, span, line from candidates;
+let matched = noqa_suppressions(candidates=candidate_locations, locations=candidate_locations, codes=$codes);
+return matched;

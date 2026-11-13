@@ -3,14 +3,14 @@
 
 use super::constants::TURN_OFFERED_ONCE;
 
-use ryo_values::domain::records::types::RowTotal;
+use ryo_values::domain::row_texts::types::RowTotal;
 
 use super::types::{Admittance, Ordered, PendingBytes, Turn};
 use ryo_values::domain::files::types::FileSize;
 
 use crate::domain::render::service::{finding_parts, lent_row, row_cells};
 use crate::domain::render::types::{Rendered, RowLimit, RowNumber, RowOrder};
-use ryo_values::domain::records::types::{Cell, RowEnds, RowsTextAt, RowsTextView, TextRange};
+use ryo_values::domain::row_texts::types::{Cell, RowEnds, RowsTextAt, RowsTextView, TextRange};
 
 /// A kept cell whose text moved `shift` bytes further into the text of its rows.
 fn shifted(cell: Cell<TextRange>, shift: RowsTextAt) -> Cell<TextRange> {

@@ -1,0 +1,426 @@
+description = "A Tastemaker manifest excludes and allows files only by role: every `exclude` glob, and every path an allowlist names, lies inside a role the entry gives, and a test contract is a public path."
+why = "An `exclude` that names a crate (`crates/execution/**`) or a directory (`**/acceptance/**`) hides that code from a rule, and an allowlist that names a file (`**/x/ledger.rs`) lets that one file do what no other may: each is a carve-out, and together they grow into a list of exceptions nobody reviews. A rule is about production code of a role, so what it may leave out is the other roles: tests, fixtures and benches (`role-globs`; a port's factory and an edge's composition are production code, no role), the composition edge that names the parts it composes (`edge-composition-roles`), a file the build writes (`generated-roles`) and the inputs a test reads (`input-roots`). A glob passes when it lies inside a glob of those sets. A role with no `**` holds only a glob of as many segments as it has, each of whose segments its own matches (the glob's `*` read as a character), and never a glob that holds `**`: `src/*/x.rs` holds `src/*/x.rs` and `src/a/x.rs`, never `src/a/b/x.rs` or `src/**/x.rs`. A role with `**` (`**/fixtures/**`) is matched against the glob's text, so `src/fixtures/**` lies in it and `crates/execution/**` in none of the roles. Read are the `exclude` and `rules-exclude` lists of every manifest the entry includes, and the path items of the keys `allowlist-keys` names for a definition, a string or a table's `file` or `path` field (a table with neither is not read); a key of `key-roles` also admits its own role (`heap-accounting-owners` its `**/accounting/**`), never an exclude; the adapters, schemas, constants and errors are no shared role, so an exclude of `**/adapters/**`, `**/constants.rs`, `**/errors.rs` or `**/schemas.rs` is reported, and an allowlist key that admits one of them names it in `key-roles`. A `test-contracts` item is a path a test may reach, read apart: it starts at one of `public-roots`, the product's public API, never an internal crate's path."
+
+query = '''
+param role-globs: list<table>;
+param edge-composition-roles: list<table>;
+param generated-roles: list<table>;
+param input-roots: list<table>;
+param allowlist-keys: list<table>;
+param key-roles: list<table>;
+param public-roots: set<string>;
+let role-rows = rows(from=$role-globs, columns=["glob"]);
+let edge-rows = rows(from=$edge-composition-roles, columns=["glob"]);
+let generated-rows = rows(from=$generated-roles, columns=["glob"]);
+let input-rows = rows(from=$input-roots, columns=["glob"]);
+let role-edge-rows = union(left=role-rows, right=edge-rows);
+let generated-input-rows = union(left=generated-rows, right=input-rows);
+let shared-rows = union(left=role-edge-rows, right=generated-input-rows);
+let shared-keyed = extend(from=shared-rows, values={"pair": 1});
+let key-rows = rows(from=$key-roles, columns=["key", "glob"]);
+let deep-roles = select * from shared-keyed where glob_any(glob, "*[*][*]*");
+let flat-roles = antijoin(left=shared-keyed, right=deep-roles, left-on=["glob"], right-on=["glob"]);
+let flat-role-splits = capture(from=flat-roles, path="glob", pattern="{*head}/{*rest}", captures=["head", "rest"]);
+let flat-role-depths = group-count(from=flat-role-splits, keys=["glob"], count="slashes");
+let flat-role-levels = select l."glob" as "glob", l."pair" as "pair", r."slashes" as "slashes" from flat-roles as l join flat-role-depths as r on l."glob" = r."glob";
+let one-segment-roles = antijoin(left=flat-roles, right=flat-role-depths, left-on=["glob"], right-on=["glob"]);
+let deep-key-roles = select * from key-rows where glob_any(glob, "*[*][*]*");
+let flat-key-roles = antijoin(left=key-rows, right=deep-key-roles, left-on=["key", "glob"], right-on=["key", "glob"]);
+let flat-key-splits = capture(from=flat-key-roles, path="glob", pattern="{*head}/{*rest}", captures=["head", "rest"]);
+let flat-key-depths = group-count(from=flat-key-splits, keys=["key", "glob"], count="slashes");
+let flat-key-levels = select l."key" as "key", l."glob" as "glob", r."slashes" as "slashes" from flat-key-roles as l join flat-key-depths as r on l."key" = r."key" and l."glob" = r."glob";
+let one-segment-key-roles = antijoin(left=flat-key-roles, right=flat-key-depths, left-on=["key", "glob"], right-on=["key", "glob"]);
+let entry-lists = select * from "entry" where glob_any(key, "{templates,specs,rules}");
+let elements = select r."occurrence" as "element" from entry-lists as l join "sequence-element" as r on l."occurrence" = r."owner";
+let definitions = select l."element" as "element", r."decoded" as "definition" from elements as l join "entry" as r on l."element" = r."owner" where glob_any(r."key", "{rule,spec,template}");
+let exclude-keys = select * from "entry" where key = "exclude";
+let entry-excludes = select l."occurrence" as "list", r."definition" as "by" from exclude-keys as l join definitions as r on l."owner" = r."element";
+let workspace-excludes = select l."occurrence" as "list", l."key" as "by" from "entry" as l where l."key" = "rules-exclude";
+let exclude-lists = union(left=entry-excludes, right=workspace-excludes);
+let exclude-items = select r."decoded" as "subject", r."kind" as "kind", r."file" as "file", r."span" as "span", l."by" as "by" from exclude-lists as l join "sequence-element" as r on l."list" = r."owner";
+let excludes = select l."subject" as "subject", l."file" as "file", l."span" as "span", l."by" as "by", l."by" as "key" from exclude-items as l where l."kind" = "string";
+let allowlisted = rows(from=$allowlist-keys, columns=["definition", "key"]);
+let params = select l."element" as "element", r."occurrence" as "params" from elements as l join "entry" as r on l."element" = r."owner" where r."key" = "params";
+let param-tables = select l."element" as "element", r."id" as "table" from params as l join "mapping" as r on l."params" = r."owner";
+let param-lists = select l."element" as "element", r."key" as "key", r."occurrence" as "list" from param-tables as l join "entry" as r on l."table" = r."owner";
+let keyed-lists = select l."key" as "key", l."list" as "list", r."definition" as "definition" from param-lists as l join definitions as r on l."element" = r."element";
+let read-lists = select l."key" as "key", l."list" as "list" from keyed-lists as l join allowlisted as r on l."definition" = r."definition" and l."key" = r."key";
+let items = select l."key" as "key", r."occurrence" as "item", r."kind" as "kind", r."decoded" as "decoded", r."file" as "file", r."span" as "span" from read-lists as l join "sequence-element" as r on l."list" = r."owner";
+let string-items = select l."key" as "key", l."decoded" as "subject", l."file" as "file", l."span" as "span" from items as l where l."kind" = "string";
+let table-items = select * from items where kind = "inline-mapping";
+let table-paths = select l."key" as "key", r."decoded" as "subject", l."file" as "file", l."span" as "span" from table-items as l join "entry" as r on l."item" = r."owner" where glob_any(r."key", "{file,path}");
+let item-paths = union(left=string-items, right=table-paths);
+let contracts = select * from item-paths where key = "test-contracts";
+let allowed-paths = antijoin(left=item-paths, right=contracts, left-on=["file", "span"], right-on=["file", "span"]);
+let allowed = select l."subject" as "subject", l."file" as "file", l."span" as "span", l."key" as "by", l."key" as "key" from allowed-paths as l;
+let read = union(left=excludes, right=allowed);
+let keyed-read = extend(from=read, values={"pair": 1});
+let deep-read = select * from keyed-read where glob_any(subject, "*[*][*]*");
+let flat-read = antijoin(left=keyed-read, right=deep-read, left-on=["file", "span"], right-on=["file", "span"]);
+let flat-read-splits = capture(from=flat-read, path="subject", pattern="{*head}/{*rest}", captures=["head", "rest"]);
+let flat-read-depths = group-count(from=flat-read-splits, keys=["file", "span"], count="slashes");
+let flat-read-levels = select l."subject" as "subject", l."file" as "file", l."span" as "span", l."key" as "key", l."pair" as "pair", r."slashes" as "slashes" from flat-read as l join flat-read-depths as r on l."file" = r."file" and l."span" = r."span";
+let one-segment-read = antijoin(left=flat-read, right=flat-read-depths, left-on=["file", "span"], right-on=["file", "span"]);
+let under-deep-roles = select l."file" as "file", l."span" as "span" from keyed-read as l join deep-roles as r on l."pair" = r."pair" where glob_any(l."subject", r."glob");
+let under-flat-roles = select l."file" as "file", l."span" as "span" from flat-read-levels as l join flat-role-levels as r on l."pair" = r."pair" and l."slashes" = r."slashes" where glob_any(l."subject", r."glob");
+let under-one-segment-roles = select l."file" as "file", l."span" as "span" from one-segment-read as l join one-segment-roles as r on l."pair" = r."pair" where glob_any(l."subject", r."glob");
+let under-deep-key-roles = select l."file" as "file", l."span" as "span" from allowed as l join deep-key-roles as r on l."key" = r."key" where glob_any(l."subject", r."glob");
+let under-flat-key-roles = select l."file" as "file", l."span" as "span" from flat-read-levels as l join flat-key-levels as r on l."key" = r."key" and l."slashes" = r."slashes" where glob_any(l."subject", r."glob");
+let under-one-segment-key-roles = select l."file" as "file", l."span" as "span" from one-segment-read as l join one-segment-key-roles as r on l."key" = r."key" where glob_any(l."subject", r."glob");
+let under-shared = union(left=under-deep-roles, right=under-flat-roles);
+let under-shared-roles = union(left=under-shared, right=under-one-segment-roles);
+let under-keys = union(left=under-deep-key-roles, right=under-flat-key-roles);
+let under-key-roles = union(left=under-keys, right=under-one-segment-key-roles);
+let covered = union(left=under-shared-roles, right=under-key-roles);
+let outside = antijoin(left=read, right=covered, left-on=["file", "span"], right-on=["file", "span"]);
+let outside-found = select l."file" as "file", l."span" as "span", l."subject" as "subject", l."by" as "by" from outside as l;
+let contract-roots = capture(from=contracts, path="subject", pattern="{root}::{rest}", captures=["root", "rest"]);
+let public = select * from contract-roots where concat(root, "::") in $public-roots;
+let internal = antijoin(left=contracts, right=public, left-on=["file", "span"], right-on=["file", "span"]);
+let internal-found = select l."file" as "file", l."span" as "span", l."subject" as "subject", l."key" as "by" from internal as l;
+let found = union(left=outside-found, right=internal-found);
+emit found subject "file" key("span");
+'''
+
+[params.role-globs]
+type = "list<table>"
+description = "Each `{ glob }` a role any rule about production code may leave out: tests, acceptance steps, fixtures and benches. A production role that only one allowlist admits (the literals `allowed-paths` lets `constants.rs` hold) is a `key-roles` pair of that key instead."
+
+[params.edge-composition-roles]
+type = "list<table>"
+description = "Each `{ glob }` a product's composition edge and a language's benchmark host, which name the parts they compose."
+
+[params.generated-roles]
+type = "list<table>"
+description = "Each `{ glob }` the files a build writes."
+
+[params.input-roots]
+type = "list<table>"
+description = "Each `{ glob }` the inputs a test reads, which hold any text."
+
+[params.allowlist-keys]
+type = "list<table>"
+description = "The path-valued params read as allowlists, `{ definition, key }`: the rule or spec as an entry names it (`idiomatic.arch/idiomatic-rust`) and its param (`allowed-paths`). Each item is a path glob, or a table whose `file` or `path` field is one; `test-contracts` items are paths of a crate's API."
+
+[params.key-roles]
+type = "list<table>"
+description = "A role that one key admits beside the shared ones, `{ key, glob }` (`heap-accounting-owners` admits `**/accounting/**`); it never admits an exclude."
+
+[params.public-roots]
+type = "set<string>"
+description = "The roots of the product's public API, each with its `::` (`ryo::`): a test contract starts at one of them."
+
+[diagnostic]
+primary = "span"
+message = "`{subject}` of `{by}` is a carve-out: an exclude or an allowlist item that lies in no role, or a test contract on a path outside the public API"
+help = "Give the code its role instead of hiding it: move a test into a test role, a fixture into a fixtures role, a composition into the edge, and the exclude or the allowlist item goes. A file a rule fights where the code is right is the rule's to fix, with a negative scenario. A test reaches the product through its public API, so a contract on an internal path is reshaped to the crate's factory, its interface or the SDK. A carve-out is never ignored in the source."
+
+[[scenarios]]
+id = "exclude-outside-the-roles"
+scenario = "An exclude that hides a language concept's collections, which no role holds, is reported."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/catch-all-names", include = ["**"], exclude = ["languages/*/src/domain/links/collections/**"] },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+then.findings = [{ path = "tastemaker.toml", line = 6 }]
+
+[[scenarios]]
+id = "exclude-of-a-crate"
+scenario = "An exclude that hides a whole crate is reported."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/catch-all-names", include = ["**"], exclude = ["crates/execution/**"] },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+then.findings = [{ path = "tastemaker.toml", line = 6 }]
+
+[[scenarios]]
+id = "workspace-rules-exclude-of-a-crate"
+scenario = "A workspace `rules-exclude` that hides a whole crate from every rule is reported."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", rules-exclude = ["crates/execution/**"], dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+then.findings = [{ path = "tastemaker.toml", line = 1 }]
+
+[[scenarios]]
+id = "narrower-glob-inside-a-role"
+scenario = "An exclude narrower than a role glob, `src/fixtures/**` inside `**/fixtures/**`, passes."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/catch-all-names", include = ["**"], exclude = ["src/fixtures/**"] },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+
+[[scenarios]]
+id = "exclude-of-a-role"
+scenario = "An exclude of the adapters from `catch-all-names` is reported: the adapters are no shared role."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/catch-all-names", include = ["**"], exclude = ["**/adapters/**"] },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+then.findings = [
+  { path = 'tastemaker.toml', line = 6 },
+]
+[[scenarios]]
+id = "exclude-of-test-inputs"
+scenario = "An exclude of a test's input fixtures, inside the input root, passes."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/catch-all-names", include = ["**"], exclude = ["languages/*/tests/fixtures/manifests/invalid-*/**"] },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+
+[[scenarios]]
+id = "exclude-of-an-acceptance-directory"
+scenario = "An `acceptance/` directory is no role: an exclude of it is reported."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/catch-all-names", include = ["**"], exclude = ["**/acceptance/**"] },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+then.findings = [{ path = "tastemaker.toml", line = 6 }]
+
+[[scenarios]]
+id = "exclude-of-the-composition-edge"
+scenario = "An exclude of the command line's manifest, the composition edge, passes."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/catch-all-names", include = ["**"], exclude = ["cli/Cargo.toml"] },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+
+[[scenarios]]
+id = "exclude-of-a-concept-directory"
+scenario = "A concept directory is no exclude role: an exclude of `crates/derived/**` is reported."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/catch-all-names", include = ["**"], exclude = ["crates/derived/**"] },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+then.findings = [{ path = "tastemaker.toml", line = 6 }]
+
+[[scenarios]]
+id = "key-role-is-no-exclude-role"
+scenario = "A key's own role, `**/accounting/**`, admits no exclude."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/catch-all-names", include = ["**"], exclude = ["**/accounting/**"] },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+then.findings = [{ path = "tastemaker.toml", line = 6 }]
+
+[[scenarios]]
+id = "allowlist-names-a-file"
+scenario = "An allowlist item that names one file is reported."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/no-heap-accounting", include = ["**/*.rs"], params = { owners = ["**/x/ledger.rs"] } },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+then.findings = [{ path = "tastemaker.toml", line = 6 }]
+
+[[scenarios]]
+id = "allowlist-of-the-key-role"
+scenario = "An allowlist item that is its key's own role passes."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/no-heap-accounting", include = ["**/*.rs"], params = { owners = ["**/accounting/**"] } },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+
+[[scenarios]]
+id = "allowlist-table-names-a-file"
+scenario = "A table item whose `file` names one production file is reported."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/entry-traits-witnessed", include = ["src/**"], params = { interfaces = ["src/x.rs"], witness = ["src/y.rs"], implementer = ["Witness"], non-entries = [{ trait = "Entry", why = "no root", file = "crates/x/src/application/y/service.rs" }] } },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+then.findings = [{ path = "tastemaker.toml", line = 6 }]
+
+[[scenarios]]
+id = "allowlist-table-with-no-path"
+scenario = "A table item with neither a `file` nor a `path` field is not read."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/entry-traits-witnessed", include = ["src/**"], params = { interfaces = ["src/x.rs"], witness = ["src/y.rs"], implementer = ["Witness"], non-entries = [{ trait = "Entry", why = "no root" }] } },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+
+[[scenarios]]
+id = "test-contract-on-an-internal-path"
+scenario = "A test contract on an internal crate's port is reported."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/test-imports", include = ["tests/**"], params = { allowed = [], test-contracts = [{ path = "ryo_execution_runtime::outbound::facts::interface::FactsPort" }] } },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+then.findings = [{ path = "tastemaker.toml", line = 6 }]
+
+[[scenarios]]
+id = "test-contract-on-the-public-api"
+scenario = "A test contract on the product's public API passes."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/test-imports", include = ["tests/**"], params = { allowed = [], test-contracts = [{ path = "ryo::Engine" }] } },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+
+[[scenarios]]
+id = "single-star-does-not-cover-a-double-star"
+scenario = "A role segment `*` matches one segment and never a `**`: `src/**/x.rs` does not lie in `src/*/x.rs`."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "src/*/x.rs" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/catch-all-names", include = ["**"], exclude = ["src/**/x.rs"] },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+then.findings = [{ path = "tastemaker.toml", line = 6 }]
+
+[[scenarios]]
+id = "single-star-covers-one-segment"
+scenario = "A role segment `*` matches one segment of the glob: `src/a/b/x.rs` does not lie in `src/*/x.rs`."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "src/*/x.rs" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/catch-all-names", include = ["**"], exclude = ["src/a/b/x.rs"] },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+then.findings = [{ path = "tastemaker.toml", line = 6 }]
+
+[[scenarios]]
+id = "single-star-covers-a-single-star"
+scenario = "A role segment `*` matches a segment of the glob that holds a `*`: `src/*/x.rs` lies in `src/*/x.rs`."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "src/*/x.rs" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/catch-all-names", include = ["**"], exclude = ["src/*/x.rs"] },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+[[scenarios]]
+id = "exclude-of-a-factory"
+scenario = "An exclude of `**/factory.rs` is reported: a port's factory and an edge's composition are production code, no role a rule may leave out."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/catch-all-names", include = ["**"], exclude = ["**/factory.rs"] },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+then.findings = [
+  { path = 'tastemaker.toml', line = 6 },
+]
+[[scenarios]]
+id = "exclude-of-a-composition"
+scenario = "An exclude of `**/composition.rs` is reported: a port's factory and an edge's composition are production code, no role a rule may leave out."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+variables = { role-globs = [{ glob = "**/*_test.rs" }, { glob = "**/*_test/**" }, { glob = "**/test.rs" }, { glob = "**/tests.rs" }, { glob = "**/tests/**" }, { glob = "**/tests/bdd.rs" }, { glob = "**/tests/allocation.rs" }, { glob = "**/acceptance.rs" }, { glob = "**/fixtures/**" }, { glob = "**/fixtures.rs" }, { glob = "**/benches/**" }], edge = [{ glob = "cli/Cargo.toml" }, { glob = "cli/build.rs" }, { glob = "cli/src/**" }, { glob = "**/benchmarks/provider/**" }], generated = [{ glob = "**/src/languages.rs" }, { glob = "**/src/tastemaker.toml" }], inputs = [{ glob = "**/tests/fixtures/**" }], keys = [{ definition = "idiomatic.arch/no-heap-accounting", key = "owners" }, { definition = "idiomatic.arch/entry-traits-witnessed", key = "non-entries" }, { definition = "idiomatic.arch/test-imports", key = "test-contracts" }], key-roles = [{ key = "owners", glob = "**/accounting/**" }], public = ["ryo::", "ryo_sdk::"] }
+rules = [
+  { rule = "idiomatic.arch/manifest-excludes", include = ["**/tastemaker.toml"], params = { role-globs = { variable = "role-globs" }, edge-composition-roles = { variable = "edge" }, generated-roles = { variable = "generated" }, input-roots = { variable = "inputs" }, allowlist-keys = { variable = "keys" }, key-roles = { variable = "key-roles" }, public-roots = { variable = "public" } } },
+  { rule = "idiomatic.arch/catch-all-names", include = ["**"], exclude = ["**/composition.rs"] },
+]
+'''
+then.only = ["idiomatic.arch/manifest-excludes"]
+then.findings = [
+  { path = 'tastemaker.toml', line = 6 },
+]

@@ -1,0 +1,57 @@
+//! Each flag is read once into the typed choice it names.
+use super::constants::{
+    CASE_RECEIPT_DESTINATION_MUST_BE_N, DUPLICATE_CASE_SHARD_ARGUMENT, EXPECTED_SHARD_INDEX_COUNT,
+    INVALID_CASE_SHARD_COUNT, INVALID_CASE_SHARD_INDEX, SHARD, SHARD_SEPARATOR,
+    UNEXPECTED_VERIFY_CASES_ARGUMENT,
+};
+use super::types::{CaseArgument, CaseRun};
+use crate::outbound::receipts::types::CaseReceipts;
+use ryo_benchmark_contracts::domain::receipts::constants::CASE_RECEIPTS_ARGUMENT;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::{
+    ShardPartition,
+    case_shard::value::{CaseShard, ShardCount, ShardIndex},
+};
+use std::path::PathBuf;
+
+/// Read every flag of one verification run.
+pub(super) fn select(arguments: &[CaseArgument]) -> Result<CaseRun, Error> {
+    let mut case_receipts = None;
+    let mut shard = ShardPartition::All;
+    for argument in arguments {
+        if let Some(path) = argument.0.strip_prefix(CASE_RECEIPTS_ARGUMENT) {
+            if path.is_empty() || case_receipts.replace(PathBuf::from(path)).is_some() {
+                return Err(Error::Invalid(CASE_RECEIPT_DESTINATION_MUST_BE_N.into()));
+            }
+        } else if argument.0.starts_with(SHARD) {
+            if !matches!(shard, ShardPartition::All) {
+                return Err(Error::Invalid(DUPLICATE_CASE_SHARD_ARGUMENT.into()));
+            }
+            shard = ShardPartition::Shard(parse_shard(argument)?);
+        } else {
+            return Err(Error::Invalid(UNEXPECTED_VERIFY_CASES_ARGUMENT.into()));
+        }
+    }
+    Ok(CaseRun {
+        receipts: case_receipts.map_or(CaseReceipts::Unrecorded, CaseReceipts::Recorded),
+        shard,
+    })
+}
+
+/// Parse explicit zero-based shard coordinates using the validated application type.
+fn parse_shard(argument: &CaseArgument) -> Result<CaseShard, Error> {
+    let coordinates = argument
+        .0
+        .strip_prefix(SHARD)
+        .ok_or_else(|| Error::Invalid(EXPECTED_SHARD_INDEX_COUNT.into()))?;
+    let (index, count) = coordinates
+        .split_once(SHARD_SEPARATOR)
+        .ok_or_else(|| Error::Invalid(EXPECTED_SHARD_INDEX_COUNT.into()))?;
+    let index = index
+        .parse::<usize>()
+        .map_err(|_invalid_index| Error::Invalid(INVALID_CASE_SHARD_INDEX.into()))?;
+    let count = count
+        .parse::<usize>()
+        .map_err(|_invalid_count| Error::Invalid(INVALID_CASE_SHARD_COUNT.into()))?;
+    CaseShard::new(ShardIndex(index), ShardCount(count))
+}

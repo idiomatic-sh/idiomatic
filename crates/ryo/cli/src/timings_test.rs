@@ -182,7 +182,10 @@ fn a_query_run_reports_rows_of_ryo_itself() {
     let tree = super::TimingsTree::default();
     let subscriber = tracing_subscriber::registry().with(tree.clone());
     let request = LintRequest {
+        source_language: ryo_core::inbound::use_cases::lint::types::SourceProvider::Recognized,
         session: ryo_values::domain::runs::types::Session {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: ryo_language::inbound::use_cases::project::types::RootPath(
                 "tests/fixtures/sample".into(),
@@ -190,16 +193,20 @@ fn a_query_run_reports_rows_of_ryo_itself() {
         },
         files: Vec::new(),
         rules: vec![Rule {
+            observations: Vec::new(),
             id: RuleId("1".into()),
-            query: ryo_values::domain::plan_parts::types::QueryText(
-                "let f = select * from \"function\"; emit f subject file key(span);".into(),
+            query: ryo_values::domain::query_tokens::types::QueryBundle::from(
+                ryo_values::domain::plan_parts::types::QueryText(
+                    "let f = select * from \"function\"; emit f subject file key(span);".into(),
+                ),
             ),
+            applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
             parameters: Vec::new(),
             include: Vec::new(),
             exclude: Vec::new(),
         }],
         hosted: Vec::new(),
-        answer: AnswerShape::Rows(ryo_values::domain::records::types::RowTotal(20)),
+        answer: AnswerShape::Rows(ryo_values::domain::row_texts::types::RowTotal(20)),
     };
     tracing::subscriber::with_default(subscriber, || {
         let _report = crate::resources::query::run::composition::build(
@@ -207,6 +214,7 @@ fn a_query_run_reports_rows_of_ryo_itself() {
             &crate::resources::edge_at(
                 ryo_language::inbound::use_cases::project::types::RootPath(".".into()),
                 ryo_language::inbound::use_cases::project::types::RootPath(".".into()),
+                ryo_values::domain::runs::types::MachineWorkers(1),
                 crate::output::Format::Terminal,
             ),
             ryo_core::outbound::lint_store::types::Store::default(),

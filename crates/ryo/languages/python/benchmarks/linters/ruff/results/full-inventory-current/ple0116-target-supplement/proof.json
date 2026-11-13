@@ -1,0 +1,43 @@
+{
+ "all_target_totals": {
+  "documented_discrepancies": 0,
+  "intended": 12,
+  "raw_exact": 12
+ },
+ "controls_sha256": "52d8906c1a01f528de34b9f06a6f4d123713596c275089c001eddf191fbe29fa",
+ "default_case_results_sha256": {
+  "PLE0116": "11a5406bba8a04c9ba2086b59327425f0f6da0a68e51c9fc19cb244ff106049f"
+ },
+ "default_target_totals": {
+  "documented_discrepancies": 0,
+  "intended": 12,
+  "raw_exact": 12
+ },
+ "direct_negative_requirements": {
+  "PLE0116": [
+   "py310"
+  ]
+ },
+ "identity": {
+  "collector_sha256": "68af3283c411ebf816ebae148f4f137c2f366693dd3a5d3004e6d7dbffa94fd0",
+  "inventory_sha256": "02816f355dcbf13771a5dfdecb13ada8ddbde121049326efc466c9986db3b1d4",
+  "phase_registry_sha256": "4520b056ef5c94924be98477ee160c5405ddb9d4dc92dd40f72e78a23f959f0c",
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "worker_sha256": "bde1335bd1a8031cc8f2310f48b5b0baad182c8190c09e4d6dad0c8f8a99019b"
+ },
+ "prior_summaries_sha256": {
+  "summary.json": "a3eae09e90dcb4a2d7a88bb7e76fddc9888b31648133838fcb1edee3b11e6f91"
+ },
+ "provenance_sha256": "a00bca236c50a796ecda56e3ae573f488a56cfdf82c597f0732595229c936f47",
+ "raw_receipts_sha256": "dcdb6bf38ccd56ffb3dbe17e2f6e232fa563e9e8d3c4e7b070c5b63d5b24a70b",
+ "requirements": {
+  "PLE0116": [
+   "py37"
+  ]
+ },
+ "rule_ids": [
+  "PLE0116"
+ ],
+ "schema": "benchmark-inventory-target-supplement/v1",
+ "summary_sha256": "eb73abf67a82eb402aefdc69675b90e3a468b83866a449f071a256c4922b84b0"
+}

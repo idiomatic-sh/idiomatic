@@ -1,0 +1,174 @@
+[[cases]]
+name = "same-name"
+comparison = "full"
+files = { "case.py" = "x and not x\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 0, end = 11 }]
+
+[[cases]]
+name = "duplicate-pairs"
+comparison = "full"
+files = { "case.py" = "x and not x and not x\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 0, end = 21 }, { rule = "SIM220", file = "case.py", start = 0, end = 21 }]
+
+[[cases]]
+name = "builtin-empty-list-is-pure"
+comparison = "full"
+files = { "case.py" = "x and not x and list()\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 0, end = 22 }]
+
+[[cases]]
+name = "builtin-empty-tuple-is-pure"
+comparison = "full"
+files = { "case.py" = "x and not x and tuple()\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 0, end = 23 }]
+
+[[cases]]
+name = "shadowed-list-is-effectful"
+comparison = "full"
+files = { "case.py" = "list = []; x and not x and list()\n" }
+expected = []
+
+[[cases]]
+name = "call-is-effectful"
+comparison = "full"
+files = { "case.py" = "x and not x and call()\n" }
+expected = []
+
+[[cases]]
+name = "literal-binop-is-pure"
+comparison = "full"
+files = { "case.py" = "x and not x and (1 + 2)\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 0, end = 23 }]
+
+[[cases]]
+name = "name-binop-is-effectful"
+comparison = "full"
+files = { "case.py" = "x and not x and (y + 2)\n" }
+expected = []
+
+[[cases]]
+name = "named-expression-is-effectful"
+comparison = "full"
+files = { "case.py" = "x and not x and (y := 1)\n" }
+expected = []
+
+[[cases]]
+name = "subscript-is-effectful"
+comparison = "full"
+files = { "case.py" = "x and not x and obj[0]\n" }
+expected = []
+
+[[cases]]
+name = "f-string-name-is-not-effectful"
+comparison = "full"
+files = { "case.py" = "x and not x and f\"{y}\"\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 0, end = 22 }]
+
+[[cases]]
+name = "f-string-call-is-effectful"
+comparison = "full"
+files = { "case.py" = "x and not x and f\"{call()}\"\n" }
+expected = []
+
+[[cases]]
+name = "inline-noqa"
+comparison = "full"
+files = { "case.py" = "# noqa: SIM220\nx and not x\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 15, end = 26 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: SIM220\nx and not x\n" }
+expected = []
+
+[[cases]]
+name = "all-pairs-keep-multiplicity"
+comparison = "full"
+files = { "case.py" = "x and y and not x and not y\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 0, end = 27 }, { rule = "SIM220", file = "case.py", start = 0, end = 27 }]
+
+[[cases]]
+name = "lambda-body-call-is-effectful"
+comparison = "full"
+files = { "case.py" = "x and not x and (lambda: call())\n" }
+expected = []
+
+[[cases]]
+name = "imported-alias-empty-constructor-is-call"
+comparison = "full"
+files = { "case.py" = "from builtins import list as make_list\nx and not x and make_list()\n" }
+expected = []
+
+[[cases]]
+name = "qualified-builtins-attribute-is-call"
+comparison = "full"
+files = { "case.py" = "import builtins\nx and not x and builtins.list()\n" }
+expected = []
+
+[[cases]]
+name = "inner-lambda-shadow-does-not-change-enclosing-builtin-check"
+comparison = "full"
+files = { "case.py" = "x and not x and (lambda list: list())\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 0, end = 37 }]
+
+[[cases]]
+name = "enclosing-function-shadow-applies-inside-lambda"
+comparison = "full"
+files = { "case.py" = "def f(list):\n    x and not x and (lambda: list())\n" }
+expected = []
+
+[[cases]]
+name = "lambda-body-ordinary-call-is-effectful"
+comparison = "full"
+files = { "case.py" = "x and not x and (lambda: work())\n" }
+expected = []
+
+
+[[cases]]
+name = "conditional-shadow-before-check"
+comparison = "full"
+files = { "case.py" = "if flag:\n    list = custom\nx and not x and (lambda list: list())\n" }
+expected = []
+
+[[cases]]
+name = "annotation-before-check-is-skipped"
+comparison = "full"
+files = { "case.py" = "list: object\nx and not x and (lambda list: list())\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 13, end = 50 }]
+
+[[cases]]
+name = "delete-before-check-blocks-builtin"
+comparison = "full"
+files = { "case.py" = "list = custom\ndel list\nx and not x and (lambda list: list())\n" }
+expected = []
+
+[[cases]]
+name = "function-local-assignment-after-check"
+comparison = "full"
+files = { "case.py" = "def f():\n    x and not x and (lambda list: list())\n    list = custom\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 13, end = 50 }]
+
+[[cases]]
+name = "module-binding-after-function-before-deferred-check"
+comparison = "full"
+files = { "case.py" = "def f():\n    x and not x and (lambda list: list())\nlist = custom\n" }
+expected = []
+
+[[cases]]
+name = "nested-class-skips-outer-class-binding"
+comparison = "full"
+files = { "case.py" = "class Outer:\n    list = custom\n    class Inner:\n        x and not x and (lambda list: list())\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 56, end = 93 }]
+
+[[cases]]
+name = "function-in-class-skips-class-binding"
+comparison = "full"
+files = { "case.py" = "class C:\n    list = custom\n    def f(self):\n        x and not x and (lambda list: list())\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 52, end = 89 }]
+
+[[cases]]
+name = "current-class-binding-is-visible"
+comparison = "full"
+files = { "case.py" = "class C:\n    list = custom\n    x and not x and (lambda list: list())\n" }
+expected = []

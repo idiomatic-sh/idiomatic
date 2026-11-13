@@ -1,0 +1,71 @@
+[[cases]]
+comparison = "full"
+name = "direct-finally"
+files = { "case.py" = "while True:\n    try:\n        pass\n    finally:\n        continue\n" }
+expected = [{ rule = "PLE0116", file = "case.py", start = 55, end = 63 }]
+
+[[cases]]
+comparison = "full"
+name = "if-branch"
+files = { "case.py" = "while True:\n    try:\n        pass\n    finally:\n        if ready:\n            continue\n" }
+expected = [{ rule = "PLE0116", file = "case.py", start = 77, end = 85 }]
+
+[[cases]]
+comparison = "full"
+name = "if-else"
+files = { "case.py" = "while True:\n    try:\n        pass\n    finally:\n        if ready:\n            pass\n        else:\n            continue\n" }
+expected = [{ rule = "PLE0116", file = "case.py", start = 108, end = 116 }]
+
+[[cases]]
+comparison = "full"
+name = "nested-try-body"
+files = { "case.py" = "while True:\n    try:\n        pass\n    finally:\n        try:\n            continue\n        except Exception:\n            pass\n" }
+expected = [{ rule = "PLE0116", file = "case.py", start = 72, end = 80 }]
+
+[[cases]]
+comparison = "full"
+name = "nested-try-else"
+files = { "case.py" = "while True:\n    try:\n        pass\n    finally:\n        try:\n            pass\n        except Exception:\n            pass\n        else:\n            continue\n" }
+expected = [{ rule = "PLE0116", file = "case.py", start = 146, end = 154 }]
+
+[[cases]]
+comparison = "full"
+name = "with-body"
+files = { "case.py" = "while True:\n    try:\n        pass\n    finally:\n        with resource:\n            continue\n" }
+expected = [{ rule = "PLE0116", file = "case.py", start = 82, end = 90 }]
+
+[[cases]]
+comparison = "full"
+name = "loop-body-excluded"
+files = { "case.py" = "while True:\n    try:\n        pass\n    finally:\n        while ready:\n            continue\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "loop-else"
+files = { "case.py" = "while True:\n    try:\n        pass\n    finally:\n        while ready:\n            break\n        else:\n            continue\n" }
+expected = [{ rule = "PLE0116", file = "case.py", start = 112, end = 120 }]
+
+[[cases]]
+comparison = "full"
+name = "nested-function-excluded"
+files = { "case.py" = "while True:\n    try:\n        pass\n    finally:\n        def inner():\n            while True:\n                continue\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "outside-finally"
+files = { "case.py" = "while True:\n    continue\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "same-line-noqa"
+files = { "case.py" = "while True:\n    try:\n        pass\n    finally:\n        continue  # noqa: PLE0116\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "full-upstream-continue_in_finally.py"
+files = { "continue_in_finally.py" = "while True:\n    try:\n        pass\n    finally:\n        continue  # [continue-in-finally]\n\nwhile True:\n    try:\n        pass\n    except Exception:\n        continue\n    finally:\n        try:\n            pass\n        finally:\n            continue  # [continue-in-finally]\n        pass\n\nwhile True:\n    try:\n        pass\n    finally:\n        test = \"aa\"\n        match test:\n            case \"aa\":\n                continue  # [continue-in-finally]\n\nwhile True:\n    try:\n        pass\n    finally:\n        with \"aa\" as f:\n            continue  # [continue-in-finally]\n\nwhile True:\n    try:\n        pass\n    finally:\n        if True:\n            continue  # [continue-in-finally]\n        continue  # [continue-in-finally]\n\n        def test():\n            while True:\n                continue\n            try:\n                pass\n            finally:\n                continue  # [continue-in-finally]\n\n\nwhile True:\n    try:\n        pass\n    finally:\n        continue  # [continue-in-finally]\n\n        def test():\n            while True:\n                continue\n\n\nwhile True:\n    try:\n        pass\n    finally:\n        for i in range(12):\n            continue\n        continue  # [continue-in-finally]\n\n        while True:\n            pass\n        else:\n            continue  # [continue-in-finally]\n\n        def test():\n            continue\n            while True:\n                continue\n\n\nwhile True:\n    try:\n        pass\n    finally:\n        if True:\n            pass\n        elif False:\n            continue  # [continue-in-finally]\n        else:\n            continue  # [continue-in-finally]\n            for i in range(10):\n                pass\n            else:\n                continue  # [continue-in-finally]\n" }
+expected = [{ rule = "PLE0116", file = "continue_in_finally.py", start = 55, end = 63 }, { rule = "PLE0116", file = "continue_in_finally.py", start = 235, end = 243 }, { rule = "invalid-syntax", file = "continue_in_finally.py", start = 358, end = 363 }, { rule = "PLE0116", file = "continue_in_finally.py", start = 409, end = 417 }, { rule = "PLE0116", file = "continue_in_finally.py", start = 527, end = 535 }, { rule = "PLE0116", file = "continue_in_finally.py", start = 638, end = 646 }, { rule = "PLE0116", file = "continue_in_finally.py", start = 680, end = 688 }, { rule = "PLE0116", file = "continue_in_finally.py", start = 859, end = 867 }, { rule = "PLE0116", file = "continue_in_finally.py", start = 950, end = 958 }, { rule = "PLE0116", file = "continue_in_finally.py", start = 1160, end = 1168 }, { rule = "PLE0116", file = "continue_in_finally.py", start = 1258, end = 1266 }, { rule = "PLE0116", file = "continue_in_finally.py", start = 1498, end = 1506 }, { rule = "PLE0116", file = "continue_in_finally.py", start = 1558, end = 1566 }, { rule = "PLE0116", file = "continue_in_finally.py", start = 1679, end = 1687 }]

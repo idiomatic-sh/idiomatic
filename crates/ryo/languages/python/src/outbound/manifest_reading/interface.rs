@@ -1,9 +1,9 @@
 //! What the `manifest_reading` port asks of the outside: what the text of a manifest declares.
 
-use crate::domain::packages::types::Declared;
+use crate::domain::manifest_validation::types::MetadataDemand;
 
-use super::errors::ManifestReadingError;
 use super::types::Claim;
+use super::types::ManifestRead;
 use ryo::languages::{FilePath, ManifestFile, ManifestName};
 
 /// What every `project` adapter implements: one package manager's manifests.
@@ -20,5 +20,5 @@ pub(crate) trait ManifestReadingPort: Send + Sync {
     /// # Errors
     ///
     /// `Unreadable` when the text is not a manifest the tool can read.
-    fn declared(&self, manifest: &ManifestFile) -> Result<Declared, ManifestReadingError>;
+    fn read(&self, manifest: &ManifestFile, demand: MetadataDemand) -> ManifestRead;
 }

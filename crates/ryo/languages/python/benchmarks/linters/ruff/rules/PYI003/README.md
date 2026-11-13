@@ -1,0 +1,7 @@
+# PYI003 pinned policy
+
+The query follows Ruff 0.16.5 source and its checker caller; PYI003 and PYI004 share the exact single-comparison version-check dispatch and accepted index/slice/RHS shapes. PYI015 implements both annotated and unannotated assignment branches, scope barriers, special names, typing exemptions, simple defaults, and the restricted unannotated union grammar.
+
+All 11 prior live-integration controls are retained unchanged. The 44-case scoped profile passes on actual frozen worker `65b5a3933be11bb735c9bfb805451ee378581bec1831daf245d3d37e92e5d94b`, with 88 complete contestant records and zero unknown/unread outcomes. Controls include the exact tagged upstream fixture, final immutable cross-rule failures, and source-policy boundary examples. Full 310-rule expected arrays are retained separately in `cross-profile-cases.toml`. Scoped profile results do not imply full-report parity.
+
+A combined candidate-only replay of all 25 distinct final PYI003/PYI004/PYI015 affected sources selected the full frozen 310-query inventory plus these fixes and F821, paired against sealed reference records: 50 complete records, zero unknown/unread/skipped pairs, zero differences for these three rules. Twenty-four complete reports match exactly; the retained remaining report contains only three old F811 findings in the PYI066 tagged stub fixture. Evidence: `pyi-three-final-full310-sol/{cases.jsonl,result.json}`; scoped evidence: `pyi003-sol-seven/cases.jsonl`.

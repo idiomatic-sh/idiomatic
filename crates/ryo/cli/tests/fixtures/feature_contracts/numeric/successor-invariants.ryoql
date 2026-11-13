@@ -1,0 +1,8 @@
+let tokens = select id, file, span, text from "syntax-tree" where text != "";
+let one_byte = select id, file, span from tokens where matches(text, "^[\x00-\x7f]$");
+let bounds = select l.id as id, l.file as file, l.span as span, r."start-byte" as begin, r."end-byte" as finish from tokens as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let successive = select id, file, span from bounds where integer_successor(begin, finish);
+let missing = antijoin(left=one_byte, right=successive, left-on=["id", "file"], right-on=["id", "file"]);
+let spurious = antijoin(left=successive, right=one_byte, left-on=["id", "file"], right-on=["id", "file"]);
+let invalid = union(left=missing, right=spurious);
+emit invalid subject file key(id, span);

@@ -1,0 +1,284 @@
+# Full pinned fixture retained; Unicode/target standard-language controls require explicit reference evidence before proof.
+
+[[cases]]
+name = "upstream-complete-fixture"
+comparison = "full"
+files = { "bad_string_format_character.py" = "# pylint: disable=missing-docstring,consider-using-f-string, pointless-statement\n\n## Old style formatting\n\n\"%s %z\" % (\"hello\", \"world\")  # [bad-format-character]\n\n\"%s\" \"%z\" % (\"hello\", \"world\")  # [bad-format-character]\n\n\"\"\"%s %z\"\"\" % (\"hello\", \"world\")  # [bad-format-character]\n\n\"\"\"%s\"\"\" \"\"\"%z\"\"\" % (\"hello\", \"world\")  # [bad-format-character]\n\n## New style formatting\n\n\"{:s} {:y}\".format(\"hello\", \"world\")  # [bad-format-character]\n\n\"{:*^30s}\".format(\"centered\") # OK\n\"{:{s}}\".format(\"hello\", s=\"s\")  # OK (nested placeholder value not checked)\n\"{:{s:y}}\".format(\"hello\", s=\"s\")  # [bad-format-character] (nested placeholder format spec checked)\n\"{0:.{prec}g}\".format(1.23, prec=15)  # OK (cannot validate after nested placeholder)\n\"{0:.{foo}{bar}{foobar}y}\".format(...)  # OK (cannot validate after nested placeholders)\n\"{0:.{foo}x{bar}y{foobar}g}\".format(...)  # OK (all nested placeholders are consumed without considering in between chars)\n\n## f-strings\n\nH, W = \"hello\", \"world\"\nf\"{H} {W}\"\nf\"{H:s} {W:z}\"  # [bad-format-character]\n\nf\"{1:z}\"  # [bad-format-character]\n\n## Supporting concatenated strings\n\nprint((\"%\" \"z\") % 1)\n\n## `%b` is only valid for bytes formatting.\n\"%b\" % b\"25\"\nb\"%b\" % b\"25\"\n" }
+expected = [{"rule" = "PLE1300", "file" = "bad_string_format_character.py", "start" = 107, "end" = 135}, {"rule" = "PLE1300", "file" = "bad_string_format_character.py", "start" = 163, "end" = 193}, {"rule" = "PLE1300", "file" = "bad_string_format_character.py", "start" = 221, "end" = 253}, {"rule" = "PLE1300", "file" = "bad_string_format_character.py", "start" = 281, "end" = 319}, {"rule" = "PLE1300", "file" = "bad_string_format_character.py", "start" = 372, "end" = 408}, {"rule" = "PLE1300", "file" = "bad_string_format_character.py", "start" = 548, "end" = 581}, {"rule" = "PLE1300", "file" = "bad_string_format_character.py", "start" = 1117, "end" = 1130}, {"rule" = "PLE1300", "file" = "bad_string_format_character.py", "start" = 1177, "end" = 1189}]
+
+[[cases]]
+name = "percent-invalid"
+comparison = "full"
+files = { "case.py" = "'%q' % 1\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 0, "end" = 8}]
+
+[[cases]]
+name = "percent-joined"
+comparison = "full"
+files = { "case.py" = "'%' 'q' % 1\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 0, "end" = 11}]
+
+[[cases]]
+name = "percent-decoded-escape"
+comparison = "full"
+files = { "case.py" = "'%\\x71' % 1\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 0, "end" = 11}]
+
+[[cases]]
+name = "percent-bytes-type-invalid-for-text"
+comparison = "full"
+files = { "case.py" = "'%b' % b'x'\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 0, "end" = 11}]
+
+[[cases]]
+name = "percent-bytes-type-valid-for-bytes"
+comparison = "full"
+files = { "case.py" = "b'%b' % b'x'\n" }
+expected = []
+
+[[cases]]
+name = "percent-bytes-receiver-skipped"
+comparison = "full"
+files = { "case.py" = "b'%q' % b'x'\n" }
+expected = []
+
+[[cases]]
+name = "percent-supported"
+comparison = "full"
+files = { "case.py" = "'%s' % 1\n" }
+expected = []
+
+[[cases]]
+name = "percent-escaped"
+comparison = "full"
+files = { "case.py" = "'%%q' % ()\n" }
+expected = []
+
+[[cases]]
+name = "percent-other-malformation"
+comparison = "full"
+files = { "case.py" = "'%' % 1\n" }
+expected = []
+
+[[cases]]
+name = "percent-first-invalid-only"
+comparison = "full"
+files = { "case.py" = "'%q %z' % (1,2)\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 0, "end" = 15}]
+
+[[cases]]
+name = "brace-invalid"
+comparison = "full"
+files = { "case.py" = "'{:q}'.format(1)\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 0, "end" = 16}]
+
+[[cases]]
+name = "brace-joined"
+comparison = "full"
+files = { "case.py" = "'{:' 'q}'.format(1)\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 0, "end" = 19}]
+
+[[cases]]
+name = "brace-decoded-escape"
+comparison = "full"
+files = { "case.py" = "'{:\\x71}'.format(1)\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 0, "end" = 19}]
+
+[[cases]]
+name = "brace-valid"
+comparison = "full"
+files = { "case.py" = "'{:🦀>8.2f}'.format(1.2)\n" }
+expected = []
+
+[[cases]]
+name = "brace-empty"
+comparison = "full"
+files = { "case.py" = "'{:}'.format(1)\n" }
+expected = []
+
+[[cases]]
+name = "brace-no-spec"
+comparison = "full"
+files = { "case.py" = "'{}'.format(1)\n" }
+expected = []
+
+[[cases]]
+name = "brace-malformed"
+comparison = "full"
+files = { "case.py" = "'{:q'.format(1)\n" }
+expected = []
+
+[[cases]]
+name = "brace-structural-error"
+comparison = "full"
+files = { "case.py" = "'{:.2fa}'.format(1)\n" }
+expected = []
+
+[[cases]]
+name = "brace-trailing-unknown-type"
+comparison = "full"
+files = { "case.py" = "'{:qabc}'.format(1)\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 0, "end" = 19}]
+
+[[cases]]
+name = "brace-two-invalid-fields"
+comparison = "full"
+files = { "case.py" = "'{:q}{:y}'.format(1,2)\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 0, "end" = 22}, {"rule" = "PLE1300", "file" = "case.py", "start" = 0, "end" = 22}]
+
+[[cases]]
+name = "brace-dynamic-outer"
+comparison = "full"
+files = { "case.py" = "'{0:.{width}q}'.format(1,width=3)\n" }
+expected = []
+
+[[cases]]
+name = "brace-nested-invalid"
+comparison = "full"
+files = { "case.py" = "'{0:{width:q}}'.format(1,width=3)\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 0, "end" = 33}]
+
+[[cases]]
+name = "brace-nested-valid"
+comparison = "full"
+files = { "case.py" = "'{0:{width:d}}'.format(1,width=3)\n" }
+expected = []
+
+[[cases]]
+name = "bare-literal-no-call"
+comparison = "full"
+files = { "case.py" = "'{:q}'\n" }
+expected = []
+
+[[cases]]
+name = "assigned-format-receiver"
+comparison = "full"
+files = { "case.py" = "text = '{:q}'\ntext.format(1)\n" }
+expected = []
+
+[[cases]]
+name = "unknown-format-receiver"
+comparison = "full"
+files = { "case.py" = "text.format(1)\n" }
+expected = []
+
+[[cases]]
+name = "format-map-distinct-policy"
+comparison = "full"
+files = { "case.py" = "'{x:q}'.format_map({'x':1})\n" }
+expected = []
+
+[[cases]]
+name = "fstring-distinct-policy"
+comparison = "full"
+files = { "case.py" = "f'{1:q}'\n" }
+expected = []
+
+[[cases]]
+name = "fstring-format-receiver-distinct-policy"
+comparison = "full"
+files = { "case.py" = "f'{{:q}}'.format(1)\n" }
+expected = []
+
+[[cases]]
+name = "brace-no-arguments"
+comparison = "full"
+files = { "case.py" = "'{:q}'.format()\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 0, "end" = 15}]
+
+[[cases]]
+name = "brace-custom-format-policy"
+comparison = "full"
+files = { "case.py" = "class Custom:\n    def __format__(self, spec):\n        return 'accepted:' + spec\n'{:q}'.format(Custom())\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "end" = 103, "file" = "case.py", "rule" = "PLE1300", "start" = 80 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "76286ff7a70c7556f89975a22d0e0fbdd501c1da22d710ef2cc630a3052ff036", "settings-sha256" = "a4f5e574d2bd30fed1e36690551310cb378eea225d3efcfae9b1a4112019c24d", "source-sha256" = "74573a8a3ebb31be20051cc5bc4ce3d26490f6b2a8796c1ec67efc6663284356", "reference-output-sha256" = "71a30ca90e908f7f72976124d33f373c756202d8c8301b5a77a6358016309b76", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/python-format-controls.py", "sha256" = "d61d55c67d78095868cb6ace6f7788d0aabc7b6a002f361fc5f61a2a0b0904b2", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The saved script was executed by actual CPython3.10.19, matching the configured target. It independently checks Unicode decimal width/precision against ASCII equivalents, custom __format__ q acceptance, builtin q and converted custom !s q refusal; the additional separately labeled CPython3.14 z control is not evidence of a Python3.11 execution." }, { "path" = "evidence/python-format-controls-results.json", "sha256" = "df573d17dcc24a4477de3dc5db227260f15b933c288e689b3c4f6d07a008f5e2", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The saved script was executed by actual CPython3.10.19, matching the configured target. It independently checks Unicode decimal width/precision against ASCII equivalents, custom __format__ q acceptance, builtin q and converted custom !s q refusal; the additional separately labeled CPython3.14 z control is not evidence of a Python3.11 execution." }, { "path" = "evidence/exact-source-controls.py", "sha256" = "5e868aabbb3b78ae1672d78574a5912d73397121a3a45f076b3379d18b01c126", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-inputs.json", "sha256" = "6bcca714b34f504e8dc063271bd0cb91f8aff2fb580b92deda9743a05909cca5", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-results.json", "sha256" = "66250adf34d407638f909ce1be7747720374d9d7c06ff23272a7ea041e590770", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-invocation.json", "sha256" = "9bde902ce366c830f2bca3df037a5c16949d22f9d00d278a127b923ba4ffd16c", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }], "reason" = "Exact custom-format protocol discrepancy: a locally defined __format__ determines the grammar for this field, so an unsupported standard presentation type alone does not establish an invalid custom format. Actual CPython3.10.19 independently demonstrates this custom q acceptance and builtin/conversion rejection. Preserve Ruff full output, including both findings in the mixed custom/builtin case; intended output retains the separate builtin field. This is a field-specific unknown-protocol guard, not a claim that every custom implementation accepts q." }
+
+[[cases]]
+name = "unicode-decimal-width"
+comparison = "full"
+files = { "case.py" = "'{:٣d}'.format(1)\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "end" = 18, "file" = "case.py", "rule" = "PLE1300", "start" = 0 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "76286ff7a70c7556f89975a22d0e0fbdd501c1da22d710ef2cc630a3052ff036", "settings-sha256" = "a4f5e574d2bd30fed1e36690551310cb378eea225d3efcfae9b1a4112019c24d", "source-sha256" = "3885a1d2ddefdacc1253f37e9fe233086f946a21a1356d021e6ab4156375f0fb", "reference-output-sha256" = "cab1e163c6654c972c4b9a95793e53632a7f7460e45209f6087e921004886767", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/python-format-controls.py", "sha256" = "d61d55c67d78095868cb6ace6f7788d0aabc7b6a002f361fc5f61a2a0b0904b2", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The saved script was executed by actual CPython3.10.19, matching the configured target. It independently checks Unicode decimal width/precision against ASCII equivalents, custom __format__ q acceptance, builtin q and converted custom !s q refusal; the additional separately labeled CPython3.14 z control is not evidence of a Python3.11 execution." }, { "path" = "evidence/python-format-controls-results.json", "sha256" = "df573d17dcc24a4477de3dc5db227260f15b933c288e689b3c4f6d07a008f5e2", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The saved script was executed by actual CPython3.10.19, matching the configured target. It independently checks Unicode decimal width/precision against ASCII equivalents, custom __format__ q acceptance, builtin q and converted custom !s q refusal; the additional separately labeled CPython3.14 z control is not evidence of a Python3.11 execution." }, { "path" = "evidence/exact-source-controls.py", "sha256" = "5e868aabbb3b78ae1672d78574a5912d73397121a3a45f076b3379d18b01c126", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-inputs.json", "sha256" = "6bcca714b34f504e8dc063271bd0cb91f8aff2fb580b92deda9743a05909cca5", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-results.json", "sha256" = "66250adf34d407638f909ce1be7747720374d9d7c06ff23272a7ea041e590770", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-invocation.json", "sha256" = "9bde902ce366c830f2bca3df037a5c16949d22f9d00d278a127b923ba4ffd16c", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }], "reason" = "Exact Unicode DecimalNumber width/precision discrepancy: actual CPython3.10.19 accepts the configured-target standard format and produces the same result as its independent ASCII decimal control. The source bytes and full Ruff finding are retained; no other diagnostic or malformed specification is waived." }
+
+[[cases]]
+name = "unicode-decimal-precision"
+comparison = "full"
+files = { "case.py" = "'{:.٢f}'.format(1.2)\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "end" = 21, "file" = "case.py", "rule" = "PLE1300", "start" = 0 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "76286ff7a70c7556f89975a22d0e0fbdd501c1da22d710ef2cc630a3052ff036", "settings-sha256" = "a4f5e574d2bd30fed1e36690551310cb378eea225d3efcfae9b1a4112019c24d", "source-sha256" = "f311ab41d4ffc10d6c19776a5b87d7625f2d3fbfa6ba00826ef1fe3980ef7b34", "reference-output-sha256" = "6a37895ed1255a347b05db829129b4ee95717bf3a14ba5bb4034584077be73ad", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/python-format-controls.py", "sha256" = "d61d55c67d78095868cb6ace6f7788d0aabc7b6a002f361fc5f61a2a0b0904b2", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The saved script was executed by actual CPython3.10.19, matching the configured target. It independently checks Unicode decimal width/precision against ASCII equivalents, custom __format__ q acceptance, builtin q and converted custom !s q refusal; the additional separately labeled CPython3.14 z control is not evidence of a Python3.11 execution." }, { "path" = "evidence/python-format-controls-results.json", "sha256" = "df573d17dcc24a4477de3dc5db227260f15b933c288e689b3c4f6d07a008f5e2", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The saved script was executed by actual CPython3.10.19, matching the configured target. It independently checks Unicode decimal width/precision against ASCII equivalents, custom __format__ q acceptance, builtin q and converted custom !s q refusal; the additional separately labeled CPython3.14 z control is not evidence of a Python3.11 execution." }, { "path" = "evidence/exact-source-controls.py", "sha256" = "5e868aabbb3b78ae1672d78574a5912d73397121a3a45f076b3379d18b01c126", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-inputs.json", "sha256" = "6bcca714b34f504e8dc063271bd0cb91f8aff2fb580b92deda9743a05909cca5", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-results.json", "sha256" = "66250adf34d407638f909ce1be7747720374d9d7c06ff23272a7ea041e590770", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-invocation.json", "sha256" = "9bde902ce366c830f2bca3df037a5c16949d22f9d00d278a127b923ba4ffd16c", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }], "reason" = "Exact Unicode DecimalNumber width/precision discrepancy: actual CPython3.10.19 accepts the configured-target standard format and produces the same result as its independent ASCII decimal control. The source bytes and full Ruff finding are retained; no other diagnostic or malformed specification is waived." }
+
+[[cases]]
+name = "nondecimal-numeric-character"
+comparison = "full"
+files = { "case.py" = "'{:²d}'.format(1)\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 0, "end" = 18}]
+
+[[cases]]
+name = "zero-coercion-before-311"
+comparison = "full"
+files = { "case.py" = "'{:z.2f}'.format(-0.0)\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 0, "end" = 22}]
+
+[[cases]]
+name = "inline-suppression"
+comparison = "full"
+files = { "case.py" = "'{:q}'.format(1)  # noqa: PLE1300\n" }
+expected = []
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: PLE1300\n'%q' % 1\n" }
+expected = []
+
+[[cases]]
+name = "unrelated-suppression"
+comparison = "full"
+files = { "case.py" = "'%q' % 1  # noqa: F401\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 0, "end" = 8}]
+
+[[cases]]
+name = "custom-explicit-index"
+comparison = "full"
+files = { "case.py" = "class Custom:\n    value = 1\n    def __format__(self, spec):\n        return 'accepted:' + spec\n'{0:q}'.format(Custom())\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "end" = 118, "file" = "case.py", "rule" = "PLE1300", "start" = 94 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "76286ff7a70c7556f89975a22d0e0fbdd501c1da22d710ef2cc630a3052ff036", "settings-sha256" = "a4f5e574d2bd30fed1e36690551310cb378eea225d3efcfae9b1a4112019c24d", "source-sha256" = "b15081e6a9a6109ca66d32c75a1ad922fdb40cd423727bcd15ba7e0d99ca6407", "reference-output-sha256" = "8543d9916f810999c6cbdbf336441c767317387effc92c6b5fb7fcf9d0bc4531", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/python-format-controls.py", "sha256" = "d61d55c67d78095868cb6ace6f7788d0aabc7b6a002f361fc5f61a2a0b0904b2", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The saved script was executed by actual CPython3.10.19, matching the configured target. It independently checks Unicode decimal width/precision against ASCII equivalents, custom __format__ q acceptance, builtin q and converted custom !s q refusal; the additional separately labeled CPython3.14 z control is not evidence of a Python3.11 execution." }, { "path" = "evidence/python-format-controls-results.json", "sha256" = "df573d17dcc24a4477de3dc5db227260f15b933c288e689b3c4f6d07a008f5e2", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The saved script was executed by actual CPython3.10.19, matching the configured target. It independently checks Unicode decimal width/precision against ASCII equivalents, custom __format__ q acceptance, builtin q and converted custom !s q refusal; the additional separately labeled CPython3.14 z control is not evidence of a Python3.11 execution." }, { "path" = "evidence/exact-source-controls.py", "sha256" = "5e868aabbb3b78ae1672d78574a5912d73397121a3a45f076b3379d18b01c126", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-inputs.json", "sha256" = "6bcca714b34f504e8dc063271bd0cb91f8aff2fb580b92deda9743a05909cca5", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-results.json", "sha256" = "66250adf34d407638f909ce1be7747720374d9d7c06ff23272a7ea041e590770", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-invocation.json", "sha256" = "9bde902ce366c830f2bca3df037a5c16949d22f9d00d278a127b923ba4ffd16c", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }], "reason" = "Exact custom-format protocol discrepancy: a locally defined __format__ determines the grammar for this field, so an unsupported standard presentation type alone does not establish an invalid custom format. Actual CPython3.10.19 independently demonstrates this custom q acceptance and builtin/conversion rejection. Preserve Ruff full output, including both findings in the mixed custom/builtin case; intended output retains the separate builtin field. This is a field-specific unknown-protocol guard, not a claim that every custom implementation accepts q." }
+
+[[cases]]
+name = "custom-keyword"
+comparison = "full"
+files = { "case.py" = "class Custom:\n    value = 1\n    def __format__(self, spec):\n        return 'accepted:' + spec\n'{value:q}'.format(value=Custom())\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "end" = 128, "file" = "case.py", "rule" = "PLE1300", "start" = 94 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "76286ff7a70c7556f89975a22d0e0fbdd501c1da22d710ef2cc630a3052ff036", "settings-sha256" = "a4f5e574d2bd30fed1e36690551310cb378eea225d3efcfae9b1a4112019c24d", "source-sha256" = "205a5efbaa33abc01a611e27a2aa40f24034b574a5df9dfadbee92826aea3b8f", "reference-output-sha256" = "fc6b88983ab5379ad4a03ddbc5c1373c7270192146df8a7ebc446a4c558b02b0", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/python-format-controls.py", "sha256" = "d61d55c67d78095868cb6ace6f7788d0aabc7b6a002f361fc5f61a2a0b0904b2", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The saved script was executed by actual CPython3.10.19, matching the configured target. It independently checks Unicode decimal width/precision against ASCII equivalents, custom __format__ q acceptance, builtin q and converted custom !s q refusal; the additional separately labeled CPython3.14 z control is not evidence of a Python3.11 execution." }, { "path" = "evidence/python-format-controls-results.json", "sha256" = "df573d17dcc24a4477de3dc5db227260f15b933c288e689b3c4f6d07a008f5e2", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The saved script was executed by actual CPython3.10.19, matching the configured target. It independently checks Unicode decimal width/precision against ASCII equivalents, custom __format__ q acceptance, builtin q and converted custom !s q refusal; the additional separately labeled CPython3.14 z control is not evidence of a Python3.11 execution." }, { "path" = "evidence/exact-source-controls.py", "sha256" = "5e868aabbb3b78ae1672d78574a5912d73397121a3a45f076b3379d18b01c126", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-inputs.json", "sha256" = "6bcca714b34f504e8dc063271bd0cb91f8aff2fb580b92deda9743a05909cca5", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-results.json", "sha256" = "66250adf34d407638f909ce1be7747720374d9d7c06ff23272a7ea041e590770", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-invocation.json", "sha256" = "9bde902ce366c830f2bca3df037a5c16949d22f9d00d278a127b923ba4ffd16c", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }], "reason" = "Exact custom-format protocol discrepancy: a locally defined __format__ determines the grammar for this field, so an unsupported standard presentation type alone does not establish an invalid custom format. Actual CPython3.10.19 independently demonstrates this custom q acceptance and builtin/conversion rejection. Preserve Ruff full output, including both findings in the mixed custom/builtin case; intended output retains the separate builtin field. This is a field-specific unknown-protocol guard, not a claim that every custom implementation accepts q." }
+
+[[cases]]
+name = "custom-does-not-hide-second-invalid-field"
+comparison = "full"
+files = { "case.py" = "class Custom:\n    value = 1\n    def __format__(self, spec):\n        return 'accepted:' + spec\n'{0:q}{1:q}'.format(Custom(),1)\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 94, "end" = 125}]
+reference-discrepancy = { "expected" = [{ "end" = 125, "file" = "case.py", "rule" = "PLE1300", "start" = 94 }, { "end" = 125, "file" = "case.py", "rule" = "PLE1300", "start" = 94 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "76286ff7a70c7556f89975a22d0e0fbdd501c1da22d710ef2cc630a3052ff036", "settings-sha256" = "a4f5e574d2bd30fed1e36690551310cb378eea225d3efcfae9b1a4112019c24d", "source-sha256" = "68d14a6de8802e2b4eff86b3159d30bbbc47261dce1349173a92ce104434a967", "reference-output-sha256" = "457321effc45bc79c8d71a5b63ae9159a29f6ead3270b0053f74103781ebe443", "intended-output-sha256" = "05be1f8e55ab64de6ae43aed32dd04790a8440417d7c99de98e969f1b0e5f990" }, "evidence" = [{ "path" = "evidence/python-format-controls.py", "sha256" = "d61d55c67d78095868cb6ace6f7788d0aabc7b6a002f361fc5f61a2a0b0904b2", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The saved script was executed by actual CPython3.10.19, matching the configured target. It independently checks Unicode decimal width/precision against ASCII equivalents, custom __format__ q acceptance, builtin q and converted custom !s q refusal; the additional separately labeled CPython3.14 z control is not evidence of a Python3.11 execution." }, { "path" = "evidence/python-format-controls-results.json", "sha256" = "df573d17dcc24a4477de3dc5db227260f15b933c288e689b3c4f6d07a008f5e2", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The saved script was executed by actual CPython3.10.19, matching the configured target. It independently checks Unicode decimal width/precision against ASCII equivalents, custom __format__ q acceptance, builtin q and converted custom !s q refusal; the additional separately labeled CPython3.14 z control is not evidence of a Python3.11 execution." }, { "path" = "evidence/exact-source-controls.py", "sha256" = "5e868aabbb3b78ae1672d78574a5912d73397121a3a45f076b3379d18b01c126", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-inputs.json", "sha256" = "6bcca714b34f504e8dc063271bd0cb91f8aff2fb580b92deda9743a05909cca5", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-results.json", "sha256" = "66250adf34d407638f909ce1be7747720374d9d7c06ff23272a7ea041e590770", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-invocation.json", "sha256" = "9bde902ce366c830f2bca3df037a5c16949d22f9d00d278a127b923ba4ffd16c", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }], "reason" = "Exact custom-format protocol discrepancy: a locally defined __format__ determines the grammar for this field, so an unsupported standard presentation type alone does not establish an invalid custom format. Actual CPython3.10.19 independently demonstrates this custom q acceptance and builtin/conversion rejection. Preserve Ruff full output, including both findings in the mixed custom/builtin case; intended output retains the separate builtin field. This is a field-specific unknown-protocol guard, not a claim that every custom implementation accepts q." }
+
+[[cases]]
+name = "custom-conversion-restores-standard-protocol"
+comparison = "full"
+files = { "case.py" = "class Custom:\n    value = 1\n    def __format__(self, spec):\n        return 'accepted:' + spec\n'{0!s:q}'.format(Custom())\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 94, "end" = 120}]
+
+[[cases]]
+name = "custom-attribute-selector-is-not-instance-protocol"
+comparison = "full"
+files = { "case.py" = "class Custom:\n    value = 1\n    def __format__(self, spec):\n        return 'accepted:' + spec\n'{0.value:q}'.format(Custom())\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 94, "end" = 124}]
+
+[[cases]]
+name = "assigned-custom-instance"
+comparison = "full"
+files = { "case.py" = "class Custom:\n    value = 1\n    def __format__(self, spec):\n        return 'accepted:' + spec\nobj = Custom()\n'{:q}'.format(obj)\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "end" = 127, "file" = "case.py", "rule" = "PLE1300", "start" = 109 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "76286ff7a70c7556f89975a22d0e0fbdd501c1da22d710ef2cc630a3052ff036", "settings-sha256" = "a4f5e574d2bd30fed1e36690551310cb378eea225d3efcfae9b1a4112019c24d", "source-sha256" = "3af36f74e8ae291a7aa310c372a5aabde7e5b45497be5fccf87d18f3436286a2", "reference-output-sha256" = "e25e6ae5223486146319ada1a6ecc840c3f4cb1a59cde95574aa01c82880ce6a", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/python-format-controls.py", "sha256" = "d61d55c67d78095868cb6ace6f7788d0aabc7b6a002f361fc5f61a2a0b0904b2", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The saved script was executed by actual CPython3.10.19, matching the configured target. It independently checks Unicode decimal width/precision against ASCII equivalents, custom __format__ q acceptance, builtin q and converted custom !s q refusal; the additional separately labeled CPython3.14 z control is not evidence of a Python3.11 execution." }, { "path" = "evidence/python-format-controls-results.json", "sha256" = "df573d17dcc24a4477de3dc5db227260f15b933c288e689b3c4f6d07a008f5e2", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The saved script was executed by actual CPython3.10.19, matching the configured target. It independently checks Unicode decimal width/precision against ASCII equivalents, custom __format__ q acceptance, builtin q and converted custom !s q refusal; the additional separately labeled CPython3.14 z control is not evidence of a Python3.11 execution." }, { "path" = "evidence/exact-source-controls.py", "sha256" = "5e868aabbb3b78ae1672d78574a5912d73397121a3a45f076b3379d18b01c126", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-inputs.json", "sha256" = "6bcca714b34f504e8dc063271bd0cb91f8aff2fb580b92deda9743a05909cca5", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-results.json", "sha256" = "66250adf34d407638f909ce1be7747720374d9d7c06ff23272a7ea041e590770", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }, { "path" = "evidence/exact-source-invocation.json", "sha256" = "9bde902ce366c830f2bca3df037a5c16949d22f9d00d278a127b923ba4ffd16c", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 executes the exact unchanged source-file bytes for the Unicode and custom-protocol controls, including converted, attribute, reassigned and mixed builtin failure positives. Source hashes, expected exception classes, script/input/executable hashes and actual outputs are retained. This matches configured Python3.10; no AST rewrite or reference-derived interpretation is used." }], "reason" = "Exact custom-format protocol discrepancy: a locally defined __format__ determines the grammar for this field, so an unsupported standard presentation type alone does not establish an invalid custom format. Actual CPython3.10.19 independently demonstrates this custom q acceptance and builtin/conversion rejection. Preserve Ruff full output, including both findings in the mixed custom/builtin case; intended output retains the separate builtin field. This is a field-specific unknown-protocol guard, not a claim that every custom implementation accepts q." }
+
+[[cases]]
+name = "reassigned-custom-instance"
+comparison = "full"
+files = { "case.py" = "class Custom:\n    value = 1\n    def __format__(self, spec):\n        return 'accepted:' + spec\nobj = Custom()\nobj = 1\n'{:q}'.format(obj)\n" }
+expected = [{"rule" = "PLE1300", "file" = "case.py", "start" = 117, "end" = 135}]

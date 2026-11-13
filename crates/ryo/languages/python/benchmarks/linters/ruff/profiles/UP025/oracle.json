@@ -1,0 +1,243 @@
+{
+  "lowercase": {
+    "files": {
+      "case.py": "value = u\"hello\"\n"
+    },
+    "expected": [
+      {
+        "rule": "UP025",
+        "file": "case.py",
+        "start": 8,
+        "end": 16
+      }
+    ]
+  },
+  "uppercase": {
+    "files": {
+      "case.py": "value = U\"hello\"\n"
+    },
+    "expected": [
+      {
+        "rule": "UP025",
+        "file": "case.py",
+        "start": 8,
+        "end": 16
+      }
+    ]
+  },
+  "ordinary": {
+    "files": {
+      "case.py": "value = \"hello\"\n"
+    },
+    "expected": []
+  },
+  "bytes": {
+    "files": {
+      "case.py": "value = b\"hello\"\n"
+    },
+    "expected": []
+  },
+  "raw": {
+    "files": {
+      "case.py": "value = r\"hello\"\n"
+    },
+    "expected": []
+  },
+  "concatenated": {
+    "files": {
+      "case.py": "value = u\"one\" \"two\" u\"three\"\n"
+    },
+    "expected": [
+      {
+        "rule": "UP025",
+        "file": "case.py",
+        "start": 8,
+        "end": 14
+      },
+      {
+        "rule": "UP025",
+        "file": "case.py",
+        "start": 21,
+        "end": 29
+      }
+    ]
+  },
+  "multiline": {
+    "files": {
+      "case.py": "value = u\"\"\"one\ntwo\"\"\"\n"
+    },
+    "expected": [
+      {
+        "rule": "UP025",
+        "file": "case.py",
+        "start": 8,
+        "end": 22
+      }
+    ]
+  },
+  "multiline-noqa": {
+    "files": {
+      "case.py": "value = u\"\"\"one\ntwo\"\"\" # noqa\n"
+    },
+    "expected": []
+  },
+  "noqa": {
+    "files": {
+      "case.py": "value = u\"hello\" # noqa\n"
+    },
+    "expected": []
+  },
+  "code-noqa": {
+    "files": {
+      "case.py": "value = u\"hello\" # noqa: UP025\n"
+    },
+    "expected": []
+  },
+  "other-code": {
+    "files": {
+      "case.py": "value = u\"hello\" # noqa: F401\n"
+    },
+    "expected": [
+      {
+        "rule": "UP025",
+        "file": "case.py",
+        "start": 8,
+        "end": 16
+      }
+    ]
+  },
+  "file-noqa": {
+    "files": {
+      "case.py": "# ruff: noqa\nvalue = u\"hello\"\n"
+    },
+    "expected": []
+  },
+  "shared-block-suppressed": {
+    "files": {
+      "case.py": "# ruff: disable[UP025]\nvalue = u\"hello\"\n\n# ruff: enable[UP025]\n"
+    },
+    "expected": []
+  },
+  "shared-block-reenabled": {
+    "files": {
+      "case.py": "# ruff: disable[UP025]\n# ruff: enable[UP025]\nvalue = u\"hello\"\n"
+    },
+    "expected": [
+      {
+        "rule": "UP025",
+        "file": "case.py",
+        "start": 53,
+        "end": 61
+      }
+    ]
+  },
+  "shared-block-unmatched-disable": {
+    "files": {
+      "case.py": "# ruff: disable[UP025]\nvalue = u\"hello\"\n"
+    },
+    "expected": []
+  },
+  "shared-block-wrong-code": {
+    "files": {
+      "case.py": "# ruff: disable[E501]\nvalue = u\"hello\"\n"
+    },
+    "expected": [
+      {
+        "rule": "UP025",
+        "file": "case.py",
+        "start": 30,
+        "end": 38
+      }
+    ]
+  },
+  "shared-file-ignore": {
+    "files": {
+      "case.py": "# ruff: file-ignore[UP025]\nvalue = u\"hello\"\n"
+    },
+    "expected": []
+  },
+  "quoted-annotation-string-prefix": {
+    "files": {
+      "case.py": "x: \"list[u'foo']\"\n"
+    },
+    "expected": [
+      {
+        "rule": "UP025",
+        "file": "case.py",
+        "start": 9,
+        "end": 15
+      }
+    ]
+  },
+  "raw-u": {
+    "files": {
+      "case.py": "value = ur\"hello\"\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 10,
+        "end": 17
+      }
+    ]
+  },
+  "raw-ru": {
+    "files": {
+      "case.py": "value = ru\"hello\"\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 10,
+        "end": 17
+      }
+    ]
+  },
+  "uppercase-raw": {
+    "files": {
+      "case.py": "value = UR\"hello\"\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 10,
+        "end": 17
+      }
+    ]
+  },
+  "bytes-with-u": {
+    "files": {
+      "case.py": "value = bu\"hello\"\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 10,
+        "end": 17
+      }
+    ]
+  },
+  "string-concatenation": {
+    "files": {
+      "case.py": "value = u\"a\" + u\"b\"\n"
+    },
+    "expected": [
+      {
+        "rule": "UP025",
+        "file": "case.py",
+        "start": 8,
+        "end": 12
+      },
+      {
+        "rule": "UP025",
+        "file": "case.py",
+        "start": 15,
+        "end": 19
+      }
+    ]
+  }
+}

@@ -1,0 +1,116 @@
+description = "Every public trait of an entry surface is witnessed or named as no entry: each `pub trait` of an `interfaces` file is implemented by the `implementer` type of a `witness` file, or is a row of `non-entries` that says why it is none."
+why = "The witness is the test type that implements every entry trait, so the compiler makes each new method a variant of the witness's methods, and each variant has a control that submits an incomplete, extra or undeclared root and expects a refusal. A public trait added to an entry surface and left out of the witness escapes that: a new way in that admits roots no control ever refused. A trait that admits nothing (read-only metadata, compilation before any root) is named in the entry's `non-entries` with its reason, so the exemption is stated where it is reviewed. Read syntactically: a trait is public when it is written `pub`, and it is witnessed when an impl in a witness file names it, by its name or by a path, for the implementer type declared there."
+
+query = '''
+param interfaces: set<string>;
+param witness: set<string>;
+param implementer: set<string>;
+param non-entries: list<table>;
+let traits = select id, name, file, span from "defines" where kind = "trait" and glob_any(file, $interfaces);
+let public = select l.name as name, l.file as file, l.span as span from traits as l join "visibility" as r on l.id = r.declaration where r.text = "pub";
+let witnesses = select id from "defines" where glob_any(file, $witness) and glob_any(name, $implementer) and kind != "implementation";
+let impls = select r.target as target from witnesses as l join "inherits" as r on l.id = r.declaration;
+let keyed-impls = extend(from=impls, values={"pair": 1});
+let keyed-public = extend(from=public, values={"pair": 1});
+let witnessed = select l.name as name from keyed-public as l join keyed-impls as r on l.pair = r.pair where r.target = l.name or ends_with(r.target, concat("::", l.name));
+let listed = rows(from=$non-entries, columns=["trait", "why"]);
+let reasoned = select trait as name from listed where why != "";
+let unreasoned = select trait as name from listed where why = "";
+let exempt = union(left=witnessed, right=reasoned);
+let unwitnessed = antijoin(left=public, right=exempt, left-on=["name"], right-on=["name"]);
+let missing = extend(from=unwitnessed, values={"problem": "is neither implemented by the witness nor named as no entry with its reason"});
+let blank = select l.name as name, l.file as file, l.span as span from public as l join unreasoned as r on l.name = r.name;
+let empty = extend(from=blank, values={"problem": "is named as no entry with an empty reason"});
+let found = union(left=missing, right=empty);
+emit found subject "file" key("span");
+'''
+
+[params.interfaces]
+type = "set<string>"
+description = "The files that declare the entry surface's traits, as path globs."
+
+[params.witness]
+type = "set<string>"
+description = "The files that declare the witness type and its impls, as path globs."
+
+[params.implementer]
+type = "set<string>"
+description = "The name of the witness type, as a glob: `Witness`."
+
+[params.non-entries]
+type = "list<table>"
+description = "The public traits of the surface that admit no root, each `{ trait, why }`: its name and why none of its methods admits or changes a root."
+
+[diagnostic]
+primary = "span"
+message = "the public trait `{name}` {problem}"
+help = "Implement the trait for the witness, which makes the compiler ask for a variant of each method and a refusal control for it; or, when no method of it admits or changes a root, add `{ trait, why }` to the entry's `non-entries`, the why saying what it only reads."
+
+[given]
+include = ["**"]
+params = { interfaces = ["src/interface.rs"], witness = ["tests/witness.rs"], implementer = ["Witness"], non-entries = [{ trait = "PreparedQueries", why = "reads the plans a program was prepared from and takes no root" }] }
+files.'Cargo.toml' = '''
+[package]
+name = "entry_fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+//! An entry surface.
+
+pub mod interface;
+'''
+files.'src/interface.rs' = '''
+//! The entry traits and a read-only one.
+
+pub trait FileExecution {
+    fn run(&self);
+}
+
+pub trait PreparedQueries {
+    fn plans(&self) -> usize;
+}
+
+pub(crate) trait Internal {
+    fn step(&self);
+}
+'''
+files.'tests/witness.rs' = '''
+//! The witness of every entry method.
+
+struct Witness;
+
+impl entry_fixture::interface::FileExecution for Witness {
+    fn run(&self) {}
+}
+'''
+
+[[scenarios]]
+id = "every-trait-is-witnessed-or-named"
+scenario = "The entry trait is implemented by the witness, the read-only one is named with its reason, and a crate-private trait is no surface."
+
+[[scenarios]]
+id = "a-new-trait-left-out"
+scenario = "A public trait that neither the witness implements nor the entry names is reported at its declaration."
+given.files.'src/interface.rs' = '''
+//! The entry traits and a read-only one.
+
+pub trait FileExecution {
+    fn run(&self);
+}
+
+pub trait PreparedQueries {
+    fn plans(&self) -> usize;
+}
+
+pub trait NewStage {
+    fn admit(&self);
+}
+'''
+then.findings = [{ path = "src/interface.rs", line = 11 }]
+
+[[scenarios]]
+id = "a-named-trait-without-a-reason"
+scenario = "A trait named as no entry with an empty reason is reported at its declaration."
+given.params = { non-entries = [{ trait = "PreparedQueries", why = "" }] }
+then.findings = [{ path = "src/interface.rs", line = 7 }]

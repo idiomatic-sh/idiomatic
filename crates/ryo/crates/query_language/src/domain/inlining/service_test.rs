@@ -1,6 +1,6 @@
 //! The `inlining` service's cases, on plans written by hand.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::service::inline_views;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -8,9 +8,9 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as Reads;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
-use ryo_values::domain::plans::types::StepScope;
 
 /// What a row asks of the service.
 #[derive(Clone, Copy, PartialEq, Eq)]

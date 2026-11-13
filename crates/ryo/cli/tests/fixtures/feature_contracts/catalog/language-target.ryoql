@@ -1,0 +1,2 @@
+let witness = select * from "language-target";
+emit witness subject file key(major, minor);

@@ -1,16 +1,33 @@
 //! The names of the `syntax` concept: the one place where an operation or an argument is mapped
 //! to the text a query writes and back. Text enters the engine here and becomes a variant.
 
-use ryo_language::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::CellKind;
 
 use super::types::ArgumentSlot;
 use ryo_values::domain::plan_parts::types::Direction;
 use ryo_values::domain::plan_parts::types::Side;
-use ryo_values::domain::plans::types::ParameterType;
-use ryo_values::domain::plans::types::QueryOperator;
+use ryo_values::domain::query_bindings::types::ParameterType;
+use ryo_values::domain::query_operators::types::QueryOperator;
+
+/// The text of the relation argument, and of the relation keyword.
+pub(crate) const RELATION: &str = ryo_values::domain::descriptions::constants::RELATION;
+
+/// The text of the destination argument.
+pub(crate) const DESTINATION: &str = ryo_values::domain::descriptions::constants::DESTINATION;
+
+/// The word a declaration writes for a flag.
+pub(crate) const BOOLEAN: &str = "boolean";
 
 /// Every operator, in the order the language documents them.
-pub(crate) const OPERATORS: [QueryOperator; 17] = [
+pub(crate) const OPERATORS: [QueryOperator; 25] = [
+    QueryOperator::SpanBetween,
+    QueryOperator::SpanBounds,
+    QueryOperator::SourceMatches,
+    QueryOperator::RenderSyntax,
+    QueryOperator::FitsRendered,
+    QueryOperator::Replace,
+    QueryOperator::OrderedMatch,
+    QueryOperator::OrderedDfs,
     QueryOperator::Select,
     QueryOperator::Project,
     QueryOperator::Extend,
@@ -30,15 +47,20 @@ pub(crate) const OPERATORS: [QueryOperator; 17] = [
     QueryOperator::Cycles,
 ];
 
-/// The text a query writes for the `select` operator, which is also its keyword.
-pub(crate) const SELECT: &str = "select";
-
 /// The text a query writes for an operator.
 #[must_use]
 pub(crate) fn operator_name(operator: QueryOperator) -> &'static str {
     match operator {
-        QueryOperator::Select => SELECT,
-        QueryOperator::Project => "project",
+        QueryOperator::SpanBetween => "span-between",
+        QueryOperator::SpanBounds => "span-bounds",
+        QueryOperator::SourceMatches => "source-matches",
+        QueryOperator::RenderSyntax => "render-syntax",
+        QueryOperator::FitsRendered => "fits-rendered",
+        QueryOperator::Replace => "replace",
+        QueryOperator::OrderedMatch => "ordered-match",
+        QueryOperator::OrderedDfs => "ordered-dfs",
+        QueryOperator::Select => ryo_values::domain::descriptions::constants::SELECT,
+        QueryOperator::Project => ryo_values::domain::descriptions::constants::PROJECT,
         QueryOperator::Extend => "extend",
         QueryOperator::Join => "join",
         QueryOperator::Union => "union",
@@ -69,29 +91,52 @@ pub(crate) fn operator_named(text: &str) -> Option<QueryOperator> {
 #[must_use]
 pub(crate) fn slot_name(slot: ArgumentSlot) -> &'static str {
     match slot {
+        ArgumentSlot::Node => "node",
+        ArgumentSlot::Context => ryo_relations::domain::relations::constants::CONTEXT,
+        ArgumentSlot::MaxLine => "max-line",
+        ArgumentSlot::TabWidth => "tab-width",
+        ArgumentSlot::Texts => "texts",
+        ArgumentSlot::Literals => "literals",
+        ArgumentSlot::Start => "start",
+        ArgumentSlot::End => "end",
+        ArgumentSlot::Span => "span",
+        ArgumentSlot::StartOutput => "start-output",
+        ArgumentSlot::EndOutput => "end-output",
+        ArgumentSlot::BaseLine => "base-line",
+        ArgumentSlot::LineOutput => "line-output",
+        ArgumentSlot::CaptureName => "capture",
+        ArgumentSlot::CaptureOutput => "capture-output",
+        ArgumentSlot::CaptureTextOutput => "capture-text-output",
+        ArgumentSlot::CaptureLineOutput => "capture-line-output",
+        ArgumentSlot::Replacement => ryo_values::domain::descriptions::constants::REPLACEMENT,
+        ArgumentSlot::LeftOrder => "left-order",
+        ArgumentSlot::RightOrder => "right-order",
         ArgumentSlot::From => "from",
+        ArgumentSlot::Root => "root",
+        ArgumentSlot::Order => "order",
+        ArgumentSlot::Edge => "edge",
         ArgumentSlot::Columns => ryo_values::domain::descriptions::constants::COLUMNS,
         ArgumentSlot::Values => "values",
         ArgumentSlot::Left => "left",
         ArgumentSlot::Right => "right",
-        ArgumentSlot::LeftOn => "left-on",
-        ArgumentSlot::RightOn => "right-on",
-        ArgumentSlot::Output => "output",
+        ArgumentSlot::LeftOn => ryo_values::domain::descriptions::constants::LEFT_ON,
+        ArgumentSlot::RightOn => ryo_values::domain::descriptions::constants::RIGHT_ON,
+        ArgumentSlot::Output => ryo_values::domain::descriptions::constants::OUTPUT,
         ArgumentSlot::Keys => "keys",
         ArgumentSlot::Distinct => "distinct",
         ArgumentSlot::Count => "count",
         ArgumentSlot::Digest => ryo_values::domain::descriptions::constants::DIGEST,
         ArgumentSlot::Path => "path",
-        ArgumentSlot::Pattern => "pattern",
+        ArgumentSlot::Pattern => ryo_values::domain::descriptions::constants::PATTERN,
         ArgumentSlot::Captures => "captures",
         ArgumentSlot::Text => "text",
         ArgumentSlot::Word => "word",
-        ArgumentSlot::Relation => "relation",
+        ArgumentSlot::Relation => RELATION,
         ArgumentSlot::Direction => "direction",
         ArgumentSlot::Domain => "domain",
         ArgumentSlot::Edges => "edges",
-        ArgumentSlot::Source => ryo_language::domain::relations::constants::SOURCE,
-        ArgumentSlot::Destination => "destination",
+        ArgumentSlot::Source => ryo_relations::domain::relations::constants::SOURCE,
+        ArgumentSlot::Destination => DESTINATION,
         ArgumentSlot::Column => ryo_values::domain::descriptions::constants::COLUMN,
         ArgumentSlot::Sets => "sets",
     }
@@ -117,7 +162,7 @@ pub(crate) fn direction_named(text: &str) -> Option<Direction> {
 #[must_use]
 pub(crate) fn direction_name(direction: Direction) -> &'static str {
     match direction {
-        Direction::Parent => "parent",
+        Direction::Parent => ryo_relations::domain::relations::constants::PARENT,
         Direction::Child => "child",
         Direction::Ancestor => "ancestor",
         Direction::Descendant => "descendant",
@@ -165,7 +210,7 @@ pub(crate) fn parameter_kind_named(declared: &str) -> Option<ParameterType> {
         .or_else(|| declared.strip_prefix("set<"))
         .and_then(|rest| rest.strip_suffix('>'));
     let scalar = |text: &str| match text {
-        "boolean" => Some(CellKind::Flag),
+        BOOLEAN => Some(CellKind::Flag),
         "integer" => Some(CellKind::Number),
         "string" | "path" | "glob" => Some(CellKind::Symbol),
         _ => None,
@@ -179,3 +224,42 @@ pub(crate) fn parameter_kind_named(declared: &str) -> Option<ParameterType> {
         (None, Some(_) | None) => None,
     }
 }
+
+/// The scalar kinds accepted by fragment declarations (distinct from root parameter syntax).
+#[must_use]
+pub(crate) fn fragment_scalar_kind_named(declared: &str) -> Option<ParameterType> {
+    match declared {
+        "string" | "text" => Some(ParameterType::Text),
+        "integer" | ryo_relations::domain::relations::constants::NUMBER => {
+            Some(ParameterType::Number)
+        }
+        BOOLEAN => Some(ParameterType::Flag),
+        _ => None,
+    }
+}
+
+/// The column kinds accepted by fragment relation signatures.
+#[must_use]
+pub(crate) fn relation_cell_kind_named(declared: &str) -> Option<CellKind> {
+    match declared {
+        "node" => Some(CellKind::Node),
+        "symbol" | "text" => Some(CellKind::Symbol),
+        "file" => Some(CellKind::File),
+        "span" => Some(CellKind::Span),
+        ryo_relations::domain::relations::constants::NUMBER | "integer" => Some(CellKind::Number),
+        "flag" | BOOLEAN => Some(CellKind::Flag),
+        _ => None,
+    }
+}
+
+/// The two literal words that provide a fragment boolean argument.
+pub(crate) const BOOLEAN_WORDS: [&str; 2] = ["true", "false"];
+
+/// Written render context for assignment target.
+pub(crate) const ASSIGNMENT_TARGET: &str = "assignment-target";
+
+/// Written render context for attribute receiver.
+pub(crate) const ATTRIBUTE_RECEIVER: &str = "attribute-receiver";
+
+/// Written render context for positional argument.
+pub(crate) const POSITIONAL_ARGUMENT: &str = "positional-argument";

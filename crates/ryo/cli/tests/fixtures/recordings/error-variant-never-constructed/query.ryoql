@@ -11,6 +11,15 @@ let variant-children = select r."child" as "child", l."enum" as "enum" from enum
 let variant-names = select l."enum" as "enum", r."id" as "name", r."file" as "file", r."span" as "span" from variant-children as l join names as r on l."child" = r."id";
 let variant-tokens = select l."enum" as "enum", l."file" as "file", l."span" as "span", r."child" as "token" from variant-names as l join "syntax-child" as r on l."name" = r."parent";
 let declared = select l."enum" as "enum", l."file" as "file", l."span" as "span", r."text" as "variant" from variant-tokens as l join tree-tokens as r on l."token" = r."id";
+let attributes = select * from tree-nodes where kind = "attr";
+let from-words = select * from tree-tokens where text = "from";
+let from-word-parents = select r."parent" as "id" from from-words as l join "syntax-child" as r on l."id" = r."child";
+let from-attributes = axis(from=from-word-parents, relation="syntax-child", direction=nearest-ancestor, domain=attributes);
+let from-attribute-ids = select l."related" as "id" from from-attributes as l;
+let from-variants = axis(from=from-attribute-ids, relation="syntax-child", direction=nearest-ancestor, domain=variants);
+let from-variant-children = select r."child" as "child" from from-variants as l join "syntax-child" as r on l."related" = r."parent";
+let by-from = select r."file" as "file", r."span" as "span" from from-variant-children as l join names as r on l."child" = r."id";
+let candidates = antijoin(left=declared, right=by-from, left-on=["file", "span"], right-on=["file", "span"]);
 let expressions = select * from tree-nodes where glob_any(kind, "{path-expr,record-expr}");
 let expression-children = select r."child" as "child" from expressions as l join "syntax-child" as r on l."id" = r."parent";
 let paths = select * from tree-nodes where kind = "path";
@@ -28,9 +37,9 @@ let qualifiers = select l."file" as "file", r."id" as "qualifier" from path-chil
 let qualifier-texts = select l."file" as "file", r."text" as "qualifier" from qualifiers as l join path-last as r on l."qualifier" = r."file";
 let constructions = select r."qualifier" as "qualifier", l."variant" as "variant" from constructed-variants as l join qualifier-texts as r on l."file" = r."file";
 let named-constructions = project(from=constructions, columns=["qualifier", "variant"]);
-let by-name = select l."file" as "file", l."span" as "span" from declared as l join named-constructions as r on l."enum" = r."qualifier" and l."variant" = r."variant";
+let by-name = select l."file" as "file", l."span" as "span" from candidates as l join named-constructions as r on l."enum" = r."qualifier" and l."variant" = r."variant";
 let self-constructions = select * from named-constructions where qualifier = "Self";
-let by-self = select l."file" as "file", l."span" as "span" from declared as l join self-constructions as r on l."variant" = r."variant";
+let by-self = select l."file" as "file", l."span" as "span" from candidates as l join self-constructions as r on l."variant" = r."variant";
 let constructed = union(left=by-name, right=by-self);
-let never-constructed = antijoin(left=declared, right=constructed, left-on=["file", "span"], right-on=["file", "span"]);
+let never-constructed = antijoin(left=candidates, right=constructed, left-on=["file", "span"], right-on=["file", "span"]);
 emit never-constructed subject "file" key("span");

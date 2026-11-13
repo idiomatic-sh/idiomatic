@@ -2,9 +2,9 @@
 //! in its builder, and builds the service it calls. `compose` only constructs. Nothing here implements a port.
 
 use ryo_core::inbound::use_cases::lint::interface::LintUseCase;
-use ryo_core::outbound::{
-    corpus, digest, facts, language, lint_store, matching, memory, query_language, rows,
-};
+use ryo_core::outbound::{corpus, language, lint_store, memory, row_sink};
+use ryo_execution::outbound::{matching, query_language};
+use ryo_execution_runtime::outbound::{digest, facts};
 use std::sync::Arc;
 
 use crate::domain::capacity::types::WorkerPool;
@@ -26,8 +26,8 @@ where
 }
 
 /// The production place the rows of a run are kept in, which the caller takes them from after the run.
-pub(crate) fn build_rows() -> rows::types::Collector {
-    rows::types::Collector::default()
+pub(crate) fn build_rows() -> row_sink::factory::CollectorConnection {
+    row_sink::factory::CollectorConnection::default()
 }
 
 /// Chooses the production adapters and hands `compose` the construction of the service over them: the languages that read files,
@@ -35,7 +35,7 @@ pub(crate) fn build_rows() -> rows::types::Collector {
 /// store is the one in memory, never read or written.
 pub(crate) fn build(
     languages: Vec<Language>,
-    collector: rows::types::Collector,
+    collector: row_sink::factory::CollectorConnection,
     root: ryo_language::inbound::use_cases::project::types::RootPath,
     budget: ryo_values::domain::runs::types::Budget,
     pool: WorkerPool,
@@ -50,7 +50,7 @@ pub(crate) fn build(
     );
     let handles = languages
         .into_iter()
-        .map(language::types::LanguageHandles::from)
+        .map(language::factory::LanguageConnection::from)
         .collect();
     let linked = language::factory::use_case(handles);
     compose(QueryRunParts {
@@ -75,7 +75,7 @@ pub(crate) fn build(
                 skipped,
             ));
             let port: Arc<dyn language::interface::LanguagePort> = Arc::new(linked);
-            let digests: Arc<dyn digest::interface::DigestPort> =
+            let digests: Arc<dyn ryo_execution_runtime::outbound::digest::interface::DigestPort> =
                 Arc::new(digest::factory::blake3());
             let machine: Arc<dyn memory::interface::MemoryPort> =
                 Arc::new(memory::factory::sysinfo(budget));
@@ -86,16 +86,18 @@ pub(crate) fn build(
                     Arc::clone(&digests),
                     Arc::clone(&machine),
                 ),
-                ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(&files)),
+                ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(&files), std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())),
                 Arc::clone(&files),
                 Arc::new(facts::factory::memory()),
                 port,
                 Arc::new(matching::factory::globset()),
                 Arc::new(query_language::factory::use_case(compile, typecheck)),
                 machine,
+                Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())))),
+ryo_execution::derived(),
                 pool,
                 workers,
-                Arc::new(rows::factory::collect(collector)),
+                Arc::new(row_sink::factory::collect(collector)),
                 digests,
                 Arc::new(lint_store::factory::memory()),
             )

@@ -2,7 +2,7 @@
 
 use super::constants::{CUTS, DIRECTORY_OWNER, HERE, MANIFEST, SEPARATOR, UP};
 
-use super::types::{Asked, Lying, Ownership, Relative, Settlement};
+use super::types::{Asked, Lying, Ownership, PathLinking, Relative, Settlement, Supply};
 use crate::domain::paths::types::EntryName;
 use crate::domain::paths::types::Height;
 use crate::domain::paths::types::RepoPath;
@@ -202,4 +202,51 @@ pub(crate) fn entries_among(
         }
     }
     found
+}
+
+/// Tells `asked` what it wanted: `answer` gives the value of each key the pass met unseen, and the pass is run again.
+pub(crate) fn fulfil<K: Ord, V>(asked: &mut Asked<K, V>, mut answer: impl FnMut(&K) -> V) {
+    for key in std::mem::take(&mut asked.wanted) {
+        let value = answer(&key);
+        drop(asked.seen.insert(key, value));
+    }
+}
+
+/// Whether the manifests a run supplies include a manifest of the language.
+#[must_use]
+pub(crate) fn supply_of(manifests: &[ryo::languages::ManifestFile]) -> Supply {
+    if manifests
+        .iter()
+        .any(|manifest| *name_of(&RepoPath(manifest.path.0.clone())).0 == *MANIFEST)
+    {
+        Supply::Manifest
+    } else {
+        Supply::NoManifest
+    }
+}
+
+/// The files a run consulted, in order and each once.
+#[must_use]
+pub(crate) fn consulted_files(mut found: Vec<RepoPath>) -> Vec<ryo::languages::FilePath> {
+    found.sort_unstable();
+    found.dedup();
+    found
+        .into_iter()
+        .map(|path| ryo::languages::FilePath(path.0))
+        .collect()
+}
+
+/// Whether any of the relations asked for links the source files to one another.
+#[must_use]
+pub(crate) fn linking_of(wanted: &[ryo::languages::Relation]) -> PathLinking {
+    if wanted.iter().any(|each| {
+        matches!(
+            each,
+            ryo::languages::Relation::SourceDependency | ryo::languages::Relation::AnalyzedSource
+        )
+    }) {
+        PathLinking::Asked
+    } else {
+        PathLinking::NotAsked
+    }
 }

@@ -1,0 +1,84 @@
+[[cases]]
+name = "uncalled"
+files = { "case.py" = "mock.assert_called\n" }
+expected = [{ file = "case.py", start = 0, end = 18 }]
+
+[[cases]]
+name = "async"
+files = { "case.py" = "m.assert_awaited_once_with\n" }
+expected = [{ file = "case.py", start = 0, end = 26 }]
+
+[[cases]]
+name = "called"
+files = { "case.py" = "mock.assert_called()\n" }
+expected = []
+
+[[cases]]
+name = "assigned"
+files = { "case.py" = "method = mock.assert_called\n" }
+expected = []
+
+[[cases]]
+name = "returned"
+files = { "case.py" = "def f():\n    return mock.assert_called\n" }
+expected = []
+
+[[cases]]
+name = "missing-attribute"
+files = { "case.py" = "assert mock.called_once\n" }
+expected = [{ file = "case.py", start = 7, end = 23 }]
+
+[[cases]]
+name = "missing-call"
+files = { "case.py" = "assert mock.called_once()\n" }
+expected = [{ file = "case.py", start = 7, end = 25 }]
+
+[[cases]]
+name = "missing-async"
+files = { "case.py" = "assert m.awaited_with(1)\n" }
+expected = [{ file = "case.py", start = 7, end = 24 }]
+
+[[cases]]
+name = "valid-called"
+files = { "case.py" = "assert m.called\n" }
+expected = []
+
+[[cases]]
+name = "standalone-missing"
+files = { "case.py" = "m.called_once()\n" }
+expected = []
+
+[[cases]]
+name = "not-assert"
+files = { "case.py" = "if m.called_once():\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "boolean"
+files = { "case.py" = "assert m.called_once() and ready\n" }
+expected = []
+
+[[cases]]
+name = "nested"
+files = { "case.py" = "assert bool(m.called_once())\n" }
+expected = []
+
+[[cases]]
+name = "assert-message"
+files = { "case.py" = "assert ready, m.called_once()\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "mock.assert_called  # noqa: PGH005\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized"
+files = { "case.py" = "(mock.assert_called)\n" }
+expected = [{ file = "case.py", start = 1, end = 19 }]
+
+[[cases]]
+name = "nfkc-semantic-identifier"
+files = { "case.py" = "mock.\uff41\uff53\uff53\uff45\uff52\uff54_\uff43\uff41\uff4c\uff4c\uff45\uff44\n" }
+expected = [{ file = "case.py", start = 0, end = 42 }]

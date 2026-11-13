@@ -1,0 +1,60 @@
+
+[[cases]]
+name = "cross-PYI042-shadowed-typealias-control"
+comparison = "full"
+files = { "case.pyi" = "TypeAlias = object\nfoo: TypeAlias = int\n" }
+expected = [{ end = 39, file = "case.pyi", rule = "PYI015", start = 36 }]
+
+[[cases]]
+name = "cross-PYI052-dict-expansion-control"
+comparison = "full"
+files = { "case.pyi" = "value = {**mapping}\n" }
+expected = [{ end = 18, file = "case.pyi", rule = "F821", start = 11 }, { end = 19, file = "case.pyi", rule = "PYI015", start = 8 }]
+
+[[cases]]
+name = "cross-PYI052-unapproved-arithmetic-control"
+comparison = "full"
+files = { "case.pyi" = "value = 5 * 5\n" }
+expected = [{ end = 13, file = "case.pyi", rule = "PYI015", start = 8 }]
+
+[[cases]]
+name = "cross-PYI052-complex-expression-long-real-control"
+comparison = "full"
+files = { "case.pyi" = "value = 12345678901 + 42j\n" }
+expected = [{ end = 25, file = "case.pyi", rule = "PYI015", start = 8 }]
+
+[[cases]]
+name = "cross-PYI052-unary-plus-control"
+comparison = "full"
+files = { "case.pyi" = "value = +1\n" }
+expected = [{ end = 10, file = "case.pyi", rule = "PYI015", start = 8 }]
+
+[[cases]]
+name = "cross-PYI052-container-too-many-elements-control"
+comparison = "full"
+files = { "case.pyi" = "value = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]\n" }
+expected = [{ end = 43, file = "case.pyi", rule = "PYI015", start = 8 }]
+
+[[cases]]
+name = "cross-PYI055-tagged-PYI055.pyi"
+comparison = "full"
+files = { "PYI055.pyi" = "import builtins\nfrom typing import Union\n\ns: builtins.type[int] | builtins.type[str] | builtins.type[complex]\nt: type[int] | type[str] | type[float]\nu: builtins.type[int] | type[str] | builtins.type[complex]\nv: Union[type[float], type[complex]]\nw: Union[type[Union[float, int]], type[complex]]\nx: Union[Union[type[Union[float, int]], type[complex]]]\ny: Union[Union[Union[type[Union[float, int]], type[complex]]]]\nz: Union[type[complex], Union[Union[type[Union[float, int]]]]]\n\ndef func(arg: type[int] | str | type[float]) -> None: ...\n\n# OK\nx: type[int | str | float]\ny: builtins.type[int | str | complex]\nz: Union[float, complex]\n\ndef func(arg: type[int, float] | str) -> None: ...\n\n# PYI055\nitem: type[requests_mock.Mocker] | type[httpretty] = requests_mock.Mocker\n\ndef func():\n    # PYI055\n    item: type[requests_mock.Mocker] | type[httpretty] | type[str] = requests_mock.Mocker\n    item2: Union[type[requests_mock.Mocker], type[httpretty], type[str]] = requests_mock.Mocker\n    item3: Union[  # comment\n        type[requests_mock.Mocker], # another comment\n        type[httpretty], type[str]] = requests_mock.Mocker\n\n\n# OK\nw: Union[type[float, int], type[complex]]\nx: Union[Union[type[float, int], type[complex]]]\ny: Union[Union[Union[type[float, int], type[complex]]]]\nz: Union[type[complex], Union[Union[type[float, int]]]]\n" }
+expected = [{ end = 640, file = "PYI055.pyi", rule = "F811", start = 636 }, { end = 776, file = "PYI055.pyi", rule = "F811", start = 772 }, { end = 717, file = "PYI055.pyi", rule = "F821", start = 704 }, { end = 742, file = "PYI055.pyi", rule = "F821", start = 733 }, { end = 759, file = "PYI055.pyi", rule = "F821", start = 746 }, { end = 821, file = "PYI055.pyi", rule = "F821", start = 808 }, { end = 846, file = "PYI055.pyi", rule = "F821", start = 837 }, { end = 875, file = "PYI055.pyi", rule = "F821", start = 862 }, { end = 918, file = "PYI055.pyi", rule = "F821", start = 905 }, { end = 942, file = "PYI055.pyi", rule = "F821", start = 933 }, { end = 971, file = "PYI055.pyi", rule = "F821", start = 958 }, { end = 1034, file = "PYI055.pyi", rule = "F821", start = 1021 }, { end = 1084, file = "PYI055.pyi", rule = "F821", start = 1075 }, { end = 1113, file = "PYI055.pyi", rule = "F821", start = 1100 }, { end = 801, file = "PYI055.pyi", rule = "F841", start = 797 }, { end = 892, file = "PYI055.pyi", rule = "F841", start = 887 }, { end = 988, file = "PYI055.pyi", rule = "F841", start = 983 }, { end = 766, file = "PYI055.pyi", rule = "PYI015", start = 746 }, { end = 776, file = "PYI055.pyi", rule = "PYI048", start = 772 }, { end = 109, file = "PYI055.pyi", rule = "PYI055", start = 45 }, { end = 148, file = "PYI055.pyi", rule = "PYI055", start = 113 }, { end = 207, file = "PYI055.pyi", rule = "PYI055", start = 152 }, { end = 244, file = "PYI055.pyi", rule = "PYI055", start = 211 }, { end = 293, file = "PYI055.pyi", rule = "PYI055", start = 248 }, { end = 349, file = "PYI055.pyi", rule = "PYI055", start = 297 }, { end = 412, file = "PYI055.pyi", rule = "PYI055", start = 353 }, { end = 475, file = "PYI055.pyi", rule = "PYI055", start = 416 }, { end = 520, file = "PYI055.pyi", rule = "PYI055", start = 491 }, { end = 743, file = "PYI055.pyi", rule = "PYI055", start = 699 }, { end = 859, file = "PYI055.pyi", rule = "PYI055", start = 803 }, { end = 955, file = "PYI055.pyi", rule = "PYI055", start = 894 }, { end = 1097, file = "PYI055.pyi", rule = "PYI055", start = 990 }]
+
+[[cases]]
+name = "cross-PYI052-negative-nan-attribute-control"
+comparison = "full"
+files = { "case.pyi" = "import math\nvalue = -math.nan\n" }
+expected = [{ end = 29, file = "case.pyi", rule = "PYI015", start = 20 }]
+
+[[cases]]
+name = "cross-PYI052-nested-container-control"
+comparison = "full"
+files = { "case.pyi" = "value = [1, [2]]\n" }
+expected = [{ end = 16, file = "case.pyi", rule = "PYI015", start = 8 }]
+
+[[cases]]
+name = "cross-PYI047-shadowed-typealias-is-not-typing-typealias"
+comparison = "full"
+files = { "case.pyi" = "from custom import TypeAlias\n_Private: TypeAlias = int\n" }
+expected = [{ end = 54, file = "case.pyi", rule = "PYI015", start = 51 }]

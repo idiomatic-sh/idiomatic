@@ -1,0 +1,129 @@
+[[cases]]
+name = "error"
+files = { "case.py" = "import logging\nlogging.error(\"bad\", exc_info=True)\n" }
+expected = [{ rule = "LOG014", file = "case.py", start = 36, end = 49 }]
+
+[[cases]]
+name = "warn"
+files = { "case.py" = "import logging\nlogging.warning(\"bad\", exc_info=True)\n" }
+expected = [{ rule = "LOG014", file = "case.py", start = 38, end = 51 }]
+
+[[cases]]
+name = "log"
+files = { "case.py" = "import logging\nlogging.log(logging.ERROR, \"bad\", exc_info=True)\n" }
+expected = []
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "import logging as log\nlog.error(\"bad\", exc_info=True)\n" }
+expected = [{ rule = "LOG014", file = "case.py", start = 39, end = 52 }]
+
+[[cases]]
+name = "from-import"
+files = { "case.py" = "from logging import error\nerror(\"bad\", exc_info=True)\n" }
+expected = [{ rule = "LOG014", file = "case.py", start = 39, end = 52 }]
+
+[[cases]]
+name = "nonlogging"
+files = { "case.py" = "other.error(\"bad\", exc_info=True)\n" }
+expected = []
+
+[[cases]]
+name = "other-method"
+files = { "case.py" = "import logging\nlogging.exception(\"bad\", exc_info=True)\n" }
+expected = [{ rule = "LOG014", file = "case.py", start = 40, end = 53 }]
+
+[[cases]]
+name = "false"
+files = { "case.py" = "import logging\nlogging.error(\"bad\", exc_info=False)\n" }
+expected = []
+
+[[cases]]
+name = "zero"
+files = { "case.py" = "import logging\nlogging.error(\"bad\", exc_info=0)\n" }
+expected = []
+
+[[cases]]
+name = "one"
+files = { "case.py" = "import logging\nlogging.error(\"bad\", exc_info=1)\n" }
+expected = [{ rule = "LOG014", file = "case.py", start = 36, end = 46 }]
+
+[[cases]]
+name = "nonliteral"
+files = { "case.py" = "import logging\nlogging.error(\"bad\", exc_info=bool(1))\n" }
+expected = []
+
+[[cases]]
+name = "handler"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception:\n    logging.error(\"bad\", exc_info=True)\n" }
+expected = []
+
+[[cases]]
+name = "nested-function-in-handler"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception:\n    def f():\n        logging.error(\"bad\", exc_info=True)\n" }
+expected = []
+
+[[cases]]
+name = "function-outside"
+files = { "case.py" = "import logging\ndef f():\n    logging.error(\"bad\", exc_info=True)\n" }
+expected = [{ rule = "LOG014", file = "case.py", start = 49, end = 62 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "import logging\nlogging.error(\"bad\", exc_info=True)  # noqa: LOG014\n" }
+expected = []
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa: LOG014\nimport logging\nlogging.error(\"bad\", exc_info=True)\n" }
+expected = []
+
+[[cases]]
+name = "nonliteral-name"
+files = { "case.py" = "import logging\nlogging.error(\"bad\", exc_info=flag)\n" }
+expected = []
+
+[[cases]]
+name = "no-exc-info"
+files = { "case.py" = "import logging\nlogging.error(\"bad\")\n" }
+expected = []
+
+[[cases]]
+name = "ordinary-call"
+files = { "case.py" = "import logging\nlogging.info(\"x\", extra={\"a\": 1})\n" }
+expected = []
+
+[[cases]]
+name = "string-truthy"
+files = { "case.py" = "import logging\nlogging.error(\"x\", exc_info=\"trace\")\n" }
+expected = [{ rule = "LOG014", file = "case.py", start = 34, end = 50 }]
+
+[[cases]]
+name = "empty-string"
+files = { "case.py" = "import logging\nlogging.error(\"x\", exc_info=\"\")\n" }
+expected = []
+
+[[cases]]
+name = "ellipsis"
+files = { "case.py" = "import logging\nlogging.error(\"x\", exc_info=...)\n" }
+expected = [{ rule = "LOG014", file = "case.py", start = 34, end = 46 }]
+
+[[cases]]
+name = "float-nonzero"
+files = { "case.py" = "import logging\nlogging.error(\"x\", exc_info=0.5)\n" }
+expected = [{ rule = "LOG014", file = "case.py", start = 34, end = 46 }]
+
+[[cases]]
+name = "complex-nonzero"
+files = { "case.py" = "import logging\nlogging.error(\"x\", exc_info=1j)\n" }
+expected = [{ rule = "LOG014", file = "case.py", start = 34, end = 45 }]
+
+[[cases]]
+name = "null"
+files = { "case.py" = "import logging\nlogging.error(\"x\", exc_info=None)\n" }
+expected = []
+
+[[cases]]
+name = "tuple-literal"
+files = { "case.py" = "import logging\nlogging.error(\"x\", exc_info=())\n" }
+expected = []

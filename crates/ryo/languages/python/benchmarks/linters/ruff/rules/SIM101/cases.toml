@@ -1,0 +1,131 @@
+[[cases]]
+name = "two"
+comparison = "full"
+files = { "case.py" = "isinstance(x, int) or isinstance(x, str)\n" }
+expected = [{ file = "case.py", start = 0, end = 40, rule = "SIM101" }]
+
+[[cases]]
+name = "three"
+comparison = "full"
+files = { "case.py" = "isinstance(x, int) or isinstance(x, str) or isinstance(x, bytes)\n" }
+expected = [{ file = "case.py", start = 0, end = 64, rule = "SIM101" }]
+
+[[cases]]
+name = "two-groups"
+comparison = "full"
+files = { "case.py" = "isinstance(x, int) or isinstance(x, str) or isinstance(y, int) or isinstance(y, str)\n" }
+expected = [{ file = "case.py", start = 0, end = 84, rule = "SIM101" }, { file = "case.py", start = 0, end = 84, rule = "SIM101" }]
+
+[[cases]]
+name = "intervening-other"
+comparison = "full"
+files = { "case.py" = "isinstance(x, int) or ready or isinstance(x, str)\n" }
+expected = []
+
+[[cases]]
+name = "intervening-different"
+comparison = "full"
+files = { "case.py" = "isinstance(x, int) or isinstance(y, int) or isinstance(x, str)\n" }
+expected = []
+
+[[cases]]
+name = "and"
+comparison = "full"
+files = { "case.py" = "isinstance(x, int) and isinstance(x, str)\n" }
+expected = []
+
+[[cases]]
+name = "different"
+comparison = "full"
+files = { "case.py" = "isinstance(x, int) or isinstance(y, int)\n" }
+expected = []
+
+[[cases]]
+name = "keyword"
+comparison = "full"
+files = { "case.py" = "isinstance(x, int) or isinstance(x, class_or_tuple=str)\n" }
+expected = []
+
+[[cases]]
+name = "extra-argument"
+comparison = "full"
+files = { "case.py" = "isinstance(x, int) or isinstance(x, str, extra)\n" }
+expected = []
+
+[[cases]]
+name = "effectful"
+comparison = "full"
+files = { "case.py" = "isinstance(f(), int) or isinstance(f(), str)\n" }
+expected = [{ file = "case.py", start = 0, end = 44, rule = "SIM101" }]
+
+[[cases]]
+name = "qualified"
+comparison = "full"
+files = { "case.py" = "import builtins\nbuiltins.isinstance(x, int) or builtins.isinstance(x, str)\n" }
+expected = [{ file = "case.py", start = 16, end = 74, rule = "SIM101" }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "from builtins import isinstance as check\ncheck(x, int) or check(x, str)\n" }
+expected = [{ file = "case.py", start = 41, end = 71, rule = "SIM101" }]
+
+[[cases]]
+name = "shadow"
+comparison = "full"
+files = { "case.py" = "isinstance = other\nisinstance(x, int) or isinstance(x, str)\n" }
+expected = []
+
+[[cases]]
+name = "nfkc"
+comparison = "full"
+files = { "case.py" = "isinstance(ｘ, int) or isinstance(x, str)\n" }
+expected = [{ file = "case.py", start = 0, end = 42, rule = "SIM101" }]
+
+[[cases]]
+name = "integer-spelling"
+comparison = "full"
+files = { "case.py" = "isinstance(0x10, int) or isinstance(16, str)\n" }
+expected = [{ file = "case.py", start = 0, end = 44, rule = "SIM101" }]
+
+[[cases]]
+name = "numeric-kind"
+comparison = "full"
+files = { "case.py" = "isinstance(1, int) or isinstance(1.0, str)\n" }
+expected = []
+
+[[cases]]
+name = "literal-kind"
+comparison = "full"
+files = { "case.py" = "isinstance(True, int) or isinstance(1, str)\n" }
+expected = []
+
+[[cases]]
+name = "string-decoding"
+comparison = "full"
+files = { "case.py" = "isinstance(\"a\", int) or isinstance(\"\\x61\", str)\n" }
+expected = [{ file = "case.py", start = 0, end = 47, rule = "SIM101" }]
+
+[[cases]]
+name = "starred"
+comparison = "full"
+files = { "case.py" = "isinstance(*x, int) or isinstance(*x, str)\n" }
+expected = [{ file = "case.py", start = 0, end = 42, rule = "SIM101" }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "isinstance(x, int) or isinstance(x, str) # noqa: SIM101\n" }
+expected = []
+
+[[cases]]
+name = "disable-range-covers-the-operation"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[SIM101]\nif isinstance(x, int) or isinstance(x, str):\n    pass\n# ruff: enable[SIM101]\n" }
+expected = []
+
+[[cases]]
+name = "disable-range-starts-inside-the-operation"
+comparison = "full"
+files = { "case.py" = "if (\n    isinstance(x, int)\n    # ruff: disable[SIM101]\n    or isinstance(x, str)\n):\n    pass\n# ruff: enable[SIM101]\n" }
+expected = [{ "rule" = "SIM101", "file" = "case.py", "start" = 9, "end" = 81 }]

@@ -18,7 +18,9 @@ let call-names = select r."id" as "id" from call-children as l join name-referen
 let name-children = select r."child" as "child" from call-names as l join "syntax-child" as r on l."id" = r."parent";
 let scratch-calls = select r."text" as "target", r."file" as "file", r."span" as "span" from name-children as l join method-names as r on l."child" = r."id";
 let temporaries = union(left=library-uses, right=scratch-calls);
-emit temporaries subject "file" key("span");
+let executable-roles = select l."path" as "file" from "tastemaker.placed" as l where l."package" = "idiomatic.arch" and l."spec" = "benchmark-executable" and l."template" = "workflow";
+let outside = antijoin(left=temporaries, right=executable-roles, left-on=["file"], right-on=["file"]);
+emit outside subject "file" key("span");
 '''
 
 [params.libraries]
@@ -115,3 +117,18 @@ pub fn fill(scratch: &mut Vec<u32>) {
     scratch.clear();
 }
 '''
+
+[[scenarios]]
+id = "owned-benchmark-workflow-boundary"
+scenario = "A placed executable workflow owns artifacts, while an unplaced composition does not."
+given.include = ["**"]
+given.exclude = []
+given.files.'owned/composition.rs' = 'fn run() { tempfile::tempdir(); }'
+given.files.'other/composition.rs' = 'fn run() { tempfile::tempdir(); }'
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/no-temp-in-use-cases", include = ["**"], params = { libraries = ["tempfile", "tempfile::*"], methods = ["scratch", "discard"] } }]
+specs = [{ spec = "idiomatic.arch/benchmark-executable", include = ["owned"] }]
+'''
+then.only = ['idiomatic.arch/no-temp-in-use-cases']
+then.findings = [{ path = 'other/composition.rs', line = 1 }]

@@ -1,0 +1,89 @@
+[[cases]]
+name = "builtins-str"
+comparison = "full"
+files = { "case.py" = "from builtins import str\n" }
+expected = [{ rule = "UP029", file = "case.py", start = 0, end = 24 }]
+
+[[cases]]
+name = "builtins-range"
+comparison = "full"
+files = { "case.py" = "from builtins import range\n" }
+expected = [{ rule = "UP029", file = "case.py", start = 0, end = 26 }]
+
+[[cases]]
+name = "io-open"
+comparison = "full"
+files = { "case.py" = "from io import open\n" }
+expected = [{ rule = "UP029", file = "case.py", start = 0, end = 19 }]
+
+[[cases]]
+name = "six-next"
+comparison = "full"
+files = { "case.py" = "from six import next\n" }
+expected = [{ rule = "UP029", file = "case.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "six-moves"
+comparison = "full"
+files = { "case.py" = "from six.moves import zip\n" }
+expected = [{ rule = "UP029", file = "case.py", start = 0, end = 25 }]
+
+[[cases]]
+name = "builtin-alias"
+comparison = "full"
+files = { "case.py" = "from builtins import str as text\n" }
+expected = []
+
+[[cases]]
+name = "other-builtin"
+comparison = "full"
+files = { "case.py" = "from builtins import property\n" }
+expected = []
+
+[[cases]]
+name = "relative"
+comparison = "full"
+files = { "case.py" = "from .builtins import str\n" }
+expected = []
+
+[[cases]]
+name = "wildcard"
+comparison = "full"
+files = { "case.py" = "from builtins import *\n" }
+expected = [{ rule = "UP029", file = "case.py", start = 0, end = 22 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "str = custom\nfrom builtins import str\n" }
+expected = []
+
+[[cases]]
+name = "multiple"
+comparison = "full"
+files = { "case.py" = "from builtins import str, range, property\n" }
+expected = [{ rule = "UP029", file = "case.py", start = 0, end = 41 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "from builtins import str  # noqa: UP029\n" }
+expected = []
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: UP029\nfrom builtins import str\n" }
+expected = []
+
+[[cases]]
+name = "other-noqa"
+comparison = "full"
+files = { "case.py" = "from builtins import str  # noqa: F401\n" }
+expected = [{ rule = "UP029", file = "case.py", start = 0, end = 24 }]
+
+[[cases]]
+name = "Unicode-leading"
+comparison = "full"
+files = { "case.py" = "π = 1\nfrom builtins import str\n" }
+expected = [{ rule = "UP029", file = "case.py", start = 7, end = 31 }]

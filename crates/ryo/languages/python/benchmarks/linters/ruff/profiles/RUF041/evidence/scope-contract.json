@@ -1,0 +1,36 @@
+{
+  "scope": "Style rule flattens explicitly nested typing.Literal objects under lexical static-typing name resolution. A same-spelled type parameter is not typing.Literal.",
+  "differences": {
+    "ruf041-quoted-generic-prefers-module": "The PEP695 parameter named Literal shadows the imported typing object in the annotation scope. This rule specifically flattens nested typing.Literal; the same spelling alone is insufficient. Independent supported-version controls establish parameter identity and distinguish TypeError during nested parameter subscription from real Literal flattening; unrelated parameter positives remain. Recovered decorators or _typeshed imports are not claimed to execute.",
+    "ruf041-dispatch-call-register-forward-generic": "The PEP695 parameter named Literal shadows the imported typing object in the annotation scope. This rule specifically flattens nested typing.Literal; the same spelling alone is insufficient. Independent supported-version controls establish parameter identity and distinguish TypeError during nested parameter subscription from real Literal flattening; unrelated parameter positives remain. Recovered decorators or _typeshed imports are not claimed to execute.",
+    "ruf041-forward-typeshed-member": "The PEP695 parameter named Literal shadows the imported typing object in the annotation scope. This rule specifically flattens nested typing.Literal; the same spelling alone is insufficient. Independent supported-version controls establish parameter identity and distinguish TypeError during nested parameter subscription from real Literal flattening; unrelated parameter positives remain. Recovered decorators or _typeshed imports are not claimed to execute.",
+    "ruf041-future-generic-literal": "The PEP695 parameter named Literal shadows the imported typing object in the annotation scope. This rule specifically flattens nested typing.Literal; the same spelling alone is insufficient. Independent supported-version controls establish parameter identity and distinguish TypeError during nested parameter subscription from real Literal flattening; unrelated parameter positives remain. Recovered decorators or _typeshed imports are not claimed to execute.",
+    "ruf041-dispatch-shadowed-interface-forward": "The PEP695 parameter named Literal shadows the imported typing object in the annotation scope. This rule specifically flattens nested typing.Literal; the same spelling alone is insufficient. Independent supported-version controls establish parameter identity and distinguish TypeError during nested parameter subscription from real Literal flattening; unrelated parameter positives remain. Recovered decorators or _typeshed imports are not claimed to execute.",
+    "ruf041-dispatch-variadic-forward-generic": "The PEP695 parameter named Literal shadows the imported typing object in the annotation scope. This rule specifically flattens nested typing.Literal; the same spelling alone is insufficient. Independent supported-version controls establish parameter identity and distinguish TypeError during nested parameter subscription from real Literal flattening; unrelated parameter positives remain. Recovered decorators or _typeshed imports are not claimed to execute.",
+    "ruf041-forward-module-value-overrides-local": "Static-typing scope policy difference: an enclosing local typing.Literal import defines the annotation names lexically. Default runtime get_type_hints instead sees conflicting module globals; explicit enclosing locals recover typing.Literal. Both actual outcomes are retained. Intended RUF041 applies to lexical typing.Literal, not arbitrary runtime subscriptions, and does not promise universal runtime-introspection equivalence."
+  },
+  "primary_basis": [
+    {
+      "url": "https://peps.python.org/pep-0695/#type-parameter-scopes",
+      "basis": "Type parameters introduce a lexical scope enclosing annotations, independently of postponed evaluation."
+    },
+    {
+      "url": "https://typing.python.org/en/latest/spec/literal.html#legal-parameters-for-literal-at-type-check-time",
+      "basis": "Literal accepts other literal types, whose flattening is equivalent under typing semantics. Arbitrary parameter objects are not imported typing.Literal."
+    },
+    {
+      "url": "https://peps.python.org/pep-0563/#implementation",
+      "basis": "Postponing evaluation does not change static typing analysis."
+    },
+    {
+      "url": "https://peps.python.org/pep-0563/#resolving-type-hints-at-runtime",
+      "basis": "Runtime introspection requires appropriate namespaces and may lose enclosing function locals."
+    },
+    {
+      "url": "https://github.com/astral-sh/ruff/blob/9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a/crates/ruff_linter/src/rules/ruff/rules/unnecessary_nested_literal.rs",
+      "basis": "Pinned rule concerns equivalent nested Literal flattening, not arbitrary subscriptions."
+    }
+  ],
+  "versions": "Canonical py310 retains every existing unsupported-PEP695 diagnostic. Actual CPython3.13 controls establish supported3.12+ parameter identity and annotation resolution; no generic-header source is claimed to execute under3.10. Actual3.10 and3.13 scope controls both retain default globals vs explicit enclosing locals. Controls with added return f,locals() and custom=list binding are explicitly changed model programs, not unchanged recovered fixtures.",
+  "limits": "Seven exact complete source/output multisets only. No missing import or decorator execution is asserted for recovered originals; no unrelated diagnostics, skipped accounting or uncertainty is waived. Original41source bodies and both full upstream fixtures preserved."
+}

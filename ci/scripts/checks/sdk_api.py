@@ -7,6 +7,8 @@ the product's directory.
     uv run ../../ci/scripts/checks/sdk_api.py
 
 The SDK is named by `[workspace.metadata.api]` of the `Cargo.toml` in the current directory; a product that names none passes.
+The SDK is read with all its features, the test-support `fixtures` feature included, so no feature widens the surface unrecorded;
+see `check`.
 The rustdoc JSON (written by the pinned nightly, `doc(hidden)` items included) must reach no type of an internal crate, `cargo public-api` must print the listing
 the product records, and `cargo semver-checks` must find nothing broken against the SDK's baseline. The baseline is its published
 crates.io version; until the first publish there is none, and the workspace at `baseline-rev` stands in for it.
@@ -14,6 +16,8 @@ crates.io version; until the first publish there is none, and the workspace at `
 
 from __future__ import annotations
 
+import difflib
+import hashlib
 import json
 import os
 import subprocess
@@ -22,13 +26,11 @@ import tempfile
 import tomllib
 from pathlib import Path
 
-# The crates a product's SDK wraps: no type defined in one of them may be reachable from the SDK's public API.
-INTERNAL = ("ryo_core", "ryo_language", "ryo_values", "ryo_query_language")
 
-# The one trait implementation allowed to name an internal crate's type: `From<Language> for LanguageHandles`, which the command line and
-# the tests of the products compose the engine with. It is `doc(hidden)` and stays public because the SDK's composition and the
-# command line's registry (generated from the `languages` template) both build the engine's handles through it.
-ALLOWED_IMPLS = ("ryo_core::outbound::language::types::LanguageHandles",)
+# The one trait implementation allowed to name an internal crate's type: `From<Language> for LanguageConnection`, which the command line
+# and the tests of the products compose the engine with. It is `doc(hidden)` and stays public because the SDK's composition and the
+# command line's registry (generated from the `languages` template) both build the engine's language connections through it.
+ALLOWED_IMPLS = ("ryo_core::outbound::language::adapters::use_case::connection::LanguageConnection",)
 
 
 def toplevel(directory: Path) -> Path:
@@ -60,7 +62,26 @@ def allowed_impl(document: dict, impl: dict, leaked: str) -> bool:
     return leaked == implemented_for and implemented_for in ALLOWED_IMPLS
 
 
-def leaks(document: dict, allowed: list[str]) -> list[str]:
+def internal_crates(metadata: dict, package: str) -> tuple[str, ...]:
+    """The crates a product's SDK wraps: every workspace member the SDK reaches through normal dependencies in `cargo metadata`'s
+    resolve graph, directly or through another member, by its library's name. No type defined in one of them may be reachable from
+    the SDK's public API, whether the SDK names it or a member it depends on re-exports it; a member the SDK comes to reach is held
+    to that at once, with no list to keep."""
+    members = set(metadata["workspace_members"])
+    packages = {each["id"]: each for each in metadata["packages"]}
+    nodes = {node["id"]: node for node in metadata["resolve"]["nodes"]}
+    start = next(each["id"] for each in metadata["packages"] if each["name"] == package and each["id"] in members)
+    reached, pending = set(), [start]
+    while pending:
+        for dependency in nodes[pending.pop()]["deps"]:
+            normal = any(kind["kind"] is None for kind in dependency["dep_kinds"])
+            if dependency["pkg"] in members and normal and dependency["pkg"] not in reached:
+                reached.add(dependency["pkg"])
+                pending.append(dependency["pkg"])
+    return tuple(sorted(target["name"] for each in reached for target in packages[each]["targets"] if "lib" in target["kind"]))
+
+
+def leaks(document: dict, allowed: list[str], internal: tuple[str, ...]) -> list[str]:
     """The public items of the crate in rustdoc's JSON `document`, `doc(hidden)` ones included, that name a type defined in an
     internal crate, each as `<path of the item> -> <path of the type>`, except the items whose path starts with an allowed one
     and the types the crate itself re-exports from an allowed module. A method's path is its type's, then its name."""
@@ -121,7 +142,7 @@ def leaks(document: dict, allowed: list[str]) -> list[str]:
             continue
         for target in sorted(named - surface):
             entry = paths.get(str(target))
-            if entry and entry["crate_id"] != 0 and external.get(entry["crate_id"], "").replace("idiomatic_sh_", "") in INTERNAL:
+            if entry and entry["crate_id"] != 0 and external.get(entry["crate_id"], "").replace("idiomatic_sh_", "") in internal:
                 if impl is not None and allowed_impl(document, impl, "::".join(entry["path"])):
                     continue
                 leaked.append(f"{where} -> {'::'.join(entry['path'])}")
@@ -132,35 +153,80 @@ def check(directory: Path) -> None:
     """Holds the SDK of the product in `directory` to its recorded public API: no leak of an internal crate's type, the recorded
     listing, and no semver break against the baseline. Passes when the product names no SDK."""
     api = settings(directory / "Cargo.toml")
+    evidence = directory / "target/sdk-api"
+    # Only this check owns these names. Never publish a previous run's comparison after an earlier tool failure.
+    for name in ("actual.txt", "recorded.txt", "diff.txt", "metadata.json"):
+        (evidence / name).unlink(missing_ok=True)
     if not api:
         return
     root = toplevel(directory)
     workspace = directory.resolve().relative_to(root.resolve()).as_posix()
     package, nightly = api["package"], api["nightly"]
+    # All features: a feature-gated item is public API to whoever switches its feature on, so the leaks and the listing are read
+    # with every feature, `fixtures` included. `fixtures` is test support (tokio's `test-util` is the same practice) and may change
+    # without notice, so semver is checked on the default features alone, the surface a shipped build compiles; what keeps
+    # `fixtures` out of a shipped build is Tastemaker's `fixtures-feature` rules (the crate spec's and the language spec's, and
+    # `workspace-fixtures-feature` for `[workspace.dependencies]`).
     subprocess.run(
-        ["cargo", f"+{nightly}", "rustdoc", "--lib", "-p", package, "--", "-Z", "unstable-options", "--output-format", "json", "--document-hidden-items"],
+        [
+            "cargo", f"+{nightly}", "rustdoc", "--lib", "-p", package, "--all-features",
+            "--", "-Z", "unstable-options", "--output-format", "json", "--document-hidden-items",
+        ],
         cwd=directory,
         check=True,
     )
     metadata = json.loads(
         subprocess.run(
-            ["cargo", "metadata", "--format-version", "1", "--no-deps"], cwd=directory, check=True, capture_output=True, text=True, encoding="utf-8"
+            ["cargo", "metadata", "--format-version", "1", "--locked"], cwd=directory, check=True, capture_output=True, text=True, encoding="utf-8"
         ).stdout
     )
     target = Path(metadata["target_directory"])
     document = json.loads((target / "doc" / f"{api['library']}.json").read_text())
-    found = leaks(document, api.get("allow", []))
+    found = leaks(document, api.get("allow", []), internal_crates(metadata, package))
     if found:
         raise RuntimeError("the SDK's public API reaches an internal crate's type:\n  " + "\n  ".join(found))
     listing = subprocess.run(
-        ["cargo", f"+{nightly}", "public-api", "-ss", "-p", package], cwd=directory, check=True, capture_output=True, text=True, encoding="utf-8"
+        ["cargo", f"+{nightly}", "public-api", "-ss", "-p", package, "--all-features"], cwd=directory, check=True, capture_output=True, text=True, encoding="utf-8"
     ).stdout
-    recorded = (directory / api["listing"]).read_text()
+    recorded = (directory / api["listing"]).read_text(encoding="utf-8")
+    evidence.mkdir(parents=True, exist_ok=True)
+    (evidence / "actual.txt").write_text(listing, encoding="utf-8", newline="\n")
+    (evidence / "recorded.txt").write_text(recorded, encoding="utf-8", newline="\n")
+    difference = "".join(
+        difflib.unified_diff(
+            recorded.splitlines(keepends=True),
+            listing.splitlines(keepends=True),
+            fromfile=api["listing"],
+            tofile="generated public API",
+        )
+    )
+    (evidence / "diff.txt").write_text(difference, encoding="utf-8", newline="\n")
+    (evidence / "metadata.json").write_text(
+        json.dumps(
+            {
+                "package": package,
+                "nightly": nightly,
+                "listing": api["listing"],
+                "comparison": "match" if listing == recorded else "mismatch",
+                "source_commit": os.environ.get("GITHUB_SHA"),
+                "run_id": os.environ.get("GITHUB_RUN_ID"),
+                "run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
+                "recorded_sha256": hashlib.sha256(recorded.encode("utf-8")).hexdigest(),
+                "actual_sha256": hashlib.sha256(listing.encode("utf-8")).hexdigest(),
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
     if listing != recorded:
-        raise RuntimeError(f"the SDK's public API is not the one recorded in {api['listing']}: record it with `cargo +{nightly} public-api -ss -p {package}` after the change is meant")
+        raise RuntimeError(
+            f"the SDK's public API is not the one recorded in {api['listing']}: record it with `cargo +{nightly} public-api -ss -p {package} --all-features` after the change is meant; comparison evidence: {evidence}"
+        )
     # The SDK's own manifest, from the workspace's metadata: semver-checks otherwise finds a package by name anywhere
     # beneath the directory, a fixture crate of the same name included.
-    manifest = next(each["manifest_path"] for each in metadata["packages"] if each["name"] == package)
+    manifest = next(each["manifest_path"] for each in metadata["packages"] if each["name"] == package and each["id"] in metadata["workspace_members"])
     # The baseline is the workspace as it was at `baseline-rev`, without its asset folder (`tastemaker/`, named `canonical/`
     # in a baseline from before the product was renamed): the fixture crates in it may
     # carry the SDK's own name, which semver-checks cannot tell from the SDK when it finds a package by name in a clone.

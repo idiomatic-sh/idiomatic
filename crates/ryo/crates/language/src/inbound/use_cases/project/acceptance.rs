@@ -2,7 +2,7 @@
 
 use cucumber::{given, then, when};
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::inbound::use_cases::parse::fixtures::contract::Collect;
+use ryo_language::inbound::use_cases::parse::fixtures::collect::Collect;
 use ryo_language::inbound::use_cases::project::service::project;
 use ryo_language::inbound::use_cases::project::types::{ProjectRequest, RootPath};
 use ryo_language::inbound::use_cases::project::use_case::ProjectUseCaseImpl;
@@ -26,6 +26,9 @@ fn runs(world: &mut Behavior) {
     let resolved = project(
         &ProjectUseCaseImpl,
         &ProjectRequest {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
+            observed_entries: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(Box::default()),
             manifests: Vec::new(),

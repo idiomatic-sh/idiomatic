@@ -1,0 +1,49 @@
+[[cases]]
+name = "eq-any"
+files = { "case.pyi" = "from typing import Any\nclass C:\n    def __eq__(self, other: Any) -> bool: ...\n" }
+expected = [{ file = "case.pyi", start = 60, end = 63 }]
+
+[[cases]]
+name = "ne-qualified-any"
+files = { "case.pyi" = "import typing\nclass C:\n    def __ne__(self, other: typing.Any) -> bool: ...\n" }
+expected = [{ file = "case.pyi", start = 51, end = 61 }]
+
+[[cases]]
+name = "object-control"
+files = { "case.pyi" = "class C:\n    def __eq__(self, other: object) -> bool: ...\n" }
+expected = []
+
+[[cases]]
+name = "third-parameter-control"
+files = { "case.pyi" = "from typing import Any\nclass C:\n    def __eq__(self, other: object, extra: Any) -> bool: ...\n" }
+expected = []
+
+[[cases]]
+name = "positional-only-first"
+files = { "case.pyi" = "from typing import Any\nclass C:\n    def __eq__(self, self_: object, /, other: Any) -> bool: ...\n" }
+expected = []
+
+[[cases]]
+name = "module-function-control"
+files = { "case.pyi" = "from typing import Any\ndef __eq__(self, other: Any) -> bool: ...\n" }
+expected = []
+
+[[cases]]
+name = "three-args-control"
+files = { "case.pyi" = "from typing import Any\nclass C:\n    def __eq__(self, self_: object, other: Any, extra: int) -> bool: ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-ne-qualified-any"
+files = { "case.pyi" = "import typing\nclass C:\n    def __ne__(self, other: typing.Any) -> bool: ...  # noqa: E501, PYI032\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-ne-qualified-any"
+files = { "case.pyi" = "import typing\nclass C:\n    def __ne__(self, other: typing.Any) -> bool: ...  # noqa: E501,PYI032\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-ne-qualified-any"
+files = { "case.pyi" = "import typing\nclass C:\n    def __ne__(self, other: typing.Any) -> bool: ...  # noqa: PYI032 # why\n" }
+expected = []

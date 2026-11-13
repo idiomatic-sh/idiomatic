@@ -1,0 +1,174 @@
+{
+  "call-qualified": {
+    "files": {
+      "case.py": "import socket\nsocket.timeout()\n"
+    },
+    "expected": [
+      {
+        "rule": "UP041",
+        "file": "case.py",
+        "start": 14,
+        "end": 28
+      }
+    ]
+  },
+  "call-alias-module": {
+    "files": {
+      "case.py": "import socket as net\nnet.timeout()\n"
+    },
+    "expected": [
+      {
+        "rule": "UP041",
+        "file": "case.py",
+        "start": 21,
+        "end": 32
+      }
+    ]
+  },
+  "call-from-alias": {
+    "files": {
+      "case.py": "from socket import timeout as SocketTimeout\nSocketTimeout()\n"
+    },
+    "expected": [
+      {
+        "rule": "UP041",
+        "file": "case.py",
+        "start": 44,
+        "end": 57
+      }
+    ]
+  },
+  "raise-qualified": {
+    "files": {
+      "case.py": "import socket\nraise socket.timeout\n"
+    },
+    "expected": [
+      {
+        "rule": "UP041",
+        "file": "case.py",
+        "start": 20,
+        "end": 34
+      }
+    ]
+  },
+  "except-qualified": {
+    "files": {
+      "case.py": "import socket\ntry:\n    pass\nexcept socket.timeout:\n    pass\n"
+    },
+    "expected": [
+      {
+        "rule": "UP041",
+        "file": "case.py",
+        "start": 35,
+        "end": 49
+      }
+    ]
+  },
+  "except-tuple": {
+    "files": {
+      "case.py": "import socket\ntry:\n    pass\nexcept (socket.timeout, ValueError):\n    pass\n"
+    },
+    "expected": [
+      {
+        "rule": "UP041",
+        "file": "case.py",
+        "start": 35,
+        "end": 63
+      }
+    ]
+  },
+  "except-tuple-multiple": {
+    "files": {
+      "case.py": "import socket\ntry:\n    pass\nexcept (socket.timeout, socket.timeout):\n    pass\n"
+    },
+    "expected": [
+      {
+        "rule": "UP041",
+        "file": "case.py",
+        "start": 35,
+        "end": 67
+      }
+    ]
+  },
+  "raise-call": {
+    "files": {
+      "case.py": "import socket\nraise socket.timeout()\n"
+    },
+    "expected": [
+      {
+        "rule": "UP041",
+        "file": "case.py",
+        "start": 20,
+        "end": 34
+      }
+    ]
+  },
+  "bare-reference": {
+    "files": {
+      "case.py": "import socket\nsocket.timeout\n"
+    },
+    "expected": []
+  },
+  "wrong-module": {
+    "files": {
+      "case.py": "import asyncio\nasyncio.TimeoutError()\n"
+    },
+    "expected": []
+  },
+  "builtin-timeout": {
+    "files": {
+      "case.py": "TimeoutError()\n"
+    },
+    "expected": []
+  },
+  "lookalike": {
+    "files": {
+      "case.py": "class socket:\n    timeout = Exception\nsocket.timeout()\n"
+    },
+    "expected": []
+  },
+  "shadowed-module": {
+    "files": {
+      "case.py": "import socket\nsocket = other\nsocket.timeout()\n"
+    },
+    "expected": []
+  },
+  "noqa-call": {
+    "files": {
+      "case.py": "import socket\nsocket.timeout()  # noqa: UP041\n"
+    },
+    "expected": []
+  },
+  "file-noqa": {
+    "files": {
+      "case.py": "# ruff: noqa: UP041\nimport socket\nsocket.timeout()\n"
+    },
+    "expected": []
+  },
+  "other-noqa": {
+    "files": {
+      "case.py": "import socket\nsocket.timeout()  # noqa: F401\n"
+    },
+    "expected": [
+      {
+        "rule": "UP041",
+        "file": "case.py",
+        "start": 14,
+        "end": 28
+      }
+    ]
+  },
+  "Unicode-offset": {
+    "files": {
+      "case.py": "é = 1\nimport socket\nsocket.timeout()\n"
+    },
+    "expected": [
+      {
+        "rule": "UP041",
+        "file": "case.py",
+        "start": 21,
+        "end": 35
+      }
+    ]
+  }
+}

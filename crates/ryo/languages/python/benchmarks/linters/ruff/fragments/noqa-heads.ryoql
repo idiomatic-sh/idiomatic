@@ -1,0 +1,18 @@
+output relation<id: node, file: file, line: number, scope: number, marker: span, suffix: symbol, suffix_span: span>;
+let comments = select id, file from "comment" where matches(text, "(?i:noqa)");
+let located = select l.id as id, l.file as file, r.span as comment_span, r."start-line" as line from comments as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let inline_found = source-matches(from=located, span="comment_span", pattern="#[^\S\r\n]*(?i:noqa)(?P<suffix>.*)$", output="marker", capture="suffix", capture-output="suffix_span", capture-text-output="suffix");
+let inline_heads = extend(from=inline_found, values={scope: 0});
+let file_found = source-matches(from=located, span="comment_span", pattern="#[^\S\r\n]*(?:ruff|flake8)[^\S\r\n]*:[^\S\r\n]*(?i:noqa)(?P<suffix>.*)$", output="marker", capture="suffix", capture-output="suffix_span", capture-text-output="suffix");
+let file_head_counts = group-count(from=file_found, keys=["file"], count="heads");
+let file_head_files = select file from file_head_counts;
+let code_tokens = select id, file from "syntax-tree" where text != "" and kind != "comment" and kind != "whitespace" and kind != "newline" and kind != "nl" and kind != "indent" and kind != "dedent";
+let anchored_tokens = select r.id as id, r.file as file from file_head_files as l join code_tokens as r on l.file = r.file;
+let token_lines = select r.file as file, r."start-line" as line, r."end-line" as endline from anchored_tokens as l join "source-location" as r on l.id = r.id;
+let trailing_file = select l.id as id from file_found as l join token_lines as r on l.file = r.file where l.line >= r.line and l.line <= r.endline;
+let standalone_file = antijoin(left=file_found, right=trailing_file, left-on=["id"], right-on=["id"]);
+let file_heads = extend(from=standalone_file, values={scope: 1});
+let inline_shaped = select id, file, line, scope, marker, suffix, suffix_span from inline_heads;
+let file_shaped = select id, file, line, scope, marker, suffix, suffix_span from file_heads;
+let heads = union(left=inline_shaped, right=file_shaped);
+return heads;

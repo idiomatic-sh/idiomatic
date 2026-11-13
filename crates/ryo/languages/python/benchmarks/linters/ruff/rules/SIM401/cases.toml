@@ -1,0 +1,125 @@
+
+[[cases]]
+name = "upstream-full-fixture"
+comparison = "full"
+files = { "SIM401.py" = "###\n# Positive cases\n###\n\na_dict = {}\n\n# SIM401 (pattern-1)\nif key in a_dict:\n    var = a_dict[key]\nelse:\n    var = \"default1\"\n\n# SIM401 (pattern-2)\nif key not in a_dict:\n    var = \"default2\"\nelse:\n    var = a_dict[key]\n\n# OK (default contains effect)\nif key in a_dict:\n    var = a_dict[key]\nelse:\n    var = val1 + val2\n\n# SIM401 (complex expression in key)\nif keys[idx] in a_dict:\n    var = a_dict[keys[idx]]\nelse:\n    var = \"default\"\n\ndicts = {\"key\": a_dict}\n\n# SIM401 (complex expression in dict)\nif key in dicts[idx]:\n    var = dicts[idx][key]\nelse:\n    var = \"default\"\n\n# SIM401 (complex expression in var)\nif key in a_dict:\n    vars[idx] = a_dict[key]\nelse:\n    vars[idx] = \"defaultß9💣2ℝ6789ß9💣2ℝ6789ß9💣2ℝ6789ß9💣2ℝ6789ß9💣2ℝ6789\"\n\n# SIM401\nif foo():\n    pass\nelse:\n    if key in a_dict:\n        vars[idx] = a_dict[key]\n    else:\n        vars[idx] = \"default\"\n\n###\n# Negative cases\n###\n\n# OK (too long)\nif key in a_dict:\n    vars[idx] = a_dict[key]\nelse:\n    vars[idx] = \"defaultß9💣2ℝ6789ß9💣2ℝ6789ß9💣2ℝ6789ß9💣2ℝ6789ß9💣2ℝ6789ß\"\n\n# OK (false negative)\nif not key in a_dict:\n    var = \"default\"\nelse:\n    var = a_dict[key]\n\n# OK (different dict)\nif key in a_dict:\n    var = other_dict[key]\nelse:\n    var = \"default\"\n\n# OK (different key)\nif key in a_dict:\n    var = a_dict[other_key]\nelse:\n    var = \"default\"\n\n# OK (different var)\nif key in a_dict:\n    var = a_dict[key]\nelse:\n    other_var = \"default\"\n\n# OK (extra vars in body)\nif key in a_dict:\n    var = a_dict[key]\n    var2 = value2\nelse:\n    var = \"default\"\n\n# OK (extra vars in orelse)\nif key in a_dict:\n    var = a_dict[key]\nelse:\n    var2 = value2\n    var = \"default\"\n\n# OK (complex default value)\nif key in a_dict:\n    var = a_dict[key]\nelse:\n    var = foo()\n\n# OK (complex default value)\nif key in a_dict:\n    var = a_dict[key]\nelse:\n    var = a_dict[\"fallback\"]\n\n# OK (false negative for elif)\nif foo():\n    pass\nelif key in a_dict:\n    vars[idx] = a_dict[key]\nelse:\n    vars[idx] = \"default\"\n\nclass NotADictionary:\n    def __init__(self):\n        self._dict = {}\n\n    def __getitem__(self, key):\n        return self._dict[key]\n\n    def __setitem__(self, key, value):\n        self._dict[key] = value\n\n    def __iter__(self):\n        return self._dict.__iter__()\n\nnot_dict = NotADictionary()\nnot_dict[\"key\"] = \"value\"\n\n# OK (type `NotADictionary` is not a known dictionary type)\nif \"key\" in not_dict:\n    value = not_dict[\"key\"]\nelse:\n    value = None\n\n###\n# Positive cases (preview)\n###\n\n# SIM401\nvar = a_dict[key] if key in a_dict else \"default3\"\n\n# SIM401\nvar = \"default-1\" if key not in a_dict else a_dict[key]\n\n# OK (default contains effect)\nvar = a_dict[key] if key in a_dict else val1 + val2\n\n###\n# Lambda parameter defaults\n###\n\n# SIM401: literal defaults have no side effects.\nif key in a_dict:\n    var = a_dict[key]\nelse:\n    var = lambda x=0, /, y=1, *, z=2: (x, y, z)\n\n# OK: dict.get would evaluate the lambda's default even when the key exists.\nif key in a_dict:\n    var = a_dict[key]\nelse:\n    var = lambda value=initialize(): value\n\n# OK: positional-only defaults are also evaluated when the lambda is created.\nif key in a_dict:\n    var = a_dict[key]\nelse:\n    var = lambda value=initialize(), /: value\n\n# OK: keyword-only defaults can contain nested side effects.\nif key in a_dict:\n    var = a_dict[key]\nelse:\n    var = lambda *, value=(initialize(),): value\n" }
+expected = [{ "rule" = "SIM401", "file" = "SIM401.py", "start" = 60, "end" = 126 }, { "rule" = "SIM401", "file" = "SIM401.py", "start" = 149, "end" = 219 }, { "rule" = "SIM401", "file" = "SIM401.py", "start" = 358, "end" = 435 }, { "rule" = "SIM401", "file" = "SIM401.py", "start" = 612, "end" = 764 }, { "rule" = "SIM401", "file" = "SIM401.py", "start" = 804, "end" = 893 }, { "rule" = "SIM401", "file" = "SIM401.py", "start" = 2528, "end" = 2572 }, { "rule" = "SIM401", "file" = "SIM401.py", "start" = 2589, "end" = 2638 }, { "rule" = "SIM401", "file" = "SIM401.py", "start" = 2810, "end" = 2903 }]
+
+[[cases]]
+name = "basic"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key in d:\n    value = d[key]\nelse:\n    value = 0\n" }
+expected = [{ "rule" = "SIM401", "file" = "case.py", "start" = 7, "end" = 58 }]
+
+[[cases]]
+name = "not-in"
+comparison = "full"
+files = { "case.py" = "d={}\nif key not in d:\n    value=0\nelse:\n    value=d[key]\n" }
+expected = [{ "rule" = "SIM401", "file" = "case.py", "start" = 5, "end" = 56 }]
+
+[[cases]]
+name = "unknown-receiver"
+comparison = "full"
+files = { "case.py" = "if key in d:\n    value = d[key]\nelse:\n    value = 0\n" }
+expected = []
+
+[[cases]]
+name = "different-key"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key in d:\n    value = d[other]\nelse:\n    value = 0\n" }
+expected = []
+
+[[cases]]
+name = "different-target"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key in d:\n    value = d[key]\nelse:\n    other = 0\n" }
+expected = []
+
+[[cases]]
+name = "effectful-default"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key in d:\n    value = d[key]\nelse:\n    value = fallback()\n" }
+expected = []
+
+[[cases]]
+name = "annotated-parameter"
+comparison = "full"
+files = { "case.py" = "def f(d: dict):\n    if key in d:\n        value = d[key]\n    else:\n        value = 0\n" }
+expected = [{ "rule" = "SIM401", "file" = "case.py", "start" = 20, "end" = 83 }]
+
+[[cases]]
+name = "shadowed-dict"
+comparison = "full"
+files = { "case.py" = "dict = factory\nd = dict()\nif key in d:\n    value = d[key]\nelse:\n    value = 0\n" }
+expected = []
+
+[[cases]]
+name = "later-rebind"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key in d:\n    value = d[key]\nelse:\n    value = 0\nd = []\n" }
+expected = [{ "rule" = "SIM401", "file" = "case.py", "start" = 7, "end" = 58 }]
+
+[[cases]]
+name = "earlier-rebind"
+comparison = "full"
+files = { "case.py" = "d={}\nd=[]\nif key in d:\n    value = d[key]\nelse:\n    value = 0\n" }
+expected = []
+
+[[cases]]
+name = "suppressed"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key in d:  # noqa: SIM401\n    value = d[key]\nelse:\n    value = 0\n" }
+expected = []
+
+[[cases]]
+name = "unicode-default"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key in d:\n    value = d[key]\nelse:\n    value = \"ß💣ℝ\"\n" }
+expected = [{ "rule" = "SIM401", "file" = "case.py", "start" = 7, "end" = 68 }]
+
+[[cases]]
+name = "long-default"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key in d:\n    value = d[key]\nelse:\n    value = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\n" }
+expected = []
+
+[[cases]]
+name = "side-effect-in-lambda-default"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key in d:\n    value = d[key]\nelse:\n    value = lambda x=fallback(): x\n" }
+expected = []
+
+[[cases]]
+name = "pure-lambda-default"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key in d:\n    value = d[key]\nelse:\n    value = lambda x=0: x\n" }
+expected = [{ "rule" = "SIM401", "file" = "case.py", "start" = 7, "end" = 70 }]
+
+[[cases]]
+name = "elif-branch-negative"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key in d:\n    value = d[key]\nelif other:\n    value = 0\n" }
+expected = []
+
+[[cases]]
+name = "elif-not-in-branch-negative"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key not in d:\n    value = 0\nelif other:\n    value = d[key]\n" }
+expected = []
+
+[[cases]]
+name = "elif-else-branch-negative"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key in d:\n    value = d[key]\nelif other:\n    changed = 1\nelse:\n    value = 0\n" }
+expected = []
+
+[[cases]]
+name = "elif-else-not-in-branch-negative"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key not in d:\n    value = 0\nelif other:\n    changed = 1\nelse:\n    value = d[key]\n" }
+expected = []
+
+[[cases]]
+name = "elif-shaped-like-the-pattern-is-not-reported"
+files = { "case.py" = "d = {}\nif other:\n    pass\nelif key in d:\n    value = d[key]\nelse:\n    value = 0\n" }
+expected = []

@@ -1,0 +1,16 @@
+import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
+let calls = call_syntax();
+let functions = select parent, child from "semantic-child" where field = "func";
+let lambdas = select id from "semantic-syntax" where kind = "lambda";
+let direct = select l.parent as parent from functions as l join lambdas as r on l.child = r.id;
+let reportable = select l.id as id, l.file as file, l.span as span from calls as l join direct as r on l.id = r.parent;
+let candidate_locations = line_located(candidates=reportable);
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLC3002)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PLC3002"});
+observe ruf100_used as noqa_matches;
+emit violations subject file key(id);

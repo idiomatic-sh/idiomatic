@@ -1,0 +1,17 @@
+import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
+let shebangs = select id, file, span from "syntax-tree" where kind = "comment" and matches(text, "^#!");
+let positions = select l.id as id, l.file as file, l.span as span, r."start-byte" as begin from shebangs as l join "source-location" as r on l.id = r.id;
+let nonwhitespace = select id from "syntax-tree" where text != "" and matches(text, "[^ \t\r\n\x0c]");
+let preceding = select r.file as file, r."start-byte" as begin from nonwhitespace as l join "source-location" as r on l.id = r.id;
+let late = select l.id as id from positions as l join preceding as r on l.file = r.file where r.begin < l.begin;
+let reportable = select l.id as id, l.file as file, l.span as span from shebangs as l join late as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
+let suppressed_candidates_matches = observation_matches(candidates=candidate_locations, codes="^(?:EXE005)$");
+let suppressed_candidates_rows = select id, file, span from candidate_locations;
+let suppressed_candidates = antijoin(left=suppressed_candidates_rows, right=suppressed_candidates_matches, left-on=[id, span], right-on=[id, span]);
+let violations = select file, span from suppressed_candidates;
+let ruf100_directives = select directive, file from suppressed_candidates_matches where scope < 2;
+let ruf100_used = extend(from=ruf100_directives, values={code: "EXE005"});
+observe ruf100_used as noqa_matches;
+emit violations subject file key(span);

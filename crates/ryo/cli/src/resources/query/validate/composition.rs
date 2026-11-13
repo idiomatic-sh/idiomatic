@@ -36,7 +36,7 @@ pub(crate) fn build() -> impl ValidateUseCase {
     ));
     compose(QueryValidateParts {
         service: ValidateUseCaseImpl::new(
-            Arc::new(ryo_core::outbound::query_language::factory::use_case(
+            Arc::new(ryo_execution::outbound::query_language::factory::use_case(
                 compile, typecheck,
             )),
             Arc::new(crate::languages::linked()),

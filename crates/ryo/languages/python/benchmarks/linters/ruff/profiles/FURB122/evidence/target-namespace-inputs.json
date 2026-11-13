@@ -1,0 +1,33 @@
+[
+  {
+    "name": "nested-scope-prebinding",
+    "comparison": "full",
+    "files": {
+      "case.py": "x=0\ndef a():\n    f=open(\"a\")\n    for x in rows:\n        f.write(x)\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "independent-target-namespace-outer-binding-is-not-function-local-value",
+    "comparison": "full",
+    "files": {
+      "case.py": "x=7\ndef fn():\n    f=open(\"x\")\n    for x in rows:\n        f.write(x)\n"
+    },
+    "expected": [
+      {
+        "rule": "FURB122",
+        "file": "case.py",
+        "start": 34,
+        "end": 67
+      }
+    ]
+  },
+  {
+    "name": "independent-target-namespace-earlier-local-read-must-remain-unbound",
+    "comparison": "full",
+    "files": {
+      "case.py": "x=7\ndef fn():\n    print(x)\n    f=open(\"x\")\n    for x in rows:\n        f.write(x)\n"
+    },
+    "expected": []
+  }
+]

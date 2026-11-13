@@ -112,6 +112,22 @@ fn inline_modules() -> String {
     )
 }
 
+fn use_scopes() -> String {
+    let facts = facts_of_source("fn f() { use a; { use b; } mod m { use c; } }");
+    facts
+        .written
+        .iter()
+        .map(|each| {
+            let scope = each.scope.map_or_else(
+                || "-".to_owned(),
+                |span| format!("{}..{}", span.start.0, span.end.0),
+            );
+            format!("{}:{scope}", each.text.0)
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 fn raw_identifiers() -> String {
     let facts = facts_of_source("mod r#type;\nuse crate::r#type::r#enum;\n");
     let declared: Vec<&str> = facts.declared.iter().map(|each| &*each.name).collect();
@@ -150,6 +166,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || inline_modules,
         expect: Expect::Value("outer inner true"),
+    },
+    Case {
+        name: CaseName("a_use_binds_in_the_innermost_block_or_inline_module_around_it"),
+        word: Word::Succeeds,
+        input: || use_scopes,
+        expect: Expect::Value("a:7..45 b:16..26 c:33..43"),
     },
     Case {
         name: CaseName("a_raw_identifier_names_the_module_without_its_prefix"),

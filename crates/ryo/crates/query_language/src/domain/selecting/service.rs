@@ -11,20 +11,24 @@ use crate::domain::planning::service::{push, pushed};
 use crate::domain::resolving::service::{column_of, position, read_source, repeated_rows};
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
+use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// The alternatives of a `where`, each the tests that all hold for it: one when there is no `or`, and an `or` inside an
 /// alternative multiplies it into one alternative for each of its own.
-fn alternatives_of(conditions: &[syntax::Condition]) -> Vec<Vec<&syntax::Filter>> {
-    let mut alternatives: Vec<Vec<&syntax::Filter>> = vec![Vec::new()];
+fn alternatives_of(
+    conditions: &[ryo_values::domain::query_syntax::types::Condition],
+) -> Vec<Vec<&ryo_values::domain::query_syntax::types::Filter>> {
+    let mut alternatives: Vec<Vec<&ryo_values::domain::query_syntax::types::Filter>> =
+        vec![Vec::new()];
     for condition in conditions {
         match condition {
-            syntax::Condition::Test(filter) => {
+            ryo_values::domain::query_syntax::types::Condition::Test(filter) => {
                 for alternative in &mut alternatives {
                     alternative.push(filter);
                 }
             }
-            syntax::Condition::Any(choices) => {
+            ryo_values::domain::query_syntax::types::Condition::Any(choices) => {
                 let mut multiplied = Vec::new();
                 for alternative in &alternatives {
                     for choice in choices {
@@ -45,8 +49,8 @@ fn alternatives_of(conditions: &[syntax::Condition]) -> Vec<Vec<&syntax::Filter>
 /// Puts in `kept` the columns a projection keeps, each named as the query renamed it, and in `indexes` where each sits among `fields`.
 fn projected(
     fields: &[PlannedColumn],
-    columns: &[syntax::SelectColumn],
-    span: syntax::QuerySpan,
+    columns: &[ryo_values::domain::query_syntax::types::SelectColumn],
+    span: ryo_values::domain::query_tokens::types::QuerySpan,
     kept: &mut Vec<PlannedColumn>,
     indexes: &mut Vec<parts::ColumnIndex>,
 ) -> Result<(), LoweringError> {
@@ -55,8 +59,12 @@ fn projected(
         indexes.push(index);
         kept.push(PlannedColumn {
             name: match &column.rename {
-                syntax::Renaming::Renamed(renamed) => renamed.clone(),
-                syntax::Renaming::Unchanged => column.column.column.clone(),
+                ryo_values::domain::query_syntax::types::Renaming::Renamed(renamed) => {
+                    renamed.clone()
+                }
+                ryo_values::domain::query_syntax::types::Renaming::Unchanged => {
+                    column.column.column.clone()
+                }
             },
             kind: column_of(fields, index).kind,
             unique: column_of(fields, index).unique,
@@ -71,15 +79,20 @@ fn projected(
 /// alternative and the union of those keeps each row once; the columns a join gives only for its `where` are dropped after it.
 pub(crate) fn lower_select(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    select: &syntax::Select,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    select: &ryo_values::domain::query_syntax::types::Select,
 ) -> Result<(), LoweringError> {
     let Sourced {
         mut input,
         mut fields,
     } = read_source(builder, &select.from)?;
-    let projects = matches!(select.join, syntax::Joining::Alone)
-        && matches!(select.columns, syntax::Columns::Listed(_));
+    let projects = matches!(
+        select.join,
+        ryo_values::domain::query_syntax::types::Joining::Alone
+    ) && matches!(
+        select.columns,
+        ryo_values::domain::query_syntax::types::Columns::Listed(_)
+    );
     let filtered = !select.filters.is_empty();
     let last = if !filtered && !projects {
         LastStep::Join
@@ -87,7 +100,7 @@ pub(crate) fn lower_select(
         LastStep::Later
     };
     let (mut sides, mut shown) = (Vec::new(), ShownColumns(fields.len()));
-    if let syntax::Joining::Joined(join) = &select.join {
+    if let ryo_values::domain::query_syntax::types::Joining::Joined(join) = &select.join {
         shown = shown_of(&select.columns);
         Joined {
             sourced: Sourced { input, fields },
@@ -106,7 +119,9 @@ pub(crate) fn lower_select(
     )?;
     let mut kept = Vec::new();
     let mut indexes = Vec::new();
-    if let (true, syntax::Columns::Listed(columns)) = (projects, &select.columns) {
+    if let (true, ryo_values::domain::query_syntax::types::Columns::Listed(columns)) =
+        (projects, &select.columns)
+    {
         projected(&fields, columns, builder.span, &mut kept, &mut indexes)?;
     }
     let distinct = repeated_rows(&kept);
@@ -151,7 +166,12 @@ pub(crate) fn lower_select(
         );
         return Ok(());
     }
-    if !filtered && matches!(select.join, syntax::Joining::Alone) {
+    if !filtered
+        && matches!(
+            select.join,
+            ryo_values::domain::query_syntax::types::Joining::Alone
+        )
+    {
         push(
             builder,
             Some(name),
@@ -166,52 +186,64 @@ pub(crate) fn lower_select(
     Ok(())
 }
 
-/// The rows of `input` that one of the alternatives holds for: a filter for each, and the union of them after the first,
-/// which keeps each row once. The last step is given `name`, when it has one.
+/// The rows of `input` that one of the alternatives holds for: a filter for each,
+/// then a balanced union of the alternatives. Union keeps each row once, so
+/// regrouping contiguous alternatives preserves the relation while bounding
+/// the depth of a demanded plan. The final step is given `name`, when it has one.
 fn filtered_by(
     builder: &mut Builder<'_>,
-    name: Option<&syntax::StepName>,
+    name: Option<&ryo_values::domain::query_tokens::types::StepName>,
     input: parts::Input,
-    alternatives: Vec<Vec<parts::Comparison>>,
+    alternatives: Vec<Vec<parts::PlanComparison>>,
     fields: &[PlannedColumn],
 ) -> parts::Input {
     let count = alternatives.len();
-    let mut united = input;
-    for (place, comparisons) in alternatives.into_iter().enumerate() {
-        let last = place + 1 == count;
-        let alternative = parts::Input::Step(pushed(
-            builder,
-            name.filter(|_| last && count == 1),
-            plans::Operation::Select {
-                from: input,
-                comparisons,
-                kept: Vec::new(),
-            },
-            fields.to_vec(),
-        ));
-        united = if place == 0 {
-            alternative
-        } else {
+    let mut level = alternatives
+        .into_iter()
+        .map(|comparisons| {
             parts::Input::Step(pushed(
                 builder,
-                name.filter(|_| last),
-                plans::Operation::Union {
-                    left: united,
-                    right: alternative,
+                name.filter(|_| count == 1),
+                plans::Operation::Select {
+                    from: input,
+                    comparisons,
+                    kept: Vec::new(),
                 },
                 fields.to_vec(),
             ))
-        };
+        })
+        .collect::<Vec<_>>();
+    if level.is_empty() {
+        return input;
     }
-    united
+    while level.len() > 1 {
+        let last = level.len() == 2;
+        level = level
+            .chunks(2)
+            .map(|pair| match pair {
+                [left, right] => parts::Input::Step(pushed(
+                    builder,
+                    name.filter(|_| last),
+                    plans::Operation::Union {
+                        left: *left,
+                        right: *right,
+                    },
+                    fields.to_vec(),
+                )),
+                [single] => *single,
+                [] | [_, _, ..] => unreachable!("chunks of two"),
+            })
+            .collect();
+    }
+    level[0]
 }
 
 /// The comparisons of each alternative of a `where`, resolved over `columns`.
 fn comparisons_of(
-    builder: &Builder<'_>,
-    conditions: &[syntax::Condition],
+    builder: &mut Builder<'_>,
+    conditions: &[ryo_values::domain::query_syntax::types::Condition],
     columns: Addressable<'_>,
-) -> Result<Vec<Vec<parts::Comparison>>, LoweringError> {
+) -> Result<Vec<Vec<parts::PlanComparison>>, LoweringError> {
     let mut alternatives = Vec::new();
     for tests in alternatives_of(conditions) {
         let mut comparisons = Vec::new();
@@ -227,7 +259,7 @@ fn comparisons_of(
 /// a row they alone told apart is kept once. The step is given `name`.
 fn unshown(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
+    name: &ryo_values::domain::query_tokens::types::StepName,
     input: parts::Input,
     shown: Vec<PlannedColumn>,
 ) {

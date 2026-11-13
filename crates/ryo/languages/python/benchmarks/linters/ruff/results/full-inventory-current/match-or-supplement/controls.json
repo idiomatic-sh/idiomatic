@@ -1,0 +1,69 @@
+{
+  "schema": "match-or-independent-controls/v1",
+  "cpython_sha256": "2c2bf2087b89419f609369de36aa7ba7ae9f8e67bd8ae495e51afb964cd9db27",
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "match_or": [
+    {
+      "name": "mismatch",
+      "source": "match x:\n case float(\"nan\") | y: ...\n",
+      "source_sha256": "1253c01f3cc65600beba33195e932b99857e084aaae20d63d4ca383c2e2676f5",
+      "cpython": [
+        "AST_ACCEPTED",
+        "COMPILE_REJECTED alternative patterns bind different names 2 22"
+      ],
+      "ruff": [
+        {
+          "code": "invalid-syntax",
+          "start": [
+            2,
+            7
+          ],
+          "end": [
+            2,
+            23
+          ]
+        }
+      ]
+    },
+    {
+      "name": "equal-nested",
+      "source": "match x:\n case [1 as y] | [2 as y]: ...\n",
+      "source_sha256": "82ebac20604e5b40e6786cce952fed9a79a838a1283a1ab7b52e7b21eb1f2abf",
+      "cpython": [
+        "AST_ACCEPTED",
+        "COMPILE_ACCEPTED"
+      ],
+      "ruff": []
+    },
+    {
+      "name": "equal-reordered",
+      "source": "match x:\n case [a, b] | [b, a]: ...\n",
+      "source_sha256": "68abc4555284b71eb50cbeed21da2eb22d444fa7f4ba572bd9a656938cfcc201",
+      "cpython": [
+        "AST_ACCEPTED",
+        "COMPILE_ACCEPTED"
+      ],
+      "ruff": []
+    }
+  ],
+  "f842_singleton": [
+    {
+      "name": "annotation-used-by-read",
+      "source_sha256": "6a8fed1a5faaf5e9a92eaa4fd4eff3818f9f02234a36968c08a64ac8dba045e0",
+      "selected_rule": "F842",
+      "ruff_codes": []
+    },
+    {
+      "name": "annotated-assignment-is-used",
+      "source_sha256": "c1cf1cf0425c659a482bc0f9bffb9072c682730df4f49ed352514563c93d506c",
+      "selected_rule": "F842",
+      "ruff_codes": []
+    },
+    {
+      "name": "nested-closure-uses-outer-annotation",
+      "source_sha256": "f7754fe9ad62646054400cfc8f983cd4d049320ea93269b71760e259f2dc2082",
+      "selected_rule": "F842",
+      "ruff_codes": []
+    }
+  ]
+}

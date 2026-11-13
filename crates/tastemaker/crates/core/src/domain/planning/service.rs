@@ -68,7 +68,9 @@ fn applications<'w>(
 }
 
 /// The plan of `workspace` placed as `placement`: the rules, the conditions and the built-in comments rule of the one
-/// lint call, rooted at `base`, with what placement found and every check that ran.
+/// lint call, rooted at `base`, with what placement found and every check that ran. The ids of its rules are pairwise
+/// distinct: a definition planned once keeps its own id, and one planned more than once, at other versions or with other
+/// params, is told apart by both.
 ///
 /// # Errors
 ///
@@ -121,6 +123,11 @@ pub fn plan(
     )?;
     let matched = matched_rules(workspace, placement, &matched, &known, matching, &mut plan)?;
     let planned = handed.into_iter().chain(matched).collect::<Vec<_>>();
+    // How many planned rules each definition is, whatever their versions and params.
+    let mut placings = std::collections::BTreeMap::<String, usize>::new();
+    for rule in &planned {
+        *placings.entry(release_id(&rule.release).0).or_default() += 1;
+    }
     for rule in &planned {
         let Some(loaded) = workspace.rules.get(&rule.release) else {
             let release = release_id(&rule.release).0;
@@ -129,18 +136,17 @@ pub fn plan(
                 release,
             });
         };
-        // A rule is the lint call's by its definition's own id; a definition placed with other params is told apart by what
-        // it is placed with, never by where in the plan it falls.
+        // A rule is the lint call's by its definition's own id; a definition placed at other versions or with other params
+        // is told apart by its version and what it is placed with, never by where in the plan it falls.
         let release = release_id(&rule.release).0;
-        let placings = planned
-            .iter()
-            .filter(|other| other.release == rule.release)
-            .count();
-        let id = if placings == 1 {
+        let id = if placings.get(&release) == Some(&1) {
             LintRuleId(release.into())
         } else {
             let mut hasher = std::hash::DefaultHasher::new();
-            std::hash::Hash::hash(&format!("{:?}", rule.params), &mut hasher);
+            std::hash::Hash::hash(
+                &format!("{:?} {:?}", rule.release.version, rule.params),
+                &mut hasher,
+            );
             LintRuleId(
                 format!(
                     "{release}{PLACING_SEPARATOR}{:016x}",

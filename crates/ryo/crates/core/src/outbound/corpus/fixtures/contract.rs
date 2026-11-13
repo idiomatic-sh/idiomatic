@@ -6,7 +6,10 @@ use super::super::interface::CorpusPort;
 use super::super::types::PathStat;
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::files::types::{CorpusEntry, FileBytes, FileSize, Nanoseconds};
+use ryo_language::domain::project_context::types::ObservedEntryState;
+use ryo_values::domain::files::types::{
+    CorpusEntry, CorpusInput, FileBytes, FileSize, Nanoseconds,
+};
 
 /// What a row of the contract asks.
 #[derive(Clone, Copy, Debug)]
@@ -19,6 +22,8 @@ pub enum Scenario {
     ListedFilesStatAsListed,
     /// Whether a path where no file is is stat'ed as none.
     AMissingFileStatsAsNone,
+    /// Whether every file the inventory lists is observed as a file.
+    ListedFilesObserveAsFiles,
 }
 
 /// What a row of the contract asks.
@@ -49,6 +54,12 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
+        name: CaseName("every_file_listed_is_observed_as_a_file"),
+        word: Word::Succeeds,
+        input: || Scenario::ListedFilesObserveAsFiles,
+        expect: Expect::Value(1),
+    },
+    Case {
         name: CaseName("a_file_that_is_not_listed_is_refused"),
         word: Word::Refuses,
         input: || Scenario::AFileNotListed,
@@ -72,7 +83,13 @@ pub fn check(adapter: &impl CorpusPort) {
         match scenario {
             Scenario::ListedFilesReadBack => {
                 let mut whole = true;
-                for entry in adapter.inventory()?.0 {
+                for input in adapter.inventory()?.0 {
+                    let CorpusInput::Available(entry) = input else {
+                        return Err(CorpusError::Unreadable {
+                            path: ryo_values::domain::files::service::input_path(&input).0.to_string(),
+                            reason: "the shared readable-file contract fixture requires observed metadata".into(),
+                        });
+                    };
                     let mut bytes = FileBytes::default();
                     adapter.read(&entry, &mut bytes)?;
                     whole &= u64::try_from(bytes.0.len()).ok() == Some(entry.size.0);
@@ -81,6 +98,7 @@ pub fn check(adapter: &impl CorpusPort) {
             }
             Scenario::AFileNotListed => {
                 let entry = CorpusEntry {
+                    executable: Default::default(),
                     path: FilePath("this/file/is/not/listed.rs".into()),
                     size: FileSize(0),
                     modified: Nanoseconds(0),
@@ -89,10 +107,29 @@ pub fn check(adapter: &impl CorpusPort) {
             }
             Scenario::ListedFilesStatAsListed => {
                 let mut same = true;
-                for entry in adapter.inventory()?.0 {
+                for input in adapter.inventory()?.0 {
+                    let CorpusInput::Available(entry) = input else {
+                        return Err(CorpusError::Unreadable {
+                            path: ryo_values::domain::files::service::input_path(&input).0.to_string(),
+                            reason: "the shared readable-file contract fixture requires observed metadata".into(),
+                        });
+                    };
                     same &= adapter.stat(&entry.path)? == PathStat::Found(entry);
                 }
                 Ok(usize::from(same))
+            }
+            Scenario::ListedFilesObserveAsFiles => {
+                let mut files = true;
+                for input in adapter.inventory()?.0 {
+                    let CorpusInput::Available(entry) = input else {
+                        return Err(CorpusError::Unreadable {
+                            path: ryo_values::domain::files::service::input_path(&input).0.to_string(),
+                            reason: "the shared readable-file contract fixture requires observed metadata".into(),
+                        });
+                    };
+                    files &= adapter.observe_entry(&entry.path).state == ObservedEntryState::File;
+                }
+                Ok(usize::from(files))
             }
             Scenario::AMissingFileStatsAsNone => Ok(usize::from(
                 adapter.stat(&FilePath("this/file/is/not/there.rs".into()))? == PathStat::Missing,

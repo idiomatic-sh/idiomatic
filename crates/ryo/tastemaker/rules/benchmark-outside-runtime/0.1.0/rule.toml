@@ -1,0 +1,52 @@
+description = "The shared benchmark is a development edge and never a provider runtime import."
+why = "The language-wide import allowlist admits the shared benchmark and public SDK linter execution APIs for colocated benchmark runners. This source-scoped guard preserves the provider boundary: even a test-gated runtime source file must not couple the provider to its comparison harness. Cargo separately restricts the benchmark dependency to dev-dependencies."
+query = '''
+let imported = select l."file" as "file", l."span" as "span" from "static-import" as l where glob_any(l."target", "{ryo_benchmark,ryo_benchmark::*,ryo::linter,ryo::linter::*}");
+let called = select l."file" as "file", l."span" as "span" from "static-call" as l where glob_any(l."target", "{ryo_benchmark::*,ryo::linter::*}");
+let rows = union(left=imported, right=called);
+emit rows subject "file" key("span");
+'''
+[diagnostic]
+primary = "span"
+message = "provider source depends on benchmark execution APIs"
+help = "Keep benchmark harness and SDK linter execution APIs under benchmarks/; provider runtime implements the SDK language contract."
+[given]
+include = ['src/**']
+[[scenarios]]
+id = 'sdk-remains-provider-boundary'
+scenario = 'Provider runtime imports the SDK contract.'
+given.files.'src/lib.rs' = '''
+use ryo::languages::Language;
+'''
+[[scenarios]]
+id = 'benchmark-edge-is-allowed'
+scenario = 'Colocated benchmark code may import the shared harness.'
+given.files.'src/lib.rs' = ''
+given.files.'benchmarks/linters/tool/composition.rs' = '''
+use ryo_benchmark::domain::suite::types::Audit;
+'''
+[[scenarios]]
+id = 'runtime-cannot-import-benchmark'
+scenario = 'A runtime provider cannot import the shared benchmark even though Cargo has a development dependency.'
+given.files.'src/lib.rs' = '''
+use ryo_benchmark::domain::suite::types::Audit;
+'''
+then.findings = [{ path = 'src/lib.rs', line = 1 }]
+[[scenarios]]
+id = 'qualified-runtime-call-is-also-rejected'
+scenario = 'Avoiding a use declaration does not move a benchmark call outside provider runtime.'
+given.files.'src/lib.rs' = '''
+fn run() { ryo_benchmark::inbound::use_cases::audit::service::require_complete(&audit); }
+'''
+then.findings = [{ path = 'src/lib.rs', line = 1 }]
+
+[[scenarios]]
+id = 'runtime-cannot-import-linter-execution'
+scenario = 'The benchmark allowance for public SDK lint execution does not broaden provider runtime dependencies.'
+given.files.'src/lib.rs' = 'use ryo::linter::SourceText;'
+then.findings = [{ path = 'src/lib.rs', line = 1 }]
+[[scenarios]]
+id = 'benchmark-may-use-sdk-linter'
+scenario = 'The comparison edge uses public SDK lint execution.'
+given.files.'src/lib.rs' = ''
+given.files.'benchmarks/linters/tool/composition.rs' = 'use ryo::linter::SourceText;'

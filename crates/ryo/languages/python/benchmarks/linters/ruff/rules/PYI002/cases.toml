@@ -1,0 +1,59 @@
+[[cases]]
+name = "invalid-version-attribute"
+files = { "case.pyi" = "import sys\nif sys.version == \"3.10\":\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 35 }]
+
+[[cases]]
+name = "invalid-platform-membership"
+files = { "case.pyi" = "import sys\nif sys.platform in (\"win32\",):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "nested-bool-chain"
+files = { "case.pyi" = "import sys\nif sys.version_info >= (3, 10) and (sys.platform == \"win32\" or sys.platform == \"linux\"):\n    ...\n" }
+expected = [{ file = "case.pyi", start = 47, end = 97 }]
+
+[[cases]]
+name = "chain"
+files = { "case.pyi" = "import sys\nif (3, 10) <= sys.version_info < (3, 12):\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 51 }]
+
+[[cases]]
+name = "sys-alias"
+files = { "case.pyi" = "import sys as system\nif system.version == \"3.10\":\n    ...\n" }
+expected = [{ file = "case.pyi", start = 24, end = 48 }]
+
+[[cases]]
+name = "valid-version"
+files = { "case.pyi" = "import sys\nif sys.version_info >= (3, 10):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "valid-platform"
+files = { "case.pyi" = "import sys\nif sys.platform == \"win32\":\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "valid-bool-chain"
+files = { "case.pyi" = "import sys\nif sys.version_info >= (3, 10) and sys.platform == \"win32\":\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "runtime-module"
+files = { "case.py" = "import sys\nif sys.version == \"3.10\":\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-invalid-version-attribute"
+files = { "case.pyi" = "import sys\nif sys.version == \"3.10\":  # noqa: E501, PYI002\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-invalid-version-attribute"
+files = { "case.pyi" = "import sys\nif sys.version == \"3.10\":  # noqa: E501,PYI002\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-invalid-version-attribute"
+files = { "case.pyi" = "import sys\nif sys.version == \"3.10\":  # noqa: PYI002 # why\n    ...\n" }
+expected = []

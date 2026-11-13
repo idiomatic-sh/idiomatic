@@ -1,0 +1,16 @@
+{
+  "rule": "SIM118",
+  "source_pin": "Ruff0.16.5",
+  "fixture_sha256": "04b6fb4bd4677264ce4ce712316efabb92150acbd0e073fae0f7225afb238b0e",
+  "cases": 20,
+  "intended_spans": 33,
+  "query_sha256": "324e3ea51c348cd2e48a083f0621b3f1e4c23cb8723f0c96cf4e62c1afd764d1",
+  "cases_sha256": "be4bec77b5876eccada59d4ad75be0d992b5f841dbffb044e01f428267d5ccee",
+  "candidate_replay": {
+    "worker_sha256": "d68b185373b4baf69d5971d13d3026df9fe072abe1bae589337889d9804aafc8",
+    "raw_receipt": "/tmp/python-rule-replay-light-20261102/SIM118/run-d68b-v4",
+    "candidate_cases_passed": 20,
+    "reference_cases_passed": 20
+  },
+  "status": "candidate source complete; unadmitted"
+}

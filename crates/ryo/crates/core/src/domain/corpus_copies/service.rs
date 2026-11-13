@@ -39,6 +39,7 @@ pub(crate) fn copied(
     (0..shape.copies.0)
         .flat_map(|number| {
             inputs.0.iter().map(move |(item, bytes)| CorpusFile {
+                executable: Default::default(),
                 path: path_of(item, extension, shape.naming, CopyNumber(number)),
                 bytes: FileBytes(bytes.0.repeat(shape.repeat.0)),
             })

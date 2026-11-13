@@ -22,12 +22,13 @@ struct Line {
     output: crate::output::FormatSwitch,
 }
 
+/// The catalog includes source coordinates, lexical facts, optional parser capabilities and engine facts.
 /// The rows of this command's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("prints_relations"),
     word: Word::Succeeds,
     input: || vec![],
-    expect: Expect::Value((32, crate::output::Format::Terminal)),
+    expect: Expect::Value((69, crate::output::Format::Terminal)),
 }];
 
 /// Runs `relation list` on one command line and returns what it printed or the outcome it ended with.

@@ -14,7 +14,7 @@ error[E0308]: mismatched types
    | |_____^ expected `FunctionRow`, found `ScopeRow`
    |
 note: method defined here
-  --> src/domain/relations/types.rs
+  --> $WORKSPACE/crates/relations/src/domain/relations/types.rs
    |
    |     fn write(&mut self, row: Row);
    |        ^^^^^

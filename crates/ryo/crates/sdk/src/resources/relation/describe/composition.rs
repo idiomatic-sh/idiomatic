@@ -29,7 +29,7 @@ where
 pub(crate) fn build(languages: Vec<Language>) -> impl DescribeRelationUseCase {
     let handles = languages
         .into_iter()
-        .map(language::types::LanguageHandles::from)
+        .map(language::factory::LanguageConnection::from)
         .collect();
     let language = language::factory::use_case(handles);
     compose(RelationDescribeParts {

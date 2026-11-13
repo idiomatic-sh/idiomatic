@@ -4,9 +4,9 @@ use ryo::languages::Optionality;
 use std::collections::BTreeMap;
 
 use super::errors::PackagesError;
-use super::service::{numbered, read, refused_membership, root_for};
+use super::service::{diagnoses_in, numbered, read, refused_membership, root_for};
 use super::types::Packages;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::domain::paths::types::RepoPath;
 use crate::domain::workspaces::errors::WorkspacesError;
 use crate::domain::workspaces::fixtures::{Files, answering};
@@ -23,6 +23,8 @@ enum Scenario {
     Number(Files, &'static [&'static str]),
     /// Whether each manifest refused leaves which workspace holds it unread.
     Membership(Files),
+    /// The diagnostic of each manifest refused, when the run lists the manifests of the files.
+    Diagnoses(Files),
 }
 
 /// What a row of the cases asks.
@@ -108,6 +110,9 @@ const NOT_A_MEMBER: Files = &[
     ("z/Cargo.toml", "[package]\nname = \"z\"\n"),
 ];
 
+/// A manifest that is not TOML.
+const UNPARSABLE: Files = &[("Cargo.toml", "[package\nname = \"a\"\n")];
+
 /// A workspace one of whose members has no manifest.
 const UNREADABLE: Files = &[
     ("Cargo.toml", "[workspace]\nmembers = [\"a\", \"gone\"]\n"),
@@ -120,6 +125,7 @@ fn subject(asked: Input) -> Result<Value, Failure> {
         Scenario::ListIndex(files, candidate) => (files, Some(candidate)),
         Scenario::Number(files, listed) => return Ok(numbers(files, listed)),
         Scenario::Membership(files) => return Ok(memberships(files)),
+        Scenario::Diagnoses(files) => return Ok(diagnoses(files)),
     };
     if let Some(candidate) = candidate {
         let path = RepoPath(candidate.into());
@@ -129,23 +135,24 @@ fn subject(asked: Input) -> Result<Value, Failure> {
         })?;
         return Ok(Box::leak(root.0));
     }
-    let manifests: Vec<RepoPath> = input
-        .iter()
-        .filter(|(path, _)| path.ends_with("Cargo.toml"))
-        .map(|(path, _)| RepoPath((*path).into()))
-        .collect();
+    let manifests = manifests_of(input);
     let packages = answering(input, |looking| read(&manifests, looking));
     // The answer is leaked: a case compares it with text that lives for the whole run.
     Ok(Box::leak(shown(&packages).into_boxed_str()))
 }
 
-/// The number each manifest the manifests name has when the run lists `listed`, in the order of the numbers, one line for each.
-fn numbers(input: Files, listed: &[&str]) -> Value {
-    let manifests: Vec<RepoPath> = input
+/// The manifests among `input`, in its order.
+fn manifests_of(input: Files) -> Vec<RepoPath> {
+    input
         .iter()
         .filter(|(path, _)| path.ends_with("Cargo.toml"))
         .map(|(path, _)| RepoPath((*path).into()))
-        .collect();
+        .collect()
+}
+
+/// The number each manifest the manifests name has when the run lists `listed`, in the order of the numbers, one line for each.
+fn numbers(input: Files, listed: &[&str]) -> Value {
+    let manifests = manifests_of(input);
     let packages = answering(input, |looking| read(&manifests, looking));
     let files: Vec<ryo::languages::FilePath> = listed
         .iter()
@@ -164,13 +171,26 @@ fn numbers(input: Files, listed: &[&str]) -> Value {
     Box::leak(lines.join("\n").into_boxed_str())
 }
 
+/// Each manifest refused with its file among the manifests, the stage and what the reader said, one line for each.
+fn diagnoses(input: Files) -> Value {
+    let manifests = manifests_of(input);
+    let packages = answering(input, |looking| read(&manifests, looking));
+    let mut files: Vec<ryo::languages::FilePath> = manifests
+        .iter()
+        .map(|manifest| ryo::languages::FilePath(manifest.0.clone()))
+        .collect();
+    files.sort_by(|left, right| left.0.cmp(&right.0));
+    let lines: Vec<String> = diagnoses_in(&files, &packages)
+        .iter()
+        .map(|each| format!("{} {:?}: {}", each.file.0, each.stage, each.reason.0))
+        .collect();
+    // The answer is leaked: a case compares it with text that lives for the whole run.
+    Box::leak(lines.join("\n").into_boxed_str())
+}
+
 /// Each manifest refused and whether which workspace holds it was read, one line for each.
 fn memberships(input: Files) -> Value {
-    let manifests: Vec<RepoPath> = input
-        .iter()
-        .filter(|(path, _)| path.ends_with("Cargo.toml"))
-        .map(|(path, _)| RepoPath((*path).into()))
-        .collect();
+    let manifests = manifests_of(input);
     let packages = answering(input, |looking| read(&manifests, looking));
     let lines: Vec<String> = packages
         .refused
@@ -316,6 +336,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value("b/Cargo.toml: Unanalyzed"),
     },
     Case {
+        name: CaseName("a_manifest_that_is_not_toml_is_a_diagnostic_of_the_reading"),
+        word: Word::Succeeds,
+        input: || Scenario::Diagnoses(UNPARSABLE),
+        expect: Expect::Value("0 Parse: unclosed table, expected `]`"),
+    },
+    Case {
+        name: CaseName("a_package_in_no_workspace_is_a_diagnostic_of_the_validation"),
+        word: Word::Succeeds,
+        input: || Scenario::Diagnoses(NOT_A_MEMBER),
+        expect: Expect::Value(
+            "2 Validation: current package believes it's in a workspace when it's not",
+        ),
+    },
+    Case {
         name: CaseName("a_package_a_workspace_holds_is_in_that_workspace"),
         word: Word::Succeeds,
         input: || Scenario::ListIndex(GLOB_MEMBERS, "crates/a/Cargo.toml"),
@@ -338,10 +372,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Fails,
         input: || Scenario::ListIndex(UNREADABLE, "a/Cargo.toml"),
         expect: Expect::Refusal(|error| {
-            selects(
+            selects(Matched(
                 matches!(error, PackagesError::Workspaces(WorkspacesError::Member { manifest, reason })
                 if &*manifest.0 == "gone/Cargo.toml" && &*reason.0 == "gone/Cargo.toml"),
-            )
+            ))
         }),
     },
 ];

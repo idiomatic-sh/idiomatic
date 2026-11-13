@@ -50,3 +50,27 @@ pub enum HostKind {
     /// A whole number.
     Number,
 }
+
+// The conversions into the engine's columns are the crate's own: a public `From` impl would put the engine's types on the SDK's
+// surface.
+impl HostColumn {
+    /// The column as the engine reads a host relation's.
+    pub(crate) fn into_engine(self) -> ryo_values::domain::hosted::types::HostColumn {
+        ryo_values::domain::hosted::types::HostColumn {
+            name: ryo_values::domain::hosted::types::HostColumnName(self.name.0),
+            kind: self.kind.into_engine(),
+        }
+    }
+}
+
+impl HostKind {
+    /// The kind as the engine reads a host column.
+    pub(crate) const fn into_engine(self) -> ryo_values::domain::hosted::types::HostKind {
+        use ryo_values::domain::hosted::types::HostKind as Engine;
+        match self {
+            Self::File => Engine::File,
+            Self::Text => Engine::Text,
+            Self::Number => Engine::Number,
+        }
+    }
+}

@@ -1,0 +1,241 @@
+description = "A Tastemaker manifest places files by role patterns, and only a workspace manifest or a manifest a role places holds entries: no one-file placement, no side-manifest, no open side-manifest."
+why = "A placement that names one file (`file = \"src/application/x/extra.rs\"`) or a side-manifest a crate keeps beside its code is a carve-out: each new file of an existing role costs a manifest line, and the manifest grows into a list of exceptions nobody reviews. A role pattern places every file of its role at once, so a new nested part or test group touches no manifest. Three things are read in every `tastemaker.toml` the entry includes. A `templates` entry of a manifest, with a capture or without, is a carve-out unless its template, by its `package/name` (a manifest never writes a version), is one of `config-roles`: the files a product holds once by their nature (its Cargo workspace, its locks, its README, its clippy and deny configuration, a build script, a compile-fail case). A capture is no role: `{ template = \"idiomatic.arch/unchecked\", file = \"crates/core/src/{*rest}\" }` places source files as surely as their literal paths do. `idiomatic.arch/unchecked` is a config role only in a workspace manifest, only for one literal file (no `{`, `*` or `?`) and only for a file whose extension is not one of `source-extensions`: a `LICENSE`, a `CHANGELOG.md`, never a source file. A `templates`, `specs` or `rules` entry in a manifest that declares no `workspace` is a side-manifest entry unless a template of `manifest-roles` places that manifest (a language's own `tastemaker.toml`); and `closed = false` in such a manifest is an open side-manifest unless a template of `open-manifest-roles` places it. The fix is a role: a spec version that places the file by a pattern, or the entry moved into the workspace manifest with an `include` for the directory."
+
+query = '''
+param config-roles: set<string>;
+param manifest-roles: set<string>;
+param open-manifest-roles: set<string>;
+param source-extensions: set<string>;
+let tree-nodes = select l."id" as "id", l."kind" as "kind" from "syntax-tree" as l where l."text" = "";
+let documents = select * from tree-nodes where kind = "toml";
+let top = select r."key" as "key", r."occurrence" as "occurrence", r."file" as "file", r."span" as "span" from documents as l join "entry" as r on l."id" = r."owner";
+let workspace-keys = select * from top where key = "workspace";
+let workspace-files = project(from=workspace-keys, columns=["file"]);
+let entry-lists = select * from top where glob_any(key, "{templates,specs,rules}");
+let elements = select l."key" as "list", l."file" as "file", r."occurrence" as "element", r."span" as "span" from entry-lists as l join "sequence-element" as r on l."occurrence" = r."owner";
+let fields = select l."list" as "list", l."element" as "element", l."file" as "file", l."span" as "span", r."key" as "key", r."decoded" as "decoded" from elements as l join "entry" as r on l."element" = r."owner";
+let definitions = select * from fields where glob_any(key, "{template,spec,rule}");
+let template-files = select * from fields where list = "templates" and key = "file";
+let placements = select l."element" as "element", l."file" as "file", l."span" as "span", l."decoded" as "place", r."decoded" as "what" from template-files as l join definitions as r on l."element" = r."element";
+let config = select * from placements where glob_any(what, $config-roles);
+let unchecked = select * from placements where what = "idiomatic.arch/unchecked";
+let patterned-unchecked = select * from unchecked where glob_any(place, "*[{*?]*");
+let literal-unchecked = antijoin(left=unchecked, right=patterned-unchecked, left-on=["element"], right-on=["element"]);
+let workspace-unchecked = select l."element" as "element", l."place" as "place" from literal-unchecked as l join workspace-files as r on l."file" = r."file";
+let nested-names = capture(from=workspace-unchecked, path="place", pattern="{*directory}/{stem}.{extension}", captures=["directory", "stem", "extension"]);
+let top-names = capture(from=workspace-unchecked, path="place", pattern="{stem}.{extension}", captures=["stem", "extension"]);
+let nested-sources = select * from nested-names where glob_any(extension, $source-extensions);
+let top-sources = select * from top-names where glob_any(extension, $source-extensions);
+let nested-source-elements = project(from=nested-sources, columns=["element"]);
+let top-source-elements = project(from=top-sources, columns=["element"]);
+let source-elements = union(left=nested-source-elements, right=top-source-elements);
+let plain-unchecked = antijoin(left=workspace-unchecked, right=source-elements, left-on=["element"], right-on=["element"]);
+let config-elements = project(from=config, columns=["element"]);
+let unchecked-elements = project(from=plain-unchecked, columns=["element"]);
+let passing = union(left=config-elements, right=unchecked-elements);
+let one-file = antijoin(left=placements, right=passing, left-on=["element"], right-on=["element"]);
+let one-file-found = select l."file" as "file", l."span" as "span", l."what" as "what", l."place" as "place" from one-file as l;
+let manifest-placed = select l."path" as "file" from "tastemaker.placed" as l where glob_any(concat(l."package", "/", l."template"), $manifest-roles);
+let open-placed = select l."path" as "file" from "tastemaker.placed" as l where glob_any(concat(l."package", "/", l."template"), $open-manifest-roles);
+let side-definitions = antijoin(left=definitions, right=workspace-files, left-on=["file"], right-on=["file"]);
+let side = antijoin(left=side-definitions, right=manifest-placed, left-on=["file"], right-on=["file"]);
+let side-found = select l."file" as "file", l."span" as "span", l."decoded" as "what", l."list" as "place" from side as l;
+let closed-keys = select * from top where key = "closed";
+let side-closed = antijoin(left=closed-keys, right=workspace-files, left-on=["file"], right-on=["file"]);
+let open = antijoin(left=side-closed, right=open-placed, left-on=["file"], right-on=["file"]);
+let open-found = select l."file" as "file", l."span" as "span", l."key" as "what", l."key" as "place" from open as l;
+let side-and-one-file = union(left=one-file-found, right=side-found);
+let found = union(left=side-and-one-file, right=open-found);
+emit found subject "file" key("span");
+'''
+
+[params.config-roles]
+type = "set<string>"
+description = "The templates, `package/name`, that place a file a product holds once by its nature: its Cargo workspace and locks, its README, its tool configuration, a build script, a compile-fail case. A one-file placement by one of them is no carve-out."
+
+[params.manifest-roles]
+type = "set<string>"
+description = "The templates, `package/name`, that place a manifest of its own beneath the workspace (a language's `tastemaker.toml`): a manifest one of them places may hold entries."
+
+[params.open-manifest-roles]
+type = "set<string>"
+description = "The templates, `package/name`, that place a manifest which may open its directory with `closed = false`."
+
+[params.source-extensions]
+type = "set<string>"
+description = "The extensions of source files, without the dot (`rs`, `py`): a file with one of them is never placed by `idiomatic.arch/unchecked`."
+
+[diagnostic]
+primary = "span"
+message = "`{what}` holds `{place}` by itself: a one-file placement, an entry of a side-manifest or an open side-manifest, which no role allows"
+help = "Place the file by its role, never by a capture of a manifest: a spec version that adds the role's pattern places every file of that role, so the next one touches no manifest. A side-manifest's entries move into the workspace manifest, each with an `include` for the directory. A carve-out is never ignored in the source; if no role fits, the role is missing from the spec, and the spec gains it."
+
+[given]
+files.'src/application/x/extra.rs' = "//! An extra file.\n"
+files.'Cargo.toml' = "[workspace]\nmembers = []\n"
+
+[[scenarios]]
+id = "one-file-placement"
+scenario = "A template entry that places one file by a template that is no config role is reported at the entry."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/manifest-placements", include = ["**/tastemaker.toml"], params = { config-roles = ["idiomatic.arch/cargo-workspace"], manifest-roles = [], open-manifest-roles = [], source-extensions = ["rs"] } }]
+templates = [
+  { template = "idiomatic.arch/service", file = "src/application/x/extra.rs", params = { concept = "x" } },
+]
+'''
+then.only = ["idiomatic.arch/manifest-placements"]
+then.findings = [{ path = "tastemaker.toml", line = 5 }]
+
+[[scenarios]]
+id = "config-role-placement"
+scenario = "A template entry that places one file by a config role, the Cargo workspace, is no carve-out."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/manifest-placements", include = ["**/tastemaker.toml"], params = { config-roles = ["idiomatic.arch/cargo-workspace"], manifest-roles = [], open-manifest-roles = [], source-extensions = ["rs"] } }]
+templates = [
+  { template = "idiomatic.arch/cargo-workspace", file = "Cargo.toml" },
+]
+'''
+then.only = ["idiomatic.arch/manifest-placements"]
+
+[[scenarios]]
+id = "unchecked-source-file"
+scenario = "A workspace manifest that places a source file by `unchecked` is reported: a source file has a role."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/manifest-placements", include = ["**/tastemaker.toml"], params = { config-roles = ["idiomatic.arch/cargo-workspace"], manifest-roles = [], open-manifest-roles = [], source-extensions = ["rs", "py"] } }]
+templates = [
+  { template = "idiomatic.arch/unchecked", file = "src/x.rs" },
+]
+'''
+given.files.'src/x.rs' = "//! x\n"
+then.only = ["idiomatic.arch/manifest-placements"]
+then.findings = [{ path = "tastemaker.toml", line = 5 }]
+
+[[scenarios]]
+id = "unchecked-license"
+scenario = "A workspace manifest that places a `LICENSE` by `unchecked` is no carve-out: the file is no source."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/manifest-placements", include = ["**/tastemaker.toml"], params = { config-roles = ["idiomatic.arch/cargo-workspace"], manifest-roles = [], open-manifest-roles = [], source-extensions = ["rs", "py"] } }]
+templates = [
+  { template = "idiomatic.arch/unchecked", file = "crates/x/LICENSE" },
+]
+'''
+given.files.'crates/x/LICENSE' = "MIT\n"
+then.only = ["idiomatic.arch/manifest-placements"]
+
+[[scenarios]]
+id = "placed-by-a-config-role-the-entry-gives"
+scenario = "A one-file placement by a template the entry gives as a config role, as a product gives its provider allowances, is no carve-out."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/manifest-placements", include = ["**/tastemaker.toml"], params = { config-roles = ["idiomatic.arch/cargo-workspace", "idiomatic.arch/gitignore"], manifest-roles = [], open-manifest-roles = [], source-extensions = ["rs", "py"] } }]
+templates = [
+  { template = "idiomatic.arch/gitignore", file = "src/.gitignore" },
+]
+'''
+given.files.'src/.gitignore' = "target\n"
+then.only = ["idiomatic.arch/manifest-placements"]
+
+[[scenarios]]
+id = "side-manifest-template"
+scenario = "A manifest with no `workspace` beside a crate that places files is reported at each entry."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", members = ["crates/x"], dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/manifest-placements", include = ["**/tastemaker.toml"], params = { config-roles = ["idiomatic.arch/cargo-workspace"], manifest-roles = [], open-manifest-roles = [], source-extensions = ["rs", "py"] } }]
+templates = [
+]
+'''
+given.files.'crates/x/tastemaker.toml' = '''
+templates = [{ template = "idiomatic.arch/service", file = "src/domain/a/{*rest}", params = { concept = "a" } }]
+'''
+given.files.'crates/x/src/domain/a/service.rs' = "//! a\n"
+then.only = ["idiomatic.arch/manifest-placements"]
+then.findings = [{ path = "crates/x/tastemaker.toml", line = 1 }]
+
+[[scenarios]]
+id = "side-manifest-spec"
+scenario = "A manifest with no `workspace` that places a spec is reported at the entry."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", members = ["crates/x"], dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/manifest-placements", include = ["**/tastemaker.toml"], params = { config-roles = ["idiomatic.arch/cargo-workspace"], manifest-roles = [], open-manifest-roles = [], source-extensions = ["rs", "py"] } }]
+templates = [
+]
+'''
+given.files.'crates/x/tastemaker.toml' = '''
+specs = [{ spec = "idiomatic.arch/concept", include = ["src/domain/a"], params = { item-trait = [] } }]
+'''
+given.files.'crates/x/src/domain/a/service.rs' = "//! a\n"
+then.only = ["idiomatic.arch/manifest-placements"]
+then.findings = [{ path = "crates/x/tastemaker.toml", line = 1 }]
+
+[[scenarios]]
+id = "manifest-a-role-places"
+scenario = "A manifest that a manifest role places, as a language places its own, may hold entries and open its directory."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", members = ["languages/x"], dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/manifest-placements", include = ["**/tastemaker.toml"], params = { config-roles = ["idiomatic.arch/cargo-workspace", "idiomatic.arch/gitignore"], manifest-roles = ["idiomatic.arch/unchecked"], open-manifest-roles = ["idiomatic.arch/unchecked"], source-extensions = ["rs", "py"] } }]
+templates = [
+  { template = "idiomatic.arch/unchecked", file = "languages/x/tastemaker.toml" },
+]
+'''
+given.files.'languages/x/tastemaker.toml' = '''
+closed = false
+templates = [{ template = "idiomatic.arch/gitignore", file = "src/.gitignore" }]
+'''
+given.files.'languages/x/src/.gitignore' = "target\n"
+then.only = ["idiomatic.arch/manifest-placements"]
+
+[[scenarios]]
+id = "open-side-manifest"
+scenario = "A manifest with no `workspace` that opens its directory is reported at `closed`."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", members = ["crates/x"], dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/manifest-placements", include = ["**/tastemaker.toml"], params = { config-roles = ["idiomatic.arch/cargo-workspace"], manifest-roles = [], open-manifest-roles = [], source-extensions = ["rs", "py"] } }]
+templates = [
+]
+'''
+given.files.'crates/x/tastemaker.toml' = "closed = false\n"
+given.files.'crates/x/notes.txt' = "x\n"
+then.only = ["idiomatic.arch/manifest-placements"]
+then.findings = [{ path = "crates/x/tastemaker.toml", line = 1 }]
+
+[[scenarios]]
+id = "unchecked-capture-placement"
+scenario = "A workspace manifest that places files by `unchecked` through a capture is reported: a capture is no role, and the files it places are source files."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/manifest-placements", include = ["**/tastemaker.toml"], params = { config-roles = ["idiomatic.arch/cargo-workspace"], manifest-roles = [], open-manifest-roles = [], source-extensions = ["rs", "py"] } }]
+templates = [
+  { template = "idiomatic.arch/unchecked", file = "crates/core/src/{*plant}" },
+]
+'''
+given.files.'crates/core/src/plant.rs' = "//! x\n"
+then.only = ["idiomatic.arch/manifest-placements"]
+then.findings = [{ path = "tastemaker.toml", line = 5 }]
+
+[[scenarios]]
+id = "captured-placement-by-a-non-config-template"
+scenario = "A template entry of a workspace manifest that places files through a capture by a template that is no config role is reported: the pattern belongs in a spec version."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/manifest-placements", include = ["**/tastemaker.toml"], params = { config-roles = ["idiomatic.arch/cargo-workspace"], manifest-roles = [], open-manifest-roles = [], source-extensions = ["rs", "py"] } }]
+templates = [
+  { template = "idiomatic.arch/service", file = "src/application/{x}/extra.rs", params = { concept = "x" } },
+]
+'''
+then.only = ["idiomatic.arch/manifest-placements"]
+then.findings = [{ path = "tastemaker.toml", line = 5 }]

@@ -1,0 +1,94 @@
+{
+  "schema": "benchmark-inventory/v1",
+  "provider": "ruff",
+  "run_state": "complete",
+  "identity": {
+    "collector_sha256": "813f50ad3cf909b23a48da6801a50d756c349ab47129e7dd07815c6e277dd004",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "worker_sha256": "e0092188f1af6786f4981680a7129445f33117050343388ba9cb69016891266a"
+  },
+  "counts": {
+    "FAIL": 0,
+    "PASS": 2
+  },
+  "rules": [
+    {
+      "rule_id": "FA100",
+      "status": "PASS",
+      "reason": null,
+      "instance": {
+        "case_count": 27,
+        "cases_file": "rules/FA100/cases.toml",
+        "cases_sha256": "e64444752fc3128dcee2be53f8f5b35b43f3297de25a73d48575036ecbb64bb3",
+        "effective_settings": {
+          "defaults": [
+            "FA100"
+          ],
+          "flags": {},
+          "parser_configuration": "python-target=3.7",
+          "project_context_mode": "isolated",
+          "rule_applicability": {
+            "FA100": "accepted-syntax"
+          }
+        },
+        "module_sha256": {
+          "python/ruff/annotation-evaluation-context": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+          "python/ruff/annotation-origins": "6cfa26a97e143633f526c534006c42df872a6bff5da05904d2f5843fc10b9240",
+          "python/ruff/future-annotation-context": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+          "python/ruff/lookup-symbol-events": "b0fb09349eb9b0acde95944add1760c9ce104fc66df1bd218261b40b4f895dfb",
+          "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+          "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+        },
+        "parser_configuration": "python-target=3.7",
+        "profile_sha256": "6fce5f228dcbd2f2f68ad0e799ac213d94079f6cf1085c912fe410c1b486a41f",
+        "query_file": "rules/FA100/query.ryoql",
+        "query_sha256": "2517341b77c5880857add89c1e00e8d9f9932df20c5f7624adedd75ad227bfc7",
+        "settings_scope": "dedicated singleton profile (existing parser default contract)",
+        "settings_source": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/FA100/benchmark.toml",
+        "settings_source_sha256": "c3d6ce9e808e8f28ecc8d88473a1dada4c236c447e9e79c9049b1864dc5b4ba0"
+      },
+      "case_results_sha256": "b12caef24eb4b20d72ffe8e7bb412fae916e2c24ee9c92740bc99d1797291637",
+      "case_count": 27,
+      "raw_exact": 27,
+      "documented_discrepancies": 0
+    },
+    {
+      "rule_id": "FA102",
+      "status": "PASS",
+      "reason": null,
+      "instance": {
+        "case_count": 22,
+        "cases_file": "rules/FA102/cases.toml",
+        "cases_sha256": "93bc6d341343c1eb510e706bc2ebd3002340c4d421a756e1722b69be1ab96765",
+        "effective_settings": {
+          "defaults": [
+            "FA102"
+          ],
+          "flags": {},
+          "parser_configuration": "python-target=3.7",
+          "project_context_mode": "isolated",
+          "rule_applicability": {
+            "FA102": "accepted-syntax"
+          }
+        },
+        "module_sha256": {
+          "python/ruff/annotation-evaluation-context": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+          "python/ruff/future-annotation-context": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+          "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+          "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+        },
+        "parser_configuration": "python-target=3.7",
+        "profile_sha256": "2a6f2cd7bcf701bae2b4ca9ee827d3c077f480c93cf378adf54634570b5abb4b",
+        "query_file": "rules/FA102/query.ryoql",
+        "query_sha256": "a033d89ead5338ee9adcebbbee009d53e8c4234c9cb3ee07c45cfa2ae9b9034e",
+        "settings_scope": "dedicated singleton profile (existing parser default contract)",
+        "settings_source": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/FA102/benchmark.toml",
+        "settings_source_sha256": "6780aef1ee91feda2926862ca58b978db1aff435831dcfc0baa9842a5e390e8d"
+      },
+      "case_results_sha256": "335565d687d293290b5d6dac56ad5c852ee79fe1d7100b573906c977b49d39a8",
+      "case_count": 22,
+      "raw_exact": 22,
+      "documented_discrepancies": 0
+    }
+  ]
+}

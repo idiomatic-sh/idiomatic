@@ -10,29 +10,29 @@ use std::sync::Arc;
 
 use ryo_core::inbound::use_cases::lint::types::{LintRequest, ParameterValue, Rule, RuleParameter};
 use ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl;
-use ryo_core::outbound::language::types::LanguageHandles;
+use ryo_core::outbound::language::factory::LanguageConnection;
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_values::domain::runs::types::Budget;
 use ryo_values::domain::runs::types::Session;
 
-use ryo_core::outbound::rows::interface::RowsPort;
-use ryo_core::outbound::{
-    corpus, digest, facts, language, matching, memory, query_language, rows, scheduler,
-};
+use ryo_core::outbound::row_sink::interface::RowSinkPort;
+use ryo_core::outbound::{corpus, language, memory, row_sink, scheduler};
+use ryo_execution::outbound::{matching, query_language};
+use ryo_execution_runtime::outbound::{digest, facts};
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::plan_parts::types::{
     FlagState, LiteralText, ParameterName, QueryText as CoreQueryText, WholeNumber,
 };
-use ryo_values::domain::plans::types::{ParameterType, PlanParameter};
 
 /// The directory of the recordings.
 pub(crate) fn directory() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/recordings")
 }
 
-/// Whether a recorded rule waits for something ryo does not do yet.
+/// Whether a recorded rule waits for something ryo does not do yet: only a relation its language does not provide, which the
+/// recording's `pending.txt` names.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Pending {
     /// The rule runs and is replayed.
@@ -67,14 +67,25 @@ pub(crate) fn text(path: &Path) -> String {
     }
 }
 
-/// A list of text of a table of `file`, by key.
+/// The text of a file a recording or a fixture must hold: an absent one fails.
+pub(crate) fn required_text(path: &Path) -> String {
+    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
+}
+
+/// A list of text of a table of `file`, by key: absent, it is empty; anything but a list of text fails.
 pub(crate) fn texts(table: &toml::Table, key: &str) -> Vec<String> {
-    table
-        .get(key)
-        .and_then(toml::Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(|each| each.as_str().map(str::to_owned))
+    let Some(value) = table.get(key) else {
+        return Vec::new();
+    };
+    value
+        .as_array()
+        .unwrap_or_else(|| panic!("`{key}` is not a list: {value}"))
+        .iter()
+        .map(|each| {
+            each.as_str()
+                .unwrap_or_else(|| panic!("`{key}` holds `{each}`, which is not text"))
+                .to_owned()
+        })
         .collect()
 }
 
@@ -105,6 +116,25 @@ pub(crate) fn parameter(name: &str, value: &toml::Value) -> Option<RuleParameter
                     .collect(),
             )
         }
+        // A list of sets of text (`list<set<string>>`), each set an array of text.
+        toml::Value::Array(items)
+            if items.iter().all(|set| {
+                set.as_array()
+                    .is_some_and(|texts| texts.iter().all(toml::Value::is_str))
+            }) =>
+        {
+            ParameterValue::TextSets(
+                items
+                    .iter()
+                    .filter_map(toml::Value::as_array)
+                    .map(|set| {
+                        set.iter()
+                            .filter_map(|each| each.as_str().map(|text| LiteralText(text.into())))
+                            .collect()
+                    })
+                    .collect(),
+            )
+        }
         toml::Value::Float(_)
         | toml::Value::Datetime(_)
         | toml::Value::Array(_)
@@ -116,21 +146,65 @@ pub(crate) fn parameter(name: &str, value: &toml::Value) -> Option<RuleParameter
     })
 }
 
-/// The parameters a query declares, as the query language reads them; or why ryo does not compile the query.
-pub(crate) fn compile(query: &str) -> Result<Vec<PlanParameter>, String> {
+/// The plan ryo compiles a query to, or why it does not compile it.
+pub(crate) fn compiled(
+    query: &str,
+) -> Result<
+    ryo_values::domain::plans::types::Plan,
+    ryo_query_language::inbound::use_cases::compile::errors::CompileError,
+> {
     let compiler = CompileUseCaseImpl::new(
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),
     );
     ryo_query_language::inbound::use_cases::compile::interface::CompileUseCase::compile(
         &compiler,
-        ryo_query_language::inbound::use_cases::compile::types::CompileRequest {
-            text: CoreQueryText(query.into()),
+        ryo_values::domain::plans::types::QueryRequest {
+            observations: Vec::new(),
+            text: ryo_values::domain::query_tokens::types::QueryBundle::from(CoreQueryText(
+                query.into(),
+            )),
             hosted: Vec::new(),
+            modules: ryo_values::domain::program::types::ParsedModules::default(),
         },
     )
-    .map(|report| report.plan.parameters)
-    .map_err(|error| format!("ryo does not compile the recorded query: {error}"))
+    .map(|report| report.plan)
+}
+
+/// The refusal under every module origin a compile refusal is located at: a query reading through a module is refused `Located`.
+fn innermost(
+    error: &ryo_query_language::inbound::use_cases::compile::errors::CompileError,
+) -> &ryo_query_language::inbound::use_cases::compile::errors::CompileError {
+    match error {
+        ryo_query_language::inbound::use_cases::compile::errors::CompileError::Located {
+            error,
+            ..
+        } => innermost(error),
+        ryo_query_language::inbound::use_cases::compile::errors::CompileError::ObservationInputs { .. }
+        | ryo_query_language::inbound::use_cases::compile::errors::CompileError::Syntax { .. }
+        | ryo_query_language::inbound::use_cases::compile::errors::CompileError::UnknownRelation { .. }
+        | ryo_query_language::inbound::use_cases::compile::errors::CompileError::Type { .. }
+        | ryo_query_language::inbound::use_cases::compile::errors::CompileError::Invalid { .. }
+        | ryo_query_language::inbound::use_cases::compile::errors::CompileError::Catalog { .. } => error,
+    }
+}
+
+/// The names of the relations of ryo a plan reads, each once, in order.
+pub(crate) fn relations_read(plan: &ryo_values::domain::plans::types::Plan) -> Vec<String> {
+    let mut read = std::collections::BTreeSet::new();
+    for step in &plan.steps {
+        let mut operation = step.operation.clone();
+        ryo_values::domain::plans::service::each_input(&mut operation, &mut |input| {
+            if let ryo_values::domain::plan_parts::types::Input::Relation(relation) = input {
+                let _new = read.insert(
+                    ryo_relations::domain::relations::service::name(*relation)
+                        .0
+                        .to_owned(),
+                );
+            }
+        });
+    }
+    read.into_iter().collect()
 }
 
 /// Every recorded rule, in the order of their names.
@@ -139,63 +213,152 @@ pub(crate) fn recordings() -> Vec<Recording> {
         .expect("a folder of the fixtures is read")
         .map(|entry| entry.expect("an entry of a folder of the fixtures is read"))
         .filter(|entry| entry.path().is_dir())
-        .map(|entry| {
-            let at = entry.path();
-            let scope: toml::Table = text(&at.join("scope.toml")).parse().unwrap_or_default();
-            let given: toml::Table = text(&at.join("parameters.toml"))
-                .parse()
-                .unwrap_or_default();
-            let unbound = given
-                .iter()
-                .any(|(name, value)| parameter(name, value).is_none());
-            let query = text(&at.join("query.ryoql"));
-            let compiled = compile(&query);
-            let pending = Some(text(&at.join("pending.txt")).trim().to_owned())
-                .filter(|why| !why.is_empty())
-                .or_else(|| unbound.then(|| "a parameter ryo cannot declare or bind".to_owned()))
-                .or_else(|| compiled.as_ref().err().cloned());
-            let mut recording = Recording {
-                name: entry.file_name().to_string_lossy().into_owned(),
-                query,
-                parameters: given
-                    .iter()
-                    .filter_map(|(name, value)| parameter(name, value))
-                    .chain(
-                        compiled
-                            .iter()
-                            .flatten()
-                            .filter(|declared| !given.contains_key(&*declared.name.0))
-                            .filter_map(|declared| {
-                                Some(RuleParameter {
-                                    name: declared.name.clone(),
-                                    value: match declared.kind {
-                                        ParameterType::Texts => ParameterValue::Texts(Vec::new()),
-                                        ParameterType::Numbers => {
-                                            ParameterValue::Numbers(Vec::new())
-                                        }
-                                        ParameterType::Flag
-                                        | ParameterType::Number
-                                        | ParameterType::Text
-                                        | ParameterType::TextSets
-                                        | ParameterType::Tables => return None,
-                                    },
-                                })
-                            }),
-                    )
-                    .collect(),
-                include: texts(&scope, "include"),
-                exclude: texts(&scope, "exclude"),
-                pending: pending.map_or(Pending::Missing, Pending::Because),
-            };
-            if recording.pending == Pending::Missing {
-                recording.pending =
-                    does_not_run(&recording).map_or(Pending::Missing, Pending::Because);
-            }
-            recording
-        })
+        .map(|entry| recording_at(&entry.path()))
         .collect();
     found.sort_by(|left, right| left.name.cmp(&right.name));
     found
+}
+
+/// A recorded table of `file` under `at`: an absent file is an empty table, a malformed one fails.
+pub(crate) fn table_at(at: &Path, file: &str) -> toml::Table {
+    text(&at.join(file))
+        .parse()
+        .unwrap_or_else(|error| panic!("{}: {error}", at.join(file).display()))
+}
+
+/// The recording in the directory `at`, checked. It must hold its query and its scope. A rule that does not compile, binds a
+/// parameter ryo cannot bind, leaves a parameter its query declares without a value, reads a relation the Rust language does not
+/// provide, or is refused by the engine fails. The one exception is a `pending.txt`, which names exactly the relations the rule
+/// reads that its language does not provide: the query must fail on no other ground, and either name one relation ryo does not
+/// own (the compile refusal `no relation named`) or compile to a plan whose unprovided relations are exactly those named.
+pub(crate) fn recording_at(at: &Path) -> Recording {
+    let name = at
+        .file_name()
+        .map(|each| each.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let query = required_text(&at.join("query.ryoql"));
+    let _scope_held = required_text(&at.join("scope.toml"));
+    let scope = table_at(at, "scope.toml");
+    // A scope says which files the rule was recorded over: its `include` globs, and the `exclude` globs it may add. Nothing else.
+    assert!(
+        scope.contains_key("include")
+            && scope.keys().all(|key| key == "include" || key == "exclude"),
+        "{}: scope.toml holds {:?}, not `include` and an optional `exclude`",
+        at.display(),
+        scope.keys().collect::<Vec<_>>()
+    );
+    let given = table_at(at, "parameters.toml");
+    let unbound: Vec<&String> = given
+        .iter()
+        .filter(|(name, value)| parameter(name, value).is_none())
+        .map(|(name, _)| name)
+        .collect();
+    let plan = compiled(&query);
+    let undeclared: Vec<String> = plan
+        .iter()
+        .flat_map(|plan| plan.parameters.iter())
+        .filter(|declared| !given.contains_key(&*declared.name.0))
+        .map(|declared| declared.name.0.to_string())
+        .collect();
+    let pending =
+        Some(text(&at.join("pending.txt")).trim().to_owned()).filter(|why| !why.is_empty());
+    let mut recording = Recording {
+        name,
+        query,
+        parameters: given
+            .iter()
+            .filter_map(|(name, value)| parameter(name, value))
+            .collect(),
+        include: texts(&scope, "include"),
+        exclude: texts(&scope, "exclude"),
+        pending: Pending::Missing,
+    };
+    let name = recording.name.clone();
+    let named = pending.as_deref().map(unprovided);
+    match (plan.as_ref().map_err(innermost), &named) {
+        (
+            Err(ryo_query_language::inbound::use_cases::compile::errors::CompileError::UnknownRelation { name: unknown, .. }),
+            Some(named),
+        ) => {
+            assert!(
+                named.as_slice() == std::slice::from_ref(unknown),
+                "{name}: the query reads `{unknown}`, which ryo does not own, and pending.txt names {named:?}"
+            );
+        }
+        (Err(error), _) => panic!("{name}: ryo does not compile the recorded query: {error}"),
+        (Ok(plan), _) => {
+            let mut absent: Vec<String> = relations_read(plan)
+                .into_iter()
+                .filter(|relation| !provided(relation))
+                .collect();
+            absent.sort();
+            let mut expected = named.clone().unwrap_or_default();
+            expected.sort();
+            assert!(
+                absent == expected,
+                "{name}: the plan reads {absent:?}, which the Rust language does not provide, and pending.txt names {expected:?}"
+            );
+            assert!(unbound.is_empty(), "{name}: ryo cannot bind the parameters {unbound:?}");
+            assert!(
+                undeclared.is_empty(),
+                "{name}: the query declares {undeclared:?}, which parameters.toml gives no value"
+            );
+            let stray: Vec<&String> = given
+                .keys()
+                .filter(|given| !plan.parameters.iter().any(|declared| &*declared.name.0 == given.as_str()))
+                .collect();
+            assert!(stray.is_empty(), "{name}: parameters.toml gives {stray:?}, which the query does not declare");
+            if let Some(refusal) = does_not_run(&recording) {
+                panic!("{name}: {refusal}");
+            }
+        }
+    }
+    if let Some(why) = pending {
+        recording.pending = Pending::Because(why);
+    }
+    recording
+}
+
+/// The relations a `pending.txt` names, in its one form: `reads <relation>, <relation>, which the Rust language of ryo does not
+/// provide`.
+pub(crate) fn unprovided(why: &str) -> Vec<String> {
+    let named = why
+        .strip_prefix("reads ")
+        .and_then(|rest| rest.split_once(", which the Rust language of ryo does not provide"))
+        .map(|(names, _)| names)
+        .unwrap_or_else(|| panic!("pending.txt says `{why}`, not `reads <relations>, which the Rust language of ryo does not provide`"));
+    let relations: Vec<String> = named.split(", ").map(str::to_owned).collect();
+    assert!(
+        relations.iter().all(|relation| !relation.is_empty()),
+        "pending.txt names an empty relation: `{why}`"
+    );
+    relations
+}
+
+/// The languages the replay links: the Rust language, and the TOML language for the rules that read a Cargo manifest's tree.
+/// The pending check, the hosted lint and the counting lint all link these, so a relation is pending only when none of them
+/// provides it.
+pub(crate) fn replay_languages() -> Vec<LanguageConnection> {
+    vec![
+        LanguageConnection::from(ryo_rust::linked()),
+        LanguageConnection::from(ryo_toml::linked()),
+    ]
+}
+
+/// Whether a language the replay links provides the relation RyoQL calls `relation`: a relation ryo does not own (a host's)
+/// is provided by no language.
+pub(crate) fn provided(relation: &str) -> bool {
+    use ryo_core::outbound::language::interface::LanguagePort as _;
+    let Some(owned) = ryo_relations::domain::relations::service::relation_named(
+        ryo_relations::domain::labels::types::NameRef(relation),
+    ) else {
+        return false;
+    };
+    language::factory::use_case(replay_languages())
+        .supports(owned)
+        .0
+        .iter()
+        .any(|answer| answer.absence == language::types::Absence::Reads)
 }
 
 /// The real store, kept in the cache directory under `root`, for the build the tests are.
@@ -226,10 +389,6 @@ pub(crate) fn lint_over(
     )
 }
 
-/// Whether the lint runs the steps that read only the tree as operators, which the bench and the equivalence test set.
-pub(crate) static UNLOWERED: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
-
 /// Whether the lint counts the rows each step is fed, which the replay of ruff sets for the report of features.
 pub(crate) static COUNTING: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
@@ -242,7 +401,7 @@ pub(crate) static COUNTING: std::sync::atomic::AtomicBool =
 pub(crate) fn lint_with(
     root: &Path,
     rules: Vec<Rule>,
-    store: Arc<dyn facts::interface::FactsPort>,
+    store: Arc<dyn ryo_execution_runtime::outbound::facts::interface::FactsPort>,
     lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
 ) -> Result<(Vec<Vec<String>>, Vec<String>), String> {
     let (rows, report) = lint_report(root, rules, store, lint_store)?;
@@ -264,7 +423,7 @@ pub(crate) fn lint_with(
 pub(crate) fn lint_report(
     root: &Path,
     rules: Vec<Rule>,
-    store: Arc<dyn facts::interface::FactsPort>,
+    store: Arc<dyn ryo_execution_runtime::outbound::facts::interface::FactsPort>,
     lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
 ) -> Result<
     (
@@ -273,7 +432,8 @@ pub(crate) fn lint_report(
     ),
     String,
 > {
-    lint_report_hosted(root, rules, store, lint_store, Vec::new(), false)
+    // The command line links the TOML language beside the Rust language; a rule that reads a manifest's tree needs it.
+    lint_report_hosted(root, rules, store, lint_store, Vec::new(), true)
 }
 
 /// Lints `root` with `rules`, the facts kept by `store`, over the relations a host declares beside ryo's own: the rows the rules gave and
@@ -285,7 +445,7 @@ pub(crate) fn lint_report(
 pub(crate) fn lint_report_hosted(
     root: &Path,
     rules: Vec<Rule>,
-    store: Arc<dyn facts::interface::FactsPort>,
+    store: Arc<dyn ryo_execution_runtime::outbound::facts::interface::FactsPort>,
     lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
     hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
     manifests_read: bool,
@@ -315,11 +475,11 @@ pub(crate) fn lint_report_hosted(
 pub(crate) fn lint_report_with_languages(
     root: &Path,
     rules: Vec<Rule>,
-    store: Arc<dyn facts::interface::FactsPort>,
+    store: Arc<dyn ryo_execution_runtime::outbound::facts::interface::FactsPort>,
     lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
     hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
     manifests_read: bool,
-    additional: Vec<LanguageHandles>,
+    additional: Vec<LanguageConnection>,
 ) -> Result<
     (
         Vec<Vec<String>>,
@@ -327,20 +487,20 @@ pub(crate) fn lint_report_with_languages(
     ),
     String,
 > {
-    let rust = ryo_rust::linked();
-    let mut handles = vec![LanguageHandles::from(rust)];
+    // Rules that locate a finding in a manifest read its tree, which only the TOML language gives: those runs link the
+    // replay's languages; the others the Rust language alone. A scene's own providers come after.
+    let mut handles = if manifests_read {
+        replay_languages()
+    } else {
+        vec![LanguageConnection::from(ryo_rust::linked())]
+    };
     handles.extend(additional);
-    // Rules that locate a finding in a manifest read its tree, which only the TOML language gives.
-    if manifests_read {
-        let toml = ryo_toml::linked();
-        handles.push(LanguageHandles::from(toml));
-    }
     let compile = CompileUseCaseImpl::new(
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),
     );
-    let collected = rows::types::Collector::default();
-    let kept: Arc<dyn RowsPort> = Arc::new(rows::factory::collect(collected.clone()));
+    let collected = row_sink::factory::CollectorConnection::default();
+    let kept: Arc<dyn RowSinkPort> = Arc::new(row_sink::factory::collect(collected.clone()));
     let use_case = {
         let analysis_corpus: Arc<dyn corpus::interface::CorpusPort> =
             Arc::new(corpus::factory::ignore(
@@ -353,8 +513,21 @@ pub(crate) fn lint_report_with_languages(
             Arc::new(language::factory::use_case(handles));
         let analysis_memory: Arc<dyn memory::interface::MemoryPort> =
             Arc::new(memory::factory::sysinfo(Budget::Machine));
-        let analysis_digest: Arc<dyn digest::interface::DigestPort> =
-            Arc::new(digest::factory::blake3());
+        let analysis_digest: Arc<
+            dyn ryo_execution_runtime::outbound::digest::interface::DigestPort,
+        > = Arc::new(digest::factory::blake3());
+        let started = scheduler::types::WorkerCount(
+            ryo_values::domain::runs::service::workers_to_start(
+                ryo_values::domain::runs::types::WorkersAsked(0),
+                ryo_values::domain::runs::types::MachineWorkers(
+                    u32::try_from(
+                        std::thread::available_parallelism().map_or(1, std::num::NonZero::get),
+                    )
+                    .unwrap_or(1),
+                ),
+            )
+            .0,
+        );
         LintUseCaseImpl::new(
             ryo_core::application::file_analysis::service::FileAnalysis::new(
                 Arc::clone(&analysis_corpus),
@@ -364,7 +537,7 @@ pub(crate) fn lint_report_with_languages(
             ),
             ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(
                 &analysis_corpus,
-            )),
+            ), std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())),
             Arc::clone(&analysis_corpus),
             store,
             Arc::clone(&analysis_language),
@@ -377,29 +550,31 @@ pub(crate) fn lint_report_with_languages(
                 )),
             )),
             Arc::clone(&analysis_memory),
-            Arc::new(scheduler::factory::rayon(scheduler::factory::pool(
-                ryo_values::domain::runs::types::WorkersAsked(0),
-            ))),
-            scheduler::factory::workers(ryo_values::domain::runs::types::WorkersAsked(0)),
+            Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
+            )),
+            ryo_execution::derived(),
+            Arc::new(scheduler::factory::rayon(started)),
+            started,
             Arc::clone(&kept),
             Arc::clone(&analysis_digest),
             lint_store,
         )
     };
-    let use_case = if UNLOWERED.load(std::sync::atomic::Ordering::Relaxed) {
-        use_case.unlowered()
-    } else {
-        use_case
-    };
     let use_case = if COUNTING.load(std::sync::atomic::Ordering::Relaxed) {
-        use_case.counting()
+        use_case.counting(|| {
+            std::sync::Arc::new(ryo_execution_runtime::outbound::observer::factory::counting())
+        })
     } else {
         use_case
     };
     let request = LintRequest {
+        source_language: ryo_core::inbound::use_cases::lint::types::SourceProvider::Recognized,
         answer: ryo_values::domain::runs::types::AnswerShape::Findings,
         hosted,
         session: Session {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(root.to_string_lossy().into()),
         },
@@ -416,8 +591,12 @@ pub(crate) fn lint_report_with_languages(
 /// The rule of a recording, as ryo is asked to run it.
 pub(crate) fn rule_of(each: &Recording) -> Rule {
     Rule {
+        observations: Vec::new(),
         id: ryo_values::domain::runs::types::RuleId(each.name.as_str().into()),
-        query: CoreQueryText(each.query.as_str().into()),
+        query: ryo_values::domain::query_tokens::types::QueryBundle::from(CoreQueryText(
+            each.query.as_str().into(),
+        )),
+        applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         parameters: each.parameters.clone(),
         include: each
             .include
@@ -434,15 +613,38 @@ pub(crate) fn rule_of(each: &Recording) -> Rule {
 
 /// Why a rule does not run, found on a few lines of Rust: the engine refuses it at run time, for a table it builds from what the query asks.
 pub(crate) fn does_not_run(each: &Recording) -> Option<String> {
-    let sample = tempfile::tempdir().ok()?;
-    std::fs::write(sample.path().join("lib.rs"), "use std::fmt;\nfn run(value: u8) -> u8 { value }\nstruct Point { x: u8 }\nimpl Point { fn new() -> Self { Point { x: 0 } } }\n").ok()?;
+    does_not_run_in(tempfile::tempdir(), each)
+}
+
+/// Why a rule does not run in the sample directory `sample`: a sample that could not be made or written is a failure too, never a
+/// rule that runs.
+pub(crate) fn does_not_run_in(
+    sample: std::io::Result<tempfile::TempDir>,
+    each: &Recording,
+) -> Option<String> {
+    let sample = match sample {
+        Ok(sample) => sample,
+        Err(error) => {
+            return Some(format!(
+                "the sample to run the recorded query in was not made: {error}"
+            ));
+        }
+    };
+    if let Err(error) = std::fs::write(
+        sample.path().join("lib.rs"),
+        "use std::fmt;\nfn run(value: u8) -> u8 { value }\nstruct Point { x: u8 }\nimpl Point { fn new() -> Self { Point { x: 0 } } }\n",
+    ) {
+        return Some(format!(
+            "the sample to run the recorded query in was not written: {error}"
+        ));
+    }
     lint_over(sample.path(), vec![rule_of(each)])
         .err()
         .map(|failure| format!("ryo does not run the recorded query: {failure}"))
 }
 
 /// The findings a lint kept, each as the text a recording holds: the rule, the subject, the key, the line and the character.
-pub(crate) fn base_rows(collected: &rows::types::Collector) -> Vec<Vec<String>> {
+pub(crate) fn base_rows(collected: &row_sink::factory::CollectorConnection) -> Vec<Vec<String>> {
     std::mem::take(
         &mut *collected
             .0
@@ -455,24 +657,27 @@ pub(crate) fn base_rows(collected: &rows::types::Collector) -> Vec<Vec<String>> 
     .collect()
 }
 
+/// How a cell a row does not have reads, apart from a cell of empty text.
+pub(crate) const ABSENT: &str = "(absent)";
+
 /// A finding's typed row as the text a recording holds: its rule, its subject, its key values joined with commas, its line and its
 /// character, each value as it reads (a span as its two ends); its columns, which a recording does not hold, left out. A row not laid
 /// out as a finding's is each of its cells as text.
 pub(crate) fn finding_texts(
-    cells: &[Option<ryo_values::domain::records::types::Cell>],
+    cells: &[Option<ryo_values::domain::row_texts::types::Cell>],
 ) -> Vec<String> {
-    use ryo_values::domain::records::types::Cell;
+    use ryo_values::domain::row_texts::types::Cell;
     let text = |cell: &Option<Cell>| match cell {
         Some(Cell::File(each) | Cell::Text(each)) => each.to_string(),
         Some(Cell::Number(number)) => number.0.to_string(),
         Some(Cell::Span(span))
-            if ryo_language::domain::relations::service::location(*span)
-                == ryo_language::domain::relations::types::Locatedness::Absent =>
+            if ryo_relations::domain::relations::service::location(*span)
+                == ryo_relations::domain::relations::types::Locatedness::Absent =>
         {
-            ryo_language::domain::relations::constants::UNLOCATED.to_owned()
+            ryo_relations::domain::relations::constants::UNLOCATED.to_owned()
         }
         Some(Cell::Span(span)) => format!("{}..{}", span.start.0, span.end.0),
-        None => String::new(),
+        None => ABSENT.to_owned(),
     };
     match cells {
         [
@@ -483,11 +688,10 @@ pub(crate) fn finding_texts(
             line,
             column,
         ] => {
-            let key: Vec<String> = rest
-                .iter()
-                .take(usize::try_from(count.0).unwrap_or(0))
-                .map(text)
-                .collect();
+            let Ok(count) = usize::try_from(count.0) else {
+                return cells.iter().map(text).collect();
+            };
+            let key: Vec<String> = rest.iter().take(count).map(text).collect();
             vec![
                 text(rule),
                 text(subject),

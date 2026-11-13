@@ -63,10 +63,6 @@ mod store;
 
 fn main() {
     let arguments: Vec<String> = std::env::args().collect();
-    if arguments.iter().any(|each| each == "--unlowered") {
-        base::UNLOWERED.store(true, std::sync::atomic::Ordering::Relaxed);
-        counting::UNLOWERED.store(true, std::sync::atomic::Ordering::Relaxed);
-    }
     if let Some(at) = arguments
         .iter()
         .position(|each| each == "--measure-cache-phase")
@@ -100,9 +96,27 @@ fn main() {
                 .expect("--rounds requires a positive integer")
         });
     assert!(rounds > 0, "--rounds requires a positive integer");
-    rows::sets();
+    if arguments.iter().any(|each| each == "--diagnostic-rules") {
+        rows::sets();
+        return;
+    }
+    let declared = base::recordings();
+    assert!(
+        !declared.is_empty()
+            && declared
+                .iter()
+                .all(|rule| rule.pending == base::Pending::Missing),
+        "benchmark requires every configured recorded rule; pending rules cannot be omitted"
+    );
+    let expected: std::collections::BTreeSet<_> =
+        declared.iter().map(|rule| rule.name.as_str()).collect();
+    let runnable = counting::runnable();
+    let actual: std::collections::BTreeSet<_> =
+        runnable.iter().map(|(name, _)| name.as_str()).collect();
+    assert_eq!(expected.len(), declared.len(), "duplicate declared rules");
+    assert_eq!(actual.len(), runnable.len(), "duplicate runnable rules");
+    assert_eq!(actual, expected, "benchmark must run every configured rule");
     let mut metrics = cold::every_rule();
-    metrics.extend(cold::spike());
     metrics.extend(cache::of_ruff(rounds));
     metrics.extend(store::of_each_target());
     bmf::print(&metrics);

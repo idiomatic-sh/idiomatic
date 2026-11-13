@@ -1,5 +1,10 @@
 //! The types of the `query` concept: RyoQL text, and a stretch of it.
 
+use ryo_values::domain::query_tokens::types::{
+    QueryDocumentSource, QuerySourceId, QuerySourceText,
+};
+use std::{collections::BTreeMap, sync::Arc};
+
 /// A place in the query text, counted in bytes from its start.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ByteOffset(pub usize);
@@ -13,31 +18,112 @@ pub struct QuerySpan {
     pub end: ByteOffset,
 }
 
-/// RyoQL text: text that is not blank. Made through `RyoQlQuery::try_from`; `query::validate` says whether it is correct.
+/// A named query module source that the compiler receives in memory.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RyoQlQuery(Box<str>);
+pub struct QueryModuleSource {
+    /// The validated logical identity used by imports in the bundle.
+    id: QuerySourceId,
+    /// Exact module source bytes interpreted as UTF-8 text.
+    text: QuerySourceText,
+}
 
-// ignore: idiomatic.arch/idiomatic-rust/no-bare-text - the newtype's own text crosses only to the schemas of the SDK's entries, which check it on the way in (`query validate`'s `TryFrom`, the one place validation is allowed) and hand it to the core on the way out; the field stays private so no caller outside the crate makes an unchecked one, which a `pub(crate)` field would allow every module of it
-impl RyoQlQuery {
-    /// A query of `text`, which a schema has checked: what the entries' schemas build, never a caller.
-    pub(crate) const fn from_text(text: Box<str>) -> Self {
-        Self(text)
+impl QueryModuleSource {
+    /// Construct a module value from already checked components.
+    pub(crate) const fn from_parts(id: QuerySourceId, text: QuerySourceText) -> Self {
+        Self { id, text }
     }
 
-    /// The text, handed on to the core.
-    pub(crate) fn into_text(self) -> Box<str> {
+    /// Transfer already checked identity and shared bytes into the neutral catalog.
+    pub(crate) fn into_document(self) -> QueryDocumentSource {
+        QueryDocumentSource {
+            id: self.id,
+            text: self.text,
+        }
+    }
+
+    /// The stable logical module id.
+    #[cfg(test)]
+    pub(crate) fn id(&self) -> &QuerySourceId {
+        &self.id
+    }
+
+    /// The exact source text.
+    #[cfg(test)]
+    pub(crate) fn text(&self) -> &QuerySourceText {
+        &self.text
+    }
+}
+
+/// One checked immutable module catalog, reusable by any number of root queries.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct QueryModuleCatalog(Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>);
+
+impl QueryModuleCatalog {
+    /// Construct from documents checked at the SDK schema boundary.
+    pub(crate) const fn from_catalog(
+        catalog: Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>,
+    ) -> Self {
+        Self(catalog)
+    }
+
+    /// Borrow the checked immutable catalog for a root's checked construction.
+    pub(crate) fn catalog(&self) -> &Arc<BTreeMap<QuerySourceId, QueryDocumentSource>> {
+        &self.0
+    }
+
+    /// Whether this catalog declares modules.
+    #[must_use]
+    pub fn content(&self) -> CatalogContent {
+        if self.0.is_empty() {
+            CatalogContent::Empty
+        } else {
+            CatalogContent::Modules
+        }
+    }
+}
+
+/// Whether a module catalog declares any module.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CatalogContent {
+    /// The catalog declares no module.
+    Empty,
+    /// The catalog declares at least one module.
+    Modules,
+}
+
+/// RyoQL text: text that is not blank. Made through `RyoQlQuery::try_from`; `query::validate` says whether it is correct.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RyoQlQuery(ryo_values::domain::query_tokens::types::QueryBundle);
+
+// the newtype's own text crosses only to the schemas of the SDK's entries, which check it on the way in (`query validate`'s `TryFrom`, the one place validation is allowed) and hand it to the core on the way out; the field stays private so no caller outside the crate makes an unchecked one, which a `pub(crate)` field would allow every module of it
+impl RyoQlQuery {
+    /// A query of `text`, which a schema has checked: what the entries' schemas build, never a caller.
+    pub(crate) const fn from_bundle(
+        bundle: ryo_values::domain::query_tokens::types::QueryBundle,
+    ) -> Self {
+        Self(bundle)
+    }
+
+    /// The immutable core bundle, handed to validation, compilation and execution.
+    pub(crate) fn into_bundle(self) -> ryo_values::domain::query_tokens::types::QueryBundle {
         self.0
+    }
+
+    /// The root query text, which `Display` and `AsRef<str>` hand a caller.
+    #[must_use]
+    pub(crate) fn root_text(&self) -> &QuerySourceText {
+        ryo_values::domain::program::service::root_text(&self.0)
     }
 }
 
 impl std::fmt::Display for RyoQlQuery {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
+        f.write_str(self.root_text())
     }
 }
 
 impl AsRef<str> for RyoQlQuery {
     fn as_ref(&self) -> &str {
-        &self.0
+        self.root_text()
     }
 }

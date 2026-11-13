@@ -83,6 +83,7 @@ fn subject(line: Input) -> Result<Value, Failure> {
         let sdk = ryo_sdk::query::validate::entry::validate(
             &ryo_sdk::linter::Languages::default(),
             ryo_sdk::query::ValidateRequest {
+                observations: Vec::new(),
                 query: ryo_sdk::query::RyoQlQuery::try_from(text).expect("a query"),
                 hosted: Vec::new(),
             },

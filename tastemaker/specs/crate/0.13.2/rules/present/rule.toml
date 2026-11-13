@@ -1,0 +1,34 @@
+description = "Selects each file its entry reaches, so a condition it answers holds when the entry's include matches a file."
+why = "Lets the crate tell whether it holds a feature file without a capture, which a count cannot say alone: a crate holding `tests/<use_case>.feature` has the one runner `tests/bdd.rs`, and a crate holding none has no runner. It answers the `features` condition and is never placed as a check, so its rows are never findings; its level only lets its fixtures show them."
+
+query = '''
+let files = project(from="filesystem.file", columns=["path"]);
+emit files subject "path" key("path");
+'''
+
+[diagnostic]
+primary = "path"
+message = "`{path}` is present"
+help = "Nothing to fix: this rule only answers a condition, and its rows are never reported as findings."
+
+[given]
+include = ['src/main.rs']
+
+[[scenarios]]
+id = 'file-entry-reaches-answers-yes'
+scenario = 'A file the entry reaches answers yes.'
+given.files.'src/main.rs' = '''
+//! The binary entry point of a command line crate.
+
+fn main() {}
+'''
+then.findings = [
+  { path = 'src/main.rs' },
+]
+
+[[scenarios]]
+id = 'no-file-entry-reaches-answers-no'
+scenario = 'No file the entry reaches answers no.'
+given.files.'src/lib.rs' = '''
+//! The library root of a crate that is no command line.
+'''

@@ -1,17 +1,17 @@
 //! The `walking` service: free functions named by verb over the descents and neighbour lookups of the syntax tree made one walk.
 
-use ryo_language::domain::relations::service::columns;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::service::columns;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::types::{ElementDemand, InputWidth, StartingRow};
 use crate::domain::fusing::service::source_column;
 use crate::domain::rewriting::types::StepIndex;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Direction as AxisDirection;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::Operand;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::Test;
@@ -21,6 +21,7 @@ use ryo_values::domain::plans::types::PlanStep;
 /// How many columns the rows of `input` have, when the plan says so.
 pub(crate) fn width_of(steps: &[PlanStep], input: Input) -> Option<InputWidth> {
     match input {
+        Input::BoundObservation(_) => None, // this legacy rewrite does not own the declared bound schema
         Input::Relation(relation) => Some(InputWidth(
             u32::try_from(columns(relation).len()).unwrap_or(u32::MAX),
         )),
@@ -54,6 +55,14 @@ pub(crate) fn width_of(steps: &[PlanStep], input: Input) -> Option<InputWidth> {
             | Operation::Difference { .. }
             | Operation::Antijoin { .. }
             | Operation::GroupCount { .. }
+            | Operation::Replace { .. }
+            | Operation::SpanBounds { .. }
+            | Operation::SourceMatches { .. }
+            | Operation::RenderSyntax { .. }
+            | Operation::FitsRendered { .. }
+            | Operation::SpanBetween { .. }
+            | Operation::OrderedMatch { .. }
+            | Operation::OrderedDfs { .. }
             | Operation::GroupDigest { .. }
             | Operation::Capture { .. }
             | Operation::Rank { .. }
@@ -67,13 +76,14 @@ pub(crate) fn width_of(steps: &[PlanStep], input: Input) -> Option<InputWidth> {
 }
 
 /// Whether the comparisons ask only that an element of the syntax tree be a node: a node has no text.
-fn only_nodes(comparisons: &[Comparison]) -> ElementDemand {
+fn only_nodes(comparisons: &[PlanComparison]) -> ElementDemand {
     if matches!(
         comparisons,
-        [Comparison {
+        [PlanComparison {
             test: Test::Equal,
             left: Operand::Column(ColumnIndex(2)),
             right: Operand::Literal(QueryLiteral::Text(text)),
+            ..
         }] if text.0.is_empty()
     ) {
         ElementDemand::OnlyNodes
@@ -126,6 +136,8 @@ fn fuse_descent(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output,
         filter,
         view,
+
+        reach: None,
     } = &steps.get(place.0)?.operation
     else {
         return None;
@@ -145,6 +157,8 @@ fn fuse_descent(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output: edges_output,
         filter: no_filter,
         view: no_view,
+
+        reach: None,
     } = &middle.operation
     else {
         return None;
@@ -278,6 +292,8 @@ fn fuse_neighbour(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output,
         filter,
         view,
+
+        reach: None,
     } = &steps.get(place.0)?.operation
     else {
         return None;
@@ -297,6 +313,8 @@ fn fuse_neighbour(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output: edges_output,
         filter: no_filter,
         view: no_view,
+
+        reach: None,
     } = &middle.operation
     else {
         return None;

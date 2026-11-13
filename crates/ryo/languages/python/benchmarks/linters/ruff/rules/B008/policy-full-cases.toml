@@ -1,0 +1,618 @@
+
+[[cases]]
+name="policy-call-0"
+comparison="full"
+files={"case.py"="def f(*, x=tuple()): ...\n"}
+expected=[{rule="C408", file="case.py", start=11, end=18}]
+
+[[cases]]
+name="policy-call-1"
+comparison="full"
+files={"case.py"="def f(*, x=tuple[int]()): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-call-2"
+comparison="full"
+files={"case.py"="def f(*, x=tuple[int][str]()): ...\n"}
+expected=[{rule="B008", file="case.py", start=11, end=28}]
+
+[[cases]]
+name="policy-call-3"
+comparison="full"
+files={"case.py"="def f(*, x=list()): ...\n"}
+expected=[{rule="B006", file="case.py", start=11, end=17}, {rule="C408", file="case.py", start=11, end=17}]
+
+[[cases]]
+name="policy-call-4"
+comparison="full"
+files={"case.py"="def f(*, x=list[int]()): ...\n"}
+expected=[{rule="B006", file="case.py", start=11, end=22}, {rule="B008", file="case.py", start=11, end=22}]
+
+[[cases]]
+name="policy-call-5"
+comparison="full"
+files={"case.py"="def f(*, x=set()): ...\n"}
+expected=[{rule="B006", file="case.py", start=11, end=16}]
+
+[[cases]]
+name="policy-call-6"
+comparison="full"
+files={"case.py"="def f(*, x=dict()): ...\n"}
+expected=[{rule="B006", file="case.py", start=11, end=17}, {rule="C408", file="case.py", start=11, end=17}]
+
+[[cases]]
+name="policy-call-7"
+comparison="full"
+files={"case.py"="def f(*, x=frozenset()): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-call-8"
+comparison="full"
+files={"case.py"="def f(*, x=slice(1,2)): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-call-9"
+comparison="full"
+files={"case.py"="def f(*, x=str(make())): ...\n"}
+expected=[{rule="B008", file="case.py", start=15, end=21}, {rule="F821", file="case.py", start=15, end=19}]
+
+[[cases]]
+name="policy-call-10"
+comparison="full"
+files={"case.py"="def f(*, x=list(make())): ...\n"}
+expected=[{rule="B006", file="case.py", start=11, end=23}, {rule="B008", file="case.py", start=16, end=22}, {rule="F821", file="case.py", start=16, end=20}]
+
+[[cases]]
+name="policy-call-11"
+comparison="full"
+files={"case.py"="def f(*, x=(lambda x=make(): other())): ...\n"}
+expected=[{rule="B008", file="case.py", start=21, end=27}, {rule="F821", file="case.py", start=21, end=25}, {rule="F821", file="case.py", start=29, end=34}]
+
+[[cases]]
+name="policy-call-12"
+comparison="full"
+files={"case.py"="def f(*, x=(lambda: other())()): ...\n"}
+expected=[{rule="B008", file="case.py", start=11, end=30}, {rule="F821", file="case.py", start=20, end=25}, {rule="PLC3002", file="case.py", start=11, end=30}]
+
+[[cases]]
+name="policy-catalog-13"
+comparison="full"
+files={"case.py"="import builtins\ndef f(x=builtins.tuple()): ...\n"}
+expected=[{rule="B008", file="case.py", start=24, end=40}, {rule="C408", file="case.py", start=24, end=40}]
+
+[[cases]]
+name="policy-catalog-14"
+comparison="full"
+files={"case.py"="from builtins import tuple\ndef f(x=tuple()): ...\n"}
+expected=[{rule="B008", file="case.py", start=35, end=42}, {rule="C408", file="case.py", start=35, end=42}]
+
+[[cases]]
+name="policy-catalog-15"
+comparison="full"
+files={"case.py"="from builtins import list\ndef f(x=list()): ...\n"}
+expected=[{rule="B006", file="case.py", start=34, end=40}, {rule="C408", file="case.py", start=34, end=40}, {rule="UP029", file="case.py", start=0, end=25}]
+
+[[cases]]
+name="policy-catalog-16"
+comparison="full"
+files={"case.py"="import collections\ndef f(x=collections.Counter()): ...\n"}
+expected=[{rule="B006", file="case.py", start=27, end=48}]
+
+[[cases]]
+name="policy-catalog-17"
+comparison="full"
+files={"case.py"="import collections\ndef f(x=collections.deque(make())): ...\n"}
+expected=[{rule="B006", file="case.py", start=27, end=52}, {rule="B008", file="case.py", start=45, end=51}, {rule="F821", file="case.py", start=45, end=49}]
+
+[[cases]]
+name="policy-catalog-18"
+comparison="full"
+files={"case.py"="import datetime\ndef f(x=datetime.timezone(make())): ...\n"}
+expected=[{rule="B008", file="case.py", start=42, end=48}, {rule="F821", file="case.py", start=42, end=46}]
+
+[[cases]]
+name="policy-catalog-19"
+comparison="full"
+files={"case.py"="from pathlib import Path as P\ndef f(x=P(make())): ...\n"}
+expected=[{rule="B008", file="case.py", start=40, end=46}, {rule="F821", file="case.py", start=40, end=44}]
+
+[[cases]]
+name="policy-catalog-20"
+comparison="full"
+files={"case.py"="import re\ndef f(x=re.compile(make())): ...\n"}
+expected=[{rule="B008", file="case.py", start=29, end=35}, {rule="F821", file="case.py", start=29, end=33}]
+
+[[cases]]
+name="policy-catalog-21"
+comparison="full"
+files={"case.py"="import decimal\ndef f(x=decimal.Decimal(0)): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-catalog-22"
+comparison="full"
+files={"case.py"="from typing import NewType\ndef f(x=NewType(\"T\",int)): ...\n"}
+expected=[{rule="B008", file="case.py", start=35, end=51}]
+
+[[cases]]
+name="policy-annotation-23"
+comparison="full"
+files={"case.py"="from typing import Union,Annotated,Optional\nimport typing_extensions\ndef f(x:Union[int]=make()): ...\n"}
+expected=[{rule="B008", file="case.py", start=88, end=94}, {rule="F401", file="case.py", start=25, end=34}, {rule="F401", file="case.py", start=35, end=43}, {rule="F401", file="case.py", start=51, end=68}, {rule="F821", file="case.py", start=88, end=92}]
+
+[[cases]]
+name="policy-annotation-24"
+comparison="full"
+files={"case.py"="from typing import Union,Annotated,Optional\nimport typing_extensions\ndef f(x:Union[()]=make()): ...\n"}
+expected=[{rule="F401", file="case.py", start=25, end=34}, {rule="F401", file="case.py", start=35, end=43}, {rule="F401", file="case.py", start=51, end=68}, {rule="F821", file="case.py", start=87, end=91}]
+
+[[cases]]
+name="policy-annotation-25"
+comparison="full"
+files={"case.py"="from typing import Union,Annotated,Optional\nimport typing_extensions\ndef f(x:Union[int,str]=make()): ...\n"}
+expected=[{rule="F401", file="case.py", start=25, end=34}, {rule="F401", file="case.py", start=35, end=43}, {rule="F401", file="case.py", start=51, end=68}, {rule="F821", file="case.py", start=92, end=96}]
+
+[[cases]]
+name="policy-annotation-26"
+comparison="full"
+files={"case.py"="from typing import Union,Annotated,Optional\nimport typing_extensions\ndef f(x:Union[int,list]=make()): ...\n"}
+expected=[{rule="B008", file="case.py", start=93, end=99}, {rule="F401", file="case.py", start=25, end=34}, {rule="F401", file="case.py", start=35, end=43}, {rule="F401", file="case.py", start=51, end=68}, {rule="F821", file="case.py", start=93, end=97}]
+
+[[cases]]
+name="policy-annotation-27"
+comparison="full"
+files={"case.py"="from typing import Union,Annotated,Optional\nimport typing_extensions\ndef f(x:Annotated[int]=make()): ...\n"}
+expected=[{rule="B008", file="case.py", start=92, end=98}, {rule="F401", file="case.py", start=19, end=24}, {rule="F401", file="case.py", start=35, end=43}, {rule="F401", file="case.py", start=51, end=68}, {rule="F821", file="case.py", start=92, end=96}]
+
+[[cases]]
+name="policy-annotation-28"
+comparison="full"
+files={"case.py"="from typing import Union,Annotated,Optional\nimport typing_extensions\ndef f(x:Annotated[()]=make()): ...\n"}
+expected=[{rule="B008", file="case.py", start=91, end=97}, {rule="F401", file="case.py", start=19, end=24}, {rule="F401", file="case.py", start=35, end=43}, {rule="F401", file="case.py", start=51, end=68}, {rule="F821", file="case.py", start=91, end=95}]
+
+[[cases]]
+name="policy-annotation-29"
+comparison="full"
+files={"case.py"="from typing import Union,Annotated,Optional\nimport typing_extensions\ndef f(x:Annotated[int,\"tag\"]=make()): ...\n"}
+expected=[{rule="F401", file="case.py", start=19, end=24}, {rule="F401", file="case.py", start=35, end=43}, {rule="F401", file="case.py", start=51, end=68}, {rule="F821", file="case.py", start=98, end=102}]
+
+[[cases]]
+name="policy-annotation-30"
+comparison="full"
+files={"case.py"="from typing import Union,Annotated,Optional\nimport typing_extensions\ndef f(x:Optional[int]=make()): ...\n"}
+expected=[{rule="F401", file="case.py", start=19, end=24}, {rule="F401", file="case.py", start=25, end=34}, {rule="F401", file="case.py", start=51, end=68}, {rule="F821", file="case.py", start=91, end=95}]
+
+[[cases]]
+name="policy-annotation-31"
+comparison="full"
+files={"case.py"="from typing import Union,Annotated,Optional\nimport typing_extensions\ndef f(x:int | None=make()): ...\n"}
+expected=[{rule="F401", file="case.py", start=19, end=24}, {rule="F401", file="case.py", start=25, end=34}, {rule="F401", file="case.py", start=35, end=43}, {rule="F401", file="case.py", start=51, end=68}, {rule="F821", file="case.py", start=88, end=92}]
+
+[[cases]]
+name="policy-annotation-32"
+comparison="full"
+files={"case.py"="from typing import Union,Annotated,Optional\nimport typing_extensions\ndef f(x:int + None=make()): ...\n"}
+expected=[{rule="B008", file="case.py", start=88, end=94}, {rule="F401", file="case.py", start=19, end=24}, {rule="F401", file="case.py", start=25, end=34}, {rule="F401", file="case.py", start=35, end=43}, {rule="F401", file="case.py", start=51, end=68}, {rule="F821", file="case.py", start=88, end=92}]
+
+[[cases]]
+name="policy-annotation-33"
+comparison="full"
+files={"case.py"="from typing import Union,Annotated,Optional\nimport typing_extensions\ndef f(x:typing_extensions.Annotated[int,\"tag\"]=make()): ...\n"}
+expected=[{rule="F401", file="case.py", start=19, end=24}, {rule="F401", file="case.py", start=25, end=34}, {rule="F401", file="case.py", start=35, end=43}, {rule="F821", file="case.py", start=116, end=120}]
+
+[[cases]]
+name="policy-newtype-simple"
+comparison="full"
+files={"case.py"="from typing import NewType\nT=NewType(\"T\",int)\ndef f(x=T(1)): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-newtype-mutable"
+comparison="full"
+files={"case.py"="from typing import NewType\nT=NewType(\"T\",list)\ndef f(x=T()): ...\n"}
+expected=[{rule="B008", file="case.py", start=55, end=58}]
+
+[[cases]]
+name="policy-newtype-keyword"
+comparison="full"
+files={"case.py"="from typing import NewType\nT=NewType(name=\"T\",tp=int)\ndef f(x=T(1)): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-newtype-keyword-priority"
+comparison="full"
+files={"case.py"="from typing import NewType\nT=NewType(str,tp=int)\ndef f(x=T(1)): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-newtype-wrong-count"
+comparison="full"
+files={"case.py"="from typing import NewType\nT=NewType(\"T\",int,other)\ndef f(x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=60, end=64}, {rule="F821", file="case.py", start=45, end=50}]
+
+[[cases]]
+name="policy-newtype-annassign"
+comparison="full"
+files={"case.py"="from typing import NewType\nT:object=NewType(\"T\",int)\ndef f(x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=61, end=65}]
+
+[[cases]]
+name="policy-newtype-prior-bind"
+comparison="full"
+files={"case.py"="from typing import NewType\nT=1\nT=NewType(\"T\",int)\ndef f(x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=58, end=62}]
+
+[[cases]]
+name="policy-newtype-prior-annotation"
+comparison="full"
+files={"case.py"="from typing import NewType\nT:object\nT=NewType(\"T\",int)\ndef f(x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=63, end=67}]
+
+[[cases]]
+name="policy-newtype-prior-delete"
+comparison="full"
+files={"case.py"="from typing import NewType\nT=1\ndel T\nT=NewType(\"T\",int)\ndef f(x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=64, end=68}]
+
+[[cases]]
+name="policy-newtype-later-bind"
+comparison="full"
+files={"case.py"="from typing import NewType\nT=NewType(\"T\",int)\ndef f(x=T(1)): ...\nT=other\n"}
+expected=[{rule="F821", file="case.py", start=67, end=72}]
+
+[[cases]]
+name="policy-newtype-chained"
+comparison="full"
+files={"case.py"="from typing import NewType\nT=U=NewType(\"T\",int)\ndef f(x=T(1),y=U(1)): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-newtype-alias"
+comparison="full"
+files={"case.py"="from typing import NewType\nT=NewType(\"T\",int)\nU=T\ndef f(x=U(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=58, end=62}]
+
+[[cases]]
+name="policy-newtype-class"
+comparison="full"
+files={"case.py"="from typing import NewType\nclass C:\n T=NewType(\"T\",int)\n def f(x=T(1)): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-newtype-function"
+comparison="full"
+files={"case.py"="from typing import NewType\ndef outer():\n T=NewType(\"T\",int)\n def f(x=T(1)): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-newtype-class-attr"
+comparison="full"
+files={"case.py"="from typing import NewType\nclass C:\n T=NewType(\"T\",int)\ndef f(x=C.T(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=64, end=70}]
+
+[[cases]]
+name="policy-newtype-prior-global"
+comparison="full"
+files={"case.py"="from typing import NewType\nT=1\ndef outer():\n global T\n T=NewType(\"T\",int)\n def f(x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=83, end=87}]
+
+[[cases]]
+name="policy-newtype-builtin"
+comparison="full"
+files={"case.py"="from typing import NewType\nint=NewType(\"int\",int)\ndef f(x=int(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=58, end=64}]
+
+[[cases]]
+name="policy-newtype-conditional"
+comparison="full"
+files={"case.py"="from typing import NewType\nif flag:\n T=NewType(\"T\",int)\nelse:\n T=NewType(\"T\",str)\ndef f(x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=90, end=94}, {rule="F821", file="case.py", start=30, end=34}]
+
+[[cases]]
+name="policy-tagged-flake8_bugbear-B006_B008.py"
+comparison="full"
+files={"case.py"="import collections\nimport datetime as dt\nfrom decimal import Decimal\nfrom fractions import Fraction\nimport logging\nimport operator\nfrom pathlib import Path\nimport random\nimport re\nimport time\nimport types\nfrom operator import attrgetter, itemgetter, methodcaller\nfrom types import MappingProxyType\n\n\n# B006\n# Allow immutable literals/calls/comprehensions\ndef this_is_okay(value=(1, 2, 3)):\n    ...\n\n\nasync def and_this_also(value=tuple()):\n    pass\n\n\ndef frozenset_also_okay(value=frozenset()):\n    pass\n\n\ndef mappingproxytype_okay(\n    value=MappingProxyType({}), value2=types.MappingProxyType({})\n):\n    pass\n\n\ndef re_compile_ok(value=re.compile(\"foo\")):\n    pass\n\n\ndef operators_ok(\n    v=operator.attrgetter(\"foo\"),\n    v2=operator.itemgetter(\"foo\"),\n    v3=operator.methodcaller(\"foo\"),\n):\n    pass\n\n\ndef operators_ok_unqualified(\n    v=attrgetter(\"foo\"),\n    v2=itemgetter(\"foo\"),\n    v3=methodcaller(\"foo\"),\n):\n    pass\n\n\ndef kwonlyargs_immutable(*, value=()):\n    ...\n\n\n# Flag mutable literals/comprehensions\n\n\ndef this_is_wrong(value=[1, 2, 3]):\n    ...\n\n\ndef this_is_also_wrong(value={}):\n    ...\n\n\nclass Foo:\n    @staticmethod\n    def this_is_also_wrong_and_more_indented(value={}):\n        pass\n\n\ndef multiline_arg_wrong(value={\n\n}):\n    ...\n\ndef single_line_func_wrong(value = {}): ...\n\n\ndef and_this(value=set()):\n    ...\n\n\ndef this_too(value=collections.OrderedDict()):\n    ...\n\n\nasync def async_this_too(value=collections.defaultdict()):\n    ...\n\n\ndef dont_forget_me(value=collections.deque()):\n    ...\n\n\n# B006 still flags mutable comprehension defaults.\ndef list_comprehension_also_not_okay(default=[i**2 for i in range(3)]):\n    pass\n\n\ndef dict_comprehension_also_not_okay(default={i: i**2 for i in range(3)}):\n    pass\n\n\ndef set_comprehension_also_not_okay(default={i**2 for i in range(3)}):\n    pass\n\n\ndef kwonlyargs_mutable(*, value=[]):\n    ...\n\n\n# Recommended approach for mutable defaults\ndef do_this_instead(value=None):\n    if value is None:\n        value = set()\n\n\n# B008\n# Flag function calls as default args (including if they are part of a sub-expression)\ndef in_fact_all_calls_are_wrong(value=time.time()):\n    ...\n\n\ndef f(when=dt.datetime.now() + dt.timedelta(days=7)):\n    pass\n\n\ndef can_even_catch_lambdas(a=(lambda x: x)()):\n    ...\n\n\n# Recommended approach for function calls as default args\nLOGGER = logging.getLogger(__name__)\n\n\ndef do_this_instead_of_calls_in_defaults(logger=LOGGER):\n    # That makes it more obvious that this one value is reused.\n    ...\n\n\n# Handle inf/infinity/nan special case\ndef float_inf_okay(value=float(\"inf\")):\n    pass\n\n\ndef float_infinity_okay(value=float(\"infinity\")):\n    pass\n\n\ndef float_plus_infinity_okay(value=float(\"+infinity\")):\n    pass\n\n\ndef float_minus_inf_okay(value=float(\"-inf\")):\n    pass\n\n\ndef float_nan_okay(value=float(\"nan\")):\n    pass\n\n\ndef float_minus_NaN_okay(value=float(\"-NaN\")):\n    pass\n\n\ndef float_infinity_literal(value=float(\"1e999\")):\n    pass\n\n\n# Allow standard floats\ndef float_int_okay(value=float(3)):\n    pass\n\n\ndef float_str_not_inf_or_nan_okay(value=float(\"3.14\")):\n    pass\n\n\n# Allow immutable str() value\ndef str_okay(value=str(\"foo\")):\n    pass\n\n\n# Allow immutable bool() value\ndef bool_okay(value=bool(\"bar\")):\n    pass\n\n# Allow immutable bytes() value\ndef bytes_okay(value=bytes(1)):\n    pass\n\n# Allow immutable int() value\ndef int_okay(value=int(\"12\")):\n    pass\n\n# Allow immutable slice()\ndef slice_okay(value=slice(1,2)):\n    pass\n\n# Allow immutable complex() value\ndef complex_okay(value=complex(1,2)):\n    pass\n\n\n# Allow immutable Fraction() value\ndef fraction_okay(value=Fraction(1,2)):\n    pass\n\n\n# Allow decimals\ndef decimal_okay(value=Decimal(\"0.1\")):\n    pass\n\n# Allow dates\ndef date_okay(value=dt.date(2023, 3, 27)):\n    pass\n\n# Allow datetimes\ndef datetime_okay(value=dt.datetime(2023, 3, 27, 13, 51, 59)):\n    pass\n\n# Allow timedeltas\ndef timedelta_okay(value=dt.timedelta(hours=1)):\n    pass\n\n# Allow paths\ndef path_okay(value=Path(\".\")):\n    pass\n\n# B008 allow arbitrary call with immutable annotation\ndef immutable_annotation_call(value: Sequence[int] = foo()):\n    pass\n\n# B006 and B008\n# We should handle arbitrary nesting of these B008.\ndef nested_combo(a=[float(3), dt.datetime.now()]):\n    pass\n\n\n# Don't flag nested B006 since we can't guarantee that\n# it isn't made mutable by the outer operation.\ndef no_nested_b006(a=map(lambda s: s.upper(), [\"a\", \"b\", \"c\"])):\n    pass\n\n\n# B008-ception.\ndef nested_b008(a=random.randint(0, dt.datetime.now().year)):\n    pass\n\n\n# Ignore lambda contents since they are evaluated at call time.\ndef foo(f=lambda x: print(x)):\n    f(1)\n\n\nfrom collections import abc\nfrom typing import Annotated, Dict, Optional, Sequence, Union, Set\nimport typing_extensions\n\n\ndef immutable_annotations(\n    a: Sequence[int] | None = [],\n    b: Optional[abc.Mapping[int, int]] = {},\n    c: Annotated[Union[abc.Set[str], abc.Sized], \"annotation\"] = set(),\n    d: typing_extensions.Annotated[\n        Union[abc.Set[str], abc.Sized], \"annotation\"\n    ] = set(),\n):\n    pass\n\n\ndef mutable_annotations(\n    a: list[int] | None = [],\n    b: Optional[Dict[int, int]] = {},\n    c: Annotated[Union[Set[str], abc.Sized], \"annotation\"] = set(),\n    d: typing_extensions.Annotated[Union[Set[str], abc.Sized], \"annotation\"] = set(),\n):\n    pass\n\n\ndef single_line_func_wrong(value: dict[str, str] = {}):\n    \"\"\"Docstring\"\"\"\n\n\ndef single_line_func_wrong(value: dict[str, str] = {}):\n    \"\"\"Docstring\"\"\"\n    ...\n\n\ndef single_line_func_wrong(value: dict[str, str] = {}):\n    \"\"\"Docstring\"\"\"; ...\n\n\ndef single_line_func_wrong(value: dict[str, str] = {}):\n    \"\"\"Docstring\"\"\"; \\\n        ...\n\n\ndef single_line_func_wrong(value: dict[str, str] = {\n    # This is a comment\n}):\n    \"\"\"Docstring\"\"\"\n\n\ndef single_line_func_wrong(value: dict[str, str] = {}) \\\n    : \\\n    \"\"\"Docstring\"\"\"\n\n\ndef single_line_func_wrong(value: dict[str, str] = {}):\n    \"\"\"Docstring without newline\"\"\""}
+expected=[{rule="B006", file="case.py", start=1043, end=1052}, {rule="B006", file="case.py", start=1094, end=1096}, {rule="B006", file="case.py", start=1189, end=1191}, {rule="B006", file="case.py", start=1239, end=1243}, {rule="B006", file="case.py", start=1290, end=1292}, {rule="B006", file="case.py", start=1320, end=1325}, {rule="B006", file="case.py", start=1357, end=1382}, {rule="B006", file="case.py", start=1426, end=1451}, {rule="B006", file="case.py", start=1489, end=1508}, {rule="B006", file="case.py", start=1617, end=1641}, {rule="B006", file="case.py", start=1700, end=1727}, {rule="B006", file="case.py", start=1785, end=1809}, {rule="B006", file="case.py", start=1855, end=1857}, {rule="B006", file="case.py", start=4186, end=4215}, {rule="B006", file="case.py", start=5072, end=5074}, {rule="B006", file="case.py", start=5110, end=5112}, {rule="B006", file="case.py", start=5175, end=5180}, {rule="B006", file="case.py", start=5261, end=5266}, {rule="B006", file="case.py", start=5333, end=5335}, {rule="B006", file="case.py", start=5411, end=5413}, {rule="B006", file="case.py", start=5497, end=5499}, {rule="B006", file="case.py", start=5580, end=5582}, {rule="B006", file="case.py", start=5673, end=5700}, {rule="B006", file="case.py", start=5776, end=5778}, {rule="B006", file="case.py", start=5863, end=5865}, {rule="B008", file="case.py", start=2125, end=2136}, {rule="B008", file="case.py", start=2160, end=2177}, {rule="B008", file="case.py", start=2243, end=2258}, {rule="B008", file="case.py", start=4197, end=4214}, {rule="B008", file="case.py", start=4353, end=4394}, {rule="B008", file="case.py", start=4442, end=4483}, {rule="B008", file="case.py", start=4460, end=4477}, {rule="C408", file="case.py", start=430, end=437}, {rule="C417", file="case.py", start=4353, end=4394}, {rule="DTZ001", file="case.py", start=3791, end=3827}, {rule="DTZ005", file="case.py", start=2160, end=2177}, {rule="DTZ005", file="case.py", start=4197, end=4214}, {rule="DTZ005", file="case.py", start=4460, end=4477}, {rule="F811", file="case.py", start=5286, end=5308}, {rule="F811", file="case.py", start=5364, end=5386}, {rule="F811", file="case.py", start=5450, end=5472}, {rule="F811", file="case.py", start=5533, end=5555}, {rule="F811", file="case.py", start=5626, end=5648}, {rule="F811", file="case.py", start=5729, end=5751}, {rule="F811", file="case.py", start=5816, end=5838}, {rule="F821", file="case.py", start=4065, end=4073}, {rule="F821", file="case.py", start=4081, end=4084}, {rule="PIE790", file="case.py", start=5440, end=5443}, {rule="PIE790", file="case.py", start=5523, end=5526}, {rule="PIE790", file="case.py", start=5616, end=5619}, {rule="PLC3002", file="case.py", start=2243, end=2258}, {rule="UP006", file="case.py", start=5092, end=5096}, {rule="UP006", file="case.py", start=5137, end=5140}, {rule="UP006", file="case.py", start=5223, end=5226}, {rule="UP018", file="case.py", start=3132, end=3142}]
+
+[[cases]]
+name="policy-tagged-flake8_bugbear-B008_extended.py"
+comparison="full"
+files={"case.py"="from typing import List\n\nimport fastapi\nimport custom\nfrom fastapi import Query\n\n\ndef okay(db=fastapi.Depends(get_db)):\n    ...\n\n\ndef okay(data: List[str] = fastapi.Query(None)):\n    ...\n\n\ndef okay(data: List[str] = Query(None)):\n    ...\n\n\ndef okay(data: custom.ImmutableTypeA = foo()):\n    ...\n\n\ndef error_due_to_missing_import(data: List[str] = Depends(None)):\n    ...\n\n\nclass Class:\n    pass\n\n\ndef okay(obj=Class()):\n    ...\n\n\ndef error(obj=OtherClass()):\n    ...\n\n\n# https://github.com/astral-sh/ruff/issues/12717\n\nfrom typing import NewType\n\nN = NewType(\"N\", int)\nL = NewType(\"L\", list[str])\n\ndef okay(obj = N()): ...\ndef error(obj = L()): ...\n\n\ndef okay(obj: frozenset[str] = foo()): ...\n"}
+expected=[{rule="B008", file="case.py", start=94, end=117}, {rule="B008", file="case.py", start=157, end=176}, {rule="B008", file="case.py", start=216, end=227}, {rule="B008", file="case.py", start=279, end=284}, {rule="B008", file="case.py", start=347, end=360}, {rule="B008", file="case.py", start=410, end=417}, {rule="B008", file="case.py", start=444, end=456}, {rule="B008", file="case.py", start=639, end=642}, {rule="F811", file="case.py", start=134, end=138}, {rule="F811", file="case.py", start=193, end=197}, {rule="F811", file="case.py", start=244, end=248}, {rule="F811", file="case.py", start=401, end=405}, {rule="F811", file="case.py", start=602, end=606}, {rule="F811", file="case.py", start=627, end=632}, {rule="F811", file="case.py", start=655, end=659}, {rule="F821", file="case.py", start=110, end=116}, {rule="F821", file="case.py", start=279, end=282}, {rule="F821", file="case.py", start=347, end=354}, {rule="F821", file="case.py", start=444, end=454}, {rule="F821", file="case.py", start=682, end=685}, {rule="UP006", file="case.py", start=145, end=149}, {rule="UP006", file="case.py", start=204, end=208}, {rule="UP006", file="case.py", start=335, end=339}]
+
+[[cases]]
+name="policy-future-parameter-shadow"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef f(tuple:tuple=make()): ...\n"}
+expected=[{rule="B008", file="case.py", start=53, end=59}, {rule="F821", file="case.py", start=53, end=57}]
+
+[[cases]]
+name="policy-future-later-import"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef f(x:Sequence[int]=make()): ...\nfrom typing import Sequence\n"}
+expected=[{rule="F821", file="case.py", start=57, end=61}]
+
+[[cases]]
+name="policy-eager-later-import"
+comparison="full"
+files={"case.py"="def f(x:Sequence[int]=make()): ...\nfrom typing import Sequence\n"}
+expected=[{rule="F401", file="case.py", start=54, end=62}, {rule="F821", file="case.py", start=8, end=16}, {rule="F821", file="case.py", start=22, end=26}]
+
+[[cases]]
+name="policy-future-later-module"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef f(x:typing.Sequence[int]=make()): ...\nimport typing\n"}
+expected=[{rule="F821", file="case.py", start=64, end=68}]
+
+[[cases]]
+name="policy-eager-later-module"
+comparison="full"
+files={"case.py"="def f(x:typing.Sequence[int]=make()): ...\nimport typing\n"}
+expected=[{rule="F401", file="case.py", start=49, end=55}, {rule="F821", file="case.py", start=8, end=14}, {rule="F821", file="case.py", start=29, end=33}]
+
+[[cases]]
+name="policy-future-rebind-import"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nfrom typing import Sequence\ndef f(x:Sequence[int]=make()): ...\nSequence=other\n"}
+expected=[{rule="B008", file="case.py", start=85, end=91}, {rule="F811", file="case.py", start=98, end=106}, {rule="F821", file="case.py", start=85, end=89}, {rule="F821", file="case.py", start=107, end=112}]
+
+[[cases]]
+name="policy-eager-rebind-import"
+comparison="full"
+files={"case.py"="from typing import Sequence\ndef f(x:Sequence[int]=make()): ...\nSequence=other\n"}
+expected=[{rule="F821", file="case.py", start=50, end=54}, {rule="F821", file="case.py", start=72, end=77}]
+
+[[cases]]
+name="policy-future-later-parameter"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nfrom typing import Sequence\ndef f(x:Sequence[int]=make(),Sequence=None): ...\n"}
+expected=[{rule="B008", file="case.py", start=85, end=91}, {rule="F821", file="case.py", start=85, end=89}]
+
+[[cases]]
+name="policy-future-deep-module"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef f(x:collections.abc.Sequence[int]=make()): ...\nimport collections.abc\n"}
+expected=[{rule="F821", file="case.py", start=73, end=77}]
+
+[[cases]]
+name="policy-newtype-only-annotation"
+comparison="full"
+files={"case.py"="from typing import NewType\nT:int\nT=NewType(\"T\",int)\ndef f(x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=60, end=64}]
+
+[[cases]]
+name="policy-newtype-earlier-unbound-delete"
+comparison="full"
+files={"case.py"="from typing import NewType\ndel T\nT=NewType(\"T\",int)\ndef f(x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=60, end=64}, {rule="F821", file="case.py", start=31, end=32}]
+
+[[cases]]
+name="policy-newtype-earlier-conditional-delete"
+comparison="full"
+files={"case.py"="from typing import NewType\nT=0\nif flag: del T\nT=NewType(\"T\",int)\ndef f(x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=73, end=77}, {rule="F821", file="case.py", start=34, end=38}]
+
+[[cases]]
+name="policy-newtype-exception-restoration"
+comparison="full"
+files={"case.py"="from typing import NewType\ntry: ...\nexcept Exception as T: ...\nT=NewType(\"T\",int)\ndef f(x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=90, end=94}, {rule="F841", file="case.py", start=56, end=57}]
+
+[[cases]]
+name="policy-newtype-default-cache-before-rebind"
+comparison="full"
+files={"case.py"="from typing import NewType\nT=NewType(\"T\",int)\nclass C:\n def f(x=T(1)): ...\n T=0\n"}
+expected=[]
+
+[[cases]]
+name="policy-newtype-nonlocal"
+comparison="full"
+files={"case.py"="from typing import NewType\ndef outer():\n T=NewType(\"T\",int)\n def inner():\n  nonlocal T\n  def f(x=T(1)): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-newtype-function-prior-builtin"
+comparison="full"
+files={"case.py"="from typing import NewType\ndef outer():\n tuple=NewType(\"T\",int)\n def f(x=tuple(1)): ...\n"}
+expected=[{rule="PLC0132", file="case.py", start=47, end=63}]
+
+[[cases]]
+name="policy-newtype-type-scope"
+comparison="full"
+files={"case.py"="from typing import NewType\nclass C(base:=(T:=int)):\n T=NewType(\"T\",int)\n def f(x=T(1)): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-newtype-shadowed-factory"
+comparison="full"
+files={"case.py"="from typing import NewType\nNewType=other\nT=NewType(\"T\",int)\ndef f(x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=68, end=72}, {rule="F811", file="case.py", start=27, end=34}, {rule="F821", file="case.py", start=35, end=40}]
+
+[[cases]]
+name="policy-annotation-explicit-builtin-int"
+comparison="full"
+files={"case.py"="from builtins import int\ndef f(x:int=make()): ...\n"}
+expected=[{rule="B008", file="case.py", start=37, end=43}, {rule="F821", file="case.py", start=37, end=41}, {rule="UP029", file="case.py", start=0, end=24}]
+
+[[cases]]
+name="policy-annotation-explicit-builtin-object"
+comparison="full"
+files={"case.py"="import builtins\ndef f(x:builtins.object=make()): ...\n"}
+expected=[{rule="B008", file="case.py", start=40, end=46}, {rule="F821", file="case.py", start=40, end=44}]
+
+[[cases]]
+name="policy-annotation-explicit-builtin-tuple"
+comparison="full"
+files={"case.py"="import builtins\ndef f(x:builtins.tuple=make()): ...\n"}
+expected=[{rule="F821", file="case.py", start=39, end=43}]
+
+[[cases]]
+name="policy-annotation-frozendict-py310"
+comparison="full"
+files={"case.py"="def f(x:frozendict=make()): ...\n"}
+expected=[{rule="B008", file="case.py", start=19, end=25}, {rule="F821", file="case.py", start=8, end=18}, {rule="F821", file="case.py", start=19, end=23}]
+
+[[cases]]
+name="policy-annotation-imported-frozendict"
+comparison="full"
+files={"case.py"="from builtins import frozendict\ndef f(x:frozendict=make()): ...\n"}
+expected=[{rule="F821", file="case.py", start=51, end=55}]
+
+[[cases]]
+name="policy-annotation-assignment-alias"
+comparison="full"
+files={"case.py"="T=tuple\ndef f(x:T=make()): ...\n"}
+expected=[{rule="B008", file="case.py", start=18, end=24}, {rule="F821", file="case.py", start=18, end=22}]
+
+[[cases]]
+name="policy-annotation-nongeneric-assignment-alias"
+comparison="full"
+files={"case.py"="T=int\ndef f(x:T=make()): ...\n"}
+expected=[{rule="B008", file="case.py", start=16, end=22}, {rule="F821", file="case.py", start=16, end=20}]
+
+[[cases]]
+name="policy-constructor-assignment-alias"
+comparison="full"
+files={"case.py"="T=tuple\ndef f(x=T()): ...\n"}
+expected=[{rule="B008", file="case.py", start=16, end=19}]
+
+[[cases]]
+name="policy-future-builtin-nonbinding"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef f(x:int=make()): ...\n"}
+expected=[{rule="F821", file="case.py", start=47, end=51}]
+
+[[cases]]
+name="policy-future-explicit-builtin-int"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nfrom builtins import int\ndef f(x:int=make()): ...\n"}
+expected=[{rule="B008", file="case.py", start=72, end=78}, {rule="F821", file="case.py", start=72, end=76}, {rule="UP029", file="case.py", start=35, end=59}]
+
+[[cases]]
+name="policy-future-explicit-builtin-tuple"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nfrom builtins import tuple\ndef f(x:tuple=make()): ...\n"}
+expected=[{rule="F821", file="case.py", start=76, end=80}]
+
+[[cases]]
+name="policy-newtype-explicit-builtin"
+comparison="full"
+files={"case.py"="from typing import NewType\nfrom builtins import int\nT=NewType(\"T\",int)\ndef f(x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=79, end=83}, {rule="UP029", file="case.py", start=27, end=51}]
+
+[[cases]]
+name="policy-future-body-rebind-not-visible"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nfrom typing import Sequence\ndef f(x:Sequence[int]=make()):\n Sequence=custom\n"}
+expected=[{rule="F821", file="case.py", start=85, end=89}, {rule="F821", file="case.py", start=104, end=110}, {rule="F841", file="case.py", start=95, end=103}]
+
+[[cases]]
+name="policy-future-body-import-not-visible"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef f(x:Sequence[int]=make()):\n from typing import Sequence\n"}
+expected=[{rule="B008", file="case.py", start=57, end=63}, {rule="F401", file="case.py", start=86, end=94}, {rule="F821", file="case.py", start=43, end=51}, {rule="F821", file="case.py", start=57, end=61}]
+
+[[cases]]
+name="policy-eager-body-import-not-visible"
+comparison="full"
+files={"case.py"="def f(x:Sequence[int]=make()):\n from typing import Sequence\n"}
+expected=[{rule="B008", file="case.py", start=22, end=28}, {rule="F401", file="case.py", start=51, end=59}, {rule="F821", file="case.py", start=8, end=16}, {rule="F821", file="case.py", start=22, end=26}]
+
+[[cases]]
+name="policy-future-enclosing-body-rebind"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nfrom typing import Sequence\ndef outer():\n def f(x:Sequence[int]=make()): ...\n Sequence=custom\n"}
+expected=[{rule="B008", file="case.py", start=99, end=105}, {rule="F821", file="case.py", start=99, end=103}, {rule="F821", file="case.py", start=122, end=128}, {rule="F841", file="case.py", start=113, end=121}]
+
+[[cases]]
+name="policy-stub-newtype-builtin-parameter"
+comparison="full"
+files={"case.pyi"="from typing import NewType\nT=NewType(\"T\",int)\ndef f(x=T(1),int=other): ...\n"}
+expected=[{rule="B008", file="case.pyi", start=54, end=58}, {rule="F821", file="case.pyi", start=63, end=68}]
+
+[[cases]]
+name="policy-stub-newtype-import-parameter"
+comparison="full"
+files={"case.pyi"="from typing import NewType,Sequence\nT=NewType(\"T\",Sequence[int])\ndef f(x=T(1),Sequence=other): ...\n"}
+expected=[{rule="B008", file="case.pyi", start=73, end=77}, {rule="F821", file="case.pyi", start=87, end=92}]
+
+[[cases]]
+name="policy-stub-newtype-forward-import"
+comparison="full"
+files={"case.pyi"="from typing import NewType\nT=NewType(\"T\",Sequence[int])\nfrom typing import Sequence\ndef f(x=T(1)): ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-stub-newtype-two-contexts"
+comparison="full"
+files={"case.pyi"="from typing import NewType\nT=NewType(\"T\",int)\ndef f(x=T(1)): ...\ndef g(x=T(1),int=other): ...\n"}
+expected=[{rule="B008", file="case.pyi", start=73, end=77}, {rule="F821", file="case.pyi", start=82, end=87}]
+
+[[cases]]
+name="policy-stub-newtype-outer-assignment"
+comparison="full"
+files={"case.pyi"="from typing import NewType\nT=NewType(\"T\",int)\ndef outer():\n int=other\n def f(x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.pyi", start=79, end=83}, {rule="F821", file="case.pyi", start=64, end=69}, {rule="F841", file="case.pyi", start=60, end=63}, {rule="PYI048", file="case.pyi", start=50, end=55}]
+
+[[cases]]
+name="policy-future-type-parameter"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef f[int](x:int=make()): ...\n"}
+expected=[{rule="B008", file="case.py", start=52, end=58}, {rule="F821", file="case.py", start=52, end=56}, {rule="invalid-syntax", file="case.py", start=40, end=45}]
+
+[[cases]]
+name="policy-future-outer-type-parameter"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef outer[int]():\n def f(x:int=make()): ...\n"}
+expected=[{rule="B008", file="case.py", start=66, end=72}, {rule="F821", file="case.py", start=66, end=70}, {rule="invalid-syntax", file="case.py", start=44, end=49}]
+
+[[cases]]
+name="policy-future-class-type-parameter"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nclass C[int]:\n def f(x:int=make()): ...\n"}
+expected=[{rule="B008", file="case.py", start=62, end=68}, {rule="F821", file="case.py", start=62, end=66}, {rule="invalid-syntax", file="case.py", start=42, end=47}]
+
+[[cases]]
+name="policy-future-shadowed-type-parameter"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef outer[int]():\n from builtins import tuple as int\n def f(x:int=make()): ...\n"}
+expected=[{rule="F401", file="case.py", start=84, end=87}, {rule="F821", file="case.py", start=101, end=105}, {rule="invalid-syntax", file="case.py", start=44, end=49}]
+
+[[cases]]
+name="policy-stub-newtype-late-deleted-origin"
+comparison="full"
+files={"case.pyi"="from typing import NewType,Sequence\nT=NewType(\"T\",Sequence[int])\ndef f(x=T(1)): ...\ndel Sequence\n"}
+expected=[{rule="B008", file="case.pyi", start=73, end=77}]
+
+[[cases]]
+name="policy-stub-newtype-class-header-shadow"
+comparison="full"
+files={"case.pyi"="from typing import NewType\nT=NewType(\"T\",int)\nclass C(base:=(int:=object)):\n def f(x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.pyi", start=85, end=89}]
+
+[[cases]]
+name="policy-stub-newtype-type-parameter"
+comparison="full"
+files={"case.pyi"="from typing import NewType\nT=NewType(\"T\",int)\ndef f[int](x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.pyi", start=59, end=63}, {rule="invalid-syntax", file="case.pyi", start=51, end=56}]
+
+[[cases]]
+name="policy-newtype-global-no-earlier-binding"
+comparison="full"
+files={"case.py"="from typing import NewType\ndef outer():\n global T\n T=NewType(\"T\",int)\n def f(x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=79, end=83}]
+
+[[cases]]
+name="policy-newtype-global-ordinary-module-binding"
+comparison="full"
+files={"case.py"="from typing import NewType\nT=NewType(\"T\",int)\ndef outer():\n global T\n def f(x=T(1)): ...\n"}
+expected=[{rule="PLW0602", file="case.py", start=67, end=68}]
+
+[[cases]]
+name="policy-newtype-class-header-own-type-scope"
+comparison="full"
+files={"case.py"="from typing import NewType\nclass C(base:=(T:=int)):\n T=NewType(\"T\",int)\n def f(x=T(1)): ...\n"}
+expected=[]

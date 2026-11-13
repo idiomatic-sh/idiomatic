@@ -266,6 +266,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "boxcar"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36f64beae40a84da1b4b26ff2761a5b895c12adc41dc25aaee1c4f2bbfe97a6e"
+
+[[package]]
 name = "bstr"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -333,7 +339,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -437,7 +443,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fa961b519f0b462e3a3b4a34b64d119eeaca1d59af726fe450bbba07a9fc0a1"
 dependencies = [
- "thiserror",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -830,6 +836,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "escape8259"
+version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f1f0d310082fd5de539d4f41601182241147498444a7695c520288a0cdbead6"
+
+[[package]]
 name = "fastrand"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1023,7 +1035,7 @@ dependencies = [
  "serde_json",
  "syn 2.0.119",
  "textwrap",
- "thiserror",
+ "thiserror 2.0.20",
  "typed-builder",
 ]
 
@@ -1250,7 +1262,7 @@ checksum = "ae293c039020f9ec10710af98d29ce6aa2051486638b49c9a6409f3b4a9e98ad"
 
 [[package]]
 name = "idiomatic-sh-ryo"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anstream 1.0.0",
  "clap",
@@ -1259,14 +1271,18 @@ dependencies = [
  "idiomatic-sh-ryo",
  "idiomatic-sh-ryo-core",
  "idiomatic-sh-ryo-css",
+ "idiomatic-sh-ryo-execution",
+ "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-go",
  "idiomatic-sh-ryo-html",
  "idiomatic-sh-ryo-javascript",
  "idiomatic-sh-ryo-json",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-markdown",
+ "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-query_language",
+ "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-rust",
  "idiomatic-sh-ryo-sdk",
  "idiomatic-sh-ryo-toml",
@@ -1282,9 +1298,9 @@ dependencies = [
  "snapbox",
  "sysinfo",
  "tempfile",
- "thiserror",
+ "thiserror 2.0.20",
  "tikv-jemallocator",
- "toml",
+ "toml 1.1.4+spec-1.1.0",
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",
@@ -1292,38 +1308,77 @@ dependencies = [
 ]
 
 [[package]]
+name = "idiomatic-sh-ryo-benchmark"
+version = "0.1.3"
+dependencies = [
+ "cargo_metadata",
+ "cucumber",
+ "divan",
+ "globset",
+ "idiomatic-sh-ryo-benchmark",
+ "idiomatic-sh-ryo-benchmark-contracts",
+ "idiomatic-sh-ryo-sdk",
+ "idiomatic-sh-ryo-values",
+ "rayon",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tokio",
+ "toml 1.1.4+spec-1.1.0",
+ "tracing",
+ "tracing-chrome",
+ "tracing-subscriber",
+ "wait4",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-benchmark-contracts"
+version = "0.1.3"
+dependencies = [
+ "idiomatic-sh-ryo-sdk",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.20",
+ "toml 1.1.4+spec-1.1.0",
+]
+
+[[package]]
 name = "idiomatic-sh-ryo-core"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "blake3",
  "cargo_metadata",
  "cucumber",
  "dhat",
  "divan",
- "globset",
- "hashbrown 0.17.1",
- "heck",
  "idiomatic-sh-ryo-core",
+ "idiomatic-sh-ryo-execution",
+ "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",
+ "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "ignore",
+ "libtest-mimic",
  "memchr",
  "postcard",
  "rayon",
- "regex-automata",
  "rustc-hash 2.1.3",
  "serde",
  "sysinfo",
  "tempfile",
- "thiserror",
+ "thiserror 2.0.20",
  "tokio",
  "tracing",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-css"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "cssparser",
  "dhat",
@@ -1334,8 +1389,105 @@ dependencies = [
 ]
 
 [[package]]
+name = "idiomatic-sh-ryo-derived"
+version = "0.1.3"
+dependencies = [
+ "cargo_metadata",
+ "cucumber",
+ "hashbrown 0.17.1",
+ "idiomatic-sh-ryo-derived",
+ "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-values",
+ "rustc-hash 2.1.3",
+ "tokio",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-execution"
+version = "0.1.3"
+dependencies = [
+ "cargo_metadata",
+ "cucumber",
+ "dhat",
+ "idiomatic-sh-ryo-derived",
+ "idiomatic-sh-ryo-execution",
+ "idiomatic-sh-ryo-execution-domain",
+ "idiomatic-sh-ryo-execution-runtime",
+ "idiomatic-sh-ryo-execution-store",
+ "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-operators",
+ "idiomatic-sh-ryo-query_language",
+ "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-values",
+ "libtest-mimic",
+ "thiserror 2.0.20",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-execution-domain"
+version = "0.1.3"
+dependencies = [
+ "hashbrown 0.17.1",
+ "heck",
+ "idiomatic-sh-ryo-derived",
+ "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-operators",
+ "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-values",
+ "memchr",
+ "num-bigint 0.4.8",
+ "rustc-hash 2.1.3",
+ "thiserror 2.0.20",
+ "tracing",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-execution-runtime"
+version = "0.1.3"
+dependencies = [
+ "blake3",
+ "dhat",
+ "divan",
+ "idiomatic-sh-ryo-derived",
+ "idiomatic-sh-ryo-execution-domain",
+ "idiomatic-sh-ryo-execution-runtime",
+ "idiomatic-sh-ryo-execution-store",
+ "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-operators",
+ "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-values",
+ "libtest-mimic",
+ "rustc-hash 2.1.3",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tracing",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-execution-store"
+version = "0.1.3"
+dependencies = [
+ "divan",
+ "hashbrown 0.17.1",
+ "idiomatic-sh-ryo-derived",
+ "idiomatic-sh-ryo-execution-domain",
+ "idiomatic-sh-ryo-execution-store",
+ "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-values",
+ "rustc-hash 2.1.3",
+ "tracing",
+]
+
+[[package]]
 name = "idiomatic-sh-ryo-go"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dhat",
  "divan",
@@ -1344,14 +1496,14 @@ dependencies = [
  "postcard",
  "serde",
  "strum",
- "thiserror",
+ "thiserror 2.0.20",
  "tree-sitter",
  "tree-sitter-go",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-html"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dhat",
  "divan",
@@ -1367,7 +1519,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-javascript"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dhat",
  "divan",
@@ -1384,13 +1536,13 @@ dependencies = [
  "serde",
  "serde_json",
  "strum",
- "thiserror",
+ "thiserror 2.0.20",
  "yaml_serde",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-json"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dhat",
  "divan",
@@ -1404,24 +1556,25 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-language"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "cargo_metadata",
  "cucumber",
  "dhat",
  "hashbrown 0.17.1",
  "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-relations",
+ "libtest-mimic",
  "rustc-hash 2.1.3",
- "strum",
- "thiserror",
+ "thiserror 2.0.20",
  "tokio",
- "toml",
+ "toml 1.1.4+spec-1.1.0",
  "trybuild",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-markdown"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dhat",
  "divan",
@@ -1432,40 +1585,101 @@ dependencies = [
 ]
 
 [[package]]
+name = "idiomatic-sh-ryo-matching"
+version = "0.1.3"
+dependencies = [
+ "cargo_metadata",
+ "cucumber",
+ "globset",
+ "regex-automata",
+ "thiserror 2.0.20",
+ "tokio",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-operators"
+version = "0.1.3"
+dependencies = [
+ "cargo_metadata",
+ "cucumber",
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-operators",
+ "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-values",
+ "rustc-hash 2.1.3",
+ "thiserror 2.0.20",
+ "tokio",
+ "unicode-width",
+]
+
+[[package]]
 name = "idiomatic-sh-ryo-python"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dhat",
  "divan",
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-sdk",
+ "indexmap",
+ "pep508_rs",
  "postcard",
+ "pyproject-toml",
  "ruff_python_ast",
  "ruff_python_parser",
  "ruff_text_size",
  "serde",
+ "serde_json",
  "strum",
- "thiserror",
- "toml",
+ "thiserror 2.0.20",
+ "toml 1.1.4+spec-1.1.0",
+ "unicode-properties",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-python-ruff-benchmark"
+version = "0.1.3"
+dependencies = [
+ "dunce",
+ "idiomatic-sh-ryo-benchmark",
+ "idiomatic-sh-ryo-benchmark-contracts",
+ "idiomatic-sh-ryo-python",
+ "idiomatic-sh-ryo-sdk",
+ "mimalloc",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tikv-jemallocator",
+ "toml 1.1.4+spec-1.1.0",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-query_language"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "cargo_metadata",
  "cucumber",
  "divan",
  "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
- "thiserror",
+ "regex-automata",
+ "regex-syntax",
+ "thiserror 2.0.20",
  "tokio",
  "winnow 0.7.15",
 ]
 
 [[package]]
+name = "idiomatic-sh-ryo-relations"
+version = "0.1.3"
+dependencies = [
+ "idiomatic-sh-ryo-relations",
+ "strum",
+]
+
+[[package]]
 name = "idiomatic-sh-ryo-rust"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "cargo-platform",
  "dhat",
@@ -1481,43 +1695,50 @@ dependencies = [
  "serde",
  "strum",
  "tempfile",
- "thiserror",
- "toml",
+ "thiserror 2.0.20",
+ "toml 1.1.4+spec-1.1.0",
  "unicode-ident",
  "unicode-properties",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-sdk"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "divan",
  "idiomatic-sh-ryo-core",
+ "idiomatic-sh-ryo-execution",
+ "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",
+ "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-sdk",
  "idiomatic-sh-ryo-values",
+ "libtest-mimic",
  "rayon",
  "tempfile",
- "thiserror",
+ "thiserror 2.0.20",
  "trybuild",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-toml"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dhat",
  "divan",
  "idiomatic-sh-ryo-sdk",
  "idiomatic-sh-ryo-toml",
  "strum",
- "toml",
+ "toml 1.1.4+spec-1.1.0",
  "toml_parser",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-typescript"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dhat",
  "divan",
@@ -1535,16 +1756,18 @@ dependencies = [
  "serde",
  "serde_json",
  "strum",
- "thiserror",
+ "thiserror 2.0.20",
  "yaml_serde",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-values"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -1592,6 +1815,8 @@ checksum = "cc4e190f5d26ca7051642629da2c52fc03bde85a03197c99408dcd291734c855"
 dependencies = [
  "equivalent",
  "hashbrown 0.17.1",
+ "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -1645,6 +1870,15 @@ name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
+
+[[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
 
 [[package]]
 name = "itertools"
@@ -1725,6 +1959,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a45a52f43e1c16f667ccfe4dd8c85b7f7c204fd5e3bf46c5b0db9a5c3c0b8e9"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "libtest-mimic"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14e6ba06f0ade6e504aff834d7c34298e5155c6baca353cc6a4aaff2f9fd7f33"
+dependencies = [
+ "anstream 1.0.0",
+ "anstyle",
+ "clap",
+ "escape8259",
 ]
 
 [[package]]
@@ -2016,7 +2262,7 @@ dependencies = [
  "owo-colors",
  "oxc-miette-derive",
  "textwrap",
- "thiserror",
+ "thiserror 2.0.20",
  "unicode-segmentation",
  "unicode-width",
 ]
@@ -2296,6 +2542,41 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9555b1514d2d99d78150d3c799d4c357a3e2c2a8062cd108e93a06d9057629c5"
 
 [[package]]
+name = "pep440_rs"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31095ca1f396e3de32745f42b20deef7bc09077f918b085307e8eab6ddd8fb9c"
+dependencies = [
+ "once_cell",
+ "serde",
+ "unicode-width",
+ "unscanny",
+ "version-ranges",
+]
+
+[[package]]
+name = "pep508_rs"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c2feee999fa547bacab06a4881bacc74688858b92fa8ef1e206c748b0a76048"
+dependencies = [
+ "boxcar",
+ "indexmap",
+ "itertools 0.13.0",
+ "once_cell",
+ "pep440_rs",
+ "regex",
+ "rustc-hash 2.1.3",
+ "serde",
+ "smallvec",
+ "thiserror 1.0.69",
+ "unicode-width",
+ "url",
+ "urlencoding",
+ "version-ranges",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2476,6 +2757,20 @@ dependencies = [
  "bitflags",
  "memchr",
  "unicase",
+]
+
+[[package]]
+name = "pyproject-toml"
+version = "0.13.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6d755483ad14b49e76713b52285235461a5b4f73f17612353e11a5de36a5fd2"
+dependencies = [
+ "indexmap",
+ "pep440_rs",
+ "pep508_rs",
+ "serde",
+ "thiserror 2.0.20",
+ "toml 0.9.12+spec-1.1.0",
 ]
 
 [[package]]
@@ -2729,7 +3024,7 @@ dependencies = [
  "ruff_text_size",
  "rustc-hash 2.1.3",
  "thin-vec",
- "thiserror",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -3415,11 +3710,31 @@ checksum = "d6a4b9ba8738cb4a4f399d37e266becfd475e75eb73425b87a05a2f2039ba63e"
 
 [[package]]
 name = "thiserror"
+version = "1.0.69"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6aaf5339b578ea85b50e080feb250a3e8ae8cfcdff9a461c9ec2904bc923f52"
+dependencies = [
+ "thiserror-impl 1.0.69",
+]
+
+[[package]]
+name = "thiserror"
 version = "2.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec86235f5fcc2a73650310756d2ac5b138a5780bbbdfae3eeccec992c435ba4f"
 dependencies = [
- "thiserror-impl",
+ "thiserror-impl 2.0.20",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "1.0.69"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -3504,6 +3819,21 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
+]
+
+[[package]]
+name = "toml"
+version = "0.9.12+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf92845e79fc2e2def6a5d828f0801e29a2f8acc037becc5ab08595c7d5e9863"
+dependencies = [
+ "indexmap",
+ "serde_core",
+ "serde_spanned",
+ "toml_datetime 0.7.5+spec-1.1.0",
+ "toml_parser",
+ "toml_writer",
+ "winnow 0.7.15",
 ]
 
 [[package]]
@@ -3624,17 +3954,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "tracing-serde"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "704b1aeb7be0d0a84fc9828cae51dab5970fee5088f83d1dd7ee6f6246fc6ff1"
+dependencies = [
+ "serde",
+ "tracing-core",
+]
+
+[[package]]
 name = "tracing-subscriber"
 version = "0.3.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb7f578e5945fb242538965c2d0b04418d38ec25c79d160cd279bf0731c8d319"
 dependencies = [
  "nu-ansi-term",
+ "serde",
+ "serde_json",
  "sharded-slab",
  "smallvec",
  "thread_local",
  "tracing-core",
  "tracing-log",
+ "tracing-serde",
 ]
 
 [[package]]
@@ -3689,7 +4032,7 @@ dependencies = [
  "serde_json",
  "target-triple",
  "termcolor",
- "toml",
+ "toml 1.1.4+spec-1.1.0",
 ]
 
 [[package]]
@@ -3800,6 +4143,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81e544489bf3d8ef66c953931f56617f423cd4b5494be343d9b9d3dda037b9a3"
 
 [[package]]
+name = "unscanny"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9df2af067a7953e9c3831320f35c1cc0600c30d44d9f7a12b01db1cd88d6b47"
+
+[[package]]
 name = "url"
 version = "2.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3809,7 +4158,14 @@ dependencies = [
  "idna",
  "percent-encoding",
  "serde",
+ "serde_derive",
 ]
+
+[[package]]
+name = "urlencoding"
+version = "2.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "daf8dba3b7eb870caf1ddeed7bc9d2a049f3cfdfae7cb521b087cc33ae4c49da"
 
 [[package]]
 name = "utf8_iter"
@@ -3830,6 +4186,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 
 [[package]]
+name = "version-ranges"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31e9bd4e9c9ff6a2a9b5969462ba26216af3e010df0377dad8320ab515262ef8"
+dependencies = [
+ "smallvec",
+]
+
+[[package]]
 name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3842,6 +4207,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09ac3b126d3914f9849036f826e054cbabdc8519970b8998ddaf3b5bd3c65f11"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "wait4"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce2d6eb47d02e051093f3c8106983ed385e5c07700370f14dde91d14864cf12f"
+dependencies = [
+ "libc",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

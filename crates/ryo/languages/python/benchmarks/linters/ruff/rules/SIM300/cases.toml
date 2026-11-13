@@ -1,0 +1,41 @@
+[[cases]]
+name = "literal-before-variable"
+comparison = "full"
+files = { "case.py" = "if 1 == value:\n    pass\n" }
+expected = [{ "file" = "case.py", "start" = 3, "end" = 13, "rule" = "SIM300" }]
+
+[[cases]]
+name = "variable-before-literal"
+comparison = "full"
+files = { "case.py" = "if value == 1:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "two-literals"
+comparison = "full"
+files = { "case.py" = "if 1 == 2:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "upper-name-before-variable"
+comparison = "full"
+files = { "case.py" = "if LIMIT == value:\n    pass\n" }
+expected = [{ "file" = "case.py", "start" = 3, "end" = 17, "rule" = "SIM300" }]
+
+[[cases]]
+name = "chain-is-not-rewritten"
+comparison = "full"
+files = { "case.py" = "if 1 == value == 2:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "identity-not-order-policy"
+comparison = "full"
+files = { "case.py" = "if None is value:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "suppressed-comparison"
+comparison = "full"
+files = { "case.py" = "if 1 == value:  # noqa: SIM300\n    pass\n" }
+expected = []

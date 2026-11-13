@@ -103,7 +103,9 @@ fn go_lines(root: &Path) -> BTreeSet<String> {
             lines.extend([format!(
                 "dependencies {source},{path},{version},{},{}",
                 replacement_of(&edited, path, version),
-                modules.get(path).map(String::as_str).unwrap_or_default(),
+                modules
+                    .get(path)
+                    .map_or(crate::base::ABSENT, String::as_str),
             )]);
         }
     }
@@ -120,9 +122,7 @@ fn ryo_says_what_go_says_of_the_manifests_of_a_workspace() {
     .expect("the Go language's fixture project is there");
     let ours = ryo_lines(
         &root,
-        vec![ryo_core::outbound::language::types::LanguageHandles::from(
-            ryo_go::linked(),
-        )],
+        vec![ryo_core::outbound::language::factory::LanguageConnection::from(ryo_go::linked())],
         DEPENDENCIES,
     );
     let theirs = go_lines(&root);

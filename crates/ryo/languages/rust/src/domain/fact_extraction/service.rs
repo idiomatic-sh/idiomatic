@@ -6,7 +6,7 @@ use crate::domain::tokens::types::Token;
 use ryo::languages::{self, Position, Tree};
 use std::borrow::Cow;
 
-use super::constants::{PATH_ATTRIBUTE, RAW_PREFIX};
+use super::constants::{EXPORTED_VISIBILITY, PATH_ATTRIBUTE, RAW_PREFIX, TEST_ATTRIBUTE};
 use crate::domain::fact_notes::types::{
     DeclaredNote, Note, NoteFlag, NoteName, NoteOffset, NotePath, StepNote, WrittenNote,
 };
@@ -26,7 +26,8 @@ fn written_text<'a>(tree: &Tree<'a>, at: Position) -> TokenText<'a> {
                 usize::try_from(from).unwrap_or(usize::MAX)
                     ..usize::try_from(to).unwrap_or(usize::MAX),
             )
-            .and_then(|bytes| std::str::from_utf8(bytes).ok()) // ignore: idiomatic.arch/no-ok-on-result - the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
+            // the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
+            .map(|bytes| std::str::from_utf8(bytes).unwrap_or_default())
             .unwrap_or_default(),
     )
 }
@@ -88,6 +89,11 @@ fn declarations<'a>(
             name: NoteName(Cow::Borrowed(name.0)),
             inline: NoteFlag(list.is_some()),
             path: path.clone(),
+            test_only: test_attribute(tree, item),
+            exported: NoteFlag(
+                child(tree, item, Kind::Node(Node::Visibility))
+                    .is_some_and(|visibility| spelled(tree, visibility).0 == EXPORTED_VISIBILITY),
+            ),
         });
         if let Some(list) = list {
             let depth = around.len();
@@ -113,6 +119,15 @@ pub(crate) fn specifier(tree: &Tree<'_>, at: Position) -> languages::Flag {
     } else {
         languages::Flag::Lowered
     }
+}
+
+/// Whether `item` carries `#[cfg(test)]`, its whitespace left out.
+fn test_attribute(tree: &Tree<'_>, item: Position) -> NoteFlag {
+    NoteFlag(
+        languages::children(tree.elements, item)
+            .filter(|each| kind(tree, *each) == Kind::Node(Node::Attr))
+            .any(|attr| spelled(tree, attr).0 == TEST_ATTRIBUTE),
+    )
 }
 
 /// The value of `item`'s `#[path = "…"]`, when it has one.
@@ -166,6 +181,8 @@ fn written_paths<'a>(tree: &Tree<'a>, out: &mut Vec<WrittenNote<'a>>) {
             start: NoteOffset(start(tree, node).0),
             end: NoteOffset(end(tree, node).0),
             text: spelled(tree, node),
+            bound: None,
+            scope: None,
         });
     }
 }
@@ -187,6 +204,21 @@ fn enclosing_of<'a>(tree: &Tree<'a>, node: Position) -> Vec<NoteName<'a>> {
         .filter_map(|each| name_of(*each))
         .map(|name| NoteName(Cow::Borrowed(name.0)))
         .collect()
+}
+
+/// The span of the innermost block of statements or inline module around `node`: where a `use` written there binds. None at the
+/// top of the file.
+fn scope_of(tree: &Tree<'_>, node: Position) -> Option<languages::Span> {
+    let scope = ancestors(tree, node).find(|each| {
+        matches!(
+            kind(tree, *each),
+            Kind::Node(Node::StmtList | Node::ItemList)
+        )
+    })?;
+    Some(languages::Span {
+        start: start(tree, scope),
+        end: end(tree, scope),
+    })
 }
 
 /// Adds each leaf of `use_tree`, under the segments `prefix` its groups write.
@@ -227,12 +259,22 @@ fn flatten<'a>(
         if glob {
             segments.push(NoteName(Cow::Borrowed(GLOB)));
         }
+        // The name the leaf binds: its `as` name (none for `as _`), or else its last segment; a glob binds no one name.
+        let bound = match child(tree, use_tree, Kind::Node(Node::Rename)) {
+            Some(rename) => child(tree, rename, Kind::Node(Node::Name))
+                .and_then(|name| first_token(tree, name))
+                .map(|name| NoteName(Cow::Borrowed(name.0))),
+            None if glob => None,
+            None => prefix.last().map(|last| NoteName(Cow::Borrowed(last.0))),
+        };
         out.push(WrittenNote {
             segments,
             enclosing: enclosing_of(tree, use_node),
             start: NoteOffset(start(tree, use_tree).0),
             end: NoteOffset(end(tree, use_tree).0),
             text: spelled(tree, use_tree),
+            bound,
+            scope: scope_of(tree, use_node),
         });
     }
     prefix.truncate(before);

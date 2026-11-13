@@ -1,7 +1,7 @@
 //! The `uv` tables' cases: a workspace gives its members and its exclusions, a source its directory.
 
 use super::declared;
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::outbound::manifest_reading::errors::ManifestReadingError;
 use crate::outbound::manifest_reading::fixtures::shown::{Files, declared_with};
 
@@ -100,7 +100,39 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             " |  |  |  |  | override werkzeug==2.3.0 | override numpy<2 ; python_version < '3.10'",
         ),
     },
+    Case {
+        name: CaseName("a_tool_that_is_not_a_table_is_a_malformed_manifest_the_reader_refuses"),
+        word: Word::Refuses,
+        input: || &[("pyproject.toml", "tool = 1\n")],
+        expect: Expect::Refusal(names_the_tool_shape),
+    },
+    Case {
+        name: CaseName("a_uv_entry_that_is_not_a_table_is_a_malformed_manifest_the_reader_refuses"),
+        word: Word::Refuses,
+        input: || &[("pyproject.toml", "[tool]\nuv = 1\n")],
+        expect: Expect::Refusal(names_the_uv_shape),
+    },
 ];
+
+/// Whether the refusal is the typed `Unreadable` that names the shape of `[tool]` the manifest broke.
+fn names_the_tool_shape(failure: &Failure) -> Selection {
+    match failure {
+        ManifestReadingError::Unreadable { reason } if reason.contains("ToolSchema") => {
+            Selection::Matches
+        }
+        ManifestReadingError::Unreadable { .. } => Selection::Differs,
+    }
+}
+
+/// Whether the refusal is the typed `Unreadable` that names the shape of `[tool.uv]` the manifest broke.
+fn names_the_uv_shape(failure: &Failure) -> Selection {
+    match failure {
+        ManifestReadingError::Unreadable { reason } if reason.contains("UvSchema") => {
+            Selection::Matches
+        }
+        ManifestReadingError::Unreadable { .. } => Selection::Differs,
+    }
+}
 
 fn subject(files: Input) -> Result<Value, Failure> {
     declared_with(|path, text, _| declared(path, text), files)
@@ -110,4 +142,9 @@ fn subject(files: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

@@ -1,0 +1,254 @@
+//! The benchmark worker's frontend projection, rule answers beside it and the worker request it builds. Engine, core and SDK
+//! contracts are proved in their owning crates.
+use boundary_failure_test::{BoundaryFailure, failure};
+use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
+use ryo_benchmark::outbound::engine::factory;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
+use std::collections::BTreeMap;
+
+pub(crate) mod boundary_failure_test;
+pub(crate) mod constants;
+mod prepared_engine_test;
+use prepared_engine_test::{
+    PreparedEngine as _, custom_frontend_projection, default_frontend_projection, python_310,
+};
+
+mod scenario_test;
+use scenario_test::EngineScenario;
+mod suppression_fragment_test;
+use suppression_fragment_test::shared_suppression_fragment_matches_the_historical_inline_queries;
+mod consumer_selection_test;
+use consumer_selection_test::actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay;
+mod rule_fixtures_test;
+use rule_fixtures_test::{modules_for, write_rule_fixtures};
+mod rejected_syntax_test;
+use rejected_syntax_test::{
+    a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file,
+    a_rejected_file_leaves_pt020_pt025_and_pt026_answering_the_valid_file,
+};
+mod scenario_expectations_test;
+use scenario_expectations_test::{expected_diagnostics, input_file, source_for};
+
+type Input = EngineScenario;
+type Value = bool;
+type Failure = BoundaryFailure;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("frontend_projection_keeps_parse_diagnostics_with_complete_tokens"),
+        word: Word::Succeeds,
+        input: || EngineScenario::LexicallyCompleteSyntaxError,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("frontend_projection_keeps_semantic_parse_diagnostics_and_ast_facts"),
+        word: Word::Succeeds,
+        input: || EngineScenario::PreservedSemanticSyntaxError,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("stub_future_annotation_error_keeps_f821_and_frontend_rows"),
+        word: Word::Succeeds,
+        input: || EngineScenario::PreservedStubSemanticSyntaxError,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("ordinary_annotation_keeps_f821_without_syntax_row"),
+        word: Word::Succeeds,
+        input: || EngineScenario::OrdinaryAnnotationNamedExpression,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("frontend_projection_is_disabled_without_an_identity"),
+        word: Word::Succeeds,
+        input: || EngineScenario::InvalidSyntaxProjectionDisabled,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("frontend_projection_uses_its_supplied_rule_and_query"),
+        word: Word::Succeeds,
+        input: || EngineScenario::CustomFrontendProjection,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("future-feature_validation_stays_a_lint_not_invalid_syntax"),
+        word: Word::Succeeds,
+        input: || EngineScenario::FutureFeatureProjection,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("late_future_directive_keeps_f404_without_a_grammar_error"),
+        word: Word::Succeeds,
+        input: || EngineScenario::LateFutureDirectiveProjection,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("unconsumed_future-feature_diagnostic_does_not_fall_back_to_invalid_syntax"),
+        word: Word::Succeeds,
+        input: || EngineScenario::UnknownFutureWithoutConsumer,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("frontend_projection_cannot_replace_an_authored_rule"),
+        word: Word::Refuses,
+        input: || EngineScenario::FrontendRuleCollision,
+        expect: Expect::Error(BoundaryFailure::Invalid),
+    },
+    Case {
+        name: CaseName("a_rejected_file_leaves_pt020_pt025_and_pt026_answering_the_valid_file"),
+        word: Word::Succeeds,
+        input: || EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file"),
+        word: Word::Succeeds,
+        input: || EngineScenario::ARejectedFileLeavesI001Plw0406AndRuf100AnsweringTheValidFile,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("shared_suppression_fragment_matches_the_historical_inline_queries"),
+        word: Word::Succeeds,
+        input: || EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName(
+            "actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("lazy_future_stays_visible_without_a_dedicated_selected_rule"),
+        word: Word::Succeeds,
+        input: || EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("listed_project_inputs_and_invalid_sources_keep_distinct_readers"),
+        word: Word::Succeeds,
+        input: || EngineScenario::ListedProjectInputsAndInvalidSourcesKeepDistinctReaders,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName(
+            "i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            EngineScenario::I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory
+        },
+        expect: Expect::Value(true),
+    },
+];
+fn exercise(scenario: Input) -> Result<Value, Error> {
+    if scenario == EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile {
+        return a_rejected_file_leaves_pt020_pt025_and_pt026_answering_the_valid_file()
+            .map(|()| true);
+    }
+    if scenario == EngineScenario::ARejectedFileLeavesI001Plw0406AndRuf100AnsweringTheValidFile {
+        a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file();
+        return Ok(true);
+    }
+    if scenario == EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries {
+        return shared_suppression_fragment_matches_the_historical_inline_queries().map(|()| true);
+    }
+    if scenario
+        == EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
+    {
+        actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay();
+        return Ok(true);
+    }
+    if scenario == EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule {
+        return future_directives_test::lazy_future_stays_visible_without_a_dedicated_selected_rule().map(|()| true);
+    }
+    if scenario == EngineScenario::ListedProjectInputsAndInvalidSourcesKeepDistinctReaders {
+        return project_inputs_test::listed_project_inputs_and_invalid_sources_keep_distinct_readers().map(|()| true);
+    }
+    if scenario
+        == EngineScenario::I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory
+    {
+        i001_observation_test::i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory();
+        return Ok(true);
+    }
+    let root = tempfile::tempdir()?;
+    let rules = root.path().join("rules");
+    let selected_rules = write_rule_fixtures(&rules, scenario)?;
+    let file = input_file(scenario);
+    std::fs::write(root.path().join(file), source_for(scenario))?;
+    let request = WorkerRequest {
+        performance: Default::default(),
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(selected_rules),
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        given_project_inventory: Default::default(),
+        project_context_mode:
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+        root: root.path().to_owned(),
+        rules,
+        query_modules: prepared_engine_test::module_names(modules_for(scenario)?),
+        rule_applicability: BTreeMap::default(),
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        files: vec![ryo::linter::RelativePath(file.into())],
+        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
+    };
+    let report = run_with_projection(scenario, request)?;
+    let expected = expected_diagnostics(scenario)?;
+    Ok(report.files == [ryo::linter::RelativePath(file.into())] && report.diagnostics == expected)
+}
+
+fn run_with_projection(
+    scenario: EngineScenario,
+    request: WorkerRequest,
+) -> Result<ryo_benchmark_contracts::domain::reports::types::RunReport, Error> {
+    if scenario == EngineScenario::InvalidSyntaxProjectionDisabled {
+        return factory::local(python_310(), None).run_prepared(request);
+    }
+    let projection = if scenario == EngineScenario::CustomFrontendProjection {
+        custom_frontend_projection()?
+    } else {
+        default_frontend_projection()?
+    };
+    factory::local_with_frontend_diagnostic(python_310(), None, projection).run_prepared(request)
+}
+
+fn subject(input: Input) -> Result<Value, Failure> {
+    exercise(input).map_err(failure)
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+#[path = "project_context_test.rs"]
+mod project_context;
+
+#[path = "compiler_feature_test.rs"]
+mod compiler_features;
+
+mod context_case_test;
+
+mod authored_queries_test;
+
+mod future_directives_test;
+
+mod project_inputs_test;
+
+mod i001_observation_test;
+
+mod rejected_syntax_consumer_test;
+
+#[cfg(test)]
+mod worker_request_input_test;

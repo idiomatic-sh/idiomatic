@@ -20,4 +20,4 @@ Feature: typecheck
 
       Examples:
         | name | input | expected |
-        | unknown_relation | unknown_relation | no relation named `nothing` |
+        | unknown_relation | unknown_relation | no relation named `nothing` (from `<query>` at byte 0) |

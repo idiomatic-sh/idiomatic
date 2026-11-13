@@ -2,17 +2,27 @@
 
 use ryo_core::inbound::use_cases::validate::errors::ValidateError as CoreError;
 use ryo_core::inbound::use_cases::validate::types::ValidateRequest as CoreRequest;
-use ryo_language::domain::relations::types::{CellKind, Offset, Span as CoreSpan};
+use ryo_relations::domain::relations::types::{CellKind, Offset, Span as CoreSpan};
 use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
-use ryo_values::domain::plan_parts::types::{QueryText, RefusalMessage, RefusedKind, RefusedQuery};
+use ryo_values::domain::{
+    plan_parts::types::QueryText,
+    program::types::{RefusalMessage, RefusedKind, RefusedQuery},
+    query_tokens::types::{
+        ByteOffset as CoreByteOffset, QueryOrigin as CoreQueryOrigin, QuerySourceId,
+        QuerySpan as CoreQuerySpan,
+    },
+};
 
 use super::{error, request};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::host::types::{
     HostColumn, HostColumnName, HostDeclaration, HostKind, HostRelationName,
 };
-use crate::domain::query::errors::ValidateError;
-use crate::domain::query::types::RyoQlQuery;
+use crate::domain::query::errors::QueryOrigin;
+use crate::domain::query::errors::{QueryBundleError, ValidateError};
+use crate::domain::query::types::{
+    ByteOffset, QueryModuleCatalog, QueryModuleSource, QuerySpan, RyoQlQuery,
+};
 use crate::resources::query::validate::types::ValidateRequest;
 
 /// The core's error offered to the conversion.
@@ -35,6 +45,7 @@ fn refused(kind: RefusedKind, start: u32, end: u32) -> RefusedQuery {
             start: Offset(start),
             end: Offset(end),
         },
+        origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
     }
 }
 
@@ -77,6 +88,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || CoreError::UnknownKind {
             reason: String::new(),
+            origin: None,
         },
         expect: Expect::Value(0),
     },
@@ -107,9 +119,186 @@ fn subject(input: Input) -> Result<Value, Failure> {
         | ValidateError::UnknownRelation { span, .. }
         | ValidateError::Type { span, .. }
         | ValidateError::Invalid { span, .. } => Ok(span.start.0),
+        ValidateError::Located { error, .. } => match *error {
+            ValidateError::Syntax { span, .. }
+            | ValidateError::UnknownRelation { span, .. }
+            | ValidateError::Type { span, .. }
+            | ValidateError::Invalid { span, .. } => Ok(span.start.0),
+            error @ (ValidateError::Catalog { .. } | ValidateError::Located { .. }) => Err(error),
+        },
         error @ ValidateError::Catalog { .. } => Err(error),
     }
 }
+
+/// The origin the SDK's error carries when the core's refusal came from a fragment module.
+fn module_origin() -> QueryOrigin {
+    QueryOrigin {
+        source_id: "nested/module".into(),
+        span: QuerySpan {
+            start: ByteOffset(7),
+            end: ByteOffset(12),
+        },
+        trace: Vec::new(),
+    }
+}
+
+/// The origin the core's refusal carries when it came from a fragment module.
+fn core_module_origin() -> CoreQueryOrigin {
+    CoreQueryOrigin {
+        source_id: QuerySourceId("nested/module".into()),
+        span: CoreQuerySpan {
+            start: CoreByteOffset(7),
+            end: CoreByteOffset(12),
+        },
+        trace: Vec::new(),
+    }
+}
+
+/// Whether the SDK's error for `core_error` is the invalid refusal located at its module.
+fn keeps_module_location(core_error: CoreError) -> bool {
+    matches!(
+        error(TEXT, core_error),
+        ValidateError::Located { origin: found, error }
+            if found == module_origin() && matches!(*error, ValidateError::Invalid { span, .. } if span.start.0 == 7 && span.end.0 == 12)
+    )
+}
+
+/// The rows of the errors a fragment module gives: the core's error offered, and whether the SDK's keeps the module's location.
+const LOCATED: &[Case<Input, bool, Failure>] = &[
+    Case {
+        name: CaseName("an_uncompilable_fragment_error_keeps_its_module_location"),
+        word: Word::Succeeds,
+        input: || {
+            let mut core_error = refused(RefusedKind::Invalid, 7, 12);
+            core_error.origin =
+                ryo_values::domain::query_tokens::types::Attribution::Located(core_module_origin());
+            CoreError::Uncompilable { error: core_error }
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("an_unknown_kind_fragment_error_keeps_its_module_location"),
+        word: Word::Succeeds,
+        input: || CoreError::UnknownKind {
+            reason: "unknown kind".to_owned(),
+            origin: Some(core_module_origin()),
+        },
+        expect: Expect::Value(true),
+    },
+];
+
+/// A bundle keeps the identity and the exact source of its modules, and refuses a blank or a repeated identity.
+fn query_bundle_retains_module_identity_and_exact_source() -> usize {
+    use std::sync::Arc;
+
+    let module = QueryModuleSource::try_new("python/ruff/suppress", "fragment body\nλ🦀\n")
+        .expect("module identity is nonblank");
+    let modules = QueryModuleCatalog::try_new([module.clone()]).expect("unique module ids");
+    let first = RyoQlQuery::with_modules("rules/F401", "root query\n", &modules)
+        .expect("bundle identities are unique");
+    let same_catalog = modules.clone();
+    let same = RyoQlQuery::with_modules("rules/F401", "root query\n", &same_catalog)
+        .expect("bundle identities are unique");
+    let other_root = RyoQlQuery::with_modules("rules/F822", "another root\n", &modules)
+        .expect("one immutable catalog supports different roots");
+    let changed_modules = QueryModuleCatalog::try_new([QueryModuleSource::try_new(
+        "python/ruff/suppress",
+        "fragment body",
+    )
+    .expect("module identity is nonblank")])
+    .expect("unique module ids");
+    let changed_source = RyoQlQuery::with_modules("rules/F401", "root query\n", &changed_modules)
+        .expect("bundle identities are unique");
+    let independently_allocated = QueryModuleCatalog::try_new([QueryModuleSource::try_new(
+        "python/ruff/suppress",
+        "fragment body\nλ🦀\n",
+    )
+    .unwrap()])
+    .unwrap();
+    let same_contents =
+        RyoQlQuery::with_modules("rules/F401", "root query\n", &independently_allocated).unwrap();
+    assert_eq!(first, same_contents);
+    assert_eq!(first.cmp(&same_contents), std::cmp::Ordering::Equal);
+    let hashed = |query: &RyoQlQuery| {
+        use std::hash::{Hash, Hasher};
+        let mut digest = std::collections::hash_map::DefaultHasher::new();
+        query.hash(&mut digest);
+        digest.finish()
+    };
+    assert_eq!(hashed(&first), hashed(&same_contents));
+    let empty = QueryModuleCatalog::try_new([]).unwrap();
+    let empty_root = RyoQlQuery::with_modules("root/empty", "root query\n", &empty)
+        .unwrap()
+        .into_bundle();
+    assert!(empty_root.modules.is_empty());
+    assert_eq!(empty_root.root.id.0.as_ref(), "root/empty");
+    assert_eq!(&*empty_root.root.text, "root query\n");
+    assert_eq!(first, same);
+    assert_ne!(first, changed_source);
+    assert_eq!(&**first.root_text(), "root query\n");
+    let original = first.clone().into_bundle();
+    let cloned = first.into_bundle();
+    let other_root = other_root.into_bundle();
+    drop(modules);
+    drop(same_catalog);
+    assert!(Arc::ptr_eq(&original.modules, &cloned.modules));
+    assert!(Arc::ptr_eq(&original.root.text.0, &cloned.root.text.0));
+    assert!(Arc::ptr_eq(&original.modules, &other_root.modules));
+    let id = ryo_values::domain::program::service::source_id(
+        ryo_values::domain::query_tokens::types::QuerySpelling(&module.id().0),
+    )
+    .unwrap();
+    assert!(Arc::ptr_eq(
+        &original.modules[&id].text.0,
+        &cloned.modules[&id].text.0
+    ));
+    assert!(std::ptr::eq(&**module.text(), &*original.modules[&id].text));
+    let mut edited = original.clone();
+    Arc::make_mut(&mut edited.modules)
+        .get_mut(&id)
+        .unwrap()
+        .text = "edited module".into();
+    assert_eq!(&*original.modules[&id].text, "fragment body\nλ🦀\n");
+    assert_eq!(&*other_root.modules[&id].text, "fragment body\nλ🦀\n");
+    assert_ne!(original, edited);
+    assert!(!Arc::ptr_eq(&original.modules, &edited.modules));
+    assert_eq!(
+        QueryModuleSource::try_new(" \t", "body").expect_err("blank module ids must be rejected"),
+        QueryBundleError::BlankSourceId
+    );
+    assert_eq!(
+        RyoQlQuery::with_modules("rules/blank", " \n", &empty)
+            .expect_err("a blank root text must be rejected"),
+        QueryBundleError::BlankRootText
+    );
+    assert_eq!(
+        QueryModuleCatalog::try_new([module.clone(), module])
+            .expect_err("duplicate module ids are rejected before root construction"),
+        QueryBundleError::DuplicateSourceId {
+            id: "python/ruff/suppress".into()
+        }
+    );
+    let collision = QueryModuleCatalog::try_new([
+        QueryModuleSource::try_new("rules/F401", "body").expect("module id is nonblank")
+    ])
+    .expect("unique module id");
+    assert_eq!(
+        RyoQlQuery::with_modules("rules/F401", "root query", &collision)
+            .expect_err("a module cannot reuse the root source id"),
+        QueryBundleError::DuplicateSourceId {
+            id: "rules/F401".into()
+        }
+    );
+    1
+}
+
+/// The rows of the query bundles: a scenario, and what it answers when it holds.
+const BUNDLES: &[Case<fn() -> usize, usize, Failure>] = &[Case {
+    name: CaseName("query_bundle_retains_module_identity_and_exact_source"),
+    word: Word::Succeeds,
+    input: || query_bundle_retains_module_identity_and_exact_source,
+    expect: Expect::Value(1),
+}];
 
 /// What a row of the requests gives: the relations the caller declares, and the ones the core is expected to be told of.
 type Declared = (Vec<HostDeclaration>, Vec<HostedRelation>);
@@ -165,10 +354,12 @@ const REQUESTS: &[Case<Declared, bool, Failure>] = &[
 fn requested((declared, expected): Declared) -> bool {
     let query = RyoQlQuery::try_from(TEXT).expect("the text is not blank");
     request(ValidateRequest {
+        observations: Vec::new(),
         query,
         hosted: declared,
     }) == CoreRequest {
-        text: QueryText(TEXT.into()),
+        observations: Vec::new(),
+        text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(TEXT.into())),
         hosted: expected,
     }
 }
@@ -176,6 +367,12 @@ fn requested((declared, expected): Declared) -> bool {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+    run(LOCATED, Word::Succeeds, |core_error| {
+        Ok::<_, Failure>(keeps_module_location(core_error))
+    });
+    run(BUNDLES, Word::Succeeds, |scenario| {
+        Ok::<_, Failure>(scenario())
+    });
     run(REQUESTS, Word::Succeeds, |row| {
         Ok::<_, Failure>(requested(row))
     });

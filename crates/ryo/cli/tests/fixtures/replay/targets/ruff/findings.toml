@@ -1,8 +1,8 @@
-# The findings the command prints over this target: the sha256 of the whole
-# findings document in canonical form and their count per rule; the total is the sum of the counts, never stored beside them.
-digest = "517ebb63aed67583b55f1175a3447f7304e0daaf08097244bc28b19368f28f72"
+# The findings the command prints over this target: their count per rule. Every decided recorded rule has its count, 0 when ruff
+# gives none, and an undecided one its `#unknown` count: the replay fails a rule without one, and a key that names no recorded rule.
 
 [rules]
+"idiomatic.arch/adapter-at-root" = 0
 "idiomatic.arch/allow-attributes-per-file" = 2
 "idiomatic.arch/boxed-dyn-error-annotations#unknown" = 1447
 "idiomatic.arch/case-vocabulary" = 2
@@ -13,18 +13,21 @@ digest = "517ebb63aed67583b55f1175a3447f7304e0daaf08097244bc28b19368f28f72"
 "idiomatic.arch/deep-nesting" = 203
 "idiomatic.arch/dependency-feature-sprawl" = 6
 "idiomatic.arch/duplicate-function-bodies" = 648
+"idiomatic.arch/empty-else" = 0
 "idiomatic.arch/error-variant-never-constructed#unknown" = 1119
 "idiomatic.arch/field-written-never-read" = 24
 "idiomatic.arch/file-length" = 1040
 "idiomatic.arch/function-called-from-one-file" = 2148
 "idiomatic.arch/glob-imports" = 774
-"idiomatic.arch/import-fan-in" = 32
+"idiomatic.arch/import-fan-in" = 66
 "idiomatic.arch/import-fan-in#unknown" = 2
 "idiomatic.arch/io-at-boundary" = 235
 "idiomatic.arch/layer-order" = 2
 "idiomatic.arch/let-single-arm-match" = 5
 "idiomatic.arch/long-function" = 574
-"idiomatic.arch/module-cycles" = 1066
+"idiomatic.arch/lossy-float-literals" = 0
+"idiomatic.arch/match-on-bool" = 0
+"idiomatic.arch/module-cycles" = 1401
 "idiomatic.arch/module-cycles#unknown" = 1
 "idiomatic.arch/nested-function-count" = 19
 "idiomatic.arch/no-env-reads" = 27
@@ -33,6 +36,8 @@ digest = "517ebb63aed67583b55f1175a3447f7304e0daaf08097244bc28b19368f28f72"
 "idiomatic.arch/no-public-options" = 353
 "idiomatic.arch/no-reexports" = 1201
 "idiomatic.arch/orphan-rust-files#unknown" = 1
+"idiomatic.arch/parallel-members" = 0
+"idiomatic.arch/parse-errors" = 0
 "idiomatic.arch/print-in-library" = 56
 "idiomatic.arch/pub-item-unreferenced-elsewhere#unknown" = 1064
 "idiomatic.arch/repeated-bound-strings" = 7
@@ -52,4 +57,6 @@ digest = "517ebb63aed67583b55f1175a3447f7304e0daaf08097244bc28b19368f28f72"
 "idiomatic.arch/type-used-only-elsewhere" = 2
 "idiomatic.arch/unfinished-macros" = 12
 "idiomatic.arch/unsafe-without-safety" = 16
+"idiomatic.arch/unseparated-literals" = 0
 "idiomatic.arch/unwrap-outside-tests" = 965
+"idiomatic.arch/workspace-completeness" = 0

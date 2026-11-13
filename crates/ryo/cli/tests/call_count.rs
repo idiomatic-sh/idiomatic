@@ -5,17 +5,17 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use ryo_core::inbound::use_cases::lint::fixtures::contract;
+use ryo_core::inbound::use_cases::lint::fixtures::{corpus, measures};
 use ryo_core::outbound::language::factory;
-use ryo_core::outbound::language::types::LanguageHandles;
+use ryo_core::outbound::language::factory::LanguageConnection;
 
 #[test]
 fn port_calls_for_a_file_do_not_grow_with_its_rows() {
     let rust = ryo_rust::linked();
-    let corpus = contract::corpus(
-        Arc::new(factory::use_case(vec![LanguageHandles::from(rust)])),
+    let corpus = corpus::corpus(
+        Arc::new(factory::use_case(vec![LanguageConnection::from(rust)])),
         &Path::new(env!("CARGO_MANIFEST_DIR")).join("../languages/rust/tests/fixtures"),
         &ryo_rust::fixtures::expected(),
     );
-    contract::call_count(&corpus);
+    measures::call_count(&corpus);
 }

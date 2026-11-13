@@ -49,11 +49,16 @@ pub(crate) fn sdk_request(
     use ryo_sdk::linter::{Corpus, LintRequest, Rule, RuleId};
     use ryo_sdk::query::RyoQlQuery;
     LintRequest {
+        project_search_scope: Default::default(),
+        given_project_inventory: Default::default(),
+        source_language: ryo_sdk::linter::SourceLanguage::Recognized,
         root: root.to_path_buf(),
         rules: std::collections::BTreeMap::from([(
             RuleId::try_from("consumer").expect("rule id"),
             Rule {
+                observations: Vec::new(),
                 query: RyoQlQuery::try_from(query).expect("query"),
+                applicability: ryo_sdk::linter::RuleApplicability::Always,
                 parameters: std::collections::BTreeMap::new(),
                 include: Vec::new(),
                 exclude: Vec::new(),
@@ -125,6 +130,7 @@ fn public_sdk_reads_comments_with_every_enabled_provider() {
         .map(|(path, text, _)| {
             std::fs::write(root.path().join(path), text).expect("source file");
             CaseSource {
+                executable: Default::default(),
                 path: RelativePath((*path).into()),
                 text: SourceText((*text).into()),
             }
@@ -210,6 +216,7 @@ fn sdk_validate_refuses_a_misspelled_kind(languages: &ryo_sdk::linter::Languages
     let misspelled = ryo_sdk::query::validate(
         languages,
         ryo_sdk::query::ValidateRequest {
+            observations: Vec::new(),
             query: RyoQlQuery::try_from(
                 r#"let n = select * from "syntax-tree" where kind = "nosuchkind"; emit n subject file key(span);"#,
             )
@@ -293,6 +300,7 @@ fn files_given_as_text_fill_the_project_relations_as_the_same_files_walked_on_di
     let sources: Vec<CaseSource> = WORKSPACE
         .iter()
         .map(|(path, text)| CaseSource {
+            executable: Default::default(),
             path: RelativePath((*path).into()),
             text: SourceText((*text).into()),
         })

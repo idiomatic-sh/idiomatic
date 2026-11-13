@@ -1,0 +1,249 @@
+description = "A declaration visible as plain `pub` whose name no other file in scope mentions."
+why = "A `pub` item nobody outside its file names is wider than it needs to be: its visibility promises an API that has no user, and it cannot be told apart from a leftover. Read by name, across files: a declaration (anything `defines` emits but a local variable) carrying a `pub` visibility with no `(crate)`, `(super)` or `(in..)` restriction is reported when no identifier token with its text appears in any other file the entry covers, tests and fixtures included, and none appears in the signature or a field type of another plain-`pub` item of its own file, or in a trait implementation's header, associated types or method signatures there: the `private_interfaces` lint makes a type a public item's signature names public too, and a trait's implementation is as public as the type it is for, so that use is a reason to be `pub` (a function body's mentions are not). Not read: a field of a type in a `schemas.rs`, whose fields are the wire shape serde reads and writes by name, and a field of a type in a `fixtures.rs` or under a `fixtures/` directory, test support whose fields a fake keeps public for the tests that build it (a fixture function or type no other file names is still reported). Not seen: a use from outside the workspace (a library's real public API is reported, so a library root is best left out of the entry); a name another item also carries counts as a mention of this one, so a `pub fn new` is almost never reported."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let declarations = select * from "defines" where kind != "variable";
+let names = select * from tree-nodes where kind = "name";
+let declaration-names = select l."kind" as "kind", l."name" as "name", r."id" as "node", l."file" as "file", l."span" as "span" from declarations as l join names as r on l."file" = r."file" and l."span" = r."span";
+let declaration-items = select r."parent" as "item", l."kind" as "kind", l."name" as "name", l."file" as "file", l."span" as "span" from declaration-names as l join "syntax-child" as r on l."node" = r."child";
+let visibilities = select * from tree-nodes where kind = "visibility";
+let restrictions = select * from tree-nodes where kind = "visibility-inner";
+let restricted = select l."parent" as "id" from "syntax-child" as l join restrictions as r on l."child" = r."id";
+let public = antijoin(left=visibilities, right=restricted, left-on=["id"], right-on=["id"]);
+let public-owners = select l."parent" as "item" from "syntax-child" as l join public as r on l."child" = r."id";
+let public-declarations = select l."item" as "item", l."kind" as "kind", l."name" as "name", l."file" as "file", l."span" as "span" from declaration-items as l join public-owners as r on l."item" = r."item";
+let identifiers = select * from tree-tokens where kind = "ident";
+let mentions = project(from=identifiers, columns=["file", "text"]);
+let named = select l."file" as "file", l."span" as "span", r."file" as "user" from public-declarations as l join mentions as r on l."name" = r."text";
+let named-elsewhere = select * from named where user != file;
+let unreferenced-elsewhere = antijoin(left=public-declarations, right=named-elsewhere, left-on=["file", "span"], right-on=["file", "span"]);
+let public-items = select r."id" as "id", r."kind" as "kind", r."file" as "file", r."span" as "span" from public-owners as l join tree-nodes as r on l."item" = r."id";
+let impls = select * from tree-nodes where kind = "impl";
+let for-keywords = select * from tree-tokens where kind = "for-kw";
+let trait-impl-edges = select l."parent" as "id" from "syntax-child" as l join for-keywords as r on l."child" = r."id";
+let trait-impls = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from impls as l join trait-impl-edges as r on l."id" = r."id";
+let interfaces = union(left=public-items, right=trait-impls);
+let bodies = select * from tree-nodes where kind = "block-expr";
+let enclosures = union(left=interfaces, right=bodies);
+let enclosed = axis(from=identifiers, relation="syntax-child", direction=nearest-ancestor, domain=enclosures);
+let signature-names = select l."text" as "text", l."file" as "file", l."related" as "owner" from enclosed as l join interfaces as r on l."related" = r."id";
+let in-signatures = select l."item" as "item", l."file" as "file", l."span" as "span", r."owner" as "owner" from unreferenced-elsewhere as l join signature-names as r on l."name" = r."text" and l."file" = r."file";
+let in-other-signatures = select * from in-signatures where owner != item;
+let unreferenced = antijoin(left=unreferenced-elsewhere, right=in-other-signatures, left-on=["file", "span"], right-on=["file", "span"]);
+let schema-fields = select * from unreferenced where kind = "property" and glob_any(file, "**/schemas.rs");
+let fixture-items = select * from unreferenced where kind = "property" and glob_any(file, "{**/fixtures/**,**/fixtures.rs}");
+let unread = union(left=schema-fields, right=fixture-items);
+let reported = antijoin(left=unreferenced, right=unread, left-on=["file", "span"], right-on=["file", "span"]);
+emit reported subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`pub` {kind} `{name}` is named in no other file"
+help = "Narrow it to `pub(crate)` or private, or remove it if nothing uses it."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+mod shapes;
+'''
+
+[[scenarios]]
+id = 'used-elsewhere'
+scenario = 'A pub struct another file names.'
+given.files.'src/lib.rs' = '''
+mod shapes;
+use crate::shapes::Circle;
+
+pub(crate) fn area(circle: &Circle) -> f64 {
+    circle.radius
+}
+'''
+given.files.'src/shapes.rs' = '''
+pub struct Circle {
+    pub(crate) radius: f64,
+}
+'''
+
+[[scenarios]]
+id = 'unused-elsewhere'
+scenario = 'A pub function no other file names.'
+given.files.'src/lib.rs' = '''
+mod shapes;
+
+pub(crate) fn area() -> f64 {
+    shapes::radius() * 2.0
+}
+'''
+given.files.'src/shapes.rs' = '''
+pub fn radius() -> f64 {
+    1.0
+}
+
+pub fn diameter() -> f64 {
+    radius() * 2.0
+}
+'''
+then.findings = [
+  { path = 'src/shapes.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'pub-crate-item-no-other-file-names'
+scenario = 'A pub(crate) item no other file names.'
+given.files.'src/shapes.rs' = '''
+pub(crate) fn diameter() -> f64 {
+    2.0
+}
+'''
+
+[[scenarios]]
+id = 'named-by-a-test'
+scenario = 'A pub function only a test file names.'
+given.files.'src/shapes.rs' = '''
+#[cfg(test)]
+#[path = "shapes_test.rs"]
+mod tests;
+
+pub fn radius() -> f64 {
+    1.0
+}
+'''
+given.files.'src/shapes_test.rs' = '''
+use super::radius;
+
+#[test]
+fn reads() {
+    assert!(radius() > 0.0);
+}
+'''
+then.findings = []
+
+[[scenarios]]
+id = 'named-by-a-public-signature'
+scenario = 'A pub type named only by the field of another pub type of its file.'
+given.files.'src/lib.rs' = '''
+mod counting;
+
+pub(crate) fn total(report: &counting::Report) -> usize {
+    report.size + report.counts.0
+}
+'''
+given.files.'src/counting.rs' = '''
+pub struct GroupCounts(pub usize);
+
+pub struct Report {
+    pub counts: GroupCounts,
+    pub size: usize,
+}
+
+pub fn private_body() -> usize {
+    let unused = Hidden(1);
+    unused.0
+}
+
+pub struct Hidden(pub usize);
+'''
+then.findings = [
+  { path = 'src/counting.rs', line = 8 },
+  { path = 'src/counting.rs', line = 13 },
+]
+
+[[scenarios]]
+id = 'named-by-a-trait-implementation'
+scenario = 'A pub type named only by the associated type and method signature of a trait implementation in its file.'
+given.files.'src/lib.rs' = '''
+mod cells;
+
+pub(crate) fn first(cells: &mut cells::Cells) -> bool {
+    cells.next().is_some()
+}
+'''
+given.files.'src/cells.rs' = '''
+pub struct Piece(pub u8);
+
+pub struct Cells(pub u8);
+
+impl Iterator for Cells {
+    type Item = Piece;
+
+    fn next(&mut self) -> Option<Piece> {
+        None
+    }
+}
+'''
+then.findings = []
+
+[[scenarios]]
+id = 'unreferenced-service-function'
+scenario = 'A pub function of a concept service that no other file names is reported.'
+given.files.'src/lib.rs' = '''
+mod domain;
+'''
+given.files.'src/domain.rs' = '''
+mod x;
+'''
+given.files.'src/domain/x.rs' = '''
+mod service;
+'''
+given.files.'src/domain/x/service.rs' = '''
+pub fn measure() -> u8 {
+    1
+}
+'''
+then.findings = [
+  { path = 'src/domain/x/service.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'schema-field-named-by-no-other-file'
+scenario = 'A pub field of a serde type in a schemas.rs, named by no other file, is not reported.'
+given.files.'src/lib.rs' = '''
+mod schemas;
+pub use schemas::ConfigSchema;
+'''
+given.files.'src/schemas.rs' = '''
+#[derive(serde::Deserialize)]
+pub struct ConfigSchema {
+    pub width: u8,
+}
+'''
+
+[[scenarios]]
+id = 'fixture-function-named-by-no-other-file'
+scenario = 'A pub function in a fixtures.rs that no other file names is reported: only the fields of a fake are left out.'
+given.files.'src/lib.rs' = '''
+#[cfg(test)]
+mod fixtures;
+'''
+given.files.'src/fixtures.rs' = '''
+pub fn sample() -> u8 {
+    1
+}
+'''
+then.findings = [
+  { path = 'src/fixtures.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'fixture-field-named-by-no-other-file'
+scenario = 'A pub field of a fake in a fixtures.rs, named by no other file, is not reported.'
+given.files.'src/lib.rs' = '''
+#[cfg(test)]
+mod fixtures;
+#[cfg(test)]
+pub use fixtures::NamesFake;
+'''
+given.files.'src/fixtures.rs' = '''
+pub struct NamesFake {
+    pub calls: u8,
+}
+'''

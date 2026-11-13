@@ -1,0 +1,53 @@
+description = "The collector adapter's production module has an explicit Cargo-owned adjacent test root."
+why = "Only the module declaration changes ownership. The standard adapter spec still validates its contract cases, schemas, visibility and dependency directions. The enclosing collector target rule requires real Cargo registration of the adjacent test."
+templates = [
+  { template = "cargo-adapter-module", file = "timed.rs", description = "Production module declarations remain required; Cargo compiles the adjacent test." },
+  { template = "idiomatic.arch/adapter-module@0.2.0", file = "direct.rs", count = { min = 0 }, params = { port = "execution", implementation = "direct" }, description = "The direct collector retains the canonical adapter module contract." },
+  { template = "idiomatic.arch/adapter-module@0.2.0", file = "process.rs", count = { min = 0 }, params = { port = "execution", implementation = "process" }, description = "The portable process adapter retains the canonical adapter module contract." },
+]
+[[scenarios]]
+id = "registered"
+scenario = "The complete production module."
+given.files.'timed.rs' = '''
+#[cfg(not(test))]
+pub(crate) mod adapter;
+#[cfg(not(test))]
+pub(crate) mod settings;
+mod schemas;
+#[cfg(not(test))]
+mod constants;
+'''
+[[scenarios]]
+id = "missing"
+scenario = "The production module cannot disappear."
+then.findings = [{ rule = "cargo-adapter-module#count", path = "." }]
+
+[[scenarios]]
+id = "ordinary-adapter-still-requires-test"
+scenario = "External ownership of the timed test cannot remove another adapter's test declaration."
+given.files.'timed.rs' = '''
+#[cfg(not(test))]
+pub(crate) mod adapter;
+#[cfg(not(test))]
+pub(crate) mod settings;
+mod schemas;
+#[cfg(not(test))]
+mod constants;
+'''
+given.files.'direct.rs' = 'pub(crate) mod adapter;'
+then.findings = [{ rule = "idiomatic.arch/adapter-module#template", path = "direct.rs" }]
+
+[[scenarios]]
+id = "stray-artifact"
+scenario = "The overlay remains closed to unrelated artifacts."
+given.files.'timed.rs' = '''
+#[cfg(not(test))]
+pub(crate) mod adapter;
+#[cfg(not(test))]
+pub(crate) mod settings;
+mod schemas;
+#[cfg(not(test))]
+mod constants;
+'''
+given.files.'unowned.txt' = 'stray'
+then.findings = [{ rule = "collector-execution#closed", path = "unowned.txt" }]

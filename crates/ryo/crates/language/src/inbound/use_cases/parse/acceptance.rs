@@ -3,12 +3,12 @@
 use cucumber::{given, then, when};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::SourcePath;
-use ryo_language::domain::relations::types::FileId;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::inbound::use_cases::parse::service::build;
 use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 use ryo_language::inbound::use_cases::parse::use_case::ParseUseCaseImpl;
+use ryo_relations::domain::relations::types::FileId;
 
 use crate::Behavior;
 

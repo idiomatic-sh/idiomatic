@@ -1,0 +1,53 @@
+[[cases]]
+name = "getenv-number"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(1)\n" }
+expected = [{ rule = "PLE1507", file = "case.py", start = 20, end = 21 }]
+
+[[cases]]
+name = "getenv-none"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(None)\n" }
+expected = [{ rule = "PLE1507", file = "case.py", start = 20, end = 24 }]
+
+[[cases]]
+name = "getenv-bytes"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(b\"KEY\")\n" }
+expected = [{ rule = "PLE1507", file = "case.py", start = 20, end = 26 }]
+
+[[cases]]
+name = "getenv-string"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"KEY\")\n" }
+expected = []
+
+[[cases]]
+name = "getenv-keyword"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(key=1)\n" }
+expected = [{ rule = "PLE1507", file = "case.py", start = 24, end = 25 }]
+
+[[cases]]
+name = "getenv-unknown"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(compute())\n" }
+expected = []
+
+[[cases]]
+name = "getenv-alias"
+comparison = "full"
+files = { "case.py" = "import os as operating_system\noperating_system.getenv(False)\n" }
+expected = [{ rule = "PLE1507", file = "case.py", start = 54, end = 59 }]
+
+[[cases]]
+name = "other-function"
+comparison = "full"
+files = { "case.py" = "import other\nother.getenv(1)\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(1)  # noqa: PLE1507\n" }
+expected = []

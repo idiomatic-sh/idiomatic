@@ -7,6 +7,7 @@ use crate::domain::links::service::linked;
 use crate::domain::links::types::Linked;
 use crate::domain::manifests::collections::manifests::{
     analyzed_source::item::AnalyzedSourceItem, file_package::item::FilePackageItem,
+    manifest_diagnostic::item::ManifestDiagnosticItem,
     package_dependency::item::PackageDependencyItem, source_dependency::item::SourceDependencyItem,
     workspace_member::item::WorkspaceMemberItem,
 };
@@ -58,6 +59,17 @@ impl Project for ProjectContract {
 
     fn manifests(&self) -> &'static [ManifestName] {
         self.names
+    }
+
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(path, self.manifests().iter().copied())
+    }
+
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<ryo::languages::FilePath>,
+    ) {
     }
 
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<Linked>, ProjectError> {
@@ -120,8 +132,11 @@ impl Project for ProjectContract {
                 .notes
                 .iter()
                 .map(|bytes| {
-                    // ignore: idiomatic.arch/no-ok-on-result - the one error of a notes read is bytes that hold no note: a file the parse noted nothing of
-                    self.notes.note_in(bytes).ok()
+                    // the one error of a notes read is bytes that hold no note: a file the parse noted nothing of
+                    let Ok(note) = self.notes.note_in(bytes) else {
+                        return None;
+                    };
+                    Some(note)
                 })
                 .collect();
             linked(&request.files, &notes, packages)
@@ -132,6 +147,7 @@ impl Project for ProjectContract {
             }
         };
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused,
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -145,6 +161,22 @@ impl Project for ProjectContract {
     fn workspace_member(&self) -> Support<ManifestReader<languages::WorkspaceMember, Linked>> {
         languages::reads_manifests::<WorkspaceMemberItem>()
     }
+    fn manifest_diagnostic(
+        &self,
+    ) -> Support<ManifestReader<languages::ManifestDiagnostic, Linked>> {
+        languages::reads_manifests::<ManifestDiagnosticItem>()
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, Linked>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, Linked>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, Linked>> {
         languages::reads_manifests::<FilePackageItem>()
     }

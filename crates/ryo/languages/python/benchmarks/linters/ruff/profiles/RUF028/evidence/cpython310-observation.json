@@ -1,0 +1,59 @@
+{
+  "controls": {
+    "comment-at-eof": {
+      "comments": [
+        {
+          "column": 0,
+          "end_byte": 15,
+          "line": 2,
+          "start_byte": 4,
+          "text": "# fmt: skip"
+        }
+      ],
+      "source_sha256": "73570c4687b7af67ee2680be725a420a9d6e8e160ed3aac32406aeb95d92f303",
+      "syntax_valid": true
+    },
+    "directive-whitespace": {
+      "comments": [
+        {
+          "column": 1,
+          "end_byte": 13,
+          "line": 1,
+          "start_byte": 1,
+          "text": "#\tfmt:\tskip\t"
+        }
+      ],
+      "source_sha256": "ed00987fa88f30db4757ebcb78f5847f0e38e51ce92375bde79bd0ef4f70897e",
+      "syntax_valid": true
+    },
+    "semicolon-body-line-indentation": {
+      "comments": [
+        {
+          "column": 0,
+          "end_byte": 38,
+          "line": 3,
+          "start_byte": 28,
+          "text": "# fmt: off"
+        }
+      ],
+      "source_sha256": "e7c37b9ad4902ab3cfc11f16ce5b6668a50a71b42b1ab5ad1ecc56bca07baefd",
+      "syntax_valid": true
+    },
+    "unicode-byte-spans": {
+      "comments": [
+        {
+          "column": 4,
+          "end_byte": 28,
+          "line": 2,
+          "start_byte": 19,
+          "text": "# fmt: on"
+        }
+      ],
+      "source_sha256": "42bd29ab89cd72f8ea124341ffd97d1a1a2be17e48c9966a77d240df0ecff56a",
+      "syntax_valid": true
+    }
+  },
+  "interpreter_sha256": "2c2bf2087b89419f609369de36aa7ba7ae9f8e67bd8ae495e51afb964cd9db27",
+  "interpreter_version": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "rule": "RUF028"
+}

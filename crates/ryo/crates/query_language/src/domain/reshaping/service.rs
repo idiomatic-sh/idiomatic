@@ -1,7 +1,7 @@
 //! The `reshaping` service: the calls that count, digest, capture, split or rank rows, lowered to steps.
 
-use ryo_language::domain::relations::types::CellKind;
-use ryo_language::domain::terms::types::Vocabulary;
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{
@@ -16,13 +16,14 @@ use crate::domain::syntax::constants::slot_name;
 use crate::domain::syntax::types::ArgumentSlot;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
+use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// Lowers a `group_count` call: one row for each group of the key columns with how many rows (or distinct values) it holds, as the step `name`.
 pub(crate) fn call_group_count(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    call: &syntax::Call,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    call: &ryo_values::domain::query_syntax::types::Call,
 ) -> Result<(), LoweringError> {
     let Sourced {
         input: from,
@@ -68,8 +69,8 @@ pub(crate) fn call_group_count(
 /// Lowers a `group_digest` call: one row for each group of the key columns with a digest of the distinct values of one column, as the step `name`.
 pub(crate) fn call_group_digest(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    call: &syntax::Call,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    call: &ryo_values::domain::query_syntax::types::Call,
 ) -> Result<(), LoweringError> {
     let Sourced {
         input: from,
@@ -109,8 +110,8 @@ pub(crate) fn call_group_digest(
 /// Lowers a `capture` call: its input's rows with the named captures of the pattern matched in the path column, as the step `name`.
 pub(crate) fn call_capture(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    call: &syntax::Call,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    call: &ryo_values::domain::query_syntax::types::Call,
 ) -> Result<(), LoweringError> {
     let Sourced {
         input: from,
@@ -146,8 +147,8 @@ pub(crate) fn call_capture(
 /// Lowers a `rank` call: its input's rows with each one's rank within its group by the named column, as the step `name`.
 pub(crate) fn call_rank(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    call: &syntax::Call,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    call: &ryo_values::domain::query_syntax::types::Call,
 ) -> Result<(), LoweringError> {
     let Sourced {
         input: from,
@@ -168,7 +169,8 @@ pub(crate) fn call_rank(
             ArgumentFault::ExpectedTextColumn,
         ));
     }
-    let syntax::ArgumentValue::Parameter(declared) = argument_named(call, ArgumentSlot::Sets)?
+    let ryo_values::domain::query_syntax::types::ArgumentValue::Parameter(declared) =
+        argument_named(call, ArgumentSlot::Sets)?
     else {
         return Err(bad_argument(
             call,
@@ -177,14 +179,16 @@ pub(crate) fn call_rank(
         ));
     };
     let sets = find_parameter(builder.parameters, |each| {
-        if each.name == *declared {
+        if each.parameter == *declared {
             SearchMatch::Matches
         } else {
             SearchMatch::Differs
         }
     })
     .ok_or_else(|| bad_argument(call, Some(ArgumentSlot::Sets), ArgumentFault::Undeclared))?;
-    if *parameter_of(&builder.kinds, sets) != plans::ParameterType::TextSets {
+    if *parameter_of(&builder.kinds, sets)
+        != ryo_values::domain::query_bindings::types::ParameterType::TextSets
+    {
         return Err(bad_argument(
             call,
             Some(ArgumentSlot::Sets),
@@ -209,10 +213,11 @@ pub(crate) fn call_rank(
 /// `rows(from=$tables, columns=["key", …])`: a row for each table of the parameter, a text column for each key.
 pub(crate) fn call_rows(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    call: &syntax::Call,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    call: &ryo_values::domain::query_syntax::types::Call,
 ) -> Result<(), LoweringError> {
-    let syntax::ArgumentValue::Parameter(declared) = argument_named(call, ArgumentSlot::From)?
+    let ryo_values::domain::query_syntax::types::ArgumentValue::Parameter(declared) =
+        argument_named(call, ArgumentSlot::From)?
     else {
         return Err(bad_argument(
             call,
@@ -221,14 +226,16 @@ pub(crate) fn call_rows(
         ));
     };
     let parameter = find_parameter(builder.parameters, |each| {
-        if each.name == *declared {
+        if each.parameter == *declared {
             SearchMatch::Matches
         } else {
             SearchMatch::Differs
         }
     })
     .ok_or_else(|| bad_argument(call, Some(ArgumentSlot::From), ArgumentFault::Undeclared))?;
-    if *parameter_of(&builder.kinds, parameter) != plans::ParameterType::Tables {
+    if *parameter_of(&builder.kinds, parameter)
+        != ryo_values::domain::query_bindings::types::ParameterType::Tables
+    {
         return Err(bad_argument(
             call,
             Some(ArgumentSlot::From),
@@ -261,8 +268,8 @@ pub(crate) fn call_rows(
 /// Lowers a `words` call: one row for each word of the text column of each input row, as the step `name`.
 pub(crate) fn call_words(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    call: &syntax::Call,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    call: &ryo_values::domain::query_syntax::types::Call,
 ) -> Result<(), LoweringError> {
     let Sourced {
         input: from,

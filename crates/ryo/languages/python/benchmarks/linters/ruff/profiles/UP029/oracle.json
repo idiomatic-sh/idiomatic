@@ -1,0 +1,125 @@
+{
+  "builtins-str": {
+    "source": "from builtins import str\n",
+    "expected": [
+      {
+        "rule": "UP029",
+        "file": "case.py",
+        "start": 0,
+        "end": 24
+      }
+    ]
+  },
+  "builtins-range": {
+    "source": "from builtins import range\n",
+    "expected": [
+      {
+        "rule": "UP029",
+        "file": "case.py",
+        "start": 0,
+        "end": 26
+      }
+    ]
+  },
+  "io-open": {
+    "source": "from io import open\n",
+    "expected": [
+      {
+        "rule": "UP029",
+        "file": "case.py",
+        "start": 0,
+        "end": 19
+      }
+    ]
+  },
+  "six-next": {
+    "source": "from six import next\n",
+    "expected": [
+      {
+        "rule": "UP029",
+        "file": "case.py",
+        "start": 0,
+        "end": 20
+      }
+    ]
+  },
+  "six-moves": {
+    "source": "from six.moves import zip\n",
+    "expected": [
+      {
+        "rule": "UP029",
+        "file": "case.py",
+        "start": 0,
+        "end": 25
+      }
+    ]
+  },
+  "builtin-alias": {
+    "source": "from builtins import str as text\n",
+    "expected": []
+  },
+  "other-builtin": {
+    "source": "from builtins import property\n",
+    "expected": []
+  },
+  "relative": {
+    "source": "from .builtins import str\n",
+    "expected": []
+  },
+  "wildcard": {
+    "source": "from builtins import *\n",
+    "expected": [
+      {
+        "rule": "UP029",
+        "file": "case.py",
+        "start": 0,
+        "end": 22
+      }
+    ]
+  },
+  "shadowed": {
+    "source": "str = custom\nfrom builtins import str\n",
+    "expected": []
+  },
+  "multiple": {
+    "source": "from builtins import str, range, property\n",
+    "expected": [
+      {
+        "rule": "UP029",
+        "file": "case.py",
+        "start": 0,
+        "end": 41
+      }
+    ]
+  },
+  "noqa": {
+    "source": "from builtins import str  # noqa: UP029\n",
+    "expected": []
+  },
+  "file-noqa": {
+    "source": "# ruff: noqa: UP029\nfrom builtins import str\n",
+    "expected": []
+  },
+  "other-noqa": {
+    "source": "from builtins import str  # noqa: F401\n",
+    "expected": [
+      {
+        "rule": "UP029",
+        "file": "case.py",
+        "start": 0,
+        "end": 24
+      }
+    ]
+  },
+  "Unicode-leading": {
+    "source": "π = 1\nfrom builtins import str\n",
+    "expected": [
+      {
+        "rule": "UP029",
+        "file": "case.py",
+        "start": 7,
+        "end": 31
+      }
+    ]
+  }
+}

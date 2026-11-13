@@ -1,9 +1,9 @@
 //! The rows the manifest relations must give for the project in `manifests/workspace/`.
 
 use ryo::languages::contract::{
-    AnalyzedSourceExpectedRow, FilePackageExpectedRow, ManifestExpected,
-    PackageDependencyExpectedRow, SourceDependencyExpectedRow, WorkspaceMemberExpectedRow, file,
-    name, span, unknown,
+    AnalyzedSourceExpectedRow, FilePackageExpectedRow, ManifestExpected, ModuleIdentityExpectedRow,
+    PackageDependencyExpectedRow, ProjectNamespaceMembershipExpectedRow,
+    SourceDependencyExpectedRow, WorkspaceMemberExpectedRow, file, name, span, unknown,
 };
 
 /// The rows every manifest relation must give for the `workspace` fixture, a repository of every supported manifest kind.
@@ -13,6 +13,22 @@ use ryo::languages::contract::{
 )]
 pub(super) fn expected() -> ManifestExpected {
     ManifestExpected::of("workspace")
+        .rows(&[
+            ModuleIdentityExpectedRow {
+                file: file("packages/lib_one/src/lib_one/__init__.py"),
+                path: name("lib_one.__init__"),
+                module_name: name("__init__"),
+                package_name: name("lib_one"),
+                package_root_name: name("lib_one"),
+            },
+            ModuleIdentityExpectedRow {
+                file: file("packages/lib_one/src/lib_one/workers.py"),
+                path: name("lib_one.workers"),
+                module_name: name("workers"),
+                package_name: name("lib_one"),
+                package_root_name: name("lib_one"),
+            },
+        ])
         .rows(&[
             AnalyzedSourceExpectedRow {
                 path: file("app.py"),
@@ -281,6 +297,31 @@ pub(super) fn expected() -> ManifestExpected {
                 path: file("app.py"),
                 package: file("pyproject.toml"),
             },
+        ])
+        .rows(&[
+            ProjectNamespaceMembershipExpectedRow {
+                file: file("app.py"),
+                root: name("lib_one"),
+                path: name("lib_one"),
+                membership: name("unknown"),
+                kind: name("unknown"),
+            },
+            ProjectNamespaceMembershipExpectedRow {
+                file: file("app.py"),
+                root: name("lib_one"),
+                path: name("lib_one.workers"),
+                membership: name("unknown"),
+                kind: name("unknown"),
+            },
+            ProjectNamespaceMembershipExpectedRow {
+                file: file("app.py"),
+                root: name("requests"),
+                path: name("requests"),
+                membership: name("unknown"),
+                kind: name("unknown"),
+            },
+        ])
+        .rows(&[
             FilePackageExpectedRow {
                 path: file("packages/lib.two/pyproject.toml"),
                 package: file("packages/lib.two/pyproject.toml"),

@@ -65,13 +65,26 @@ fn varint(contents: &[u8], at: &mut usize) -> usize {
     }
 }
 
+/// What every store file ends with after the length of its table of contents: the format it is written in, which begins with the
+/// store's name.
+const FORMAT_START: &[u8] = b"ryo-lint-store\0";
+
+/// Where the eight bytes that say how long the table of contents is begin: right before the format the store ends with.
+fn trailer_at(store: &[u8]) -> usize {
+    store
+        .windows(FORMAT_START.len())
+        .rposition(|window| window == FORMAT_START)
+        .expect("the store ends with its format")
+        - 8
+}
+
 /// Where each section of a store file is, as `(start, length)`: the small tables, what the files handed but their words, then each
 /// bucket, read from the table of contents at the end of the file.
 fn sections(store: &[u8]) -> Vec<(usize, usize)> {
-    let trailer = store.len() - 8;
+    let trailer = trailer_at(store);
     let length = usize::try_from(u64::from_le_bytes(
         store
-            .get(trailer..)
+            .get(trailer..trailer + 8)
             .and_then(|end| end.try_into().ok())
             .expect("eight bytes"),
     ))
@@ -150,10 +163,10 @@ fn encoded(mut value: u64) -> Vec<u8> {
 
 /// `store` with the length its table of contents gives the section of what the files handed set to `length`, the trailer fixed.
 fn with_rest_length(store: &[u8], length: u64) -> Vec<u8> {
-    let trailer = store.len() - 8;
+    let trailer = trailer_at(store);
     let toc_length = usize::try_from(u64::from_le_bytes(
         store
-            .get(trailer..)
+            .get(trailer..trailer + 8)
             .and_then(|end| end.try_into().ok())
             .expect("eight bytes"),
     ))
@@ -176,6 +189,11 @@ fn with_rest_length(store: &[u8], length: u64) -> Vec<u8> {
     let mut out = store.get(..toc_start).expect("the sections").to_vec();
     out.extend(&toc);
     out.extend(u64::try_from(toc.len()).expect("a length").to_le_bytes());
+    out.extend(
+        store
+            .get(trailer + 8..)
+            .expect("the format the store ends with"),
+    );
     out
 }
 

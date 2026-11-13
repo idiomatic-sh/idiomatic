@@ -1,0 +1,531 @@
+description = "A struct declared `pub` has no field declared `pub` whose type is `Option`."
+why = "A public optional field leaves the caller to guess what leaving it out means; a required field, or an enum whose variants name each case, says it. The type is read as written: `Option<T>`, or any path ending in `Option<T>` (`std::option::Option<T>`). Not seen: an `Option` behind a private type alias. Restricted and private fields, `Option` nested in another type, and `dtos.rs` (the entry's `exclude`) are allowed. A crate the product splits its own engine into, which only its engine crates depend on (one a workspace package binds under a name in `internal-crates`), has no public API: its `pub` items are the engine's internal surface, so its files are not read."
+
+query = '''
+param internal-crates: set<string>;
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let fields = select * from tree-nodes where glob_any(kind, "{record-field,tuple-field}");
+let visibilities = select * from tree-nodes where kind = "visibility";
+let restrictions = select * from tree-nodes where kind = "visibility-inner";
+let restricted = select l."parent" as "id" from "syntax-child" as l join restrictions as r on l."child" = r."id";
+let public = antijoin(left=visibilities, right=restricted, left-on=["id"], right-on=["id"]);
+let public-owners = select l."parent" as "id" from "syntax-child" as l join public as r on l."child" = r."id";
+let public-fields = select l."id" as "id", l."file" as "file", l."span" as "span" from fields as l join public-owners as r on l."id" = r."id";
+let listed-fields = select l."id" as "id", r."parent" as "list", l."file" as "file", l."span" as "span" from public-fields as l join "syntax-child" as r on l."id" = r."child";
+let structs = select * from tree-nodes where kind = "struct";
+let public-structs = select l."id" as "id" from structs as l join public-owners as r on l."id" = r."id";
+let field-lists = select r."child" as "list" from public-structs as l join "syntax-child" as r on l."id" = r."parent";
+let struct-fields = select l."id" as "id", l."file" as "file", l."span" as "span" from listed-fields as l join field-lists as r on l."list" = r."list";
+let field-types = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "type" from struct-fields as l join "syntax-child" as r on l."id" = r."parent";
+let path-types = select * from tree-nodes where kind = "path-type";
+let typed-fields = select l."id" as "id", l."file" as "file", l."span" as "span", l."type" as "type" from field-types as l join path-types as r on l."type" = r."id";
+let type-paths = select l."id" as "id", r."child" as "node", l."file" as "file", l."span" as "span" from typed-fields as l join "syntax-child" as r on l."type" = r."parent";
+let paths = select * from tree-nodes where kind = "path";
+let whole-paths = select l."id" as "id", l."node" as "node", l."file" as "file", l."span" as "span" from type-paths as l join paths as r on l."node" = r."id";
+let path-children = select l."id" as "id", r."child" as "node", l."file" as "file", l."span" as "span" from whole-paths as l join "syntax-child" as r on l."node" = r."parent";
+let segments = select * from tree-nodes where kind = "path-segment";
+let last-segments = select l."id" as "id", l."node" as "node", l."file" as "file", l."span" as "span" from path-children as l join segments as r on l."node" = r."id";
+let segment-children = select l."id" as "id", r."child" as "node", l."file" as "file", l."span" as "span" from last-segments as l join "syntax-child" as r on l."node" = r."parent";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let segment-names = select l."id" as "id", l."node" as "node", l."file" as "file", l."span" as "span" from segment-children as l join name-refs as r on l."node" = r."id";
+let name-tokens = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "token" from segment-names as l join "syntax-child" as r on l."node" = r."parent";
+let name-texts = select l."id" as "id", l."file" as "file", l."span" as "span", r."text" as "text" from name-tokens as l join tree-tokens as r on l."token" = r."id";
+let optional-fields = select * from name-texts where text = "Option";
+let internal-packages = select l."target" as "package" from "package-dependency" as l where l."binding" in $internal-crates;
+let internal-files = select l."path" as "file" from "file-package" as l join internal-packages as r on l."package" = r."package";
+let public-optional-fields = antijoin(left=optional-fields, right=internal-files, left-on=["file"], right-on=["file"]);
+emit public-optional-fields subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "public field is `Option`"
+help = "Make the field required; where leaving it out means something, replace `Option<T>` with an enum whose variants name each case; or make the field private and read it through a method. A wire shape that must stay optional belongs in the adapter's `dtos.rs`, which may keep `Option`."
+
+[params.internal-crates]
+type = "set<string>"
+description = "The library names of the crates a product splits its own domain or application into, which only that product's engine crates depend on: a crate a workspace package binds under one of these names has no public API, so its files are not read; [] names none."
+
+[given]
+include = ['**']
+exclude = ['**/dtos.rs']
+params = { internal-crates = [] }
+
+[[scenarios]]
+id = 'public-option'
+scenario = 'A named public Option field of a public struct.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+pub mod public_option;
+'''
+given.files.'src/public_option.rs' = '''
+pub mod types;
+'''
+given.files.'src/public_option/types.rs' = '''
+/// A caller may leave the limit out, and nothing says what that means.
+pub struct Settings {
+    pub limit: Option<u32>,
+    pub name: String,
+}
+'''
+then.findings = [
+  { path = 'src/public_option/types.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'qualified-positional'
+scenario = 'A positional, fully qualified public Option field.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+pub mod public_option;
+'''
+given.files.'src/public_option.rs' = '''
+pub mod types;
+'''
+given.files.'src/public_option/types.rs' = '''
+/// The same decision, positional and fully qualified.
+pub struct Limit(pub std::option::Option<u32>);
+'''
+then.findings = [
+  { path = 'src/public_option/types.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'beyond-types'
+scenario = 'A public struct outside types.rs.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/beyond_types.rs' = '''
+/// Any public struct, not only one in types.rs.
+pub struct Request {
+    pub timeout: Option<u64>,
+}
+'''
+given.files.'src/lib.rs' = '''
+pub mod beyond_types;
+'''
+then.findings = [
+  { path = 'src/beyond_types.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'private-option'
+scenario = 'Private, restricted and nested Option fields, and locals.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+pub mod private_option;
+'''
+given.files.'src/private_option.rs' = '''
+pub mod types;
+'''
+given.files.'src/private_option/types.rs' = '''
+/// Private and restricted fields, and locals, are the owner's own algorithm.
+pub struct Settings {
+    limit: Option<u32>,
+    pub(crate) cache: Option<u32>,
+    pub(super) hint: Option<u32>,
+    pub values: Vec<Option<u32>>,
+}
+
+impl Settings {
+    pub fn limit(&self) -> u32 {
+        let fallback: Option<u32> = self.cache;
+        self.limit.or(fallback).or(self.hint).unwrap_or(0)
+    }
+}
+'''
+
+[[scenarios]]
+id = 'semantic-choice'
+scenario = 'The choice named as an enum.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+pub mod semantic_choice;
+'''
+given.files.'src/semantic_choice.rs' = '''
+pub mod types;
+'''
+given.files.'src/semantic_choice/types.rs' = '''
+/// The choice is named.
+pub enum Limit {
+    Unbounded,
+    AtMost(u32),
+}
+
+pub struct Settings {
+    pub limit: Limit,
+}
+'''
+
+[[scenarios]]
+id = 'private-struct'
+scenario = 'A public Option field of a private struct.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/beyond_types.rs' = '''
+/// A private struct is its module's own.
+struct Draft {
+    pub timeout: Option<u64>,
+}
+
+pub fn draft() -> u64 {
+    Draft { timeout: None }.timeout.unwrap_or(0)
+}
+'''
+given.files.'src/lib.rs' = '''
+pub mod beyond_types;
+'''
+
+[[scenarios]]
+id = 'dtos-file'
+scenario = 'A wire representation in dtos.rs, outside the entry.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+pub mod ungoverned_file;
+'''
+given.files.'src/ungoverned_file.rs' = '''
+pub mod dtos;
+'''
+given.files.'src/ungoverned_file/dtos.rs' = '''
+/// A wire representation is not owned vocabulary.
+pub(super) struct SettingsDto {
+    pub limit: Option<u32>,
+}
+'''
+
+[[scenarios]]
+id = 'timings-flag'
+scenario = "The cli-timings template's flag, a variant with an `off` default rather than a public `Option`."
+given.files.'cli/src/timings.rs' = '''
+//! `--timings`: where a run's time went, by crate, hex and port method.
+//!
+//! Every port method carries `#[tracing::instrument(level = "info", skip_all)]` (the
+//! `port-spans` rule), so a span's target is its module path, whose first segment is the
+//! crate and second the hex, and its name is the method. Without the flag no subscriber is
+//! installed and a span costs one atomic load. `--timings` (or `--timings=tree`) prints the
+//! tree below once, on exit, to stderr; `--timings=chrome` writes a Chrome trace
+//! (`trace-<timestamp>.json`, opened in Perfetto) through `tracing-chrome`. Standard output
+//! is the same with the flag and without it.
+//!
+//! The tree: one row per crate, under it one per hex, under that one per port method, each
+//! level sorted by busy time.
+//!
+//! ```text
+//! crate / hex / method                        calls       busy       self   share
+//! tastemaker_check                                12    1.200 s    0.100 s   48.0%
+//!   analysis                                      3    1.100 s    0.050 s   44.0%
+//!     analyze                                     3    1.100 s    0.050 s   44.0%
+//! ```
+//!
+//! `calls` counts the spans that closed, `busy` sums the time each was entered (overlapping entries of one span counted once), `self` is
+//! busy time less the busy time of the spans opened inside them, and `share` is busy time
+//! over the run's wall time.
+
+use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+use tracing_subscriber::layer::SubscriberExt as _;
+
+/// How `--timings` reports.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
+pub enum Timings {
+    /// No report: no subscriber is installed, so a span costs one atomic load.
+    #[default]
+    Off,
+    /// The tree of crate, hex and method, printed once on exit to stderr.
+    Tree,
+    /// A Chrome trace file, for drilling into one run.
+    Chrome,
+}
+
+/// The global `--timings[=tree|chrome]` flag, which the command line flattens in.
+#[derive(Clone, Debug, Default, clap::Args)]
+pub struct TimingsArgs {
+    /// Report where the time went: `tree` (what `--timings` alone means) prints calls, busy
+    /// and self time by crate, hex and port method to stderr on exit; `chrome` writes a trace
+    /// file; `off`, without the flag, reports nothing.
+    #[arg(long, global = true, value_enum, default_value = "off", num_args = 0..=1, require_equals = true, default_missing_value = "tree")]
+    pub timings: Timings,
+}
+
+/// What `install` keeps alive for the run: dropped, it prints the tree or flushes the trace.
+pub enum TimingsGuard {
+    /// No flag: nothing was installed.
+    Off,
+    /// The tree, and when the run started.
+    Tree(TimingsTree, Instant),
+    /// The trace file's writer.
+    Chrome(tracing_chrome::FlushGuard),
+}
+
+impl Drop for TimingsGuard {
+    fn drop(&mut self) {
+        if let Self::Tree(tree, started) = self {
+            let _ = tree.print(started.elapsed(), &mut std::io::stderr());
+        }
+    }
+}
+
+/// Installs the subscriber `timings` asks for, or none, for the whole run.
+#[must_use]
+pub fn install(timings: Timings) -> TimingsGuard {
+    match timings {
+        Timings::Off => TimingsGuard::Off,
+        Timings::Tree => {
+            let tree = TimingsTree::default();
+            let _ = tracing::subscriber::set_global_default(
+                tracing_subscriber::registry().with(tree.clone()),
+            );
+            TimingsGuard::Tree(tree, Instant::now())
+        }
+        Timings::Chrome => {
+            let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new().build();
+            let _ =
+                tracing::subscriber::set_global_default(tracing_subscriber::registry().with(layer));
+            TimingsGuard::Chrome(guard)
+        }
+    }
+}
+
+/// Calls, busy time and the busy time of the spans opened inside, for one row.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct TimingsRow {
+    calls: u64,
+    busy: Duration,
+    inner: Duration,
+}
+
+impl TimingsRow {
+    fn add(&mut self, other: Self) {
+        self.calls += other.calls;
+        self.busy += other.busy;
+        self.inner += other.inner;
+    }
+}
+
+/// One open span's clock: its busy time so far, how many entries are open (a span is
+/// entered again by `in_scope` and on several threads at once), when the first of them
+/// opened, and the busy time of the spans that closed inside it. Busy time is the time at
+/// least one entry is open.
+#[derive(Default)]
+struct Clock {
+    busy: Duration,
+    depth: usize,
+    entered: Option<Instant>,
+    inner: Duration,
+}
+
+/// The aggregating layer: each closing span adds its clock to the row of its crate, hex
+/// and method.
+#[derive(Clone, Default)]
+pub struct TimingsTree {
+    rows: Arc<Mutex<BTreeMap<(String, String, String), TimingsRow>>>,
+}
+
+impl<S> tracing_subscriber::Layer<S> for TimingsTree
+where
+    S: tracing::Subscriber + for<'span> tracing_subscriber::registry::LookupSpan<'span>,
+{
+    fn on_new_span(
+        &self,
+        _attributes: &tracing::span::Attributes<'_>,
+        id: &tracing::span::Id,
+        context: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        if let Some(span) = context.span(id) {
+            span.extensions_mut().insert(Clock::default());
+        }
+    }
+
+    fn on_enter(&self, id: &tracing::span::Id, context: tracing_subscriber::layer::Context<'_, S>) {
+        if let Some(span) = context.span(id)
+            && let Some(clock) = span.extensions_mut().get_mut::<Clock>()
+        {
+            if clock.depth == 0 {
+                clock.entered = Some(Instant::now());
+            }
+            clock.depth += 1;
+        }
+    }
+
+    fn on_exit(&self, id: &tracing::span::Id, context: tracing_subscriber::layer::Context<'_, S>) {
+        if let Some(span) = context.span(id)
+            && let Some(clock) = span.extensions_mut().get_mut::<Clock>()
+        {
+            clock.depth = clock.depth.saturating_sub(1);
+            if clock.depth == 0
+                && let Some(entered) = clock.entered.take()
+            {
+                clock.busy += entered.elapsed();
+            }
+        }
+    }
+
+    fn on_close(&self, id: tracing::span::Id, context: tracing_subscriber::layer::Context<'_, S>) {
+        let Some(span) = context.span(&id) else {
+            return;
+        };
+        let Some(clock) = span.extensions_mut().remove::<Clock>() else {
+            return;
+        };
+        if let Some(parent) = span.parent()
+            && let Some(outer) = parent.extensions_mut().get_mut::<Clock>()
+        {
+            outer.inner += clock.busy;
+        }
+        let mut target = span.metadata().target().split("::");
+        let owner = target.next().unwrap_or_default().to_owned();
+        let hex = target.next().unwrap_or_default().to_owned();
+        if let Ok(mut rows) = self.rows.lock() {
+            rows.entry((owner, hex, span.name().to_owned()))
+                .or_default()
+                .add(TimingsRow {
+                    calls: 1,
+                    busy: clock.busy,
+                    inner: clock.inner,
+                });
+        }
+    }
+}
+
+impl TimingsTree {
+    /// Writes the tree: each crate, its hexes and their methods, each level by busy time.
+    pub fn print(&self, wall: Duration, out: &mut impl std::io::Write) -> std::io::Result<()> {
+        let Ok(rows) = self.rows.lock() else {
+            return Ok(());
+        };
+        type Hexes<'a> = BTreeMap<&'a str, (TimingsRow, Vec<(&'a str, TimingsRow)>)>;
+        let mut crates: BTreeMap<&str, (TimingsRow, Hexes<'_>)> = BTreeMap::new();
+        for ((owner, hex, method), row) in rows.iter() {
+            let (crate_row, hexes) = crates.entry(owner.as_str()).or_default();
+            crate_row.add(*row);
+            let (hex_row, methods) = hexes.entry(hex.as_str()).or_default();
+            hex_row.add(*row);
+            methods.push((method.as_str(), *row));
+        }
+        writeln!(
+            out,
+            "{:<40} {:>8} {:>10} {:>10} {:>7}",
+            "crate / hex / method", "calls", "busy", "self", "share"
+        )?;
+        let mut crates: Vec<_> = crates.into_iter().collect();
+        crates.sort_by(|left, right| right.1.0.busy.cmp(&left.1.0.busy));
+        for (owner, (row, hexes)) in crates {
+            line(out, owner, 0, row, wall)?;
+            let mut hexes: Vec<_> = hexes.into_iter().collect();
+            hexes.sort_by(|left, right| right.1.0.busy.cmp(&left.1.0.busy));
+            for (hex, (row, mut methods)) in hexes {
+                line(out, hex, 1, row, wall)?;
+                methods.sort_by(|left, right| right.1.busy.cmp(&left.1.busy));
+                for (method, row) in methods {
+                    line(out, method, 2, row, wall)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+/// One row of the tree, indented two spaces per level.
+fn line(
+    out: &mut impl std::io::Write,
+    name: &str,
+    depth: usize,
+    row: TimingsRow,
+    wall: Duration,
+) -> std::io::Result<()> {
+    let share = if wall.is_zero() {
+        0.0
+    } else {
+        row.busy.as_secs_f64() / wall.as_secs_f64() * 100.0
+    };
+    let label = format!("{}{name}", "  ".repeat(depth));
+    writeln!(
+        out,
+        "{label:<40} {:>8} {:>8.3} s {:>8.3} s {share:>6.1}%",
+        row.calls,
+        row.busy.as_secs_f64(),
+        row.busy.saturating_sub(row.inner).as_secs_f64(),
+    )
+}
+'''
+
+[[scenarios]]
+id = 'internal-crate-option'
+scenario = 'A crate the product splits its engine into, bound by a workspace package under a name in `internal-crates`, has no public API: its public Option field is not read, while the same field in the crate that depends on it is.'
+given.params = { internal-crates = ['engine_domain'] }
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["engine", "engine_domain"]
+'''
+given.files.'engine/Cargo.toml' = '''
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+engine_domain = { path = "../engine_domain" }
+'''
+given.files.'engine/src/lib.rs' = '''
+pub mod types;
+'''
+given.files.'engine/src/types.rs' = '''
+/// The engine's own public API keeps no optional field.
+pub struct Request {
+    pub limit: Option<u32>,
+}
+'''
+given.files.'engine_domain/Cargo.toml' = '''
+[package]
+name = "engine_domain"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'engine_domain/src/lib.rs' = '''
+pub mod types;
+'''
+given.files.'engine_domain/src/types.rs' = '''
+/// Read by the engine crate only: the internal surface of the product's engine.
+pub struct Settings {
+    pub limit: Option<u32>,
+}
+'''
+then.findings = [
+  { path = 'engine/src/types.rs', line = 3 },
+]

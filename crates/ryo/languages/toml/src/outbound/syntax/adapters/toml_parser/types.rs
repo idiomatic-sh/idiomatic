@@ -18,7 +18,7 @@ pub(super) enum Piece {
 
 /// White space or text the parser could not read, met after a part of a key, written once the key goes on or is closed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct Held {
+pub(super) struct HeldSpace {
     /// What it is.
     pub kind: Kind,
     /// Where it starts.
@@ -29,7 +29,7 @@ pub(super) struct Held {
 
 /// What the adapter is reading: a header, whose key opens no key-value, or the entries below one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum Reading {
+pub(super) enum TableReadPhase {
     /// A header, `[a.b]` or `[[a.b]]`.
     Header,
     /// Entries.

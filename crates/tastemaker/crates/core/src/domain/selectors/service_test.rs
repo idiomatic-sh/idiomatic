@@ -29,6 +29,8 @@ enum Question {
     Group(&'static str, &'static str),
     /// A list that still holds a variable, resolved.
     Variable,
+    /// Why placing the pattern is refused.
+    Refused,
 }
 
 fn compile(spelling: &Spelling) -> Result<Arc<dyn PathTest>, PatternFailure> {
@@ -96,6 +98,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || ("", "src", Question::Variable),
         expect: Expect::error(()),
     },
+    Case {
+        name: CaseName("a_span_capture_with_a_mark_is_refused"),
+        word: Word::Succeeds,
+        input: || ("", "{*name:dir}/x.txt", Question::Refused),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("a_capture_with_a_misspelt_mark_is_refused"),
+        word: Word::Succeeds,
+        input: || ("", "{name:dirs}.txt", Question::Refused),
+        expect: Expect::Value(String::new()),
+    },
 ];
 
 fn expected(question: Question) -> &'static str {
@@ -107,17 +121,30 @@ fn expected(question: Question) -> &'static str {
         Question::Leading => "folder",
         Question::Group(..) => "crates/ryo",
         Question::Variable => "",
+        Question::Refused => {
+            "a capture's name holds no `:`; the one mark is `:dir`, written `{name:dir}`"
+        }
     }
 }
 
 fn subject((base, pattern, question): Input) -> Result<Value, Failure> {
-    let matcher = place(
+    let placed = place(
         &RepoPath(base.into()),
         &PathPattern(pattern.into()),
         &Interpolations::default(),
         &compile,
-    )
-    .map_err(drop)?;
+    );
+    let matcher = match (question, placed) {
+        (Question::Refused, Err(SelectorsError::Pattern { reason, .. })) => {
+            return Ok(if reason == expected(question) {
+                String::new()
+            } else {
+                reason
+            });
+        }
+        (Question::Refused, other) => return Ok(format!("{other:?}")),
+        (_, placed) => placed.map_err(drop)?,
+    };
     let answer = match question {
         Question::Matches(path) => match matches(&matcher, &RepoPath(path.into())) {
             Match::Matched(captures) => {
@@ -140,6 +167,8 @@ fn subject((base, pattern, question): Input) -> Result<Value, Failure> {
             );
             group(&matcher, &captures).ok_or(())?.0.into_string()
         }
+        // Answered above, where placing is refused.
+        Question::Refused => "placed".to_owned(),
         Question::Variable => {
             let base = RepoPath(base.into());
             let values = Interpolations::default();

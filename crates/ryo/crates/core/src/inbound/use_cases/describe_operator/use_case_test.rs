@@ -4,7 +4,7 @@ use super::errors::DescribeOperatorError;
 use super::interface::DescribeOperatorUseCase as _;
 use super::types::DescribeOperatorRequest;
 use super::use_case::DescribeOperatorUseCaseImpl;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use ryo_values::domain::descriptions::types::OperatorName;
 
 /// The name asked for.
@@ -26,10 +26,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "sort",
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects(Matched(matches!(
                 error,
                 DescribeOperatorError::UnknownOperator { .. }
-            ))
+            )))
         }),
     },
 ];

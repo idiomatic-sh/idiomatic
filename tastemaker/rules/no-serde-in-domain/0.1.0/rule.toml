@@ -9,7 +9,9 @@ let calls = select l."file" as "file", l."span" as "span", l."target" as "what" 
 let written = union(left=derives, right=imports);
 let used = union(left=written, right=calls);
 let inward = select * from used where not glob_any(file, "{**/outbound/*/adapters/*/schemas.rs,**/outbound/*/adapters/*/schemas/**,**/cli/src/resources/**/schemas.rs,**/cli/src/output/schemas.rs,**/crates/sdk/src/resources/**/types.rs,**/crates/sdk/src/resources/**/schemas.rs}");
-emit inward subject "file" key("span");
+let governed-roles = select l."path" as "file" from "tastemaker.placed" as l where l."package" = "idiomatic.arch" and l."spec" = "adapter" and glob_any(l."template", "{schemas}");
+let outside = antijoin(left=inward, right=governed-roles, left-on=["file"], right-on=["file"]);
+emit outside subject "file" key("span");
 '''
 
 [diagnostic]
@@ -184,4 +186,23 @@ pub struct Plan {
 '''
 then.findings = [
   { path = 'crates/sdk/src/domain/plans/types.rs', line = 4 },
+]
+
+[[scenarios]]
+id = "governed-external-adapter-roles"
+scenario = "Only explicitly placed adapter roles gain boundary access; unplaced lookalikes and other roles remain rejected."
+given.include = ["**"]
+given.exclude = []
+given.files.'edge/schemas.rs' = 'use serde::Deserialize;'
+given.files.'edge/settings.rs' = 'use serde::Deserialize;'
+given.files.'domain/schemas.rs' = 'use serde::Deserialize;'
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/no-serde-in-domain", include = ["**"] }]
+specs = [{ spec = "idiomatic.arch/adapter", include = ["edge"], params = { core = "foreign_core", port = "names" } }]
+'''
+then.only = ['idiomatic.arch/no-serde-in-domain', 'idiomatic.arch/no-serde-in-domain#unknown']
+then.findings = [
+  { path = 'edge/settings.rs', line = 1 },
+  { path = 'domain/schemas.rs', line = 1 },
 ]

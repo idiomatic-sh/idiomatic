@@ -1,0 +1,76 @@
+description = "One use case's behaviour in Gherkin, through the crate's surface: a Rule of what it answers, and a Scenario Outline whose Examples table has the unit rows' columns (name, input, expected)."
+why = "States what one use case does through the crate's public surface, with only the stores' connections faked, one `tests/<use_case>.feature` for each use case. The skeleton is an outline with no example row and steps nobody defined, so a scaffold cannot pass by saying nothing: the runner fails on a skipped step and on a run with no passed step. The four case words are tags, exactly one per scenario or outline (`@succeeds`, `@refuses`, `@fails`, `@rejects`), never file names, and the runner asserts it."
+content = '''
+Feature: {{ feature }}
+
+  Rule: {{ feature }} answers what its caller sees
+
+    @succeeds
+    Scenario Outline: {{ feature }} succeeds
+      Given <input>
+      When {{ feature }} runs
+      Then <expected> is answered
+
+      Examples:
+        | name | input | expected |
+'''
+
+[params]
+feature = { type = "identifier", description = "The use case the feature is about, captured from its file name." }
+
+[given]
+file = 'app/src/inbound/use_cases/greet/acceptance.feature'
+params = { feature = 'greet' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'app/src/inbound/use_cases/greet/acceptance.feature' = '''
+Feature: greet
+
+  Rule: greet answers what its caller sees
+
+    @succeeds
+    Scenario Outline: greet succeeds
+      Given <input>
+      When greet runs
+      Then <expected> is answered
+
+      Examples:
+        | name | input | expected |
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'app/src/inbound/use_cases/greet/acceptance.feature' = '''
+Feature: greet
+
+  Rule: greet answers what its caller sees
+
+    @succeeds
+    Scenario Outline: greet succeeds
+      Given <input>
+      When greet runs
+      Then <expected> is answered
+
+      Examples:
+        | name | input | expected |
+
+    @refuses
+    Scenario Outline: greet refuses
+      Given <input>
+      When greet runs
+      Then <expected> is refused
+
+      Examples:
+        | name | input | expected |
+        | an empty name | "" | EmptyName |
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'bdd-feature#count', path = '.' },
+]

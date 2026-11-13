@@ -1,16 +1,25 @@
 //! The `fusing` service: free functions named by verb over the filters and lookups of a plan that are read where they are found, instead of being made into tables first.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
+use super::types::TreeLookup;
 use crate::domain::rewriting::types::StepIndex;
 use ryo_values::domain::plan_parts::service::remapped;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::Operand;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
+
+/// Physical demand propagation runs after ordinary column/pruning rewrites, then use counts are recomputed.
+pub(crate) fn fuse_keyed_reaches(
+    steps: Vec<PlanStep>,
+    protected: &[ryo_values::domain::plan_parts::types::StepId],
+) -> Vec<PlanStep> {
+    super::types::demand::value::DemandClosure::new(&steps, protected).rewrite()
+}
 
 /// The column of a step's input that the column `column` of its output is: the same one when the
 /// step keeps every column, else the one it keeps there.
@@ -46,10 +55,11 @@ fn fuse(producer: &Operation, consumer: &Operation) -> Option<Operation> {
     let remap = |operand: &Operand| remapped(operand, &|column| source_column(cut, column));
     let mut comparisons = first.clone();
     for comparison in second {
-        comparisons.push(Comparison {
+        comparisons.push(PlanComparison {
             test: comparison.test,
             left: remap(&comparison.left)?,
             right: remap(&comparison.right)?,
+            origin: comparison.origin,
         });
     }
     let kept = if last.is_empty() {
@@ -78,6 +88,8 @@ fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output,
         filter: no_filter,
         view: no_view,
+
+        reach: None,
     } = &steps.get(place.0)?.operation
     else {
         return None;
@@ -91,47 +103,10 @@ fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     else {
         return None;
     };
-    // The elements are asked for by what finds them in the tree: their id; an edge's parent or child; or the
-    // file and the stretch an element covers.
-    if let [file, stretch] = right_on.as_slice() {
-        let (file, stretch) = (source_column(kept, *file)?, source_column(kept, *stretch)?);
-        let by_stretch = *relation == Relation::SyntaxTree
-            && matches!(
-                (file, stretch),
-                (ColumnIndex(3), ColumnIndex(4)) | (ColumnIndex(4), ColumnIndex(3))
-            );
-        if producer.scope != steps.get(place.0)?.scope
-            || !no_filter.is_empty()
-            || !no_view.is_empty()
-            || !by_stretch
-        {
-            return None;
-        }
-        return Some(Operation::Join {
-            left: *left,
-            right: Input::Relation(*relation),
-            left_on: left_on.clone(),
-            right_on: right_on.clone(),
-            output: output.clone(),
-            filter: comparisons.clone(),
-            view: kept.clone(),
-        });
-    }
-    let [key] = right_on.as_slice() else {
-        return None;
-    };
-    // The elements are asked for by their id; the edges by their parent or by their child.
-    let asked = source_column(kept, *key)?;
-    let found_by_key = if *relation == Relation::SyntaxTree {
-        // By id, or by the stretch they cover, in the file being read.
-        asked == ColumnIndex(0) || asked == ColumnIndex(4)
-    } else {
-        asked == ColumnIndex(0) || asked == ColumnIndex(1)
-    };
     if producer.scope != steps.get(place.0)?.scope
         || !no_filter.is_empty()
         || !no_view.is_empty()
-        || !found_by_key
+        || tree_lookup_supported(*relation, right_on, kept) == TreeLookup::Unsupported
     {
         return None;
     }
@@ -143,7 +118,38 @@ fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output: output.clone(),
         filter: comparisons.clone(),
         view: kept.clone(),
+
+        reach: None,
     })
+}
+
+/// Whether the resident tree lookup implements these ordered keys through this view.
+/// Other joins must keep their filter as a separate select for the generic executor.
+fn tree_lookup_supported(
+    relation: Relation,
+    keys: &[ColumnIndex],
+    view: &[ColumnIndex],
+) -> TreeLookup {
+    let supported = match keys {
+        [key] => source_column(view, *key).is_some_and(|column| {
+            if relation == Relation::SyntaxTree {
+                matches!(column, ColumnIndex(0 | 4))
+            } else {
+                relation == Relation::SyntaxChild && matches!(column, ColumnIndex(0 | 1))
+            }
+        }),
+        [file, stretch] if relation == Relation::SyntaxTree => matches!(
+            (source_column(view, *file), source_column(view, *stretch)),
+            (Some(ColumnIndex(3)), Some(ColumnIndex(4)))
+                | (Some(ColumnIndex(4)), Some(ColumnIndex(3)))
+        ),
+        _ => false,
+    };
+    if supported {
+        TreeLookup::Supported
+    } else {
+        TreeLookup::Unsupported
+    }
 }
 
 /// The axis at `place` answering among the rows of a filter of the elements of the syntax tree, with that
@@ -218,11 +224,18 @@ fn fuse_join_filter(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output,
         filter,
         view,
+
+        reach: None,
     } = &producer.operation
     else {
         return None;
     };
-    if producer.scope != steps.get(place.0)?.scope {
+    let Input::Relation(relation) = right else {
+        return None;
+    };
+    if producer.scope != steps.get(place.0)?.scope
+        || tree_lookup_supported(*relation, right_on, view) == TreeLookup::Unsupported
+    {
         return None;
     }
     // A column of the join's answer is a column of the tree when it comes from the right.
@@ -235,10 +248,11 @@ fn fuse_join_filter(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     let remap = |operand: &Operand| remapped(operand, &in_tree);
     let mut merged = filter.clone();
     for comparison in comparisons {
-        merged.push(Comparison {
+        merged.push(PlanComparison {
             test: comparison.test,
             left: remap(&comparison.left)?,
             right: remap(&comparison.right)?,
+            origin: comparison.origin,
         });
     }
     let answer = if kept.is_empty() {
@@ -260,6 +274,8 @@ fn fuse_join_filter(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output: answer,
         filter: merged,
         view: view.clone(),
+
+        reach: None,
     })
 }
 

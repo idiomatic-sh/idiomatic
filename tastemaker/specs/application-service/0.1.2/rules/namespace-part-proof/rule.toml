@@ -1,0 +1,76 @@
+description = "Reports, in a namespace operation, each sub-concept (a nested part with a `service.rs` that no part above it below the namespace has) whose `service_test.rs` is not beside its service, and each part of a namespace none of whose parts has a service."
+why = "A namespace operation (the `namespace` condition: it declares nested parts and writes no role file of its own) has no service and no service test because it gathers sub-concepts, each with its own service and proof. Nothing else holds that: the nested parts' services and tests are each optional, so a namespace could gather services no test proves, or gather only data. A sub-concept is the topmost part with a service on its branch below the namespace; a part with no service of its own (a grouping, as ryo's store's `file_dag/derived`) passes its parts through, and a sub-concept's own nested parts are proven by its proof, as an operation's nested parts are by the operation's. So each sub-concept has its `service_test.rs` beside its `service.rs`, and a namespace has at least one sub-concept. An operation that is not a namespace is not read: its service and its test are required by the counts."
+
+query = '''
+let files = project(from="filesystem.file", columns=["path"]);
+let modules = capture(from=files, path="path", pattern="{*dir}/{part}.rs", captures=["dir", "part"]);
+let parts = select path, dir from modules where not glob_any(part, "{service,service_test,types,errors,constants,interface,fixtures}");
+let roles = select dir from modules where glob_any(part, "{service,service_test,types,errors,constants,interface}");
+let namespace-parts = antijoin(left=parts, right=roles, left-on=["dir"], right-on=["dir"]);
+let namespace-dirs = select dir as root from namespace-parts;
+let roots = project(from=namespace-dirs, columns=["root"]);
+let services = select path, dir from modules where part = "service";
+let tests = select dir from modules where part = "service_test";
+let keyed-roots = extend(from=roots, values={"key": "namespace"});
+let keyed-services = extend(from=services, values={"key": "namespace"});
+let namespace-services = select s.path as path, s.dir as dir, r.root as root from keyed-services as s join keyed-roots as r on s.key = r.key where starts_with(s.dir, concat(r.root, "/"));
+let enclosed = select i.path as path from namespace-services as i join namespace-services as o on i.root = o.root where starts_with(i.dir, concat(o.dir, "/"));
+let sub-concepts = antijoin(left=namespace-services, right=enclosed, left-on=["path"], right-on=["path"]);
+let unproven = antijoin(left=sub-concepts, right=tests, left-on=["dir"], right-on=["dir"]);
+let unproven-rows = select path from unproven;
+let unproven-found = extend(from=unproven-rows, values={"problem": "is the service of a sub-concept of a namespace operation and has no `service_test.rs` beside it"});
+let served = project(from=namespace-services, columns=["root"]);
+let bare = antijoin(left=namespace-parts, right=served, left-on=["dir"], right-on=["root"]);
+let bare-rows = select path from bare;
+let bare-found = extend(from=bare-rows, values={"problem": "is a part of a namespace operation none of whose parts has a service"});
+let violations = union(left=unproven-found, right=bare-found);
+emit violations subject "path" key("path");
+'''
+
+[diagnostic]
+primary = "path"
+message = "`{path}` {problem}"
+help = "A namespace operation's proofs are its parts': give each sub-concept's `service.rs` its `service_test.rs` beside it, a case table over the service, declared `#[cfg(test)] mod service_test;` in the part's module file. A namespace that gathers no service is no operation: put its data in a domain concept, or give the operation its service."
+
+[given]
+include = ['src/tall/*.rs', 'src/tall/**/service.rs', 'src/tall/**/service_test.rs']
+
+[[scenarios]]
+id = 'every-sub-concept-proven'
+scenario = 'A namespace whose sub-concepts each have their service and its test beside it, one beneath a grouping part with no service and one with a nested part of its own, passes.'
+given.files.'src/tall/derived.rs' = 'pub mod owner;'
+given.files.'src/tall/derived/owner.rs' = 'pub mod service; #[cfg(test)] mod service_test; pub mod graph;'
+given.files.'src/tall/derived/owner/service.rs' = 'pub fn own() {}'
+given.files.'src/tall/derived/owner/service_test.rs' = '#[test] fn owns() {}'
+given.files.'src/tall/derived/owner/graph/service.rs' = 'pub fn graph() {}'
+given.files.'src/tall/relations.rs' = 'pub mod service; #[cfg(test)] mod service_test;'
+given.files.'src/tall/relations/service.rs' = 'pub fn relate() {}'
+given.files.'src/tall/relations/service_test.rs' = '#[test] fn relates() {}'
+
+[[scenarios]]
+id = 'sub-concept-without-its-test'
+scenario = 'A sub-concept of a namespace, beneath a grouping part, with a service and no test beside it, is reported at its service.'
+given.files.'src/tall/derived.rs' = 'pub mod owner; pub mod prepare;'
+given.files.'src/tall/derived/owner/service.rs' = 'pub fn own() {}'
+given.files.'src/tall/derived/owner/service_test.rs' = '#[test] fn owns() {}'
+given.files.'src/tall/derived/prepare/service.rs' = 'pub fn prepare() {}'
+then.findings = [
+  { path = 'src/tall/derived/prepare/service.rs' },
+]
+
+[[scenarios]]
+id = 'namespace-of-types-only'
+scenario = 'A namespace none of whose parts has a service gathers no operation: it is reported at each of its parts.'
+given.files.'src/tall/rows.rs' = 'pub mod types;'
+given.files.'src/tall/cells.rs' = 'pub mod types;'
+then.findings = [
+  { path = 'src/tall/cells.rs' },
+  { path = 'src/tall/rows.rs' },
+]
+
+[[scenarios]]
+id = 'operation-is-not-read'
+scenario = 'An operation with its own service is no namespace: its untested nested parts are proven by its own proof, and nothing is reported.'
+given.files.'src/tall/service.rs' = 'pub fn run() {}'
+given.files.'src/tall/rows.rs' = 'pub mod service;'
+given.files.'src/tall/rows/service.rs' = 'pub fn rows() {}'

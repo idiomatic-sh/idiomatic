@@ -10,8 +10,8 @@ use ryo_core::inbound::use_cases::validate::types::ValidateRequest;
 use ryo_core::inbound::use_cases::validate::use_case::ValidateUseCaseImpl;
 use ryo_core::outbound::language::fixtures::fake::LanguageFake;
 use ryo_core::outbound::language::interface::LanguagePort;
-use ryo_core::outbound::query_language::fixtures::fake::{QueryLanguageFake, REFUSED};
-use ryo_language::domain::relations::types::CellKind;
+use ryo_execution::outbound::query_language::fixtures::fake::{QueryLanguageFake, REFUSED};
+use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
 use ryo_values::domain::plan_parts::types::QueryText;
 
@@ -51,7 +51,8 @@ fn runs(world: &mut Behavior) {
     let text = if input == "refuse" { REFUSED } else { input };
     let use_case = ValidateUseCaseImpl::new(Arc::new(query_language), language);
     world.answer = match use_case.validate(ValidateRequest {
-        text: QueryText(text.into()),
+        observations: Vec::new(),
+        text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(text.into())),
         hosted,
     }) {
         Ok(report) => format!(

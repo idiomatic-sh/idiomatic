@@ -28,6 +28,15 @@ pub struct Known {
     pub placed: Vec<PlacedPath>,
 }
 
+/// Whether the directory each `{name:dir}` capture of a matched file names is beside it, holding a file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Beside {
+    /// Each is: the file is placed.
+    Present,
+    /// One is not: the file is left to another entry.
+    Absent,
+}
+
 /// A file a template entry matched, with what its pattern captured.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MatchedFile {

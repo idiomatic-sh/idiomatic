@@ -7,5 +7,10 @@ pub(crate) mod file;
 pub(crate) mod host;
 pub(crate) mod language;
 pub(crate) mod operator;
+pub(crate) mod parameter;
+pub(crate) mod place;
+pub(crate) mod project;
 pub(crate) mod query;
 pub(crate) mod relation;
+
+pub(crate) mod observation;

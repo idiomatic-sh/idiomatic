@@ -1,0 +1,585 @@
+description = "A port's or a collection's contract (`fixtures/contract.rs`) holds only its imports, its rows and the suite: the constant `CASES`, the aliases `Input`, `Value` and `Failure` that type it and the types they name, functions named check or conform, and functions bounded by the domain's port."
+why = "A contract is read as the statement of what every implementation of a port does, so it holds the suite and its rows and no test data of its own; a contract that grows its own values hides them. The contract's rows, `CASES`, and the three aliases that type them, `Input`, `Value` and `Failure`, are its suite stated as data: every implementation runs the rows, so `CASES` is exported from the contract file `fixtures/contract.rs` (the aliases only type it and stay private), and any other constant is test data."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let item-nodes = select * from tree-nodes where glob_any(kind, "{fn,struct,enum,union,const,static,type-alias,trait,trait-alias,impl,macro-rules,macro-def,module,macro-call}");
+let files = select * from tree-nodes where kind = "source-file";
+let items-edges = select r."child" as "child", r."ordinal" as "ordinal", l."id" as "parent" from files as l join "syntax-child" as r on l."id" = r."parent";
+let items = select l."id" as "id", l."kind" as "kind", r."ordinal" as "ordinal", r."parent" as "parent", l."file" as "file", l."span" as "span" from item-nodes as l join items-edges as r on l."id" = r."child";
+let names = select * from tree-nodes where kind = "name";
+let function-nodes = select * from tree-nodes where kind = "fn";
+let functions-edges = select r."child" as "child", r."ordinal" as "ordinal", l."id" as "parent" from files as l join "syntax-child" as r on l."id" = r."parent";
+let functions = select l."id" as "id", l."kind" as "kind", r."ordinal" as "ordinal", r."parent" as "parent", l."file" as "file", l."span" as "span" from function-nodes as l join functions-edges as r on l."id" = r."child";
+let function-names-edges = select r."child" as "child", r."ordinal" as "ordinal", l."id" as "parent" from functions as l join "syntax-child" as r on l."id" = r."parent";
+let function-names = select l."id" as "id", l."kind" as "kind", r."ordinal" as "ordinal", r."parent" as "parent", l."file" as "file", l."span" as "span" from names as l join function-names-edges as r on l."id" = r."child";
+let suite-identifiers-all = select * from tree-tokens where kind = "ident";
+let suite-identifiers = select * from suite-identifiers-all where glob_any(text, "{check,conform}");
+let suite-name-tokens-edges = select r."child" as "child", l."id" as "parent" from function-names as l join "syntax-child" as r on l."id" = r."parent";
+let suite-name-tokens = select r."parent" as "parent", l."text" as "text" from suite-identifiers as l join suite-name-tokens-edges as r on l."id" = r."child";
+let suite-names = select l."parent" as "parent" from function-names as l join suite-name-tokens as r on l."id" = r."parent";
+let suite = select l."parent" as "id" from suite-names as l join suite-names as r on l."parent" = r."parent";
+let signature-nodes = select * from tree-nodes where glob_any(kind, "{param-list,generic-param-list,where-clause}");
+let signatures-edges = select r."child" as "child", r."ordinal" as "ordinal", l."id" as "parent" from functions as l join "syntax-child" as r on l."id" = r."parent";
+let signatures = select l."id" as "id", l."kind" as "kind", r."ordinal" as "ordinal", r."parent" as "parent", l."file" as "file", l."span" as "span" from signature-nodes as l join signatures-edges as r on l."id" = r."child";
+let type-bounds = select * from tree-nodes where kind = "type-bound";
+let signature-parts-axis = axis(from=signatures, relation="syntax-child", direction=descendant, domain=tree-nodes);
+let signature-parts-nodes = project(from=signature-parts-axis, columns=["id", "related"]);
+let signature-parts-self = select l."id" as "id", r."id" as "related" from signatures as l join signatures as r on l."id" = r."id";
+let signature-parts = union(left=signature-parts-nodes, right=signature-parts-self);
+let bound-parts = select l."id" as "id", r."id" as "root" from type-bounds as l join signature-parts as r on l."id" = r."related";
+let path-types = select * from tree-nodes where kind = "path-type";
+let bound-path-types-edges = select r."child" as "child", r."ordinal" as "ordinal", l."id" as "parent" from bound-parts as l join "syntax-child" as r on l."id" = r."parent";
+let bound-path-types = select l."id" as "id", l."kind" as "kind", r."ordinal" as "ordinal", r."parent" as "parent", l."file" as "file", l."span" as "span" from path-types as l join bound-path-types-edges as r on l."id" = r."child";
+let paths = select * from tree-nodes where kind = "path";
+let bound-paths-edges = select r."child" as "child", r."ordinal" as "ordinal", l."id" as "parent" from bound-path-types as l join "syntax-child" as r on l."id" = r."parent";
+let bound-paths = select l."id" as "id", l."kind" as "kind", r."ordinal" as "ordinal", r."parent" as "parent", l."file" as "file", l."span" as "span" from paths as l join bound-paths-edges as r on l."id" = r."child";
+let path-segments = select * from tree-nodes where kind = "path-segment";
+let bound-segments-edges = select r."child" as "child", r."ordinal" as "ordinal", l."id" as "parent" from bound-paths as l join "syntax-child" as r on l."id" = r."parent";
+let bound-segments = select l."id" as "id", l."kind" as "kind", r."ordinal" as "ordinal", r."parent" as "parent", l."file" as "file", l."span" as "span" from path-segments as l join bound-segments-edges as r on l."id" = r."child";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let bound-name-refs-edges = select r."child" as "child", r."ordinal" as "ordinal", l."id" as "parent" from bound-segments as l join "syntax-child" as r on l."id" = r."parent";
+let bound-name-refs = select l."id" as "id", l."kind" as "kind", r."ordinal" as "ordinal", r."parent" as "parent", l."file" as "file", l."span" as "span" from name-refs as l join bound-name-refs-edges as r on l."id" = r."child";
+let port-identifiers-all = select * from tree-tokens where kind = "ident";
+let port-identifiers = select * from port-identifiers-all where glob_any(text, "{*Port,*UseCase,*Item}");
+let bound-port-tokens-edges = select r."child" as "child", l."id" as "parent" from bound-name-refs as l join "syntax-child" as r on l."id" = r."parent";
+let bound-port-tokens = select r."parent" as "parent", l."text" as "text" from port-identifiers as l join bound-port-tokens-edges as r on l."id" = r."child";
+let port-name-refs = select l."parent" as "parent" from bound-name-refs as l join bound-port-tokens as r on l."id" = r."parent";
+let port-segments = select l."parent" as "parent" from bound-segments as l join port-name-refs as r on l."id" = r."parent";
+let port-paths = select l."parent" as "parent" from bound-paths as l join port-segments as r on l."id" = r."parent";
+let port-path-types = select l."parent" as "parent" from bound-path-types as l join port-paths as r on l."id" = r."parent";
+let port-bounds = select l."root" as "root" from bound-parts as l join port-path-types as r on l."id" = r."parent";
+let port-signatures = select l."parent" as "parent" from signatures as l join port-bounds as r on l."id" = r."root";
+let bounded = select l."parent" as "id" from port-signatures as l join port-signatures as r on l."parent" = r."parent";
+let const-nodes = select * from tree-nodes where glob_any(kind, "{const,type-alias}");
+let const-name-edges = select r."child" as "child", l."id" as "parent" from const-nodes as l join "syntax-child" as r on l."id" = r."parent";
+let const-names = select l."parent" as "parent", l."child" as "name" from const-name-edges as l join names as r on l."child" = r."id";
+let const-name-tokens = select l."parent" as "parent", r."child" as "token" from const-names as l join "syntax-child" as r on l."name" = r."parent";
+let cases-identifiers = select * from suite-identifiers-all where glob_any(text, "{CASES,Input,Value,Failure}");
+let cases-constants = select l."parent" as "id" from const-name-tokens as l join cases-identifiers as r on l."token" = r."id";
+let alias-parts = axis(from=cases-constants, relation="syntax-child", direction=descendant, domain=tree-tokens);
+let alias-words = select r."text" as "text" from alias-parts as l join suite-identifiers-all as r on l."related" = r."id";
+let item-name-edges = select r."child" as "child", l."id" as "item" from items as l join "syntax-child" as r on l."id" = r."parent";
+let item-names = select l."item" as "item", l."child" as "name" from item-name-edges as l join names as r on l."child" = r."id";
+let item-name-tokens = select l."item" as "item", r."child" as "token" from item-names as l join "syntax-child" as r on l."name" = r."parent";
+let item-words = select l."item" as "item", r."text" as "text" from item-name-tokens as l join suite-identifiers-all as r on l."token" = r."id";
+let typed = select l."item" as "id" from item-words as l join alias-words as r on l."text" = r."text";
+let suite-and-bounded = union(left=suite, right=bounded);
+let suite-and-typed = union(left=suite-and-bounded, right=typed);
+let allowed = union(left=suite-and-typed, right=cases-constants);
+let fixture-definitions = antijoin(left=items, right=allowed, left-on=["id"], right-on=["id"]);
+emit fixture-definitions subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "{kind} in a contract (fixtures/contract.rs) is a fixture definition"
+help = "Move it out of the contract, into the fake beside it (fixtures/fake.rs) or into the rows; fixtures/contract.rs keeps only use items, the rows `CASES` and their aliases `Input`, `Value` and `Failure`, `check`, `conform` and the functions bounded by the port."
+
+[given]
+include = ['src/greeting/fixtures/contract.rs']
+
+[[scenarios]]
+id = 'suite-conform-private-helpers-taking-port-pass'
+scenario = 'The suite, conform and private helpers taking the port pass.'
+given.files.'src/greeting/fixtures/contract.rs' = '''
+//! What every greeting adapter must pass.
+
+use super::fixtures::{Fixture, cases};
+use super::super::interface::GreetingPort;
+
+pub(super) fn check(adapter: &impl GreetingPort) {
+    shows(adapter, &cases());
+}
+
+pub fn conform<Adapter: GreetingPort>(adapter: &Adapter) {
+    check(adapter);
+    let _ = measured(adapter);
+    let _ = bounded(adapter);
+}
+
+fn shows(adapter: &impl GreetingPort, fixture: &Fixture) {
+    assert_eq!(adapter.show(), fixture.expected);
+}
+
+fn measured(adapter: &dyn GreetingPort) -> usize {
+    adapter.show().len()
+}
+
+fn bounded<Adapter>(adapter: &Adapter) -> bool
+where
+    Adapter: GreetingPort,
+{
+    adapter.show().is_empty()
+}
+'''
+
+[[scenarios]]
+id = 'struct-interface-test'
+scenario = 'A struct in the interface test.'
+given.files.'src/greeting/fixtures/contract.rs' = '''
+//! What every greeting adapter must pass.
+
+use super::fixtures::{Fixture, cases};
+use super::super::interface::GreetingPort;
+
+pub(super) fn check(adapter: &impl GreetingPort) {
+    shows(adapter, &cases());
+}
+
+pub fn conform<Adapter: GreetingPort>(adapter: &Adapter) {
+    check(adapter);
+    let _ = measured(adapter);
+    let _ = bounded(adapter);
+}
+
+fn shows(adapter: &impl GreetingPort, fixture: &Fixture) {
+    assert_eq!(adapter.show(), fixture.expected);
+}
+
+fn measured(adapter: &dyn GreetingPort) -> usize {
+    adapter.show().len()
+}
+
+fn bounded<Adapter>(adapter: &Adapter) -> bool
+where
+    Adapter: GreetingPort,
+{
+    adapter.show().is_empty()
+}
+
+pub struct Stub;
+'''
+then.findings = [
+  { path = 'src/greeting/fixtures/contract.rs', line = 31 },
+]
+
+[[scenarios]]
+id = 'impl-interface-test'
+scenario = 'An impl in the interface test.'
+given.files.'src/greeting/fixtures/contract.rs' = '''
+//! What every greeting adapter must pass.
+
+use super::fixtures::{Fixture, cases};
+use super::super::interface::GreetingPort;
+
+pub(super) fn check(adapter: &impl GreetingPort) {
+    shows(adapter, &cases());
+}
+
+pub fn conform<Adapter: GreetingPort>(adapter: &Adapter) {
+    check(adapter);
+    let _ = measured(adapter);
+    let _ = bounded(adapter);
+}
+
+fn shows(adapter: &impl GreetingPort, fixture: &Fixture) {
+    assert_eq!(adapter.show(), fixture.expected);
+}
+
+fn measured(adapter: &dyn GreetingPort) -> usize {
+    adapter.show().len()
+}
+
+fn bounded<Adapter>(adapter: &Adapter) -> bool
+where
+    Adapter: GreetingPort,
+{
+    adapter.show().is_empty()
+}
+
+impl GreetingPort for super::fixtures::Fixture {
+    fn show(&self) -> &str {
+        self.expected
+    }
+}
+'''
+then.findings = [
+  { path = 'src/greeting/fixtures/contract.rs', line = 31 },
+]
+
+[[scenarios]]
+id = 'constant-interface-test'
+scenario = 'A constant in the interface test.'
+given.files.'src/greeting/fixtures/contract.rs' = '''
+//! What every greeting adapter must pass.
+
+use super::fixtures::{Fixture, cases};
+use super::super::interface::GreetingPort;
+
+pub(super) fn check(adapter: &impl GreetingPort) {
+    shows(adapter, &cases());
+}
+
+pub fn conform<Adapter: GreetingPort>(adapter: &Adapter) {
+    check(adapter);
+    let _ = measured(adapter);
+    let _ = bounded(adapter);
+}
+
+fn shows(adapter: &impl GreetingPort, fixture: &Fixture) {
+    assert_eq!(adapter.show(), fixture.expected);
+}
+
+fn measured(adapter: &dyn GreetingPort) -> usize {
+    adapter.show().len()
+}
+
+fn bounded<Adapter>(adapter: &Adapter) -> bool
+where
+    Adapter: GreetingPort,
+{
+    adapter.show().is_empty()
+}
+
+const NAME: &str = "hello";
+'''
+then.findings = [
+  { path = 'src/greeting/fixtures/contract.rs', line = 31 },
+]
+
+[[scenarios]]
+id = 'public-builder'
+scenario = 'A public function that builds data.'
+given.files.'src/greeting/fixtures/contract.rs' = '''
+//! What every greeting adapter must pass.
+
+use super::fixtures::{Fixture, cases};
+use super::super::interface::GreetingPort;
+
+pub(super) fn check(adapter: &impl GreetingPort) {
+    shows(adapter, &cases());
+}
+
+pub fn conform<Adapter: GreetingPort>(adapter: &Adapter) {
+    check(adapter);
+    let _ = measured(adapter);
+    let _ = bounded(adapter);
+}
+
+fn shows(adapter: &impl GreetingPort, fixture: &Fixture) {
+    assert_eq!(adapter.show(), fixture.expected);
+}
+
+fn measured(adapter: &dyn GreetingPort) -> usize {
+    adapter.show().len()
+}
+
+fn bounded<Adapter>(adapter: &Adapter) -> bool
+where
+    Adapter: GreetingPort,
+{
+    adapter.show().is_empty()
+}
+
+pub fn cases_for(name: &str) -> String {
+    name.to_owned()
+}
+'''
+then.findings = [
+  { path = 'src/greeting/fixtures/contract.rs', line = 31 },
+]
+
+[[scenarios]]
+id = 'private-builder'
+scenario = 'A private function that takes no port.'
+given.files.'src/greeting/fixtures/contract.rs' = '''
+//! What every greeting adapter must pass.
+
+use super::fixtures::{Fixture, cases};
+use super::super::interface::GreetingPort;
+
+pub(super) fn check(adapter: &impl GreetingPort) {
+    shows(adapter, &cases());
+}
+
+pub fn conform<Adapter: GreetingPort>(adapter: &Adapter) {
+    check(adapter);
+    let _ = measured(adapter);
+    let _ = bounded(adapter);
+}
+
+fn shows(adapter: &impl GreetingPort, fixture: &Fixture) {
+    assert_eq!(adapter.show(), fixture.expected);
+}
+
+fn measured(adapter: &dyn GreetingPort) -> usize {
+    adapter.show().len()
+}
+
+fn bounded<Adapter>(adapter: &Adapter) -> bool
+where
+    Adapter: GreetingPort,
+{
+    adapter.show().is_empty()
+}
+
+fn expected() -> &'static str {
+    "hello"
+}
+'''
+then.findings = [
+  { path = 'src/greeting/fixtures/contract.rs', line = 31 },
+]
+
+[[scenarios]]
+id = 'visible-suite'
+scenario = 'A visible suite function bounded by the port.'
+given.files.'src/greeting/fixtures/contract.rs' = '''
+//! What every greeting adapter must pass.
+
+use super::fixtures::{Fixture, cases};
+use super::super::interface::GreetingPort;
+
+pub(super) fn check(adapter: &impl GreetingPort) {
+    shows(adapter, &cases());
+}
+
+pub fn conform<Adapter: GreetingPort>(adapter: &Adapter) {
+    check(adapter);
+    let _ = measured(adapter);
+    let _ = bounded(adapter);
+}
+
+fn shows(adapter: &impl GreetingPort, fixture: &Fixture) {
+    assert_eq!(adapter.show(), fixture.expected);
+}
+
+fn measured(adapter: &dyn GreetingPort) -> usize {
+    adapter.show().len()
+}
+
+fn bounded<Adapter>(adapter: &Adapter) -> bool
+where
+    Adapter: GreetingPort,
+{
+    adapter.show().is_empty()
+}
+
+pub(crate) fn check_with<Adapter: GreetingPort + ?Sized>(adapter: &Adapter) -> bool {
+    adapter.show().is_empty()
+}
+'''
+
+[[scenarios]]
+id = 'port-named-parameter'
+scenario = 'A generic parameter named like a port, bounded by nothing.'
+given.files.'src/greeting/fixtures/contract.rs' = '''
+//! What every greeting adapter must pass.
+
+use super::fixtures::{Fixture, cases};
+use super::super::interface::GreetingPort;
+
+pub(super) fn check(adapter: &impl GreetingPort) {
+    shows(adapter, &cases());
+}
+
+pub fn conform<Adapter: GreetingPort>(adapter: &Adapter) {
+    check(adapter);
+    let _ = measured(adapter);
+    let _ = bounded(adapter);
+}
+
+fn shows(adapter: &impl GreetingPort, fixture: &Fixture) {
+    assert_eq!(adapter.show(), fixture.expected);
+}
+
+fn measured(adapter: &dyn GreetingPort) -> usize {
+    adapter.show().len()
+}
+
+fn bounded<Adapter>(adapter: &Adapter) -> bool
+where
+    Adapter: GreetingPort,
+{
+    adapter.show().is_empty()
+}
+
+fn fixture<TPort>(_: TPort) -> String {
+    String::from("data")
+}
+'''
+then.findings = [
+  { path = 'src/greeting/fixtures/contract.rs', line = 31 },
+]
+
+[[scenarios]]
+id = 'macro-invocation-declares-data'
+scenario = 'A macro invocation that declares data.'
+given.files.'src/greeting/fixtures/contract.rs' = '''
+//! What every greeting adapter must pass.
+
+use super::fixtures::{Fixture, cases};
+use super::super::interface::GreetingPort;
+
+pub(super) fn check(adapter: &impl GreetingPort) {
+    shows(adapter, &cases());
+}
+
+pub fn conform<Adapter: GreetingPort>(adapter: &Adapter) {
+    check(adapter);
+    let _ = measured(adapter);
+    let _ = bounded(adapter);
+}
+
+fn shows(adapter: &impl GreetingPort, fixture: &Fixture) {
+    assert_eq!(adapter.show(), fixture.expected);
+}
+
+fn measured(adapter: &dyn GreetingPort) -> usize {
+    adapter.show().len()
+}
+
+fn bounded<Adapter>(adapter: &Adapter) -> bool
+where
+    Adapter: GreetingPort,
+{
+    adapter.show().is_empty()
+}
+
+std::thread_local! {
+    static SEEN: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+'''
+then.findings = [
+  { path = 'src/greeting/fixtures/contract.rs', line = 31 },
+]
+
+[[scenarios]]
+id = 'inline-module'
+scenario = 'An inline module in the interface test.'
+given.files.'src/greeting/fixtures/contract.rs' = '''
+//! What every greeting adapter must pass.
+
+use super::fixtures::{Fixture, cases};
+use super::super::interface::GreetingPort;
+
+pub(super) fn check(adapter: &impl GreetingPort) {
+    shows(adapter, &cases());
+}
+
+pub fn conform<Adapter: GreetingPort>(adapter: &Adapter) {
+    check(adapter);
+    let _ = measured(adapter);
+    let _ = bounded(adapter);
+}
+
+fn shows(adapter: &impl GreetingPort, fixture: &Fixture) {
+    assert_eq!(adapter.show(), fixture.expected);
+}
+
+fn measured(adapter: &dyn GreetingPort) -> usize {
+    adapter.show().len()
+}
+
+fn bounded<Adapter>(adapter: &Adapter) -> bool
+where
+    Adapter: GreetingPort,
+{
+    adapter.show().is_empty()
+}
+
+mod more {
+    pub fn value() -> u8 {
+        1
+    }
+}
+'''
+then.findings = [
+  { path = 'src/greeting/fixtures/contract.rs', line = 31 },
+]
+
+[[scenarios]]
+id = 'cases-constant'
+scenario = "The contract's rows, a constant named CASES, are part of the suite."
+given.files.'src/greeting/fixtures/contract.rs' = '''
+//! What every greeting adapter must pass.
+
+use super::fixtures::{Fixture, cases};
+use super::super::interface::GreetingPort;
+
+pub(super) fn check(adapter: &impl GreetingPort) {
+    shows(adapter, &cases());
+}
+
+pub fn conform<Adapter: GreetingPort>(adapter: &Adapter) {
+    check(adapter);
+    let _ = measured(adapter);
+    let _ = bounded(adapter);
+}
+
+fn shows(adapter: &impl GreetingPort, fixture: &Fixture) {
+    assert_eq!(adapter.show(), fixture.expected);
+}
+
+fn measured(adapter: &dyn GreetingPort) -> usize {
+    adapter.show().len()
+}
+
+fn bounded<Adapter>(adapter: &Adapter) -> bool
+where
+    Adapter: GreetingPort,
+{
+    adapter.show().is_empty()
+}
+
+pub(crate) fn check_with<Adapter: GreetingPort + ?Sized>(adapter: &Adapter) -> bool {
+    adapter.show().is_empty()
+}
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+pub const CASES: &[Case<Input, Value, Failure>] = &[];
+'''
+
+[[scenarios]]
+id = 'item-bounded-helper'
+scenario = "A helper bounded by a collection's item trait."
+given.include = ['src/shapes/fixtures/contract.rs']
+given.files.'src/shapes/fixtures/contract.rs' = '''
+//! What every item of the shapes collection must pass.
+
+use super::super::interface::ShapesItem;
+
+pub fn check(item: &impl ShapesItem) {
+    exercise(item);
+}
+
+fn exercise(item: &impl ShapesItem) {
+    item.area();
+}
+'''
+
+[[scenarios]]
+id = 'row-question-typed-by-input'
+scenario = "The enum the rows ask, named by the Input alias, is part of the suite; a constant beside it is test data."
+given.files.'src/greeting/fixtures/contract.rs' = '''
+//! What every greeting adapter must pass.
+
+use super::super::interface::GreetingPort;
+
+/// What a row asks the adapter.
+pub enum Question {
+    /// The greeting it shows.
+    Shown,
+}
+
+/// A name no adapter stores.
+const STRANGER: &str = "nobody";
+
+type Input = Question;
+type Value = bool;
+type Failure = ();
+
+pub const CASES: &[Case<Input, Value, Failure>] = &[];
+
+pub fn check(adapter: &impl GreetingPort) {
+    let _ = (adapter, STRANGER);
+}
+'''
+then.findings = [
+  { path = 'src/greeting/fixtures/contract.rs', line = 12 },
+]

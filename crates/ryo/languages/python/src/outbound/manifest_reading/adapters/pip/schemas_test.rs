@@ -4,6 +4,7 @@ use super::declared;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::manifest_reading::errors::ManifestReadingError;
 use crate::outbound::manifest_reading::fixtures::shown::{Files, declared_with};
+use crate::selects;
 
 /// The manifests of a case: the first is read.
 type Input = Files;
@@ -68,11 +69,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an_include_of_a_file_the_repository_did_not_hand_over_is_refused"),
         word: Word::Refuses,
         input: || &[("requirements.txt", "-r base.txt\n")],
-        expect: Expect::Refusal(|error| {
-            crate::cases::selects(
-                matches!(error, ManifestReadingError::Unreadable { reason } if reason.contains("base.txt")),
-            )
-        }),
+        expect: Expect::Refusal(
+            |error| selects!(error, ManifestReadingError::Unreadable { reason } if reason.contains("base.txt")),
+        ),
     },
     Case {
         name: CaseName("a_path_is_the_directory_of_a_package_from_the_directory_of_the_file"),

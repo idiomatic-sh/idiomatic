@@ -1,0 +1,155 @@
+[[cases]]
+name = "setattr-valid"
+comparison = "full"
+files = { "case.py" = "setattr(obj, \"name\", value)\n" }
+expected = [{ rule = "B010", file = "case.py", start = 0, end = 27 }]
+
+[[cases]]
+name = "setattr-default-keyword"
+comparison = "full"
+files = { "case.py" = "setattr(obj, \"name\", value, extra=True)\n" }
+expected = [{ rule = "B010", file = "case.py", start = 0, end = 39 }]
+
+[[cases]]
+name = "setattr-nested"
+comparison = "full"
+files = { "case.py" = "sink(setattr(obj, \"name\", value))\n" }
+expected = []
+
+[[cases]]
+name = "setattr-keyword"
+comparison = "full"
+files = { "case.py" = "setattr(obj, \"class\", value)\n" }
+expected = []
+
+[[cases]]
+name = "setattr-private"
+comparison = "full"
+files = { "case.py" = "setattr(obj, \"__secret\", value)\n" }
+expected = []
+
+[[cases]]
+name = "setattr-dunder"
+comparison = "full"
+files = { "case.py" = "setattr(obj, \"__secret__\", value)\n" }
+expected = [{ rule = "B010", file = "case.py", start = 0, end = 33 }]
+
+[[cases]]
+name = "setattr-debug"
+comparison = "full"
+files = { "case.py" = "setattr(obj, \"__debug__\", value)\n" }
+expected = []
+
+[[cases]]
+name = "setattr-unicode"
+comparison = "full"
+files = { "case.py" = "setattr(obj, \"\u03c0\", value)\n" }
+expected = [{ rule = "B010", file = "case.py", start = 0, end = 25 }]
+
+[[cases]]
+name = "setattr-trailing-private"
+comparison = "full"
+files = { "case.py" = "setattr(obj, \"__secret_\", value)\n" }
+expected = []
+
+[[cases]]
+name = "setattr-empty-dunder"
+comparison = "full"
+files = { "case.py" = "setattr(obj, \"__\", value)\n" }
+expected = [{ rule = "B010", file = "case.py", start = 0, end = 25 }]
+
+[[cases]]
+name = "setattr-soft-keyword"
+comparison = "full"
+files = { "case.py" = "setattr(obj, \"case\", value)\n" }
+expected = [{ rule = "B010", file = "case.py", start = 0, end = 27 }]
+
+[[cases]]
+name = "setattr-keyword-name-only"
+comparison = "full"
+files = { "case.py" = "setattr(obj, name=\"name\", value=value)\n" }
+expected = []
+
+[[cases]]
+name = "setattr-additional-call"
+comparison = "full"
+files = { "case.py" = "setattr(obj, \"name\", value) + 1\n" }
+expected = []
+
+[[cases]]
+name = "setattr-comment"
+comparison = "full"
+files = { "case.py" = "setattr(obj, \"name\", value)  # comment\n" }
+expected = [{ rule = "B010", file = "case.py", start = 0, end = 27 }]
+
+[[cases]]
+name = "setattr-nfkc"
+comparison = "full"
+files = { "case.py" = "setattr(obj, \"\uff58\", value)\n" }
+expected = [{ rule = "B010", file = "case.py", start = 0, end = 26 }]
+
+[[cases]]
+name = "setattr-invalid-space"
+comparison = "full"
+files = { "case.py" = "setattr(obj, \"not a name\", value)\n" }
+expected = []
+
+[[cases]]
+name = "setattr-bytes"
+comparison = "full"
+files = { "case.py" = "setattr(obj, b\"name\", value)\n" }
+expected = []
+
+[[cases]]
+name = "setattr-fstring"
+comparison = "full"
+files = { "case.py" = "setattr(obj, f\"name\", value)\n" }
+expected = []
+
+[[cases]]
+name = "setattr-concat"
+comparison = "full"
+files = { "case.py" = "setattr(obj, \"na\" \"me\", value)\n" }
+expected = [{ rule = "B010", file = "case.py", start = 0, end = 30 }]
+
+[[cases]]
+name = "setattr-starred-object"
+comparison = "full"
+files = { "case.py" = "setattr(*args, \"name\", value)\n" }
+expected = []
+
+[[cases]]
+name = "setattr-shadowed-builtin"
+comparison = "full"
+files = { "case.py" = "def setattr(*args): pass\nsetattr(obj, \"name\", value)\n" }
+expected = []
+
+[[cases]]
+name = "setattr-builtin-alias"
+comparison = "full"
+files = { "case.py" = "from builtins import setattr as attr\nattr(obj, \"name\", value)\n" }
+expected = [{ rule = "B010", file = "case.py", start = 37, end = 61 }]
+
+[[cases]]
+name = "setattr-assignment-value-call"
+comparison = "full"
+files = { "case.py" = "setattr(obj, \"name\", make())\n" }
+expected = [{ rule = "B010", file = "case.py", start = 0, end = 28 }]
+
+[[cases]]
+name = "setattr-expression-in-call"
+comparison = "full"
+files = { "case.py" = "sink(setattr(obj, \"name\", value))\n" }
+expected = []
+
+[[cases]]
+name = "setattr-noqa"
+comparison = "full"
+files = { "case.py" = "setattr(obj, \"name\", value)  # noqa: B010\n" }
+expected = []
+
+[[cases]]
+name = "setattr-file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: B010\nsetattr(obj, \"name\", value)\n" }
+expected = []

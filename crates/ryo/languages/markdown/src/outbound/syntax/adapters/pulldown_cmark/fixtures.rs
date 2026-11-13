@@ -2,4 +2,6 @@
 //! its own reading of the items of a file.
 
 pub(crate) mod oracle;
+#[cfg(test)]
+pub(super) mod projection;
 pub(crate) mod walk;

@@ -1,0 +1,59 @@
+[[cases]]
+name = "exception"
+files = { "case.py" = "raise Exception\n" }
+expected = [{ file = "case.py", start = 6, end = 15 }]
+
+[[cases]]
+name = "baseexception"
+files = { "case.py" = "raise BaseException(\"message\")\n" }
+expected = [{ file = "case.py", start = 6, end = 30 }]
+
+[[cases]]
+name = "qualified"
+files = { "case.py" = "import builtins\nraise builtins.Exception()\n" }
+expected = [{ file = "case.py", start = 22, end = 42 }]
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "from builtins import Exception as Error\nraise Error()\n" }
+expected = [{ file = "case.py", start = 46, end = 53 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "def f(Exception):\n    raise Exception()\n" }
+expected = []
+
+[[cases]]
+name = "specific"
+files = { "case.py" = "raise ValueError()\n" }
+expected = []
+
+[[cases]]
+name = "cause-only"
+files = { "case.py" = "raise ValueError from Exception\n" }
+expected = []
+
+[[cases]]
+name = "with-cause"
+files = { "case.py" = "raise Exception from ValueError\n" }
+expected = [{ file = "case.py", start = 6, end = 15 }]
+
+[[cases]]
+name = "factory"
+files = { "case.py" = "raise factory(Exception)\n" }
+expected = []
+
+[[cases]]
+name = "subscript"
+files = { "case.py" = "raise Exception[0]\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "raise Exception # noqa: TRY002\n" }
+expected = []
+
+[[cases]]
+name = "bare"
+files = { "case.py" = "try:\n    f()\nexcept:\n    raise\n" }
+expected = []

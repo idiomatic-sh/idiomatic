@@ -66,6 +66,8 @@ pub(crate) enum Build {
 pub(crate) struct LibrarySection {
     /// Where it is, when it says.
     pub path: Section<WrittenPath>,
+    /// The name the code of a dependent writes for it, when it says.
+    pub name: Section<TargetName>,
 }
 
 /// A `[[bin]]`, `[[example]]`, `[[test]]` or `[[bench]]`.

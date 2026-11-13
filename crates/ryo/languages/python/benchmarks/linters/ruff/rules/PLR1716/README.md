@@ -1,0 +1,7 @@
+Pinned source: Ruff 0.16.5, tag commit `9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a`, expression dispatch in `checkers/ast/analyze/expression.rs`; target Python 3.10.
+
+The query follows `boolean_chained_comparison` and `are_compare_expr_simplifiable`: all operands of an `and` must be comparisons; each adjacent pair must contain only ascending operators or only descending operators, and the left comparison’s final comparator and right comparison’s initial operand must be names with the same canonical identifier. No binding equality or effect restriction is introduced. Each eligible adjacent pair reports independently. `span-between` composes the two comparison AST ranges, preserving multiple diagnostics per boolean expression and Ruff’s parenthesis treatment.
+
+The 120 full-report cases include the entire tagged boolean_chained_comparison fixture, all 100 operator pairs, mixed and chained directions, repeated/adjacent diagnostics, noncomparison and non-name controls, nested boolean expressions, parentheses, Unicode, and suppression.
+
+Validation: 120/120 cases passed against both the pinned reference and frozen actual benchmark worker `5808f11d6cd198a7c672c12fee134077f21e98e31f2725e7aaa4d3f5c2146837`. Every case produced both complete records, with zero unknown rule/file pairs. Local receipts and query/case hashes: `collection-policy-20261101/verification.json`. This is bounded fixture evidence, not a whole-corpus parity certificate. No prepared-manifest registration is changed here.

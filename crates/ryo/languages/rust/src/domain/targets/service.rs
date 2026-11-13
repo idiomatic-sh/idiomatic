@@ -4,7 +4,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::constants::{
-    BENCHES, BIN, BUILD, EXAMPLES, EXTENSION, HIDDEN, LIBRARY, MAIN, SOURCE, TESTS,
+    BENCHES, BIN, BUILD, CRATE_SEPARATOR, EXAMPLES, EXTENSION, HIDDEN, LIBRARY, MAIN,
+    PACKAGE_SEPARATOR, SOURCE, TESTS,
 };
 use crate::domain::paths::service::{join, told, written};
 use crate::domain::paths::types::Entry;
@@ -15,6 +16,7 @@ use crate::domain::paths::types::Section;
 use crate::domain::paths::types::{Asked, Relative};
 use crate::domain::targets::types::Build;
 use crate::domain::targets::types::Discovery;
+use crate::domain::targets::types::LibrarySection;
 use crate::domain::targets::types::Manifest;
 use crate::domain::targets::types::PackageName;
 use crate::domain::targets::types::PackageSection;
@@ -24,6 +26,65 @@ use crate::domain::targets::types::TargetSection;
 
 /// What the pass has been told of what directories hold.
 type Entries<'a> = &'a mut Asked<RepoPath, Vec<Entry>>;
+
+/// Whether the pass was told that `source` holds the file `file`.
+fn in_source(
+    entries: &mut Asked<RepoPath, Vec<Entry>>,
+    source: &RepoPath,
+    file: &EntryName,
+) -> Presence {
+    if told(entries, source, Vec::new)
+        .iter()
+        .any(|each| each.name == *file && each.kind == EntryKind::File)
+    {
+        Presence::Present
+    } else {
+        Presence::Missing
+    }
+}
+
+/// The root file of the library of a package, when it has one: where `[lib]` puts it, or `src/lib.rs` when Cargo finds it there.
+pub(crate) fn library_of(
+    directory: &RepoPath,
+    manifest: &Manifest,
+    package: &PackageSection,
+    entries: Entries<'_>,
+) -> Option<RepoPath> {
+    let source = join(directory, &Relative(SOURCE.into())).unwrap_or_default();
+    match &manifest.lib {
+        Section::Present(lib) => Some(match &lib.path {
+            Section::Present(path) => written(directory, &Relative(path.0.clone())),
+            Section::Absent => written(&source, &Relative(LIBRARY.into())),
+        }),
+        Section::Absent => (package.autolib == Discovery::Automatic
+            && in_source(entries, &source, &EntryName(LIBRARY.into())) == Presence::Present)
+            .then(|| written(&source, &Relative(LIBRARY.into()))),
+    }
+}
+
+/// The name the code of a dependent writes for the library of a package it does not rename: `[lib] name`, or else the package's
+/// name with each `-` as `_`.
+#[must_use]
+pub(crate) fn library_name(manifest: &Manifest, package: &PackageSection) -> TargetName {
+    match &manifest.lib {
+        Section::Present(LibrarySection {
+            name: Section::Present(name),
+            ..
+        }) => name.clone(),
+        Section::Absent
+        | Section::Present(LibrarySection {
+            name: Section::Absent,
+            ..
+        }) => crate_name(&package.name),
+    }
+}
+
+/// The name a crate's code writes for the package `name`, or for a dependency a manifest binds to `name`: its `-` written `_`, as
+/// Cargo passes it to the compiler.
+#[must_use]
+pub(crate) fn crate_name(name: &PackageName) -> TargetName {
+    TargetName(name.0.replace(PACKAGE_SEPARATOR, CRATE_SEPARATOR).into())
+}
 
 /// The targets Cargo finds by their place in a directory of the package: `<sub>/*.rs` and `<sub>/*/main.rs`, by name.
 fn inferred(
@@ -111,38 +172,10 @@ pub(crate) fn targets_of(
     package: &PackageSection,
     entries: Entries<'_>,
 ) -> BTreeSet<RepoPath> {
-    fn in_source(
-        entries: &mut Asked<RepoPath, Vec<Entry>>,
-        source: &RepoPath,
-        file: &EntryName,
-    ) -> Presence {
-        if told(entries, source, Vec::new)
-            .iter()
-            .any(|each| each.name == *file && each.kind == EntryKind::File)
-        {
-            Presence::Present
-        } else {
-            Presence::Missing
-        }
-    }
     let source = join(directory, &Relative(SOURCE.into())).unwrap_or_default();
     let mut targets = BTreeSet::new();
     // The library.
-    match &manifest.lib {
-        Section::Present(lib) => {
-            targets.extend([match &lib.path {
-                Section::Present(path) => written(directory, &Relative(path.0.clone())),
-                Section::Absent => written(&source, &Relative(LIBRARY.into())),
-            }]);
-        }
-        Section::Absent => {
-            if package.autolib == Discovery::Automatic
-                && in_source(entries, &source, &EntryName(LIBRARY.into())) == Presence::Present
-            {
-                targets.extend([written(&source, &Relative(LIBRARY.into()))]);
-            }
-        }
-    }
+    targets.extend(library_of(directory, manifest, package, &mut *entries));
     // The binaries: `src/main.rs` is the one named for the package.
     let mut bins = inferred(
         directory,

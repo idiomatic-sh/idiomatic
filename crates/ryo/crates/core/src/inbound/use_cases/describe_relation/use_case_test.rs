@@ -6,10 +6,10 @@ use super::errors::DescribeRelationError;
 use super::interface::DescribeRelationUseCase as _;
 use super::types::DescribeRelationRequest;
 use super::use_case::DescribeRelationUseCaseImpl;
-use ryo_language::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_values::domain::descriptions::types::RelationReadability;
 
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::outbound::language::fixtures::fake::{FakeCatalog, LanguageFake};
 use crate::outbound::language::types::Absence;
 use ryo_values::domain::descriptions::types::RelationName;
@@ -45,10 +45,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || ("nothing", FakeCatalog::Lists, false),
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects(Matched(matches!(
                 error,
                 DescribeRelationError::UnknownRelation { .. }
-            ))
+            )))
         }),
     },
     Case {
@@ -56,7 +56,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Fails,
         input: || ("function", FakeCatalog::Fails, false),
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, DescribeRelationError::Language { .. }))
+            selects(Matched(matches!(
+                error,
+                DescribeRelationError::Language { .. }
+            )))
         }),
     },
 ];

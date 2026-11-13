@@ -1,0 +1,94 @@
+[[cases]]
+name = "upstream-TC010_1.py-py313"
+files = { "TC010_1.py" = "from __future__ import annotations\n\nfrom typing import TypeVar\n\n\nx: \"int\" | str  # TC010\nx: (\"int\" | str) | \"bool\"  # TC010\n\n\ndef func():\n    x: \"int\" | str  # OK\n\n\nz: list[str, str | \"int\"] = []  # TC010\n\ntype A = Value[\"int\" | str]  # OK\n\nOldS = TypeVar('OldS', int | 'str', str)  # TC010\n" }
+expected = [{ rule = "TC010", file = "TC010_1.py", start = 270, end = 275 }]
+
+[[cases]]
+name = "upstream-TC010_2.py-py313"
+files = { "TC010_2.py" = "from typing import TypeVar\n\n\nx: \"int\" | str  # TC010\nx: (\"int\" | str) | \"bool\"  # TC010\n\n\ndef func():\n    x: \"int\" | str  # OK\n\n\nz: list[str, str | \"int\"] = []  # TC010\n\ntype A = Value[\"int\" | str]  # OK\n\nOldS = TypeVar('OldS', int | 'str', str)  # TC010\n" }
+expected = [{ rule = "TC010", file = "TC010_2.py", start = 32, end = 37 }, { rule = "TC010", file = "TC010_2.py", start = 57, end = 62 }, { rule = "TC010", file = "TC010_2.py", start = 72, end = 78 }, { rule = "TC010", file = "TC010_2.py", start = 148, end = 153 }, { rule = "TC010", file = "TC010_2.py", start = 234, end = 239 }]
+
+[[cases]]
+name = "eager-module"
+files = { "case.py" = "x: \"X\" | int\n" }
+expected = [{ rule = "TC010", file = "case.py", start = 3, end = 6 }]
+
+[[cases]]
+name = "future-module"
+files = { "case.py" = "from __future__ import annotations\nx: \"X\" | int\n" }
+expected = []
+
+[[cases]]
+name = "function-signature"
+files = { "case.py" = "def f(x: \"X\" | int): ...\n" }
+expected = [{ rule = "TC010", file = "case.py", start = 9, end = 12 }]
+
+[[cases]]
+name = "function-local"
+files = { "case.py" = "def f():\n    x: \"X\" | int\n" }
+expected = []
+
+[[cases]]
+name = "bytes-member"
+files = { "case.py" = "x: b\"X\" | int\n" }
+expected = [{ rule = "TC010", file = "case.py", start = 3, end = 7 }]
+
+[[cases]]
+name = "plain-value"
+files = { "case.py" = "x = \"X\" | int\n" }
+expected = []
+
+[[cases]]
+name = "non-union-binop"
+files = { "case.py" = "x: \"X\" + int\n" }
+expected = []
+
+[[cases]]
+name = "nested-union"
+files = { "case.py" = "x: (\"X\" | int) | \"Y\"\n" }
+expected = [{ rule = "TC010", file = "case.py", start = 4, end = 7 }, { rule = "TC010", file = "case.py", start = 17, end = 20 }]
+
+[[cases]]
+name = "quoted-full-union"
+files = { "case.py" = "x: \"X | int\"\n" }
+expected = []
+
+[[cases]]
+name = "typing-only"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    x: \"X\" | int\n" }
+expected = []
+
+[[cases]]
+name = "typevar-constraint"
+files = { "case.py" = "from typing import TypeVar\nT = TypeVar(\"T\", int | \"X\", str)\n" }
+expected = [{ rule = "TC010", file = "case.py", start = 50, end = 53 }]
+
+[[cases]]
+name = "literal-metadata"
+files = { "case.py" = "from typing import Literal\nx: Literal[\"X\"]\n" }
+expected = []
+
+[[cases]]
+name = "annotated-metadata"
+files = { "case.py" = "from typing import Annotated\nx: Annotated[int, \"X\" | str]\n" }
+expected = []
+
+[[cases]]
+name = "pep695-alias"
+files = { "case.py" = "type Alias = \"X\" | int\n" }
+expected = []
+
+[[cases]]
+name = "stub-types"
+files = { "case.pyi" = "x: \"X\" | int\n" }
+expected = []
+
+[[cases]]
+name = "suppressed"
+files = { "case.py" = "x: \"X\" | int # noqa: TC010\n" }
+expected = []
+
+[[cases]]
+name = "unrelated-noqa"
+files = { "case.py" = "x: \"X\" | int # noqa: F401\n" }
+expected = [{ rule = "TC010", file = "case.py", start = 3, end = 6 }]

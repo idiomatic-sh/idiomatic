@@ -1,19 +1,97 @@
 //! The `syntax` service: what RyoQL's operations look like, and what a program reads. Free
 //! functions over the domain's types, with no IO and no ports.
 
-use ryo_language::domain::relations::service::relation_named;
-use ryo_language::domain::relations::types::NameRef;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::labels::types::NameRef;
+use ryo_relations::domain::relations::service::relation_named;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::constants::operator_named;
 use super::types::{ArgumentRole, ArgumentSlot, OperationShape};
-use ryo_values::domain::plans::types::QueryOperator;
-use ryo_values::domain::program::types::{
-    ArgumentName, ArgumentValue, Expression, Joining, OperationName, Program, SourceReference,
+use ryo_values::domain::program::types::WrittenProgram;
+use ryo_values::domain::query_operators::types::QueryOperator;
+use ryo_values::domain::query_syntax::types::{
+    ArgumentValue, Expression, Joining, SourceReference,
 };
+use ryo_values::domain::query_tokens::types::{ArgumentName, OperationName};
 
 /// The operations a query can call, besides `select`.
-const SHAPES: [OperationShape; 16] = [
+const SHAPES: [OperationShape; 24] = [
+    OperationShape {
+        operator: QueryOperator::RenderSyntax,
+        inputs: &[ArgumentSlot::From],
+        required: &[
+            ArgumentSlot::Node,
+            ArgumentSlot::Context,
+            ArgumentSlot::Output,
+        ],
+    },
+    OperationShape {
+        operator: QueryOperator::FitsRendered,
+        inputs: &[ArgumentSlot::From],
+        required: &[
+            ArgumentSlot::Texts,
+            ArgumentSlot::Literals,
+            ArgumentSlot::Span,
+            ArgumentSlot::MaxLine,
+            ArgumentSlot::TabWidth,
+        ],
+    },
+    OperationShape {
+        operator: QueryOperator::SpanBounds,
+        inputs: &[ArgumentSlot::From],
+        required: &[
+            ArgumentSlot::Span,
+            ArgumentSlot::StartOutput,
+            ArgumentSlot::EndOutput,
+        ],
+    },
+    OperationShape {
+        operator: QueryOperator::SourceMatches,
+        inputs: &[ArgumentSlot::From],
+        required: &[
+            ArgumentSlot::Span,
+            ArgumentSlot::Pattern,
+            ArgumentSlot::Output,
+        ],
+    },
+    OperationShape {
+        operator: QueryOperator::OrderedDfs,
+        inputs: &[ArgumentSlot::From, ArgumentSlot::Edges],
+        required: &[
+            ArgumentSlot::Root,
+            ArgumentSlot::Source,
+            ArgumentSlot::Destination,
+            ArgumentSlot::Order,
+            ArgumentSlot::Edge,
+            ArgumentSlot::Output,
+        ],
+    },
+    OperationShape {
+        operator: QueryOperator::SpanBetween,
+        inputs: &[ArgumentSlot::From],
+        required: &[ArgumentSlot::Start, ArgumentSlot::End, ArgumentSlot::Output],
+    },
+    OperationShape {
+        operator: QueryOperator::Replace,
+        inputs: &[ArgumentSlot::From],
+        required: &[
+            ArgumentSlot::Text,
+            ArgumentSlot::Pattern,
+            ArgumentSlot::Replacement,
+            ArgumentSlot::Output,
+        ],
+    },
+    OperationShape {
+        operator: QueryOperator::OrderedMatch,
+        inputs: &[ArgumentSlot::Left, ArgumentSlot::Right],
+        required: &[
+            ArgumentSlot::LeftOn,
+            ArgumentSlot::RightOn,
+            ArgumentSlot::LeftOrder,
+            ArgumentSlot::RightOrder,
+            ArgumentSlot::Output,
+        ],
+    },
     OperationShape {
         operator: QueryOperator::Project,
         inputs: &[ArgumentSlot::From],
@@ -126,7 +204,7 @@ pub(crate) fn shape_named(name: &OperationName) -> Option<&'static OperationShap
 
 /// The relations a program reads from, each once, in the order it first reads them.
 #[must_use]
-pub(crate) fn relations_read(program: &Program) -> Vec<Relation> {
+pub(crate) fn relations_read(program: &WrittenProgram) -> Vec<Relation> {
     let mut relations: Vec<Relation> = Vec::new();
     for step in &program.steps {
         let mut found: Vec<Relation> = Vec::new();
@@ -176,7 +254,7 @@ pub(crate) fn is_input(inputs: &[ArgumentSlot], name: &ArgumentName) -> Argument
 
 /// The operators a program uses, each once, in the order it first uses them.
 #[must_use]
-pub(crate) fn operators_used(program: &Program) -> Vec<QueryOperator> {
+pub(crate) fn operators_used(program: &WrittenProgram) -> Vec<QueryOperator> {
     let mut operators: Vec<QueryOperator> = Vec::new();
     for step in &program.steps {
         let operator = match &step.expression {

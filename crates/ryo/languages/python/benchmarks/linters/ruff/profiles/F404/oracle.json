@@ -1,0 +1,402 @@
+{
+  "ruff_version": "ruff 0.16.5",
+  "ruff_executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "target_version": "py310",
+  "rule": "F404",
+  "candidate_sha256": "62156b472a5a80c2dc865c84abf6c8df9fa5e3e396b22f6425af37286ff80438",
+  "cases_file_sha256": "9b1414aadf275c8d5c8726fef3093ba1de960bb3ac86a3e4c82f67f61daba03b",
+  "profile_sha256": "0d235100363c0121abf598f87eb50a22519b9bc39f482b195b039636a2dd41b0",
+  "cases": [
+    {
+      "name": "first-future",
+      "comparison": "full",
+      "files": {
+        "case.py": "from __future__ import annotations\n"
+      },
+      "expected": [],
+      "source_sha256": {
+        "case.py": "5384bfdb2df380b6557cc7a71d16891415bccaa87699406e236f752c6415389f"
+      }
+    },
+    {
+      "name": "module-docstring",
+      "comparison": "full",
+      "files": {
+        "case.py": "\"\"\"doc\"\"\"\nfrom __future__ import annotations\n"
+      },
+      "expected": [],
+      "source_sha256": {
+        "case.py": "a6351ec5bd300e4decaa1a7c8f9d938b2ab4894f01651c0d7e46bbb25ee32571"
+      }
+    },
+    {
+      "name": "consecutive-before-import",
+      "comparison": "full",
+      "files": {
+        "case.py": "from __future__ import annotations\nfrom __future__ import division\nimport os\nfrom __future__ import print_function\n"
+      },
+      "expected": [
+        {
+          "rule": "F404",
+          "file": "case.py",
+          "start": 77,
+          "end": 114
+        }
+      ],
+      "source_sha256": {
+        "case.py": "baf1b245d5889b36bbd1c5527c49a74b6aee249a31c089faffec50e22368b054"
+      }
+    },
+    {
+      "name": "after-assignment",
+      "comparison": "full",
+      "files": {
+        "case.py": "x = 1\nfrom __future__ import annotations\n"
+      },
+      "expected": [
+        {
+          "rule": "F404",
+          "file": "case.py",
+          "start": 6,
+          "end": 40
+        }
+      ],
+      "source_sha256": {
+        "case.py": "f7f4711a1332ef7582fe3b366cfb199b050238f82065e809b350697bf0914ed7"
+      }
+    },
+    {
+      "name": "second-string-is-boundary",
+      "comparison": "full",
+      "files": {
+        "case.py": "\"doc\"\n\"extra\"\nfrom __future__ import annotations\n"
+      },
+      "expected": [
+        {
+          "rule": "F404",
+          "file": "case.py",
+          "start": 14,
+          "end": 48
+        }
+      ],
+      "source_sha256": {
+        "case.py": "635a491ddfff5375fbb93ea737c4afd45b611a1a8c6c33390904d8e4e27064c9"
+      }
+    },
+    {
+      "name": "inside-function",
+      "comparison": "full",
+      "files": {
+        "case.py": "def f():\n    from __future__ import annotations\n"
+      },
+      "expected": [
+        {
+          "rule": "F404",
+          "file": "case.py",
+          "start": 13,
+          "end": 47
+        }
+      ],
+      "source_sha256": {
+        "case.py": "80fbc429ccef4bde4141faf185cb3c099b4b584346238ebb5881c8e69c014d2c"
+      }
+    },
+    {
+      "name": "inside-class",
+      "comparison": "full",
+      "files": {
+        "case.py": "class C:\n    from __future__ import annotations\n"
+      },
+      "expected": [
+        {
+          "rule": "F404",
+          "file": "case.py",
+          "start": 13,
+          "end": 47
+        }
+      ],
+      "source_sha256": {
+        "case.py": "7c3c63cd0c4ee49be48c54d75b498789287550c98682479453061c93830a5876"
+      }
+    },
+    {
+      "name": "inside-module-if",
+      "comparison": "full",
+      "files": {
+        "case.py": "if flag:\n    from __future__ import annotations\n"
+      },
+      "expected": [
+        {
+          "rule": "F404",
+          "file": "case.py",
+          "start": 13,
+          "end": 47
+        }
+      ],
+      "source_sha256": {
+        "case.py": "cfcfaf965b1fe7c0dac9393f98ce2c356fc0e16d6c51e391cff61c9418908e5f"
+      }
+    },
+    {
+      "name": "relative-future-is-not-future-statement",
+      "comparison": "full",
+      "files": {
+        "case.py": "from .__future__ import annotations\n"
+      },
+      "expected": [],
+      "source_sha256": {
+        "case.py": "c2c5e5eb8c0020021b30e788a11b8eb132c7e8ba74a9b4a478af038589e29bea"
+      }
+    },
+    {
+      "name": "unicode-prefix",
+      "comparison": "full",
+      "files": {
+        "case.py": "label = \"é\"\nfrom __future__ import annotations\n"
+      },
+      "expected": [
+        {
+          "rule": "F404",
+          "file": "case.py",
+          "start": 13,
+          "end": 47
+        }
+      ],
+      "source_sha256": {
+        "case.py": "fdb10b6214e2e5c161b9625076539f5020ac93d225cf5b8ce950c5916d82fb1a"
+      }
+    },
+    {
+      "name": "inline-noqa",
+      "comparison": "full",
+      "files": {
+        "case.py": "x = 1\nfrom __future__ import annotations  # noqa: F404\n"
+      },
+      "expected": [],
+      "source_sha256": {
+        "case.py": "507bc81882895f40531fab74bb945f0585d1cb9b0dbba5c880cd324d815f4e5e"
+      }
+    },
+    {
+      "name": "file-noqa",
+      "comparison": "full",
+      "files": {
+        "case.py": "# ruff: noqa: F404\nx = 1\nfrom __future__ import annotations\n"
+      },
+      "expected": [],
+      "source_sha256": {
+        "case.py": "7af3d57f8ff04edbb284f58b1a6c387be30e37506163518ad21abb32132ff831"
+      }
+    },
+    {
+      "name": "bytes-is-not-a-docstring",
+      "comparison": "full",
+      "files": {
+        "case.py": "b\"bytes\"\nfrom __future__ import annotations\n"
+      },
+      "expected": [
+        {
+          "rule": "F404",
+          "file": "case.py",
+          "start": 9,
+          "end": 43
+        }
+      ],
+      "source_sha256": {
+        "case.py": "4683706b673259fcf155836ccba46920d21892f1cfcbabe766f936fc499cae30"
+      }
+    },
+    {
+      "name": "fstring-is-not-a-docstring",
+      "comparison": "full",
+      "files": {
+        "case.py": "f\"doc\"\nfrom __future__ import annotations\n"
+      },
+      "expected": [
+        {
+          "rule": "F404",
+          "file": "case.py",
+          "start": 7,
+          "end": 41
+        }
+      ],
+      "source_sha256": {
+        "case.py": "678b26220d7cdc19fd212ac618ddfa0dd8f592a605b2821788bd5efe2fcf2078"
+      }
+    },
+    {
+      "name": "concatenated-string-docstring",
+      "comparison": "full",
+      "files": {
+        "case.py": "(\"doc\" \"string\")\nfrom __future__ import annotations\n"
+      },
+      "expected": [],
+      "source_sha256": {
+        "case.py": "37b8075c62138117f9c56c02cd402b48659caefd783e31a307951c5f887bb42b"
+      }
+    },
+    {
+      "name": "second-docstring-is-a-boundary",
+      "comparison": "full",
+      "files": {
+        "case.py": "\"doc\"\nfrom __future__ import annotations\n\"second\"\nfrom __future__ import division\n"
+      },
+      "expected": [
+        {
+          "rule": "F404",
+          "file": "case.py",
+          "start": 50,
+          "end": 81
+        }
+      ],
+      "source_sha256": {
+        "case.py": "2ada823367dff567457b24a27cc58fcc7baa5202bb0fd97e4e790f8bf90714f4"
+      }
+    },
+    {
+      "name": "late-wildcard-future-import",
+      "comparison": "full",
+      "files": {
+        "case.py": "x = 1\nfrom __future__ import *\n"
+      },
+      "expected": [
+        {
+          "rule": "F404",
+          "file": "case.py",
+          "start": 6,
+          "end": 30
+        }
+      ],
+      "source_sha256": {
+        "case.py": "bf7f4652ae5473c1b33a9b8b626bbcaaaff23a0ab35ae6950f4c6f2c6b366c6b"
+      }
+    },
+    {
+      "name": "multiline-future-import",
+      "comparison": "full",
+      "files": {
+        "case.py": "x = 1\nfrom __future__ import (\n    annotations,\n)\n"
+      },
+      "expected": [
+        {
+          "rule": "F404",
+          "file": "case.py",
+          "start": 6,
+          "end": 49
+        }
+      ],
+      "source_sha256": {
+        "case.py": "9791df70130ef35561d30e38ebb6765aebf1e6e5c4a92a91f42f66b47f1184b0"
+      }
+    },
+    {
+      "name": "multiline-parent-noqa",
+      "comparison": "full",
+      "files": {
+        "case.py": "x = 1\nfrom __future__ import (  # noqa: F404\n    annotations,\n)\n"
+      },
+      "expected": [],
+      "source_sha256": {
+        "case.py": "55cd511eedcbad05ecdb427e5027e07c127e1122ee5432259c1b32103d355bee"
+      }
+    },
+    {
+      "name": "relative-future-after-statement",
+      "comparison": "full",
+      "files": {
+        "case.py": "x=1\nfrom .__future__ import annotations\n"
+      },
+      "expected": [
+        {
+          "rule": "F404",
+          "file": "case.py",
+          "start": 4,
+          "end": 39
+        }
+      ],
+      "source_sha256": {
+        "case.py": "bce91dc4a4198c18162d2c55153058653e549cec850bfb0bda23f95fac9f883f"
+      }
+    },
+    {
+      "name": "nested-relative-future",
+      "comparison": "full",
+      "files": {
+        "case.py": "def f():\n    from .__future__ import annotations\n"
+      },
+      "expected": [
+        {
+          "rule": "F404",
+          "file": "case.py",
+          "start": 13,
+          "end": 48
+        }
+      ],
+      "source_sha256": {
+        "case.py": "7dcef447618882afd02fc9a739150cbb60aaf993ce8655613d583f0fac0083a2"
+      }
+    },
+    {
+      "name": "relative-then-absolute-before-boundary",
+      "comparison": "full",
+      "files": {
+        "case.py": "from .__future__ import annotations\nfrom __future__ import division\n"
+      },
+      "expected": [],
+      "source_sha256": {
+        "case.py": "9e7a4933543e1999de6a5e6b216f08634838baf8acf74c960567372e0441be2f"
+      }
+    },
+    {
+      "name": "multi-code-inline-noqa",
+      "comparison": "full",
+      "files": {
+        "case.py": "x=1\nfrom __future__ import annotations # noqa: F401, F404\n"
+      },
+      "expected": [],
+      "source_sha256": {
+        "case.py": "80a89a365c4bd572d02b181086fb7d989d9911de28b30ea709e19ad593dc0c22"
+      }
+    },
+    {
+      "name": "multiline-import-inline-noqa",
+      "comparison": "full",
+      "files": {
+        "case.py": "x=1\nfrom __future__ import ( # noqa: F401, F404\n    annotations,\n)\n"
+      },
+      "expected": [],
+      "source_sha256": {
+        "case.py": "14224c4ea4e1d55237021855da478a82a7cbeb5f3f0c9016d5fb4ca1d8d7501f"
+      }
+    },
+    {
+      "name": "relative-future-permutation",
+      "comparison": "full",
+      "files": {
+        "case.py": "from .__future__ import annotations\nfrom .__future__ import division\n"
+      },
+      "expected": [],
+      "source_sha256": {
+        "case.py": "706db77ebac1dbcf0543e326e7911f09c7a9c5428a631e53fc026d17fa170be2"
+      }
+    },
+    {
+      "name": "nfkc-future-module-after-statement",
+      "comparison": "full",
+      "files": {
+        "case.py": "x=1\nfrom __ｆｕｔｕｒｅ__ import annotations\n"
+      },
+      "expected": [
+        {
+          "rule": "F404",
+          "file": "case.py",
+          "start": 4,
+          "end": 50
+        }
+      ],
+      "source_sha256": {
+        "case.py": "130134274c10fb03fb901a49db9a1c09690a4bdb2134084613c48744f0d227fa"
+      }
+    }
+  ]
+}

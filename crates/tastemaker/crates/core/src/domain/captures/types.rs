@@ -81,6 +81,7 @@ impl From<CapturesText> for Box<str> {
 /// One piece of a path pattern's text, as the pattern grammar reads it: a character written as itself (escaped or plain),
 /// a wildcard, or a capture.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum PatternPiece<'a> {
     /// A character that stands for itself.
     Literal(PatternChar),
@@ -92,13 +93,15 @@ pub enum PatternPiece<'a> {
     Capture(PatternName<'a>),
     /// `{*name}`: a capture of whole segments.
     Span(PatternName<'a>),
+    /// `{name:dir}`: a capture within a segment whose value names a directory beside the file, holding a file.
+    Directory(PatternName<'a>),
 }
 
 /// A character of a path pattern that stands for itself.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PatternChar(pub char);
 
-/// The name a capture of a path pattern is written with: the `name` of `{name}` or `{*name}`.
+/// The name a capture of a path pattern is written with: the `name` of `{name}`, `{*name}` or `{name:dir}`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PatternName<'a>(pub &'a str);
 

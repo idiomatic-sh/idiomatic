@@ -30,7 +30,7 @@ pub(crate) struct NoteOffset(pub u32);
 
 /// The notes of a file: what it says of its modules.
 #[derive(Clone, Debug, PartialEq, Eq)]
-// ignore: idiomatic.arch/mirrored-types - the notes of a file as the notes port holds them, borrowed from the encoded bytes; its look-alike is the module tree's owned `Facts`, which the notes are converted to once
+// the notes of a file as the notes port holds them, borrowed from the encoded bytes; its look-alike is the module tree's owned `Facts`, which the notes are converted to once
 pub(crate) struct Note<'a> {
     /// Whether the file parses without errors.
     pub clean: NoteFlag,
@@ -60,11 +60,15 @@ pub(crate) struct DeclaredNote<'a> {
     pub inline: NoteFlag,
     /// The value of its `#[path = "…"]`, when it has one.
     pub path: Option<NotePath>,
+    /// Whether it is declared under `#[cfg(test)]`: built only for the package's unit tests, with its dev-dependencies.
+    pub test_only: NoteFlag,
+    /// Whether it is declared `pub`, so a crate that depends on its crate may name it.
+    pub exported: NoteFlag,
 }
 
 /// A path a file writes.
 #[derive(Clone, Debug, PartialEq, Eq)]
-// ignore: idiomatic.arch/mirrored-types - a written path as the notes port holds it, borrowed from the encoded bytes; its look-alike is the module tree's owned `Written`, which it is converted to once
+// a written path as the notes port holds it, borrowed from the encoded bytes; its look-alike is the module tree's owned `Written`, which it is converted to once
 pub(crate) struct WrittenNote<'a> {
     /// The segments.
     pub segments: Vec<NoteName<'a>>,
@@ -76,4 +80,10 @@ pub(crate) struct WrittenNote<'a> {
     pub end: NoteOffset,
     /// The path as the file writes it, its whitespace left out: the text from `start` to `end`.
     pub text: NoteName<'a>,
+    /// The name a `use` leaf binds in its module: its `as` name, or else its last segment; none for a glob, an `as _` or a path
+    /// that is not a `use` leaf.
+    pub bound: Option<NoteName<'a>>,
+    /// Where a `use` leaf binds its name: the innermost block of statements or inline module around it, by its span. None for a path
+    /// that is not a `use` leaf and for a `use` written at the top of its file, which binds in the whole file.
+    pub scope: Option<ryo::languages::Span>,
 }

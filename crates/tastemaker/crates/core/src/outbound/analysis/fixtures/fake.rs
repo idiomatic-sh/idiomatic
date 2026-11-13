@@ -61,7 +61,7 @@ pub struct AnalysisFake {
     pub rows: BTreeMap<Box<str>, Vec<Row>>,
     /// The queries the engine validates but cannot run, by a text they hold.
     pub unrunnable: Vec<Box<str>>,
-    /// Whether the engine fails.
+    /// Whether the engine fails the lint of the rules; a call that hosts its rows still answers.
     pub fails: bool,
     /// Every lint request sent, in order.
     pub sent: Mutex<Vec<AnalysisRequest>>,
@@ -92,9 +92,14 @@ impl AnalysisPort for AnalysisFake {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push(request.clone());
-        if self.fails {
+        // As the port's contract says: two rules of one id are refused whole, since one of them would never run.
+        let mut ids = std::collections::BTreeSet::new();
+        if let Some(rule) = request.rules.iter().find(|rule| !ids.insert(&rule.id)) {
             return Err(AnalysisError::Engine {
-                reason: "the fake fails".to_owned(),
+                reason: format!(
+                    "two rules of one lint call share the id `{}`: one of them would never run; this is a Tastemaker bug",
+                    rule.id.0
+                ),
             });
         }
         let hosted = match &request.hosted {
@@ -106,6 +111,13 @@ impl AnalysisPort for AnalysisFake {
             return Ok(AnalysisReport {
                 findings,
                 ..AnalysisReport::default()
+            });
+        }
+        // The engine fails the lint of the rules alone: a hosted call still answers, so a failure reaches only the call a
+        // test points it at.
+        if self.fails {
+            return Err(AnalysisError::Engine {
+                reason: "the fake fails".to_owned(),
             });
         }
         if let Some(rule) = request.rules.iter().find(|rule| {

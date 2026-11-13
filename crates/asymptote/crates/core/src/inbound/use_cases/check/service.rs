@@ -34,3 +34,19 @@ pub(super) fn keeping(
     }
     kept
 }
+
+/// The current scans as command answers, preserving captured failures independently of stored history.
+pub(super) fn answered(
+    scanned: &[Scanned],
+    reuses: Vec<super::types::Reuse>,
+) -> Vec<super::types::ToolRun> {
+    scanned
+        .iter()
+        .zip(reuses)
+        .map(|(scan, reuse)| super::types::ToolRun {
+            failure_output: scan.failure_output.clone(),
+            run: scan.run.clone(),
+            reuse,
+        })
+        .collect()
+}

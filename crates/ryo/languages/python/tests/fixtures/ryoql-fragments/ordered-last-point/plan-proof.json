@@ -1,0 +1,29 @@
+{
+  "schema": "plc0206-ordered-max-plan/v1",
+  "source_sha256": "38d303b9e4a4a1944388b8aa9e8669635ddf4a3205a6ca933f2ac3550f36362a",
+  "request_sha256": "da6329083f3ee629a5928ad6ee197bee5bcd1c84995c3ef1ae79589d05279246",
+  "ordered_match_step": 72,
+  "points_step": 71,
+  "points_operation": "Some(Project { from: Relation(BindingEvent), columns: [ColumnIndex(5), ColumnIndex(6)], distinct: Dropped })",
+  "ordered_match_operation": "Some(OrderedMatch { left: Step(StepId(71)), right: Step(StepId(71)), left_on: [ColumnIndex(1)], right_on: [ColumnIndex(1)], left_order: ColumnIndex(0), right_order: ColumnIndex(0), output: [JoinColumn { side: Left, column: ColumnIndex(0) }, JoinColumn { side: Left, column: ColumnIndex(1) }] })",
+  "report": {
+    "diagnostics": [
+      {
+        "rule": "PLC0206",
+        "file": "case.py",
+        "start": 9,
+        "end": 17
+      }
+    ],
+    "skipped": [],
+    "coverage": {
+      "selected": 1,
+      "evaluated": 1,
+      "skipped": 0,
+      "unknown_or_unread": 0
+    },
+    "files": [
+      "case.py"
+    ]
+  }
+}

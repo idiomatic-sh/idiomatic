@@ -1,0 +1,12 @@
+{
+  "status": "FAIL",
+  "rule": "RUF100",
+  "registered_cases": 30,
+  "intended_passed": 29,
+  "worker_sha256": "bde1335bd1a8031cc8f2310f48b5b0baad182c8190c09e4d6dad0c8f8a99019b",
+  "case_results_sha256": "df0c51224ccfea0ac4a2d3fd48370ea356c398e2bbf656000585d43d2c026226",
+  "reason": "RUF100/blanket-noqa-on-a-star-import-that-needs-no-combining-is-unused candidate: candidate failed (1): incomplete candidate: selected_rule_file_pairs=2; unknown_count=3; unread_count=0; unknowns=[Unknown { rule: RuleId(\"I001\"), path: RelativePath(\"case.py\"), message: Message(\"physical source facts are incomplete\") }, Unknown { rule: RuleId(\"I001\"), path: RelativePath(\"case.py\"), message: Message(\"project-namespace-membership is read only in part in case.py: project namespace membership has an unobserved search entry\") }, Unknown { rule: RuleId(\"RUF100\"), path: RelativePath(\"case.py\"), message: Message(\"physical source facts are incomplete\") }]; unread=[]",
+  "source_commit": "28efeb7bf09cda2686a606dadf68787a6b1d7f23",
+  "superseded": "N999 passes all 55 of its cases on this worker (N999-py310 run beside this one); its failed observation stays in the archive unchanged",
+  "previous_proof_sha256": "fef90c89616c3508452aeff88b2d511fadebe918a483340abf3010e9dec634b8"
+}

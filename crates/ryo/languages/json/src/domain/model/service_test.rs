@@ -27,12 +27,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-#[test]
-fn succeeds() {
+/// The place the model gives the row's position, over a model of three places.
+fn subject(at: Input) -> Result<Value, Failure> {
     let model = Model {
         places: vec![Integer(0), Integer(2), Integer(1)],
     };
-    run(CASES, Word::Succeeds, |at| {
-        Ok::<Value, Failure>(place(&model, at).0)
-    });
+    Ok(place(&model, at).0)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

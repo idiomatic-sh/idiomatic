@@ -1,0 +1,99 @@
+[[cases]]
+name = "direct"
+files = { "case.py" = "import trio\nasync def f():\n    trio.sleep(1)\n" }
+expected = [{ rule = "ASYNC105", file = "case.py", start = 31, end = 44 }]
+
+[[cases]]
+name = "awaited"
+files = { "case.py" = "import trio\nasync def f():\n    await trio.sleep(1)\n" }
+expected = []
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "import trio as t\nasync def f():\n    t.sleep(1)\n" }
+expected = [{ rule = "ASYNC105", file = "case.py", start = 36, end = 46 }]
+
+[[cases]]
+name = "from-import"
+files = { "case.py" = "from trio import sleep\nasync def f():\n    sleep(1)\n" }
+expected = [{ rule = "ASYNC105", file = "case.py", start = 42, end = 50 }]
+
+[[cases]]
+name = "outside-async"
+files = { "case.py" = "import trio\ntrio.sleep(1)\n" }
+expected = [{ rule = "ASYNC105", file = "case.py", start = 12, end = 25 }]
+
+[[cases]]
+name = "sync-function"
+files = { "case.py" = "import trio\ndef f():\n    trio.sleep(1)\n" }
+expected = [{ rule = "ASYNC105", file = "case.py", start = 25, end = 38 }]
+
+[[cases]]
+name = "different-trio-api"
+files = { "case.py" = "import trio\nasync def f():\n    trio.current_time()\n" }
+expected = []
+
+[[cases]]
+name = "awaited-parens"
+files = { "case.py" = "import trio\nasync def f():\n    await (trio.sleep(1))\n" }
+expected = []
+
+[[cases]]
+name = "nested-await"
+files = { "case.py" = "import trio\nasync def f():\n    await wrapper(trio.sleep(1))\n" }
+expected = [{ rule = "ASYNC105", file = "case.py", start = 45, end = 58 }]
+
+[[cases]]
+name = "sleep-forever"
+files = { "case.py" = "import trio\nasync def f():\n    trio.sleep_forever()\n" }
+expected = [{ rule = "ASYNC105", file = "case.py", start = 31, end = 51 }]
+
+[[cases]]
+name = "lowlevel-checkpoint"
+files = { "case.py" = "import trio\nasync def f():\n    trio.lowlevel.checkpoint()\n" }
+expected = [{ rule = "ASYNC105", file = "case.py", start = 31, end = 57 }]
+
+[[cases]]
+name = "nested-async-def"
+files = { "case.py" = "import trio\nasync def f():\n    async def g():\n        trio.sleep(1)\n" }
+expected = [{ rule = "ASYNC105", file = "case.py", start = 54, end = 67 }]
+
+[[cases]]
+name = "sync-method"
+files = { "case.py" = "import trio\nclass C:\n    def f(self):\n        trio.sleep(1)\n" }
+expected = [{ rule = "ASYNC105", file = "case.py", start = 46, end = 59 }]
+
+[[cases]]
+name = "multiline"
+files = { "case.py" = "import trio\nasync def f():\n    trio.sleep(\n        1,\n    )\n" }
+expected = [{ rule = "ASYNC105", file = "case.py", start = 31, end = 59 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "import trio\nasync def f():\n    trio.sleep(1)  # noqa: ASYNC105\n" }
+expected = []
+
+[[cases]]
+name = "other-noqa"
+files = { "case.py" = "import trio\nasync def f():\n    trio.sleep(1)  # noqa: F401\n" }
+expected = [{ rule = "ASYNC105", file = "case.py", start = 31, end = 44 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa: ASYNC105\nimport trio\nasync def f():\n    trio.sleep(1)\n" }
+expected = []
+
+[[cases]]
+name = "cancel-scope-not-async"
+files = { "case.py" = "import trio\ndef f():\n    trio.CancelScope()\n" }
+expected = []
+
+[[cases]]
+name = "await-other-call"
+files = { "case.py" = "import trio\nasync def f():\n    wrapper(await trio.sleep(1))\n" }
+expected = []
+
+[[cases]]
+name = "unicode-before"
+files = { "case.py" = "label = \"雪\"\nimport trio\nasync def f():\n    trio.sleep(1)\n" }
+expected = [{ rule = "ASYNC105", file = "case.py", start = 45, end = 58 }]

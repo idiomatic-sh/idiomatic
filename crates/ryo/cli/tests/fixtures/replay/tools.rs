@@ -13,7 +13,7 @@ const MEMBERS: &str =
 /// `dependencies`, the id of its rule and its key, each column as ryo shows it, joined by commas.
 pub(crate) fn ryo_lines(
     root: &Path,
-    languages: Vec<ryo_core::outbound::language::types::LanguageHandles>,
+    languages: Vec<ryo_core::outbound::language::factory::LanguageConnection>,
     dependencies: &str,
 ) -> BTreeSet<String> {
     let rules = vec![
@@ -23,7 +23,7 @@ pub(crate) fn ryo_lines(
     let (rows, _) = crate::base::lint_report_with_languages(
         root,
         rules,
-        Arc::new(ryo_core::outbound::facts::factory::memory()),
+        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
         Vec::new(),
         false,
@@ -208,18 +208,22 @@ pub(crate) fn entries<'value>(
 #[cfg(any(feature = "javascript", feature = "typescript"))]
 pub(crate) fn package_json_languages() -> Vec<(
     &'static str,
-    ryo_core::outbound::language::types::LanguageHandles,
+    ryo_core::outbound::language::factory::LanguageConnection,
 )> {
     vec![
         #[cfg(feature = "javascript")]
         (
             "javascript",
-            ryo_core::outbound::language::types::LanguageHandles::from(ryo_javascript::linked()),
+            ryo_core::outbound::language::factory::LanguageConnection::from(
+                ryo_javascript::linked(),
+            ),
         ),
         #[cfg(feature = "typescript")]
         (
             "typescript",
-            ryo_core::outbound::language::types::LanguageHandles::from(ryo_typescript::linked()),
+            ryo_core::outbound::language::factory::LanguageConnection::from(
+                ryo_typescript::linked(),
+            ),
         ),
     ]
 }

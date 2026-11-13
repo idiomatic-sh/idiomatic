@@ -4,12 +4,13 @@
 use ryo::languages::{FilePath, ManifestFile, ManifestName};
 
 use super::schemas::declared;
+use crate::domain::manifest_validation::types::MetadataDemand;
 use crate::domain::packages::constants::PYPROJECT;
-use crate::domain::packages::types::{Declared, ManifestPath};
+use crate::domain::packages::types::ManifestPath;
 use crate::domain::patterns::constants::SEPARATOR;
-use crate::outbound::manifest_reading::errors::ManifestReadingError;
 use crate::outbound::manifest_reading::interface::ManifestReadingPort;
 use crate::outbound::manifest_reading::types::Claim;
+use crate::outbound::manifest_reading::types::ManifestRead;
 
 /// The `poetry` manifest reading adapter.
 #[derive(Debug)]
@@ -28,7 +29,19 @@ impl ManifestReadingPort for ManifestReadingPoetryAdapter {
         }
     }
 
-    fn declared(&self, manifest: &ManifestFile) -> Result<Declared, ManifestReadingError> {
-        declared(&ManifestPath(manifest.path.0.clone()), &manifest.text)
+    fn read(&self, manifest: &ManifestFile, demand: MetadataDemand) -> ManifestRead {
+        if demand == MetadataDemand::Diagnostics {
+            return ManifestRead {
+                declaration: None,
+                validation: None,
+            };
+        }
+        ManifestRead {
+            declaration: Some(declared(
+                &ManifestPath(manifest.path.0.clone()),
+                &manifest.text,
+            )),
+            validation: None,
+        }
     }
 }

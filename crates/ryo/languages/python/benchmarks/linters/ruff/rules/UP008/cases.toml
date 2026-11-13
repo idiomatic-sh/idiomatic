@@ -1,0 +1,296 @@
+[[cases]]
+name = "ordinary-method"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        return super(C, self).f()\n" }
+expected = [{ rule = "UP008", file = "case.py", start = 46, end = 55 }]
+
+[[cases]]
+name = "class-cell"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        return super(__class__, self).f()\n" }
+expected = [{ rule = "UP008", file = "case.py", start = 46, end = 63 }]
+
+[[cases]]
+name = "async-method"
+comparison = "full"
+files = { "case.py" = "class C:\n    async def f(self):\n        return super(C, self).f()\n" }
+expected = [{ rule = "UP008", file = "case.py", start = 52, end = 61 }]
+
+[[cases]]
+name = "lambda-method"
+comparison = "full"
+files = { "case.py" = "class C:\n    f = lambda self: super(C, self).f()\n" }
+expected = [{ rule = "UP008", file = "case.py", start = 35, end = 44 }]
+
+[[cases]]
+name = "positional-only-self"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self, /):\n        return super(C, self).f()\n" }
+expected = [{ rule = "UP008", file = "case.py", start = 49, end = 58 }]
+
+[cases.reference-discrepancy]
+expected = []
+reason = "CPython 3.10 accepts `self` as the first positional-only parameter and paired explicit and zero-argument super calls return the same inherited value. The pinned reference omits the diagnostic."
+
+[cases.reference-discrepancy.identity]
+"tool" = "ruff"
+"version" = "0.16.5"
+"observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+"profile-sha256" = "299a2a9c9ea689abd97c71927217b76f236c47870f1a2ae821e25ecaef231a16"
+"settings-sha256" = "03441c66d8826a4b67920e773a3560df0f9727c53b862641a2d77859dc5db128"
+"source-sha256" = "cc8087775722237b11f2fb36e37e8e115d6bc3d4e59ccd30e8d7be57bbaaadc0"
+"reference-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a"
+"intended-output-sha256" = "0ff11a48785d96066db4be90baed26b9148b6941ae541c06ad456c842c2faee2"
+
+[[cases.reference-discrepancy.evidence]]
+"path" = "evidence/cpython310-observation.json"
+"sha256" = "5025e32bad439fce48756ad7d79676ab228470ea4c3293e8bf070ccebac7ee72"
+"kind" = "independent-language-run"
+"language-version" = "CPython3.10.19"
+"target-configuration" = "python-target=3.10"
+"version-rationale" = "CPython 3.10.19 matches the configured target and runs the exact case source plus paired super() controls."
+
+[[cases]]
+name = "other-first-parameter"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(receiver):\n        return super(C, receiver).f()\n" }
+expected = [{ rule = "UP008", file = "case.py", start = 50, end = 63 }]
+
+[[cases]]
+name = "keyword-extra"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        return super(C, self, unexpected=True).f()\n" }
+expected = [{ rule = "UP008", file = "case.py", start = 46, end = 72 }]
+
+[[cases]]
+name = "builtins-import"
+comparison = "full"
+files = { "case.py" = "import builtins\nclass C:\n    def f(self):\n        return builtins.super(C, self).f()\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        return super(C, self).f()  # noqa: UP008\n" }
+expected = []
+
+[[cases]]
+name = "other-noqa"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        return super(C, self).f()  # noqa: F401\n" }
+expected = [{ rule = "UP008", file = "case.py", start = 46, end = 55 }]
+
+[[cases]]
+name = "no-class"
+comparison = "full"
+files = { "case.py" = "def f(self):\n    return super(C, self).f()\n" }
+expected = []
+
+[[cases]]
+name = "different-class"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        return super(B, self).f()\n" }
+expected = []
+
+[[cases]]
+name = "different-argument"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self, other):\n        return super(C, other).f()\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-super"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        super = print\n        return super(C, self)\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-class-name"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        C = object\n        return super(C, self)\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-class-cell"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        __class__ = object\n        return super(__class__, self)\n" }
+expected = []
+
+[[cases]]
+name = "alias-class"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        return super(Alias, self)\nAlias = C\n" }
+expected = []
+
+[[cases]]
+name = "nested-comprehension"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        return [super(C, self).f() for _ in (1,)]\n" }
+expected = []
+
+[[cases]]
+name = "nested-function-no-argument"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        def inner():\n            return super(C, self).f()\n        return inner()\n" }
+expected = []
+
+[[cases]]
+name = "nested-function-own-argument"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        def inner(self):\n            return super(C, self).f()\n        return inner(self)\n" }
+expected = [{ rule = "UP008", file = "case.py", start = 75, end = 84 }]
+
+[[cases]]
+name = "nested-class-body"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        class Inner:\n            value = super(C, self)\n" }
+expected = []
+
+[[cases]]
+name = "inner-class-wrong-class"
+comparison = "full"
+files = { "case.py" = "class Outer:\n    class Inner:\n        def f(self):\n            return super(Outer, self)\n" }
+expected = []
+
+[[cases]]
+name = "inner-class-class-cell"
+comparison = "full"
+files = { "case.py" = "class Outer:\n    class Inner:\n        def f(self):\n            return super(__class__, self)\n" }
+expected = [{ rule = "UP008", file = "case.py", start = 75, end = 92 }]
+
+[[cases]]
+name = "three-positionals"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        return super(C, self, 3)\n" }
+expected = []
+
+[[cases]]
+name = "one-positional"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        return super(C)\n" }
+expected = []
+
+[[cases]]
+name = "starred"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        return super(*(C, self))\n" }
+expected = []
+
+[[cases]]
+name = "slotted-dataclass"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\n@dataclass(slots=True)\nclass C:\n    def f(self):\n        return super(C, self).f()\n" }
+expected = []
+
+[[cases]]
+name = "ordinary-dataclass"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\n@dataclass\nclass C:\n    def f(self):\n        return super(C, self).f()\n" }
+expected = [{ rule = "UP008", file = "case.py", start = 91, end = 100 }]
+
+[[cases]]
+name = "slotted-false"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\n@dataclass(slots=False)\nclass C:\n    def f(self):\n        return super(C, self).f()\n" }
+expected = [{ rule = "UP008", file = "case.py", start = 104, end = 113 }]
+
+[[cases]]
+name = "two-positive-calls"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        super(C, self)\n        return super(__class__, self)\n" }
+expected = [{ rule = "UP008", file = "case.py", start = 39, end = 48 }, { rule = "UP008", file = "case.py", start = 69, end = 86 }]
+
+[[cases]]
+name = "upstream-ruff-0.16.5-fixture"
+comparison = "full"
+files = { "UP008.py" = "class Parent:\n    def method(self):\n        pass\n\n    def wrong(self):\n        pass\n\n\nclass Child(Parent):\n    def method(self):\n        parent = super()  # ok\n        super().method()  # ok\n        Parent.method(self)  # ok\n        Parent.super(1, 2)  # ok\n\n    def wrong(self):\n        parent = super(Child, self)  # wrong\n        super(Child, self).method  # wrong\n        super(\n            Child,\n            self,\n        ).method()  # wrong\n\n\nclass BaseClass:\n    def f(self):\n        print(\"f\")\n\n\ndef defined_outside(self):\n    super(MyClass, self).f()  # CANNOT use super()\n\n\nclass MyClass(BaseClass):\n    def normal(self):\n        super(MyClass, self).f()  # can use super()\n        super().f()\n\n    def different_class(self):\n        super(BaseClass, self).f()  # CANNOT use super()\n\n    def different_argument(self, other):\n        super(MyClass, other).f()  # CANNOT use super()\n\n    def comprehension_scope(self):\n        [super(MyClass, self).f() for x in [1]]  # CANNOT use super()\n\n    def comprehension_scope_set(self):\n        {super(MyClass, self).f() for x in [1]}  # CANNOT use super()\n\n    def comprehension_scope_generator(self):\n        (super(MyClass, self).f() for x in [1])  # CANNOT use super()\n\n    def comprehension_scope_dict(self):\n        {True: super(MyClass, self).f() for x in [1]}  # CANNOT use super()\n\n    def nested_comprehension_scope(self):\n        [\n            (\n                [x for x in [1]],\n                super(MyClass, self).f(),\n            )\n            for _ in [1]\n        ]  # CANNOT use super()\n\n    def inner_functions(self):\n        def outer_argument():\n            super(MyClass, self).f()  # CANNOT use super()\n\n        def inner_argument(self):\n            super(MyClass, self).f()  # can use super()\n            super().f()\n\n        outer_argument()\n        inner_argument(self)\n\n    def lambda_closure(self):\n        g = lambda: super(MyClass, self).f()  # CANNOT use super()\n        g()\n\n    def inner_class(self):\n        class InnerClass:\n            super(MyClass, self).f()  # CANNOT use super()\n\n            def method(inner_self):\n                super(MyClass, self).f()  # CANNOT use super()\n\n        InnerClass().method()\n\n    defined_outside = defined_outside\n\nfrom dataclasses import dataclass\n\n\n@dataclass\nclass DataClass:\n    def normal(self):\n        super(DataClass, self).f()  # Error\n        super().f()  # OK\n\n\n@dataclass(slots=True)\ndef normal(self):\n    super(DataClass, self).f()  # OK\n    super().f()  # OK (`TypeError` in practice)\n\n\n# see: https://github.com/astral-sh/ruff/issues/18477\nclass A:\n    def foo(self):\n        pass\n\n\nclass B(A):\n    def bar(self):\n        super(__class__, self).foo()\n\n\n# see: https://github.com/astral-sh/ruff/issues/18684\nclass C:\n    def f(self):\n        super = print\n        super(C, self)\n\n\nimport builtins\n\n\nclass C:\n    def f(self):\n        builtins.super(C, self)\n\n\n# see: https://github.com/astral-sh/ruff/issues/18533\nclass ClassForCommentEnthusiasts(BaseClass):\n    def with_comments(self):\n        super(\n            # super helpful comment\n            ClassForCommentEnthusiasts,\n            self\n        ).f()\n        super(\n            ClassForCommentEnthusiasts,\n            # even more helpful comment\n            self\n        ).f()\n        super(\n            ClassForCommentEnthusiasts,\n            self\n            # also a comment\n        ).f()\n\n\n# Issue #19096: super calls with keyword arguments should emit diagnostic but not be fixed\nclass Ord(int):\n    def __len__(self):\n        return super(Ord, self, uhoh=True, **{\"error\": True}).bit_length()\n\nclass ExampleWithKeywords:\n    def method1(self):\n        super(ExampleWithKeywords, self, invalid=True).some_method()  # Should emit diagnostic but NOT be fixed\n    \n    def method2(self):\n        super(ExampleWithKeywords, self, **{\"kwarg\": \"value\"}).some_method()  # Should emit diagnostic but NOT be fixed\n    \n    def method3(self):\n        super(ExampleWithKeywords, self).some_method()  # Should be fixed - no keywords\n\n# See: https://github.com/astral-sh/ruff/issues/19357\n# Must be detected\nclass ParentD:\n    def f(self):\n        print(\"D\")\n\nclass ChildD1(ParentD):\n    def f(self):\n        if False: __class__ # Python injects __class__ into scope\n        builtins.super(ChildD1, self).f()\n\nclass ChildD2(ParentD):\n    def f(self):\n        if False: super # Python injects __class__ into scope\n        builtins.super(ChildD2, self).f()\n\nclass ChildD3(ParentD):\n    def f(self):\n        builtins.super(ChildD3, self).f()\n        super # Python injects __class__ into scope\n\nimport builtins as builtins_alias\nclass ChildD4(ParentD):\n    def f(self):\n        builtins_alias.super(ChildD4, self).f()\n        super # Python injects __class__ into scope\n\nclass ChildD5(ParentD):\n    def f(self):\n        super = 1\n        super # Python injects __class__ into scope\n        builtins.super(ChildD5, self).f()\n\nclass ChildD6(ParentD):\n    def f(self):\n        super: \"Any\"\n        __class__ # Python injects __class__ into scope\n        builtins.super(ChildD6, self).f()\n\nclass ChildD7(ParentD):\n    def f(self):\n        def x():\n            __class__ # Python injects __class__ into scope\n        builtins.super(ChildD7, self).f()\n\nclass ChildD8(ParentD):\n    def f(self):\n        def x():\n            super = 1\n        super # Python injects __class__ into scope\n        builtins.super(ChildD8, self).f()\n\nclass ChildD9(ParentD):\n    def f(self):\n        def x():\n            __class__ = 1\n        __class__ # Python injects __class__ into scope\n        builtins.super(ChildD9, self).f()\n\nclass ChildD10(ParentD):\n    def f(self):\n        def x():\n            __class__ = 1\n        super # Python injects __class__ into scope\n        builtins.super(ChildD10, self).f()\n\n\n# Must be ignored\nclass ParentI:\n    def f(self):\n        print(\"I\")\n\nclass ChildI1(ParentI):\n    def f(self):\n        builtins.super(ChildI1, self).f() # no __class__ in the local scope\n\n\nclass ChildI2(ParentI):\n    def b(self):\n        x = __class__\n        if False: super\n\n    def f(self):\n        self.b()\n        builtins.super(ChildI2, self).f() # no __class__ in the local scope\n\nclass ChildI3(ParentI):\n    def f(self):\n        if False: super\n        def x(_):\n            builtins.super(ChildI3, self).f() # no __class__ in the local scope\n        x(None)\n\nclass ChildI4(ParentI):\n    def f(self):\n        super: \"str\"\n        builtins.super(ChildI4, self).f() # no __class__ in the local scope\n\nclass ChildI5(ParentI):\n    def f(self):\n        super = 1\n        __class__ = 3\n        builtins.super(ChildI5, self).f() # no __class__ in the local scope\n\nclass ChildI6(ParentI):\n    def f(self):\n        __class__ = None\n        __class__\n        builtins.super(ChildI6, self).f() # no __class__ in the local scope\n\nclass ChildI7(ParentI):\n    def f(self):\n        __class__ = None\n        super\n        builtins.super(ChildI7, self).f()\n\nclass ChildI8(ParentI):\n    def f(self):\n        __class__: \"Any\"\n        super\n        builtins.super(ChildI8, self).f()\n\nclass ChildI9(ParentI):\n    def f(self):\n        class A:\n            def foo(self):\n                if False: super\n                if False: __class__\n        builtins.super(ChildI9, self).f()\n\n\n# See: https://github.com/astral-sh/ruff/issues/20422\n# UP008 should not apply when the class variable is shadowed\nclass A:\n    def f(self):\n        return 1\n\nclass B(A):\n    def f(self):\n        return 2\n\nclass C(B):\n    def f(self):\n        C = B  # Local variable C shadows the class name\n        return super(C, self).f()  # Should NOT trigger UP008\n\n\n# See: https://github.com/astral-sh/ruff/issues/20491\n# UP008 should not apply when __class__ is a local variable\nclass A:\n    def f(self):\n        return 1\n\nclass B(A):\n    def f(self):\n        return 2\n\nclass C(B):\n    def f(self):\n        __class__ = B  # Local variable __class__ shadows the implicit __class__\n        return super(__class__, self).f()  # Should NOT trigger UP008\n\nclass Base:\n    def __init__(self, foo):\n        self.foo = foo\n\n\nclass Outer(Base):\n    def __init__(self, foo):\n        super().__init__(foo)  # Should not trigger UP008\n\n    class Inner(Base):\n        def __init__(self, foo):\n            super(Outer.Inner, self).__init__(foo)  # UP008: matches enclosing class chain\n\n\n# See: https://github.com/astral-sh/ruff/issues/24001\n# Bare and partially qualified class names should not match nested classes.\nclass CommonNesting:\n    class C(Base):\n        def __init__(self, foo):\n            super(C, self).__init__(foo)  # Should NOT trigger UP008\n\n\nclass HigherLevelsOfNesting:\n    class Inner:\n        class C(Base):\n            def __init__(self, foo):\n                super(Inner.C, self).__init__(foo)  # Should NOT trigger UP008\n\n\n# super() first arg is an attribute that only matches on the last segment,\n# but refers to a different class (Outer.Inner, not __class__ which is Inner).\nclass Inner(Outer.Inner):\n    def __init__(self, foo):\n        super(Outer.Inner, self).__init__(foo)  # Should NOT trigger UP008\n\n# super() first arg has an unrelated module prefix\nclass Outer2:\n    class Inner2(Base):\n        def __init__(self, foo):\n            super(some_module.Outer2.Inner2, self).__init__(foo)  # Should NOT trigger UP008\n\n# 3-level deep nesting: super(A.B.C, self) should trigger UP008\nclass A:\n    class B:\n        class C(Base):\n            def __init__(self, foo):\n                super(A.B.C, self).__init__(foo)  # UP008: matches full chain\n\n# Mismatched middle segment: Wrong.Inner doesn't match Outer3.Inner\nclass Outer3:\n    class Inner(Base):\n        def __init__(self, foo):\n            super(Wrong.Inner, self).__init__(foo)  # Should NOT trigger UP008\n\n\nclass Whitespace(BaseClass):\n    def f(self):\n        super (Whitespace, self).f()  # can use super()\n\n\ndef function_local():\n    class LocalOuter:\n        class LocalInner(BaseClass):\n            def f(self):\n                super(LocalOuter.LocalInner, self).f()  # can use super()\n\n\nclass LambdaMethod(BaseClass):\n    f = lambda self: super(LambdaMethod, self).f()  # can use super()\n\n\nclass ClassMethod(BaseClass):\n    @classmethod\n    def f(cls):\n        super(ClassMethod, cls).f()  # can use super()\n\n\nclass AsyncMethod(BaseClass):\n    async def f(self):\n        super(AsyncMethod, self).f()  # can use super()\n\n\nclass OuterWithWhitespace:\n    class Inner(BaseClass):\n        def f(self):\n            super (OuterWithWhitespace.Inner, self).f()  # can use super()\n" }
+expected = [{ rule = "UP008", file = "UP008.py", start = 302, end = 315 }, { rule = "UP008", file = "UP008.py", start = 338, end = 351 }, { rule = "UP008", file = "UP008.py", start = 381, end = 429 }, { rule = "UP008", file = "UP008.py", start = 646, end = 661 }, { rule = "UP008", file = "UP008.py", start = 1728, end = 1743 }, { rule = "UP008", file = "UP008.py", start = 2339, end = 2356 }, { rule = "UP008", file = "UP008.py", start = 2667, end = 2684 }, { rule = "UP008", file = "UP008.py", start = 3039, end = 3143 }, { rule = "UP008", file = "UP008.py", start = 3161, end = 3269 }, { rule = "UP008", file = "UP008.py", start = 3287, end = 3384 }, { rule = "UP008", file = "UP008.py", start = 3541, end = 3582 }, { rule = "UP008", file = "UP008.py", start = 3660, end = 3701 }, { rule = "UP008", file = "UP008.py", start = 3800, end = 3849 }, { rule = "UP008", file = "UP008.py", start = 3948, end = 3975 }, { rule = "UP008", file = "UP008.py", start = 4278, end = 4293 }, { rule = "UP008", file = "UP008.py", start = 4424, end = 4439 }, { rule = "UP008", file = "UP008.py", start = 4508, end = 4523 }, { rule = "UP008", file = "UP008.py", start = 4684, end = 4699 }, { rule = "UP008", file = "UP008.py", start = 4890, end = 4905 }, { rule = "UP008", file = "UP008.py", start = 5051, end = 5066 }, { rule = "UP008", file = "UP008.py", start = 5212, end = 5227 }, { rule = "UP008", file = "UP008.py", start = 5387, end = 5402 }, { rule = "UP008", file = "UP008.py", start = 5570, end = 5585 }, { rule = "UP008", file = "UP008.py", start = 5750, end = 5766 }, { rule = "UP008", file = "UP008.py", start = 8230, end = 8249 }, { rule = "UP008", file = "UP008.py", start = 9435, end = 9448 }, { rule = "UP008", file = "UP008.py", start = 9772, end = 9790 }, { rule = "UP008", file = "UP008.py", start = 9943, end = 9972 }, { rule = "UP008", file = "UP008.py", start = 10055, end = 10075 }, { rule = "UP008", file = "UP008.py", start = 10177, end = 10195 }, { rule = "UP008", file = "UP008.py", start = 10287, end = 10306 }, { rule = "UP008", file = "UP008.py", start = 10426, end = 10459 }]
+[[cases]]
+name = "qualified-builtins-with-class-cell"
+comparison = "full"
+files = { "case.py" = "import builtins\nclass C:\n    def f(self):\n        if False: __class__\n        return builtins.super(C, self).f()\n" }
+expected = [{ rule = "UP008", file = "case.py", start = 99, end = 108 }]
+
+[[cases]]
+name = "module-class-rebound-after-definition"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        return super(C, self).f()\noriginal = C\nclass Other: pass\nC = Other\n" }
+expected = []
+
+[cases.reference-discrepancy]
+expected = [{ "end" = 55, "file" = "case.py", "rule" = "UP008", "start" = 46 }]
+reason = "The exact source rebinds the module class name after preserving the original class; CPython 3.10 raises TypeError from the original method's explicit super call. Replacing the call based only on the class spelling would change its behavior, so the candidate declines."
+
+[cases.reference-discrepancy.identity]
+"tool" = "ruff"
+"version" = "0.16.5"
+"observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+"profile-sha256" = "299a2a9c9ea689abd97c71927217b76f236c47870f1a2ae821e25ecaef231a16"
+"settings-sha256" = "03441c66d8826a4b67920e773a3560df0f9727c53b862641a2d77859dc5db128"
+"source-sha256" = "f02f9d62e90120ce10abd3ec41112b28ddc7e7f0758e3d61e7683f99573e7e19"
+"reference-output-sha256" = "0ec9c79ca36f76d748e26a791ecac948af49e517ccf0a6ebcaaef029969de1ac"
+"intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a"
+
+[[cases.reference-discrepancy.evidence]]
+"path" = "evidence/cpython310-observation.json"
+"sha256" = "5025e32bad439fce48756ad7d79676ab228470ea4c3293e8bf070ccebac7ee72"
+"kind" = "independent-language-run"
+"language-version" = "CPython3.10.19"
+"target-configuration" = "python-target=3.10"
+"version-rationale" = "CPython 3.10.19 matches the configured target and runs the exact case source plus paired super() controls."
+
+[[cases]]
+name = "nested-class-attribute-rebound-after-definition"
+comparison = "full"
+files = { "case.py" = "class Base:\n    def f(self):\n        pass\nclass Other(Base):\n    pass\nclass Outer:\n    class Inner(Base):\n        def f(self):\n            return super(Outer.Inner, self).f()\nOriginalInner = Outer.Inner\nOuter.Inner = Other\n" }
+expected = []
+
+[cases.reference-discrepancy]
+expected = [{ "end" = 170, "file" = "case.py", "rule" = "UP008", "start" = 151 }]
+reason = "After the exact in-file `Outer.Inner` rebinding, CPython 3.10 raises TypeError in the saved original method, while the paired zero-argument rewrite returns from Base. The candidate declines the unsafe diagnostic; the pinned reference reports it."
+
+[cases.reference-discrepancy.identity]
+"tool" = "ruff"
+"version" = "0.16.5"
+"observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+"profile-sha256" = "299a2a9c9ea689abd97c71927217b76f236c47870f1a2ae821e25ecaef231a16"
+"settings-sha256" = "03441c66d8826a4b67920e773a3560df0f9727c53b862641a2d77859dc5db128"
+"source-sha256" = "d02ef6a9e25d644d3bf3c40eadb22e9cb75edae0e937d5c0cd3dd3536343b6e0"
+"reference-output-sha256" = "301bfa6227dd6f4439e6f3a07c44f4e548a1d9fef5308717d3893a3267644404"
+"intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a"
+
+[[cases.reference-discrepancy.evidence]]
+"path" = "evidence/cpython310-observation.json"
+"sha256" = "5025e32bad439fce48756ad7d79676ab228470ea4c3293e8bf070ccebac7ee72"
+"kind" = "independent-language-run"
+"language-version" = "CPython3.10.19"
+"target-configuration" = "python-target=3.10"
+"version-rationale" = "CPython 3.10.19 matches the configured target and runs the exact case source plus paired super() controls."
+
+[[cases]]
+name = "nested-parent-attribute-rebound-after-definition"
+comparison = "full"
+files = { "case.py" = "class Base:\n    def f(self):\n        pass\nclass Other:\n    pass\nclass A:\n    class B:\n        class C(Base):\n            def f(self):\n                return super(A.B.C, self).f()\nOriginalC = A.B.C\nA.B = Other\n" }
+expected = []
+
+[cases.reference-discrepancy]
+expected = [{ "end" = 175, "file" = "case.py", "rule" = "UP008", "start" = 162 }]
+reason = "After the exact in-file `A.B` rebinding, CPython 3.10 raises AttributeError resolving `A.B.C` in the saved original method, while the paired zero-argument rewrite returns from Base. The candidate declines the unsafe diagnostic; the pinned reference reports it."
+
+[cases.reference-discrepancy.identity]
+"tool" = "ruff"
+"version" = "0.16.5"
+"observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+"profile-sha256" = "299a2a9c9ea689abd97c71927217b76f236c47870f1a2ae821e25ecaef231a16"
+"settings-sha256" = "03441c66d8826a4b67920e773a3560df0f9727c53b862641a2d77859dc5db128"
+"source-sha256" = "6f49e1207aaf5b667e46d070d1e35d37254b45ec463297ca244909826c9795ac"
+"reference-output-sha256" = "dc6b4ccda08c15f671599010ca064e63ddc04e5aaf2fe76da5ea95286d3e69f3"
+"intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a"
+
+[[cases.reference-discrepancy.evidence]]
+"path" = "evidence/cpython310-observation.json"
+"sha256" = "5025e32bad439fce48756ad7d79676ab228470ea4c3293e8bf070ccebac7ee72"
+"kind" = "independent-language-run"
+"language-version" = "CPython3.10.19"
+"target-configuration" = "python-target=3.10"
+"version-rationale" = "CPython 3.10.19 matches the configured target and runs the exact case source plus paired super() controls."

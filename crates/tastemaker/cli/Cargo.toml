@@ -31,19 +31,19 @@ thiserror.workspace = true
 tracing.workspace = true
 tracing-chrome.workspace = true
 tracing-subscriber.workspace = true
-tastemaker_core = { package = "idiomatic-sh-tastemaker-core", path = "../crates/core", version = "0.1.1" }
-ryo = { package = "idiomatic-sh-ryo-sdk", version = "0.1.1" }
+tastemaker_core = { package = "idiomatic-sh-tastemaker-core", path = "../crates/core", version = "0.1.2" }
+ryo = { package = "idiomatic-sh-ryo-sdk", version = "0.1.3" }
 tempfile = { workspace = true, optional = true }
-ryo_javascript = { package = "idiomatic-sh-ryo-javascript", optional = true, version = "0.1.1" }
-ryo_json = { package = "idiomatic-sh-ryo-json", optional = true, version = "0.1.1" }
-ryo_css = { package = "idiomatic-sh-ryo-css", optional = true, version = "0.1.1" }
-ryo_go = { package = "idiomatic-sh-ryo-go", optional = true, version = "0.1.1" }
-ryo_html = { package = "idiomatic-sh-ryo-html", optional = true, version = "0.1.1" }
-ryo_typescript = { package = "idiomatic-sh-ryo-typescript", optional = true, version = "0.1.1" }
-ryo_markdown = { package = "idiomatic-sh-ryo-markdown", optional = true, version = "0.1.1" }
-ryo_python = { package = "idiomatic-sh-ryo-python", optional = true, version = "0.1.1" }
-ryo_rust = { package = "idiomatic-sh-ryo-rust", optional = true, version = "0.1.1" }
-ryo_toml = { package = "idiomatic-sh-ryo-toml", optional = true, version = "0.1.1" }
+ryo_javascript = { package = "idiomatic-sh-ryo-javascript", optional = true, version = "0.1.3" }
+ryo_json = { package = "idiomatic-sh-ryo-json", optional = true, version = "0.1.3" }
+ryo_css = { package = "idiomatic-sh-ryo-css", optional = true, version = "0.1.3" }
+ryo_go = { package = "idiomatic-sh-ryo-go", optional = true, version = "0.1.3" }
+ryo_html = { package = "idiomatic-sh-ryo-html", optional = true, version = "0.1.3" }
+ryo_typescript = { package = "idiomatic-sh-ryo-typescript", optional = true, version = "0.1.3" }
+ryo_markdown = { package = "idiomatic-sh-ryo-markdown", optional = true, version = "0.1.3" }
+ryo_python = { package = "idiomatic-sh-ryo-python", optional = true, version = "0.1.3" }
+ryo_rust = { package = "idiomatic-sh-ryo-rust", optional = true, version = "0.1.3" }
+ryo_toml = { package = "idiomatic-sh-ryo-toml", optional = true, version = "0.1.3" }
 
 [target.'cfg(all(not(target_os = "windows"), not(target_os = "openbsd"), not(target_os = "aix"), not(target_os = "android"), any(target_arch = "x86_64", target_arch = "aarch64", target_arch = "powerpc64", target_arch = "riscv64")))'.dependencies]
 tikv-jemallocator.workspace = true
@@ -60,10 +60,10 @@ toml.workspace = true
 idiomatic-sh-tastemaker = { path = ".", features = ["markdown", "python", "rust", "toml"] }
 tastemaker_core = { package = "idiomatic-sh-tastemaker-core", path = "../crates/core", features = ["fixtures"] }
 cpu-time.workspace = true
-ryo_markdown = { package = "idiomatic-sh-ryo-markdown", version = "0.1.1" }
-ryo_python = { package = "idiomatic-sh-ryo-python", version = "0.1.1" }
-ryo_rust = { package = "idiomatic-sh-ryo-rust", version = "0.1.1" }
-ryo_toml = { package = "idiomatic-sh-ryo-toml", version = "0.1.1" }
+ryo_markdown = { package = "idiomatic-sh-ryo-markdown", version = "0.1.3" }
+ryo_python = { package = "idiomatic-sh-ryo-python", version = "0.1.3" }
+ryo_rust = { package = "idiomatic-sh-ryo-rust", version = "0.1.3" }
+ryo_toml = { package = "idiomatic-sh-ryo-toml", version = "0.1.3" }
 snapbox.workspace = true
 tempfile.workspace = true
 trycmd.workspace = true

@@ -6,10 +6,22 @@
 pub(crate) enum Keyword {
     /// `param`.
     Param,
+    /// `import`.
+    Import,
+    /// `input`.
+    Input,
+    /// `output`.
+    Output,
+    /// `return`.
+    Return,
+    /// `relation`.
+    Relation,
     /// `let`.
     Let,
     /// `emit`.
     Emit,
+    /// `observe`.
+    Observe,
     /// `subject`.
     Subject,
     /// `key`.
@@ -38,8 +50,14 @@ pub(crate) enum Keyword {
     GlobAny,
     /// `float_text_gte`.
     FloatTextGte,
+    /// `numeric_gte`.
+    NumericGte,
+    /// `integer_successor`.
+    IntegerSuccessor,
     /// `starts_with`.
     StartsWith,
+    /// `matches`.
+    Matches,
     /// `ends_with`.
     EndsWith,
     /// `concat`.
@@ -52,6 +70,10 @@ pub(crate) enum Keyword {
     Snake,
     /// `kebab`.
     Kebab,
+    /// `lower`.
+    Lower,
+    /// `natural_lt`.
+    NaturalLt,
 }
 
 /// A mark of the grammar made of more than one character.
@@ -70,11 +92,17 @@ pub(crate) enum Mark {
 pub(crate) fn keyword_text(keyword: Keyword) -> &'static str {
     match keyword {
         Keyword::Param => "param",
+        Keyword::Import => "import",
+        Keyword::Input => "input",
+        Keyword::Output => ryo_values::domain::descriptions::constants::OUTPUT,
+        Keyword::Return => "return",
+        Keyword::Relation => ryo_values::domain::descriptions::constants::RELATION,
         Keyword::Let => "let",
         Keyword::Emit => "emit",
+        Keyword::Observe => "observe",
         Keyword::Subject => "subject",
         Keyword::Key => "key",
-        Keyword::Select => crate::domain::syntax::constants::SELECT,
+        Keyword::Select => ryo_values::domain::descriptions::constants::SELECT,
         Keyword::From => "from",
         Keyword::As => "as",
         Keyword::Join => "join",
@@ -85,14 +113,19 @@ pub(crate) fn keyword_text(keyword: Keyword) -> &'static str {
         Keyword::Not => "not",
         Keyword::In => "in",
         Keyword::GlobAny => "glob_any",
+        Keyword::NaturalLt => "natural_lt",
         Keyword::FloatTextGte => "float_text_gte",
+        Keyword::NumericGte => "numeric_gte",
+        Keyword::IntegerSuccessor => "integer_successor",
         Keyword::StartsWith => "starts_with",
+        Keyword::Matches => "matches",
         Keyword::EndsWith => "ends_with",
         Keyword::Concat => "concat",
         Keyword::Pascal => "pascal",
         Keyword::Camel => "camel",
         Keyword::Snake => "snake",
         Keyword::Kebab => "kebab",
+        Keyword::Lower => "lower",
     }
 }
 
@@ -109,7 +142,7 @@ pub(crate) fn mark_text(mark: Mark) -> &'static str {
 /// What the grammar expects when a text stops making sense and winnow said nothing more.
 #[must_use]
 pub(crate) fn expectation() -> &'static str {
-    "expected a `param`, `let` or `emit` line"
+    "expected an `import`, `param`, `let`, `observe` or `emit` line"
 }
 
 /// One production of the grammar as this adapter reads it: the parser fn that reads it, how it is written, and text it reads whole.
@@ -127,13 +160,48 @@ pub(crate) struct GrammarLine {
 pub(crate) const GRAMMAR: &[GrammarLine] = &[
     GrammarLine {
         name: "program",
-        form: "line { line }, with exactly one emit_line",
+        form: "line { line }, and exactly one emit_line",
         example: "let found = select * from \"function\"; emit found subject \"file\" key(\"span\");",
     },
     GrammarLine {
         name: "line",
-        form: "parameter_line | step_line | emit_line",
+        form: "import_line | parameter_line | step_line | observe_line | emit_line",
         example: "let found = select * from \"function\";",
+    },
+    GrammarLine {
+        name: "import_line",
+        form: "import word from string \";\"",
+        example: "import suppress from \"shared/suppress\";",
+    },
+    GrammarLine {
+        name: "fragment_program",
+        form: "import_line | fragment_input_line | parameter_line | fragment_output_line | step_line | fragment_return_line; exactly one output and return",
+        example: "input rows: relation<id: node>; output relation<id: node>; let result = select id from rows; return result;",
+    },
+    GrammarLine {
+        name: "fragment_line",
+        form: "import_line | fragment_input_line | parameter_line | fragment_output_line | step_line | fragment_return_line",
+        example: "input rows: relation<id: node>;",
+    },
+    GrammarLine {
+        name: "fragment_input_line",
+        form: "input word \":\" relation_signature \";\"",
+        example: "input rows: relation<id: node>;",
+    },
+    GrammarLine {
+        name: "fragment_output_line",
+        form: "output relation_signature \";\"",
+        example: "output relation<id: node>;",
+    },
+    GrammarLine {
+        name: "relation_signature",
+        form: "relation \"<\" word \":\" word { \",\" word \":\" word } \">\"",
+        example: "relation<id: node, file: file>",
+    },
+    GrammarLine {
+        name: "fragment_return_line",
+        form: "return word \";\"",
+        example: "return result;",
     },
     GrammarLine {
         name: "parameter_line",
@@ -146,6 +214,11 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
         example: "let found = select * from \"function\";",
     },
     GrammarLine {
+        name: "observe_line",
+        form: "observe word as name_or_string \";\"",
+        example: "observe matched as \"usage\";",
+    },
+    GrammarLine {
         name: "emit_line",
         form: "emit word subject name_or_string key \"(\" name_or_string { \",\" name_or_string } \")\" \";\"",
         example: "emit found subject \"file\" key(\"span\");",
@@ -156,7 +229,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
         example: "select * from \"function\"",
     },
     GrammarLine {
-        name: crate::domain::syntax::constants::SELECT,
+        name: ryo_values::domain::descriptions::constants::SELECT,
         form: "select ( \"*\" | select_column { \",\" select_column } ) from source [ join ] [ filters ]",
         example: "select l.name as \"name\" from \"function\" as l join \"function\" as r on l.file = r.file where r.name != \"main\"",
     },
@@ -166,7 +239,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
         example: "l.name as \"name\"",
     },
     GrammarLine {
-        name: "source",
+        name: ryo_relations::domain::relations::constants::SOURCE,
         form: "( string | word ) [ as word ], a string naming a relation and a word a step",
         example: "\"function\" as l",
     },
@@ -202,7 +275,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
     },
     GrammarLine {
         name: "filter",
-        form: "glob_filter | float_text_filter | affix_filter | comparison_filter",
+        form: "glob_filter | float_text_filter | numeric_filter | integer_successor_filter | affix_filter | comparison_filter",
         example: "name = \"main\"",
     },
     GrammarLine {
@@ -211,13 +284,23 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
         example: "float_text_gte(text, $limit)",
     },
     GrammarLine {
+        name: "numeric_filter",
+        form: "numeric_gte \"(\" operand \",\" operand \")\"",
+        example: "numeric_gte(value, 86400)",
+    },
+    GrammarLine {
+        name: "integer_successor_filter",
+        form: "integer_successor \"(\" operand \",\" operand \")\"",
+        example: "integer_successor(lower, next_lower)",
+    },
+    GrammarLine {
         name: "glob_filter",
         form: "[ not ] glob_any \"(\" operand \",\" operand \")\"",
         example: "not glob_any(path, $allowed)",
     },
     GrammarLine {
         name: "affix_filter",
-        form: "( starts_with | ends_with ) \"(\" operand \",\" operand \")\", whether the first text starts or ends with the second",
+        form: "( natural_lt | starts_with | ends_with | matches ) \"(\" operand \",\" operand \")\", a text prefix, suffix or regular-expression search",
         example: "ends_with(name, concat(pascal(p.pkg), \"Service\"))",
     },
     GrammarLine {
@@ -237,7 +320,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
     },
     GrammarLine {
         name: "function",
-        form: "( concat | pascal | camel | snake | kebab ) \"(\" operand { \",\" operand } \")\", each operand text: concat joins two or more; pascal, camel, snake and kebab take one, todo_lists as TodoLists, todoLists, todo_lists and todo-lists",
+        form: "( concat | pascal | camel | snake | kebab | lower ) \"(\" operand { \",\" operand } \")\", each operand text: concat joins two or more; pascal, camel, snake and kebab take one, todo_lists as TodoLists, todoLists, todo_lists and todo-lists",
         example: "concat(pascal(p.pkg), \"Service\")",
     },
     GrammarLine {
@@ -266,7 +349,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
         example: "$max-lines",
     },
     GrammarLine {
-        name: "number",
+        name: ryo_relations::domain::relations::constants::NUMBER,
         form: "digit { digit }",
         example: "400",
     },

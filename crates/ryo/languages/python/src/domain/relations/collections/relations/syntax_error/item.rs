@@ -16,9 +16,15 @@ ryo::reads! {
         kinds: [Kind::Node(Node::Module)] as kind_bits,
         require (is_root(tree, at) == Rootness::Root);
         each (languages::diagnostics(tree.elements)) as (number, diagnostic) {
+            given phase = languages::intern_derived(symbols, tree.source, languages::phase_name(diagnostic.phase));
+            given impact = languages::intern_derived(symbols, tree.source, languages::impact_name(diagnostic.impact));
+            given code = languages::intern_derived(symbols, tree.source, languages::NameText(diagnostic.code.0));
             row {
                 id: value(diagnostic_id(tree, number)),
                 message: value(diagnostic_message(tree, symbols, &diagnostic)),
+                phase: value(phase),
+                impact: value(impact),
+                code: value(code),
                 file: file,
                 span: value(diagnostic_span(&diagnostic)),
             }

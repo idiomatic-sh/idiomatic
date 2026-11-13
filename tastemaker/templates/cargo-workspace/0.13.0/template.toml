@@ -1,0 +1,4904 @@
+description = "A product's Cargo workspace: each of its crates as a member, shared package fields and dependencies, and the lints every crate inherits. `mod_module_files` is denied: a directory's module file is `<dir>.rs` beside the directory, never `<dir>/mod.rs`, one style for every crate, held by the compiler. `pub_use` is not denied: re-export policy is owned by Tastemaker's no-reexports rule; one definition."
+why = "Defines the product's members and what every crate inherits, so edition, MSRV, dependencies, lints and pinned tools are decided once for the product."
+content = '''
+[workspace]
+members = [{% for member in instances.crate | default([]) %}{% if not loop.first %}, {% endif %}"{{ member.path }}"{% endfor %}]
+resolver = "3"
+
+[workspace.package]
+version = "{{ version }}"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cpu-time = "=1.0.0"
+cucumber = "=0.23.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+dead_code = "deny"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+{%- if instances.distribution | default([]) %}
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.test.package.sysinfo]
+opt-level = 3
+{%- endif %}
+'''
+
+[params]
+version = { type = "string", description = "The product's version, which every crate inherits: raised whenever the product's sources change, so one version is one build." }
+
+[given]
+file = 'Cargo.toml'
+params = { version = '0.1.0' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+unsafe_code = "forbid"
+dead_code = "deny"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+unsafe_code = "forbid"
+dead_code = "deny"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+# more
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+
+[[scenarios]]
+id = 'own-version'
+scenario = 'The product sets its own version.'
+given.params = { version = '2.3.4' }
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "2.3.4"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+unsafe_code = "forbid"
+dead_code = "deny"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+
+[[scenarios]]
+id = 'unraised-version'
+scenario = "The workspace's version is not the one its entry names."
+given.params = { version = '0.2.0' }
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+unsafe_code = "forbid"
+dead_code = "deny"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+then.findings = [
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'cargo-workspace#count', path = 'tastemaker.toml' },
+]
+
+[[scenarios]]
+id = 'no-unsafe-forbid'
+scenario = 'Unsafe code is not forbidden.'
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+then.findings = [
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'no-private-interfaces'
+scenario = 'Private interfaces are not denied.'
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+unsafe_code = "forbid"
+dead_code = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+then.findings = [
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'no-unnameable-types'
+scenario = 'Unnameable types are not denied.'
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+unsafe_code = "forbid"
+dead_code = "deny"
+private_interfaces = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+then.findings = [
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'no-edition'
+scenario = 'The workspace sets no edition.'
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+unsafe_code = "forbid"
+dead_code = "deny"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+then.findings = [
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'no-rust-version'
+scenario = 'The workspace sets no rust-version.'
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+unsafe_code = "forbid"
+dead_code = "deny"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+then.findings = [
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'no-dead-code-deny'
+scenario = 'Dead code is not denied.'
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+unsafe_code = "forbid"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+then.findings = [
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'no-pedantic'
+scenario = "Clippy's pedantic group is not on."
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+unsafe_code = "forbid"
+dead_code = "deny"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+then.findings = [
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'no-suspicious'
+scenario = "Clippy's suspicious group is not set."
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+unsafe_code = "forbid"
+dead_code = "deny"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+then.findings = [
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'no-output-dependencies'
+scenario = "The dependencies the CLI's output module prints with are not pinned."
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+unsafe_code = "forbid"
+dead_code = "deny"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+then.findings = [
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'no-trycmd-pin'
+scenario = "The workspace does not pin trycmd, which runs the product README's Usage."
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+unsafe_code = "forbid"
+dead_code = "deny"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+then.findings = [
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'no-missing-docs'
+scenario = 'The workspace does not warn of missing docs.'
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+unsafe_code = "forbid"
+dead_code = "deny"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+then.findings = [
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'no-private-docs'
+scenario = 'The workspace does not warn of undocumented private items.'
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+unsafe_code = "forbid"
+dead_code = "deny"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+then.findings = [
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'no-rustdoc-lints'
+scenario = 'The workspace sets no rustdoc lint.'
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+unsafe_code = "forbid"
+dead_code = "deny"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+then.findings = [
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'rustdoc-lints-warn'
+scenario = 'The rustdoc lints only warn, so a rustdoc warning fails no documentation build.'
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+unsafe_code = "forbid"
+dead_code = "deny"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
+mod_module_files = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "warn"
+broken_intra_doc_links = "warn"
+private_intra_doc_links = "warn"
+bare_urls = "warn"
+invalid_codeblock_attributes = "warn"
+invalid_rust_codeblocks = "warn"
+invalid_html_tags = "warn"
+redundant_explicit_links = "warn"
+unescaped_backticks = "warn"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+then.findings = [
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+  { rule = 'cargo-workspace#template', path = 'Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'no-mod-module-files-deny'
+scenario = 'A workspace that does not deny `mod_module_files` lets a crate name a module file `mod.rs` beside `<dir>.rs` ones: reported.'
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "crates/*/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+ignore = "=0.4.33"
+sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
+anstream = "=1.0.0"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["color", "derive", "wrap_help"] }
+cucumber = "=0.23.0"
+divan = "=0.1.21"
+cpu-time = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+tempfile = "=3.27.0"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+toml = "=1.1.4"
+trycmd = "=0.15.11"
+
+[workspace.lints.rust]
+# An unknown lint is reported without a source span, which clippy-sarif drops; fail instead.
+unknown_lints = "deny"
+dead_code = "deny"
+unsafe_code = "forbid"
+private_interfaces = "deny"
+unnameable_types = "deny"
+# rustc's lint groups and every stable allow-by-default lint at the pinned toolchain (rustc -W help, 1.97.1).
+# Left out: edition-migration lints (rust-2018-compatibility, rust-2021-*, rust-2024-*, and the 2024 lints
+# if_let_rescope, impl_trait_overcaptures, tail_expr_drop_order, deprecated_safe_2024, missing_unsafe_on_extern,
+# unsafe_attr_outside_unsafe, edition_2024_expr_fragment_specifier): the edition is 2024. Feature-gated at 1.97.1,
+# so unknown to stable (unknown_lints is deny): unqualified_local_imports, shadowing_supertrait_items,
+# resolving_to_items_shadowing_supertrait_items, non_exhaustive_omitted_patterns, must_not_suspend,
+# multiple_supertrait_upcastable, fuzzy_provenance_casts, lossy_provenance_casts, deprecated_llvm_intrinsic,
+# unstable_features. linker_info is diagnostic noise; unused_crate_dependencies is cargo-machete's.
+# variant_size_differences is off: a variant's size against an allocation is the performance pass's trade.
+unused = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+keyword_idents = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+refining_impl_trait = { level = "warn", priority = -1 }
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_import_braces = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+let_underscore_drop = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+unit_bindings = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+dead_code_pub_in_binary = "warn"
+deprecated_in_future = "warn"
+deref_into_dyn_supertrait = "warn"
+ffi_unwind_calls = "warn"
+macro_use_extern_crate = "warn"
+
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# Clippy's default groups and pedantic, in full: asymptote ratchets every finding they
+# report, so no lint of theirs is allowed away here. Correctness stays
+# at clippy's own deny.
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "warn"
+# Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
+# code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
+# big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
+# impl_trait_in_params, implicit_return, inline_asm_x86_intel_syntax, integer_division, integer_division_remainder_used,
+# little_endian_bytes, missing_inline_in_public_items, missing_trait_methods, module_name_repetitions,
+# modulo_arithmetic, non_ascii_literal, pattern_type_mismatch, pub_with_shorthand, question_mark_used,
+# self_named_module_files, semicolon_outside_block, separated_literal_suffix, shadow_reuse, shadow_same, single_call_fn,
+# single_char_lifetime_names, std_instead_of_alloc, std_instead_of_core, tests_outside_test_module; panic_in_result_fn
+# and unwrap_in_result, as a case table's subject returns the Err under test and must panic on a fixture that fails.
+# nursery stays off.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+as_pointer_underscore = "warn"
+as_underscore = "warn"
+assertions_on_result_states = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+cognitive_complexity = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_numeric_fallback = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+doc_include_without_cfg = "warn"
+doc_paragraphs_missing_punctuation = "warn"
+else_if_without_else = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+field_scoped_visibility_modifiers = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+host_endian_bytes = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+inline_asm_x86_att_syntax = "warn"
+inline_modules = "warn"
+inline_trait_bounds = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+let_underscore_untyped = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+map_with_unused_argument_over_ranges = "warn"
+mem_forget = "warn"
+min_ident_chars = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
+panic = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+pointer_format = "warn"
+precedence_bits = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+pub_without_shorthand = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_test_prefix = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+same_name_method = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+use_debug = "warn"
+verbose_file_reads = "warn"
+# The cargo group but multiple_crate_versions: the resolved tree holds two majors of getrandom, syn, hashbrown and phf.
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+
+[workspace.lints.rustdoc]
+# Every rustdoc lint (rustdoc -W help, 1.97.1) but missing_doc_code_examples and private_doc_tests, which are
+# feature-gated.
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+bare_urls = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"
+invalid_html_tags = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.dist]
+inherits = "release"
+
+[profile.gate]
+inherits = "dev"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/cargo-workspace#template', path = 'Cargo.toml' },
+]

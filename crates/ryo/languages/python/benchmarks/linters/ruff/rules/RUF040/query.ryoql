@@ -1,0 +1,16 @@
+import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
+let assertions = select id from "semantic-syntax" where kind = "assert";
+let messages = select parent, child from "semantic-child" where field = "msg";
+let literals = select id, file, span from "semantic-syntax" where kind = "constant";
+let nonstrings = antijoin(left=literals, right="string-literal", left-on=["id"], right-on=["occurrence"]);
+let asserted = select r.child as child from assertions as l join messages as r on l.id = r.parent;
+let reportable = select r.id as id, r.file as file, r.span as span from asserted as l join nonstrings as r on l.child = r.id;
+let candidate_locations = line_located(candidates=reportable);
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:RUF040)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
+let ruf100_used = extend(from=ruf100_directives, values={code: "RUF040"});
+observe ruf100_used as noqa_matches;
+emit violations subject file key(id);

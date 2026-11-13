@@ -4,11 +4,11 @@
 //! gap tokenizer is given the builder and the stretch, and writes tokens that cover the stretch, every byte in one, in order.
 
 use super::types::{Lossless, ReadableText};
-use crate::domain::elements::service::{decoded_token, enter_node, leave_node, token};
+use crate::domain::builders::service::{decoded_token, enter_node, leave_node, token};
 use crate::domain::elements::types::TableBuilder;
-use crate::domain::relations::types::{KindBits, Offset};
 use crate::domain::symbols::types::ByteSlice;
-use crate::domain::terms::types::NameText;
+use ryo_relations::domain::relations::types::{KindBits, Offset};
+use ryo_relations::domain::terms::types::NameText;
 
 /// A tree written through `builder`, its tokens starting at `start`: zero for a file, or where the text the library reads starts.
 #[must_use]

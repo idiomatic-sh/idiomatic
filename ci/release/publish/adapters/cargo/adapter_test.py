@@ -80,6 +80,13 @@ def test_a_registry_dependency_is_not_published() -> None:
     assert "serde" not in names(publication_order(METADATA, "cli"))
 
 
+def test_a_version_the_workspace_patches_to_the_checkout_is_published_first() -> None:
+    """A dependency that names a version and no path, which the workspace's `[patch.crates-io]` resolves to the checkout's directory
+    (tastemaker's on ryo's crates), is the checkout's: it must be on crates.io before the package that needs it."""
+    patched = {"workspace_root": "/checkout", "packages": [package("cli", dependency("sdk", path=False)), package("sdk")]}
+    assert names(publication_order(patched, "cli")) == ["sdk", "cli"]
+
+
 def test_a_development_dependency_with_a_version_is_published_first_and_one_without_is_not() -> None:
     kept = {"packages": [package("a", dependency("b", "dev", "^1.0.0")), package("b")]}
     stripped = {"packages": [package("a", dependency("b", "dev", "*")), package("b")]}
@@ -276,7 +283,7 @@ def test_each_products_real_order_puts_every_dependency_before_its_dependent(pro
     assert names(order)[-1] == package
     for each in order:
         for needed in each["dependencies"]:
-            if needed.get("path") and needed["name"] in position and needed["name"] != each["name"] and needed["req"] != "*":
+            if needed["name"] in position and needed["name"] != each["name"] and needed["req"] != "*":
                 assert position[needed["name"]] < position[each["name"]], f"{needed['name']} before {each['name']}"
         assert each["publish"] != [], f"{each['name']} is needed and cannot be published"
         assert each["description"] and each["license"] == "MIT" and each["repository"], each["name"]

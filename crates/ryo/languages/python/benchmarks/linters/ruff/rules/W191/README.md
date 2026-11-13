@@ -1,0 +1,1 @@
+Supporting cohort rule for RUF100, with no shipped-default inventory credit. Physical indentation is read through existing source-match/span operations; quoted token contents are excluded. Shared explicit suppression edges publish matched directives. Runtime parity remains pending.

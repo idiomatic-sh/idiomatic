@@ -20,6 +20,8 @@ pub(crate) enum Unresolved {
     InterpolatedString = 21,
     /// A requirement that writes a URL or a file and no name: the distribution names itself only once it is built.
     UnnamedRequirement = 22,
+    /// No proven canonical import or builtin origin exists for this expression.
+    QualifiedOrigin = 23,
 }
 
 /// Whether an expression writes a dotted name: a name, or attributes of one.
@@ -60,7 +62,7 @@ pub(crate) enum Knownness {
 
 /// Whether an expression is the object of an attribute that is read, and so part of the longer dotted name the attribute writes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Reading {
+pub(crate) enum NameReading {
     /// It is the object of an attribute that is read.
     ObjectOfRead,
     /// It stands on its own.

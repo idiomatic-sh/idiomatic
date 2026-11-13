@@ -70,6 +70,11 @@ mod syntax_error {
 mod syntax_tree {
     include!("../../tests/fixtures/relations/syntax_tree/expected.rs");
 }
+
+/// Independently expected source coordinates for a minimal input.
+mod source_location {
+    include!("../../tests/fixtures/relations/source_location/expected.rs");
+}
 /// The rows the `visibility` relation must give for its fixture.
 mod visibility {
     include!("../../tests/fixtures/relations/visibility/expected.rs");
@@ -91,8 +96,11 @@ pub(super) fn expected() -> Vec<Expected> {
         static_import::expected(),
         string_literal::expected(),
         syntax_child::expected(),
+        semantic_child::expected(),
         syntax_error::expected(),
         syntax_tree::expected(),
+        semantic_syntax::expected(),
+        source_location::expected(),
         visibility::expected(),
     ]
 }
@@ -203,4 +211,14 @@ pub(super) fn unfilled() -> Vec<Unfilled> {
         });
     }
     unfilled
+}
+
+/// Native syntax is preserved by the semantic projection.
+mod semantic_syntax {
+    include!("../../tests/fixtures/relations/semantic_syntax/expected.rs");
+}
+
+/// Native syntax is preserved by the semantic projection.
+mod semantic_child {
+    include!("../../tests/fixtures/relations/semantic_child/expected.rs");
 }

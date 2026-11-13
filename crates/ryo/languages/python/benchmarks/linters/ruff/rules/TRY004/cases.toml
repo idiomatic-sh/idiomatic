@@ -1,0 +1,137 @@
+[[cases]]
+name = "direct-isinstance"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        raise ValueError()\n" }
+expected = [{ rule = "TRY004", file = "case.py", start = 53, end = 71 }]
+
+[[cases]]
+name = "nested-async-function-raise-is-outside-guard"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        async def inner():\n            raise ValueError()\n" }
+expected = []
+
+[[cases]]
+name = "nested-sync-function-raise-control"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        def inner():\n            raise ValueError()\n" }
+expected = []
+
+[[cases]]
+name = "direct-issubclass"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if issubclass(value, int):\n        raise ValueError()\n" }
+expected = [{ rule = "TRY004", file = "case.py", start = 53, end = 71 }]
+
+[[cases]]
+name = "direct-callable"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if callable(value):\n        raise ValueError()\n" }
+expected = [{ rule = "TRY004", file = "case.py", start = 46, end = 64 }]
+
+[[cases]]
+name = "boolop"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int) and callable(value):\n        raise ValueError()\n" }
+expected = [{ rule = "TRY004", file = "case.py", start = 73, end = 91 }]
+
+[[cases]]
+name = "not-boolop"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if not (isinstance(value, int) or callable(value)):\n        raise ValueError()\n" }
+expected = [{ rule = "TRY004", file = "case.py", start = 78, end = 96 }]
+
+[[cases]]
+name = "else-wrong-exception"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        pass\n    else:\n        raise ValueError()\n" }
+expected = [{ rule = "TRY004", file = "case.py", start = 76, end = 94 }]
+
+[[cases]]
+name = "typeerror-ok"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        raise TypeError()\n" }
+expected = []
+
+[[cases]]
+name = "non-type-check"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if value:\n        raise ValueError()\n" }
+expected = []
+
+[[cases]]
+name = "nonbuiltin-shadow"
+comparison = "full"
+files = { "case.py" = "isinstance = lambda *args: True\ndef f(value):\n    if isinstance(value, int):\n        raise ValueError()\n" }
+expected = []
+
+[[cases]]
+name = "wrong-exception-attribute"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        raise errors.ValueError()\n" }
+expected = []
+
+[[cases]]
+name = "wrong-exception-aliased-builtin"
+comparison = "full"
+files = { "case.py" = "from builtins import ValueError as Invalid\ndef f(value):\n    if isinstance(value, int):\n        raise Invalid()\n" }
+expected = []
+
+[[cases]]
+name = "after-return"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        return\n        raise ValueError()\n" }
+expected = []
+
+[[cases]]
+name = "after-nested-return"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        if value:\n            return\n        raise ValueError()\n" }
+expected = []
+
+[[cases]]
+name = "raise-before-return"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        raise ValueError()\n        return\n" }
+expected = [{ rule = "TRY004", file = "case.py", start = 53, end = 71 }]
+
+[[cases]]
+name = "nested-if-nontype-parent"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if value:\n        if isinstance(value, int):\n            raise ValueError()\n" }
+expected = []
+
+[[cases]]
+name = "nested-if-type-parent"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        if callable(value):\n            raise ValueError()\n" }
+expected = [{ rule = "TRY004", file = "case.py", start = 85, end = 103 }]
+
+[[cases]]
+name = "elif-type-check"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        pass\n    elif callable(value):\n        raise ValueError()\n" }
+expected = [{ rule = "TRY004", file = "case.py", start = 92, end = 110 }]
+
+[[cases]]
+name = "elif-nontype-check"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        pass\n    elif value:\n        raise ValueError()\n" }
+expected = []
+
+[[cases]]
+name = "elif-invalid-skips-else"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        pass\n    elif value:\n        pass\n    else:\n        raise ValueError()\n" }
+expected = []
+
+[[cases]]
+name = "elif-valid-then-else"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        pass\n    elif callable(value):\n        raise ValueError()\n    else:\n        raise LookupError()\n" }
+expected = [{ rule = "TRY004", file = "case.py", start = 92, end = 110 }, { rule = "TRY004", file = "case.py", start = 129, end = 148 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        raise ValueError()  # noqa: TRY004\n" }
+expected = []

@@ -1,0 +1,671 @@
+[[cases]]
+name = "unannotated-call-control"
+files = { "case.pyi" = "value = factory()\n" }
+expected = []
+
+[[cases]]
+name = "annotated-call"
+files = { "case.pyi" = "value: int = factory()\n" }
+expected = [{ file = "case.pyi", start = 13, end = 22 }]
+
+[[cases]]
+name = "simple-literal-control"
+files = { "case.pyi" = "value = 1\n" }
+expected = []
+
+[[cases]]
+name = "typevar-control"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\n" }
+expected = []
+
+[[cases]]
+name = "type-alias-annotation-control"
+files = { "case.pyi" = "from typing import TypeAlias\nAlias: TypeAlias = factory()\n" }
+expected = []
+
+[[cases]]
+name = "python-control"
+files = { "case.py" = "value = factory()\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI042-shadowed-typealias-control"
+comparison = "full"
+files = { "case.pyi" = "TypeAlias = object\nfoo: TypeAlias = int\n" }
+expected = [{ end = 39, file = "case.pyi", rule = "PYI015", start = 36 }]
+
+[[cases]]
+name = "cross-PYI052-dict-expansion-control"
+comparison = "full"
+files = { "case.pyi" = "value = {**mapping}\n" }
+expected = [{ end = 19, file = "case.pyi", rule = "PYI015", start = 8 }]
+
+[[cases]]
+name = "cross-PYI052-unapproved-arithmetic-control"
+comparison = "full"
+files = { "case.pyi" = "value = 5 * 5\n" }
+expected = [{ end = 13, file = "case.pyi", rule = "PYI015", start = 8 }]
+
+[[cases]]
+name = "cross-PYI052-complex-expression-long-real-control"
+comparison = "full"
+files = { "case.pyi" = "value = 12345678901 + 42j\n" }
+expected = [{ end = 25, file = "case.pyi", rule = "PYI015", start = 8 }]
+
+[[cases]]
+name = "cross-PYI052-unary-plus-control"
+comparison = "full"
+files = { "case.pyi" = "value = +1\n" }
+expected = [{ end = 10, file = "case.pyi", rule = "PYI015", start = 8 }]
+
+[[cases]]
+name = "cross-PYI052-container-too-many-elements-control"
+comparison = "full"
+files = { "case.pyi" = "value = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]\n" }
+expected = [{ end = 43, file = "case.pyi", rule = "PYI015", start = 8 }]
+
+[[cases]]
+name = "cross-PYI055-tagged-PYI055.pyi"
+comparison = "full"
+files = { "PYI055.pyi" = "import builtins\nfrom typing import Union\n\ns: builtins.type[int] | builtins.type[str] | builtins.type[complex]\nt: type[int] | type[str] | type[float]\nu: builtins.type[int] | type[str] | builtins.type[complex]\nv: Union[type[float], type[complex]]\nw: Union[type[Union[float, int]], type[complex]]\nx: Union[Union[type[Union[float, int]], type[complex]]]\ny: Union[Union[Union[type[Union[float, int]], type[complex]]]]\nz: Union[type[complex], Union[Union[type[Union[float, int]]]]]\n\ndef func(arg: type[int] | str | type[float]) -> None: ...\n\n# OK\nx: type[int | str | float]\ny: builtins.type[int | str | complex]\nz: Union[float, complex]\n\ndef func(arg: type[int, float] | str) -> None: ...\n\n# PYI055\nitem: type[requests_mock.Mocker] | type[httpretty] = requests_mock.Mocker\n\ndef func():\n    # PYI055\n    item: type[requests_mock.Mocker] | type[httpretty] | type[str] = requests_mock.Mocker\n    item2: Union[type[requests_mock.Mocker], type[httpretty], type[str]] = requests_mock.Mocker\n    item3: Union[  # comment\n        type[requests_mock.Mocker], # another comment\n        type[httpretty], type[str]] = requests_mock.Mocker\n\n\n# OK\nw: Union[type[float, int], type[complex]]\nx: Union[Union[type[float, int], type[complex]]]\ny: Union[Union[Union[type[float, int], type[complex]]]]\nz: Union[type[complex], Union[Union[type[float, int]]]]\n" }
+expected = [{ end = 766, file = "PYI055.pyi", rule = "PYI015", start = 746 }]
+
+[[cases]]
+name = "cross-PYI052-negative-nan-attribute-control"
+comparison = "full"
+files = { "case.pyi" = "import math\nvalue = -math.nan\n" }
+expected = [{ end = 29, file = "case.pyi", rule = "PYI015", start = 20 }]
+
+[[cases]]
+name = "cross-PYI052-nested-container-control"
+comparison = "full"
+files = { "case.pyi" = "value = [1, [2]]\n" }
+expected = [{ end = 16, file = "case.pyi", rule = "PYI015", start = 8 }]
+
+[[cases]]
+name = "cross-PYI047-shadowed-typealias-is-not-typing-typealias"
+comparison = "full"
+files = { "case.pyi" = "from custom import TypeAlias\n_Private: TypeAlias = int\n" }
+expected = [{ end = 54, file = "case.pyi", rule = "PYI015", start = 51 }]
+
+[[cases]]
+name="policy-plain-0"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = {**mapping}\n"}
+expected=[{rule="PYI015", file="case.pyi", start=27, end=38}]
+
+[[cases]]
+name="policy-annotated-1"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = {**mapping}\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=46}]
+
+[[cases]]
+name="policy-plain-2"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = 5*5\n"}
+expected=[{rule="PYI015", file="case.pyi", start=27, end=30}]
+
+[[cases]]
+name="policy-annotated-3"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = 5*5\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=38}]
+
+[[cases]]
+name="policy-plain-4"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = 12345678901+42j\n"}
+expected=[{rule="PYI015", file="case.pyi", start=27, end=42}]
+
+[[cases]]
+name="policy-annotated-5"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = 12345678901+42j\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=50}]
+
+[[cases]]
+name="policy-plain-6"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = +1\n"}
+expected=[{rule="PYI015", file="case.pyi", start=27, end=29}]
+
+[[cases]]
+name="policy-annotated-7"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = +1\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=37}]
+
+[[cases]]
+name="policy-plain-8"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = -1\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-9"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = -1\n"}
+expected=[]
+
+[[cases]]
+name="policy-plain-10"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = -42j\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-11"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = -42j\n"}
+expected=[]
+
+[[cases]]
+name="policy-plain-12"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = 5+42j\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-13"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = 5+42j\n"}
+expected=[]
+
+[[cases]]
+name="policy-plain-14"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = -5-42j\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-15"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = -5-42j\n"}
+expected=[]
+
+[[cases]]
+name="policy-plain-16"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = 0xFFFFFFFF+42j\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-17"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = 0xFFFFFFFF+42j\n"}
+expected=[]
+
+[[cases]]
+name="policy-plain-18"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = 0xFFFFFFFFF+42j\n"}
+expected=[{rule="PYI015", file="case.pyi", start=27, end=42}]
+
+[[cases]]
+name="policy-annotated-19"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = 0xFFFFFFFFF+42j\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=50}]
+
+[[cases]]
+name="policy-plain-20"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = (1234567890)+42j\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-21"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = (1234567890)+42j\n"}
+expected=[]
+
+[[cases]]
+name="policy-plain-22"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = []\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-23"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = []\n"}
+expected=[]
+
+[[cases]]
+name="policy-plain-24"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = [[]]\n"}
+expected=[{rule="PYI015", file="case.pyi", start=27, end=31}]
+
+[[cases]]
+name="policy-annotated-25"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = [[]]\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=39}]
+
+[[cases]]
+name="policy-plain-26"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = [1,2,3]\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-27"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = [1,2,3]\n"}
+expected=[]
+
+[[cases]]
+name="policy-plain-28"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = [1]*3\n"}
+expected=[{rule="PYI015", file="case.pyi", start=27, end=32}]
+
+[[cases]]
+name="policy-annotated-29"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = [1]*3\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=40}]
+
+[[cases]]
+name="policy-plain-30"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = [math.inf,-math.inf,math.nan]\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-31"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = [math.inf,-math.inf,math.nan]\n"}
+expected=[]
+
+[[cases]]
+name="policy-plain-32"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = [math.inf,[1]]\n"}
+expected=[{rule="PYI015", file="case.pyi", start=27, end=41}]
+
+[[cases]]
+name="policy-annotated-33"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = [math.inf,[1]]\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=49}]
+
+[[cases]]
+name="policy-plain-34"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = {\"x\":math.pi}\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-35"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = {\"x\":math.pi}\n"}
+expected=[]
+
+[[cases]]
+name="policy-plain-36"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = {**{}}\n"}
+expected=[{rule="PYI015", file="case.pyi", start=27, end=33}]
+
+[[cases]]
+name="policy-annotated-37"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = {**{}}\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=41}]
+
+[[cases]]
+name="policy-plain-38"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = {1:2,**{3:4}}\n"}
+expected=[{rule="PYI015", file="case.pyi", start=27, end=40}]
+
+[[cases]]
+name="policy-annotated-39"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = {1:2,**{3:4}}\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=48}]
+
+[[cases]]
+name="policy-plain-40"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = ()\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-41"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = ()\n"}
+expected=[]
+
+[[cases]]
+name="policy-plain-42"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = (1,)\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-43"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = (1,)\n"}
+expected=[]
+
+[[cases]]
+name="policy-plain-44"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = (1,)*2\n"}
+expected=[{rule="PYI015", file="case.pyi", start=27, end=33}]
+
+[[cases]]
+name="policy-annotated-45"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = (1,)*2\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=41}]
+
+[[cases]]
+name="policy-plain-46"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = None\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-47"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = None\n"}
+expected=[]
+
+[[cases]]
+name="policy-plain-48"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-49"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = ...\n"}
+expected=[]
+
+[[cases]]
+name="policy-plain-50"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = factory()\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-51"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = factory()\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=44}]
+
+[[cases]]
+name="policy-plain-52"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = math.inf\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-53"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = math.inf\n"}
+expected=[]
+
+[[cases]]
+name="policy-plain-54"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = sys.platform\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-55"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = sys.platform\n"}
+expected=[]
+
+[[cases]]
+name="policy-plain-56"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = -math.nan\n"}
+expected=[{rule="PYI015", file="case.pyi", start=27, end=36}]
+
+[[cases]]
+name="policy-annotated-57"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = -math.nan\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=44}]
+
+[[cases]]
+name="policy-plain-58"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = -math.pi\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-59"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = -math.pi\n"}
+expected=[]
+
+[[cases]]
+name="policy-plain-60"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = math.pi+42j\n"}
+expected=[{rule="PYI015", file="case.pyi", start=27, end=38}]
+
+[[cases]]
+name="policy-annotated-61"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = math.pi+42j\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=46}]
+
+[[cases]]
+name="policy-plain-62"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = int|None\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-63"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = int|None\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=43}]
+
+[[cases]]
+name="policy-plain-64"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = (int|None)|list[int]\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-65"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = (int|None)|list[int]\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=55}]
+
+[[cases]]
+name="policy-plain-66"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = int|1\n"}
+expected=[{rule="PYI015", file="case.pyi", start=27, end=32}]
+
+[[cases]]
+name="policy-annotated-67"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = int|1\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=40}]
+
+[[cases]]
+name="policy-plain-68"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = int|(str+bytes)\n"}
+expected=[{rule="PYI015", file="case.pyi", start=27, end=42}]
+
+[[cases]]
+name="policy-annotated-69"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = int|(str+bytes)\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=50}]
+
+[[cases]]
+name="policy-plain-70"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx = typing.Union[int,str]\n"}
+expected=[]
+
+[[cases]]
+name="policy-annotated-71"
+comparison="full"
+files={"case.pyi"="import math,sys,typing\nx: object = typing.Union[int,str]\n"}
+expected=[{rule="PYI015", file="case.pyi", start=35, end=56}]
+
+[[cases]]
+name="policy-eleven-elements"
+comparison="full"
+files={"case.pyi"="x:object=[0,1,2,3,4,5,6,7,8,9,10]\n"}
+expected=[{rule="PYI015", file="case.pyi", start=9, end=33}]
+
+[[cases]]
+name="policy-ten-elements"
+comparison="full"
+files={"case.pyi"="x:object=[0,1,2,3,4,5,6,7,8,9]\n"}
+expected=[]
+
+[[cases]]
+name="policy-final-name"
+comparison="full"
+files={"case.pyi"="from typing import Final\nx:Final=some_name\n"}
+expected=[]
+
+[[cases]]
+name="policy-final-subscript"
+comparison="full"
+files={"case.pyi"="from typing import Final\nx:Final[int]=some_name\n"}
+expected=[{rule="PYI015", file="case.pyi", start=38, end=47}]
+
+[[cases]]
+name="policy-final-attribute"
+comparison="full"
+files={"case.pyi"="from typing import Final\nx:Final=module.attribute\n"}
+expected=[]
+
+[[cases]]
+name="policy-final-call"
+comparison="full"
+files={"case.pyi"="from typing import Final\nx:Final=factory()\n"}
+expected=[{rule="PYI015", file="case.pyi", start=33, end=42}]
+
+[[cases]]
+name="policy-typealias-shadow"
+comparison="full"
+files={"case.pyi"="from typing import TypeAlias\nTypeAlias=object\nx:TypeAlias=factory()\n"}
+expected=[{rule="PYI015", file="case.pyi", start=58, end=67}]
+
+[[cases]]
+name="policy-typevar-shadow"
+comparison="full"
+files={"case.pyi"="from typing import TypeVar\nTypeVar=object\nx:object=TypeVar(\"T\")\n"}
+expected=[{rule="PYI015", file="case.pyi", start=51, end=63}]
+
+[[cases]]
+name="policy-newtype-annotated"
+comparison="full"
+files={"case.pyi"="from typing import NewType\nx:object=NewType(\"X\",int)\n"}
+expected=[]
+
+[[cases]]
+name="policy-extension-newtype"
+comparison="full"
+files={"case.pyi"="from typing_extensions import NewType\nx:object=NewType(\"X\",int)\n"}
+expected=[]
+
+[[cases]]
+name="policy-module-all"
+comparison="full"
+files={"case.pyi"="__all__:list[str]=factory()\n"}
+expected=[]
+
+[[cases]]
+name="policy-class-slots"
+comparison="full"
+files={"case.pyi"="class C:\n __slots__:object=factory()\n"}
+expected=[]
+
+[[cases]]
+name="policy-class-all"
+comparison="full"
+files={"case.pyi"="class C:\n __all__:object=factory()\n"}
+expected=[{rule="PYI015", file="case.pyi", start=25, end=34}]
+
+[[cases]]
+name="policy-module-slots"
+comparison="full"
+files={"case.pyi"="__slots__:object=factory()\n"}
+expected=[{rule="PYI015", file="case.pyi", start=17, end=26}]
+
+[[cases]]
+name="policy-async-local"
+comparison="full"
+files={"case.pyi"="async def f():\n x:object=factory()\n"}
+expected=[]
+
+[[cases]]
+name="policy-nested-class-in-function"
+comparison="full"
+files={"case.pyi"="def f():\n class C:\n  x:object=factory()\n"}
+expected=[]
+
+[[cases]]
+name="policy-attribute-target"
+comparison="full"
+files={"case.pyi"="obj.attr:object=factory()\n"}
+expected=[{rule="PYI015", file="case.pyi", start=16, end=25}]
+
+[[cases]]
+name="policy-tuple-target"
+comparison="full"
+files={"case.pyi"="x,y=[[],[]]\n"}
+expected=[]
+
+[[cases]]
+name="policy-multiple-target"
+comparison="full"
+files={"case.pyi"="x=y=[[],[]]\n"}
+expected=[]
+
+[[cases]]
+name="policy-runtime-file"
+comparison="full"
+files={"case.py"="x:object=factory()\n"}
+expected=[]
+
+[[cases]]
+name="tagged-PYI015.py"
+comparison="full"
+files={"PYI015.py"="import builtins\nimport typing\nfrom typing import TypeAlias, Final\n\nfield1: int\nfield2: int = ...\nfield3 = ...  # type: int  # Y033 Do not use type comments in stubs (e.g. use \"x: int\" instead of \"x = ... # type: int\")\nfield4: int = 0\nfield41: int = 0xFFFFFFFF\nfield42: int = 1234567890\nfield43: int = -0xFFFFFFFF\nfield44: int = -1234567890\nfield5 = 0  # type: int  # Y033 Do not use type comments in stubs (e.g. use \"x: int\" instead of \"x = ... # type: int\")  # Y052 Need type annotation for \"field5\"\nfield6 = 0  # Y052 Need type annotation for \"field6\"\nfield7 = b\"\"  # Y052 Need type annotation for \"field7\"\nfield71 = \"foo\"  # Y052 Need type annotation for \"field71\"\nfield72: str = \"foo\"\nfield8 = False  # Y052 Need type annotation for \"field8\"\nfield81 = -1  # Y052 Need type annotation for \"field81\"\nfield82: float = -98.43\nfield83 = -42j  # Y052 Need type annotation for \"field83\"\nfield84 = 5 + 42j  # Y052 Need type annotation for \"field84\"\nfield85 = -5 - 42j  # Y052 Need type annotation for \"field85\"\nfield9 = None  # Y026 Use typing_extensions.TypeAlias for type aliases, e.g. \"field9: TypeAlias = None\"\nField95: TypeAlias = None\nField96: TypeAlias = int | None\nField97: TypeAlias = None | typing.SupportsInt | builtins.str | float | bool\nfield19 = [1, 2, 3]  # Y052 Need type annotation for \"field19\"\nfield191: list[int] = [1, 2, 3]\nfield20 = (1, 2, 3)  # Y052 Need type annotation for \"field20\"\nfield201: tuple[int, ...] = (1, 2, 3)\nfield21 = {1, 2, 3}  # Y052 Need type annotation for \"field21\"\nfield211: set[int] = {1, 2, 3}\nfield212 = {\"foo\": \"bar\"}  # Y052 Need type annotation for \"field212\"\nfield213: dict[str, str] = {\"foo\": \"bar\"}\nfield22: Final = {\"foo\": 5}\nfield221: list[int] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]  # Y015 Only simple default values are allowed for assignments\nfield223: list[int] = [*range(10)]  # Y015 Only simple default values are allowed for assignments\nfield224: list[int] = list(range(10))  # Y015 Only simple default values are allowed for assignments\nfield225: list[object] = [{}, 1, 2]  # Y015 Only simple default values are allowed for assignments\nfield226: tuple[str | tuple[str, ...], ...] = (\"foo\", (\"foo\", \"bar\"))  # Y015 Only simple default values are allowed for assignments\nfield227: dict[str, object] = {\"foo\": {\"foo\": \"bar\"}}  # Y015 Only simple default values are allowed for assignments\nfield228: dict[str, list[object]] = {\"foo\": []}  # Y015 Only simple default values are allowed for assignments\n# When parsed, this case results in `None` being placed in the `.keys` list for the `ast.Dict` node\nfield229: dict[int, int] = {1: 2, **{3: 4}}  # Y015 Only simple default values are allowed for assignments\nfield23 = \"foo\" + \"bar\"  # Y015 Only simple default values are allowed for assignments\nfield24 = b\"foo\" + b\"bar\"  # Y015 Only simple default values are allowed for assignments\nfield25 = 5 * 5  # Y015 Only simple default values are allowed for assignments\n\n# We shouldn't emit Y015 within functions\ndef f():\n  field26: list[int] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]\n\n\n# We shouldn't emit Y015 for __slots__ or __match_args__\nclass Class1:\n  __slots__ = (\n    '_one',\n    '_two',\n    '_three',\n    '_four',\n    '_five',\n    '_six',\n    '_seven',\n    '_eight',\n    '_nine',\n    '_ten',\n    '_eleven',\n  )\n\n  __match_args__ = (\n    'one',\n    'two',\n    'three',\n    'four',\n    'five',\n    'six',\n    'seven',\n    'eight',\n    'nine',\n    'ten',\n    'eleven',\n  )\n\n# We shouldn't emit Y015 for __all__\n__all__ = [\"Class1\"]\n\n# Ignore the following for PYI015\nfield26 = typing.Sequence[int]\nfield27 = list[str]\nfield28 = builtins.str\nfield29 = str\nfield30 = str | bytes | None\nfield31: typing.Final = field30\n"}
+expected=[]
+
+[[cases]]
+name="tagged-PYI015.pyi"
+comparison="full"
+files={"PYI015.pyi"="import builtins\nimport typing\nfrom typing import TypeAlias, Final, NewType, TypeVar, TypeVarTuple, ParamSpec\n\n# We shouldn't emit Y015 for simple default values\nfield1: int\nfield2: int = ...\nfield3 = ...  # type: int  # Y033 Do not use type comments in stubs (e.g. use \"x: int\" instead of \"x = ... # type: int\")\nfield4: int = 0\nfield41: int = 0xFFFFFFFF\nfield42: int = 1234567890\nfield43: int = -0xFFFFFFFF\nfield44: int = -1234567890\nfield5 = 0  # type: int  # Y033 Do not use type comments in stubs (e.g. use \"x: int\" instead of \"x = ... # type: int\")  # Y052 Need type annotation for \"field5\"\nfield6 = 0  # Y052 Need type annotation for \"field6\"\nfield7 = b\"\"  # Y052 Need type annotation for \"field7\"\nfield71 = \"foo\"  # Y052 Need type annotation for \"field71\"\nfield72: str = \"foo\"\nfield8 = False  # Y052 Need type annotation for \"field8\"\nfield81 = -1  # Y052 Need type annotation for \"field81\"\nfield82: float = -98.43\nfield83 = -42j  # Y052 Need type annotation for \"field83\"\nfield84 = 5 + 42j  # Y052 Need type annotation for \"field84\"\nfield85 = -5 - 42j  # Y052 Need type annotation for \"field85\"\nfield9 = None  # Y026 Use typing_extensions.TypeAlias for type aliases, e.g. \"field9: TypeAlias = None\"\nField95: TypeAlias = None\nField96: TypeAlias = int | None\nField97: TypeAlias = None | typing.SupportsInt | builtins.str | float | bool\nField98 = NewType('MyInt', int)\nField99 = TypeVar('Field99')\nField100 = TypeVarTuple('Field100')\nField101 = ParamSpec('Field101')\nfield19 = [1, 2, 3]  # Y052 Need type annotation for \"field19\"\nfield191: list[int] = [1, 2, 3]\nfield20 = (1, 2, 3)  # Y052 Need type annotation for \"field20\"\nfield201: tuple[int, ...] = (1, 2, 3)\nfield21 = {1, 2, 3}  # Y052 Need type annotation for \"field21\"\nfield211: set[int] = {1, 2, 3}\nfield212 = {\"foo\": \"bar\"}  # Y052 Need type annotation for \"field212\"\nfield213: dict[str, str] = {\"foo\": \"bar\"}\nfield22: Final = {\"foo\": 5}\n\n# We *should* emit Y015 for more complex default values\nfield221: list[int] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]  # Y015 Only simple default values are allowed for assignments\nfield223: list[int] = [*range(10)]  # Y015 Only simple default values are allowed for assignments\nfield224: list[int] = list(range(10))  # Y015 Only simple default values are allowed for assignments\nfield225: list[object] = [{}, 1, 2]  # Y015 Only simple default values are allowed for assignments\nfield226: tuple[str | tuple[str, ...], ...] = (\"foo\", (\"foo\", \"bar\"))  # Y015 Only simple default values are allowed for assignments\nfield227: dict[str, object] = {\"foo\": {\"foo\": \"bar\"}}  # Y015 Only simple default values are allowed for assignments\nfield228: dict[str, list[object]] = {\"foo\": []}  # Y015 Only simple default values are allowed for assignments\n# When parsed, this case results in `None` being placed in the `.keys` list for the `ast.Dict` node\nfield229: dict[int, int] = {1: 2, **{3: 4}}  # Y015 Only simple default values are allowed for assignments\nfield23 = \"foo\" + \"bar\"  # Y015 Only simple default values are allowed for assignments\nfield24 = b\"foo\" + b\"bar\"  # Y015 Only simple default values are allowed for assignments\nfield25 = 5 * 5  # Y015 Only simple default values are allowed for assignments\n\n# We shouldn't emit Y015 within functions\ndef f():\n  field26: list[int] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]\n\n\n# We shouldn't emit Y015 for __slots__ or __match_args__\nclass Class1:\n  __slots__ = (\n    '_one',\n    '_two',\n    '_three',\n    '_four',\n    '_five',\n    '_six',\n    '_seven',\n    '_eight',\n    '_nine',\n    '_ten',\n    '_eleven',\n  )\n\n  __match_args__ = (\n    'one',\n    'two',\n    'three',\n    'four',\n    'five',\n    'six',\n    'seven',\n    'eight',\n    'nine',\n    'ten',\n    'eleven',\n  )\n\n# We shouldn't emit Y015 for __all__\n__all__ = [\"Class1\"]\n\n# Ignore the following for PYI015\nfield26 = typing.Sequence[int]\nfield27 = list[str]\nfield28 = builtins.str\nfield29 = str\nfield30 = str | bytes | None\nfield31: typing.Final = field30\n"}
+expected=[{rule="PYI015", file="PYI015.pyi", start=1979, end=2014}, {rule="PYI015", file="PYI015.pyi", start=2100, end=2112}, {rule="PYI015", file="PYI015.pyi", start=2198, end=2213}, {rule="PYI015", file="PYI015.pyi", start=2302, end=2312}, {rule="PYI015", file="PYI015.pyi", start=2422, end=2445}, {rule="PYI015", file="PYI015.pyi", start=2539, end=2562}, {rule="PYI015", file="PYI015.pyi", start=2662, end=2673}, {rule="PYI015", file="PYI015.pyi", start=2864, end=2880}, {rule="PYI015", file="PYI015.pyi", start=2954, end=2967}, {rule="PYI015", file="PYI015.pyi", start=3041, end=3056}, {rule="PYI015", file="PYI015.pyi", start=3130, end=3135}]
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-cross-PYI052-unary-plus-control"
+comparison = "full"
+files = { "case.pyi" = "value = +1  # noqa: E501, PYI015\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-cross-PYI052-unary-plus-control"
+comparison = "full"
+files = { "case.pyi" = "value = +1  # noqa: E501,PYI015\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-cross-PYI052-unary-plus-control"
+comparison = "full"
+files = { "case.pyi" = "value = +1  # noqa: PYI015 # why\n" }
+expected = []

@@ -1,0 +1,2 @@
+let witness = select * from "expression-type";
+emit witness subject file key(id, resolution, type);

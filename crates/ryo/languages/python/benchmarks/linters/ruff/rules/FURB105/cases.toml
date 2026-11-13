@@ -1,0 +1,77 @@
+[[cases]]
+name = "empty-single"
+comparison = "full"
+files = { "case.py" = "print(\"\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 9 }]
+
+[[cases]]
+name = "empty-single-with-separator"
+comparison = "full"
+files = { "case.py" = "print(\"\", sep=\"\\t\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 19 }]
+
+[[cases]]
+name = "separator-without-arguments"
+comparison = "full"
+files = { "case.py" = "print(sep=\"\\t\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 15 }]
+
+[[cases]]
+name = "separator-with-one-nonempty-argument"
+comparison = "full"
+files = { "case.py" = "print(\"x\", sep=\"\\t\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "empty-argument-with-empty-separator"
+comparison = "full"
+files = { "case.py" = "print(\"x\", \"\", \"y\", sep=\"\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 27 }]
+
+[[cases]]
+name = "empty-separator-no-empty-argument"
+comparison = "full"
+files = { "case.py" = "print(\"x\", \"y\", sep=\"\")\n" }
+expected = []
+
+[[cases]]
+name = "nonempty-separator"
+comparison = "full"
+files = { "case.py" = "print(\"x\", \"\", \"y\", sep=\":\")\n" }
+expected = []
+
+[[cases]]
+name = "empty-argument-with-default-separator"
+comparison = "full"
+files = { "case.py" = "print(\"x\", \"\", \"y\")\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-print"
+comparison = "full"
+files = { "case.py" = "def print(*args, **kwargs):\n    pass\nprint(\"\")\n" }
+expected = []
+
+[[cases]]
+name = "star-kwargs-abort"
+comparison = "full"
+files = { "case.py" = "print(\"x\", \"\", \"y\", sep=\"\", **kwargs)\n" }
+expected = []
+
+[[cases]]
+name = "starred-single-argument"
+comparison = "full"
+files = { "case.py" = "print(\"\", *args)\n" }
+expected = []
+
+[[cases]]
+name = "noqa-suppression"
+comparison = "full"
+files = { "case.py" = "print(\"\")  # noqa: FURB105\n" }
+expected = []
+
+[[cases]]
+name = "nonbuiltin-print"
+comparison = "full"
+files = { "case.py" = "from custom import print\nprint(\"\")\n" }
+expected = []

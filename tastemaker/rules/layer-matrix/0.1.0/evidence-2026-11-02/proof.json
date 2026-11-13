@@ -1,0 +1,62 @@
+{
+  "schema": "tm-source-bound-validation/v1",
+  "base": "f1c0d0e53ac54367583b0460a56acf96ea415611",
+  "patch_sha256": "499abc2f8346380d960e8b2b48299d83cf3deb6667757e4287e61264b3668078",
+  "tool": {
+    "path": "/usr/local/cargo/bin/tm",
+    "sha256": "e3023f604f9c04f0c95896deb9e857b647e2b6594d82d4ebe876e710d7326053",
+    "version": "tm 0.1.0"
+  },
+  "command": [
+    "/usr/local/cargo/bin/tm",
+    "validate",
+    "--root",
+    "crates/ryo",
+    "idiomatic.arch/rule/layer-matrix@0.1.0",
+    "--format",
+    "json"
+  ],
+  "directory": "/tmp/relation-layer-guard-source-20261102",
+  "exit_code": 0,
+  "result": {
+    "proven": 1,
+    "kept": 0,
+    "failed": []
+  },
+  "output_file": "/tmp/relation-layer-matrix-semantic-20261102.json",
+  "output_sha256": "00be585cc8569444e285f02d04e85adb2d56290897fa878d4179ea275e54c9c0",
+  "stderr_file": "/tmp/relation-layer-matrix-semantic-20261102.stderr",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "source_inputs": {
+    "tastemaker/rules/layer-matrix/0.1.0/rule.toml": "f070cab124586285163e436ecd873d7acc7aeae0f45880885134ec814cebe5ea",
+    "crates/ryo/tastemaker.toml": "3c08fe834a1933f7a0bc72f4e223db133fe3b5f2228a1c6db70dbf8a3c2bd770",
+    "tastemaker.lock": "2348b1b39b4f0d14b89d830f803b27b2b28fa7be45016650e457e157b5ff548a",
+    "crates/ryo/tastemaker.lock": "3cc654c54adde5a1dbd7e9b64500f1602b23720277f3688a6a1af502547fb8e7"
+  },
+  "total_scenarios": 30,
+  "new_scenario_expectations": {
+    "domain-cannot-construct-application-executor": [
+      {
+        "path": "src/domain/service.rs",
+        "line": 1
+      }
+    ],
+    "application-owns-executor-construction": [],
+    "domain-test-cannot-import-application-helper": [
+      {
+        "path": "src/domain/service_test.rs",
+        "line": 1
+      }
+    ],
+    "application-test-may-use-its-execution-helper": [],
+    "application-coordinates-domain-reading-port": [],
+    "domain-message-is-not-a-runtime-dependency": []
+  },
+  "lockfiles_unchanged": true,
+  "workspace_check_run": false,
+  "rust_build_run": false,
+  "first_invalid_selector_receipts": [
+    "/tmp/relation-layer-matrix-invalid-selector-20261102.json",
+    "/tmp/relation-layer-matrix-invalid-selector-20261102.stderr"
+  ]
+}

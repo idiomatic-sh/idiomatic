@@ -1,12 +1,18 @@
 //! What the language's conformance is held to besides the files of its fixtures: how each kind of its trees is shown and the typed rows
 //! each fixture must give.
 
+#[cfg(test)]
+pub(crate) mod consulted_test;
 pub mod contracts;
+#[cfg(not(bless))]
+mod invalid_manifest;
 pub(crate) mod kinds;
 #[cfg(not(bless))]
 mod packages;
 #[cfg(not(bless))]
 mod patched;
+#[cfg(test)]
+pub(crate) mod project;
 #[cfg(test)]
 pub(crate) mod reading;
 #[cfg(not(bless))]
@@ -22,6 +28,7 @@ pub fn expected() -> Fixtures {
         kinds: kinds::shown(),
         relations: stated_relations(),
         manifests: stated_manifests(),
+        semantic: Vec::new(),
         shape: Shape::Walk(library::walk()),
         oracle: library::oracle(),
         unfilled: stated_unfilled(),
@@ -43,7 +50,11 @@ fn stated_relations() -> Vec<ryo::languages::contract::Expected> {
 /// The rows the manifest relations are held to.
 #[cfg(not(bless))]
 fn stated_manifests() -> Vec<ryo::languages::contract::ManifestExpected> {
-    vec![packages::expected(), patched::expected()]
+    vec![
+        invalid_manifest::expected(),
+        packages::expected(),
+        patched::expected(),
+    ]
 }
 
 /// The rows the manifest relations are held to: none while the relations' are written (`--bless`).

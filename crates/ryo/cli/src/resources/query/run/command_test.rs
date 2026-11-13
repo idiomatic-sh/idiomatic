@@ -211,7 +211,12 @@ fn edge_of(root: Option<&str>, format: crate::output::Format) -> crate::edge::Ed
         || here.clone(),
         |root| ryo_language::inbound::use_cases::project::types::RootPath(root.into()),
     );
-    crate::resources::edge_at(start, here, format)
+    crate::resources::edge_at(
+        start,
+        here,
+        ryo_values::domain::runs::types::MachineWorkers(1),
+        format,
+    )
 }
 
 /// Runs `query run` on one command line and returns what it printed or the outcome it ended with.

@@ -1,0 +1,69 @@
+description = "One domain concept's module file: its service and its test under #[cfg(test)]."
+why = "Declares one concept's service and the types and errors beside it, and the proof of each, so every concept of a domain compiles the same way and none runs untested. It declares the members every concept has; the module file lies outside the part and a template sees only its own instance, so the concept's optional types, errors and collections with their tests are held by the shared rule `module-declares`."
+content = '''
+//! The `{{ domain }}` domain's `{{ concept }}` concept.
+{#- The members are declared without a visibility, which a template that names none accepts as either; a language provider's are crate-private, `pub(crate)`, which its modules reach each other by. #}
+
+{%- set vis = "pub(crate) " if present["language-conformance-test"] | default(false) else "" %}
+{%- if present["service"] | default(false) %}
+{{ vis }}mod service;
+{%- endif %}
+{%- if present["types"] | default(false) %}
+{{ vis }}mod types;
+{%- endif %}
+{%- if present["errors"] | default(false) %}
+{{ vis }}mod errors;
+{%- endif %}
+{%- if present["collections"] | default(false) %}
+{{ vis }}mod collections;
+{%- endif %}
+
+{%- if present["unit-test"] | default(false) %}
+
+#[cfg(test)]
+mod service_test;
+{%- endif %}
+'''
+
+[params]
+domain = { type = "identifier", from = "directory-name", description = "The domain, its directory's name." }
+concept = { type = "identifier", description = "The concept, captured from its path." }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'src/greeting/domain/short.rs'
+given.params = { domain = 'greeting', concept = 'short' }
+given.files.'src/greeting/domain/short.rs' = '''
+//! The `greeting` domain's `short` concept.
+
+pub(crate) mod service;
+
+#[cfg(test)]
+mod service_test;
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.file = 'src/greeting/domain/short.rs'
+given.params = { domain = 'greeting', concept = 'short' }
+given.files.'src/greeting/domain/short.rs' = '''
+//! The `greeting` domain's `short` concept.
+
+pub(crate) mod service;
+
+#[cfg(test)]
+mod service_test;
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'src/greeting/domain/short.rs'
+given.params = { domain = 'greeting', concept = 'short' }
+then.findings = [
+  { rule = 'concept-module#count', path = '.' },
+]

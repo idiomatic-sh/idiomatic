@@ -9,16 +9,16 @@ use std::collections::{BTreeMap, BTreeSet};
 use rayon::prelude::*;
 
 use super::errors::TemplatePlacingError;
-use super::types::{Known, MatchedFile, PartNaming, TemplateMatch, TemplatesPlaced};
-use crate::domain::captures::types::Interpolations;
+use super::types::{Beside, Known, MatchedFile, PartNaming, TemplateMatch, TemplatesPlaced};
+use crate::domain::captures::types::{Captures, Interpolations};
 use crate::domain::definitions::types::LoadedWorkspace;
 use crate::domain::entries::service::{identity, reference};
 use crate::domain::entries::types::{Amount, EntryIdentity, TemplateEntry};
 use crate::domain::findings::constants::{COUNT, COVERAGE, MISSING, TEMPLATE};
 use crate::domain::findings::service::{check_id, error};
 use crate::domain::packages::types::DefinitionKind;
-use crate::domain::paths::service::{beneath, containment};
-use crate::domain::paths::types::{Containment, RepoPath};
+use crate::domain::paths::service::{beneath, containment, join, parent};
+use crate::domain::paths::types::{Containment, PathText, RepoPath};
 use crate::domain::scopes::service::composition_of;
 use crate::domain::scopes::types::{
     CompositionRef, EntryIndex, Matched, MatchedWorking, PlacedFile, Scope, ScopeIndex,
@@ -27,7 +27,7 @@ use crate::domain::selectors::service::{
     covering, covers_any, leading, names, place as place_pattern, resolve,
 };
 use crate::domain::selectors::types::{
-    Coverage, Match, PartInstance, PatternCompiler, PlacedPath, ResolvedSelectors,
+    Coverage, Match, PartInstance, PathMatcher, PatternCompiler, PlacedPath, ResolvedSelectors,
     SelectionContext, Selector, Selectors,
 };
 
@@ -174,12 +174,14 @@ pub(crate) fn templates(
 
 /// How many segments of the path an entry of `scope` places its template at are written out: those of the scope's
 /// directory, and each segment of its `file` with no glob and no capture, a value of the scope's put in place counting
-/// as written out.
+/// as written out, and a `{name:dir}` counting as any capture.
 fn specificity(scope: &Scope, entry: &TemplateEntry) -> Amount {
     let written = entry.file.0.split('/').filter(|segment| {
         pieces(Template(segment)).iter().all(|piece| match piece {
             PatternPiece::Literal(_) => true,
-            PatternPiece::Capture(name) | PatternPiece::Span(name) => {
+            PatternPiece::Capture(name)
+            | PatternPiece::Span(name)
+            | PatternPiece::Directory(name) => {
                 scope.values.0.keys().any(|known| &*known.0 == name.0)
             }
             PatternPiece::Star | PatternPiece::Question => false,
@@ -195,7 +197,9 @@ fn specificity(scope: &Scope, entry: &TemplateEntry) -> Amount {
     Amount(u32::try_from(count).unwrap_or(u32::MAX))
 }
 
-/// The files a template entry of `scope` matches beneath it, not in a nested instance and not excluded.
+/// The files a template entry of `scope` matches beneath it, not in a nested instance, not excluded, and beside the
+/// directory each `{name:dir}` names: a file left out here raises no entry's specificity, so a less specific entry can
+/// place it.
 ///
 /// # Errors
 ///
@@ -244,6 +248,7 @@ fn template_match(
             continue;
         }
         if let Match::Matched(captures) = crate::domain::selectors::service::matches(&matcher, file)
+            && beside(&matcher, file, &captures, &workspace.files) == Beside::Present
         {
             files.push(MatchedFile {
                 file: file.clone(),
@@ -257,6 +262,34 @@ fn template_match(
         matcher,
         exclude,
     })
+}
+
+/// Whether each `{name:dir}` of the matcher names a directory beside `file` that holds one of the sorted `files`: its
+/// captured value, or the scope's value put in place.
+fn beside(
+    matcher: &PathMatcher,
+    file: &RepoPath,
+    captures: &Captures,
+    files: &[RepoPath],
+) -> Beside {
+    // An entry with no `{name:dir}` places every file it matches, with no lookup.
+    if matcher.directories.is_empty() {
+        return Beside::Present;
+    }
+    let Some(holding) = parent(file) else {
+        return Beside::Absent;
+    };
+    let all = matcher.directories.iter().all(|name| {
+        captures
+            .0
+            .get(name)
+            .or_else(|| matcher.values.0.get(name))
+            .and_then(|value| join(&holding, PathText(&value.0)))
+            // `.` and `..` name no directory beside the file.
+            .filter(|directory| parent(directory).as_ref() == Some(&holding))
+            .is_some_and(|directory| !beneath(files, &directory).is_empty())
+    });
+    if all { Beside::Present } else { Beside::Absent }
 }
 
 /// Records what a template entry of the scope at `index` matched: each file placed by it, unless an entry before placed

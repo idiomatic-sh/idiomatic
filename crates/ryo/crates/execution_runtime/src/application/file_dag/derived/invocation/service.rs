@@ -1,0 +1,378 @@
+//! Invocation resources are acquired once, at the contract's demand boundary.
+use super::groups::service::groups;
+use super::index::{service::IndexResource, types::EmptyInput};
+use super::prepared_use::service::prepared;
+use super::types::{AcquiredPartitions, InvocationInputs, InvocationResources, LentRow};
+use crate::application::file_dag::derived::axis_resources::service::prepare_axis;
+use crate::application::file_dag::resources::service::appended_values;
+use ryo_execution_domain::domain::operator::contract::{
+    resources::{types::IndexColumns, types::JoinResources, types::ResourceProgram},
+    types::OperatorContract,
+    views::types::NativeJoin,
+};
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_texts::types::Texts;
+use ryo_execution_domain::domain::{
+    operating::errors::OperatingError, operator::types::OperatorContext,
+};
+use ryo_execution_store::application::file_dag::derived::admitted_views::interface::DerivedAdmittedViewsPort;
+use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
+use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort;
+use ryo_values::domain::plan_parts::{service::parameter_in, types::InputNumber};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
+
+/// A compiler-proven direct row continuation has no acquisition program.
+/// This creates borrowed semantic capability state, not an invocation setup.
+pub(crate) fn continuation<'f>(
+    contract: &OperatorContract,
+) -> Result<InvocationResources<'f>, OperatingError> {
+    if !matches!(contract.resources, ResourceProgram::None)
+        || contract.derived.slots.iter().any(Option::is_some)
+    {
+        return Err(OperatingError::WrongOperation);
+    }
+    Ok(InvocationResources {
+        cached_graph: None,
+        inputs: InvocationInputs {
+            index: None,
+            appended: None,
+            rank_layers: None,
+            native_join: None,
+            native_storage: None,
+            cycles: None,
+            closure: AcquiredPartitions::default(),
+            partitioned_closure: None,
+            ordered: None,
+            dfs: None,
+            axis: None,
+            groups: None,
+            // A continuation lends no index or axis, so nothing reports progress through it.
+            #[cfg(feature = "diagnostic-row-progress")]
+            progress: Default::default(),
+        },
+    })
+}
+
+pub(crate) fn prepare<'f>(
+    contract: &OperatorContract,
+    inputs: &[RepresentationInput<'f>],
+    context: &mut OperatorContext<'_>,
+    originals: &[ryo_execution_domain::domain::table_model::types::Rows<'f>],
+    admission: &impl WorkspacePort,
+    semantics: &crate::application::file_dag::execution::types::PrimitiveSemanticsBridge<'_>,
+) -> Result<InvocationResources<'f>, OperatingError> {
+    InvocationResources::validate_row_metadata(contract, inputs)?;
+    let mut resources = InvocationResources {
+        cached_graph: None,
+        inputs: InvocationInputs {
+            index: None,
+            appended: None,
+            rank_layers: None,
+            native_join: None,
+            native_storage: None,
+            cycles: None,
+            closure: AcquiredPartitions::default(),
+            partitioned_closure: None,
+            ordered: None,
+            dfs: None,
+            axis: None,
+            groups: None,
+            #[cfg(feature = "diagnostic-row-progress")]
+            progress: admission.progress_origin().profile().clone(),
+        },
+    };
+    let program = &contract.resources;
+    let admitted = admission.inputs(inputs);
+    // Empty contributing domain gates retain their ordinary typed resource
+    // shortcut; no traversal request or memo is made for them.
+    let empty_domain = contract
+        .empty_results
+        .iter()
+        .find(|gate| {
+            gate.input.0 > 0
+                && gate.representation
+                    == ryo_execution_domain::domain::operator::contract::types::EmptyRepresentation::Computed
+                && originals.get(gate.input.0).is_some_and(|rows| {
+                    matches!(
+                        rows,
+                        ryo_execution_domain::domain::table_model::types::Rows::Computed(_)
+                            | ryo_execution_domain::domain::table_model::types::Rows::Compact(_)
+                    ) && ryo_execution_domain::domain::table_model::service::count_of(rows).0 == 0
+                })
+        })
+        .map(|gate| gate.kinds.as_ref().map(|_| true).map_err(Clone::clone))
+        .transpose()?
+        .unwrap_or(false);
+    if !empty_domain {
+        resources.cached_graph = admitted.prepare_graph(contract, program, originals)?;
+        if resources.cached_graph.is_some() {
+            return Ok(resources);
+        }
+    }
+    match program {
+        ResourceProgram::None => {}
+        ResourceProgram::Appended(values) => {
+            let mut values_out = Vec::with_capacity(values.len());
+            appended_values(values, context, &mut values_out)?;
+            resources.inputs.appended = Some(values_out);
+        }
+        ResourceProgram::Rank(sets) => {
+            let ParameterBinding::TextSets(layers) =
+                parameter_in(context.bindings, *sets).ok_or(OperatingError::Unbound)?
+            else {
+                return Err(OperatingError::WrongBinding);
+            };
+            resources.inputs.rank_layers = Some(layers.clone());
+        }
+        ResourceProgram::Index {
+            input: place,
+            columns,
+        } => {
+            let source = input(inputs, *place)?;
+            let empty = if matches!(columns, IndexColumns::ColumnsUnlessEmpty(_)) {
+                EmptyInput::Skip
+            } else {
+                EmptyInput::Keep
+            };
+            resources.inputs.index = Some(IndexResource::acquired(
+                contract, &admitted, context, empty,
+            )?);
+        }
+        ResourceProgram::Join(JoinResources {
+            left_on,
+            right_on,
+            has_filter,
+            view,
+            reach,
+            ..
+        }) => {
+            let right = input(inputs, InputNumber(1))?;
+            if let Some(reach) = reach {
+                let mut cursor = partitioned(contract, right, &admitted, context)?;
+                while cursor.advance()? == ryo_execution_store::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced {
+                    resources.inputs.closure.push(cursor.take_current()?);
+                }
+            } else {
+                let native = if let RepresentationInput::Tree(tree) = right {
+                    let use_ = prepared(
+                        contract,
+                        ryo_derived::domain::request::types::DerivedKind::NativeLookup,
+                    )?;
+                    admitted
+                        .try_native_lookup(use_)?
+                        .map(|acquired| (tree, acquired))
+                } else {
+                    None
+                };
+                if let Some((tree, acquired)) = native {
+                    let ryo_derived::domain::contract::types::DerivedView::NativeLookup(finding) =
+                        acquired.view()?
+                    else {
+                        return Err(OperatingError::WrongOperation);
+                    };
+                    resources.inputs.native_join = Some(NativeJoin {
+                        tree,
+                        finding: *finding,
+                    });
+                    resources.inputs.native_storage = Some(acquired);
+                } else {
+                    if *has_filter == ryo_execution_domain::domain::operator::contract::resources::types::Filtering::Filtered || !view.is_empty() {
+                        return Err(OperatingError::WrongOperation);
+                    }
+                    resources.inputs.index = Some(IndexResource::acquired(
+                        contract,
+                        &admitted,
+                        context,
+                        EmptyInput::Keep,
+                    )?);
+                }
+            }
+        }
+
+        ResourceProgram::Count { keys, distinct } => {
+            resources.inputs.groups = Some(groups(
+                input(inputs, InputNumber(0))?,
+                keys,
+                *distinct,
+                None,
+                context,
+                contract,
+                &admitted,
+                semantics,
+            )?);
+        }
+        ResourceProgram::Digest { keys, over } => {
+            resources.inputs.groups = Some(groups(
+                input(inputs, InputNumber(0))?,
+                keys,
+                None,
+                Some(*over),
+                context,
+                contract,
+                &admitted,
+                semantics,
+            )?);
+        }
+        ResourceProgram::Closure { .. } => {
+            resources.inputs.partitioned_closure = Some(partitioned(
+                contract,
+                input(inputs, InputNumber(0))?,
+                &admitted,
+                context,
+            )?);
+        }
+        ResourceProgram::Cycles { .. } => {
+            let use_ = prepared(
+                contract,
+                ryo_derived::domain::request::types::DerivedKind::CycleAdjacency,
+            )?;
+            resources.inputs.cycles = Some(admitted.acquire_rows(use_, context)?);
+        }
+        ResourceProgram::Ordered { .. } => {
+            use ryo_derived::domain::request::types::DerivedKind;
+            let use_ = prepared(contract, DerivedKind::OrderedKeys)?;
+            let texts = Texts {
+                symbols: context.symbols.as_ref(),
+                source: context.source,
+                paths: context.paths,
+                arenas: context.arenas,
+            };
+            resources.inputs.ordered = Some(admitted.acquire_derived(
+                use_,
+                ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
+                ryo_execution_store::application::file_dag::workspace::types::ViewInputs::Text(&texts),
+            )?);
+        }
+        ResourceProgram::Dfs(_) => {
+            use ryo_derived::domain::request::types::DerivedKind;
+            let use_ = prepared(contract, DerivedKind::OrderedDfs)?;
+            resources.inputs.dfs = Some(admitted.acquire_derived(
+                use_,
+                ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
+                ryo_execution_store::application::file_dag::workspace::types::ViewInputs::Dfs {
+                    symbols: &mut context.symbols,
+                    source: context.source,
+                    paths: context.paths,
+                    arenas: context.arenas,
+                },
+            )?);
+        }
+        ResourceProgram::Axis(program) => {
+            use crate::application::file_dag::derived::axis_resources::{
+                service::classify, types::AxisMode,
+            };
+
+            use ryo_derived::domain::request::types::DerivedKind;
+            let edges = input(inputs, InputNumber(1))?;
+            let domain = input(inputs, InputNumber(2))?;
+            let mode_axis = classify(program, edges, domain)?;
+            let slots = &contract.derived.slots;
+            let equality = if matches!(mode_axis, AxisMode::Indexed { .. }) {
+                Some(
+                    admitted.acquire_rows(
+                        slots[DerivedKind::Equality.ordinal()]
+                            .as_ref()
+                            .ok_or(OperatingError::NotRun)?
+                            .primary
+                            .as_ref(),
+                        context,
+                    )?,
+                )
+            } else {
+                None
+            };
+            let membership = match mode_axis {
+                AxisMode::Empty | AxisMode::Native { among: Some(_), .. } => None,
+                AxisMode::Native { tree, among: None } => Some(
+                    admitted.acquire_derived(
+                        slots[DerivedKind::Membership.ordinal()]
+                            .as_ref()
+                            .ok_or(OperatingError::NotRun)?
+                            .primary
+                            .as_ref(),
+                        ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::ordered(
+                            ryo_execution_store::application::file_dag::derived::owner::types::MembershipOrder(1),
+                        ),
+                        ryo_execution_store::application::file_dag::workspace::types::ViewInputs::MembershipNative,
+                    )?,
+                ),
+                AxisMode::Indexed { .. } => Some(
+                    admitted.acquire_derived(
+                        slots[DerivedKind::Membership.ordinal()]
+                            .as_ref()
+                            .ok_or(OperatingError::NotRun)?
+                            .primary
+                            .as_ref(),
+                        ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
+                        ryo_execution_store::application::file_dag::workspace::types::ViewInputs::MembershipValues,
+                    )?,
+                ),
+            };
+            resources.inputs.axis =
+                Some(prepare_axis(program, edges, domain, equality, membership)?);
+        }
+    }
+    Ok(resources)
+}
+
+pub(super) fn input<'f>(
+    inputs: &[RepresentationInput<'f>],
+    at: InputNumber,
+) -> Result<RepresentationInput<'f>, OperatingError> {
+    inputs
+        .get(at.0)
+        .copied()
+        .ok_or(OperatingError::MissingInput { position: at.0 + 1 })
+}
+
+pub(super) fn partitioned<'f>(
+    contract: &OperatorContract,
+    input: RepresentationInput<'f>,
+    admitted: &impl DerivedAdmittedViewsPort<'f>,
+    context: &mut OperatorContext<'_>,
+) -> Result<
+    ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure<'f>,
+    OperatingError,
+> {
+    use ryo_derived::domain::request::types::DerivedKind;
+    let order = prepared(contract, DerivedKind::PartitionOrder)?;
+    let closure = prepared(contract, DerivedKind::ClosureAdjacency)?;
+    admitted.partitioned(order, closure, input, context)
+}
+
+impl AcquiredPartitions {
+    /// Appends the next partition's view.
+    pub(crate) fn push(&mut self, view: AcquiredView) {
+        self.0.push(view);
+    }
+}
+
+impl<'f> InvocationResources<'f> {
+    /// The closure the invocation walks partition by partition, when it walks one.
+    pub(crate) fn partitioned_closure(
+        &mut self,
+    ) -> Option<
+        &mut ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure<
+            'f,
+        >,
+    >{
+        self.inputs.partitioned_closure.as_mut()
+    }
+    /// The cached graph's answer for `row`, read through the file's derived `owner` when the invocation holds a graph,
+    /// lent together with the resources primitives read for one evaluation.
+    pub(crate) fn lend_row<'a>(
+        &'a mut self,
+        owner: &ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner,
+        row: Option<&[ryo_relations::domain::relations::types::Value]>,
+    ) -> Result<LentRow<'a>, OperatingError> {
+        let cached = if let (Some(graph), Some(row)) = (self.cached_graph.as_mut(), row) {
+            Some(owner.graph_row(graph, row)?)
+        } else {
+            None
+        };
+        Ok(LentRow {
+            cached,
+            resources: &self.inputs,
+        })
+    }
+}

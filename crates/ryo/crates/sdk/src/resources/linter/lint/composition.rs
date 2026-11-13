@@ -7,10 +7,10 @@ use ryo_core::inbound::use_cases::lint::interface::LintUseCase;
 use ryo_core::inbound::use_cases::open::interface::OpenUseCase;
 use ryo_core::outbound::lint_store::interface::LintStorePort;
 use ryo_core::outbound::lint_store::types::BuildIdentity;
-use ryo_core::outbound::matching::interface::MatchingPort;
-use ryo_core::outbound::{
-    corpus, digest, facts, language, lint_store, matching, memory, query_language, rows, scheduler,
-};
+use ryo_core::outbound::{corpus, language, lint_store, memory, row_sink, scheduler};
+use ryo_execution::outbound::matching::interface::MatchingPort;
+use ryo_execution::outbound::{matching, query_language};
+use ryo_execution_runtime::outbound::{digest, facts};
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::{CorpusFile, CorpusListing, FileBytes};
 
@@ -19,6 +19,7 @@ use crate::domain::language::types::Language;
 
 use super::connections::LinterLintConnections;
 use super::types::{Corpus, LintRequest, LinterLintEngine, Reading, Spill};
+use crate::domain::project::types::{DependencyBytes, DependencyFingerprint};
 
 /// The dependencies the caller supplies: how the service is built over the adapters its builder chose.
 pub(crate) struct LinterLintParts<Construct> {
@@ -36,8 +37,8 @@ where
 }
 
 /// The production place the rows of a run are kept in, which the caller takes them from after the run.
-pub(crate) fn build_rows() -> rows::types::Collector {
-    rows::types::Collector::default()
+pub(crate) fn build_rows() -> row_sink::factory::CollectorConnection {
+    row_sink::factory::CollectorConnection::default()
 }
 
 /// What the caller set for one run's adapters: the repository the corpus reads and the memory the run may use. The pool
@@ -67,7 +68,7 @@ pub(crate) fn build_engine(
     );
     let handles = languages
         .into_iter()
-        .map(language::types::LanguageHandles::from)
+        .map(language::factory::LanguageConnection::from)
         .collect();
     let syntax = Arc::new(ryo_query_language::outbound::syntax::factory::winnow());
     let catalog = Arc::new(ryo_query_language::outbound::catalog::factory::language());
@@ -87,7 +88,8 @@ pub(crate) fn build_engine(
         language: Arc::new(language::factory::use_case(handles)),
         query_language: Arc::new(query_language::factory::use_case(compile, typecheck)),
         matching: Arc::new(matching::factory::globset()),
-        plans: ryo_core::inbound::use_cases::lint::types::CompiledPlans::default(),
+        plans: ryo_execution::inbound::use_cases::compile_rules::interface::CompiledPlans::default(
+        ),
         scheduler: pool.of(),
         workers,
         build,
@@ -100,16 +102,17 @@ pub(crate) fn build_engine(
 /// them: the store in the cache directory the connections name, or one in memory for a run that keeps nothing.
 pub(crate) fn build(
     engine: &LinterLintEngine,
-    collector: rows::types::Collector,
+    collector: row_sink::factory::CollectorConnection,
     reading: Reading,
     connections: &LinterLintConnections,
     settings: LinterLintSettings,
 ) -> impl LintUseCase {
     let LinterLintSettings { root, budget } = settings;
-    let spill: Arc<dyn facts::interface::FactsPort> = match &connections.spill {
-        Spill::Kept(path) => Arc::new(facts::factory::spill(path.clone())),
-        Spill::Scratch => Arc::new(facts::factory::spill_scratch()),
-    };
+    let spill: Arc<dyn ryo_execution_runtime::outbound::facts::interface::FactsPort> =
+        match &connections.spill {
+            Spill::Kept(path) => Arc::new(facts::factory::spill(path.clone())),
+            Spill::Scratch => Arc::new(facts::factory::spill_scratch()),
+        };
     let store: Arc<dyn LintStorePort> = match connections.store.clone() {
         Some(store) => Arc::new(lint_store::factory::postcard(store)),
         None => Arc::new(lint_store::factory::discard()),
@@ -140,13 +143,16 @@ pub(crate) fn build(
                 Reading::Disk(listing, beside) => {
                     Arc::new(corpus::factory::ignore(root, listing, beside, skipped))
                 }
-                Reading::Memory(files) => Arc::new(corpus::factory::memory(files)),
+                Reading::Memory(files, inventory) => {
+                    Arc::new(corpus::factory::memory(files, inventory))
+                }
             };
             let analysis_corpus: Arc<dyn corpus::interface::CorpusPort> = files;
             let analysis_memory: Arc<dyn memory::interface::MemoryPort> =
                 Arc::new(memory::factory::sysinfo(budget));
-            let analysis_digest: Arc<dyn digest::interface::DigestPort> =
-                Arc::new(digest::factory::blake3());
+            let analysis_digest: Arc<
+                dyn ryo_execution_runtime::outbound::digest::interface::DigestPort,
+            > = Arc::new(digest::factory::blake3());
             ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl::new(
                 ryo_core::application::file_analysis::service::FileAnalysis::new(
                     Arc::clone(&analysis_corpus),
@@ -156,16 +162,18 @@ pub(crate) fn build(
                 ),
                 ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(
                     &analysis_corpus,
-                )),
+                ), std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())),
                 Arc::clone(&analysis_corpus),
                 spill,
                 analysis_language,
                 matching,
                 query,
                 analysis_memory,
+                Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())))),
+ryo_execution::derived(),
                 pool,
                 workers,
-                Arc::new(rows::factory::collect(collector)),
+                Arc::new(row_sink::factory::collect(collector)),
                 analysis_digest,
                 store,
             )
@@ -177,16 +185,22 @@ pub(crate) fn build(
 /// Builds the scheduler over the pool of threads runs read files on: `asked` of them, at most as many as the machine has, and as many
 /// as it has when none is asked.
 pub(crate) fn build_pool(
-    asked: ryo_values::domain::runs::types::WorkersAsked,
+    workers: scheduler::types::WorkerCount,
 ) -> Arc<dyn scheduler::interface::SchedulerPort> {
-    Arc::new(scheduler::factory::rayon(scheduler::factory::pool(asked)))
+    Arc::new(scheduler::factory::rayon(workers))
 }
 
 /// How many workers `build_pool(asked)` runs jobs on.
 pub(crate) fn build_workers(
     asked: ryo_values::domain::runs::types::WorkersAsked,
 ) -> scheduler::types::WorkerCount {
-    scheduler::factory::workers(asked)
+    scheduler::types::WorkerCount(
+        ryo_values::domain::runs::service::workers_to_start(
+            asked,
+            super::connections::machine_workers(),
+        )
+        .0,
+    )
 }
 
 /// Chooses the service that checks the repository can be linted with the budget.
@@ -204,11 +218,15 @@ pub(crate) fn build_matching() -> impl MatchingPort {
 
 /// Which files the run reads, as the corpus adapters take them: the disk walked or as the caller listed, with the files given beside
 /// it, or only the files given.
-pub(crate) fn build_reading(request: &LintRequest) -> Reading {
+pub(crate) fn build_reading(
+    request: &LintRequest,
+    inventory: ryo_language::domain::project_context::types::GivenProjectInventory,
+) -> Reading {
     let given = |sources: &[super::types::CaseSource]| {
         sources
             .iter()
             .map(|each| CorpusFile {
+                executable: each.executable.into_engine(),
                 path: FilePath(each.path.0.clone()),
                 bytes: FileBytes(each.text.0.as_bytes().to_vec()),
             })
@@ -225,7 +243,7 @@ pub(crate) fn build_reading(request: &LintRequest) -> Reading {
             let mut files = given(sources);
             files.retain(|file| beside.iter().all(|other| other.path != file.path));
             files.extend(beside);
-            Reading::Memory(files)
+            Reading::Memory(files, inventory)
         }
     }
 }
@@ -233,7 +251,7 @@ pub(crate) fn build_reading(request: &LintRequest) -> Reading {
 /// A linked language as the engine's language port takes it: its name, its build and its two use cases. What every edge of the SDK, and
 /// the command line, composes the engine with: the use cases are reached through the engine, never through a method of the language.
 #[doc(hidden)]
-impl From<Language> for language::types::LanguageHandles {
+impl From<Language> for language::factory::LanguageConnection {
     fn from(linked: Language) -> Self {
         Self {
             name: ryo_values::domain::descriptions::types::LanguageName(linked.name().0.clone()),
@@ -250,7 +268,7 @@ impl From<Arc<rayon::ThreadPool>> for WorkerPool {
         let workers = scheduler::types::WorkerCount(
             u32::try_from(pool.current_num_threads()).unwrap_or(u32::MAX),
         );
-        Self::scheduler(Arc::new(scheduler::factory::rayon(Ok(pool))), workers)
+        Self::scheduler(Arc::new(scheduler::factory::rayon_over(pool)), workers)
     }
 }
 
@@ -301,5 +319,15 @@ pub(crate) fn store_skip(
     Some(std::path::PathBuf::from(skip))
 }
 
+/// The dependency content identity using the digest adapter composed by the SDK.
+impl From<DependencyBytes<'_>> for DependencyFingerprint {
+    fn from(bytes: DependencyBytes<'_>) -> Self {
+        use ryo_execution_runtime::outbound::digest::interface::DigestPort as _;
+        let digest = digest::factory::blake3().digest(
+            ryo_execution_runtime::outbound::digest::types::DigestBytes(bytes.0),
+        );
+        Self(digest.0)
+    }
+}
 /// What joins the parts of a path the walk skips, on every platform.
 const SKIP_SEPARATOR: char = '/';

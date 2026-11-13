@@ -1,0 +1,30 @@
+# The scenarios of the replay's error-variant-never-constructed reading; its query is the recording's
+# (recordings/error-variant-never-constructed/query.ryoql).
+description = "An error enum's variant that no expression constructs."
+why = "A variant with a `#[from]` field is constructed: the derived `From` impl builds it whenever `?` converts (owner, checkpoint 336)."
+
+[[scenarios]]
+id = 'from-variant-is-constructed'
+scenario = 'A #[from] variant no expression names is not reported.'
+given.include = ['**']
+given.files.'Cargo.toml' = '''
+[package]
+name = "errors"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod plain;
+
+pub enum ReadError {
+    Io(#[from] std::io::Error),
+}
+'''
+given.files.'src/plain.rs' = '''
+pub enum PlainError {
+    Missing,
+}
+'''
+then.findings = [
+  { rule = "error-variant-never-constructed", path = "src/plain.rs" },
+]

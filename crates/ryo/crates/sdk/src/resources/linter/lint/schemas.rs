@@ -1,44 +1,32 @@
-// ignore: idiomatic.arch/file-length - one wire format: the request `linter lint` is given, the report it answers and the errors it fails with are converted together between the caller's types and the core's, and the entry spec places one schemas.rs for them, as it does for an adapter's.
+// ignore: idiomatic.arch/file-length - the one validation file the entry spec admits: its wire shapes and their conversions stay in the single schemas.rs
 //! The shape of the data this entry does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
 
-use ryo_core::inbound::use_cases::lint::errors::LintError as CoreError;
 use ryo_core::inbound::use_cases::lint::types::{
-    LintReport as CoreReport, LintRequest as CoreRequest, ParameterCell as CoreCell,
-    ParameterTable as CoreTable, ParameterValue as CoreValue, ProviderFault as CoreCode,
-    Rule as CoreRule, RuleParameter,
+    LintReport as CoreReport, LintRequest as CoreRequest, Rule as CoreRule, RuleParameter,
 };
-use ryo_core::inbound::use_cases::open::errors::OpenError;
-use ryo_core::outbound::matching::errors::MatchingError;
-use ryo_core::outbound::matching::interface::MatchingPort as _;
+use ryo_execution::outbound::matching::interface::MatchingPort as _;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::types::Integer;
 use ryo_language::inbound::use_cases::project::types::Repository;
 use ryo_language::inbound::use_cases::project::types::RootPath;
+use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::files::types::Glob as CoreGlob;
 use ryo_values::domain::hosted::types::{
-    HostColumn as CoreHostColumn, HostColumnName as CoreHostColumnName, HostKind as CoreHostKind,
     HostName as CoreHostName, HostRelation as CoreHost, HostRow as CoreHostRow,
 };
-use ryo_values::domain::plan_parts::types::{
-    FlagState as CoreFlag, LiteralText as CoreText, ParameterName, QueryText, RefusedKind,
-    RefusedQuery, WholeNumber,
-};
-use ryo_values::domain::records::types::Cell as RowCell;
-use ryo_values::domain::records::types::Unreadable as CoreUnreadable;
-use ryo_values::domain::runs::types::{Budget, MemoryBytes, Session, WorkersAsked};
+use ryo_values::domain::plan_parts::types::ParameterName;
+use ryo_values::domain::row_texts::types::Cell as RowCell;
+use ryo_values::domain::runs::types::{Session, WorkersAsked};
 
-use super::errors::{LintError, ProviderCode};
+use super::errors::LintError;
 use super::types::{
-    Column, Corpus, Finding, FindingColumn, FindingKey, FlagState, Glob, HostRelation, HostRow,
-    Line, LintReport, LintRequest, Message, ParameterValue, Place, Port, ProviderName, RowNumber,
-    RuleId, Unknown,
+    Corpus, Finding, FindingColumn, FindingKey, Glob, HostRelation, HostRow, LintReport,
+    LintRequest, Message, Port, RowNumber, RuleApplicability, RuleId, SkipReason, Unknown,
 };
-use crate::domain::capacity::types::MemoryBudget;
-use crate::domain::cell::types::{Cell, HostNumber, HostText, Slot};
-use crate::domain::file::types::{ReadFailure, RelativePath, Unread, Unreadable};
+use crate::domain::cell::types::{Cell, Slot};
+use crate::domain::file::types::{RelativePath, Unread};
 use crate::domain::host::types::{HostColumn, HostKind, HostRelationName};
-use crate::domain::query::errors::ValidateError;
-use crate::domain::query::types::{ByteOffset, QuerySpan};
+use crate::domain::place::types::{Column, Line, Place};
 use crate::domain::relation::types::ColumnName;
 
 /// Why a text is not a rule id.
@@ -60,6 +48,43 @@ pub struct GlobSchemaError {
     pub reason: String,
 }
 
+/// Normalize only the project-context paths whose spelling becomes an observation key.
+/// The empty path is the repository root, and is valid only as a search root.
+fn project_path(path: &mut RelativePath, root: bool) -> Result<(), LintError> {
+    let mut parts = Vec::new();
+    let text = path.0.as_ref();
+    if text.starts_with('/') || text.chars().any(|part| matches!(part, '\\' | ':' | '\0')) {
+        return Err(LintError::ProjectPath { path: path.clone() });
+    }
+    for part in text.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => return Err(LintError::ProjectPath { path: path.clone() }),
+            other => parts.push(other),
+        }
+    }
+    if parts.is_empty() && !root {
+        return Err(LintError::ProjectPath { path: path.clone() });
+    }
+    path.0 = parts.join("/").into();
+    Ok(())
+}
+
+/// Validate and normalize project authority before either the Given adapter or core sees it.
+pub(super) fn project_context(request: &mut LintRequest) -> Result<(), LintError> {
+    if let crate::domain::project::types::ProjectSearchScope::Declared(roots) =
+        &mut request.project_search_scope
+    {
+        for root in roots {
+            project_path(root, true)?;
+        }
+    }
+    for entry in &mut request.given_project_inventory.entries {
+        project_path(&mut entry.path, false)?;
+    }
+    Ok(())
+}
+
 impl TryFrom<&str> for RuleId {
     type Error = RuleIdSchemaError;
 
@@ -67,7 +92,7 @@ impl TryFrom<&str> for RuleId {
         if text.trim().is_empty() {
             return Err(RuleIdSchemaError);
         }
-        Ok(Self::from_text(text.into()))
+        Ok(Self(text.into()))
     }
 }
 
@@ -77,20 +102,15 @@ impl TryFrom<&str> for Glob {
     fn try_from(text: &str) -> Result<Self, Self::Error> {
         // A glob is the text the matching reads: the schema keeps the text, and the run makes it ready among its rule's globs.
         match super::composition::build_matching().parse(&CoreGlob(text.into())) {
-            Ok(()) => Ok(Self::from_text(text.into())),
+            Ok(()) => Ok(Self(text.into())),
             Err(MatchingError::BadGlob { glob, reason }) => Err(GlobSchemaError { glob, reason }),
+            Err(MatchingError::InvalidRegex { reason }) => Err(GlobSchemaError {
+                glob: text.into(),
+                reason,
+            }),
         }
     }
 }
-
-/// A core failure of a lint, offered to the conversion.
-struct LintErrorSchema(CoreError);
-
-/// A core failure of opening, offered to the conversion.
-struct OpenErrorSchema(OpenError);
-
-/// A parameter value of the caller's, offered to the conversion into the core's.
-struct ParameterValueSchema(ParameterValue);
 
 /// A request, as the caller wrote it.
 struct LintRequestSchema(LintRequest);
@@ -98,50 +118,9 @@ struct LintRequestSchema(LintRequest);
 /// What a lint answered and what its findings were kept as.
 struct LintReportSchema {
     /// Where the rows the run wrote were kept.
-    collector: ryo_core::outbound::rows::types::Collector,
+    collected: ryo_core::outbound::row_sink::types::Collected,
     /// The files nothing read.
     report: CoreReport,
-}
-
-impl From<ParameterValueSchema> for CoreValue {
-    fn from(schema: ParameterValueSchema) -> Self {
-        match schema.0 {
-            ParameterValue::Number(number) => Self::Number(WholeNumber(number.0)),
-            ParameterValue::Flag(flag) => Self::Flag(match flag {
-                FlagState::On => CoreFlag::Raised,
-                FlagState::Off => CoreFlag::Lowered,
-            }),
-            ParameterValue::Text(text) => Self::Text(CoreText(text.0)),
-            ParameterValue::Numbers(numbers) => {
-                Self::Numbers(numbers.0.into_iter().map(WholeNumber).collect())
-            }
-            ParameterValue::Texts(texts) => {
-                Self::Texts(texts.into_iter().map(|text| CoreText(text.0)).collect())
-            }
-            ParameterValue::TextSets(sets) => Self::TextSets(
-                sets.into_iter()
-                    .map(|set| set.into_iter().map(|text| CoreText(text.0)).collect())
-                    .collect(),
-            ),
-            ParameterValue::Tables(tables) => Self::Tables(
-                tables
-                    .into_iter()
-                    .map(|table| {
-                        CoreTable(
-                            table
-                                .0
-                                .into_iter()
-                                .map(|cell| CoreCell {
-                                    key: CoreText(cell.key.0),
-                                    value: CoreText(cell.value.0),
-                                })
-                                .collect(),
-                        )
-                    })
-                    .collect(),
-            ),
-        }
-    }
 }
 
 impl TryFrom<LintRequestSchema> for CoreRequest {
@@ -162,12 +141,15 @@ impl TryFrom<LintRequestSchema> for CoreRequest {
                 .collect::<Vec<_>>()
         };
         Ok(Self {
+            source_language: request.source_language.into_engine(),
             session: Session {
                 root: RootPath(root.into()),
                 repository: match request.corpus {
                     Corpus::Given(_) => Repository::Given,
                     Corpus::Walked | Corpus::Listed(_) => Repository::Disk,
                 },
+                search_scope: request.project_search_scope.into_engine(),
+                given_inventory: request.given_project_inventory.into_engine(),
             },
             files: request
                 .files
@@ -180,14 +162,23 @@ impl TryFrom<LintRequestSchema> for CoreRequest {
                 .rules
                 .into_iter()
                 .map(|(id, rule)| CoreRule {
+                    observations: observation_bindings(rule.observations),
                     id: ryo_values::domain::runs::types::RuleId(id.as_ref().into()),
-                    query: QueryText(rule.query.to_string().into()),
+                    query: rule.query.into_bundle(),
+                    applicability: match rule.applicability {
+                        RuleApplicability::Always => {
+                            ryo_values::domain::runs::types::RuleApplicability::Always
+                        }
+                        RuleApplicability::AcceptedSyntax => {
+                            ryo_values::domain::runs::types::RuleApplicability::AcceptedSyntax
+                        }
+                    },
                     parameters: rule
                         .parameters
                         .into_iter()
                         .map(|(name, value)| RuleParameter {
                             name: ParameterName(name.0),
-                            value: ParameterValueSchema(value).into(),
+                            value: value.into_engine(),
                         })
                         .collect(),
                     include: globs(rule.include),
@@ -202,13 +193,7 @@ impl TryFrom<LintReportSchema> for LintReport {
     type Error = LintError;
 
     fn try_from(schema: LintReportSchema) -> Result<Self, Self::Error> {
-        let LintReportSchema { collector, report } = schema;
-        let collected = std::mem::take(
-            &mut *collector
-                .0
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner),
-        );
+        let LintReportSchema { collected, report } = schema;
         let findings = collected
             .rows
             .into_iter()
@@ -216,121 +201,35 @@ impl TryFrom<LintReportSchema> for LintReport {
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
             findings,
-            unread: report
-                .unread
+            dependencies: report
+                .dependencies
                 .into_iter()
-                .map(|each| Unread {
-                    path: RelativePath(each.path.0),
-                    reason: match each.reason {
-                        CoreUnreadable::NoLanguage => Unreadable::NoLanguage,
-                        CoreUnreadable::Failed(reason) => Unreadable::Failed(ReadFailure(reason.0)),
-                    },
-                })
+                .map(crate::domain::project::types::ProjectDependency::from_engine)
                 .collect(),
+            unread: report.unread.into_iter().map(Unread::from_engine).collect(),
             unknowns: report
                 .unknowns
                 .into_iter()
                 .map(|each| Unknown {
-                    rule: RuleId::from_text(each.rule.0),
+                    rule: RuleId(each.rule.0),
                     path: RelativePath(each.path.0),
                     message: Message(each.message.0),
                 })
                 .collect(),
+            skipped: report
+                .skipped
+                .into_iter()
+                .map(|each| super::types::Skipped {
+                    rule: RuleId(each.rule.0),
+                    path: RelativePath(each.path.0),
+                    reason: match each.reason {
+                        ryo_values::domain::runs::types::SkipReason::SyntaxRejected => {
+                            SkipReason::SyntaxRejected
+                        }
+                    },
+                })
+                .collect(),
         })
-    }
-}
-
-impl From<LintErrorSchema> for LintError {
-    fn from(schema: LintErrorSchema) -> Self {
-        let io = |what: Port, reason: String| Self::Io { what, reason };
-        match schema.0 {
-            CoreError::Query { id, error } => Self::Rule {
-                id: RuleId::from_text(id.into()),
-                error: compile_error(error),
-            },
-            CoreError::Rule { id, reason } | CoreError::UnknownKind { id, reason } => {
-                Self::Unrunnable {
-                    id: RuleId::from_text(id.into()),
-                    reason,
-                }
-            }
-            CoreError::MissingParameter { id } => Self::MissingParameter {
-                id: RuleId::from_text(id.into()),
-            },
-            CoreError::TooLarge { size, budget } => Self::TooLarge { size, budget },
-            CoreError::MemoryBudgetExceeded {
-                used,
-                budget,
-                plans,
-            } => Self::MemoryBudgetExceeded {
-                used,
-                budget,
-                plans: plans
-                    .into_iter()
-                    .map(|plan| RuleId::from_text(plan.into()))
-                    .collect(),
-            },
-            CoreError::Provider { provider, code } => Self::Provider {
-                provider: ProviderName(provider.into()),
-                code: match code {
-                    CoreCode::SpanOutsideFile => ProviderCode::SpanOutsideFile,
-                    CoreCode::NodeOutsideTable => ProviderCode::NodeOutsideTable,
-                    CoreCode::NodeOfAnotherFile => ProviderCode::NodeOfAnotherFile,
-                    CoreCode::FileNotVisited => ProviderCode::FileNotVisited,
-                },
-            },
-            CoreError::Corpus { reason } => io(Port::Corpus, reason),
-            CoreError::Store { reason } => io(Port::Store, reason),
-            CoreError::Facts { reason } => io(Port::Facts, reason),
-            CoreError::Language { reason } => io(Port::Language, reason),
-            CoreError::Memory { reason } => io(Port::Memory, reason),
-            CoreError::Scheduler { reason } => io(Port::Scheduler, reason),
-            CoreError::Output { reason } => io(Port::Output, reason),
-            CoreError::OutputClosed => {
-                io(Port::Output, "whoever reads the answer stopped".to_owned())
-            }
-            // Ids are unique and not blank by construction: these cannot happen, and say so if they do.
-            other @ (CoreError::BlankRuleId | CoreError::DuplicateRuleId { .. }) => {
-                Self::Unrunnable {
-                    id: RuleId::from_text(Box::default()),
-                    reason: other.to_string(),
-                }
-            }
-        }
-    }
-}
-
-impl From<OpenErrorSchema> for LintError {
-    fn from(schema: OpenErrorSchema) -> Self {
-        let (what, reason) = match schema.0 {
-            OpenError::Language { reason } => (Port::Language, reason),
-            OpenError::Memory { reason } => (Port::Memory, reason),
-        };
-        Self::Io { what, reason }
-    }
-}
-
-/// Where a compiler refusal points, as the caller says it.
-fn refusal_span(span: ryo_language::domain::relations::types::Span) -> QuerySpan {
-    QuerySpan {
-        start: ByteOffset(usize::try_from(span.start.0).unwrap_or(usize::MAX)),
-        end: ByteOffset(usize::try_from(span.end.0).unwrap_or(usize::MAX)),
-    }
-}
-
-/// A rule's query that does not compile, as the caller's failure of validating.
-fn compile_error(error: RefusedQuery) -> ValidateError {
-    let span = refusal_span(error.span);
-    let message = error.message.0;
-    match error.kind {
-        RefusedKind::Syntax => ValidateError::Syntax { span, message },
-        RefusedKind::UnknownRelation => ValidateError::UnknownRelation {
-            name: message,
-            span,
-        },
-        RefusedKind::Type => ValidateError::Type { span, message },
-        RefusedKind::Invalid => ValidateError::Invalid { span, message },
-        RefusedKind::Catalog => ValidateError::Catalog { reason: message },
     }
 }
 
@@ -367,14 +266,7 @@ fn host_relations(relations: Vec<HostRelation>) -> Result<Vec<CoreHost>, LintErr
             columns: relation
                 .columns
                 .into_iter()
-                .map(|column| CoreHostColumn {
-                    name: CoreHostColumnName(column.name.0),
-                    kind: match column.kind {
-                        HostKind::File => CoreHostKind::File,
-                        HostKind::Text => CoreHostKind::Text,
-                        HostKind::Number => CoreHostKind::Number,
-                    },
-                })
+                .map(HostColumn::into_engine)
                 .collect(),
             rows,
         });
@@ -433,10 +325,10 @@ fn host_cell(kind: HostKind, cell: Cell) -> Option<RowCell> {
 ///
 /// `Io` of the output when a row the run wrote is not a finding as the run writes one: a fault of the run, never dropped.
 pub(super) fn report(
-    collector: ryo_core::outbound::rows::types::Collector,
+    collected: ryo_core::outbound::row_sink::types::Collected,
     report: CoreReport,
 ) -> Result<LintReport, LintError> {
-    LintReport::try_from(LintReportSchema { collector, report })
+    LintReport::try_from(LintReportSchema { collected, report })
 }
 
 /// The failure for a row the run wrote that is not a finding as the run writes one.
@@ -445,18 +337,6 @@ fn unreadable_row(what: &str) -> LintError {
         what: Port::Output,
         reason: format!("a finding the run wrote has {what}"),
     }
-}
-
-/// The caller's cell for a typed value of a finding's row, as the core holds it: none for a value that reads as nothing.
-fn cell_of(cell: Option<&RowCell>) -> Slot {
-    cell.map_or(Slot::Nothing, |cell| {
-        Slot::Is(match cell {
-            RowCell::File(path) => Cell::File(RelativePath(path.clone())),
-            RowCell::Text(text) => Cell::Text(HostText(text.clone())),
-            RowCell::Number(number) => Cell::Number(HostNumber(number.0)),
-            RowCell::Span(span) => Cell::Span(*span),
-        })
-    })
 }
 
 /// A line or a character of a finding, read from its cell: none for a cell with no value or a zero.
@@ -494,7 +374,7 @@ fn finding_of(cells: &[Option<RowCell>]) -> Result<Finding, LintError> {
         .map(|pair| match pair {
             [Some(RowCell::Text(name)), value] => Ok(FindingColumn {
                 name: ColumnName(name.clone()),
-                value: cell_of(value.as_ref()),
+                value: Slot::from_engine(value.as_ref()),
             }),
             _ => Err(unreadable_row("a column with no heading")),
         })
@@ -510,22 +390,16 @@ fn finding_of(cells: &[Option<RowCell>]) -> Result<Finding, LintError> {
         _ => Place::Missing,
     };
     Ok(Finding {
-        rule: RuleId::from_text(rule.clone()),
-        subject: cell_of(subject.as_ref()),
-        key: FindingKey(key.iter().map(|cell| cell_of(cell.as_ref())).collect()),
+        rule: RuleId(rule.clone()),
+        subject: Slot::from_engine(subject.as_ref()),
+        key: FindingKey(
+            key.iter()
+                .map(|cell| Slot::from_engine(cell.as_ref()))
+                .collect(),
+        ),
         place,
         columns,
     })
-}
-
-/// The caller's failure for a core failure of a lint.
-pub(super) fn error(error: CoreError) -> LintError {
-    LintErrorSchema(error).into()
-}
-
-/// The caller's failure for a core failure of opening.
-pub(super) fn open_error(error: OpenError) -> LintError {
-    OpenErrorSchema(error).into()
 }
 
 /// The workers the caller asked for, as the scheduler factory takes them.
@@ -533,14 +407,43 @@ pub(super) const fn workers(workers: super::types::Workers) -> WorkersAsked {
     WorkersAsked(workers.0.get())
 }
 
-/// The most memory the caller lets the run use, as the memory factory takes it.
-pub(super) const fn budget(memory: MemoryBudget) -> Budget {
-    match memory {
-        MemoryBudget::Bytes(bytes) => Budget::Bytes(MemoryBytes(bytes.get())),
-        MemoryBudget::Machine => Budget::Machine,
-    }
-}
-
 #[cfg(test)]
 #[path = "schemas_test.rs"]
 mod tests;
+
+/// Translate edge-validated rule identities without changing producer selection.
+fn observation_bindings(
+    bindings: Vec<super::types::ObservationBinding>,
+) -> Vec<ryo_values::domain::observations::types::ObservationBinding> {
+    use ryo_values::domain::observations::types::{ObservationBinding, ObservationProducer};
+    bindings
+        .into_iter()
+        .map(|binding| ObservationBinding {
+            name: ryo_values::domain::observations::types::ObservationBindingName(binding.name.0),
+            columns: binding
+                .columns
+                .into_iter()
+                .map(crate::domain::observation::types::ObservationColumn::into_engine)
+                .collect(),
+            producers: binding
+                .producers
+                .into_iter()
+                .map(|producer| match producer {
+                    super::types::ObservationProducer::Output { rule, output } => {
+                        ObservationProducer::Output {
+                            rule: ryo_values::domain::runs::types::RuleId(rule.as_ref().into()),
+                            output: ryo_values::domain::observations::types::ObservationName(
+                                output.0,
+                            ),
+                        }
+                    }
+                    super::types::ObservationProducer::NoQuery { rule } => {
+                        ObservationProducer::NoQuery {
+                            rule: ryo_values::domain::runs::types::RuleId(rule.as_ref().into()),
+                        }
+                    }
+                })
+                .collect(),
+        })
+        .collect()
+}

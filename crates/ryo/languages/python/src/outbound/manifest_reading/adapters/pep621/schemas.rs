@@ -5,7 +5,13 @@
 use std::collections::BTreeMap;
 
 use crate::domain::dependencies::service::pep440_exactness;
+use crate::domain::manifest_validation::types::{
+    Location, ManifestDiagnostic, MetadataDemand, Phase, Validation,
+};
+use crate::domain::packages::types::Reason;
+use crate::outbound::manifest_reading::types::ManifestRead;
 use ryo::languages::{DependencyKind, Optionality};
+use ryo::languages::{Offset, Span};
 use serde::Deserialize;
 
 use crate::domain::dependencies::service::checkout_of;
@@ -136,17 +142,117 @@ impl From<PyprojectSchema> for Declared {
     }
 }
 
-/// What the PEP tables of the text of a `pyproject.toml` declare.
-///
-/// # Errors
-///
-/// `Unreadable` when the text is not TOML.
-pub(super) fn declared(text: &str) -> Result<Declared, ManifestReadingError> {
-    toml::from_str::<PyprojectSchema>(text)
-        .map(Declared::from)
-        .map_err(|error| ManifestReadingError::Unreadable {
-            reason: error.message().to_owned(),
-        })
+/// Parse once, retaining borrowed spelling and source ranges across the two deserializer views.
+pub(super) fn read(text: &str, demand: MetadataDemand) -> ManifestRead {
+    let document = match toml::de::DeTable::parse(text) {
+        Ok(document) => document,
+        Err(error) => {
+            let validation = (demand != MetadataDemand::Projection)
+                .then(|| validation_error(text, Phase::Parse, &error));
+            return ManifestRead {
+                declaration: (demand != MetadataDemand::Diagnostics).then(|| {
+                    Err(ManifestReadingError::Unreadable {
+                        reason: error.message().to_owned(),
+                    })
+                }),
+                validation,
+            };
+        }
+    };
+    let validation = if demand != MetadataDemand::Projection {
+        Some(
+            match pyproject_toml::PyProjectToml::deserialize(toml::de::Deserializer::from(
+                document.clone(),
+            )) {
+                Ok(_) => Validation::default(),
+                Err(error) => validation_error(text, Phase::Validation, &error),
+            },
+        )
+    } else {
+        None
+    };
+    let declaration = if demand == MetadataDemand::Diagnostics {
+        None
+    } else {
+        Some(
+            PyprojectSchema::deserialize(toml::de::Deserializer::from(document))
+                .map_err(|error| ManifestReadingError::Unreadable {
+                    reason: error.message().to_owned(),
+                })
+                .and_then(projected),
+        )
+    };
+    ManifestRead {
+        declaration,
+        validation,
+    }
+}
+
+/// PEP dependency fields must contain real requirements; retain their original spelling after validation.
+fn projected(schema: PyprojectSchema) -> Result<Declared, ManifestReadingError> {
+    let project = schema.project.as_ref();
+    let normal = project
+        .into_iter()
+        .flat_map(|project| project.dependencies.iter());
+    let optional = project
+        .into_iter()
+        .flat_map(|project| project.optional_dependencies.values().flatten());
+    let build = schema
+        .build_system
+        .iter()
+        .flat_map(|build| build.requires.iter());
+    let groups = schema
+        .dependency_groups
+        .values()
+        .flatten()
+        .filter_map(|entry| match entry {
+            GroupEntrySchema::Requirement(text) => Some(text),
+            GroupEntrySchema::Inclusion {} => None,
+        });
+    for text in normal.chain(optional).chain(build).chain(groups) {
+        text.parse::<pep508_rs::Requirement<pep508_rs::VerbatimUrl>>()
+            .map_err(|error| ManifestReadingError::Unreadable {
+                reason: error.to_string(),
+            })?;
+    }
+    Ok(Declared::from(schema))
+}
+
+fn validation_error(text: &str, phase: Phase, error: &toml::de::Error) -> Validation {
+    let location = match error.span() {
+        None => Location::FileOrigin,
+        Some(range) => {
+            let offsets = if let (Ok(start), Ok(end)) =
+                (u32::try_from(range.start), u32::try_from(range.end))
+            {
+                Some((start, end))
+            } else {
+                None
+            };
+            let Some((start, end)) =
+                offsets.filter(|_| range.start <= range.end && text.get(range.clone()).is_some())
+            else {
+                return Validation {
+                    diagnostics: Vec::new(),
+                    incomplete: Some(Reason(
+                        "manifest diagnostic has no valid source mapping".into(),
+                    )),
+                };
+            };
+            Location::Span(Span {
+                start: Offset(start),
+                end: Offset(end),
+            })
+        }
+    };
+    Validation {
+        diagnostics: vec![ManifestDiagnostic {
+            phase,
+            location,
+            message: Reason(error.message().into()),
+        }],
+        incomplete: None,
+    }
 }
 
 #[cfg(test)]

@@ -4,9 +4,9 @@ use ryo_language::domain::elements::service::{
     diagnostic_count, end_at, end_of, positions, start_at,
 };
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::constants::{DIAGNOSTIC_BASE, IMPLIED, NO_SPAN, TOKEN};
-use ryo_language::domain::relations::service::{node_file, node_position};
-use ryo_language::domain::relations::types::{Bits, CellKind, ColumnsView, FileId, NodeId};
+use ryo_relations::domain::relations::constants::{DIAGNOSTIC_BASE, IMPLIED, NO_SPAN, TOKEN};
+use ryo_relations::domain::relations::service::{node_file, node_position};
+use ryo_relations::domain::relations::types::{Bits, CellKind, ColumnsView, FileId, NodeId};
 use ryo_values::domain::files::types::FileBytes;
 
 use super::errors::AdmissionError;
@@ -118,7 +118,7 @@ pub(crate) fn limits_of(elements: &Elements, bytes: &FileBytes, file: FileId) ->
 /// # Errors
 ///
 /// The first cell that is not within the file.
-pub(crate) fn admit_view(view: &ColumnsView<'_>, limits: &Limits) -> Result<(), AdmissionError> {
+pub(crate) fn admit_columns(view: &ColumnsView<'_>, limits: &Limits) -> Result<(), AdmissionError> {
     for (kind, column) in view.kinds.iter().zip(view.columns) {
         admit_column(*kind, &StoredNumbers(&column.0), limits)?;
     }

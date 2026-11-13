@@ -1,6 +1,7 @@
 //! The `validate` use case's failures.
 
-use ryo_values::domain::plan_parts::types::RefusedQuery;
+use ryo_values::domain::program::types::RefusedQuery;
+use ryo_values::domain::query_tokens::types::QueryOrigin;
 
 /// Why `validate` failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -22,5 +23,7 @@ pub enum ValidateError {
     UnknownKind {
         /// The word and the languages it names no kind of.
         reason: String,
+        /// The original fragment source, when the comparison came from an imported module.
+        origin: Option<QueryOrigin>,
     },
 }

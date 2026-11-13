@@ -1,0 +1,124 @@
+//! Invalid requests never launch; child failures are encoded rather than mistaken for codec failure.
+use super::{interface::CollectUseCase as _, use_case::CollectUseCaseImpl};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::{
+    collection::{self, interface::CollectionPort as _, types::CollectorMessage},
+    execution::interface::ExecutionPort,
+};
+use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
+use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
+use ryo_benchmark_contracts::domain::measurements::types::Resources;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+    time::Duration,
+};
+#[derive(Clone, Copy, Debug)]
+enum Operation {
+    Success,
+    Malformed,
+    LaunchFailure,
+}
+type Input = Operation;
+type Value = bool;
+type Failure = ();
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("actual observation returned by codec"),
+        word: Word::Succeeds,
+        input: || Operation::Success,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("malformed request prevents child launch"),
+        word: Word::Succeeds,
+        input: || Operation::Malformed,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("launch failure is a structured response"),
+        word: Word::Succeeds,
+        input: || Operation::LaunchFailure,
+        expect: Expect::Value(true),
+    },
+];
+struct Execution {
+    calls: Arc<AtomicUsize>,
+    operation: Operation,
+}
+impl ExecutionPort for Execution {
+    fn profile(&self) -> ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile {
+        ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Wall
+    }
+    fn run(&self, _: Invocation) -> Result<ProcessOutput, Error> {
+        let _before = self.calls.fetch_add(1, Ordering::SeqCst);
+        if matches!(self.operation, Operation::LaunchFailure) {
+            return Err(std::io::Error::from_raw_os_error(2).into());
+        }
+        Ok(ProcessOutput {
+            signal: ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
+            status: ProcessExitCode(126),
+            stdout: CapturedBytes(vec![255]),
+            stderr: CapturedBytes(Vec::new()),
+            wall: Duration::from_millis(10),
+            resources: ResourceObservation::Collected(Resources {
+                cpu: Duration::from_millis(5),
+                peak_rss_bytes: ResidentBytes(12345),
+            }),
+        })
+    }
+}
+fn subject(operation: Input) -> Result<Value, Failure> {
+    let codec = Arc::new(collection::fixtures::fake::CollectionFake::default());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let collect = CollectUseCaseImpl::new(
+        Arc::<collection::fixtures::fake::CollectionFake>::clone(&codec),
+        Arc::new(Execution {
+            calls: Arc::clone(&calls),
+            operation,
+        }),
+    );
+    let request = if matches!(operation, Operation::Malformed) {
+        CollectorMessage(b"{}".to_vec())
+    } else {
+        codec
+            .request(&Invocation {
+                executable: "fixture".into(),
+                arguments: Vec::new(),
+                environment: std::collections::BTreeMap::default(),
+                directory: "/tmp".into(),
+            })
+            .map_err(|_error| ())?
+    };
+    let response = collect.collect(&request);
+    if matches!(operation, Operation::Malformed) {
+        return Ok(
+            matches!(response, Err(Error::Invalid(message)) if message == "malformed request")
+                && calls.load(Ordering::SeqCst) == 0,
+        );
+    }
+    let decoded = codec
+        .observation(&response.map_err(|_error| ())?)
+        .map_err(|_error| ())?;
+    let expected = match operation {
+        Operation::Success => {
+            matches!(decoded,Ok(output) if output.status.0==126_i32 && output.stdout.0==[255_u8] && matches!(output.resources,ResourceObservation::Collected(Resources{peak_rss_bytes:ResidentBytes(12345),..})))
+        }
+        Operation::LaunchFailure => {
+            matches!(decoded,Err(Error::Io(error)) if error.raw_os_error()==Some(2_i32))
+        }
+        Operation::Malformed => false,
+    };
+    Ok(expected && calls.load(Ordering::SeqCst) == 1)
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

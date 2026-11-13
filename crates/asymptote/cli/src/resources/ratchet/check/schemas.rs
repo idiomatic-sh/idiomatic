@@ -271,9 +271,50 @@ pub(super) struct FailureSchema {
     pub said: Option<String>,
 }
 
+/// Full failure streams, or an explicit lack of retained output for older records.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "availability", rename_all = "kebab-case")]
+pub(super) enum FailureOutputSchema {
+    /// No capture was retained; this is not an observed empty stream.
+    Unavailable,
+    /// Exact streams from a failed completion.
+    Captured {
+        /// Complete standard output.
+        stdout: String,
+        /// Complete standard error.
+        stderr: String,
+        /// Command and input fingerprint; absent when inputs could not be stamped.
+        inputs_digest: Option<String>,
+    },
+}
+
+impl From<&asymptote_core::domain::reports::types::FailureOutput> for FailureOutputSchema {
+    fn from(output: &asymptote_core::domain::reports::types::FailureOutput) -> Self {
+        use asymptote_core::domain::reports::types::{FailureOutput, Stamped};
+        match output {
+            FailureOutput::Unavailable => Self::Unavailable,
+            FailureOutput::Captured {
+                stdout,
+                stderr,
+                inputs,
+            } => Self::Captured {
+                stdout: stdout.0.to_string(),
+                stderr: stderr.0.to_string(),
+                inputs_digest: match inputs {
+                    Stamped::Digested(digest) => Some(digest.0.to_string()),
+                    Stamped::Unstamped => None,
+                },
+            },
+        }
+    }
+}
+
 /// One tool's run as JSON reads it.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub(super) struct ToolSchema {
+    /// Full streams for failed runs, absent for successful runs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub diagnostics: Option<FailureOutputSchema>,
     /// The tool.
     pub id: String,
     /// Whether its last run was reused, its inputs unmoved.
@@ -530,6 +571,10 @@ fn printed(report: &CheckReport) -> CheckReportSchema {
         .runs
         .iter()
         .map(|run| ToolSchema {
+            diagnostics: match run.run.status {
+                Status::Failed(_) => Some((&run.failure_output).into()),
+                Status::Completed => None,
+            },
             id: run.run.tool.0.to_string(),
             reused: run.reuse == Reuse::Reused,
             error: match &run.run.status {

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import io
 import json
@@ -15,6 +16,29 @@ SPEC = importlib.util.spec_from_file_location("sdk_api", Path(__file__).with_nam
 sdk_api = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(sdk_api)
 leaks = sdk_api.leaks
+
+# The internal crates the leak cases are judged against, as the ryo SDK's manifest gave them before the execution crates joined it.
+INTERNAL = ("ryo_core", "ryo_language", "ryo_query_language", "ryo_relations", "ryo_values")
+
+
+def graph(direct: tuple[str, ...], *, manifest_path: str = "sdk/Cargo.toml", forwarded: dict[str, tuple[str, ...]] | None = None) -> dict:
+    """The `workspace_members`, `packages` and `resolve` of a `cargo metadata` answer: the workspace member `demo-sdk` depends on each
+    member of `direct`, each member on the members `forwarded` names, every member on the registry crate `serde`, and `demo-sdk` on
+    the member `demo-bench` as a dev-dependency only."""
+    forwarded = forwarded or {}
+    names = set(direct) | {n for each in forwarded.values() for n in each} | {"demo_bench"}
+    def member(name: str) -> str:
+        return f"path+file:///w/{name}#0.1.0"
+    def edge(pkg: str, kind: str | None) -> dict:
+        return {"pkg": pkg, "dep_kinds": [{"kind": kind, "target": None}]}
+    serde = "registry+https://github.com/rust-lang/crates.io-index#serde@1.0.0"
+    packages = [{"id": member("demo_sdk"), "name": "demo-sdk", "manifest_path": manifest_path, "targets": [{"name": "demo", "kind": ["lib"]}]}]
+    packages += [{"id": member(n), "name": n.replace("_", "-"), "manifest_path": f"/w/{n}/Cargo.toml", "targets": [{"name": n, "kind": ["lib"]}]} for n in sorted(names)]
+    packages.append({"id": serde, "name": "serde", "manifest_path": "/r/serde/Cargo.toml", "targets": [{"name": "serde", "kind": ["lib"]}]})
+    nodes = [{"id": member("demo_sdk"), "deps": [edge(member(n), None) for n in direct] + [edge(member("demo_bench"), "dev"), edge(serde, None)]}]
+    nodes += [{"id": member(n), "deps": [edge(member(f), None) for f in forwarded.get(n, ())] + [edge(serde, None)]} for n in sorted(names)]
+    nodes.append({"id": serde, "deps": []})
+    return {"workspace_members": [member("demo_sdk")] + [member(n) for n in sorted(names)], "packages": packages, "resolve": {"nodes": nodes}}
 
 MANIFEST = """[workspace.metadata.api]
 package = "demo-sdk"
@@ -36,16 +60,16 @@ def document(name: str, crate: str) -> dict:
 
 
 def test_a_public_item_naming_an_internal_crates_type_is_a_leak() -> None:
-    assert leaks(document("lint", "ryo_core"), []) == ["demo::lint -> ryo_core::types::Thing"]
-    assert leaks(document("lint", "idiomatic_sh_ryo_language"), []) == ["demo::lint -> idiomatic_sh_ryo_language::types::Thing"]
+    assert leaks(document("lint", "ryo_core"), [], INTERNAL) == ["demo::lint -> ryo_core::types::Thing"]
+    assert leaks(document("lint", "idiomatic_sh_ryo_language"), [], INTERNAL) == ["demo::lint -> idiomatic_sh_ryo_language::types::Thing"]
 
 
 def test_a_type_of_another_crate_is_no_leak() -> None:
-    assert leaks(document("lint", "serde"), []) == []
+    assert leaks(document("lint", "serde"), [], INTERNAL) == []
 
 
 def test_an_allowed_path_is_not_reported() -> None:
-    assert leaks(document("old", "ryo_core"), ["demo::old"]) == []
+    assert leaks(document("old", "ryo_core"), ["demo::old"], INTERNAL) == []
 
 
 def method(crate: str, exported: bool) -> dict:
@@ -77,11 +101,11 @@ def method(crate: str, exported: bool) -> dict:
 
 
 def test_a_hidden_method_of_an_allowed_type_naming_an_internal_type_is_a_leak() -> None:
-    assert leaks(method("ryo_language", False), ["demo::old"]) == ["demo::old::Handle::engine -> ryo_language::types::Thing"]
+    assert leaks(method("ryo_language", False), ["demo::old"], INTERNAL) == ["demo::old::Handle::engine -> ryo_language::types::Thing"]
 
 
 def test_a_method_naming_a_type_the_allowed_module_exports_is_no_leak() -> None:
-    assert leaks(method("ryo_language", True), ["demo::old"]) == []
+    assert leaks(method("ryo_language", True), ["demo::old"], INTERNAL) == []
 
 
 def trait_impl(implemented_for: list[str], argument: list[str]) -> dict:
@@ -113,20 +137,20 @@ def trait_impl(implemented_for: list[str], argument: list[str]) -> dict:
     }
 
 
-HANDLES = ["ryo_core", "outbound", "language", "types", "LanguageHandles"]
+HANDLES = ["ryo_core", "outbound", "language", "adapters", "use_case", "connection", "LanguageConnection"]
 
 
 def test_a_trait_impl_for_an_internal_type_that_is_not_the_listed_one_is_a_leak() -> None:
-    assert leaks(trait_impl(["ryo_core", "types", "Thing"], ["demo", "Language"]), []) == ["an impl -> ryo_core::types::Thing"]
+    assert leaks(trait_impl(["ryo_core", "types", "Thing"], ["demo", "Language"]), [], INTERNAL) == ["an impl -> ryo_core::types::Thing"]
 
 
 def test_the_listed_trait_impl_is_no_leak() -> None:
     assert sdk_api.ALLOWED_IMPLS == ("::".join(HANDLES),)
-    assert leaks(trait_impl(HANDLES, ["demo", "Language"]), []) == []
+    assert leaks(trait_impl(HANDLES, ["demo", "Language"]), [], INTERNAL) == []
 
 
 def test_the_listed_impl_naming_another_internal_type_leaks_that_type() -> None:
-    assert leaks(trait_impl(HANDLES, ["ryo_core", "types", "Thing"]), []) == ["an impl -> ryo_core::types::Thing"]
+    assert leaks(trait_impl(HANDLES, ["ryo_core", "types", "Thing"]), [], INTERNAL) == ["an impl -> ryo_core::types::Thing"]
 
 
 def test_a_product_that_names_no_api_passes_without_running_anything(tmp_path, monkeypatch) -> None:
@@ -141,7 +165,11 @@ def test_a_product_that_names_no_api_passes_without_running_anything(tmp_path, m
 CHECKED: list[str] = []
 
 
-def run_check(tmp_path: Path, monkeypatch, listing: str, rustdoc: dict) -> list:
+def run_check(
+    tmp_path: Path, monkeypatch, listing: str, rustdoc: dict, *, rustdoc_exit: int = 0, gated_listing: str = "", gated_rustdoc: dict | None = None
+) -> list:
+    """Runs the check against faked tools. `gated_listing` and `gated_rustdoc` are what the tools answer only when a feature is
+    switched on, `--all-features`, as an item behind `#[cfg(feature = "fixtures")]` is."""
     (tmp_path / "crates/demo").mkdir(parents=True, exist_ok=True)
     (tmp_path / "crates/demo/Cargo.toml").write_text(MANIFEST)
     (tmp_path / "crates/demo/api.txt").write_text("pub fn demo::lint()\n")
@@ -153,19 +181,21 @@ def run_check(tmp_path: Path, monkeypatch, listing: str, rustdoc: dict) -> list:
     def fake(argv, **options):
         calls.append(argv)
         out = ""
+        if "rustdoc" in argv and rustdoc_exit:
+            raise subprocess.CalledProcessError(rustdoc_exit, argv)
+        if "rustdoc" in argv and gated_rustdoc is not None and "--all-features" in argv:
+            (tmp_path / "target/doc/demo.json").write_text(json.dumps(gated_rustdoc))
         if argv[:2] == ["git", "rev-parse"]:
             out = f"{tmp_path}\n"
         elif argv[:2] == ["cargo", "metadata"]:
             out = json.dumps(
                 {
                     "target_directory": str(tmp_path / "target"),
-                    "packages": [
-                        {"name": "demo-sdk", "manifest_path": str(tmp_path / "crates/demo/sdk/Cargo.toml")},
-                    ],
+                    **graph(INTERNAL, manifest_path=str(tmp_path / "crates/demo/sdk/Cargo.toml")),
                 }
             )
         elif "public-api" in argv:
-            out = listing
+            out = listing + (gated_listing if "--all-features" in argv else "")
         elif argv[:2] == ["git", "archive"]:
             with tarfile.open(argv[argv.index("-o") + 1], "w") as tar:
                 for name in ("crates/demo/Cargo.toml", "crates/demo/tastemaker/specs/Cargo.toml"):
@@ -201,9 +231,48 @@ def test_a_leak_fails_the_check(tmp_path, monkeypatch) -> None:
         run_check(tmp_path, monkeypatch, "pub fn demo::lint()\n", document("lint", "ryo_core"))
 
 
-def test_a_listing_that_is_not_the_recorded_one_fails_the_check(tmp_path, monkeypatch) -> None:
+def test_a_listing_that_is_not_the_recorded_one_fails_the_check(
+    tmp_path, monkeypatch
+) -> None:
     with pytest.raises(RuntimeError, match="not the one recorded"):
-        run_check(tmp_path, monkeypatch, "pub fn demo::other()\n", document("lint", "serde"))
+        run_check(
+            tmp_path, monkeypatch, "pub fn demo::other()\n", document("lint", "serde")
+        )
+    evidence = tmp_path / "crates/demo/target/sdk-api"
+    assert (evidence / "actual.txt").read_text() == "pub fn demo::other()\n"
+    assert (evidence / "recorded.txt").read_text() == "pub fn demo::lint()\n"
+    assert (tmp_path / "crates/demo/api.txt").read_text() == "pub fn demo::lint()\n"
+    assert "-pub fn demo::lint()" in (evidence / "diff.txt").read_text()
+    assert "+pub fn demo::other()" in (evidence / "diff.txt").read_text()
+    metadata = json.loads((evidence / "metadata.json").read_text())
+    assert metadata["actual_sha256"] == hashlib.sha256((evidence / "actual.txt").read_bytes()).hexdigest()
+    assert metadata["comparison"] == "mismatch"
+    assert metadata["nightly"] == "nightly-2026-08-01"
+
+
+def test_a_feature_gated_item_is_on_the_recorded_surface(tmp_path, monkeypatch) -> None:
+    with pytest.raises(RuntimeError, match="not the one recorded"):
+        run_check(tmp_path, monkeypatch, "pub fn demo::lint()\n", document("lint", "serde"), gated_listing="pub mod demo::fixtures\n")
+    assert "+pub mod demo::fixtures" in (tmp_path / "crates/demo/target/sdk-api/diff.txt").read_text()
+
+
+def test_a_feature_gated_item_naming_an_internal_type_is_a_leak(tmp_path, monkeypatch) -> None:
+    with pytest.raises(RuntimeError, match="demo::fixture -> ryo_core::types::Thing"):
+        run_check(tmp_path, monkeypatch, "pub fn demo::lint()\n", document("lint", "serde"), gated_rustdoc=document("fixture", "ryo_core"))
+
+
+def test_an_early_tool_failure_cannot_upload_a_stale_comparison(
+    tmp_path, monkeypatch
+) -> None:
+    evidence = tmp_path / "crates/demo/target/sdk-api"
+    evidence.mkdir(parents=True)
+    for name in ("actual.txt", "recorded.txt", "diff.txt", "metadata.json"):
+        (evidence / name).write_text("stale previous run")
+    with pytest.raises(subprocess.CalledProcessError):
+        run_check(
+            tmp_path, monkeypatch, "unused", document("lint", "serde"), rustdoc_exit=1
+        )
+    assert list(evidence.iterdir()) == []
 
 
 def test_the_top_level_is_asked_of_git_without_the_variables_a_hook_exports(tmp_path, monkeypatch) -> None:
@@ -211,3 +280,13 @@ def test_the_top_level_is_asked_of_git_without_the_variables_a_hook_exports(tmp_
     (tmp_path / "product").mkdir()
     monkeypatch.setenv("GIT_DIR", str(tmp_path / ".git"))
     assert sdk_api.toplevel(tmp_path / "product").resolve() == tmp_path.resolve()
+
+
+
+def test_a_type_a_member_forwards_through_another_members_reexport_is_internal_and_leaks() -> None:
+    metadata = graph(("ryo_core", "ryo_execution"), forwarded={"ryo_execution": ("ryo_execution_domain",)})
+    internal = sdk_api.internal_crates(metadata, "demo-sdk")
+    assert internal == ("ryo_core", "ryo_execution", "ryo_execution_domain")
+    assert leaks(document("run", "ryo_execution_domain"), [], internal) == ["demo::run -> ryo_execution_domain::types::Thing"]
+    assert leaks(document("run", "serde"), [], internal) == []
+    assert leaks(document("run", "demo_bench"), [], internal) == []

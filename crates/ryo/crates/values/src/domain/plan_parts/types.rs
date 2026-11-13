@@ -1,6 +1,6 @@
 //! The types of the `plan_parts` concept: the numbers, text and comparisons a query plan is made of. Plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_language::domain::relations::types::{Integer, Relation, Span};
+use ryo_relations::domain::relations::types::{Integer, Relation, Span};
 
 /// The text of a RyoQL query.
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -23,7 +23,7 @@ pub struct TableKey(pub Box<str>);
 pub struct CapturePattern(pub Box<str>);
 
 /// Whether a projection drops the rows that repeat.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RepeatedRows {
     /// A row that repeats is kept once.
     Dropped,
@@ -35,13 +35,37 @@ pub enum RepeatedRows {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InputNumber(pub usize);
 
+/// An observation binding, by its place among the bindings of a request.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BindingPlace(pub usize);
+
 /// A step of the plan, by its place in the plan.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepId(pub u32);
 
+impl From<StepId> for usize {
+    #[expect(
+        clippy::as_conversions,
+        reason = "a step id is a u32, and every target the engine builds for has a usize of at least 32 bits"
+    )]
+    fn from(step: StepId) -> Self {
+        step.0 as Self
+    }
+}
+
 /// A column, by its place in the table that holds it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ColumnIndex(pub u32);
+
+impl From<ColumnIndex> for usize {
+    #[expect(
+        clippy::as_conversions,
+        reason = "a column index is a u32, and every target the engine builds for has a usize of at least 32 bits"
+    )]
+    fn from(column: ColumnIndex) -> Self {
+        column.0 as Self
+    }
+}
 
 /// A parameter, by its place among the plan's parameters.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -61,16 +85,18 @@ pub enum FlagState {
 }
 
 /// What a step reads.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Input {
     /// A relation ryo owns.
     Relation(Relation),
     /// An earlier step.
     Step(StepId),
+    /// An explicit typed producer binding, resolved by the request graph rather than the relation catalog.
+    BoundObservation(ObservationBindingId),
 }
 
 /// Which side of a join a column comes from.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Side {
     /// The left input.
     Left,
@@ -100,12 +126,25 @@ pub enum Direction {
 }
 
 /// A column a join keeps.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct JoinColumn {
     /// The input it comes from.
     pub side: Side,
     /// Its place in that input.
     pub column: ColumnIndex,
+}
+
+/// Physical source-keyed lookup of a positive transitive closure, internal to a compiled join.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ReachLookup {
+    /// Physical edge column holding the closure source.
+    pub source: ColumnIndex,
+    /// Physical edge column holding the closure destination.
+    pub destination: ColumnIndex,
+    /// Physical partition columns, in the original closure's argument order.
+    pub keys: Vec<ColumnIndex>,
+    /// Logical RHS output map over partition keys followed by source and destination.
+    pub columns: Vec<ColumnIndex>,
 }
 
 /// A relation the host declared, by its place among the ones declared with the request.
@@ -141,21 +180,45 @@ pub enum Test {
     StartsWith,
     /// `ends_with`.
     EndsWith,
+    /// `matches`: a regular expression searches the text.
+    Matches,
+    /// Canonical numeric text or whole numbers, compared without integer rounding.
+    NumericGreaterThanOrEqual,
+    /// `integer_successor(left, right)`: right is exactly left plus one; integers only.
+    IntegerSuccessor,
+    /// `natural_lt(left, right)`: case-sensitive natural text order; ASCII digit runs,
+    /// fraction-style zero prefixes, Unicode whitespace separators, no normalization.
+    NaturalLessThan,
 }
 
 /// One condition of a `select` step.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Comparison {
+#[derive(Clone, Debug)]
+pub struct PlanComparison {
     /// How the sides compare.
     pub test: Test,
     /// The left side.
     pub left: Operand,
     /// The right side.
     pub right: Operand,
+    /// The optional index into the owning plan's source-origin table; diagnostic only.
+    pub origin: ComparisonOrigin,
 }
 
+/// Whether a comparison carries a source-origin table index.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ComparisonOrigin {
+    /// The comparison has an entry in the owning plan's source-origin table.
+    Recorded(ComparisonOriginId),
+    /// The comparison has none.
+    Unrecorded,
+}
+
+/// A source-origin table index attached to a comparison for diagnostics; meaningful only with its owning plan.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ComparisonOriginId(pub u32);
+
 /// One side of a comparison.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Hash)]
 pub enum Operand {
     /// A column of the step's input.
     Column(ColumnIndex),
@@ -180,10 +243,12 @@ pub enum Function {
     Snake,
     /// `kebab`: `TodoLists` as `todo-lists`.
     Kebab,
+    /// `lower`: Unicode lowercase text, retaining punctuation and whitespace.
+    Lower,
 }
 
 /// A function and the operands it is applied to.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Hash)]
 pub struct Applied {
     /// The function.
     pub function: Function,
@@ -192,7 +257,7 @@ pub struct Applied {
 }
 
 /// A value the query wrote: text that entered the engine, or a number.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum QueryLiteral {
     /// A whole number.
     Number(Integer),
@@ -201,47 +266,57 @@ pub enum QueryLiteral {
 }
 
 /// The heading of a column of the answer.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Heading(pub Box<str>);
 
-/// Which fault a query text was refused for.
+/// What an operation reads: up to three inputs, as many as the operation names.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum RefusedKind {
-    /// The text is not RyoQL.
-    Syntax,
-    /// The query reads a relation ryo does not own.
-    UnknownRelation,
-    /// A comparison puts unlike types side by side.
-    Type,
-    /// The query is wrong in another way.
-    Invalid,
-    /// The catalog of relations could not be read.
-    Catalog,
+pub struct Inputs {
+    /// The inputs in the order the operator reads them; the places past `used` repeat the first.
+    pub list: [Input; 3],
+    /// How many of them the operation names.
+    pub used: InputCount,
 }
 
-/// What a refusal says: the relation a query named that is not one, or the reason, as the compiler worded it.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct RefusalMessage(pub String);
+/// How many inputs an operation reads.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InputCount(pub usize);
 
-/// A query text that was refused: which fault, what it says, and where in the text.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RefusedQuery {
-    /// Which fault.
-    pub kind: RefusedKind,
-    /// What it says.
-    pub message: RefusalMessage,
-    /// Where in the text; empty for a fault that is not in the text.
-    pub span: Span,
-}
-
-impl std::fmt::Display for RefusedQuery {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let message = &self.message.0;
-        match self.kind {
-            RefusedKind::Syntax => write!(f, "{message} at byte {}", self.span.start.0),
-            RefusedKind::UnknownRelation => write!(f, "no relation named `{message}`"),
-            RefusedKind::Type | RefusedKind::Invalid => write!(f, "{message}"),
-            RefusedKind::Catalog => write!(f, "the relation catalog failed: {message}"),
-        }
+/// Hashes what equality compares; the diagnostic origin is not part of either.
+impl std::hash::Hash for PlanComparison {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.test.hash(state);
+        self.left.hash(state);
+        self.right.hash(state);
     }
+}
+
+impl PartialEq for PlanComparison {
+    fn eq(&self, other: &Self) -> bool {
+        self.test == other.test && self.left == other.left && self.right == other.right
+    }
+}
+
+/// A bound input's stable local position within one compiled consumer plan.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ObservationBindingId(pub u32);
+
+impl From<ObservationBindingId> for usize {
+    #[expect(
+        clippy::as_conversions,
+        reason = "an observation binding id is a u32, and every target the engine builds for has a usize of at least 32 bits"
+    )]
+    fn from(binding: ObservationBindingId) -> Self {
+        binding.0 as Self
+    }
+}
+
+/// Where a step runs: in the worker that has the file, or once after the workers on the rows they
+/// handed over.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum StepScope {
+    /// On one file's rows, in the worker.
+    PerFile,
+    /// On the frontier rows of every file.
+    CrossFile,
 }

@@ -1,6 +1,6 @@
 //! `tm check`, over each sample: the rule `tm create` writes reports where its own failing scenario says.
 
-use crate::fixes::{FOUND, tm};
+use crate::fixes::{CLEAN, FOUND, tm};
 use crate::languages::{
     RULE, copied, created, created_rule, ended, initialized, over_samples, ran, reported,
 };
@@ -345,15 +345,33 @@ fn checking_crates_ryo_cold_stays_under_its_memory_guard() {
         .expect("git starts");
     assert!(init.success(), "git init succeeds");
     let output = std::process::Command::new("/usr/bin/time")
-        .args(["-f", "peak-kib %M", env!("CARGO_BIN_EXE_tm"), "check"])
+        .args([
+            "-f",
+            "peak-kib %M",
+            env!("CARGO_BIN_EXE_tm"),
+            "check",
+            "--format",
+            "json",
+        ])
         .current_dir(scratch.path().join("crates/ryo"))
         .output()
         .expect("tm starts");
     let said = String::from_utf8_lossy(&output.stderr).into_owned();
-    // The check ends with its findings (1 or 2) or none (0); anything else is a crash, and says nothing of memory.
+    // The peak says something of memory only for a run that checked the tree. A run that checked it ends clean (exit 0)
+    // or with findings (exit 1), and its report holds every finding and every suppressed one: crates/ryo always has
+    // suppressed findings, so a report with neither checked nothing. A run that could not check (exit 2, such as a
+    // definition refused for want of a proof) stops in seconds, and its peak proves nothing.
     assert!(
-        matches!(output.status.code(), Some(0..=2)),
-        "tm check ended badly:\n{said}"
+        matches!(output.status.code(), Some(CLEAN | FOUND)),
+        "tm check did not check the tree (exit {:?}):\n{said}",
+        output.status.code()
+    );
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .unwrap_or_else(|error| panic!("tm check answered no report ({error}):\n{said}"));
+    let reported = |key: &str| report[key].as_array().map_or(0, Vec::len);
+    assert!(
+        reported("findings") + reported("suppressed") > 0,
+        "tm check reported no finding and no suppressed finding over crates/ryo, so it checked nothing:\n{said}"
     );
     let peak = said
         .lines()

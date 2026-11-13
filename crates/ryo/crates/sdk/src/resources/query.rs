@@ -41,6 +41,11 @@ pub use validate::schemas::RyoQlQuerySchemaError;
 
 pub use crate::domain::query::types::RyoQlQuery;
 
+pub use crate::domain::query::errors::{QueryOrigin, QueryTraceSite};
+pub use crate::domain::query::types::{CatalogContent, QueryModuleCatalog, QueryModuleSource};
+
+pub use crate::domain::query::errors::QueryBundleError;
+
 pub use validate::types::ValidateRequest;
 
 pub use validate::types::ValidateReport;
@@ -63,3 +68,11 @@ pub use run::types::RowCount;
 pub use run::types::DEFAULT_LIMIT;
 
 pub use run::errors::RunError;
+
+// Portable declarations used by context-aware query validation.
+pub use crate::domain::observation::types::ObservationScope;
+pub use crate::domain::observation::types::{
+    BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
+};
+
+pub use crate::domain::observation::types::ObservationKind;

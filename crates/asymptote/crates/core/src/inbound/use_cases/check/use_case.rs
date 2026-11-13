@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::errors::CheckError;
 use super::interface::CheckUseCase;
 use super::types::{
-    Against, CheckPorts, CheckReport, CheckRequest, FailedFix, Fixing, ReadFile, Reuse, ToolRun,
+    Against, CheckPorts, CheckReport, CheckRequest, FailedFix, Fixing, ReadFile, Reuse,
 };
 use crate::domain::inputs::service::named;
 use crate::domain::judgement::service::{compare, tail, verdict, with_perf};
@@ -24,7 +24,8 @@ use crate::domain::reports::service::{
     completed, failed, measured, range_ends, recorded, stamp_parts, unlisted, unread,
 };
 use crate::domain::reports::types::{
-    Digest, HashParts, Keeping, Listed, NamedInput, Report, Scanned, Stamped,
+    DiagnosticText, Digest, FailureOutput, HashParts, Keeping, Listed, NamedInput, Report, Scanned,
+    Stamped,
 };
 use crate::domain::violations::service::{anchor, normalize, relative, within};
 use crate::domain::violations::types::{
@@ -185,7 +186,14 @@ impl CheckUseCaseImpl {
             stdout,
             stderr,
         } = completion;
-        let failed = |failure| failed(&tool.id, failure);
+        let failed = |failure| Scanned {
+            failure_output: FailureOutput::Captured {
+                stdout: DiagnosticText(stdout.0.clone()),
+                stderr: DiagnosticText(stderr.0.clone()),
+                inputs: stamp.clone(),
+            },
+            ..failed(&tool.id, failure)
+        };
         let code = match ending {
             Ending::Exited(code) => code.0,
             Ending::Signalled => {
@@ -209,7 +217,7 @@ impl CheckUseCaseImpl {
         let mut measurements: Vec<Measurement> = Vec::new();
         let (violations, inventory) = match tool.output {
             Output::ExitStatus if code == 0_i32 => (Vec::new(), Inventory::Undeclared),
-            Output::Bmf if code == 0_i32 => match self.ports.bmf.read(&BmfText(stdout.0)) {
+            Output::Bmf if code == 0_i32 => match self.ports.bmf.read(&BmfText(stdout.0.clone())) {
                 Ok(measured) => {
                     measurements = measured.0;
                     (Vec::new(), Inventory::Undeclared)
@@ -217,26 +225,28 @@ impl CheckUseCaseImpl {
                 Err(error) => {
                     return failed(Failure::Unreadable {
                         problem: Problem(error.to_string().into()),
-                        stderr: tail(&Tail(stderr.0)),
+                        stderr: tail(&Tail(stderr.0.clone())),
                     });
                 }
             },
-            Output::Sarif if code < 2_i32 => match self.ports.sarif.read(&SarifText(stdout.0)) {
-                Ok(log) => {
-                    let violations = log
-                        .results
-                        .into_iter()
-                        .map(|reported| self.violation(root, tool, reported, read))
-                        .collect();
-                    (violations, log.inventory)
+            Output::Sarif if code < 2_i32 => {
+                match self.ports.sarif.read(&SarifText(stdout.0.clone())) {
+                    Ok(log) => {
+                        let violations = log
+                            .results
+                            .into_iter()
+                            .map(|reported| self.violation(root, tool, reported, read))
+                            .collect();
+                        (violations, log.inventory)
+                    }
+                    Err(error) => {
+                        return failed(Failure::Unreadable {
+                            problem: Problem(error.to_string().into()),
+                            stderr: tail(&Tail(stderr.0.clone())),
+                        });
+                    }
                 }
-                Err(error) => {
-                    return failed(Failure::Unreadable {
-                        problem: Problem(error.to_string().into()),
-                        stderr: tail(&Tail(stderr.0)),
-                    });
-                }
-            },
+            }
             Output::ExitStatus | Output::Sarif | Output::Bmf => return failed(exited),
         };
         completed(&tool.id, violations, inventory, measurements, stamp, inputs)
@@ -393,6 +403,7 @@ impl CheckUseCase for CheckUseCaseImpl {
             .flat_map(|scanned| scanned.violations.iter().cloned())
             .collect();
         let runs: Vec<Run> = scanned.iter().map(|scanned| scanned.run.clone()).collect();
+        let answered = super::service::answered(&scanned, reuses);
         let mut accepted = self.accepted(&head, &request.against)?;
         accepted.retain(|record| !excluded.contains(&record.key.tool));
         // The files the judgement rests on beyond the inputs, and the manifest, are recorded beside them, so `up` and
@@ -422,11 +433,7 @@ impl CheckUseCase for CheckUseCaseImpl {
         let _: Option<()> = self.ports.store.keep(&stored).ok(); // ignore: idiomatic.arch/no-ok-on-result - a check whose store cannot be saved still answers; the next one runs every tool
         Ok(CheckReport {
             root,
-            runs: runs
-                .into_iter()
-                .zip(reuses)
-                .map(|(run, reuse)| ToolRun { run, reuse })
-                .collect(),
+            runs: answered,
             outcome,
             verdict,
             against: request.against,
