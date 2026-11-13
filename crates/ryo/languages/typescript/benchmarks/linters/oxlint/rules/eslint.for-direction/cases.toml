@@ -1,0 +1,54 @@
+[[cases]]
+name = "decrement-while-below"
+files = { "case.ts" = "for (let i = 0; i < 10; i--) {}\n" }
+expected = [{ file = "case.ts", start = 16, end = 22 }]
+
+[[cases]]
+name = "increment-while-above"
+files = { "case.ts" = "for (let i = 10; i >= 0; i++) {}\n" }
+expected = [{ file = "case.ts", start = 17, end = 23 }]
+
+[[cases]]
+name = "subtract-while-below"
+files = { "case.ts" = "for (let i = 0; i < 10; i -= 1) {}\n" }
+expected = [{ file = "case.ts", start = 16, end = 22 }]
+
+[[cases]]
+name = "add-negative-while-below"
+files = { "case.ts" = "for (let i = 0; i < 10; i += -1) {}\n" }
+expected = [{ file = "case.ts", start = 16, end = 22 }]
+
+[[cases]]
+name = "add-while-above"
+files = { "case.ts" = "for (let i = 0; i > 10; i += 1) {}\n" }
+expected = [{ file = "case.ts", start = 16, end = 22 }]
+
+[[cases]]
+name = "counter-on-right"
+files = { "case.ts" = "for (let i = 0; 10 > i; i--) {}\n" }
+expected = [{ file = "case.ts", start = 16, end = 22 }]
+
+[[cases]]
+name = "prefix-decrement"
+files = { "case.ts" = "for (let i = 0; i < 10; --i) {}\n" }
+expected = [{ file = "case.ts", start = 16, end = 22 }]
+
+[[cases]]
+name = "right-direction"
+files = { "case.ts" = "for (let i = 0; i < 10; i++) {}\n" }
+expected = []
+
+[[cases]]
+name = "other-counter"
+files = { "case.ts" = "for (let i = 0; i < 10; j--) {}\n" }
+expected = []
+
+[[cases]]
+name = "unknown-step"
+files = { "case.ts" = "for (let i = 0; i < 10; i += n) {}\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line for-direction\nfor (let i = 0; i < 10; i--) {}\n" }
+expected = []

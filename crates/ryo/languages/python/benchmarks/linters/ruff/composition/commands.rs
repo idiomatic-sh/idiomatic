@@ -5,10 +5,12 @@ use super::constants::{
     PINNED_REFERENCE_DOES_NOT_EVALUATE, PYTHON_TARGET, UNEXPECTED_TRAILING_WORKER_ARGUMENT,
     UNEXPECTED_WORKER_CONFIGURATION,
 };
-use super::diagnostic_protocol::WorkerTracing;
 use super::locations::{default_scratch, directory};
-use super::request_input::{BenchmarkArgument, WorkerInput, worker_expectation, worker_input};
+use super::request_input::worker_expectation;
 use super::targets::{ReferenceSpelling, TargetConfiguration};
+use ryo_benchmark::domain::command_line::types::{
+    BenchmarkArgument, WorkerTracing, worker_input::value::WorkerInput,
+};
 use ryo_benchmark::inbound::use_cases::account_defaults::{
     interface::AccountDefaultsUseCase as _, use_case::AccountDefaultsUseCaseImpl,
 };
@@ -25,6 +27,7 @@ use ryo_benchmark::inbound::use_cases::{
     verify_cases::interface::VerifyCasesUseCase as _,
     verify_reference_cases::interface::VerifyReferenceCasesUseCase as _,
 };
+use ryo_benchmark::outbound::linter::interface::LinterPort as _;
 use ryo_benchmark::outbound::suite::{
     interface::SuitePort,
     types::{ArtifactPath, ArtifactText},
@@ -40,7 +43,7 @@ pub(super) fn worker(
     mut args: impl Iterator<Item = BenchmarkArgument>,
     tracing: WorkerTracing,
 ) -> Result<(), Error> {
-    let input = worker_input(&mut args)?;
+    let input = WorkerInput::read(&mut args)?;
     let next_argument = args.next().map(|argument| argument.0);
     let (parser_configuration, trace_path) = match next_argument {
         Some(configuration) if configuration.starts_with(PYTHON_TARGET) => {
@@ -150,7 +153,8 @@ pub(super) fn verify_cases(
     let parser_configuration = tool.parser_configuration.clone();
     let source_language = tool.source_language.clone();
     let project_context_mode = tool.project_context_mode;
-    suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
+    let expected = reference(executable.clone(), tool.clone())?.version_line(&tool);
+    suite_source.verify_tool(ArtifactPath(&executable), &tool, &expected)?;
     let audit = ryo_benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(
         Arc::clone(&suite_source),
     )
@@ -224,7 +228,8 @@ pub(super) fn verify_reference_cases(
         .next()
         .map_or_else(directory, |argument| PathBuf::from(argument.0));
     let tool = suite_source.profile(ArtifactPath(&source))?;
-    suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
+    let expected = reference(executable.clone(), tool.clone())?.version_line(&tool);
+    suite_source.verify_tool(ArtifactPath(&executable), &tool, &expected)?;
     let reference = reference(executable, tool)?;
     let scratch = default_scratch(
         &suite_source,
@@ -275,6 +280,7 @@ fn parser_target(
     Ok(super::targets::resolve(configuration)?.parser)
 }
 
+// Composition is not DRY: this port wiring repeats in each linter's composition by the owner's rule; only pure values are shared.
 /// Copy exact collector bytes into the frozen workload and record their digest.
 pub(super) fn collector(
     suite: &dyn SuitePort,
@@ -299,6 +305,7 @@ pub(super) struct CollectorIdentity {
     pub digest: ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest,
 }
 
+// Composition is not DRY: this port wiring repeats in each linter's composition by the owner's rule; only pure values are shared.
 /// Compose the isolated collector and expose its exact identity in observations.
 pub(super) fn timed(
     identity: CollectorIdentity,
@@ -315,6 +322,7 @@ pub(super) fn timed(
     ))
 }
 
+// Composition is not DRY: this port wiring repeats in each linter's composition by the owner's rule; only pure values are shared.
 /// Report authored coverage while refusing unaccounted shipped defaults.
 pub(super) fn audit(
     suite_source: &Arc<dyn SuitePort>,

@@ -1,0 +1,49 @@
+[[cases]]
+name = "empty-object"
+files = { "case.ts" = "const {} = foo;\n" }
+expected = [{ file = "case.ts", start = 6, end = 8 }]
+
+[[cases]]
+name = "empty-array"
+files = { "case.ts" = "const [] = foo;\n" }
+expected = [{ file = "case.ts", start = 6, end = 8 }]
+
+[[cases]]
+name = "empty-parameter"
+files = { "case.ts" = "function f({}) {}\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "nested-empty"
+files = { "case.ts" = "const { a: {} } = foo;\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "annotated-parameter"
+files = { "case.ts" = "function f({}: Options) {}\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "hole-is-not-empty"
+files = { "case.ts" = "const [,] = foo;\n" }
+expected = []
+
+[[cases]]
+name = "default-object-is-not-a-pattern"
+files = { "case.ts" = "const { a = {} } = foo;\n" }
+expected = []
+
+[[cases]]
+name = "rest"
+files = { "case.ts" = "const { ...rest } = foo;\n" }
+expected = []
+
+[[cases]]
+name = "filled"
+files = { "case.ts" = "const { a } = foo;\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-empty-pattern\nconst {} = foo;\n" }
+expected = []

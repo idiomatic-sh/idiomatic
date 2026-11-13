@@ -1,5 +1,5 @@
 //! Exact diagnostic multisets and submitted-file sets determine agreement.
-use super::service::{compare_dimensions, compare_with_contract};
+use super::service::{compare_conditions, compare_dimensions, compare_with_contract};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo::linter::{RelativePath, RuleId, SkipReason, Skipped};
 use ryo_benchmark_contracts::domain::reports::service::require_complete_execution;
@@ -10,9 +10,11 @@ use ryo_benchmark_contracts::domain::reports::types::{
 };
 use std::borrow::Cow;
 
-/// What a case hands the part: two reports under a contract, or one report's execution accounting.
+/// What a case hands the part: two reports under a contract, one tool's reports under two cache conditions, or one report's
+/// execution accounting.
 enum Check {
     Reports(ComparisonContract, RunReport, RunReport),
+    Conditions(RunReport, RunReport),
     Execution(RunReport),
 }
 
@@ -20,6 +22,7 @@ enum Check {
 #[derive(Debug, PartialEq, Eq)]
 enum Verdict {
     Compared(ReportComparison),
+    Agreed,
     Complete,
 }
 
@@ -27,6 +30,7 @@ enum Verdict {
 #[derive(Debug, PartialEq, Eq)]
 enum Refusal {
     Differs(ReportComparison),
+    Disagrees,
     Invalid(Cow<'static, str>),
 }
 
@@ -101,6 +105,34 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             Check::Execution(candidate)
         },
         expect: Expect::Value(Verdict::Complete),
+    },
+    Case {
+        name: CaseName("accounted runs of one tool agree across cache conditions"),
+        word: Word::Succeeds,
+        input: || Check::Conditions(report(), report()),
+        expect: Expect::Value(Verdict::Agreed),
+    },
+    Case {
+        name: CaseName(
+            "runs of a tool whose format has no execution accounting agree across cache conditions on their findings",
+        ),
+        word: Word::Succeeds,
+        input: || Check::Conditions(findings_only(0), findings_only(0)),
+        expect: Expect::Value(Verdict::Agreed),
+    },
+    Case {
+        name: CaseName(
+            "runs of a tool without execution accounting still disagree on different findings",
+        ),
+        word: Word::Refuses,
+        input: || Check::Conditions(findings_only(0), findings_only(1)),
+        expect: Expect::Error(Refusal::Disagrees),
+    },
+    Case {
+        name: CaseName("one run accounted and the other not is disagreement"),
+        word: Word::Refuses,
+        input: || Check::Conditions(report(), findings_only(0)),
+        expect: Expect::Error(Refusal::Disagrees),
     },
     Case {
         name: CaseName("different checked files are not agreement"),
@@ -292,6 +324,24 @@ fn unwaived(failure: usize) -> Input {
     Check::Reports(ComparisonContract::Diagnostics, reference, candidate)
 }
 
+/// A report of a tool whose format has no execution accounting, holding `findings` findings.
+fn findings_only(findings: usize) -> RunReport {
+    let mut report = report();
+    report.execution_metadata = ExecutionMetadata::Unavailable {
+        reason: UnavailableReason("findings-only".into()),
+    };
+    report.coverage = CoverageAccounting::Unaccounted;
+    report.diagnostics = (0..findings)
+        .map(|_| BenchmarkFinding {
+            rule: RuleId::try_from("A").expect("fixture rule"),
+            file: RelativePath("input.txt".into()),
+            start: SourceByteOffset(0),
+            end: SourceByteOffset(1),
+        })
+        .collect();
+    report
+}
+
 /// A complete reference, and a candidate that explicitly skipped its one file.
 fn skipping() -> (RunReport, RunReport) {
     let mut candidate = report();
@@ -318,6 +368,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 Err(_difference) => Err(Refusal::Differs(dimensions)),
             }
         }
+        Check::Conditions(first, second) => compare_conditions(&first, &second)
+            .map(|()| Verdict::Agreed)
+            .map_err(|_difference| Refusal::Disagrees),
         Check::Execution(candidate) => require_complete_execution(&candidate)
             .map(|()| Verdict::Complete)
             .map_err(|error| Refusal::Invalid(error.to_string().into())),

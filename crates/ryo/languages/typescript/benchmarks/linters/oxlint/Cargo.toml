@@ -1,0 +1,42 @@
+[package]
+name = "idiomatic-sh-ryo-typescript-oxlint-benchmark"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+description = "The oxlint linter benchmark of the Ryo TypeScript provider: its rules, fragments, worker and parity tests"
+autobenches = false
+autotests = false
+
+[dependencies]
+
+[dev-dependencies]
+ryo_typescript = { package = "idiomatic-sh-ryo-typescript", path = "../../.." }
+ryo-benchmark-contracts = { package = "idiomatic-sh-ryo-benchmark-contracts", path = "../../../../../crates/benchmark_contracts" }
+ryo_benchmark = { package = "idiomatic-sh-ryo-benchmark", path = "../../../../../crates/benchmark", features = ["fixtures"] }
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../../../../crates/sdk" }
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+
+# The worker binary runs on the allocator the command line ships (ruff and uv ship the same): jemalloc where it builds,
+# mimalloc on Windows.
+[target.'cfg(all(not(target_os = "windows"), not(target_os = "openbsd"), not(target_os = "aix"), not(target_os = "android"), any(target_arch = "x86_64", target_arch = "aarch64", target_arch = "powerpc64", target_arch = "riscv64")))'.dev-dependencies]
+tikv-jemallocator.workspace = true
+
+[target.'cfg(target_os = "windows")'.dev-dependencies]
+mimalloc.workspace = true
+
+[lints]
+workspace = true
+
+[[bench]]
+name = "oxlint"
+path = "bench.rs"
+harness = false
+
+[[test]]
+name = "oxlint"
+path = "tests.rs"

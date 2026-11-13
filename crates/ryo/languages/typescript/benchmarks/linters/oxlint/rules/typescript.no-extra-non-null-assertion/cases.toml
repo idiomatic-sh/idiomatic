@@ -1,0 +1,34 @@
+[[cases]]
+name = "double"
+files = { "case.ts" = "x!!;\n" }
+expected = [{ file = "case.ts", start = 1, end = 2 }]
+
+[[cases]]
+name = "optional-member"
+files = { "case.ts" = "x!?.y;\n" }
+expected = [{ file = "case.ts", start = 1, end = 2 }]
+
+[[cases]]
+name = "optional-call"
+files = { "case.ts" = "x!?.();\n" }
+expected = [{ file = "case.ts", start = 1, end = 2 }]
+
+[[cases]]
+name = "triple"
+files = { "case.ts" = "x!!!;\n" }
+expected = [{ file = "case.ts", start = 1, end = 2 }, { file = "case.ts", start = 2, end = 3 }]
+
+[[cases]]
+name = "grouped"
+files = { "case.ts" = "(x!)!;\n" }
+expected = [{ file = "case.ts", start = 2, end = 3 }]
+
+[[cases]]
+name = "single"
+files = { "case.ts" = "x!.y;\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line @typescript-eslint/no-extra-non-null-assertion\nx!!;\n" }
+expected = []

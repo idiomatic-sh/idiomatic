@@ -1,0 +1,29 @@
+[[cases]]
+name = "rethrow"
+files = { "case.ts" = "try { f(); } catch (e) { throw e; }\n" }
+expected = [{ file = "case.ts", start = 20, end = 21 }]
+
+[[cases]]
+name = "rethrow-with-finally"
+files = { "case.ts" = "try { f(); } catch (e) { throw e; } finally { g(); }\n" }
+expected = [{ file = "case.ts", start = 20, end = 21 }]
+
+[[cases]]
+name = "handles-first"
+files = { "case.ts" = "try { f(); } catch (e) { g(); throw e; }\n" }
+expected = []
+
+[[cases]]
+name = "throws-other"
+files = { "case.ts" = "try { f(); } catch (e) { throw x; }\n" }
+expected = []
+
+[[cases]]
+name = "destructured"
+files = { "case.ts" = "try { f(); } catch ({ m }) { throw m; }\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "try { f(); } catch (\n  // eslint-disable-next-line no-useless-catch\n  e\n) { throw e; }\n" }
+expected = []

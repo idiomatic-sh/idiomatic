@@ -1,0 +1,39 @@
+[[cases]]
+name = "eight"
+files = { "case.ts" = "const s = \"\\8\";\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "nine-single-quoted"
+files = { "case.ts" = "const s = '\\9a';\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "two-escapes"
+files = { "case.ts" = "const s = \"a\\8b\\9\";\n" }
+expected = [{ file = "case.ts", start = 12, end = 14 }, { file = "case.ts", start = 15, end = 17 }]
+
+[[cases]]
+name = "adjacent-escapes"
+files = { "case.ts" = "const s = \"\\8\\9\";\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }, { file = "case.ts", start = 13, end = 15 }]
+
+[[cases]]
+name = "escaped-backslash"
+files = { "case.ts" = "const s = \"\\\\8\";\n" }
+expected = []
+
+[[cases]]
+name = "zero-then-eight"
+files = { "case.ts" = "const s = \"\\08\";\n" }
+expected = []
+
+[[cases]]
+name = "plain"
+files = { "case.ts" = "const s = \"89\";\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-nonoctal-decimal-escape\nconst s = \"\\8\";\n" }
+expected = []

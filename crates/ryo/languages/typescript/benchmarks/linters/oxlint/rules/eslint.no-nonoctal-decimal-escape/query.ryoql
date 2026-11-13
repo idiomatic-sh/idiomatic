@@ -1,0 +1,6 @@
+import directives from "typescript/oxlint/eslint-directives";
+let strings = select id, file, span from "semantic-syntax" where kind = "string" and matches(text, "\\[89]");
+let escapes = source-matches(from=strings, span="span", pattern="(?P<escape>\\[\s\S])", output="run", capture="escape", capture-output="escape", capture-text-output="sequence");
+let decimal = select id, file, escape as span from escapes where matches(sequence, "^\\[89]$");
+let violations = directives(candidates=decimal, names="(?:^|,)(?:[^,]*/)?no-nonoctal-decimal-escape(?:,|$)");
+emit violations subject file key(id, span);

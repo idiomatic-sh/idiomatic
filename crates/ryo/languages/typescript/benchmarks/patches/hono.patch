@@ -1,0 +1,7 @@
+diff --git a/src/hono-base.ts b/src/hono-base.ts
+--- a/src/hono-base.ts
++++ b/src/hono-base.ts
+@@ -287,2 +287,3 @@
+   notFound = (handler: NotFoundHandler<E>): Hono<E, S, BasePath> => {
++    debugger
+     this.#notFoundHandler = handler

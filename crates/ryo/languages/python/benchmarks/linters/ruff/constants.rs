@@ -35,16 +35,6 @@ pub(crate) const SELECT: &str = "--select";
 pub(crate) const TARGET_VERSION: &str = "--target-version";
 /// Separator in the reference rule-selection argument.
 pub(crate) const RULE_SEPARATOR: &str = ",";
-/// Child SDK execution command.
-pub(crate) const RUN_RYO: &str = "run-ryo";
-/// Separate trace-only child execution command.
-pub(crate) const PROFILE_RYO: &str = "profile-ryo";
-/// Diagnostic-only worker that flushes rule/file events as JSONL.
-pub(crate) const DIAGNOSTIC_RYO: &str = "diagnostic-ryo";
-/// Required argument or refusal for missing worker request.
-pub(crate) const MISSING_WORKER_REQUEST: &str = "missing worker request";
-/// Child argument that carries a request from an owned JSON file.
-pub(crate) const REQUEST_FILE: &str = "--request-file";
 /// Text `worker requires an explicit supported...`.
 pub(crate) const WORKER_REQUIRES_A_SUPPORTED_PARSER: &str =
     "worker requires an explicit supported parser configuration";

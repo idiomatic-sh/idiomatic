@@ -1,0 +1,12 @@
+import directives from "typescript/oxlint/eslint-directives";
+let arrays = select id, file, span from "semantic-syntax" where kind = "array-expression";
+let scanned = source-matches(from=arrays, span="span", pattern="[\[,]\s*(?P<hole>,)", output="run", capture="hole", capture-output="hole");
+let commas = select l.parent as parent, r.id as id, r.span as span from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "punctuator" and r.text = ",";
+let holes = select r.id as id, l.file as file, l.id as array, r.span as span from scanned as l join commas as r on l.id = r.parent and l.hole = r.span;
+let hole_bounds = span-bounds(from=holes, span="span", start-output="begin", end-output="finish");
+let later_holes = select l.id as id from hole_bounds as l join hole_bounds as r on l.array = r.array where l.begin > r.begin;
+let first_holes = antijoin(left=hole_bounds, right=later_holes, left-on=["id"], right-on=["id"]);
+let marks = source-matches(from=first_holes, span="span", pattern="\A", output="mark");
+let found = select id, file, mark as span from marks;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-sparse-arrays(?:,|$)");
+emit violations subject file key(id);

@@ -8,6 +8,7 @@ use ryo_benchmark_contracts::domain::reports::types::{
     CoverageAccounting, PairCount, RuleCoverage, RunReport,
 };
 use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
 use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 
 /// Candidate fixture exposes complete execution accounting independently of its findings.
@@ -41,5 +42,8 @@ impl LinterPort for CoveredCandidate {
     }
     fn rule_context_text(&self, prepared: &PreparedRuleContext) -> CanonicalText {
         LinterPort::rule_context_text(&self.0, prepared)
+    }
+    fn version_line(&self, tool: &Tool) -> VersionLine {
+        LinterPort::version_line(&self.0, tool)
     }
 }

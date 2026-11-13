@@ -358,6 +358,8 @@ pub mod tool_name;
 
 pub mod tool_version;
 
+pub mod version_line;
+
 pub mod tool_digest;
 
 pub mod capability_name;

@@ -1,0 +1,59 @@
+[[cases]]
+name = "identifier"
+files = { "case.ts" = "z = z;\n" }
+expected = [{ file = "case.ts", start = 4, end = 5 }]
+
+[[cases]]
+name = "member"
+files = { "case.ts" = "a.b = a.b;\n" }
+expected = [{ file = "case.ts", start = 6, end = 9 }]
+
+[[cases]]
+name = "this-member"
+files = { "case.ts" = "this.x = this.x;\n" }
+expected = [{ file = "case.ts", start = 9, end = 15 }]
+
+[[cases]]
+name = "array"
+files = { "case.ts" = "[a, b] = [a, b];\n" }
+expected = [{ file = "case.ts", start = 10, end = 11 }, { file = "case.ts", start = 13, end = 14 }]
+
+[[cases]]
+name = "object-shorthand"
+files = { "case.ts" = "({ a } = { a });\n" }
+expected = [{ file = "case.ts", start = 11, end = 12 }]
+
+[[cases]]
+name = "logical-or"
+files = { "case.ts" = "z ||= z;\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "logical-and"
+files = { "case.ts" = "z &&= z;\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "compound"
+files = { "case.ts" = "z += z;\n" }
+expected = []
+
+[[cases]]
+name = "other-member"
+files = { "case.ts" = "a.b = a.c;\n" }
+expected = []
+
+[[cases]]
+name = "computed"
+files = { "case.ts" = "a[0] = a[0];\n" }
+expected = []
+
+[[cases]]
+name = "swap"
+files = { "case.ts" = "[a, b] = [b, a];\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-self-assign\nz = z;\n" }
+expected = []

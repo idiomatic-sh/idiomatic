@@ -94,6 +94,14 @@ impl LinterPort for ObservedPrepare {
     ) -> crate::outbound::linter::types::CanonicalText {
         crate::outbound::linter::types::CanonicalText(format!("{prepared:?}"))
     }
+    fn version_line(
+        &self,
+        tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine {
+        ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine::from(
+            tool,
+        )
+    }
 }
 #[cfg(unix)]
 fn set_mode(path: &std::path::Path, mode: u32) {

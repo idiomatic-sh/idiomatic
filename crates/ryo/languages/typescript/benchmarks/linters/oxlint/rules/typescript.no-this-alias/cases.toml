@@ -1,0 +1,34 @@
+[[cases]]
+name = "const"
+files = { "case.ts" = "class C { m() { const self = this; } }\n" }
+expected = [{ file = "case.ts", start = 22, end = 26 }]
+
+[[cases]]
+name = "var"
+files = { "case.ts" = "function f() { var that = this; }\n" }
+expected = [{ file = "case.ts", start = 19, end = 23 }]
+
+[[cases]]
+name = "assignment"
+files = { "case.ts" = "let s; s = this;\n" }
+expected = [{ file = "case.ts", start = 7, end = 8 }]
+
+[[cases]]
+name = "destructuring"
+files = { "case.ts" = "const { a } = this;\n" }
+expected = []
+
+[[cases]]
+name = "array-destructuring"
+files = { "case.ts" = "const [a] = this;\n" }
+expected = []
+
+[[cases]]
+name = "member"
+files = { "case.ts" = "const s = this.x;\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "class C {\n  m() {\n    // eslint-disable-next-line @typescript-eslint/no-this-alias\n    const self = this;\n  }\n}\n" }
+expected = []

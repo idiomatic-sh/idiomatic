@@ -107,7 +107,11 @@ pub(crate) fn validate(
     let profile = suite.profile(ArtifactPath(profile_root))?;
     let identity = &item.identity;
     let invocation = reference.prepare(&case.request)?;
-    suite.verify_tool(ArtifactPath(&invocation.executable), &profile)?;
+    suite.verify_tool(
+        ArtifactPath(&invocation.executable),
+        &profile,
+        &reference.version_line(&profile),
+    )?;
     let actual_executable = suite.digest(ArtifactPath(&invocation.executable))?;
     validate_pins(
         identity,

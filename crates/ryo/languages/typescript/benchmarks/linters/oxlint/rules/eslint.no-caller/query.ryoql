@@ -1,0 +1,14 @@
+import directives from "typescript/oxlint/eslint-directives";
+let tokens = select file, span, text from "semantic-syntax" where kind = "identifier-token";
+let identifiers = select id, file, span from "semantic-syntax" where kind = "identifier";
+let names = select l.id as id, r.text as name from identifiers as l join tokens as r on l.file = r.file and l.span = r.span;
+let members = select id from "semantic-syntax" where kind = "member-expression";
+let computed = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "punctuator" and r.text = "[";
+let static_members = antijoin(left=members, right=computed, left-on=["id"], right-on=["id"]);
+let objects = select l.parent as id from "semantic-child" as l join names as r on l.child = r.id where l.field = "object" and r.name = "arguments";
+let on_arguments = select l.id as id from static_members as l join objects as r on l.id = r.id;
+let properties = select l.parent as member, l.child as id from "semantic-child" as l join names as r on l.child = r.id where l.field = "property" and (r.name = "callee" or r.name = "caller");
+let hits = select r.id as id from on_arguments as l join properties as r on l.id = r.member;
+let found = select r.id as id, r.file as file, r.span as span from hits as l join "semantic-syntax" as r on l.id = r.id;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-caller(?:,|$)");
+emit violations subject file key(id);

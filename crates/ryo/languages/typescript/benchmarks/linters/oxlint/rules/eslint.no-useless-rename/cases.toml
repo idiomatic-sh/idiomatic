@@ -1,0 +1,59 @@
+[[cases]]
+name = "destructuring"
+files = { "case.ts" = "const { p: p } = o;\n" }
+expected = [{ file = "case.ts", start = 8, end = 12 }]
+
+[[cases]]
+name = "import"
+files = { "case.ts" = "import { a as a } from \"m\";\n" }
+expected = [{ file = "case.ts", start = 14, end = 15 }]
+
+[[cases]]
+name = "export"
+files = { "case.ts" = "const a = 1;\nexport { a as a };\n" }
+expected = [{ file = "case.ts", start = 22, end = 23 }]
+
+[[cases]]
+name = "re-export"
+files = { "case.ts" = "export { a as a } from \"m\";\n" }
+expected = [{ file = "case.ts", start = 9, end = 10 }]
+
+[[cases]]
+name = "parameter"
+files = { "case.ts" = "function f({ p: p }) {}\n" }
+expected = [{ file = "case.ts", start = 13, end = 17 }]
+
+[[cases]]
+name = "default-value"
+files = { "case.ts" = "const { p: p = 1 } = o;\n" }
+expected = [{ file = "case.ts", start = 8, end = 16 }]
+
+[[cases]]
+name = "assignment-target"
+files = { "case.ts" = "({ p: p } = o);\n" }
+expected = [{ file = "case.ts", start = 3, end = 7 }]
+
+[[cases]]
+name = "renamed"
+files = { "case.ts" = "const { p: q } = o;\n" }
+expected = []
+
+[[cases]]
+name = "shorthand"
+files = { "case.ts" = "const { p } = o;\n" }
+expected = []
+
+[[cases]]
+name = "computed-key"
+files = { "case.ts" = "const { [\"p\"]: p } = o;\n" }
+expected = []
+
+[[cases]]
+name = "plain-import"
+files = { "case.ts" = "import { a } from \"m\";\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-useless-rename\nconst { p: p } = o;\n" }
+expected = []

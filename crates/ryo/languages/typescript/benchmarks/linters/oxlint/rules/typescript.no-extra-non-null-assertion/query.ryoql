@@ -1,0 +1,12 @@
+import directives from "typescript/oxlint/eslint-directives";
+let assertions = select id from "semantic-syntax" where kind = "ts-non-null-expression";
+let bangs = select l.parent as id, r.id as bang, r.file as file, r.span as span from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "punctuator" and r.text = "!";
+let asserted = select l.child as id from "semantic-child" as l join assertions as r on l.parent = r.id where l.field = "expression";
+let nested = select l.id as id from asserted as l join assertions as r on l.id = r.id;
+let optional_links = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "punctuator" and r.text = "?.";
+let heads = select l.child as id from "semantic-child" as l join optional_links as r on l.parent = r.id where l.field = "object" or l.field = "callee";
+let asserted_heads = select l.id as id from heads as l join assertions as r on l.id = r.id;
+let extra = union(left=nested, right=asserted_heads);
+let found = select r.bang as id, r.file as file, r.span as span from extra as l join bangs as r on l.id = r.id;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-extra-non-null-assertion(?:,|$)");
+emit violations subject file key(id);

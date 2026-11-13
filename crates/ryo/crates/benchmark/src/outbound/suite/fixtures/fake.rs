@@ -202,7 +202,12 @@ impl SuitePort for SuiteFake {
             .clone()
             .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound).into())
     }
-    fn verify_tool(&self, _: ArtifactPath<'_>, tool: &Tool) -> Result<(), Error> {
+    fn verify_tool(
+        &self,
+        _: ArtifactPath<'_>,
+        tool: &Tool,
+        _: &ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine,
+    ) -> Result<(), Error> {
         if self.profile.is_none() {
             return Err(std::io::Error::from(std::io::ErrorKind::NotFound).into());
         }

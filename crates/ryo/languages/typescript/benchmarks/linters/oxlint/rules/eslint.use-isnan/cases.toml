@@ -1,0 +1,59 @@
+[[cases]]
+name = "strict-equality"
+files = { "case.ts" = "if (x === NaN) {}\n" }
+expected = [{ file = "case.ts", start = 10, end = 13 }]
+
+[[cases]]
+name = "left-operand"
+files = { "case.ts" = "if (NaN != x) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 7 }]
+
+[[cases]]
+name = "relational"
+files = { "case.ts" = "if (x < NaN) {}\n" }
+expected = [{ file = "case.ts", start = 8, end = 11 }]
+
+[[cases]]
+name = "number-nan"
+files = { "case.ts" = "if (x == Number.NaN) {}\n" }
+expected = [{ file = "case.ts", start = 9, end = 19 }]
+
+[[cases]]
+name = "switch-discriminant"
+files = { "case.ts" = "switch (NaN) { case 1: break; }\n" }
+expected = [{ file = "case.ts", start = 8, end = 11 }]
+
+[[cases]]
+name = "switch-case"
+files = { "case.ts" = "switch (x) { case NaN: break; }\n" }
+expected = [{ file = "case.ts", start = 18, end = 21 }]
+
+[[cases]]
+name = "assignment"
+files = { "case.ts" = "x = NaN;\n" }
+expected = []
+
+[[cases]]
+name = "arithmetic"
+files = { "case.ts" = "if (x + NaN) {}\n" }
+expected = []
+
+[[cases]]
+name = "index-of"
+files = { "case.ts" = "x.indexOf(NaN);\n" }
+expected = []
+
+[[cases]]
+name = "nan-member"
+files = { "case.ts" = "if (x === NaN.y) {}\n" }
+expected = []
+
+[[cases]]
+name = "is-nan"
+files = { "case.ts" = "if (Number.isNaN(x)) {}\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line use-isnan\nif (x === NaN) {}\n" }
+expected = []
