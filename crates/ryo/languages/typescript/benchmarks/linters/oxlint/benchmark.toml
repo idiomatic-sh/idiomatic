@@ -125,8 +125,8 @@ defaults = [
 "typescript/oxlint/constness" = "fragments/constness.ryoql"
 
 # Defaults deferred, each under the limitation that blocks it: the TypeScript provider answers the binding relations
-# absent, `numeric_literal` has no column saying whether a literal's digits survive binary64, and there is no regular
-# expression or control flow relation; oxlint reports the `typescript_silent` rules on no TypeScript file.
+# absent, and there is no regular expression or control flow relation; oxlint reports the `typescript_silent` rules on no
+# TypeScript file.
 [deferred]
 # Rules that resolve a name to its binding: writes to a const, class, function, import or catch parameter, builtins,
 # shadowing, and the value a `const` initializer gives (unicorn.no-thenable follows `const k = "then"` into `o[k]`).
@@ -148,10 +148,6 @@ binding_relations = [
   "unicorn.no-invalid-fetch-options",
   "unicorn.no-thenable",
   "unicorn.prefer-set-size",
-]
-# Rules that ask whether a number literal's written digits survive binary64 (`9007199254740993` does not).
-numeric_literal = [
-  "eslint.no-loss-of-precision",
 ]
 regular_expressions = [
   "eslint.no-control-regex",
