@@ -339,3 +339,7 @@ fn process_discrepancy(
         (constants::PROCESS, process),
     ]))
 }
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;

@@ -145,3 +145,7 @@ fn posix(path: &str) -> String {
         parts.join("/")
     }
 }
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;

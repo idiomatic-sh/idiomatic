@@ -98,11 +98,8 @@ pub(crate) fn prepare<'a>(
         let Ok(count) = usize::try_from(languages::end_of(tree.elements).0) else {
             return None;
         };
-        if index
-            .classes
-            .try_reserve(count.saturating_sub(index.classes.len()))
-            .is_err()
-        {
+        let missing = count.saturating_sub(index.classes.len());
+        if index.classes.try_reserve(missing).is_err() {
             index.state = KeyState::Partial;
             return None;
         }

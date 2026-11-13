@@ -109,3 +109,7 @@ pub(in super::super) fn evidence(
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;

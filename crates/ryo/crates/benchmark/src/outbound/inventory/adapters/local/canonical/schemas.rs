@@ -146,3 +146,7 @@ impl TryFrom<toml::Value> for Canonical {
         })
     }
 }
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
