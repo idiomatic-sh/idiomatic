@@ -1,0 +1,64 @@
+[[cases]]
+name = "statement"
+files = { "case.ts" = "function f() { new Error(\"x\"); }\n" }
+expected = [{ file = "case.ts", start = 15, end = 29 }]
+
+[[cases]]
+name = "top-level"
+files = { "case.ts" = "new Error(\"x\");\n" }
+expected = [{ file = "case.ts", start = 0, end = 14 }]
+
+[[cases]]
+name = "thrown"
+files = { "case.ts" = "function f() { throw new Error(\"x\"); }\n" }
+expected = []
+
+[[cases]]
+name = "returned"
+files = { "case.ts" = "function f() { return new Error(\"x\"); }\n" }
+expected = []
+
+[[cases]]
+name = "arrow-expression"
+files = { "case.ts" = "const f = () => new Error(\"x\");\n" }
+expected = []
+
+[[cases]]
+name = "arrow-block"
+files = { "case.ts" = "const f = () => { new Error(\"x\"); };\n" }
+expected = [{ file = "case.ts", start = 18, end = 32 }]
+
+[[cases]]
+name = "parenthesized"
+files = { "case.ts" = "(new Error(\"x\"));\n" }
+expected = []
+
+[[cases]]
+name = "other-error"
+files = { "case.ts" = "new TypeError(\"x\");\n" }
+expected = []
+
+[[cases]]
+name = "assigned"
+files = { "case.ts" = "const e = new Error(\"x\");\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-callee"
+files = { "case.ts" = "new (Error)(\"x\");\n" }
+expected = [{ file = "case.ts", start = 0, end = 16 }]
+
+[[cases]]
+name = "as-callee"
+files = { "case.ts" = "new (Error as any)(\"x\");\n" }
+expected = [{ file = "case.ts", start = 0, end = 23 }]
+
+[[cases]]
+name = "in-block"
+files = { "case.ts" = "if (a) { new Error(\"x\"); }\n" }
+expected = [{ file = "case.ts", start = 9, end = 23 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line missing-throw\nnew Error(\"x\");\n" }
+expected = []

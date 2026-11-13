@@ -1,0 +1,129 @@
+[[cases]]
+name = "number"
+files = { "case.ts" = "async function f() { await 1; }\n" }
+expected = [{ file = "case.ts", start = 21, end = 26 }]
+
+[[cases]]
+name = "string"
+files = { "case.ts" = "async function f() { await \"a\"; }\n" }
+expected = [{ file = "case.ts", start = 21, end = 26 }]
+
+[[cases]]
+name = "template"
+files = { "case.ts" = "async function f() { await `a${b}`; }\n" }
+expected = [{ file = "case.ts", start = 21, end = 26 }]
+
+[[cases]]
+name = "array"
+files = { "case.ts" = "async function f() { await [p]; }\n" }
+expected = [{ file = "case.ts", start = 21, end = 26 }]
+
+[[cases]]
+name = "arrow"
+files = { "case.ts" = "async function f() { await (() => p); }\n" }
+expected = [{ file = "case.ts", start = 21, end = 26 }]
+
+[[cases]]
+name = "function"
+files = { "case.ts" = "async function f() { await function () {}; }\n" }
+expected = [{ file = "case.ts", start = 21, end = 26 }]
+
+[[cases]]
+name = "class"
+files = { "case.ts" = "async function f() { await class {}; }\n" }
+expected = [{ file = "case.ts", start = 21, end = 26 }]
+
+[[cases]]
+name = "binary"
+files = { "case.ts" = "async function f() { await (a + b); }\n" }
+expected = [{ file = "case.ts", start = 21, end = 26 }]
+
+[[cases]]
+name = "unary"
+files = { "case.ts" = "async function f() { await !a; }\n" }
+expected = [{ file = "case.ts", start = 21, end = 26 }]
+
+[[cases]]
+name = "update"
+files = { "case.ts" = "async function f() { await a++; }\n" }
+expected = [{ file = "case.ts", start = 21, end = 26 }]
+
+[[cases]]
+name = "nested-await"
+files = { "case.ts" = "async function f() { await await p; }\n" }
+expected = [{ file = "case.ts", start = 21, end = 26 }]
+
+[[cases]]
+name = "null"
+files = { "case.ts" = "async function f() { await null; }\n" }
+expected = [{ file = "case.ts", start = 21, end = 26 }]
+
+[[cases]]
+name = "boolean"
+files = { "case.ts" = "async function f() { await true; }\n" }
+expected = [{ file = "case.ts", start = 21, end = 26 }]
+
+[[cases]]
+name = "regex"
+files = { "case.ts" = "async function f() { await /a/; }\n" }
+expected = [{ file = "case.ts", start = 21, end = 26 }]
+
+[[cases]]
+name = "bigint"
+files = { "case.ts" = "async function f() { await 1n; }\n" }
+expected = [{ file = "case.ts", start = 21, end = 26 }]
+
+[[cases]]
+name = "sequence-last"
+files = { "case.ts" = "async function f() { await (p, 1); }\n" }
+expected = [{ file = "case.ts", start = 21, end = 26 }]
+
+[[cases]]
+name = "sequence-promise"
+files = { "case.ts" = "async function f() { await (1, p); }\n" }
+expected = []
+
+[[cases]]
+name = "identifier"
+files = { "case.ts" = "async function f() { await p; }\n" }
+expected = []
+
+[[cases]]
+name = "call"
+files = { "case.ts" = "async function f() { await g(); }\n" }
+expected = []
+
+[[cases]]
+name = "object"
+files = { "case.ts" = "async function f() { await {}; }\n" }
+expected = []
+
+[[cases]]
+name = "logical"
+files = { "case.ts" = "async function f() { await (a || b); }\n" }
+expected = []
+
+[[cases]]
+name = "conditional"
+files = { "case.ts" = "async function f() { await (a ? b : c); }\n" }
+expected = []
+
+[[cases]]
+name = "as-number"
+files = { "case.ts" = "async function f() { await (1 as any); }\n" }
+expected = []
+
+[[cases]]
+name = "top-level"
+files = { "case.ts" = "await 1;\n" }
+expected = [{ file = "case.ts", start = 0, end = 5 }]
+
+[[cases]]
+name = "for-await"
+files = { "case.ts" = "async function f() { for await (const x of [1]) {} }\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "async function f() {\n  // eslint-disable-next-line no-unnecessary-await\n  await 1;\n}\n" }
+expected = []

@@ -1,0 +1,74 @@
+[[cases]]
+name = "interface-first"
+files = { "case.ts" = "interface Foo {}\nclass Foo {}\n" }
+expected = [{ file = "case.ts", start = 10, end = 13 }]
+
+[[cases]]
+name = "class-first"
+files = { "case.ts" = "class Foo {}\ninterface Foo {}\n" }
+expected = [{ file = "case.ts", start = 6, end = 9 }]
+
+[[cases]]
+name = "exported"
+files = { "case.ts" = "export interface Foo {}\nexport class Foo {}\n" }
+expected = [{ file = "case.ts", start = 17, end = 20 }]
+
+[[cases]]
+name = "declared-class"
+files = { "case.ts" = "interface Foo {}\ndeclare class Foo {}\n" }
+expected = [{ file = "case.ts", start = 10, end = 13 }]
+
+[[cases]]
+name = "abstract-class"
+files = { "case.ts" = "interface Foo {}\nabstract class Foo {}\n" }
+expected = [{ file = "case.ts", start = 10, end = 13 }]
+
+[[cases]]
+name = "in-function"
+files = { "case.ts" = "function f() {\n  interface Foo {}\n  class Foo {}\n}\n" }
+expected = [{ file = "case.ts", start = 27, end = 30 }]
+
+[[cases]]
+name = "in-namespace"
+files = { "case.ts" = "namespace N {\n  interface Foo {}\n  class Foo {}\n}\n" }
+expected = [{ file = "case.ts", start = 26, end = 29 }]
+
+[[cases]]
+name = "other-scope"
+files = { "case.ts" = "interface Foo {}\nfunction f() {\n  class Foo {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "other-namespace"
+files = { "case.ts" = "interface Foo {}\nnamespace N {\n  export class Foo {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "class-expression"
+files = { "case.ts" = "interface Foo {}\nconst Bar = class Foo {};\n" }
+expected = [{ file = "case.ts", start = 10, end = 13 }]
+
+[[cases]]
+name = "other-names"
+files = { "case.ts" = "interface Foo {}\nclass Bar implements Foo {}\n" }
+expected = []
+
+[[cases]]
+name = "two-interfaces"
+files = { "case.ts" = "interface Foo {}\ninterface Foo {}\n" }
+expected = []
+
+[[cases]]
+name = "enum-namespace"
+files = { "case.ts" = "enum Foo {}\nnamespace Foo {}\n" }
+expected = []
+
+[[cases]]
+name = "interface-class-interface"
+files = { "case.ts" = "interface Foo {}\nclass Foo {}\ninterface Foo {}\n" }
+expected = [{ file = "case.ts", start = 10, end = 13 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-unsafe-declaration-merging\ninterface Foo {}\nclass Foo {}\n" }
+expected = []

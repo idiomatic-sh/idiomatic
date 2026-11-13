@@ -1,0 +1,109 @@
+[[cases]]
+name = "arrow"
+files = { "case.ts" = "window.removeEventListener(\"click\", () => {});\n" }
+expected = [{ file = "case.ts", start = 7, end = 26 }]
+
+[[cases]]
+name = "function"
+files = { "case.ts" = "window.removeEventListener(\"keydown\", function () {});\n" }
+expected = [{ file = "case.ts", start = 7, end = 26 }]
+
+[[cases]]
+name = "bind"
+files = { "case.ts" = "window.removeEventListener(\"scroll\", handler.bind(abc));\n" }
+expected = [{ file = "case.ts", start = 7, end = 26 }]
+
+[[cases]]
+name = "this-bind"
+files = { "case.ts" = "window.removeEventListener(\"scroll\", this.handler.bind(abc));\n" }
+expected = [{ file = "case.ts", start = 7, end = 26 }]
+
+[[cases]]
+name = "optional-member"
+files = { "case.ts" = "el?.removeEventListener(\"mouseover\", fn.bind(abc));\n" }
+expected = [{ file = "case.ts", start = 4, end = 23 }]
+
+[[cases]]
+name = "third-argument"
+files = { "case.ts" = "el.removeEventListener(\"mouseout\", function (e) {}, true);\n" }
+expected = [{ file = "case.ts", start = 3, end = 22 }]
+
+[[cases]]
+name = "spread-after"
+files = { "case.ts" = "el.removeEventListener(\"click\", function (e) {}, ...more);\n" }
+expected = [{ file = "case.ts", start = 3, end = 22 }]
+
+[[cases]]
+name = "long-arrow"
+files = { "case.ts" = "el.removeEventListener(\"click\", (event) => { event.preventDefault(); });\n" }
+expected = [{ file = "case.ts", start = 3, end = 22 }]
+
+[[cases]]
+name = "long-function"
+files = { "case.ts" = "el.removeEventListener(\"click\", function handler(event) { event.preventDefault(); });\n" }
+expected = [{ file = "case.ts", start = 3, end = 22 }]
+
+[[cases]]
+name = "long-bind"
+files = { "case.ts" = "el.removeEventListener(\"click\", this.someLongHandlerName.bind(this));\n" }
+expected = [{ file = "case.ts", start = 3, end = 22 }]
+
+[[cases]]
+name = "reference"
+files = { "case.ts" = "el.removeEventListener(\"scroll\", handler);\n" }
+expected = []
+
+[[cases]]
+name = "member-reference"
+files = { "case.ts" = "el.removeEventListener(\"keydown\", obj.listener);\n" }
+expected = []
+
+[[cases]]
+name = "optional-call"
+files = { "case.ts" = "el.removeEventListener?.(\"click\", () => {});\n" }
+expected = []
+
+[[cases]]
+name = "new"
+files = { "case.ts" = "new el.removeEventListener(\"click\", () => {});\n" }
+expected = []
+
+[[cases]]
+name = "computed"
+files = { "case.ts" = "el[\"removeEventListener\"](\"click\", () => {});\n" }
+expected = []
+
+[[cases]]
+name = "one-argument"
+files = { "case.ts" = "el.removeEventListener(\"click\");\n" }
+expected = []
+
+[[cases]]
+name = "spread-first"
+files = { "case.ts" = "el.removeEventListener(...args, () => {});\n" }
+expected = []
+
+[[cases]]
+name = "other-call"
+files = { "case.ts" = "window.removeEventListener(\"click\", getListener());\n" }
+expected = []
+
+[[cases]]
+name = "optional-bind"
+files = { "case.ts" = "window.removeEventListener(\"click\", handler.bind?.());\n" }
+expected = []
+
+[[cases]]
+name = "bare"
+files = { "case.ts" = "removeEventListener(\"keyup\", () => {});\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-listener"
+files = { "case.ts" = "el.removeEventListener(\"click\", (() => {}));\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-invalid-remove-event-listener\nel.removeEventListener(\"click\", () => {});\n" }
+expected = []

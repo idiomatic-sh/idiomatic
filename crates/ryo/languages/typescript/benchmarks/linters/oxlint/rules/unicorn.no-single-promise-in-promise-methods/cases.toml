@@ -1,0 +1,104 @@
+[[cases]]
+name = "all-awaited"
+files = { "case.ts" = "async function f() { await Promise.all([p]); }\n" }
+expected = [{ file = "case.ts", start = 35, end = 38 }]
+
+[[cases]]
+name = "all-not-awaited"
+files = { "case.ts" = "const x = Promise.all([p]);\n" }
+expected = [{ file = "case.ts", start = 18, end = 21 }]
+
+[[cases]]
+name = "any"
+files = { "case.ts" = "async function f() { await Promise.any([p]); }\n" }
+expected = [{ file = "case.ts", start = 35, end = 38 }]
+
+[[cases]]
+name = "race"
+files = { "case.ts" = "async function f() { await Promise.race([p]); }\n" }
+expected = [{ file = "case.ts", start = 35, end = 39 }]
+
+[[cases]]
+name = "all-settled"
+files = { "case.ts" = "async function f() { await Promise.allSettled([p]); }\n" }
+expected = []
+
+[[cases]]
+name = "two-elements"
+files = { "case.ts" = "async function f() { await Promise.all([p, q]); }\n" }
+expected = []
+
+[[cases]]
+name = "spread"
+files = { "case.ts" = "async function f() { await Promise.all([...ps]); }\n" }
+expected = []
+
+[[cases]]
+name = "hole"
+files = { "case.ts" = "async function f() { await Promise.all([,]); }\n" }
+expected = []
+
+[[cases]]
+name = "empty"
+files = { "case.ts" = "async function f() { await Promise.all([]); }\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-array"
+files = { "case.ts" = "async function f() { await Promise.all(([p])); }\n" }
+expected = [{ file = "case.ts", start = 35, end = 38 }]
+
+[[cases]]
+name = "as-array"
+files = { "case.ts" = "async function f() { await Promise.all([p] as const); }\n" }
+expected = [{ file = "case.ts", start = 35, end = 38 }]
+
+[[cases]]
+name = "extra-argument"
+files = { "case.ts" = "async function f() { await Promise.all([p], x); }\n" }
+expected = []
+
+[[cases]]
+name = "optional-call"
+files = { "case.ts" = "async function f() { await Promise.all?.([p]); }\n" }
+expected = []
+
+[[cases]]
+name = "optional-member"
+files = { "case.ts" = "async function f() { await Promise?.all([p]); }\n" }
+expected = []
+
+[[cases]]
+name = "computed"
+files = { "case.ts" = "async function f() { await Promise[\"all\"]([p]); }\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-object"
+files = { "case.ts" = "async function f() { await (Promise as any).race([p]); }\n" }
+expected = [{ file = "case.ts", start = 44, end = 48 }]
+
+[[cases]]
+name = "statement"
+files = { "case.ts" = "Promise.race([p]);\n" }
+expected = [{ file = "case.ts", start = 8, end = 12 }]
+
+[[cases]]
+name = "leading-hole"
+files = { "case.ts" = "async function f() { await Promise.all([, p]); }\n" }
+expected = []
+
+[[cases]]
+name = "trailing-comma"
+files = { "case.ts" = "async function f() { await Promise.all([p,]); }\n" }
+expected = [{ file = "case.ts", start = 35, end = 38 }]
+
+[[cases]]
+name = "trailing-hole"
+files = { "case.ts" = "async function f() { await Promise.all([p,,]); }\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "async function f() {\n  // eslint-disable-next-line no-single-promise-in-promise-methods\n  await Promise.all([p]);\n}\n" }
+expected = []

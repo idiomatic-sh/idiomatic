@@ -3,9 +3,12 @@
 The TypeScript provider against oxlint 1.76.0, the standalone executable of the GitHub release `apps_v1.76.0`, which is built on
 `oxc_parser` 0.142.0, the parser both ryo providers link. `uv run --script tools/install.py` installs it as `oxlint`.
 
-`benchmark.toml` pins the 96 rules a plain run of oxlint 1.76.0 enables. Of them, 18 have a query, each in `rules/<plugin>.<rule>/`
-with its cases; the others are `deferred`, blocked by a relation the TypeScript provider does not answer yet or not yet authored.
-`fragments/eslint-directives.ryoql` holds the `eslint-` and `oxlint-` disable directives every query honors, as oxlint reads them.
+`benchmark.toml` pins the 96 rules a plain run of oxlint 1.76.0 enables. Of them, 54 have a query, each in `rules/<plugin>.<rule>/`
+with its cases; the other 42 are `deferred`, each under the limitation that blocks it: a relation the TypeScript provider does
+not answer yet, or, for `typescript_silent`, a rule oxlint never reports on a TypeScript file.
+`fragments/eslint-directives.ryoql` holds the `eslint-` and `oxlint-` disable directives every query honors, as oxlint reads them;
+`fragments/parenthesized.ryoql` gives the parentheses written around an expression, which the tree keeps as punctuators only;
+`fragments/constness.ryoql` gives the expressions whose truthiness is constant, as oxlint's `is_constant` decides it.
 
 The reference runs `oxlint -c <state>/oxlint.json -A all -D <plugin>/<rule>… --format json --threads 1 --disable-nested-config --
 <files>` in the corpus root over TypeScript files only (`.ts`, `.mts`, `.cts`, `.tsx`); the worker links `ryo_typescript` alone. The

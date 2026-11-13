@@ -1,0 +1,204 @@
+[[cases]]
+name = "call"
+files = { "case.ts" = "(obj?.foo)();\n" }
+expected = [{ file = "case.ts", start = 1, end = 9 }]
+
+[[cases]]
+name = "member"
+files = { "case.ts" = "(obj?.foo).bar;\n" }
+expected = [{ file = "case.ts", start = 1, end = 9 }]
+
+[[cases]]
+name = "computed"
+files = { "case.ts" = "(obj?.foo)[1];\n" }
+expected = [{ file = "case.ts", start = 1, end = 9 }]
+
+[[cases]]
+name = "optional-member"
+files = { "case.ts" = "(obj?.foo)?.bar;\n" }
+expected = []
+
+[[cases]]
+name = "optional-call"
+files = { "case.ts" = "(obj?.foo)?.();\n" }
+expected = []
+
+[[cases]]
+name = "continued-chain"
+files = { "case.ts" = "obj?.foo.bar;\n" }
+expected = []
+
+[[cases]]
+name = "new"
+files = { "case.ts" = "new (obj?.foo)();\n" }
+expected = [{ file = "case.ts", start = 5, end = 13 }]
+
+[[cases]]
+name = "tagged"
+files = { "case.ts" = "(obj?.foo)`template`;\n" }
+expected = [{ file = "case.ts", start = 1, end = 9 }]
+
+[[cases]]
+name = "array-destructuring"
+files = { "case.ts" = "const [a] = obj?.foo;\n" }
+expected = [{ file = "case.ts", start = 12, end = 20 }]
+
+[[cases]]
+name = "object-destructuring"
+files = { "case.ts" = "const { a } = obj?.foo;\n" }
+expected = [{ file = "case.ts", start = 14, end = 22 }]
+
+[[cases]]
+name = "plain-declarator"
+files = { "case.ts" = "const a = obj?.foo;\n" }
+expected = []
+
+[[cases]]
+name = "assignment-destructuring"
+files = { "case.ts" = "({ a } = obj?.foo);\n" }
+expected = [{ file = "case.ts", start = 9, end = 17 }]
+
+[[cases]]
+name = "plain-assignment"
+files = { "case.ts" = "a = obj?.foo;\n" }
+expected = []
+
+[[cases]]
+name = "in"
+files = { "case.ts" = "\"a\" in obj?.foo;\n" }
+expected = [{ file = "case.ts", start = 7, end = 15 }]
+
+[[cases]]
+name = "in-left"
+files = { "case.ts" = "obj?.foo in a;\n" }
+expected = []
+
+[[cases]]
+name = "instanceof"
+files = { "case.ts" = "a instanceof obj?.foo;\n" }
+expected = [{ file = "case.ts", start = 13, end = 21 }]
+
+[[cases]]
+name = "for-of"
+files = { "case.ts" = "for (const x of obj?.foo);\n" }
+expected = [{ file = "case.ts", start = 16, end = 24 }]
+
+[[cases]]
+name = "extends"
+files = { "case.ts" = "class A extends obj?.foo {}\n" }
+expected = [{ file = "case.ts", start = 16, end = 24 }]
+
+[[cases]]
+name = "spread-array"
+files = { "case.ts" = "const a = [...obj?.foo];\n" }
+expected = [{ file = "case.ts", start = 14, end = 22 }]
+
+[[cases]]
+name = "spread-object"
+files = { "case.ts" = "const a = { ...obj?.foo };\n" }
+expected = []
+
+[[cases]]
+name = "spread-call"
+files = { "case.ts" = "f(...obj?.foo);\n" }
+expected = []
+
+[[cases]]
+name = "default-destructuring"
+files = { "case.ts" = "const { a } = {}, [b = obj?.foo] = [];\n" }
+expected = []
+
+[[cases]]
+name = "pattern-default"
+files = { "case.ts" = "function f({ a } = obj?.foo) {}\n" }
+expected = []
+
+[[cases]]
+name = "and-left"
+files = { "case.ts" = "(obj?.foo && a)();\n" }
+expected = [{ file = "case.ts", start = 1, end = 9 }]
+
+[[cases]]
+name = "and-right"
+files = { "case.ts" = "(a && obj?.foo)();\n" }
+expected = [{ file = "case.ts", start = 6, end = 14 }]
+
+[[cases]]
+name = "or-left"
+files = { "case.ts" = "(obj?.foo || a)();\n" }
+expected = []
+
+[[cases]]
+name = "or-right"
+files = { "case.ts" = "(a || obj?.foo)();\n" }
+expected = [{ file = "case.ts", start = 6, end = 14 }]
+
+[[cases]]
+name = "coalesce-right"
+files = { "case.ts" = "(a ?? obj?.foo).bar;\n" }
+expected = [{ file = "case.ts", start = 6, end = 14 }]
+
+[[cases]]
+name = "conditional"
+files = { "case.ts" = "(a ? obj?.foo : b).bar;\n" }
+expected = [{ file = "case.ts", start = 5, end = 13 }]
+
+[[cases]]
+name = "conditional-test"
+files = { "case.ts" = "(obj?.foo ? a : b).bar;\n" }
+expected = []
+
+[[cases]]
+name = "sequence-last"
+files = { "case.ts" = "(a, obj?.foo).bar;\n" }
+expected = [{ file = "case.ts", start = 4, end = 12 }]
+
+[[cases]]
+name = "sequence-first"
+files = { "case.ts" = "(obj?.foo, a).bar;\n" }
+expected = []
+
+[[cases]]
+name = "as"
+files = { "case.ts" = "(obj?.foo as any).bar;\n" }
+expected = [{ file = "case.ts", start = 1, end = 9 }]
+
+[[cases]]
+name = "non-null"
+files = { "case.ts" = "(obj?.foo)!.bar;\n" }
+expected = [{ file = "case.ts", start = 1, end = 9 }]
+
+[[cases]]
+name = "await"
+files = { "case.ts" = "async function f() { (await obj?.foo).bar; }\n" }
+expected = [{ file = "case.ts", start = 28, end = 36 }]
+
+[[cases]]
+name = "call-argument"
+files = { "case.ts" = "f(obj?.foo);\n" }
+expected = []
+
+[[cases]]
+name = "arithmetic"
+files = { "case.ts" = "obj?.foo + 1;\n" }
+expected = []
+
+[[cases]]
+name = "nested-pattern-default"
+files = { "case.ts" = "const [{ a } = obj?.foo] = [];\n" }
+expected = [{ file = "case.ts", start = 15, end = 23 }]
+
+[[cases]]
+name = "assignment-pattern-default"
+files = { "case.ts" = "[{ a } = obj?.foo] = [];\n" }
+expected = [{ file = "case.ts", start = 9, end = 17 }]
+
+[[cases]]
+name = "arrow-pattern-default"
+files = { "case.ts" = "const f = ([a] = obj?.foo) => a;\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-unsafe-optional-chaining\n(obj?.foo)();\n" }
+expected = []

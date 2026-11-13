@@ -1,0 +1,114 @@
+[[cases]]
+name = "if"
+files = { "case.ts" = "if (a = b) {}\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "if-parenthesized"
+files = { "case.ts" = "if ((a = b)) {}\n" }
+expected = []
+
+[[cases]]
+name = "if-double-parenthesized"
+files = { "case.ts" = "if (((a = b))) {}\n" }
+expected = []
+
+[[cases]]
+name = "while"
+files = { "case.ts" = "while (a = b) {}\n" }
+expected = [{ file = "case.ts", start = 9, end = 10 }]
+
+[[cases]]
+name = "while-parenthesized"
+files = { "case.ts" = "while ((a = b)) {}\n" }
+expected = []
+
+[[cases]]
+name = "do-while"
+files = { "case.ts" = "do {} while (a = b);\n" }
+expected = [{ file = "case.ts", start = 15, end = 16 }]
+
+[[cases]]
+name = "do-while-parenthesized"
+files = { "case.ts" = "do {} while ((a = b));\n" }
+expected = []
+
+[[cases]]
+name = "for"
+files = { "case.ts" = "for (; a = b; ) {}\n" }
+expected = [{ file = "case.ts", start = 9, end = 10 }]
+
+[[cases]]
+name = "for-parenthesized"
+files = { "case.ts" = "for (; (a = b); ) {}\n" }
+expected = []
+
+[[cases]]
+name = "for-init"
+files = { "case.ts" = "for (a = b; a; ) {}\n" }
+expected = []
+
+[[cases]]
+name = "ternary"
+files = { "case.ts" = "x = a = b ? 1 : 2;\n" }
+expected = []
+
+[[cases]]
+name = "ternary-test"
+files = { "case.ts" = "const x = (a = b) ? 1 : 2;\n" }
+expected = [{ file = "case.ts", start = 13, end = 14 }]
+
+[[cases]]
+name = "ternary-test-as"
+files = { "case.ts" = "const x = ((a = b) as any) ? 1 : 2;\n" }
+expected = [{ file = "case.ts", start = 14, end = 15 }]
+
+[[cases]]
+name = "ternary-non-null"
+files = { "case.ts" = "const x = (a = b)! ? 1 : 2;\n" }
+expected = [{ file = "case.ts", start = 13, end = 14 }]
+
+[[cases]]
+name = "compound-operator"
+files = { "case.ts" = "if (a += b) {}\n" }
+expected = [{ file = "case.ts", start = 6, end = 8 }]
+
+[[cases]]
+name = "logical-operator"
+files = { "case.ts" = "while (a ||= b) {}\n" }
+expected = [{ file = "case.ts", start = 9, end = 12 }]
+
+[[cases]]
+name = "spaced-parenthesized"
+files = { "case.ts" = "if ( ( a = b ) ) {}\n" }
+expected = []
+
+[[cases]]
+name = "as-in-test"
+files = { "case.ts" = "if ((a = b) as any) {}\n" }
+expected = []
+
+[[cases]]
+name = "nested-in-comparison"
+files = { "case.ts" = "if ((a = b) !== null) {}\n" }
+expected = []
+
+[[cases]]
+name = "assignment-in-body"
+files = { "case.ts" = "if (a) { a = b; }\n" }
+expected = []
+
+[[cases]]
+name = "comparison"
+files = { "case.ts" = "if (a === b) {}\n" }
+expected = []
+
+[[cases]]
+name = "arrow-in-test"
+files = { "case.ts" = "if (f(() => a = b)) {}\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-cond-assign\nif (a = b) {}\n" }
+expected = []

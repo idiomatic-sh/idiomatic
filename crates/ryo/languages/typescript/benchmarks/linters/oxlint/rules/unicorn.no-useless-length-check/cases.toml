@@ -1,0 +1,129 @@
+[[cases]]
+name = "every"
+files = { "case.ts" = "if (array.length === 0 || array.every(Boolean)) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 22 }]
+
+[[cases]]
+name = "some-greater"
+files = { "case.ts" = "if (array.length > 0 && array.some(Boolean)) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 20 }]
+
+[[cases]]
+name = "some-inequality"
+files = { "case.ts" = "if (array.length !== 0 && array.some(Boolean)) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 22 }]
+
+[[cases]]
+name = "call-first"
+files = { "case.ts" = "if (array.every(Boolean) || array.length === 0) {}\n" }
+expected = [{ file = "case.ts", start = 28, end = 46 }]
+
+[[cases]]
+name = "call-first-some"
+files = { "case.ts" = "if (array.some(Boolean) && array.length !== 0) {}\n" }
+expected = [{ file = "case.ts", start = 27, end = 45 }]
+
+[[cases]]
+name = "parenthesized"
+files = { "case.ts" = "if ((( array.length > 0 )) && array.some(Boolean)) {}\n" }
+expected = [{ file = "case.ts", start = 7, end = 23 }]
+
+[[cases]]
+name = "chain-of-three"
+files = { "case.ts" = "if (array.length !== 0 && array.some(Boolean) && foo) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 22 }, { file = "case.ts", start = 4, end = 22 }]
+
+[[cases]]
+name = "chain-in-middle"
+files = { "case.ts" = "if (foo && array.length > 0 && array.some(Boolean)) {}\n" }
+expected = [{ file = "case.ts", start = 11, end = 27 }]
+
+[[cases]]
+name = "grouped-right"
+files = { "case.ts" = "if (array.length > 0 && (array.some(Boolean) && foo)) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 20 }]
+
+[[cases]]
+name = "grouped-or"
+files = { "case.ts" = "if ((array.length === 0 || array.every(Boolean)) || foo) {}\n" }
+expected = [{ file = "case.ts", start = 5, end = 23 }, { file = "case.ts", start = 5, end = 23 }]
+
+[[cases]]
+name = "computed-length"
+files = { "case.ts" = "if (array[\"length\"] === 0 || array.every(Boolean)) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 25 }]
+
+[[cases]]
+name = "loose-equality"
+files = { "case.ts" = "if (array.length == 0 || array.every(Boolean)) {}\n" }
+expected = []
+
+[[cases]]
+name = "wrong-operator"
+files = { "case.ts" = "if (array.length === 0 && array.every(Boolean)) {}\n" }
+expected = []
+
+[[cases]]
+name = "coalesce"
+files = { "case.ts" = "if (array.length === 0 ?? array.every(Boolean)) {}\n" }
+expected = []
+
+[[cases]]
+name = "one"
+files = { "case.ts" = "if (array.length === 1 || array.every(Boolean)) {}\n" }
+expected = []
+
+[[cases]]
+name = "hex-zero"
+files = { "case.ts" = "if (array.length === 0x0 || array.every(Boolean)) {}\n" }
+expected = []
+
+[[cases]]
+name = "reversed-comparison"
+files = { "case.ts" = "if (0 === array.length || array.every(Boolean)) {}\n" }
+expected = []
+
+[[cases]]
+name = "optional-length"
+files = { "case.ts" = "if (array?.length === 0 || array.every(Boolean)) {}\n" }
+expected = []
+
+[[cases]]
+name = "optional-call"
+files = { "case.ts" = "if (array.length === 0 || array.every?.(Boolean)) {}\n" }
+expected = []
+
+[[cases]]
+name = "optional-member"
+files = { "case.ts" = "if (array.length === 0 || array?.every(Boolean)) {}\n" }
+expected = []
+
+[[cases]]
+name = "other-array"
+files = { "case.ts" = "if (array1.length === 0 || array2.every(Boolean)) {}\n" }
+expected = []
+
+[[cases]]
+name = "member-array"
+files = { "case.ts" = "if (a.b.length === 0 || a.b.every(Boolean)) {}\n" }
+expected = []
+
+[[cases]]
+name = "not-adjacent"
+files = { "case.ts" = "if (array.length > 0 && foo && array.some(Boolean)) {}\n" }
+expected = []
+
+[[cases]]
+name = "mixed-groups"
+files = { "case.ts" = "if ((foo || array.length > 0) && array.some(Boolean)) {}\n" }
+expected = []
+
+[[cases]]
+name = "two-lengths"
+files = { "case.ts" = "if (array.length > 0 && array.length > 0 && array.some(Boolean)) {}\n" }
+expected = [{ file = "case.ts", start = 24, end = 40 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-useless-length-check\nif (array.length === 0 || array.every(Boolean)) {}\n" }
+expected = []

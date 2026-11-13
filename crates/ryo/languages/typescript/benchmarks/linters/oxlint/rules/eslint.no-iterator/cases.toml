@@ -1,0 +1,54 @@
+[[cases]]
+name = "static"
+files = { "case.ts" = "foo.__iterator__ = function () {};\n" }
+expected = [{ file = "case.ts", start = 0, end = 16 }]
+
+[[cases]]
+name = "computed-string"
+files = { "case.ts" = "foo[\"__iterator__\"] = 1;\n" }
+expected = [{ file = "case.ts", start = 0, end = 19 }]
+
+[[cases]]
+name = "computed-template"
+files = { "case.ts" = "foo[`__iterator__`] = 1;\n" }
+expected = [{ file = "case.ts", start = 0, end = 19 }]
+
+[[cases]]
+name = "optional"
+files = { "case.ts" = "foo?.__iterator__;\n" }
+expected = [{ file = "case.ts", start = 0, end = 17 }]
+
+[[cases]]
+name = "parenthesized-object"
+files = { "case.ts" = "(foo).__iterator__;\n" }
+expected = [{ file = "case.ts", start = 0, end = 18 }]
+
+[[cases]]
+name = "call"
+files = { "case.ts" = "foo.__iterator__();\n" }
+expected = [{ file = "case.ts", start = 0, end = 16 }]
+
+[[cases]]
+name = "computed-identifier"
+files = { "case.ts" = "foo[__iterator__];\n" }
+expected = []
+
+[[cases]]
+name = "other-property"
+files = { "case.ts" = "foo.iterator;\n" }
+expected = []
+
+[[cases]]
+name = "template-expression"
+files = { "case.ts" = "foo[`__iterator__${x}`];\n" }
+expected = []
+
+[[cases]]
+name = "declaration"
+files = { "case.ts" = "const __iterator__ = 1;\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-iterator\nfoo.__iterator__;\n" }
+expected = []

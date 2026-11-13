@@ -1,0 +1,109 @@
+[[cases]]
+name = "path"
+files = { "case.ts" = "/// <reference path=\"foo\" />\n" }
+expected = [{ file = "case.ts", start = 0, end = 28 }]
+
+[[cases]]
+name = "path-no-space"
+files = { "case.ts" = "/// <reference path=\"foo\"/>\n" }
+expected = [{ file = "case.ts", start = 0, end = 27 }]
+
+[[cases]]
+name = "types-alone"
+files = { "case.ts" = "/// <reference types=\"foo\" />\n" }
+expected = []
+
+[[cases]]
+name = "types-imported"
+files = { "case.ts" = "/// <reference types=\"foo\" />\nimport * as foo from \"foo\";\n" }
+expected = [{ file = "case.ts", start = 0, end = 29 }]
+
+[[cases]]
+name = "types-imported-named"
+files = { "case.ts" = "/// <reference types=\"foo\" />\nimport { a } from \"foo\";\n" }
+expected = [{ file = "case.ts", start = 0, end = 29 }]
+
+[[cases]]
+name = "types-other-import"
+files = { "case.ts" = "/// <reference types=\"foo\" />\nimport { a } from \"bar\";\n" }
+expected = []
+
+[[cases]]
+name = "types-import-equals"
+files = { "case.ts" = "/// <reference types=\"foo\" />\nimport foo = require(\"foo\");\n" }
+expected = [{ file = "case.ts", start = 0, end = 29 }]
+
+[[cases]]
+name = "types-import-equals-other"
+files = { "case.ts" = "/// <reference types=\"foo\" />\nimport foo = require(\"bar\");\n" }
+expected = []
+
+[[cases]]
+name = "types-import-twice"
+files = { "case.ts" = "/// <reference types=\"foo\" />\nimport { a } from \"foo\";\nimport { b } from \"foo\";\n" }
+expected = [{ file = "case.ts", start = 0, end = 29 }, { file = "case.ts", start = 0, end = 29 }]
+
+[[cases]]
+name = "types-type-import"
+files = { "case.ts" = "/// <reference types=\"foo\" />\nimport type { A } from \"foo\";\n" }
+expected = [{ file = "case.ts", start = 0, end = 29 }]
+
+[[cases]]
+name = "lib"
+files = { "case.ts" = "/// <reference lib=\"es2015\" />\n" }
+expected = []
+
+[[cases]]
+name = "two-slashes"
+files = { "case.ts" = "// <reference path=\"foo\" />\n" }
+expected = []
+
+[[cases]]
+name = "block-comment"
+files = { "case.ts" = "/*/ <reference path=\"foo\" /> */\n" }
+expected = [{ file = "case.ts", start = 0, end = 31 }]
+
+[[cases]]
+name = "after-statement"
+files = { "case.ts" = "const a = 1;\n/// <reference path=\"foo\" />\n" }
+expected = []
+
+[[cases]]
+name = "before-and-after"
+files = { "case.ts" = "/// <reference path=\"a\" />\nconst a = 1;\n/// <reference path=\"b\" />\n" }
+expected = [{ file = "case.ts", start = 0, end = 26 }]
+
+[[cases]]
+name = "extra-attribute"
+files = { "case.ts" = "/// <reference no-default-lib=\"true\" path=\"foo\" />\n" }
+expected = [{ file = "case.ts", start = 0, end = 50 }]
+
+[[cases]]
+name = "first-attribute-wins"
+files = { "case.ts" = "/// <reference types=\"foo\" path=\"bar\" />\n" }
+expected = []
+
+[[cases]]
+name = "single-quotes"
+files = { "case.ts" = "/// <reference path='foo' />\n" }
+expected = [{ file = "case.ts", start = 0, end = 28 }]
+
+[[cases]]
+name = "no-close"
+files = { "case.ts" = "/// <reference path=\"foo\"\n" }
+expected = []
+
+[[cases]]
+name = "use-strict-first"
+files = { "case.ts" = "\"use strict\";\n/// <reference path=\"foo\" />\nconst a = 1;\n" }
+expected = [{ file = "case.ts", start = 14, end = 42 }]
+
+[[cases]]
+name = "with-equals"
+files = { "case.ts" = "/// <reference path=\"a=b\" />\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line triple-slash-reference\n/// <reference path=\"foo\" />\n" }
+expected = []

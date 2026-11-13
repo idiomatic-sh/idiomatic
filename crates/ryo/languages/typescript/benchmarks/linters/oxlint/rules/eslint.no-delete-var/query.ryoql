@@ -1,0 +1,12 @@
+import directives from "typescript/oxlint/eslint-directives";
+import parenthesized from "typescript/oxlint/parenthesized";
+let deletes = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "operator" and r.kind = "keyword" and r.text = "delete";
+let unary = select l.id as id, r.file as file, r.span as span from deletes as l join "semantic-syntax" as r on l.id = r.id where r.kind = "unary-expression";
+let arguments = select l.parent as owner, r.id as id, r.file as file, r.span as span from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "argument" and r.kind = "identifier";
+let named = select l.id as id, l.file as file, l.span as span, r.id as argument from unary as l join arguments as r on l.id = r.owner;
+let argument_rows = select l.id as id, l.file as file, l.span as span from arguments as l join unary as r on l.owner = r.id;
+let wrapped = parenthesized(candidates=argument_rows);
+let bare = antijoin(left=named, right=wrapped, left-on=["argument"], right-on=["id"]);
+let found = select id, file, span from bare;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-delete-var(?:,|$)");
+emit violations subject file key(id);

@@ -1,0 +1,16 @@
+import directives from "typescript/oxlint/eslint-directives";
+let tokens = select file, span, text from "semantic-syntax" where kind = "identifier-token";
+let identifiers = select id, file, span from "semantic-syntax" where kind = "identifier";
+let names = select l.id as id, l.file as file, l.span as span, r.text as name from identifiers as l join tokens as r on l.file = r.file and l.span = r.span;
+let labels = select l.parent as id, r.id as label, r.file as file, r.span as span, r.name as name from "semantic-child" as l join names as r on l.child = r.id where l.field = "label";
+let statements = select l.id as id, l.label as label, l.file as file, l.span as span, l.name as name from labels as l join "semantic-syntax" as r on l.id = r.id where r.kind = "labeled-statement";
+let jumps = select l.id as id, l.name as name from labels as l join "semantic-syntax" as r on l.id = r.id where r.kind = "break-statement" or r.kind = "continue-statement";
+let jump_rows = select id from jumps;
+let statement_rows = select id from statements;
+let reached = axis(from=statement_rows, relation="semantic-child", direction=descendant, domain=jump_rows);
+let reached_names = select l.id as id, r.name as name from reached as l join jumps as r on l.related = r.id;
+let used = select l.id as id from statements as l join reached_names as r on l.id = r.id and l.name = r.name;
+let unused = antijoin(left=statements, right=used, left-on=["id"], right-on=["id"]);
+let found = select label as id, file, span from unused;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-unused-labels(?:,|$)");
+emit violations subject file key(id);

@@ -1,0 +1,14 @@
+import directives from "typescript/oxlint/eslint-directives";
+let members = select id, file, span from "semantic-syntax" where kind = "member-expression";
+let properties = select l.parent as id, r.file as file, r.span as span, r.kind as kind from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "property";
+let computed = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "punctuator" and r.text = "[";
+let static_properties = antijoin(left=properties, right=computed, left-on=["id"], right-on=["id"]);
+let computed_properties = select l.id as id, l.file as file, l.span as span from properties as l join computed as r on l.id = r.id;
+let names = select file, span from "semantic-syntax" where kind = "identifier-token" and text = "__iterator__";
+let static_hits = select l.id as id from static_properties as l join names as r on l.file = r.file and l.span = r.span where l.kind = "identifier";
+let literals = select file, span from "semantic-syntax" where (kind = "string" and matches(text, "^[\x22\x27]__iterator__[\x22\x27]$")) or (kind = "template" and matches(text, "^\x60__iterator__\x60$"));
+let computed_hits = select l.id as id from computed_properties as l join literals as r on l.file = r.file and l.span = r.span;
+let hits = union(left=static_hits, right=computed_hits);
+let found = select r.id as id, r.file as file, r.span as span from hits as l join members as r on l.id = r.id;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-iterator(?:,|$)");
+emit violations subject file key(id);

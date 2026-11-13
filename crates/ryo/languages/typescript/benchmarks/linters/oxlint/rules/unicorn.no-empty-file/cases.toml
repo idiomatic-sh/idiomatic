@@ -1,0 +1,89 @@
+[[cases]]
+name = "empty"
+files = { "case.ts" = "" }
+expected = [{ file = "case.ts", start = 0, end = 0 }]
+
+[[cases]]
+name = "newline"
+files = { "case.ts" = "\n" }
+expected = [{ file = "case.ts", start = 0, end = 1 }]
+
+[[cases]]
+name = "whitespace"
+files = { "case.ts" = "  \n\t\n" }
+expected = [{ file = "case.ts", start = 0, end = 5 }]
+
+[[cases]]
+name = "line-comment"
+files = { "case.ts" = "// comment\n" }
+expected = [{ file = "case.ts", start = 0, end = 11 }]
+
+[[cases]]
+name = "block-comment"
+files = { "case.ts" = "/* comment */\n" }
+expected = [{ file = "case.ts", start = 0, end = 14 }]
+
+[[cases]]
+name = "empty-statements"
+files = { "case.ts" = ";;\n" }
+expected = [{ file = "case.ts", start = 0, end = 3 }]
+
+[[cases]]
+name = "empty-blocks"
+files = { "case.ts" = "{ { ; } }\n" }
+expected = [{ file = "case.ts", start = 0, end = 10 }]
+
+[[cases]]
+name = "use-strict"
+files = { "case.ts" = "\"use strict\";\n" }
+expected = [{ file = "case.ts", start = 0, end = 14 }]
+
+[[cases]]
+name = "parenthesized-string"
+files = { "case.ts" = "(\"use strict\");\n" }
+expected = []
+
+[[cases]]
+name = "string-after-empty"
+files = { "case.ts" = ";\"use strict\";\n" }
+expected = []
+
+[[cases]]
+name = "string-in-block"
+files = { "case.ts" = "{ \"use strict\"; }\n" }
+expected = []
+
+[[cases]]
+name = "hashbang"
+files = { "case.ts" = "#!/usr/bin/env node\n" }
+expected = [{ file = "case.ts", start = 0, end = 20 }]
+
+[[cases]]
+name = "triple-slash"
+files = { "case.ts" = "/// <reference types=\"vite/client\" />\n" }
+expected = []
+
+[[cases]]
+name = "statement"
+files = { "case.ts" = "const x = 0;\n" }
+expected = []
+
+[[cases]]
+name = "expression"
+files = { "case.ts" = "x;\n" }
+expected = []
+
+[[cases]]
+name = "long-comment"
+files = { "case.ts" = "// 0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789\n" }
+expected = [{ file = "case.ts", start = 0, end = 100 }]
+
+[[cases]]
+name = "long-multibyte-comment"
+files = { "case.ts" = "// é123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456é\n" }
+expected = [{ file = "case.ts", start = 0, end = 100 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "/* eslint-disable no-empty-file */\n" }
+expected = []

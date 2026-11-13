@@ -1,0 +1,84 @@
+[[cases]]
+name = "static"
+files = { "case.ts" = "function f() { arguments.map(g); }\n" }
+expected = [{ file = "case.ts", start = 15, end = 28 }]
+
+[[cases]]
+name = "computed-string"
+files = { "case.ts" = "function f() { arguments[\"forEach\"](g); }\n" }
+expected = [{ file = "case.ts", start = 15, end = 35 }]
+
+[[cases]]
+name = "computed-template"
+files = { "case.ts" = "function f() { arguments[`slice`](0); }\n" }
+expected = [{ file = "case.ts", start = 15, end = 33 }]
+
+[[cases]]
+name = "optional"
+files = { "case.ts" = "function f() { arguments?.map(g); }\n" }
+expected = [{ file = "case.ts", start = 15, end = 29 }]
+
+[[cases]]
+name = "argument-position"
+files = { "case.ts" = "function f() { g(arguments.map); }\n" }
+expected = [{ file = "case.ts", start = 17, end = 30 }]
+
+[[cases]]
+name = "parenthesized-member"
+files = { "case.ts" = "function f() { (arguments.map)(g); }\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-object"
+files = { "case.ts" = "function f() { (arguments).map(g); }\n" }
+expected = [{ file = "case.ts", start = 15, end = 30 }]
+
+[[cases]]
+name = "as-object"
+files = { "case.ts" = "function f() { (arguments as any).map(g); }\n" }
+expected = [{ file = "case.ts", start = 15, end = 37 }]
+
+[[cases]]
+name = "length"
+files = { "case.ts" = "function f() { arguments.length; }\n" }
+expected = []
+
+[[cases]]
+name = "not-called"
+files = { "case.ts" = "function f() { const m = arguments.map; }\n" }
+expected = []
+
+[[cases]]
+name = "other-method"
+files = { "case.ts" = "function f() { arguments.toString(); }\n" }
+expected = []
+
+[[cases]]
+name = "other-object"
+files = { "case.ts" = "function f() { args.map(g); }\n" }
+expected = []
+
+[[cases]]
+name = "at"
+files = { "case.ts" = "function f() { arguments.at(0); }\n" }
+expected = [{ file = "case.ts", start = 15, end = 27 }]
+
+[[cases]]
+name = "computed-identifier"
+files = { "case.ts" = "function f() { arguments[map](g); }\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-argument"
+files = { "case.ts" = "function f() { g((arguments.map), 1); }\n" }
+expected = []
+
+[[cases]]
+name = "second-argument"
+files = { "case.ts" = "function f() { g(1, arguments.map); }\n" }
+expected = [{ file = "case.ts", start = 20, end = 33 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "function f() {\n  // eslint-disable-next-line bad-array-method-on-arguments\n  arguments.map(g);\n}\n" }
+expected = []
