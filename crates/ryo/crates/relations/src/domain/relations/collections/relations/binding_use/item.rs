@@ -21,7 +21,7 @@ macro_rules! binding_use {
         BindingUseExpectedRow },
         class Code,
         columns {
-        /// Real semantic read or deletion occurrence.
+        /// Real semantic read, write or deletion occurrence.
         reference Reference: NodeId => Node;
         /// Actual defines.id candidate; never an unknown-node sentinel or fabricated builtin.
         binding Binding: NodeId => Node;
@@ -29,7 +29,7 @@ macro_rules! binding_use {
         scope Scope: NodeId => Node;
         /// Execution boundary used by static association.
         phase Phase: NodeId => Node;
-        /// Value, type or deletion context.
+        /// Value, type, write, read-write or deletion context.
         context Context: Symbol => Symbol;
         /// Unique or alternative association. Possible absence remains visible in binding-read.state.
         certainty Certainty: Symbol => Symbol;
