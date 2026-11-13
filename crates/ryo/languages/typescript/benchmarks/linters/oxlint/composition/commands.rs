@@ -2,9 +2,10 @@
 use super::super::{adapter::LinterOxlintAdapter, settings::LinterOxlintSettings};
 use super::constants;
 use super::constants::UNEXPECTED_TRAILING_WORKER_ARGUMENT;
-use super::diagnostic_protocol::WorkerTracing;
 use super::locations::{default_scratch, directory};
-use super::request_input::{BenchmarkArgument, WorkerInput, worker_input};
+use ryo_benchmark::domain::command_line::types::{
+    BenchmarkArgument, WorkerTracing, worker_input::value::WorkerInput,
+};
 use ryo_benchmark::inbound::use_cases::account_defaults::{
     interface::AccountDefaultsUseCase as _, use_case::AccountDefaultsUseCaseImpl,
 };
@@ -34,7 +35,7 @@ pub(super) fn worker(
     mut args: impl Iterator<Item = BenchmarkArgument>,
     tracing: WorkerTracing,
 ) -> Result<(), Error> {
-    let input = worker_input(&mut args)?;
+    let input = WorkerInput::read(&mut args)?;
     let trace_path = match (tracing, args.next().map(|argument| argument.0)) {
         (WorkerTracing::Disabled, None) => None,
         (WorkerTracing::Disabled, Some(_)) => {
@@ -221,6 +222,7 @@ pub(super) fn reference(executable: PathBuf, tool: Tool) -> LinterOxlintAdapter 
     })
 }
 
+// Composition is not DRY: this port wiring repeats in each linter's composition by the owner's rule; only pure values are shared.
 /// Copy exact collector bytes into the frozen workload and record their digest.
 pub(super) fn collector(
     suite: &dyn SuitePort,
@@ -245,6 +247,7 @@ pub(super) struct CollectorIdentity {
     pub digest: ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest,
 }
 
+// Composition is not DRY: this port wiring repeats in each linter's composition by the owner's rule; only pure values are shared.
 /// Compose the isolated collector and expose its exact identity in observations.
 pub(super) fn timed(
     identity: CollectorIdentity,
@@ -261,6 +264,7 @@ pub(super) fn timed(
     ))
 }
 
+// Composition is not DRY: this port wiring repeats in each linter's composition by the owner's rule; only pure values are shared.
 /// Report authored coverage while refusing unaccounted shipped defaults.
 pub(super) fn audit(
     suite_source: &Arc<dyn SuitePort>,

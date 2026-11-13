@@ -1,14 +1,19 @@
 //! The measure commands: certify both contestants, then compare them on the pinned corpus.
 use super::certification::{
-    Certifying, MeasureCommand, MeasurePaths, RuleTally, Selection, StagedSuite, announce,
-    candidate_linter, cases_for, paths, scope_of, stage,
+    Certifying, MeasurePaths, StagedSuite, candidate_linter, cases_for, paths, stage,
 };
 use super::commands;
 use super::constants;
 use super::constants::UNEXPECTED_MEASUREMENT_ARGUMENT;
 use super::locations::{default_scratch, directory};
-use super::output;
-use super::request_input::BenchmarkArgument;
+use ryo_benchmark::domain::command_line::types::{
+    BenchmarkArgument, Selection, measure_command::value::MeasureCommand,
+};
+use ryo_benchmark::domain::measurements::types::{
+    LanguageTitle, certification_summary::value::CertificationSummary,
+    corpus_shape::value::CorpusShape, measurement_environment::value::MeasurementEnvironment,
+    rule_tally::value::RuleTally,
+};
 use ryo_benchmark::domain::suite::types::certificate::value::Certificate;
 use ryo_benchmark::inbound::use_cases::admit_measurement::{
     interface::AdmitMeasurementUseCase as _, types::MeasurementAdmission,
@@ -21,8 +26,8 @@ use ryo_benchmark::inbound::use_cases::certify::{
 use ryo_benchmark::inbound::use_cases::measure_corpus::{
     interface::MeasureCorpusUseCase as _,
     types::{
-        CorpusLanguage, CorpusMeasurement, LanguageTitle, ProfileLabel, SampleLabel, SourceProfile,
-        SourceSuffix, ToolTitle,
+        CorpusLanguage, CorpusMeasurement, ProfileLabel, SampleLabel, SourceProfile, SourceSuffix,
+        ToolTitle,
     },
     use_case::MeasureCorpusUseCaseImpl,
 };
@@ -66,7 +71,7 @@ pub(super) fn measure(
     .audit(&directory(), &tool)?;
     let authored_total = audit.authored_count();
     let selection_or_inventory = args.next().map(|argument| argument.0);
-    let scope = scope_of(command);
+    let scope = command.scope();
     let Certifying {
         audit,
         cases: case_source,
@@ -117,6 +122,7 @@ pub(super) fn measure(
                 .collect(),
         ));
     let reference = Arc::new(commands::reference(executable.clone(), tool)?);
+    // Composition is not DRY: this port wiring repeats in each linter's composition by the owner's rule; only pure values are shared.
     let collector_settings =
         commands::collector(suite_source.as_ref(), &collector_path, &frozen_workload)?;
     let execution = commands::timed(collector_settings, observations)?;
@@ -144,15 +150,18 @@ pub(super) fn measure(
         &case_source,
     )?;
     drop(case_scratch);
-    announce(
+    writeln!(
         observations,
-        scope,
-        &tally,
-        &audit,
-        &certificate,
-        &selected_profile,
+        "{}",
+        CertificationSummary {
+            scope,
+            tally: &tally,
+            audit: &audit,
+            certificate: &certificate,
+            profile: &selected_profile,
+        }
     )?;
-    output::environment(observations)?;
+    writeln!(observations, "{MeasurementEnvironment}")?;
     compare(
         Certified {
             reference,
@@ -215,9 +224,11 @@ fn compare(
         scope,
     } = certified;
     let suite: Suite = suite_source.projects(ArtifactPath(&workload))?;
-    if suite.language.0 != constants::PYTHON || !(2..=3).contains(&suite.projects.len()) {
-        return Err(Error::Invalid(constants::PROJECT_COUNT_ERROR.into()));
+    CorpusShape {
+        language: &constants::PYTHON.into(),
+        display: LanguageTitle(constants::LANGUAGE_DISPLAY),
     }
+    .admit(&suite)?;
     let evidence: Arc<dyn EvidencePort> =
         Arc::new(ryo_benchmark::outbound::evidence::factory::bmf(
             Box::new(std::io::stdout()),

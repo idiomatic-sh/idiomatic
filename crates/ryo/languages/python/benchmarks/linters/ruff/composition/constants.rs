@@ -40,8 +40,6 @@ pub(crate) const EXPECTED_COLLECTOR: &str = "expected resource collector executa
 pub(crate) const LANGUAGE_DIRECTORY: &str = "../..";
 /// Language identity required by this composition.
 pub(crate) const PYTHON: &str = "python";
-/// Required argument or refusal for project count error.
-pub(crate) const PROJECT_COUNT_ERROR: &str = "Python suite requires 2–3 projects";
 /// Stable command, artifact or observation identity for projects directory.
 pub(crate) const PROJECTS_DIRECTORY: &str = "projects";
 /// Stable command, artifact or observation identity for invalid syntax.
@@ -71,10 +69,6 @@ pub(crate) const USAGE: &str = "usage: ruff benchmark: audit | verify-tool <exec
 pub(crate) const MEASURE_ACCOUNTED_VALID: &str = "measure-valid";
 /// This benchmark package's root, where its rules, fragments and profiles are.
 pub(crate) const MANIFEST_DIRECTORY: &str = env!("CARGO_MANIFEST_DIR");
-/// Accounted-profile coverage label.
-pub(crate) const ACCOUNTED: &str = "Accounted";
-/// Explicit interim-profile coverage label.
-pub(crate) const INTERIM: &str = "Interim";
 /// Text `unsupported worker command`.
 pub(crate) const UNSUPPORTED_WORKER_COMMAND: &str = "unsupported worker command";
 /// Text `--case-inventory=`.
@@ -138,3 +132,9 @@ pub(crate) const CONTAINER: &str = "/container";
 pub(crate) const LXC: &str = "/lxc";
 /// Text `kubepods`.
 pub(crate) const KUBEPODS: &str = "kubepods";
+/// The timed worker command.
+pub(crate) const RUN_RYO: &str = "run-ryo";
+/// The profiling worker command.
+pub(crate) const PROFILE_RYO: &str = "profile-ryo";
+/// The diagnostic worker command.
+pub(crate) const DIAGNOSTIC_RYO: &str = "diagnostic-ryo";

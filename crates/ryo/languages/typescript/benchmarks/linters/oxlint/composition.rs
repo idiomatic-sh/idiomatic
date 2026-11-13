@@ -1,5 +1,4 @@
 //! TypeScript composition provides its linked language only at this outer edge.
-use self::certification::MeasureCommand;
 use self::commands::{audit, reference, verify_cases, verify_reference_cases, worker};
 use self::compare::parity;
 use self::constants::{
@@ -7,10 +6,11 @@ use self::constants::{
     MEASURE_ACCOUNTED_VALID, MEASURE_SCOPED, MEASURE_VALID, PARITY, PROFILE_RYO, RUN_RYO,
     UNSUPPORTED_WORKER_COMMAND, USAGE, VERIFY_CASES, VERIFY_REFERENCE_CASES, VERIFY_TOOL,
 };
-use self::diagnostic_protocol::{WorkerCommand, tracing_for_command};
 use self::locations::directory;
 use self::measure::measure;
-use self::request_input::BenchmarkArgument;
+use ryo_benchmark::domain::command_line::types::{
+    BenchmarkArgument, measure_command::value::MeasureCommand, worker_command::value::WorkerCommand,
+};
 use ryo_benchmark::outbound::linter::interface::LinterPort as _;
 use ryo_benchmark::outbound::suite::types::ArtifactPath;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -19,11 +19,8 @@ mod certification;
 mod commands;
 mod compare;
 pub(crate) mod constants;
-mod diagnostic_protocol;
 mod locations;
 mod measure;
-mod output;
-mod request_input;
 /// Dispatch benchmark commands and retain the complete certification-to-observation timeline.
 pub(crate) fn run(
     output: &mut dyn std::io::Write,
@@ -38,7 +35,8 @@ pub(crate) fn run(
     match command.as_deref() {
         Some(RUN_RYO | PROFILE_RYO | DIAGNOSTIC_RYO) => worker(
             args.map(BenchmarkArgument),
-            tracing_for_command(WorkerCommand(command.as_deref().unwrap_or_default()))
+            WorkerCommand(command.as_deref().unwrap_or_default())
+                .tracing()
                 .ok_or_else(|| Error::Invalid(UNSUPPORTED_WORKER_COMMAND.into()))?,
         ),
         Some(VERIFY_CASES) => {

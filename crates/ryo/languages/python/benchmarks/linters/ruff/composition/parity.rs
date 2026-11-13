@@ -3,7 +3,7 @@
 use super::commands;
 use super::constants;
 use super::locations::{default_scratch, directory};
-use super::request_input::BenchmarkArgument;
+use ryo_benchmark::domain::command_line::types::BenchmarkArgument;
 use ryo_benchmark::inbound::use_cases::compare_corpus::{
     interface::CompareCorpusUseCase as _, types::CorpusParity, use_case::CompareCorpusUseCaseImpl,
 };

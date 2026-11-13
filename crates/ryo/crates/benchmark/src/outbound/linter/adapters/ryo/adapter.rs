@@ -91,7 +91,7 @@ impl LinterPort for LinterRyoAdapter {
         std::fs::write(&request_path, request_json.0)?;
         let mut arguments = vec![
             super::constants::WORKER.into(),
-            super::constants::REQUEST_FILE.into(),
+            ryo_benchmark_contracts::domain::requests::constants::REQUEST_FILE.into(),
             request_path.into_os_string(),
         ];
         if let ParserSelection::Named(configuration) = &self.parser_configuration {

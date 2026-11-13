@@ -12,6 +12,10 @@ Pure selection, dependency retention and declared rule configuration.
 
 The compact sorted-key document every pinned digest is taken over.
 
+### command_line
+
+The command line of a linter's benchmark executable: its arguments, worker commands and measure commands.
+
 ### corpus_discrepancy
 
 A corpus comparison's differences are accepted only by finding, in accepted differences written for that corpus's digest.

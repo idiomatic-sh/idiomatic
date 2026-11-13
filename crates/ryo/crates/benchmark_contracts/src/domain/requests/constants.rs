@@ -10,3 +10,5 @@ pub const QUERY_FILE: &str = "query.ryoql";
 pub const MODULE_NAME_PROBE: &str = "module source";
 /// The filename of a profile's manifest inside its profile directory.
 pub const PROFILE_MANIFEST: &str = "benchmark.toml";
+/// The worker argument naming the request file the parent wrote for it.
+pub const REQUEST_FILE: &str = "--request-file";

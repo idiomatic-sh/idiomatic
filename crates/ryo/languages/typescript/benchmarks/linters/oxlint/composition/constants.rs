@@ -42,8 +42,6 @@ pub(crate) const EXPECTED_COLLECTOR: &str = "expected resource collector executa
 pub(crate) const LANGUAGE_DIRECTORY: &str = "../..";
 /// Language identity required by this composition.
 pub(crate) const TYPESCRIPT: &str = "typescript";
-/// Required argument or refusal for project count error.
-pub(crate) const PROJECT_COUNT_ERROR: &str = "TypeScript suite requires 2–3 projects";
 /// Stable command, artifact or observation identity for projects directory.
 pub(crate) const PROJECTS_DIRECTORY: &str = "projects";
 /// Stable command, artifact or observation identity for valid source profile.
@@ -68,10 +66,6 @@ pub(crate) const EXPECTED_EXECUTABLE: &str = "expected executable path";
 pub(crate) const USAGE: &str = "usage: oxlint benchmark: audit | verify-tool <executable> | verify-cases <oxlint> [profile] | verify-reference-cases <oxlint> [profile] | measure <oxlint> <fresh-cache> <collector> | parity <oxlint> <ryo-worker> <staged-request> <accepted-differences> <per-rule-output> | run-ryo (<json>|--request-file <path>) | profile-ryo (<json>|--request-file <path>) <trace.json> | diagnostic-ryo (<json>|--request-file <path>) <events.jsonl>";
 /// This benchmark package's root, where its rules and fragments are.
 pub(crate) const MANIFEST_DIRECTORY: &str = env!("CARGO_MANIFEST_DIR");
-/// Accounted-profile coverage label.
-pub(crate) const ACCOUNTED: &str = "Accounted";
-/// Explicit interim-profile coverage label.
-pub(crate) const INTERIM: &str = "Interim";
 /// Text `unsupported worker command`.
 pub(crate) const UNSUPPORTED_WORKER_COMMAND: &str = "unsupported worker command";
 /// Text `--case-inventory=`.
@@ -116,7 +110,3 @@ pub(crate) const RUN_RYO: &str = "run-ryo";
 pub(crate) const PROFILE_RYO: &str = "profile-ryo";
 /// Diagnostic-only worker that flushes rule/file events as JSONL.
 pub(crate) const DIAGNOSTIC_RYO: &str = "diagnostic-ryo";
-/// Required argument or refusal for missing worker request.
-pub(crate) const MISSING_WORKER_REQUEST: &str = "missing worker request";
-/// Child argument that carries a request from an owned JSON file.
-pub(crate) const REQUEST_FILE: &str = "--request-file";
