@@ -11,6 +11,7 @@ enum Command {
     ListsTwoFilesRelativeToTheRoot,
     ListsNothing,
     ListsAFileOutsideTheRoot,
+    FailsSayingWhyOnStandardOutput,
     Missing,
     Contract,
 }
@@ -20,6 +21,8 @@ type Value = &'static [&'static str];
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Refusal {
     Invalid,
+    /// A refusal whose message is compared in full.
+    Said(&'static str),
     Missing,
     Unexpected,
 }
@@ -57,6 +60,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Refusal::Invalid),
     },
     Case {
+        name: CaseName("a failed listing carries what the command printed"),
+        word: Word::Refuses,
+        input: || Command::FailsSayingWhyOnStandardOutput,
+        expect: Expect::Error(Refusal::Said(
+            "file discovery failed: exit status: 1; stderr: ; stdout: configuration not loaded",
+        )),
+    },
+    Case {
         name: CaseName("a command that cannot start is a failure, not an empty selection"),
         word: Word::Fails,
         input: || Command::Missing,
@@ -70,6 +81,7 @@ fn adapter(command: Command) -> DiscoveryListingAdapter {
         Command::ListsTwoFiles | Command::Contract => r#"echo "$PWD/b.txt"; echo "$PWD/a.txt""#,
         Command::ListsTwoFilesRelativeToTheRoot => "echo b.txt; echo ./a.txt",
         Command::ListsAFileOutsideTheRoot => "echo /elsewhere/a.txt",
+        Command::FailsSayingWhyOnStandardOutput => "echo 'configuration not loaded'; exit 1",
         Command::ListsNothing | Command::Missing => "true",
     };
     let executable = if matches!(command, Command::Missing) {
@@ -104,6 +116,9 @@ fn subject(command: Input) -> Result<Value, Failure> {
             )
         })
         .map_err(|error| match error {
+            Error::Invalid(message) if matches!(command, Command::FailsSayingWhyOnStandardOutput) => {
+                Refusal::Said(Box::leak(message.into_boxed_str()))
+            }
             Error::Invalid(_) => Refusal::Invalid,
             Error::Io(error) if error.kind() == std::io::ErrorKind::NotFound => Refusal::Missing,
             Error::Io(_) | Error::Json(_) | Error::Toml(_) => Refusal::Unexpected,

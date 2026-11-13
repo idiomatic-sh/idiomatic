@@ -31,9 +31,12 @@ impl DiscoveryPort for DiscoveryListingAdapter {
             .current_dir(root)
             .output()?;
         if !output.status.success() || !output.stderr.is_empty() {
+            // A tool may print why it failed on either stream (oxlint prints a configuration it cannot load on standard output).
             return Err(Error::Invalid(format!(
-                "file discovery failed: {}",
-                String::from_utf8_lossy(&output.stderr)
+                "file discovery failed: {}; stderr: {}; stdout: {}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr).trim(),
+                String::from_utf8_lossy(&output.stdout).trim()
             )));
         }
         let text = std::str::from_utf8(&output.stdout)
