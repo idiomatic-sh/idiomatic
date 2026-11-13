@@ -215,7 +215,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || every_kind_with_a_further_vocabulary,
         expect: Expect::Value(
-            "0:document 1:key-value 2:equals 3:word 4:space 5:error 6:group 7:letter Extra(Error)",
+            "0:document 1:key-value 2:equals 3:word 4:space 5:error 6:equals 7:word 8:space Extra(Error)",
         ),
     },
     Case {
