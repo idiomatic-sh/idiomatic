@@ -1,0 +1,114 @@
+[[cases]]
+name = "no-method"
+files = { "case.ts" = "fetch(url, { body: \"x\" });\n" }
+expected = [{ file = "case.ts", start = 13, end = 17 }]
+
+[[cases]]
+name = "get"
+files = { "case.ts" = "fetch(url, { method: \"GET\", body: \"x\" });\n" }
+expected = [{ file = "case.ts", start = 28, end = 32 }]
+
+[[cases]]
+name = "head-lower-case"
+files = { "case.ts" = "fetch(url, { method: \"head\", body: \"x\" });\n" }
+expected = [{ file = "case.ts", start = 29, end = 33 }]
+
+[[cases]]
+name = "request"
+files = { "case.ts" = "new Request(url, { method: \"HEAD\", body: data });\n" }
+expected = [{ file = "case.ts", start = 35, end = 39 }]
+
+[[cases]]
+name = "template-method"
+files = { "case.ts" = "fetch(url, { method: `GET`, body: \"x\" });\n" }
+expected = [{ file = "case.ts", start = 28, end = 32 }]
+
+[[cases]]
+name = "shorthand-body"
+files = { "case.ts" = "fetch(url, { body });\n" }
+expected = [{ file = "case.ts", start = 13, end = 17 }]
+
+[[cases]]
+name = "const-method"
+files = { "case.ts" = "const method = \"GET\";\nfetch(url, { method, body: \"x\" });\n" }
+expected = [{ file = "case.ts", start = 43, end = 47 }]
+
+[[cases]]
+name = "let-method"
+files = { "case.ts" = "let m = \"get\";\nfetch(url, { method: m, body: \"x\" });\n" }
+expected = [{ file = "case.ts", start = 39, end = 43 }]
+
+[[cases]]
+name = "const-post"
+files = { "case.ts" = "const m = \"POST\";\nfetch(url, { method: m, body: \"x\" });\n" }
+expected = []
+
+[[cases]]
+name = "parameter-method"
+files = { "case.ts" = "function send(m) {\n  return fetch(url, { method: m, body: \"x\" });\n}\n" }
+expected = [{ file = "case.ts", start = 52, end = 56 }]
+
+[[cases]]
+name = "typed-parameter-method"
+files = { "case.ts" = "function send(m: string) {\n  return fetch(url, { method: m, body: \"x\" });\n}\n" }
+expected = []
+
+[[cases]]
+name = "unknown-method"
+files = { "case.ts" = "fetch(url, { method: m, body: \"x\" });\nfetch(url, { method: \"G\" + \"ET\", body: \"x\" });\n" }
+expected = []
+
+[[cases]]
+name = "non-string-constant"
+files = { "case.ts" = "const m = 1;\nfetch(url, { method: m, body: \"x\" });\n" }
+expected = []
+
+[[cases]]
+name = "alias-chain"
+files = { "case.ts" = "const a = \"GET\";\nconst m = a;\nfetch(url, { method: m, body: \"x\" });\n" }
+expected = []
+
+[[cases]]
+name = "post"
+files = { "case.ts" = "fetch(url, { method: \"POST\", body: \"x\" });\n" }
+expected = []
+
+[[cases]]
+name = "empty-body"
+files = { "case.ts" = "fetch(url, { method: \"GET\", body: undefined });\nfetch(url, { body: null });\nfetch(url, { body: void 0 });\n" }
+expected = []
+
+[[cases]]
+name = "last-wins"
+files = { "case.ts" = "fetch(url, { body: \"x\", method: \"POST\" });\nfetch(url, { method: \"POST\", body: \"x\", method: \"GET\" });\nfetch(url, { body: \"x\", body: undefined });\nfetch(url, { body: undefined, body: \"x\" });\n" }
+expected = [{ file = "case.ts", start = 72, end = 76 }, { file = "case.ts", start = 175, end = 179 }]
+
+[[cases]]
+name = "spread"
+files = { "case.ts" = "fetch(url, { ...init, body: \"x\" });\n" }
+expected = []
+
+[[cases]]
+name = "quoted-keys"
+files = { "case.ts" = "fetch(url, { \"method\": \"POST\", body: \"x\" });\nfetch(url, { \"body\": \"x\" });\n" }
+expected = [{ file = "case.ts", start = 31, end = 35 }]
+
+[[cases]]
+name = "optional-call"
+files = { "case.ts" = "fetch?.(url, { body: \"x\" });\n" }
+expected = [{ file = "case.ts", start = 15, end = 19 }]
+
+[[cases]]
+name = "options-not-literal"
+files = { "case.ts" = "const init = { body: \"x\" };\nfetch(url, init);\nfetch(url, ({ body: \"x\" }));\n" }
+expected = []
+
+[[cases]]
+name = "member-fetch"
+files = { "case.ts" = "window.fetch(url, { body: \"x\" });\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line unicorn/no-invalid-fetch-options\nfetch(url, { body: \"x\" });\n" }
+expected = []

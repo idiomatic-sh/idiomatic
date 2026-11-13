@@ -1,0 +1,5 @@
+input references: relation<reference: node, file: file>;
+output relation<reference: node, file: file, binding: node, kind: symbol>;
+let uses = select l.reference as reference, l.file as file, r.binding as binding from references as l join "binding-use" as r on l.reference = r.reference and l.file = r.file where r.certainty = "unique";
+let bound = select l.reference as reference, l.file as file, l.binding as binding, r.kind as kind from uses as l join "semantic-syntax" as r on l.binding = r.id;
+return bound;

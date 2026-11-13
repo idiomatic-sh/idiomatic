@@ -1,0 +1,94 @@
+[[cases]]
+name = "spread-new-set"
+files = { "case.ts" = "const n = [...new Set(a)].length;\n" }
+expected = [{ file = "case.ts", start = 26, end = 32 }]
+
+[[cases]]
+name = "array-from-new-set"
+files = { "case.ts" = "const n = Array.from(new Set(a)).length;\n" }
+expected = [{ file = "case.ts", start = 33, end = 39 }]
+
+[[cases]]
+name = "const"
+files = { "case.ts" = "const s = new Set(a);\nconst n = [...s].length;\n" }
+expected = [{ file = "case.ts", start = 39, end = 45 }]
+
+[[cases]]
+name = "const-array-from"
+files = { "case.ts" = "const s = new Set<number>();\nconst n = Array.from(s).length;\n" }
+expected = [{ file = "case.ts", start = 53, end = 59 }]
+
+[[cases]]
+name = "const-in-function"
+files = { "case.ts" = "const s = new Set(a);\nfunction f() {\n  return [...s].length;\n}\n" }
+expected = [{ file = "case.ts", start = 53, end = 59 }]
+
+[[cases]]
+name = "parenthesized-operands"
+files = { "case.ts" = "const s = new Set(a);\n([...(s)]).length;\n" }
+expected = [{ file = "case.ts", start = 33, end = 39 }]
+
+[[cases]]
+name = "let"
+files = { "case.ts" = "let s = new Set(a);\nconst n = [...s].length;\n" }
+expected = []
+
+[[cases]]
+name = "var"
+files = { "case.ts" = "var s = new Set(a);\nconst n = [...s].length;\n" }
+expected = []
+
+[[cases]]
+name = "alias"
+files = { "case.ts" = "const s = new Set(a);\nconst t = s;\nconst n = [...t].length;\n" }
+expected = []
+
+[[cases]]
+name = "destructured"
+files = { "case.ts" = "const { size } = new Set(a);\nconst n = [...size].length;\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-initializer"
+files = { "case.ts" = "const s = (new Set(a));\nconst n = [...s].length;\n" }
+expected = []
+
+[[cases]]
+name = "cast-initializer"
+files = { "case.ts" = "const s = new Set(a) as Set<number>;\nconst n = [...s].length;\n" }
+expected = []
+
+[[cases]]
+name = "typed-parameter"
+files = { "case.ts" = "function f(s: Set<number>) {\n  return [...s].length;\n}\n" }
+expected = []
+
+[[cases]]
+name = "map"
+files = { "case.ts" = "const n = [...new Map(a)].length;\n" }
+expected = []
+
+[[cases]]
+name = "more-elements"
+files = { "case.ts" = "const s = new Set(a);\nconst n = [...s, 1].length;\nconst m = [...s, ...s].length;\n" }
+expected = []
+
+[[cases]]
+name = "optional-or-computed"
+files = { "case.ts" = "const s = new Set(a);\n[...s]?.length;\n[...s][\"length\"];\n" }
+expected = []
+
+[[cases]]
+name = "array-from-forms"
+files = { "case.ts" = "const s = new Set(a);\nArray.from(s, f).length;\nArray?.from(s).length;\nArray[\"from\"](s).length;\n" }
+expected = []
+
+[[cases]]
+name = "other-property"
+files = { "case.ts" = "const n = [...new Set(a)].at(0);\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line unicorn/prefer-set-size\nconst n = [...new Set(a)].length;\n" }
+expected = []

@@ -1,0 +1,84 @@
+[[cases]]
+name = "literal"
+files = { "case.ts" = "s.matchAll(/a/);\n" }
+expected = [{ file = "case.ts", start = 2, end = 10 }]
+
+[[cases]]
+name = "literal-global"
+files = { "case.ts" = "s.matchAll(/a/g);\ns.matchAll(/a/dg);\n" }
+expected = []
+
+[[cases]]
+name = "constructor"
+files = { "case.ts" = "s.matchAll(new RegExp(\"a\", \"u\"));\ns.matchAll(RegExp(\"a\"));\n" }
+expected = [{ file = "case.ts", start = 2, end = 10 }, { file = "case.ts", start = 36, end = 44 }]
+
+[[cases]]
+name = "constructor-global"
+files = { "case.ts" = "s.matchAll(new RegExp(\"a\", \"gu\"));\n" }
+expected = []
+
+[[cases]]
+name = "constructor-flags-unknown"
+files = { "case.ts" = "s.matchAll(new RegExp(\"a\", f));\ns.matchAll(new RegExp(\"a\", ...f));\n" }
+expected = []
+
+[[cases]]
+name = "constructor-on-global-object"
+files = { "case.ts" = "s.matchAll(new global.RegExp(\"a\", \"y\"));\n" }
+expected = [{ file = "case.ts", start = 2, end = 10 }]
+
+[[cases]]
+name = "constructor-shadowed"
+files = { "case.ts" = "function f(RegExp) {\n  s.matchAll(new RegExp(\"a\"));\n}\n" }
+expected = []
+
+[[cases]]
+name = "const"
+files = { "case.ts" = "const r = /a/i;\ns.matchAll(r);\n" }
+expected = [{ file = "case.ts", start = 18, end = 26 }]
+
+[[cases]]
+name = "var"
+files = { "case.ts" = "var q = new RegExp(\"a\");\ns.matchAll(q);\n" }
+expected = [{ file = "case.ts", start = 27, end = 35 }]
+
+[[cases]]
+name = "const-global"
+files = { "case.ts" = "const r = new RegExp(\"a\", \"g\");\ns.matchAll(r);\n" }
+expected = []
+
+[[cases]]
+name = "alias-chain"
+files = { "case.ts" = "const r = /a/;\nconst q = r;\ns.matchAll(q);\n" }
+expected = [{ file = "case.ts", start = 30, end = 38 }]
+
+[[cases]]
+name = "unassigned"
+files = { "case.ts" = "let r;\nr = /a/;\ns.matchAll(r);\n" }
+expected = []
+
+[[cases]]
+name = "parameter"
+files = { "case.ts" = "function f(r: RegExp) {\n  return s.matchAll(r);\n}\n" }
+expected = []
+
+[[cases]]
+name = "computed"
+files = { "case.ts" = "s[\"matchAll\"](/a/);\ns[`matchAll`](/a/);\n" }
+expected = [{ file = "case.ts", start = 2, end = 12 }, { file = "case.ts", start = 22, end = 32 }]
+
+[[cases]]
+name = "parenthesized-pattern"
+files = { "case.ts" = "s.matchAll((/a/));\n" }
+expected = [{ file = "case.ts", start = 2, end = 10 }]
+
+[[cases]]
+name = "other-method"
+files = { "case.ts" = "s.match(/a/);\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line bad-match-all-arg\ns.matchAll(/a/);\n" }
+expected = []
