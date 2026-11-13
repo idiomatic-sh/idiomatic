@@ -1,3 +1,7 @@
+# adapter 0.4.0
+
+`adapter-owns-no-adapter` gains arm (e), the decorator through any trait of the port: an adapter that implements a trait of a port's `interface.rs` and is handed that trait through a generic bound or a constructor parameter. Nothing else changes.
+
 # adapter 0.3.2
 
 Places `no-runtime-fixtures@0.2.0` and `public-fields@0.3.0` where 0.3.1 named their earlier versions, so a product that places it locks one version of each rule: two versions of one rule share its id, and the earlier entries ran the later query. Nothing else changes: `adapter_test.rs` is the spec-local `adapter-test` template, which holds the contract import and the `CASES` table, and an adapter places no nested part and no group of cases; scenario `adapter-with-a-nested-part` holds a nested part's files closed. A part too long for one file is split by the adapter's own roles (`types.rs`, `errors.rs`, `schemas.rs`, `{document}/schemas.rs`). 0.3.1 is removed with this version, not kept as published: no lock names it, nothing has been released.

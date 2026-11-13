@@ -1,0 +1,875 @@
+description = "No code is compiled only when a feature is off: `cfg(not(feature = …))`, a `not` over a `feature` anywhere in a `cfg` attribute or a `cfg!` call, is a finding."
+why = "Cargo features are additive: one build unifies the features every dependent asks for, so a feature turned on for one crate is on for all of them. Code compiled only when a feature is off is a second path the unified build can silently drop, and it is how a build flag that selects between two implementations (an evaluator, a progress counter) creeps in: one arm under `feature = …`, the other under `not(feature = …)`. Clippy has no lint for it. Read syntactically: in an attribute, a `not(…)` of `cfg` or `cfg_attr` whose predicate holds a `feature` atom at any depth (`not(feature = \"x\")`, `not(any(feature = \"x\", test))`); in a `cfg!` call, a `not` followed by a group that holds `feature`. A `cfg(any(test, feature = \"fixtures\"))` seal and a `cfg(not(test))` are not findings: neither turns code off when a feature is on."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let not-tokens = select * from tree-tokens where kind = "ident" and text = "not";
+let feature-tokens = select * from tree-tokens where kind = "ident" and text = "feature";
+let composites = select * from tree-nodes where kind = "cfg-composite";
+let composite-heads = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "head" from composites as l join "syntax-child" as r on l."id" = r."parent";
+let negations = select l."id" as "id", l."file" as "file", l."span" as "span" from composite-heads as l join not-tokens as r on l."head" = r."id";
+let atoms = select * from tree-nodes where kind = "cfg-atom";
+let atom-heads = select l."id" as "id", r."child" as "head" from atoms as l join "syntax-child" as r on l."id" = r."parent";
+let feature-atoms = select l."id" as "id" from atom-heads as l join feature-tokens as r on l."head" = r."id";
+let negated-atoms = axis(from=negations, relation="syntax-child", direction=descendant, domain=feature-atoms);
+let attribute-ids = project(from=negated-atoms, columns=["id"]);
+let attribute-rows = select r."file" as "file", r."span" as "span" from attribute-ids as l join negations as r on l."id" = r."id";
+let macro-calls = select * from tree-nodes where kind = "macro-call";
+let paths = select * from tree-nodes where kind = "path";
+let segments = select * from tree-nodes where kind = "path-segment";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let token-trees = select * from tree-nodes where kind = "token-tree";
+let call-children = select l."id" as "call", r."child" as "child" from macro-calls as l join "syntax-child" as r on l."id" = r."parent";
+let call-paths = select l."call" as "call", r."id" as "path" from call-children as l join paths as r on l."child" = r."id";
+let path-children = select l."call" as "call", r."child" as "child" from call-paths as l join "syntax-child" as r on l."path" = r."parent";
+let path-segments = select l."call" as "call", r."id" as "segment" from path-children as l join segments as r on l."child" = r."id";
+let segment-children = select l."call" as "call", r."child" as "child" from path-segments as l join "syntax-child" as r on l."segment" = r."parent";
+let segment-refs = select l."call" as "call", r."id" as "nameref" from segment-children as l join name-refs as r on l."child" = r."id";
+let ref-children = select l."call" as "call", r."child" as "child" from segment-refs as l join "syntax-child" as r on l."nameref" = r."parent";
+let cfg-tokens = select * from tree-tokens where kind = "ident" and text = "cfg";
+let cfg-calls = select l."call" as "id" from ref-children as l join cfg-tokens as r on l."child" = r."id";
+let cfg-call-children = select l."id" as "call", r."child" as "id" from cfg-calls as l join "syntax-child" as r on l."id" = r."parent";
+let cfg-arguments = select l."id" as "id" from cfg-call-children as l join token-trees as r on l."id" = r."id";
+let macro-nots = axis(from=cfg-arguments, relation="syntax-child", direction=descendant, domain=not-tokens);
+let macro-not-ids = select r."id" as "id" from macro-nots as l join not-tokens as r on l."related" = r."id";
+let solid = select * from "syntax-tree" where kind != "whitespace";
+let after-not = axis(from=macro-not-ids, relation="syntax-child", direction=next-sibling, domain=solid);
+let not-groups = select l."id" as "id", r."id" as "group" from after-not as l join token-trees as r on l."related" = r."id";
+let group-ids = select l."group" as "id" from not-groups as l;
+let group-features = axis(from=group-ids, relation="syntax-child", direction=descendant, domain=feature-tokens);
+let negated-groups = select l."id" as "id" from not-groups as l join group-features as r on l."group" = r."id";
+let macro-rows = select r."file" as "file", r."span" as "span" from negated-groups as l join not-tokens as r on l."id" = r."id";
+let found = union(left=attribute-rows, right=macro-rows);
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this code is compiled only when a feature is off"
+help = "Features are additive: make the code under the feature an addition, and keep one path when it is off. If two implementations are chosen by a feature, keep one, or put each behind its own port adapter and let the edge choose. A `cfg(any(test, feature = \"fixtures\"))` seal is not this. An ignore is never the fix."
+
+[given]
+include = ['src/**/*.rs']
+files.'Cargo.toml' = """
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+fused = []
+"""
+
+[[scenarios]]
+id = 'additive-features'
+scenario = 'Code under a feature, under the fixtures seal or under `not(test)` is not reported: none of it is turned off by a feature.'
+given.files.'src/lib.rs' = """
+#[cfg(feature = "fused")]
+pub fn fused() {}
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures {}
+
+#[cfg(not(test))]
+pub fn production() {}
+
+pub fn fused_on() -> bool {
+    cfg!(feature = "fused") || cfg!(any(test, feature = "fixtures")) || cfg!(not(test))
+}
+"""
+
+[[scenarios]]
+id = 'negated-feature-attributes'
+scenario = 'A `cfg` or `cfg_attr` whose predicate turns code off when a feature is on is reported at its `not`, at any depth.'
+given.files.'src/lib.rs' = """
+#[cfg(not(feature = "fused"))]
+pub fn interpreted() {}
+
+#[cfg(all(test, not(feature = "fused")))]
+mod interpreted_test {}
+
+#[cfg(not(any(test, feature = "fixtures")))]
+pub fn sealed() {}
+
+#[cfg_attr(not(feature = "fused"), derive(Debug))]
+pub struct Rows;
+"""
+then.findings = [
+  { path = 'src/lib.rs', line = 1 },
+  { path = 'src/lib.rs', line = 4 },
+  { path = 'src/lib.rs', line = 7 },
+  { path = 'src/lib.rs', line = 10 },
+]
+
+[[scenarios]]
+id = 'negated-feature-macro'
+scenario = 'A `cfg!` call whose predicate is off when a feature is on is reported at its `not`.'
+given.files.'src/lib.rs' = """
+pub fn interpreted() -> bool {
+    cfg!(not(feature = "fused"))
+}
+
+pub fn sealed() -> bool {
+    std::cfg!(all(test, not(any(feature = "fixtures", feature = "fused"))))
+}
+"""
+then.findings = [
+  { path = 'src/lib.rs', line = 2 },
+  { path = 'src/lib.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'the-spike-evaluator-flag'
+scenario = "The fused-evaluation spike's core selects its evaluator by a feature: the interpreter's arms, under `not(feature = \"fused-evaluation\")`, are reported."
+given.files.'src/lib.rs' = '''
+pub mod application;
+pub mod outbound;
+'''
+given.files.'src/application.rs' = '''
+pub mod file_analysis;
+'''
+given.files.'src/application/file_analysis.rs' = '''
+pub mod evaluation;
+'''
+given.files.'src/application/file_analysis/evaluation.rs' = '''
+pub mod service;
+'''
+given.files.'src/application/file_analysis/evaluation/service.rs' = '''
+//! The rules of one file run in the engine's one call; the worker renders the emitted roots, notes the frontiers it could not
+//! capture, keeps the captured ones it records and adds the counts.
+use super::super::errors::FileAnalysisError;
+use super::super::semantic::service::SemanticState;
+use super::super::service::FileAnalysis;
+use super::super::types::{FileVisit, RuleGate, Worker};
+use crate::domain::render::types::Answering;
+use crate::domain::visit::types::Keeping;
+use crate::domain::workers::service::governs_rule;
+use crate::domain::workers::types::Tables;
+use ryo_execution::inbound::use_cases::execution::interface::Demand;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort as _;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort as _;
+use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::{
+    ApplicabilityReason, Arena, CaptureIntent, DiagnosticDelivery, FileRuleIntent,
+    ObservationDemand, OperatingError,
+};
+use ryo_execution::inbound::use_cases::execution::interface::{
+    CaptureContext, EmittedRoot, FileEnd, FileRunInput, FileStop, FinishedReadiness, KindSupport,
+    RanRule, RuleAfter, SemanticSupport, SourceLanguage,
+};
+use ryo_execution::inbound::use_cases::metadata::interface::{
+    FileObservationReadiness, Governing, Message, RuleIndex, Unknown,
+};
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
+use ryo_language::domain::elements::service::syntax_acceptance;
+use ryo_language::domain::elements::types::SyntaxAcceptance;
+use ryo_relations::domain::relations::types::FileId;
+use ryo_values::domain::files::types::SourceView;
+use ryo_values::domain::runs::types::ApplicabilityRefusal;
+use ryo_values::domain::runs::types::{RuleApplicability, RuleNumber};
+use std::sync::Arc;
+
+impl FileAnalysis {
+    /// The rest of a visit of a file the language read: the engine runs the per-file steps of the rules that govern it on its rows
+    /// in one call, the words of what leaves it wait in the buckets, and the rows are released.
+    pub(in crate::application::file_analysis) fn read_file(
+        worker: &mut Worker,
+        visit: &FileVisit<'_>,
+        file: FileId,
+        semantic: &SemanticState,
+    ) -> Result<(), FileAnalysisError> {
+        let tables = &mut worker.tables;
+        let acceptance = syntax_acceptance(&tables.elements);
+        let original_mask = tables.mask.clone();
+        let skipped = Self::gate_rules(tables, &visit.setting, file, acceptance);
+        tables.mask = original_mask;
+        // Publication always sees physical partiality, even when Rows output relaxes evaluation.
+        let physical = tables.partials.clone();
+        let evaluation = if matches!(visit.setting.answering, Answering::Rows(_)) {
+            &[][..]
+        } else {
+            physical.as_slice()
+        };
+        let intents = intents_of(tables, visit, &skipped, acceptance);
+        // Branch-only (spike ryo-5cnx): the fused evaluator answers in place of `run_file` when the request built one.
+        #[cfg(feature = "fused-evaluation")]
+        let fused_ran = visit.setting.fused.map(|fused| {
+            use ryo_evaluation::inbound::use_cases::evaluate::interface::EvaluateUseCase as _;
+            let facts = ryo_evaluation::outbound::facts::factory::file(
+                &*fused.engine,
+                &mut tables.elements,
+                &tables.bytes.0,
+                file,
+            );
+            fused.evaluate.evaluate(
+                ryo_evaluation::inbound::use_cases::evaluate::types::EvaluateInput {
+                    file,
+                    source: &tables.bytes.0,
+                    intents: &intents,
+                },
+                &mut tables.symbols,
+                &facts,
+            )
+        });
+        #[cfg(not(feature = "fused-evaluation"))]
+        let fused_ran = None;
+        let ran = if let Some(ran) = fused_ran {
+            ran
+        } else {
+            visit.setting.services.run_file(
+                FileRunInput {
+                    file,
+                    evaluation,
+                    publication: &physical,
+                    intents: &intents,
+                    source: SourceView(&tables.bytes.0),
+                    elements: &tables.elements,
+                    language: if tables.language.is_some() {
+                        SourceLanguage::Recognized
+                    } else {
+                        SourceLanguage::Unrecognized
+                    },
+                    semantic: SemanticSupport::Supplied(semantic),
+                    kinds: KindSupport::Absent,
+                    first: visit.setting.first_bucket,
+                },
+                &mut tables.symbols,
+                CaptureContext {
+                    worker: tables.number,
+                    arena: Arena(&mut tables.arena.0),
+                    places: &mut tables.places,
+                    words: &mut tables.words,
+                },
+                worker.facts.as_ref(),
+            )
+        };
+        for RanRule { rule, emit, after } in ran.rules {
+            if let EmittedRoot::Delivered(outcome) = emit {
+                Self::delivered(tables, visit, file, semantic, rule, outcome)?;
+            }
+            let captures = match after {
+                RuleAfter::Ran { captures } => captures,
+                RuleAfter::Stopped(stop) => return Err(stopped(stop)),
+                RuleAfter::Unreached => return Err(OperatingError::NotRun.into()),
+            };
+            for captured in captures {
+                let capture = match captured.outcome {
+                    Ok(capture) => capture,
+                    Err(error) => {
+                        let at = usize::try_from(file.0).map_err(|_| OperatingError::NotRun)?;
+                        tables.unknowns.push(Unknown {
+                            rule: visit.setting.ids[rule.0].clone(),
+                            path: visit.setting.paths[at].clone(),
+                            message: Message(
+                                format!("file phase frontier input {}: {error}", captured.input.0)
+                                    .into(),
+                            ),
+                            cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
+                        });
+                        continue;
+                    }
+                };
+                if visit.setting.keeping == Keeping::Keeps
+                    && *visit.setting.answering == Answering::Findings
+                {
+                    tables
+                        .captured
+                        .push(ryo_values::domain::records::types::Kept {
+                            bucket: capture.bucket,
+                            proof: capture.proof,
+                            words: ryo_values::domain::stored_facts::types::KeptWords(
+                                capture.words,
+                            ),
+                        });
+                }
+            }
+        }
+        tables.current_observations = match ran.end {
+            FileEnd::Finished(FinishedReadiness::Observed(readiness)) => Some(readiness),
+            FileEnd::Finished(FinishedReadiness::Unobserved) => None,
+            FileEnd::Unfinished => return Err(OperatingError::NotRun.into()),
+            FileEnd::Refused(stop) => return Err(stopped(stop)),
+        };
+        if let Some(root) = &tables.current_observations {
+            tables.observations.push(FileObservationReadiness {
+                file,
+                root: Arc::clone(root),
+            });
+        }
+        crate::domain::reading::service::settle(tables, visit.setting.answering);
+        worker.facts.release()?;
+        Ok(())
+    }
+
+    /// The emitted root of `rule` in the file: its rows rendered, the files its partial rows could not decide noted, and what it
+    /// could not decide or failed of noted or answered.
+    fn delivered(
+        tables: &mut Tables,
+        visit: &FileVisit<'_>,
+        file: FileId,
+        semantic: &SemanticState,
+        rule: RuleIndex,
+        outcome: RootOutcome,
+    ) -> Result<(), FileAnalysisError> {
+        let affected = match &outcome {
+            RootOutcome::Partial { affected, .. } => Some(affected.clone()),
+            RootOutcome::Complete(_)
+            | RootOutcome::Skipped(_)
+            | RootOutcome::Unknown(_)
+            | RootOutcome::Failed(_)
+            | RootOutcome::NoQuery
+            | RootOutcome::Deferred { .. } => None,
+        };
+        match outcome {
+            RootOutcome::Complete(table) | RootOutcome::Partial { table, .. } => {
+                let number = RuleNumber(u32::try_from(rule.0).map_err(|_| OperatingError::NotRun)?);
+                let id = crate::domain::render::types::FindingRule(
+                    visit
+                        .setting
+                        .ids
+                        .get(rule.0)
+                        .ok_or(OperatingError::NotRun)?
+                        .0
+                        .as_ref(),
+                );
+                let scene = crate::domain::value_cells::types::Scene {
+                    file,
+                    symbols: &tables.symbols,
+                    elements: &tables.elements,
+                    source: SourceView(&tables.bytes.0),
+                    paths: visit.setting.paths,
+                    unknown: visit.setting.unknown,
+                };
+                crate::domain::render::service::render_rows(
+                    crate::domain::render::types::RenderInput {
+                        rule: number,
+                        table: &table,
+                        emit: visit.setting.program.emit(rule)?,
+                        layout: crate::domain::render::service::shown_by(
+                            visit.setting.answering,
+                            number,
+                            id,
+                        ),
+                        scene,
+                        limit: crate::domain::render::service::rendered_limit(
+                            visit.setting.answering,
+                        ),
+                    },
+                    &mut tables.starts,
+                    &mut tables.rendered,
+                )
+                .map_err(|error| {
+                    ryo_values::domain::rule_requests::service::failed(
+                        &visit.setting.ids[rule.0],
+                        &error,
+                    )
+                })?;
+                if let Some(affected) = &affected {
+                    crate::domain::recording::service::partial_root(
+                        &MetadataUseCaseImpl,
+                        &mut tables.unknowns,
+                        &tables.partials,
+                        &visit.setting,
+                        rule,
+                        file,
+                        &visit.setting.paths
+                            [usize::try_from(file.0).map_err(|_| OperatingError::NotRun)?],
+                        affected,
+                    );
+                }
+            }
+            RootOutcome::Unknown(error) => {
+                tables.unknowns.push(Unknown {
+                    rule: visit.setting.ids[rule.0].clone(),
+                    path: visit.setting.paths
+                        [usize::try_from(file.0).map_err(|_| OperatingError::NotRun)?]
+                    .clone(),
+                    message: Message(error.to_string().into()),
+                    cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
+                });
+                if matches!(error, OperatingError::SemanticIncomplete { .. }) {
+                    semantic.mark_incomplete();
+                }
+            }
+            RootOutcome::Failed(error) => {
+                return Err(ryo_values::domain::rule_requests::service::failed(
+                    &visit.setting.ids[rule.0],
+                    &error,
+                )
+                .into());
+            }
+            RootOutcome::Skipped(_) | RootOutcome::NoQuery | RootOutcome::Deferred { .. } => {}
+        }
+        Ok(())
+    }
+}
+
+/// What the file asks of each rule: undemanded, skipped or refused by its applicability, or run with its diagnostic collected when
+/// the rule governs the file.
+fn intents_of(
+    tables: &Tables,
+    visit: &FileVisit<'_>,
+    skipped: &[RuleGate],
+    acceptance: SyntaxAcceptance,
+) -> Vec<FileRuleIntent> {
+    let demanded = visit.setting.program.demanded_rules(|rule| {
+        if governs_rule(&MetadataUseCaseImpl, tables, rule) == Governing::Governs {
+            Demand::Demanded
+        } else {
+            Demand::Undemanded
+        }
+    });
+    demanded
+        .iter()
+        .enumerate()
+        .map(|(place, demanded)| {
+            if *demanded != Demand::Demanded {
+                return FileRuleIntent::Undemanded;
+            }
+            if skipped[place] == RuleGate::Blocked {
+                return match (visit.setting.applicability.get(place), acceptance) {
+                    (Some(RuleApplicability::AcceptedSyntax), SyntaxAcceptance::Rejected) => {
+                        FileRuleIntent::Skipped(ApplicabilityReason::SyntaxRejected)
+                    }
+                    (Some(RuleApplicability::AcceptedSyntax), _) => {
+                        FileRuleIntent::Refused(ApplicabilityRefusal::SyntaxUndetermined)
+                    }
+                    _ => FileRuleIntent::Refused(ApplicabilityRefusal::MetadataUnavailable),
+                };
+            }
+            let emit =
+                governs_rule(&MetadataUseCaseImpl, tables, RuleIndex(place)) == Governing::Governs;
+            FileRuleIntent::Run {
+                diagnostic: if emit {
+                    DiagnosticDelivery::Collected
+                } else {
+                    DiagnosticDelivery::Disabled
+                },
+                observations: ObservationDemand::Required,
+                capture: if emit {
+                    CaptureIntent::DiagnosticAndObservations
+                } else {
+                    CaptureIntent::Observations
+                },
+            }
+        })
+        .collect()
+}
+
+/// The failure a stopped file's run answers: the engine's own, or the worker's facts'.
+fn stopped(stop: FileStop) -> FileAnalysisError {
+    match stop {
+        FileStop::Operating(error) => error.into(),
+        FileStop::Facts(error) => error.into(),
+    }
+}
+'''
+given.files.'src/outbound.rs' = '''
+pub mod language;
+'''
+given.files.'src/outbound/language.rs' = '''
+pub mod adapters;
+'''
+given.files.'src/outbound/language/adapters.rs' = '''
+pub mod use_case;
+'''
+given.files.'src/outbound/language/adapters/use_case.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/outbound/language/adapters/use_case/adapter.rs' = '''
+//! The language port, implemented by the `ParseUseCase` and `ProjectUseCase` of each language the
+//! edge linked, and the catalog of the `language` crate.
+
+use super::constants::{OBSERVATION_RECEIPT_DIFFERS, TWO_LANGUAGES_UNLISTED};
+use crate::outbound::language::types::{Answers, LinkedNames, RelationList, UnknownReasons};
+use ryo_relations::domain::terms::types::UnknownName;
+use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, KindWord};
+
+use ryo_language::domain::elements::types::Elements;
+use ryo_language::domain::files::types::SourcePath;
+use ryo_language::domain::semantics::types::{SemanticSession, SemanticSlot};
+use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_language::inbound::use_cases::parse::errors::ParseError;
+use ryo_language::inbound::use_cases::parse::types::ParseRequest;
+use ryo_language::inbound::use_cases::project::types::ProjectRequest;
+use ryo_relations::domain::relations::service::all;
+use ryo_relations::domain::relations::types::RowWriter;
+use ryo_relations::domain::relations::types::{Bytes, Relation};
+
+use super::connection::LanguageConnection;
+use crate::outbound::language::errors::LanguageError;
+use crate::outbound::language::interface::LanguagePort;
+use crate::outbound::language::types::RoleWriting;
+use crate::outbound::language::types::{
+    Absence, FileReading, FileToRead, LinkedName, ManifestReading, NoteWriting, ProjectAnswer,
+    ProjectToRead, RefusedManifest, RelationAnswer, SourceSelection,
+};
+use ryo_language::domain::files::types::FilePath;
+use ryo_values::domain::stored_facts::types::{FileNotes, LanguageNumber, ReadFailure};
+
+/// Give one language only the notes it wrote, with the same host scope and engine observations.
+fn project_request(input: &ProjectToRead<'_>, number: LanguageNumber) -> ProjectRequest {
+    ProjectRequest {
+        root: input.root.clone(),
+        repository: input.repository,
+        search_scope: input.search_scope.clone(),
+        given_inventory: input.given_inventory.clone(),
+        observed_entries: input.observed_entries.clone(),
+        manifests: input.manifests.to_vec(),
+        files: input
+            .files
+            .iter()
+            .map(|each| ryo_values::domain::files::service::input_path(each).clone())
+            .collect(),
+        notes: input
+            .notes
+            .0
+            .iter()
+            .map(|each| match each {
+                Some(FileNotes {
+                    language: written_by,
+                    notes,
+                }) if written_by.0 == number.0 => Bytes(notes.0.clone()),
+                Some(_) | None => Bytes::default(),
+            })
+            .collect(),
+        wanted: input.wanted.to_vec(),
+    }
+}
+
+/// The `use_case` language adapter.
+#[derive(Debug)]
+pub(crate) struct LanguageUseCaseAdapter {
+    /// The languages linked, in the order they are listed and numbered in.
+    languages: Vec<LanguageConnection>,
+}
+
+impl LanguageUseCaseAdapter {
+    /// The adapter before any language is linked.
+    pub(crate) fn new() -> Self {
+        Self {
+            languages: Vec::new(),
+        }
+    }
+
+    /// The adapter with one more language linked, after those already linked: the order it lists and numbers them in.
+    pub(crate) fn with(mut self, language: LanguageConnection) -> Self {
+        self.languages.push(language);
+        self
+    }
+}
+
+fn parse_request(file: FileToRead<'_>) -> ParseRequest<'_> {
+    ParseRequest {
+        path: SourcePath(&file.path.0),
+        file: file.file,
+        bytes: ByteSlice(&file.bytes.0),
+        fields: match file.roles {
+            RoleWriting::Wanted => {
+                ryo_language::inbound::use_cases::parse::types::FieldRequest::Wanted
+            }
+            RoleWriting::Unwanted => {
+                ryo_language::inbound::use_cases::parse::types::FieldRequest::Unwanted
+            }
+        },
+        notes: match file.notes {
+            NoteWriting::Wanted => {
+                ryo_language::inbound::use_cases::parse::types::NoteRequest::Wanted
+            }
+            NoteWriting::Unwanted => {
+                ryo_language::inbound::use_cases::parse::types::NoteRequest::Unwanted
+            }
+        },
+    }
+}
+
+impl LanguagePort for LanguageUseCaseAdapter {
+    #[cfg(feature = "fused-evaluation")]
+    fn sole_engine(
+        &self,
+    ) -> Option<std::sync::Arc<dyn ryo_language::inbound::use_cases::parse::types::ParseEngine>> {
+        match self.languages.as_slice() {
+            [one] => Some(std::sync::Arc::clone(&one.parse)),
+            _ => None,
+        }
+    }
+
+    fn relations(&self) -> Result<RelationList, LanguageError> {
+        Ok(RelationList(all().to_vec()))
+    }
+
+    fn linked(&self) -> LinkedNames {
+        LinkedNames(
+            self.languages
+                .iter()
+                .map(|linked| LinkedName(format!("{} {}", linked.name.0, linked.build.0).into()))
+                .collect(),
+        )
+    }
+
+    fn unknown_reasons(&self) -> UnknownReasons {
+        let mut reasons: Vec<UnknownName> = Vec::new();
+        for each in self
+            .languages
+            .iter()
+            .flat_map(|linked| linked.parse.unknown_reasons())
+        {
+            if !reasons.contains(each) {
+                reasons.push(*each);
+            }
+        }
+        UnknownReasons(reasons)
+    }
+
+    fn kind_vocabularies(&self) -> KindVocabularies {
+        KindVocabularies(
+            self.languages
+                .iter()
+                .map(|linked| KindVocabulary {
+                    language: linked.name.clone(),
+                    kinds: linked
+                        .parse
+                        .kind_names()
+                        .0
+                        .into_iter()
+                        .map(|name| KindWord(Box::from(name.0)))
+                        .collect(),
+                })
+                .collect(),
+        )
+    }
+
+    fn supports(&self, relation: Relation) -> Answers {
+        Answers(
+            self.languages
+                .iter()
+                .map(|linked| RelationAnswer {
+                    language: linked.name.clone(),
+                    absence: linked
+                        .parse
+                        .absence_of(relation)
+                        .or_else(|| linked.project.absence_of(relation))
+                        .map_or(Absence::Reads, Absence::Because),
+                    unknowns: linked.parse.unknown_reasons(),
+                })
+                .collect(),
+        )
+    }
+
+    fn reads_manifest(&self, path: &FilePath) -> ManifestReading {
+        let name = path.0.rsplit('/').next().unwrap_or(&path.0);
+        let reads = self.languages.iter().any(|linked| {
+            linked
+                .project
+                .manifest_names()
+                .iter()
+                .any(|manifest| manifest.0 == name)
+        });
+        if reads {
+            ManifestReading::Read
+        } else {
+            ManifestReading::NotRead
+        }
+    }
+
+    fn parse(
+        &self,
+        file: FileToRead<'_>,
+        table: &mut Elements,
+        symbols: &mut Symbols,
+        out: &mut dyn RowWriter,
+    ) -> FileReading {
+        let request = parse_request(file);
+        // Branch-only (spike ryo-5cnx): the parse step writes no row; the fused evaluator asks for each relation it reads.
+        #[cfg(feature = "fused-evaluation")]
+        let _: &mut dyn RowWriter = out;
+        if let SourceSelection::Named(selected) = file.source_language {
+            let mut matches = self
+                .languages
+                .iter()
+                .enumerate()
+                .filter(|(_, language)| language.name == *selected);
+            let Some((number, language)) = matches.next() else {
+                return FileReading::Failed(ReadFailure(
+                    format!("explicit source provider `{}` is not linked", selected.0).into(),
+                ));
+            };
+            if matches.next().is_some() {
+                return FileReading::Failed(ReadFailure(
+                    format!("explicit source provider `{}` is ambiguous", selected.0).into(),
+                ));
+            }
+            if language
+                .project
+                .primary_role(ryo_language::domain::files::types::SourcePath(&file.path.0))
+                == ryo_language::domain::files::types::PrimaryFileRole::Configuration
+            {
+                return FileReading::Manifest;
+            }
+            // Branch-only (spike ryo-5cnx): the parse step builds the tree as `build` does, the fused evaluator walking on demand.
+            #[cfg(feature = "fused-evaluation")]
+            let read = ryo_language::inbound::use_cases::parse::service::build(
+                &*language.parse,
+                request,
+                table,
+                symbols,
+            );
+            #[cfg(not(feature = "fused-evaluation"))]
+            let read = language.parse.read_file_explicit(
+                request,
+                table,
+                symbols,
+                file.wanted,
+                out,
+            );
+            return match read {
+                Ok(()) => FileReading::Read(LanguageNumber(number)),
+                Err(error) => FileReading::Failed(ReadFailure(
+                    format!("explicit source provider `{}`: {error}", selected.0).into(),
+                )),
+            };
+        }
+        let mut failure: Option<ReadFailure> = None;
+        for (number, language) in self.languages.iter().enumerate() {
+            if language.parse.recognition(&request)
+                == ryo_language::inbound::use_cases::parse::types::Recognition::Declines
+            {
+                continue;
+            }
+            #[cfg(feature = "fused-evaluation")]
+            let read = ryo_language::inbound::use_cases::parse::service::build(
+                &*language.parse,
+                request,
+                table,
+                symbols,
+            );
+            #[cfg(not(feature = "fused-evaluation"))]
+            let read = language
+                .parse
+                .read_file(request, table, symbols, file.wanted, out);
+            match read {
+                Ok(()) => return FileReading::Read(LanguageNumber(number)),
+                Err(ParseError::Unsupported) => {}
+                Err(other) => failure = Some(ReadFailure(other.to_string().into())),
+            }
+        }
+        failure.map_or_else(
+            || {
+                if self.languages.iter().any(|language| {
+                    language
+                        .project
+                        .primary_role(ryo_language::domain::files::types::SourcePath(&file.path.0))
+                        == ryo_language::domain::files::types::PrimaryFileRole::Configuration
+                }) {
+                    FileReading::Manifest
+                } else {
+                    FileReading::Unsupported
+                }
+            },
+            FileReading::Failed,
+        )
+    }
+
+    fn begin_semantics(
+        &self,
+        language: LanguageNumber,
+        file: FileToRead<'_>,
+        tree: &mut Elements,
+    ) -> SemanticSlot {
+        // What the language's read kept for the session (its parsed tree) is handed to it, so the file is not parsed again.
+        let mut slot = ryo_language::domain::elements::service::take_semantics(tree);
+        if let Some(handle) = self.languages.get(language.0) {
+            handle
+                .parse
+                .begin_semantics(&parse_request(file), tree, &mut slot);
+        }
+        match slot {
+            SemanticSlot::Begun(session) => SemanticSlot::Begun(session),
+            SemanticSlot::Empty | SemanticSlot::Retained(_) => SemanticSlot::Empty,
+        }
+    }
+
+    fn project_entries(
+        &self,
+        input: &ProjectToRead<'_>,
+    ) -> ryo_language::domain::files::types::ProjectEntries {
+        let mut appended = ryo_language::domain::files::types::ProjectEntries::default();
+        for (number, language) in self.languages.iter().enumerate() {
+            language.project.project_entries(
+                &project_request(input, LanguageNumber(number)),
+                &mut appended,
+            );
+        }
+        let mut entries = appended.0;
+        entries.sort();
+        entries.dedup();
+        entries.into()
+    }
+
+    fn project(
+        &self,
+        input: &ProjectToRead<'_>,
+        symbols: &mut Symbols,
+        out: &mut dyn RowWriter,
+    ) -> Result<ProjectAnswer, LanguageError> {
+        let mut refused = Vec::new();
+        let mut unlisted = Vec::new();
+        let mut consulted = Vec::new();
+        for (number, language) in self.languages.iter().enumerate() {
+            let request = project_request(input, LanguageNumber(number));
+            let bytes = language
+                .project
+                .project(&request, symbols, out)
+                .map_err(|error| LanguageError::Manifest {
+                    reason: error.to_string(),
+                })?;
+            if bytes.observed_entries.as_slice()
+                != ryo_language::domain::project_context::service::entries(
+                    &request.observed_entries,
+                )
+            {
+                return Err(LanguageError::Manifest {
+                    reason: OBSERVATION_RECEIPT_DIFFERS.to_owned(),
+                });
+            }
+            consulted.extend(bytes.consulted);
+            // The numbers after the files the run lists are one language's to give: two would number different manifests alike. Two
+            // languages that read the same manifests name the same ones in the same order, which is one numbering.
+            if !bytes.unlisted.is_empty() {
+                let named: Vec<FilePath> = bytes.unlisted;
+                if !unlisted.is_empty() && unlisted != named {
+                    return Err(LanguageError::Manifest {
+                        reason: TWO_LANGUAGES_UNLISTED.to_owned(),
+                    });
+                }
+                unlisted = named;
+            }
+            refused.extend(bytes.refused.into_iter().map(|each| RefusedManifest {
+                language: language.name.clone(),
+                path: each.path,
+                reason: each.reason,
+            }));
+        }
+        // A manifest the rows are about that the run does not list was read from the disk: it is consulted too.
+        consulted.extend(unlisted.iter().cloned());
+        consulted.sort_unstable();
+        consulted.dedup();
+        Ok(ProjectAnswer {
+            refused,
+            unlisted,
+            consulted,
+            observed_entries: ryo_language::domain::project_context::service::receipt(
+                input.observed_entries,
+            ),
+        })
+    }
+}
+'''
+then.findings = [
+  { path = 'src/application/file_analysis/evaluation/service.rs', line = 77 },
+  { path = 'src/outbound/language/adapters/use_case/adapter.rs', line = 239 },
+  { path = 'src/outbound/language/adapters/use_case/adapter.rs', line = 268 },
+]

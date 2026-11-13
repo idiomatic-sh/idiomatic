@@ -1,3 +1,7 @@
+# language 0.4.5
+
+Places its benchmark at `benchmark@0.2.3`, which places the linter adapters at `adapter@0.4.0`. Everything else is as in 0.4.4.
+
 # language 0.4.4
 
 Places every other domain concept of a language, `src/domain/{concept}`, as an `idiomatic.arch/concept@0.1.2`, with its nested parts and groups of cases; the six concepts this spec places itself (`extras`, `language`, `nodes`, `relations`, `syntax`, `tokens`) are left to it. A language no longer places a concept with a manifest of its own beside the concept. Everything else is as in 0.4.3.
