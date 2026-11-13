@@ -49,8 +49,8 @@ SETUP = {"rustup toolchain install", "uv run --script tools/install.py"}
 # approved scripts are sealed whole: a removed build, narrowed rule set, masked
 # exit, or extra shell command must require an explicit review of this contract.
 FULL_INVENTORY_SCRIPTS = {
-    "Build one Ruff worker and seal its artifact": "7462f50f7fc6036730dddbc3928fe2f41437e398d0cfc86ababb57f33dd2e981",
-    "Build shared benchmark inventory runner": "5d8998c6e9bdfbdec286c4606f51bebb5785784a27a8afa118f7205d7e8c0f1f",
+    "Build one Ruff worker and seal its artifact": "57544e37fd6205c73fae4e4c7641c59839a9767a3e363d37741cb3f83ff07bab",
+    "Build shared benchmark inventory runner": "19189ffafd2dc445d18cfab8aeeb876999972f22ffe28410945f75818308851c",
     "Verify all 413 pinned Ruff defaults": "c3aaa07327b3c8134fcd36a4cf760fbed37cd6cb3bd9be6f0836462468879adf",
 }
 # Each digest binds the entire pinned action step: its `uses`, inputs, id,

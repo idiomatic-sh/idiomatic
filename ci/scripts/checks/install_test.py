@@ -239,7 +239,7 @@ def test_benchmark_collector_selects_only_one_matching_executable(tmp_path) -> N
     command = next(tool["run"][-1] for tool in tools if "ryo-benchmark-collector --message-format=json" in tool["run"][-1])
     (sealing,) = [line for line in command.splitlines() if "seal_cargo_artifact.py" in line and "ryo-benchmark-collector" in line]
     script, _build, *selection, sealed = shlex.split(sealing)[1:]
-    assert script == "../../.github/scripts/seal_cargo_artifact.py"
+    assert script == "../../ci/scripts/checks/seal_cargo_artifact.py"
     assert selection == ["ryo-benchmark-collector", "bin", "/crates/benchmark/src/main.rs", "false"]
     assert f'"$PWD/{sealed}"' in command
     collector = tmp_path / "collector"
@@ -261,7 +261,7 @@ def test_benchmark_collector_selects_only_one_matching_executable(tmp_path) -> N
         build = tmp_path / f"build-{number}.jsonl"
         build.write_text("\n".join(json.dumps(record) for record in records) + "\n")
         out = tmp_path / f"sealed-{number}"
-        run = subprocess.run([sys.executable, "-I", str(ROOT / ".github/scripts/seal_cargo_artifact.py"), str(build), *selection, str(out)], capture_output=True, text=True, check=False)
+        run = subprocess.run([sys.executable, "-I", str(ROOT / "ci/scripts/checks/seal_cargo_artifact.py"), str(build), *selection, str(out)], capture_output=True, text=True, check=False)
         # Two artifacts must not become one executable, and no artifact must not pass.
         assert (run.returncode == 0 and out.is_file() and os.access(out, os.X_OK)) == accepted, run.stderr
 
