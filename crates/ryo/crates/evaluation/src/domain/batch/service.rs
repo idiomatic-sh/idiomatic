@@ -4,7 +4,7 @@
 
 use super::types::Rows;
 use ryo_relations::domain::relations::types::{Count, Integer, Value};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, RepeatedRows, Side};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, JoinColumn, RepeatedRows, Side};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 /// The row at `index` of `rows`.
@@ -393,6 +393,85 @@ pub fn ordered_match(left: &Rows, right: &Rows, ordering: Ordering<'_>) -> Rows 
         });
         if complete {
             push(&mut answer, &made);
+        }
+    }
+    answer
+}
+
+/// The arguments of `axis` past its inputs.
+#[derive(Clone, Copy, Debug)]
+pub struct Walking {
+    /// Which way to walk.
+    pub direction: Direction,
+    /// The starting entity's column in `from`.
+    pub id: ColumnIndex,
+    /// The parent column in the edges.
+    pub parent: ColumnIndex,
+    /// The child column in the edges.
+    pub child: ColumnIndex,
+}
+
+/// `axis` over an index of edges: each row of `from` once for each entity its walk reaches that `domain` holds, the entity after
+/// the row, in walk order; a nearest ancestor is the first only. The start is not among what it reaches.
+#[must_use]
+pub fn axis(from: &Rows, edges: &Rows, domain: &FxHashSet<Value>, walking: Walking) -> Rows {
+    let mut parents: FxHashMap<Value, Vec<Value>> = FxHashMap::default();
+    let mut children: FxHashMap<Value, Vec<Value>> = FxHashMap::default();
+    for each in each(edges) {
+        if let (Some(parent), Some(child)) = (cell(each, walking.parent), cell(each, walking.child)) {
+            parents.entry(child).or_default().push(parent);
+            children.entry(parent).or_default().push(child);
+        }
+    }
+    let mut answer = empty(from.width + 1);
+    let mut made = Vec::with_capacity(from.width + 1);
+    let mut reached = Vec::new();
+    for each in each(from) {
+        let Some(start) = cell(each, walking.id) else {
+            continue;
+        };
+        reached.clear();
+        match walking.direction {
+            Direction::Parent => reached.extend(parents.get(&start).into_iter().flatten().copied()),
+            Direction::Child => reached.extend(children.get(&start).into_iter().flatten().copied()),
+            Direction::Ancestor | Direction::NearestAncestor => {
+                let mut seen: FxHashSet<Value> = FxHashSet::default();
+                let mut at = start;
+                while let Some(parent) = parents.get(&at).and_then(|up| up.first()).copied() {
+                    if !seen.insert(parent) {
+                        break;
+                    }
+                    reached.push(parent);
+                    at = parent;
+                }
+            }
+            Direction::Descendant => {
+                let mut seen: FxHashSet<Value> = FxHashSet::default();
+                let mut stack: Vec<Value> = children.get(&start).cloned().unwrap_or_default();
+                stack.reverse();
+                while let Some(vertex) = stack.pop() {
+                    if !seen.insert(vertex) {
+                        continue;
+                    }
+                    reached.push(vertex);
+                    if let Some(next) = children.get(&vertex) {
+                        stack.extend(next.iter().rev());
+                    }
+                }
+            }
+            Direction::Deep | Direction::PreviousSibling | Direction::NextSibling => {}
+        }
+        for vertex in &reached {
+            if !domain.contains(vertex) {
+                continue;
+            }
+            made.clear();
+            made.extend_from_slice(each);
+            made.push(*vertex);
+            push(&mut answer, &made);
+            if walking.direction == Direction::NearestAncestor {
+                break;
+            }
         }
     }
     answer

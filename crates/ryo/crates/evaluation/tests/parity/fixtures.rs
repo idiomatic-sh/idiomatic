@@ -136,7 +136,7 @@ pub(crate) fn parse(parse: &dyn ParseEngine, path: &str, bytes: &[u8], file: Fil
             file,
             bytes: ByteSlice(bytes),
             notes: NoteRequest::Unwanted,
-            fields: FieldRequest::Unwanted,
+            fields: FieldRequest::Wanted,
         },
         &mut elements,
         &mut symbols,

@@ -38,4 +38,6 @@ pub struct Fused {
     pub by_kind: Vec<Vec<usize>>,
     /// The roots every element feeds.
     pub every: Vec<usize>,
+    /// Whether a step other than a root reads the whole parser's tree: the one walk then keeps every element's row for it.
+    pub whole_tree: bool,
 }

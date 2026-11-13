@@ -92,3 +92,25 @@ fn stage_a_rules_agree_on_the_engine_fixtures_in_one_request() {
     let emitted = agree(&["PLE2510", "LOG009"], &engine_fixtures(), "engine fixtures");
     assert!(emitted.iter().all(|rules| rules.len() == 2));
 }
+
+#[test]
+fn up019_cases_pass_both_ways() {
+    passes("UP019");
+}
+
+#[test]
+fn b006_cases_pass_both_ways() {
+    passes("B006");
+}
+
+#[test]
+fn f401_cases_pass_both_ways() {
+    passes("F401");
+}
+
+#[test]
+fn all_five_rules_agree_on_the_engine_fixtures_in_one_request_in_rule_order() {
+    let codes = ["PLE2510", "LOG009", "UP019", "B006", "F401"];
+    let emitted = agree(&codes, &engine_fixtures(), "engine fixtures, five rules");
+    assert!(emitted.iter().all(|rules| rules.len() == codes.len()));
+}

@@ -4,7 +4,7 @@
 use super::errors::FusedError;
 use super::types::{Admits, Fused, NodeId, Root};
 use ryo_relations::domain::relations::types::{KindBits, Relation};
-use ryo_values::domain::plan_parts::types::{Input, Operand, QueryLiteral, StepId, Test};
+use ryo_values::domain::plan_parts::types::{Direction, Input, Operand, QueryLiteral, StepId, Test};
 use ryo_values::domain::plans::types::{Operation, Plan};
 
 /// An operation as a key: plans hold no floating value, so equality is total on them.
@@ -32,24 +32,35 @@ fn inputs_mut(operation: &mut Operation) -> Option<Vec<&mut Input>> {
         | Operation::Replace { from, .. }
         | Operation::SourceMatches { from, .. }
         | Operation::SpanBounds { from, .. } => vec![from],
-        Operation::Join {
-            left, right, reach, ..
-        } => {
-            if reach.is_some() {
-                return None;
-            }
-            vec![left, right]
-        }
+        Operation::Join { left, right, .. } => vec![left, right],
         Operation::Union { left, right }
         | Operation::Intersection { left, right }
         | Operation::Difference { left, right }
         | Operation::Antijoin { left, right, .. }
         | Operation::OrderedMatch { left, right, .. } => vec![left, right],
         Operation::Closure { edges, .. } => vec![edges],
+        Operation::Axis {
+            from,
+            edges,
+            domain,
+            direction,
+            ..
+        } => {
+            if !matches!(
+                direction,
+                Direction::Parent
+                    | Direction::Child
+                    | Direction::Ancestor
+                    | Direction::Descendant
+                    | Direction::NearestAncestor
+            ) {
+                return None;
+            }
+            vec![from, edges, domain]
+        }
         Operation::GroupDigest { .. }
         | Operation::Rank { .. }
         | Operation::Words { .. }
-        | Operation::Axis { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
@@ -193,6 +204,22 @@ pub fn fuse(plans: &[Plan], kinds: &[&str]) -> Result<Fused, FusedError> {
             admits: admits(operation, kinds),
         })
         .collect();
+    let whole_tree = nodes.iter().any(|operation| {
+        let mut operation = operation.clone();
+        let root = matches!(
+            operation,
+            Operation::Select {
+                from: Input::Relation(Relation::SyntaxTree),
+                ..
+            }
+        );
+        !root
+            && inputs_mut(&mut operation).is_some_and(|inputs| {
+                inputs
+                    .iter()
+                    .any(|input| **input == Input::Relation(Relation::SyntaxTree))
+            })
+    });
     let mut by_kind = vec![Vec::new(); kinds.len()];
     let mut every = Vec::new();
     for (place, root) in roots.iter().enumerate() {
@@ -213,5 +240,6 @@ pub fn fuse(plans: &[Plan], kinds: &[&str]) -> Result<Fused, FusedError> {
         roots,
         by_kind,
         every,
+        whole_tree,
     })
 }

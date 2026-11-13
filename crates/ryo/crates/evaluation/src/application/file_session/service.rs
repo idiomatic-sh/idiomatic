@@ -2,8 +2,8 @@
 
 use super::types::Program;
 use crate::domain::batch::service::{
-    antijoin, cell, closure, each, empty, extend, group_count, join, membership, ordered_match,
-    project, push, union, Ordering,
+    antijoin, axis, cell, closure, each, empty, extend, group_count, join, membership, ordered_match,
+    project, push, union, Ordering, Walking,
 };
 use crate::domain::batch::types::Rows;
 use crate::domain::fused::types::NodeId;
@@ -189,7 +189,8 @@ impl<'s> Session<'s> {
                     .map(ryo_relations::domain::relations::types::KindBits)
             })
             .collect();
-        let walked = if fused.every.is_empty() {
+        let mut whole = fused.whole_tree.then(|| empty(5));
+        let walked = if fused.every.is_empty() && whole.is_none() {
             Kinds::Only(&kinds)
         } else {
             Kinds::Every
@@ -205,6 +206,10 @@ impl<'s> Session<'s> {
         SCRATCH.with_borrow_mut(|scratch| {
             facts.walk(walked, &mut |position, kind| {
                 let mut row: Option<ElementRow> = None;
+                if let Some(whole) = whole.as_mut() {
+                    let ElementRow(element) = *row.get_or_insert_with(|| facts.element(position));
+                    push(whole, &element);
+                }
                 let fed = fused
                     .by_kind
                     .get(usize::from(kind.0))
@@ -244,6 +249,12 @@ impl<'s> Session<'s> {
         if let Some(error) = failure {
             return Err(error);
         }
+        if let Some(whole) = whole {
+            let place = all().iter().position(|each| *each == Relation::SyntaxTree);
+            if let Some(slot) = place.and_then(|place| self.relations.get_mut(place)) {
+                *slot = Some(whole);
+            }
+        }
         for (root, table) in fused.roots.iter().zip(tables) {
             if let Some(slot) = self.tables.get_mut(root.node.0) {
                 *slot = Some(Ok(table));
@@ -259,6 +270,10 @@ impl<'s> Session<'s> {
             .position(|each| *each == relation)
             .ok_or(OperatingError::NotRead)?;
         if self.relations.get(place).is_some_and(Option::is_none) {
+            if relation == Relation::SyntaxTree && !self.walked {
+                self.walk()?;
+                return self.relation(relation);
+            }
             let rows = if relation == Relation::SyntaxTree {
                 let mut rows = empty(5);
                 let facts = self.facts;
@@ -459,7 +474,7 @@ impl<'s> Session<'s> {
                 output,
                 filter,
                 view,
-                reach: _,
+                reach,
             } => {
                 if self.ready(*left)? || self.ready(*right)? {
                     return Ok(empty(output.len()));
@@ -484,6 +499,27 @@ impl<'s> Session<'s> {
                         Ok::<(), OperatingError>(())
                     })?;
                     Some(kept)
+                };
+                // A join with a reach reads the closure of its right input's edges, partition keys first.
+                let right_rows = match reach {
+                    Some(reach) => {
+                        let edges = match &right_rows {
+                            Some(rows) => rows,
+                            None => self.input(*right)?,
+                        };
+                        let reached = closure(edges, &reach.keys, reach.source, reach.destination);
+                        let width = reach.columns.len();
+                        let mut logical = empty(width);
+                        let mut made = Vec::with_capacity(width);
+                        for each in each(&reached) {
+                            made.clear();
+                            if crate::domain::batch::service::pick(each, &reach.columns, &mut made) {
+                                push(&mut logical, &made);
+                            }
+                        }
+                        Some(logical)
+                    }
+                    None => right_rows,
                 };
                 let right_rows = match &right_rows {
                     Some(rows) => rows,
@@ -763,10 +799,58 @@ impl<'s> Session<'s> {
                 }
                 Ok(answer)
             }
+            Operation::Axis {
+                from,
+                edges,
+                domain,
+                direction,
+                id,
+                parent,
+                child,
+                domain_id,
+                domain_filter,
+                domain_view,
+                output: _,
+            } => {
+                if self.ready(*from)? || self.ready(*edges)? || self.ready(*domain)? {
+                    return Ok(Rows::default());
+                }
+                let texts = Texts {
+                    symbols: self.symbols,
+                    source: SourceView(self.source),
+                    paths: &[],
+                    arenas: &[],
+                };
+                let entity = domain_view
+                    .get(usize::try_from(domain_id.0).unwrap_or(usize::MAX))
+                    .copied()
+                    .unwrap_or(*domain_id);
+                let mut admitted = rustc_hash::FxHashSet::default();
+                SCRATCH.with_borrow_mut(|scratch| {
+                    for each in each(self.input(*domain)?) {
+                        if holds(self.program, domain_filter, each, &texts, scratch)?
+                            && let Some(value) = cell(each, entity)
+                        {
+                            let _: bool = admitted.insert(value);
+                        }
+                    }
+                    Ok::<(), OperatingError>(())
+                })?;
+                Ok(axis(
+                    self.input(*from)?,
+                    self.input(*edges)?,
+                    &admitted,
+                    Walking {
+                        direction: *direction,
+                        id: *id,
+                        parent: *parent,
+                        child: *child,
+                    },
+                ))
+            }
             Operation::GroupDigest { .. }
             | Operation::Rank { .. }
             | Operation::Words { .. }
-            | Operation::Axis { .. }
             | Operation::OrderedDfs { .. }
             | Operation::Cycles { .. }
             | Operation::Rows { .. }
