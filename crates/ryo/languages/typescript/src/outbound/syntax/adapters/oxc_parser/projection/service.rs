@@ -4,14 +4,18 @@ use super::super::constants::{
     COMMONJS_EXTENSION, JSX_EXTENSION, MODULE_EXTENSION, PLAIN_EXTENSION,
 };
 use super::super::types::{
-    ChildCursor, Decoded, DecodedText, Piece, Text, VisitDepth, VisitorStack,
+    ChildCursor, Decoded, DecodedText, NodeProperty, Piece, Text, VisitDepth, VisitorStack,
 };
+use crate::domain::bindings::constants::{READ_WRITE, TYPE, VALUE, WRITE};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
+use crate::domain::syntax::constants::{REDECLARATION_OF, REFERENCE_DECLARATION, REFERENCE_FLAGS};
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::{Dialect, Kind};
 use crate::domain::tokens::types::Token;
+use oxc_ast::AstKind;
 use oxc_ast::ast::FormalParameter;
+use oxc_semantic::Scoping;
 use oxc_span::{GetSpan as _, SourceType, Span};
 use ryo::languages::{self, Offset};
 
@@ -188,6 +192,13 @@ pub(in super::super) fn write(node: &mut Piece, builder: &mut languages::TableBu
     match node.kind {
         Kind::Node(_) => {
             languages::enter_node(builder, kind_bits(node.kind), start);
+            for property in &node.properties {
+                languages::node_property(
+                    builder,
+                    property.id,
+                    languages::NameText(&property.value.0),
+                );
+            }
             for child in &mut node.children {
                 write(child, builder);
             }
@@ -238,7 +249,48 @@ pub(in super::super) fn leaf(kind: Kind, span: Span) -> Piece {
         children: Vec::new(),
         text: Text::Source,
         cursor: ChildCursor(0),
+        properties: Vec::new(),
     }
+}
+
+/// What the semantic pass says of the node `kind`, as the properties the domain reads: how an identifier reference uses its name and
+/// where the name it resolves to is first declared, and, for a binding identifier that declares a name again, where it was first.
+pub(in super::super) fn semantic_properties(
+    scoping: &Scoping,
+    kind: AstKind<'_>,
+) -> Vec<NodeProperty> {
+    let mut properties = Vec::new();
+    if let AstKind::IdentifierReference(reference) = kind
+        && let Some(id) = reference.reference_id.get()
+    {
+        let reference = scoping.get_reference(id);
+        let word = match (reference.is_read(), reference.is_write()) {
+            (true, true) => READ_WRITE,
+            (false, true) => WRITE,
+            (true, false) => VALUE,
+            (false, false) => TYPE,
+        };
+        properties.push(NodeProperty {
+            id: REFERENCE_FLAGS,
+            value: DecodedText(word.to_owned()),
+        });
+        if let Some(symbol) = reference.symbol_id() {
+            properties.push(NodeProperty {
+                id: REFERENCE_DECLARATION,
+                value: DecodedText(scoping.symbol_span(symbol).start.to_string()),
+            });
+        }
+    }
+    if let AstKind::BindingIdentifier(binding) = kind
+        && let Some(symbol) = binding.symbol_id.get()
+        && scoping.symbol_span(symbol) != binding.span
+    {
+        properties.push(NodeProperty {
+            id: REDECLARATION_OF,
+            value: DecodedText(scoping.symbol_span(symbol).start.to_string()),
+        });
+    }
+    properties
 }
 
 /// Preserve unlexed bytes as whitespace only when ECMAScript classifies them that way.

@@ -1,0 +1,79 @@
+[[cases]]
+name = "assignment"
+files = { "case.ts" = "const x = 1;\nx = 2;\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "annotated"
+files = { "case.ts" = "const x: number = 1;\nx = 2;\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "increment"
+files = { "case.ts" = "const x = 1;\nx++;\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "compound"
+files = { "case.ts" = "const x = 1;\nx += 1;\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "each-write"
+files = { "case.ts" = "const x = 1;\nx = 2;\nx = 3;\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }, { file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "destructured-declaration"
+files = { "case.ts" = "const { a, b: [c] } = o;\nc = 1;\n" }
+expected = [{ file = "case.ts", start = 15, end = 16 }]
+
+[[cases]]
+name = "destructuring-assignment"
+files = { "case.ts" = "const x = 1;\n[x] = [2];\n({ x } = { x: 3 });\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }, { file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "for-of"
+files = { "case.ts" = "for (const k of ks) {\n  k = 1;\n}\n" }
+expected = [{ file = "case.ts", start = 11, end = 12 }]
+
+[[cases]]
+name = "using"
+files = { "case.ts" = "{\n  using held = open();\n  held = other;\n}\n" }
+expected = [{ file = "case.ts", start = 10, end = 14 }]
+
+[[cases]]
+name = "shadowed-by-parameter"
+files = { "case.ts" = "const s = 1;\nfunction f(s) {\n  s = 2;\n}\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-by-let"
+files = { "case.ts" = "const s = 1;\n{\n  let s;\n  s = 3;\n}\n" }
+expected = []
+
+[[cases]]
+name = "in-closure"
+files = { "case.ts" = "const s = 1;\nfunction f() {\n  s = 2;\n}\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "let"
+files = { "case.ts" = "let x = 1;\nx = 2;\n" }
+expected = []
+
+[[cases]]
+name = "read"
+files = { "case.ts" = "const x = 1;\nf(x);\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-const-assign\nconst x = 1;\nx = 2;\n" }
+expected = []
+
+[[cases]]
+name = "directive-on-the-write-line"
+files = { "case.ts" = "const x = 1;\n// eslint-disable-next-line no-const-assign\nx = 2;\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }]

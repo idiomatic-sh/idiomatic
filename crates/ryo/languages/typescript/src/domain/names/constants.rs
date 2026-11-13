@@ -19,5 +19,7 @@ pub(crate) const PROPERTY_SEPARATOR: &str = ":";
 pub(crate) const SELECTION: &str = ".";
 /// The keyword of a constant declaration.
 pub(crate) const CONSTANT: &str = "const";
+/// The word of a declaration whose value is disposed of when its block ends, `using` and `await using`: it binds a constant.
+pub(crate) const USING: &str = "using";
 /// The keyword that names what a class or interface inherits.
 pub(crate) const EXTENDS: &str = "extends";

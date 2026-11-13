@@ -1,0 +1,4 @@
+import directives from "typescript/oxlint/eslint-directives";
+let found = select reference as id, file, span from "binding-read" where state = "builtin" and (context = "write" or context = "read-write");
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-global-assign(?:,|$)");
+emit violations subject file key(id);

@@ -1,0 +1,49 @@
+[[cases]]
+name = "assignment"
+files = { "case.ts" = "try {\n} catch (e) {\n  e = 1;\n}\n" }
+expected = [{ file = "case.ts", start = 22, end = 23 }]
+
+[[cases]]
+name = "destructured"
+files = { "case.ts" = "try {\n} catch ({ a }) {\n  a = 2;\n}\n" }
+expected = [{ file = "case.ts", start = 26, end = 27 }]
+
+[[cases]]
+name = "increment"
+files = { "case.ts" = "try {\n} catch (e) {\n  e++;\n}\n" }
+expected = [{ file = "case.ts", start = 22, end = 23 }]
+
+[[cases]]
+name = "nested-function"
+files = { "case.ts" = "try {\n} catch (e) {\n  function f() {\n    e = 1;\n  }\n}\n" }
+expected = [{ file = "case.ts", start = 41, end = 42 }]
+
+[[cases]]
+name = "shadowed-by-parameter"
+files = { "case.ts" = "try {\n} catch (e) {\n  function f(e) {\n    e = 3;\n  }\n}\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-by-let"
+files = { "case.ts" = "try {\n} catch (e) {\n  {\n    let e;\n    e = 3;\n  }\n}\n" }
+expected = []
+
+[[cases]]
+name = "annotated"
+files = { "case.ts" = "try {\n} catch (e: unknown) {\n  e = 1;\n}\n" }
+expected = [{ file = "case.ts", start = 31, end = 32 }]
+
+[[cases]]
+name = "no-parameter"
+files = { "case.ts" = "let e;\ntry {\n} catch {\n  e = 1;\n}\n" }
+expected = []
+
+[[cases]]
+name = "read"
+files = { "case.ts" = "try {\n} catch (e) {\n  throw e;\n}\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "try {\n} catch (e) {\n  // eslint-disable-next-line no-ex-assign\n  e = 1;\n}\n" }
+expected = []

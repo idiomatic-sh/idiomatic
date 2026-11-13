@@ -4,8 +4,10 @@
 
 use crate::domain::fact_notes::service::noted;
 use crate::domain::fields::service::name_vocabulary;
+use crate::domain::model::{service::clear, types::ReadIndexes};
 use crate::domain::relations::collections::relations::{
     annotates::item::AnnotatesItem, assigns::item::AssignsItem,
+    binding_read::item::BindingReadItem, binding_use::item::BindingUseItem,
     call_argument::item::CallArgumentItem, comment::item::CommentItem,
     decorates::item::DecoratesItem, defines::item::DefinesItem, directive::item::DirectiveItem,
     function::item::FunctionItem, inherits::item::InheritsItem, parameter::item::ParameterItem,
@@ -87,19 +89,19 @@ impl ParseContract {
 }
 
 impl Parse for ParseContract {
-    type FileModel = ();
+    type FileModel = ReadIndexes;
 
     fn begin_semantics(&self, _: &ParseRequest<'_>, _: &Elements, _: &mut SemanticSlot) {}
 
-    fn semantics(&self) -> Option<&dyn languages::Semantics> {
-        None
+    fn semantics(&self) -> Option<&dyn languages::Semantics<ReadIndexes>> {
+        Some(self)
     }
 
     fn completion_requirement(&self) -> CompletionRequirement {
         CompletionRequirement::Independent
     }
 
-    fn extend_file_model(&self, _: &Tree<'_>, _: Position, _: &mut Self::FileModel) {}
+    fn extend_file_model(&self, _: &Tree<'_>, _: Position, _: &mut ReadIndexes) {}
 
     fn recognizes_explicit(&self, _: &ParseRequest<'_>) -> Recognition {
         Recognition::Declines
@@ -113,7 +115,9 @@ impl Parse for ParseContract {
         ParseConfigurationIdentity(NO_CONFIGURATION)
     }
 
-    fn file_model(&self, _tree: &Tree<'_>, _model: &mut ()) {}
+    fn file_model(&self, _tree: &Tree<'_>, model: &mut ReadIndexes) {
+        clear(model);
+    }
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {
         crate::domain::language::constants::UNKNOWN_REASONS
@@ -158,127 +162,248 @@ impl Parse for ParseContract {
         }
     }
 
-    fn source_location(&self) -> Support<Reader<languages::SourceLocation, ()>> {
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, ReadIndexes>> {
         languages::source_locations()
     }
 
-    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, ()>> {
+    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, ReadIndexes>> {
         // standard: TypeScript 5.9.3 reference compiler scanner, scan(): horizontal
         // whitespace and newlines are trivia, with no lexical INDENT/DEDENT suite tokens.
         // https://github.com/microsoft/TypeScript/blob/v5.9.3/src/compiler/scanner.ts
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 
-    fn syntax_tree(&self) -> Support<Reader<languages::SyntaxTree, ()>> {
+    fn syntax_tree(&self) -> Support<Reader<languages::SyntaxTree, ReadIndexes>> {
         languages::reads::<SyntaxTreeItem>()
     }
 
-    fn comment(&self) -> Support<Reader<languages::Comment, ()>> {
+    fn comment(&self) -> Support<Reader<languages::Comment, ReadIndexes>> {
         languages::reads::<CommentItem>()
     }
 
-    fn directive(&self) -> Support<Reader<languages::Directive, ()>> {
+    fn directive(&self) -> Support<Reader<languages::Directive, ReadIndexes>> {
         languages::reads::<DirectiveItem>()
     }
 
-    fn string_literal(&self) -> Support<Reader<languages::StringLiteral, ()>> {
+    fn string_literal(&self) -> Support<Reader<languages::StringLiteral, ReadIndexes>> {
         languages::reads::<StringLiteralItem>()
     }
 
-    fn prose(&self) -> Support<Reader<languages::Prose, ()>> {
+    fn prose(&self) -> Support<Reader<languages::Prose, ReadIndexes>> {
         // TypeScript AST specification models source code, not document prose or keyed data.
         languages::absent(AbsenceCause::NotADocument)
     }
 
-    fn syntax_child(&self) -> Support<Reader<languages::SyntaxChild, ()>> {
+    fn syntax_child(&self) -> Support<Reader<languages::SyntaxChild, ReadIndexes>> {
         languages::reads::<SyntaxChildItem>()
     }
 
-    fn syntax_error(&self) -> Support<Reader<languages::SyntaxError, ()>> {
+    fn syntax_error(&self) -> Support<Reader<languages::SyntaxError, ReadIndexes>> {
         languages::reads::<SyntaxErrorItem>()
     }
 
-    fn mapping(&self) -> Support<Reader<languages::Mapping, ()>> {
+    fn mapping(&self) -> Support<Reader<languages::Mapping, ReadIndexes>> {
         // TypeScript AST specification models source code, not document prose or keyed data.
         languages::absent(AbsenceCause::NotAKeyedDocument)
     }
 
-    fn entry(&self) -> Support<Reader<languages::Entry, ()>> {
+    fn entry(&self) -> Support<Reader<languages::Entry, ReadIndexes>> {
         // TypeScript AST specification models source code, not document prose or keyed data.
         languages::absent(AbsenceCause::NotAKeyedDocument)
     }
 
-    fn sequence_element(&self) -> Support<Reader<languages::SequenceElement, ()>> {
+    fn sequence_element(&self) -> Support<Reader<languages::SequenceElement, ReadIndexes>> {
         // TypeScript AST specification models source code, not document prose or keyed data.
         languages::absent(AbsenceCause::NotAKeyedDocument)
     }
 
-    fn function(&self) -> Support<Reader<languages::Function, ()>> {
+    fn function(&self) -> Support<Reader<languages::Function, ReadIndexes>> {
         languages::reads::<FunctionItem>()
     }
 
-    fn annotates(&self) -> Support<Reader<languages::Annotates, ()>> {
+    fn annotates(&self) -> Support<Reader<languages::Annotates, ReadIndexes>> {
         languages::reads::<AnnotatesItem>()
     }
 
-    fn assigns(&self) -> Support<Reader<languages::Assigns, ()>> {
+    fn assigns(&self) -> Support<Reader<languages::Assigns, ReadIndexes>> {
         languages::reads::<AssignsItem>()
     }
 
-    fn decorates(&self) -> Support<Reader<languages::Decorates, ()>> {
+    fn decorates(&self) -> Support<Reader<languages::Decorates, ReadIndexes>> {
         languages::reads::<DecoratesItem>()
     }
 
-    fn defines(&self) -> Support<Reader<languages::Defines, ()>> {
+    fn defines(&self) -> Support<Reader<languages::Defines, ReadIndexes>> {
         languages::reads::<DefinesItem>()
     }
 
-    fn visibility(&self) -> Support<Reader<languages::Visibility, ()>> {
+    fn visibility(&self) -> Support<Reader<languages::Visibility, ReadIndexes>> {
         languages::reads::<VisibilityItem>()
     }
 
-    fn inherits(&self) -> Support<Reader<languages::Inherits, ()>> {
+    fn inherits(&self) -> Support<Reader<languages::Inherits, ReadIndexes>> {
         languages::reads::<InheritsItem>()
     }
 
-    fn mention(&self) -> Support<Reader<languages::Mention, ()>> {
+    fn mention(&self) -> Support<Reader<languages::Mention, ReadIndexes>> {
         // standard: @typescript-eslint/ast-spec AST_NODE_TYPES has no macro invocation or token-tree construct.
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 
-    fn parameter(&self) -> Support<Reader<languages::Parameter, ()>> {
+    fn parameter(&self) -> Support<Reader<languages::Parameter, ReadIndexes>> {
         languages::reads::<ParameterItem>()
     }
 
-    fn reference(&self) -> Support<Reader<languages::Reference, ()>> {
+    fn reference(&self) -> Support<Reader<languages::Reference, ReadIndexes>> {
         languages::reads::<ReferenceItem>()
     }
 
-    fn scope(&self) -> Support<Reader<languages::Scope, ()>> {
+    fn scope(&self) -> Support<Reader<languages::Scope, ReadIndexes>> {
         languages::reads::<ScopeItem>()
     }
 
-    fn static_call(&self) -> Support<Reader<languages::StaticCall, ()>> {
+    fn static_call(&self) -> Support<Reader<languages::StaticCall, ReadIndexes>> {
         languages::reads::<StaticCallItem>()
     }
 
-    fn call_argument(&self) -> Support<Reader<languages::CallArgument, ()>> {
+    fn call_argument(&self) -> Support<Reader<languages::CallArgument, ReadIndexes>> {
         languages::reads::<CallArgumentItem>()
     }
 
-    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, ()>> {
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, ReadIndexes>> {
         languages::native_semantic_syntax()
     }
 
-    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, ()>> {
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, ReadIndexes>> {
         languages::native_semantic_child()
     }
 
-    fn resolves(&self) -> Support<Reader<languages::Resolves, ()>> {
+    fn resolves(&self) -> Support<Reader<languages::Resolves, ReadIndexes>> {
         languages::reads::<ResolvesItem>()
     }
 
-    fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
+    fn static_import(&self) -> Support<Reader<languages::StaticImport, ReadIndexes>> {
         languages::reads::<StaticImportItem>()
+    }
+}
+
+impl languages::Semantics<ReadIndexes> for ParseContract {
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_parse(&self) -> Support<Reader<languages::FormatParse, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_field(&self) -> Support<Reader<languages::FormatField, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn interpolated_string_literal(
+        &self,
+    ) -> Support<Reader<languages::InterpolatedStringLiteral, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, ReadIndexes>> {
+        // This provider does not expose a parser target version.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, ReadIndexes>> {
+        languages::reads::<BindingReadItem>()
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, ReadIndexes>> {
+        languages::reads::<BindingUseItem>()
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, ReadIndexes>> {
+        // Qualified source identities are applicable, but this provider has not implemented their reader.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn standard_library_import(
+        &self,
+    ) -> Support<Reader<languages::StandardLibraryImport, ReadIndexes>> {
+        // TypeScript module imports exist; a versioned host-library catalog is not read.
+        languages::absent(AbsenceCause::NotYetRead)
     }
 }

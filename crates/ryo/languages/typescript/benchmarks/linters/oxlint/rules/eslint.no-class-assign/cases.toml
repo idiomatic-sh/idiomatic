@@ -1,0 +1,64 @@
+[[cases]]
+name = "assignment"
+files = { "case.ts" = "class A {}\nA = 1;\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "increment"
+files = { "case.ts" = "class A {}\nA++;\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "inside-method"
+files = { "case.ts" = "class B {\n  m() {\n    B = 2;\n  }\n}\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "class-expression-name"
+files = { "case.ts" = "let C = class D {\n  m() {\n    D = 3;\n  }\n};\n" }
+expected = [{ file = "case.ts", start = 14, end = 15 }]
+
+[[cases]]
+name = "class-expression-name-outside"
+files = { "case.ts" = "let C = class D {};\nD = 3;\n" }
+expected = []
+
+[[cases]]
+name = "variable-holding-a-class"
+files = { "case.ts" = "let C = class {};\nC = 3;\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-by-parameter"
+files = { "case.ts" = "class A {}\nfunction f(A) {\n  A = 1;\n}\n" }
+expected = []
+
+[[cases]]
+name = "destructuring"
+files = { "case.ts" = "class A {}\n[A] = [1];\n({ A } = o);\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }, { file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "exported"
+files = { "case.ts" = "export class A {}\nA = 1;\n" }
+expected = [{ file = "case.ts", start = 13, end = 14 }]
+
+[[cases]]
+name = "read"
+files = { "case.ts" = "class A {}\nnew A();\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-class-assign\nclass A {}\nA = 1;\n" }
+expected = []
+
+[[cases]]
+name = "merged-with-an-earlier-interface"
+files = { "case.ts" = "interface A {}\nclass A {}\nA = 1;\n" }
+expected = [{ file = "case.ts", start = 10, end = 11 }]
+
+[[cases]]
+name = "merged-with-a-later-interface"
+files = { "case.ts" = "class A {}\ninterface A {}\nA = 1;\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }]

@@ -1,0 +1,8 @@
+import directives from "typescript/oxlint/eslint-directives";
+let writes = select reference, binding, file, span from "binding-use" where context = "write" or context = "read-write";
+let reads = select reference, name, file from "binding-read";
+let named = select l.reference as reference, l.binding as binding, r.name as name, l.file as file, l.span as span from writes as l join reads as r on l.reference = r.reference and l.file = r.file;
+let caught = select id, name, file from "defines" where refinement = "catch-clause";
+let found = select l.reference as id, l.file as file, l.span as span from named as l join caught as r on l.binding = r.id and l.name = r.name and l.file = r.file;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-ex-assign(?:,|$)");
+emit violations subject file key(id);

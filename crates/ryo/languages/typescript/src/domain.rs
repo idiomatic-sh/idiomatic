@@ -1,6 +1,7 @@
 //! The typescript domain: its kinds, its files and the readers of its relations.
 
 pub(crate) mod arguments;
+pub(crate) mod bindings;
 pub(crate) mod catalogs;
 pub(crate) mod decorations;
 pub(crate) mod extras;
@@ -18,6 +19,7 @@ pub(crate) mod tokens;
 pub(crate) mod visibilities;
 
 pub(crate) mod manifests;
+pub(crate) mod model;
 pub(crate) mod names;
 pub(crate) mod packages;
 pub(crate) mod scopes;

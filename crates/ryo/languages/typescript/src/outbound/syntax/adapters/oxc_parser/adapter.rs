@@ -3,7 +3,7 @@
 use super::constants::{IMPORT_META, IMPORT_OPTIONS_KEY, NEW_TARGET, NOT_UTF8};
 use super::projection::service::{
     annotate, attach, expression_body, gap, insert, jsx_names, leaf, meta_words, normalized,
-    parameter, source_type_of, write,
+    parameter, semantic_properties, source_type_of, write,
 };
 use super::schemas::{node_kind, token_kind};
 use super::types::{ChildCursor, Decoded, DecodedText, Piece, Text, VisitorStack};
@@ -70,6 +70,7 @@ impl<'a> Visit<'a> for VisitorStack {
             children: Vec::new(),
             text: Text::Source,
             cursor: ChildCursor(0),
+            properties: semantic_properties(&self.scoping, kind),
         });
     }
 
@@ -205,7 +206,14 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
             })
             .with_config(TokensParserConfig)
             .parse();
-        let mut projection = VisitorStack::default();
+        // The semantic pass runs first: it fills the reference and symbol cells of the AST the projection reads.
+        let semantic = oxc_semantic::SemanticBuilder::new()
+            .with_check_syntax_error(true)
+            .build(&parsed.program);
+        let mut projection = VisitorStack {
+            scoping: semantic.semantic.into_scoping(),
+            ..VisitorStack::default()
+        };
         projection.visit_program(&parsed.program);
         projection
             .decoded
@@ -291,9 +299,6 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
             );
         }
         write(&mut root, builder);
-        let semantic = oxc_semantic::SemanticBuilder::new()
-            .with_check_syntax_error(true)
-            .build(&parsed.program);
         for diagnostic in parsed.diagnostics.iter().chain(semantic.diagnostics.iter()) {
             let span = diagnostic
                 .labels
