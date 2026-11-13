@@ -9,6 +9,7 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepScope};
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::rows::errors::RowsError;
+use ryo_values::domain::rows::types::RowCount;
 
 /// A projection of `column` of Function.
 fn projection(column: u32) -> PreparedExecutionProgram {
@@ -37,6 +38,13 @@ fn over_malformed_rows(program: &PreparedExecutionProgram) -> RootOutcome {
 
 #[test]
 fn a_schema_error_is_refused_before_an_input_physical_refusal() {
+    assert!(
+        matches!(
+            over_malformed_rows(&projection(0)),
+            RootOutcome::Complete(table) if table.count == RowCount(0) && table.cells.is_empty()
+        ),
+        "a valid projection reads the malformed input's readable prefix: no row"
+    );
     assert!(
         matches!(
             over_malformed_rows(&projection(99)),

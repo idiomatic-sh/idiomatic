@@ -62,6 +62,28 @@ fn shared_node_with_a_skipped_and_a_failed_rule() {
 }
 
 #[test]
+fn a_failing_first_rule_ends_the_file() {
+    let program = over_a_shared_node(&[Some(project(99)), None]);
+    let corpus = corpus();
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
+    let table = source();
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let rules = run_file(
+        &request,
+        FileRun::of(&[COLLECTED, COLLECTED], &elements),
+        &mut Symbols::default(),
+        &mut facts,
+    );
+    request.finish();
+    assert_eq!(
+        answered(rules),
+        "rule 0: failed Table(NoSuchColumn { index: 99 }); unreached\nfile: unfinished\n",
+        "the answers main gave"
+    );
+}
+
+#[test]
 fn partial_read_with_an_antijoin_and_an_absence() {
     let mut input = authored_request(2);
     let plans = crate::boundary_fixture::fixtures::plans(&mut input);

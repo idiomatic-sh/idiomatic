@@ -112,15 +112,34 @@ pub(crate) fn not_held() -> ryo_execution_runtime::outbound::facts::errors::Fact
         reason: "not held".into(),
     }
 }
-/// The engine's error a file stop answers: its own, or `NotRead` for the facts' refusal, as the engine meets a refused read.
+/// Whether `error` is a test's facts refusing a relation they do not hold: [`not_held`], or `TableFacts` refusing one it was not
+/// given.
+fn refuses_a_relation(error: &ryo_execution_runtime::outbound::facts::errors::FactsError) -> bool {
+    matches!(
+        error,
+        ryo_execution_runtime::outbound::facts::errors::FactsError::Store { reason }
+            if *error == not_held() || reason.ends_with(" was not given")
+    )
+}
+/// The engine's error a file stop answers: its own, or `NotRead` for the facts' refusal of a relation they do not hold, as the
+/// engine meets a refused read. Any other stop of the facts or of a source is not a refused read, so it is never answered as one.
+///
+/// # Panics
+///
+/// When the stop is the facts' other failure or a source's refusal: the case that asked for `NotRead` met something else.
 pub(crate) fn operating(
     stop: crate::inbound::use_cases::execution::interface::FileStop,
 ) -> crate::inbound::use_cases::execution::interface::OperatingError {
     match stop {
         crate::inbound::use_cases::execution::interface::FileStop::Operating(error) => error,
-        crate::inbound::use_cases::execution::interface::FileStop::Facts(_)
-        | crate::inbound::use_cases::execution::interface::FileStop::Reader => {
+        crate::inbound::use_cases::execution::interface::FileStop::Facts(error)
+            if refuses_a_relation(&error) =>
+        {
             crate::inbound::use_cases::execution::interface::OperatingError::NotRead
+        }
+        other @ (crate::inbound::use_cases::execution::interface::FileStop::Facts(_)
+        | crate::inbound::use_cases::execution::interface::FileStop::Reader) => {
+            panic!("a stop that is not a refused read: {other:?}")
         }
     }
 }
