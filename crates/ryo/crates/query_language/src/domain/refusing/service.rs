@@ -7,6 +7,7 @@ use crate::domain::lowering::types::{Builder, FileOrigin, ScopedInput};
 use crate::domain::planning::service as planning;
 use crate::domain::resolving::service::column_of;
 use ryo_values::domain::plan_parts::types as parts;
+use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types as plans;
 
 /// Refuses a step from `from` on of the plan under construction that compares rows on spans alone, with no file or node key,
@@ -20,9 +21,9 @@ pub(crate) fn refuse_spans_alone(
 ) -> Result<(), LoweringError> {
     let first = usize::try_from(from.0).unwrap_or(usize::MAX);
     for (step, lowered) in builder.steps.iter().zip(&builder.lowered).skip(first) {
-        let inputs: Vec<ScopedInput> = planning::inputs_of(&step.operation)
-            .into_iter()
-            .map(|input| planning::scoped(builder, input))
+        let inputs: Vec<ScopedInput> = named(&inputs_of(&step.operation))
+            .iter()
+            .map(|input| planning::scoped(builder, *input))
             .collect();
         if !inputs
             .iter()

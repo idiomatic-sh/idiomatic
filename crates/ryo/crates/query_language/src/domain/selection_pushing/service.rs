@@ -7,7 +7,6 @@ use super::types::Tested;
 use crate::domain::fusing::service::source_column;
 use crate::domain::lineage::service::column_kind;
 use crate::domain::lineage::types::LineageMemo;
-use crate::domain::planning::service::inputs_of;
 use crate::domain::planning::service::planned_scope;
 use crate::domain::pruning::service::without_unused_roots;
 use crate::domain::rewriting::types::Planned;
@@ -21,7 +20,7 @@ use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
-use ryo_values::domain::plans::service::each_input;
+use ryo_values::domain::plans::service::{each_input, inputs_of, named};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
 
@@ -79,8 +78,8 @@ pub(crate) fn push_selections_roots(
 fn readers_of(steps: &[PlanStep]) -> Vec<Vec<StepIndex>> {
     let mut readers = vec![Vec::new(); steps.len()];
     for (place, step) in steps.iter().enumerate() {
-        for input in inputs_of(&step.operation) {
-            if let Input::Step(id) = input
+        for input in named(&inputs_of(&step.operation)) {
+            if let Input::Step(id) = *input
                 && let Some(reading) = readers.get_mut(usize::try_from(id.0).unwrap_or(usize::MAX))
                 && reading.last() != Some(&StepIndex(place))
             {
