@@ -1,6 +1,6 @@
 //! What a bench hands the profile run, and what the run answers.
 use crate::domain::command_line::types::BenchmarkArgument;
-use crate::domain::profiles::types::ProfileReceipt;
+use crate::outbound::profile_tools::types::ProfileReceipt;
 use std::path::PathBuf;
 
 /// A bench's own executable and its command line.
@@ -28,4 +28,13 @@ pub enum Profile {
     Unasked,
     /// The heap and CPU profiles were recorded.
     Recorded(ProfileReceipt),
+}
+
+/// The arguments of a `profile-ryo` command line, split.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ProfileArguments {
+    /// The worker's own arguments: its request and any configuration.
+    pub(crate) worker: Vec<BenchmarkArgument>,
+    /// The directory the profiles are written to.
+    pub(crate) directory: PathBuf,
 }

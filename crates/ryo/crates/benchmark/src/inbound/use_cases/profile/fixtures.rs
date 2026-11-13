@@ -35,7 +35,10 @@ impl ExecutionPort for ChildrenFake {
         ExecutionProfile::Wall
     }
 
-    #[expect(clippy::expect_used, reason = "a poisoned fixture lock must fail the test")]
+    #[expect(
+        clippy::expect_used,
+        reason = "a poisoned fixture lock must fail the test"
+    )]
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
         let mut history = self.history.lock().expect("fixture history");
         let stdout = self

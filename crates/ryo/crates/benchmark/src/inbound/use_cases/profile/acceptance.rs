@@ -1,7 +1,6 @@
 //! The public profile run over the children and profiler doubles.
 use cucumber::then;
 use ryo_benchmark::domain::command_line::types::BenchmarkArgument;
-use ryo_benchmark::domain::profiles::types::{DumpTotal, HeapBytes};
 use ryo_benchmark::inbound::use_cases::profile::{
     fixtures::ChildrenFake,
     interface::ProfileUseCase as _,
@@ -9,6 +8,7 @@ use ryo_benchmark::inbound::use_cases::profile::{
     use_case::ProfileUseCaseImpl,
 };
 use ryo_benchmark::outbound::profile_tools::fixtures::fake::ProfileToolsFake;
+use ryo_benchmark::outbound::profile_tools::types::{DumpTotal, HeapBytes};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::sync::Arc;
 

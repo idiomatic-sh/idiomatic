@@ -1,6 +1,5 @@
 //! The receipt of one profile run, as written beside its reports.
-use crate::domain::profiles::types::ProfileReceipt;
-use crate::outbound::profile_tools::types::FileContents;
+use crate::outbound::profile_tools::types::{FileContents, ProfileReceipt};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Serialize;
 use std::path::PathBuf;
@@ -17,15 +16,24 @@ struct ReceiptSchema {
     /// The CPU profile's samples per second.
     sampling_rate: u32,
 }
+impl From<&ProfileReceipt> for ReceiptSchema {
+    fn from(receipt: &ProfileReceipt) -> Self {
+        Self {
+            directory: receipt.directory.clone(),
+            peak_dump: receipt.peak.dump.clone(),
+            peak_bytes: receipt.peak.bytes.0,
+            sampling_rate: receipt.rate.0,
+        }
+    }
+}
 
 /// The receipt's JSON document.
 pub(super) fn document(receipt: &ProfileReceipt) -> Result<FileContents, Error> {
-    serde_json::to_vec_pretty(&ReceiptSchema {
-        directory: receipt.directory.clone(),
-        peak_dump: receipt.peak.dump.clone(),
-        peak_bytes: receipt.peak.bytes.0,
-        sampling_rate: receipt.rate.0,
-    })
-    .map(FileContents)
-    .map_err(|error| Error::Json(Box::new(error)))
+    serde_json::to_vec_pretty(&ReceiptSchema::from(receipt))
+        .map(FileContents)
+        .map_err(|error| Error::Json(Box::new(error)))
 }
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;

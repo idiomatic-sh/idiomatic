@@ -64,10 +64,6 @@ Declared process output templates expand byte for byte, and a receipt identity i
 
 A reference process receipt is rebuilt from registration and the actual request root, never from a passed flag alone.
 
-### profiles
-
-A profile run's dumps are ordered as written, its peak is the largest, and its CPU recording is bounded by the run's wall time and threads.
-
 ### project_inputs
 
 The optional project search roots and Given entry observations have one canonical identity for both contestants.

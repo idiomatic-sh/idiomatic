@@ -1,9 +1,9 @@
 //! The Linux adapter reads `jeprof`'s total, wraps the worker in `perf record`, and keeps a run's files on disk.
 use super::adapter::{ProfileToolsLinuxAdapter, total};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::profiles::types::SamplingRate;
 use crate::outbound::profile_tools::fixtures::contract::check;
 use crate::outbound::profile_tools::interface::ProfileToolsPort as _;
+use crate::outbound::profile_tools::types::{FileContents, SamplingRate};
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -59,11 +59,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let answer = match scenario {
         Scenario::CapturedTotal => format!(
             "{:?}",
-            total(CAPTURED_TOTAL.as_bytes()).map_err(|error| Cow::Owned(error.to_string()))?
+            total(&FileContents(CAPTURED_TOTAL.as_bytes().to_vec()))
+                .map_err(|error| Cow::Owned(error.to_string()))?
         ),
         Scenario::NoTotal => format!(
             "{:?}",
-            total(b"  0 0.0% 0.0% 0 0.0% ::call\n")
+            total(&FileContents(b"  0 0.0% 0.0% 0 0.0% ::call\n".to_vec()))
                 .map_err(|error| Cow::Owned(error.to_string()))?
         ),
         Scenario::PerfRecord => {

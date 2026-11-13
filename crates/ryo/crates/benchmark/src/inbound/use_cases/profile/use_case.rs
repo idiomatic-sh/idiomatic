@@ -4,15 +4,12 @@ use super::constants::{
     HEAP_PROFILER_CONFIGURATION, NO_HEAP_DUMP, PEAK, RECORDING, STDOUT, TOTALS, TRACE,
 };
 use super::interface::ProfileUseCase;
-use super::types::{Profile, ProfileReport, ProfileRequest};
+use super::service::{dump_order, heap_configuration, peak, sampling_rate, split_profile};
+use super::types::{Profile, ProfileArguments, ProfileReport, ProfileRequest};
 use crate::domain::command_line::types::BenchmarkArgument;
-use crate::domain::profiles::service::{
-    dump_order, heap_configuration, peak, sampling_rate, split_profile,
-};
-use crate::domain::profiles::types::{DumpTotal, ProfileArguments, ProfileReceipt};
 use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::profile_tools::interface::ProfileToolsPort;
-use crate::outbound::profile_tools::types::FileContents;
+use crate::outbound::profile_tools::types::{DumpTotal, FileContents, ProfileReceipt};
 use ryo_benchmark_contracts::domain::measurements::types::{
     Invocation, ProcessOutput, TerminationSignal,
 };

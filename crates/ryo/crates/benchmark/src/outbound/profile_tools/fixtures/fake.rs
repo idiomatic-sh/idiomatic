@@ -1,7 +1,8 @@
 //! Profilers standing in for the Linux tools: the dumps and totals they answer are given, and what they write is kept in memory.
-use crate::domain::profiles::types::{DumpTotal, HeapBytes, ProfileReceipt, SamplingRate};
 use crate::outbound::profile_tools::interface::ProfileToolsPort;
-use crate::outbound::profile_tools::types::{FileContents, HeapDumps};
+use crate::outbound::profile_tools::types::{
+    DumpTotal, FileContents, HeapBytes, HeapDumps, ProfileReceipt, SamplingRate,
+};
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::collections::BTreeMap;
@@ -11,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 /// The argument the fake's CPU profiler puts before the rate.
-pub const PROFILED_AT: &str = "profiled-at";
+const PROFILED_AT: &str = "profiled-at";
 
 /// Deterministic profilers for orchestration and contract tests.
 #[derive(Clone, Debug)]
@@ -24,6 +25,8 @@ pub struct ProfileToolsFake {
     pub prepared: Arc<Mutex<Vec<PathBuf>>>,
     /// Every file written, the reports and the receipt among them.
     pub files: Arc<Mutex<BTreeMap<PathBuf, FileContents>>>,
+    /// The recordings the CPU profiler was asked to make.
+    pub recordings: Arc<Mutex<Vec<PathBuf>>>,
 }
 impl Default for ProfileToolsFake {
     fn default() -> Self {
@@ -32,14 +35,23 @@ impl Default for ProfileToolsFake {
             totals: Vec::new(),
             prepared: Arc::default(),
             files: Arc::default(),
+            recordings: Arc::default(),
         }
     }
 }
 impl ProfileToolsFake {
     /// Keep `contents` as the file `path`.
-    #[expect(clippy::expect_used, reason = "a poisoned fixture lock must fail the test")]
+    #[expect(
+        clippy::expect_used,
+        reason = "a poisoned fixture lock must fail the test"
+    )]
     fn keep(&self, path: PathBuf, contents: FileContents) {
-        drop(self.files.lock().expect("fixture files").insert(path, contents));
+        drop(
+            self.files
+                .lock()
+                .expect("fixture files")
+                .insert(path, contents),
+        );
     }
 }
 impl ProfileToolsPort for ProfileToolsFake {
@@ -47,7 +59,10 @@ impl ProfileToolsPort for ProfileToolsFake {
         self.threads
     }
 
-    #[expect(clippy::expect_used, reason = "a poisoned fixture lock must fail the test")]
+    #[expect(
+        clippy::expect_used,
+        reason = "a poisoned fixture lock must fail the test"
+    )]
     fn prepare(&self, directory: &Path) -> Result<(), Error> {
         self.prepared
             .lock()
@@ -56,7 +71,10 @@ impl ProfileToolsPort for ProfileToolsFake {
         Ok(())
     }
 
-    #[expect(clippy::expect_used, reason = "a poisoned fixture lock must fail the test")]
+    #[expect(
+        clippy::expect_used,
+        reason = "a poisoned fixture lock must fail the test"
+    )]
     fn dumps(&self, directory: &Path) -> Result<HeapDumps, Error> {
         if !self
             .prepared
@@ -74,7 +92,9 @@ impl ProfileToolsPort for ProfileToolsFake {
             .keys()
             .filter(|file| {
                 file.parent() == Some(directory)
-                    && file.extension().is_some_and(|extension| extension == "heap")
+                    && file
+                        .extension()
+                        .is_some_and(|extension| extension == "heap")
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -100,7 +120,8 @@ impl ProfileToolsPort for ProfileToolsFake {
             .ok_or_else(|| Error::Invalid(format!("no total for {}", dump.display())))
     }
 
-    fn heap_report(&self, _worker: &Path, dump: &Path, report: &Path) -> Result<(), Error> {
+    fn heap_report(&self, worker: &Path, dump: &Path, report: &Path) -> Result<(), Error> {
+        let _total = self.heap_total(worker, dump)?;
         self.keep(
             report.into(),
             FileContents(dump.as_os_str().as_encoded_bytes().to_vec()),
@@ -108,12 +129,20 @@ impl ProfileToolsPort for ProfileToolsFake {
         Ok(())
     }
 
+    #[expect(
+        clippy::expect_used,
+        reason = "a poisoned fixture lock must fail the test"
+    )]
     fn cpu_invocation(
         &self,
         worker: Invocation,
         rate: SamplingRate,
         recording: &Path,
     ) -> Invocation {
+        self.recordings
+            .lock()
+            .expect("fixture recordings")
+            .push(recording.into());
         let mut arguments: Vec<OsString> = vec![
             PROFILED_AT.into(),
             rate.0.to_string().into(),
@@ -128,17 +157,33 @@ impl ProfileToolsPort for ProfileToolsFake {
         }
     }
 
-    fn cpu_report(&self, recording: &Path, directory: &Path) -> Result<(), Error> {
+    #[expect(
+        clippy::expect_used,
+        reason = "a poisoned fixture lock must fail the test"
+    )]
+    fn cpu_report(&self, recording: &Path, reports: &Path) -> Result<(), Error> {
+        if !self
+            .recordings
+            .lock()
+            .expect("fixture recordings")
+            .iter()
+            .any(|asked| asked == recording)
+        {
+            return Err(Error::Invalid(format!(
+                "no recording at {}",
+                recording.display()
+            )));
+        }
         self.keep(
-            directory.join("self.txt"),
+            reports.join("self.txt"),
             FileContents(recording.as_os_str().as_encoded_bytes().to_vec()),
         );
         Ok(())
     }
 
-    fn receipt(&self, directory: &Path, receipt: &ProfileReceipt) -> Result<(), Error> {
+    fn receipt(&self, output: &Path, receipt: &ProfileReceipt) -> Result<(), Error> {
         self.keep(
-            directory.join("receipt.json"),
+            output.join("receipt.json"),
             FileContents(format!("{receipt:?}").into_bytes()),
         );
         Ok(())

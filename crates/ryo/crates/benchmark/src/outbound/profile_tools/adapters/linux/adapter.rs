@@ -5,9 +5,10 @@ use super::constants::{
     TOTAL,
 };
 use super::schemas::document;
-use crate::domain::profiles::types::{HeapBytes, ProfileReceipt, SamplingRate};
 use crate::outbound::profile_tools::interface::ProfileToolsPort;
-use crate::outbound::profile_tools::types::{FileContents, HeapDumps};
+use crate::outbound::profile_tools::types::{
+    FileContents, HeapBytes, HeapDumps, ProfileReceipt, SamplingRate,
+};
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::ffi::OsString;
@@ -33,14 +34,17 @@ fn succeeded(output: Output) -> Result<Output, Error> {
 }
 
 /// The total `jeprof --text --show_bytes` prints on its `Total: <bytes> B` line.
-pub(super) fn total(report: &[u8]) -> Result<HeapBytes, Error> {
-    String::from_utf8_lossy(report)
+pub(super) fn total(report: &FileContents) -> Result<HeapBytes, Error> {
+    let text = String::from_utf8_lossy(&report.0);
+    let bytes = text
         .lines()
         .find_map(|line| line.trim().strip_prefix(TOTAL))
         .and_then(|rest| rest.split_whitespace().next())
-        .and_then(|bytes| bytes.parse().ok())
+        .ok_or_else(|| Error::Invalid(NO_TOTAL.into()))?;
+    bytes
+        .parse()
         .map(HeapBytes)
-        .ok_or_else(|| Error::Invalid(NO_TOTAL.into()))
+        .map_err(|error| Error::Invalid(format!("{NO_TOTAL}: {error}")))
 }
 
 impl ProfileToolsPort for ProfileToolsLinuxAdapter {
@@ -48,22 +52,22 @@ impl ProfileToolsPort for ProfileToolsLinuxAdapter {
         std::thread::available_parallelism().unwrap_or(NonZeroUsize::MIN)
     }
 
-    fn prepare(&self, directory: &Path) -> Result<(), Error> {
-        Ok(std::fs::create_dir_all(directory)?)
+    fn prepare(&self, output: &Path) -> Result<(), Error> {
+        Ok(std::fs::create_dir_all(output)?)
     }
 
-    fn dumps(&self, directory: &Path) -> Result<HeapDumps, Error> {
-        let mut dumps = Vec::new();
-        for entry in std::fs::read_dir(directory)? {
+    fn dumps(&self, dumps: &Path) -> Result<HeapDumps, Error> {
+        let mut found = Vec::new();
+        for entry in std::fs::read_dir(dumps)? {
             let path = entry?.path();
             if path
                 .extension()
                 .is_some_and(|extension| extension == DUMP_EXTENSION)
             {
-                dumps.push(path);
+                found.push(path);
             }
         }
-        Ok(HeapDumps(dumps))
+        Ok(HeapDumps(found))
     }
 
     fn write(&self, file: &Path, contents: &FileContents) -> Result<(), Error> {
@@ -76,7 +80,7 @@ impl ProfileToolsPort for ProfileToolsLinuxAdapter {
             .arg(worker)
             .arg(dump)
             .output()?;
-        total(&succeeded(output)?.stdout)
+        total(&FileContents(succeeded(output)?.stdout))
     }
 
     fn heap_report(&self, worker: &Path, dump: &Path, report: &Path) -> Result<(), Error> {
@@ -110,7 +114,7 @@ impl ProfileToolsPort for ProfileToolsLinuxAdapter {
         }
     }
 
-    fn cpu_report(&self, recording: &Path, directory: &Path) -> Result<(), Error> {
+    fn cpu_report(&self, recording: &Path, reports: &Path) -> Result<(), Error> {
         for [order, name] in [SELF_REPORT, CHILDREN_REPORT] {
             let mut report = Command::new(PERF)
                 .args(REPORT)
@@ -123,7 +127,7 @@ impl ProfileToolsPort for ProfileToolsLinuxAdapter {
                 .stdout
                 .take()
                 .ok_or_else(|| Error::Invalid(NO_REPORT.into()))?;
-            let file = std::fs::File::create(directory.join(name))?;
+            let file = std::fs::File::create(reports.join(name))?;
             let demangled = Command::new(CXXFILT)
                 .stdin(Stdio::from(lines))
                 .stdout(Stdio::from(file))
@@ -135,6 +139,9 @@ impl ProfileToolsPort for ProfileToolsLinuxAdapter {
     }
 
     fn receipt(&self, directory: &Path, receipt: &ProfileReceipt) -> Result<(), Error> {
-        Ok(std::fs::write(directory.join(RECEIPT), document(receipt)?.0)?)
+        Ok(std::fs::write(
+            directory.join(RECEIPT),
+            document(receipt)?.0,
+        )?)
     }
 }

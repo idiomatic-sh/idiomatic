@@ -1,4 +1,4 @@
-//! The layout of a profile run's directory, and its refusals.
+//! The layout of a profile run's directory, the heap profiler's configuration, the bounds of a CPU recording, and the refusals.
 /// Cargo's harness argument, which a bench's command line drops.
 pub(super) const CARGO_BENCH_ARGUMENT: &str = "--bench";
 /// The heap profile's directory.
@@ -29,3 +29,20 @@ pub(super) const DIFFERING_STDOUT: &str =
     "the heap-profiled and the CPU-profiled worker printed different output";
 /// Refusal of a run whose child failed.
 pub(super) const CHILD_FAILED: &str = "the profiled worker failed";
+/// The heap profiler's configuration, before the dump prefix: sampling every 512 KiB, a dump every 1 GiB allocated and one at exit.
+pub(super) const HEAP_CONFIGURATION: &str =
+    "prof:true,prof_active:true,lg_prof_sample:19,lg_prof_interval:30,prof_final:true,prof_prefix:";
+/// The samples one recording aims at, per second of wall time and thread, in thousandths.
+pub(super) const SAMPLES_PER_RECORDING: u128 = 60_000_000;
+/// The highest sampling rate asked for.
+pub(super) const HIGHEST_RATE: u128 = 999;
+/// The lowest sampling rate asked for.
+pub(super) const LOWEST_RATE: u128 = 1;
+/// The segment naming the dump written at exit.
+pub(super) const FINAL_DUMP: &str = ".f.";
+/// Refusal of a `profile-ryo` command line without arguments.
+pub(super) const EXPECTED_PROFILE_ARGUMENTS: &str =
+    "expected profile-ryo (<json>|--request-file <path>) [<config>] <dir>";
+/// Refusal of a `profile-ryo` command line without its directory.
+pub(super) const EXPECTED_PROFILE_DIRECTORY: &str =
+    "expected the profile directory after the worker request";

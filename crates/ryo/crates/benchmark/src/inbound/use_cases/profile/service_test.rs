@@ -1,8 +1,8 @@
 //! The dumps are ordered as written, the peak is the largest, the rate is bounded, and a `profile-ryo` command line is split.
 use super::service::{dump_order, heap_configuration, peak, sampling_rate, split_profile};
-use super::types::{DumpTotal, HeapBytes};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::command_line::types::BenchmarkArgument;
+use crate::outbound::profile_tools::types::{DumpTotal, HeapBytes};
 use std::borrow::Cow;
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
@@ -34,73 +34,91 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("the tenth interval dump comes after the ninth"),
         word: Word::Succeeds,
         input: || Scenario::TenthIntervalAfterNinth,
-        expect: Expect::Value(Cow::Borrowed("")),
+        expect: Expect::Value(Cow::Borrowed(
+            r#"["d/jeprof.7.9.i9.heap", "d/jeprof.7.10.i10.heap"]"#,
+        )),
     },
     Case {
         name: CaseName("the dump written at exit comes last"),
         word: Word::Succeeds,
         input: || Scenario::FinalDumpLast,
-        expect: Expect::Value(Cow::Borrowed("")),
+        expect: Expect::Value(Cow::Borrowed(
+            r#"["d/jeprof.7.0.i0.heap", "d/jeprof.7.11.i11.heap", "d/jeprof.7.2.f.heap"]"#,
+        )),
     },
     Case {
         name: CaseName("the peak is the largest dump"),
         word: Word::Succeeds,
         input: || Scenario::LargestIsPeak,
-        expect: Expect::Value(Cow::Borrowed("")),
+        expect: Expect::Value(Cow::Borrowed(
+            r#"Some(DumpTotal { dump: "b", bytes: HeapBytes(9) })"#,
+        )),
     },
     Case {
         name: CaseName("of two largest dumps the first in order is the peak"),
         word: Word::Succeeds,
         input: || Scenario::FirstOnTie,
-        expect: Expect::Value(Cow::Borrowed("")),
+        expect: Expect::Value(Cow::Borrowed(
+            r#"Some(DumpTotal { dump: "b", bytes: HeapBytes(9) })"#,
+        )),
     },
     Case {
         name: CaseName("no dump has no peak"),
         word: Word::Succeeds,
         input: || Scenario::NoDumpNoPeak,
-        expect: Expect::Value(Cow::Borrowed("")),
+        expect: Expect::Value(Cow::Borrowed("None")),
     },
     Case {
         name: CaseName("half a second on eight threads samples at the highest rate"),
         word: Word::Succeeds,
         input: || Scenario::ShortRunHighestRate,
-        expect: Expect::Value(Cow::Borrowed("")),
+        expect: Expect::Value(Cow::Borrowed("SamplingRate(999)")),
     },
     Case {
         name: CaseName("330 seconds on eight threads samples at 22 a second"),
         word: Word::Succeeds,
         input: || Scenario::LongRunRate,
-        expect: Expect::Value(Cow::Borrowed("")),
+        expect: Expect::Value(Cow::Borrowed("SamplingRate(22)")),
     },
     Case {
         name: CaseName("ten hours on 64 threads samples at the lowest rate"),
         word: Word::Succeeds,
         input: || Scenario::VeryLongRunLowestRate,
-        expect: Expect::Value(Cow::Borrowed("")),
+        expect: Expect::Value(Cow::Borrowed("SamplingRate(1)")),
     },
     Case {
         name: CaseName("the heap profiler is configured to dump under the prefix"),
         word: Word::Succeeds,
         input: || Scenario::HeapConfiguration,
-        expect: Expect::Value(Cow::Borrowed("")),
+        expect: Expect::Value(Cow::Borrowed(
+            r#""prof:true,prof_active:true,lg_prof_sample:19,lg_prof_interval:30,prof_final:true,prof_prefix:out/heap/dumps/jeprof""#,
+        )),
     },
     Case {
-        name: CaseName("a profile command line splits into the worker's arguments and the directory"),
+        name: CaseName(
+            "a profile command line splits into the worker's arguments and the directory",
+        ),
         word: Word::Succeeds,
         input: || Scenario::SplitRequestAndDirectory,
-        expect: Expect::Value(Cow::Borrowed("")),
+        expect: Expect::Value(Cow::Borrowed(
+            r#"ProfileArguments { worker: [BenchmarkArgument("request.json"), BenchmarkArgument("python-target=3.12")], directory: "out" }"#,
+        )),
     },
     Case {
         name: CaseName("a profile command line without arguments is refused"),
         word: Word::Refuses,
         input: || Scenario::EmptyArguments,
-        expect: Expect::Error(Cow::Borrowed("")),
+        expect: Expect::Error(Cow::Borrowed(
+            "expected profile-ryo (<json>|--request-file <path>) [<config>] <dir>",
+        )),
     },
     Case {
         name: CaseName("a profile command line without its directory is refused"),
         word: Word::Refuses,
         input: || Scenario::MissingDirectory,
-        expect: Expect::Error(Cow::Borrowed("")),
+        expect: Expect::Error(Cow::Borrowed(
+            "expected the profile directory after the worker request",
+        )),
     },
 ];
 
@@ -146,14 +164,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 PathBuf::from("d/jeprof.7.0.i0.heap"),
             ])
         ),
-        Scenario::LargestIsPeak => format!(
-            "{:?}",
-            peak(&[total("a", 3), total("b", 9), total("c", 5)])
-        ),
-        Scenario::FirstOnTie => format!(
-            "{:?}",
-            peak(&[total("a", 3), total("b", 9), total("c", 9)])
-        ),
+        Scenario::LargestIsPeak => {
+            format!("{:?}", peak(&[total("a", 3), total("b", 9), total("c", 5)]))
+        }
+        Scenario::FirstOnTie => {
+            format!("{:?}", peak(&[total("a", 3), total("b", 9), total("c", 9)]))
+        }
         Scenario::NoDumpNoPeak => format!("{:?}", peak(&[])),
         Scenario::ShortRunHighestRate => return Ok(rate(500, 8)),
         Scenario::LongRunRate => return Ok(rate(330_000, 8)),
@@ -173,7 +189,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         ),
         Scenario::MissingDirectory => format!(
             "{:?}",
-            split_profile(arguments(&["request.json"])).map_err(|error| Cow::Owned(error.to_string()))?
+            split_profile(arguments(&["request.json"]))
+                .map_err(|error| Cow::Owned(error.to_string()))?
         ),
     };
     Ok(Cow::Owned(answer))

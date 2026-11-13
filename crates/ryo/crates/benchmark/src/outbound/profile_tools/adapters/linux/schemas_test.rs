@@ -1,7 +1,7 @@
 //! The receipt is written as one JSON document with the peak and the rate.
-use super::schemas::document;
+use super::document;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::profiles::types::{DumpTotal, HeapBytes, ProfileReceipt, SamplingRate};
+use crate::outbound::profile_tools::types::{DumpTotal, HeapBytes, ProfileReceipt, SamplingRate};
 use std::borrow::Cow;
 
 type Input = ProfileReceipt;

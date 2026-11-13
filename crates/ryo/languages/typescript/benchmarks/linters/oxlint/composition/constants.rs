@@ -1,8 +1,6 @@
 //! Runner command and artifact protocol.
 /// Refuse profiling without an explicit trace path.
 pub(crate) const MISSING_TRACE: &str = "expected explicit trace output path";
-/// Cargo-supplied harness argument ignored by the custom executable.
-pub(crate) const CARGO_BENCH_ARGUMENT: &str = "--bench";
 /// Complete profile fixture-verification command.
 pub(crate) const VERIFY_CASES: &str = "verify-cases";
 /// Check authored fixtures with the pinned reference only; never runs a candidate.
@@ -55,7 +53,7 @@ pub(crate) const PARITY_SCRATCH: &str = "parity-";
 /// Required argument or refusal for expected executable.
 pub(crate) const EXPECTED_EXECUTABLE: &str = "expected executable path";
 /// CLI usage shown when command dispatch fails.
-pub(crate) const USAGE: &str = "usage: oxlint benchmark: audit | verify-tool <executable> | verify-cases <oxlint> [profile] | verify-reference-cases <oxlint> [profile] | measure <oxlint> <fresh-cache> <collector> | parity <oxlint> <ryo-worker> <staged-request> <accepted-differences> <per-rule-output> | run-ryo (<json>|--request-file <path>) | profile-ryo (<json>|--request-file <path>) <trace.json> | diagnostic-ryo (<json>|--request-file <path>) <events.jsonl>";
+pub(crate) const USAGE: &str = "usage: oxlint benchmark: audit | verify-tool <executable> | verify-cases <oxlint> [profile] | verify-reference-cases <oxlint> [profile] | measure <oxlint> <fresh-cache> <collector> | parity <oxlint> <ryo-worker> <staged-request> <accepted-differences> <per-rule-output> | run-ryo (<json>|--request-file <path>) | profile-ryo (<json>|--request-file <path>) <dir> | diagnostic-ryo (<json>|--request-file <path>) <events.jsonl>";
 /// This benchmark package's root, where its rules and fragments are.
 pub(crate) const MANIFEST_DIRECTORY: &str = env!("CARGO_MANIFEST_DIR");
 /// Text `unsupported worker command`.

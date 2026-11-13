@@ -5,5 +5,3 @@ mod adapter_test;
 
 mod constants;
 mod schemas;
-#[cfg(test)]
-mod schemas_test;
