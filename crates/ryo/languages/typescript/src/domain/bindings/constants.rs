@@ -32,6 +32,15 @@ pub(crate) const DECLARATIONS: &[Kind] = &[
     Kind::Node(Node::CatchClause),
 ];
 
+/// How a reference reads its name's value: the catalog's context word.
+pub(crate) const VALUE: &str = "value";
+/// How a reference names a type.
+pub(crate) const TYPE: &str = "type";
+/// How a reference writes its name.
+pub(crate) const WRITE: &str = "write";
+/// How a reference reads its name and writes it, `x++` and `x += 1`.
+pub(crate) const READ_WRITE: &str = "read-write";
+
 /// A reference the semantic pass resolves to one declaration.
 pub(crate) const UNIQUE_DECLARATION: &str = "unique-declaration";
 /// A reference the semantic pass resolves to a name declared more than once.

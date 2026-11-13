@@ -138,6 +138,15 @@ pub(crate) fn candidates<'i>(
     index.names.get(from..to).unwrap_or_default()
 }
 
+/// The declaration a reference at `at` resolves to first: where its name is first declared.
+pub(crate) fn declaration(tree: &Tree<'_>, index: &BindingIndex, at: Position) -> Option<Position> {
+    let first = offset(tree, at, REFERENCE_DECLARATION)?;
+    candidates(tree, index, at)
+        .iter()
+        .find(|name| name.start == first)
+        .map(|name| name.at)
+}
+
 /// How the reference at `at` uses its name, as the catalog's context word; an identifier that is no reference has none.
 pub(crate) fn context(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Option<Symbol> {
     let word = languages::property_at(tree.elements, at, REFERENCE_FLAGS)?;
