@@ -1,36 +1,31 @@
 //! Closed empty declarations remain typed populations; absent declarations remain refusals.
-use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine};
-use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
+use crate::boundary_fixture::fixtures::{FileRun, ran, run_file};
+use crate::boundary_fixture::fixtures::{authored_request, corpus, engine};
+use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileInput;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIntentError;
-use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
-use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
 use ryo_execution::inbound::use_cases::execution::interface::{
     BatchNumber, BatchOccurrence, ObservationBatches,
 };
+use ryo_execution::inbound::use_cases::execution::interface::{EmittedRoot, FileEnd, RuleAfter};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::CapturedFacts;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::ProjectFacts;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId, Relation};
-use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::{
     observations::types::{
@@ -46,7 +41,6 @@ use ryo_values::domain::{
     plans::types::{Operation, PlanStep},
     rows::types::RowCount,
 };
-use std::cell::Cell;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 fn declared() -> PrepareRequest {
@@ -91,66 +85,35 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
         .expect("closed empty declaration");
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
-    let reads = Cell::new(0);
-    let read = |_| {
-        reads.set(reads.get() + 1);
-        Err::<SourceRows<'_>, _>(OperatingError::NotRead)
-    };
+    let facts = TableFacts::new(&[]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
-    let mut file = request
-        .open_file(
-            FileInput {
-                language: SourceLanguage::Recognized,
-                resident_stability: ResidentStability::Stable,
-                file: FileId(0),
-                evaluation: &[],
-                publication: &[],
-                intents: &[FileRuleIntent::Run {
-                    diagnostic: DiagnosticDelivery::Collected,
-                    observations: ObservationDemand::NotRequired,
-                    capture: CaptureIntent::DiagnosticAndObservations,
-                }],
-                source: ryo_values::domain::files::types::SourceView(b"abc"),
-                elements: &elements,
-                read: &read,
-                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-            },
-            &mut symbols,
-        )
-        .unwrap();
+    let mut rules = run_file(
+        &request,
+        FileRun::of(
+            &[FileRuleIntent::Run {
+                diagnostic: DiagnosticDelivery::Collected,
+                observations: ObservationDemand::NotRequired,
+                capture: CaptureIntent::DiagnosticAndObservations,
+            }],
+            &elements,
+        ),
+        &mut symbols,
+        &facts,
+    );
+    let rule = ran(&mut rules, 0);
     assert!(matches!(
-        file.rule(RuleIndex(0), demand(), &mut symbols)
-            .unwrap()
-            .emit,
-        RootOutcome::Deferred {
+        rule.emit,
+        EmittedRoot::Delivered(RootOutcome::Deferred {
             phase: StepScope::CrossFile
-        }
+        })
     ));
-    let mut arena = vec![];
-    let mut places = vec![];
-    let mut words = Words::default();
-    let captures = file
-        .capture_frontiers(
-            RuleIndex(0),
-            Bucket(0),
-            &mut symbols,
-            CaptureContext {
-                worker: WorkerNumber(0),
-                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
-                places: &mut places,
-                words: &mut words,
-            },
-        )
-        .unwrap();
     assert!(
-        captures.is_empty(),
+        matches!(&rule.after, RuleAfter::Ran { captures } if captures.is_empty()),
         "project population is not fabricated as a file frame"
     );
-    assert_eq!(reads.get(), 0);
-    file.finish().unwrap();
-    assert_eq!(reads.get(), 0);
+    assert!(matches!(rules.end, FileEnd::Finished(_)));
+    assert_eq!(facts.reads(), 0);
 
     let stored = CapturedFacts {
         captures: vec![],

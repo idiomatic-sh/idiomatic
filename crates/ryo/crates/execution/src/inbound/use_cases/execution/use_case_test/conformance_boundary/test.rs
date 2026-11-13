@@ -1,5 +1,5 @@
 //! Public canonical error/delivery parity and independent ordered-bag controls.
-use super::super::conformance::test::{compare_delivery, repeated, same_rows, settled};
+use super::super::conformance::test::{compare_delivery, same_rows, settled};
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use OperationKind::{Join, Project, Select, SourceMatches, SpanBounds, Union};
 use ryo_execution_domain::domain::coverage::types::{Lacking, Partial, PartialPlace};
@@ -32,8 +32,6 @@ enum Boundary {
     KeyedJoin,
     /// Makes the fixture invalid: a column past its input, or a union's second input of another shape.
     Invalid,
-    /// Delivers the fixture (a unary one's input twice over) to a sink that stops after one row.
-    Stopped,
     /// Computes the schema with the second input missing.
     MissingInput,
     /// Compares the delivered rows with the first dropped, with other rows, and with none.
@@ -51,12 +49,6 @@ enum Observed {
     Rows(Cow<'static, [[Cell; 2]]>),
     /// The schema's refusal, and those the collected and the streamed delivery answered.
     Refused([Option<OperatingError>; 3]),
-    /// The stream's refusal, the rows the sink kept, and whether the first is the collected first.
-    Stopped {
-        streamed: Option<OperatingError>,
-        rows: usize,
-        first_collected: bool,
-    },
     /// The schema's refusal.
     MissingInput(Option<OperatingError>),
     /// Whether the collected table is the delivered rows, the rows with the first dropped, the rows
@@ -103,13 +95,6 @@ const UNLIKE_SHAPES: Observed = Observed::Refused([
     Some(OperatingError::ShapeMismatch),
     Some(OperatingError::ShapeMismatch),
 ]);
-
-/// A sink that stopped after its first row: the stream refuses, and the row kept is the collected first.
-const STOPPED: Observed = Observed::Stopped {
-    streamed: Some(OperatingError::WrongOperation),
-    rows: 1,
-    first_collected: true,
-};
 
 /// A read of the function relation, free under a partial read and in the scoped needs.
 const ONE_READ: &[(Relation, bool, bool)] = &[(Relation::Function, true, true)];
@@ -170,17 +155,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ])),
     },
     Case {
-        name: CaseName("a_unary_sink_that_stops_keeps_the_prefix_it_was_sent"),
-        word: Word::Succeeds,
-        input: || (Boundary::Stopped, UNARY),
-        expect: Expect::Value(Cow::Borrowed(&[
-            (Select, STOPPED),
-            (Project, STOPPED),
-            (SourceMatches, STOPPED),
-            (SpanBounds, STOPPED),
-        ])),
-    },
-    Case {
         name: CaseName(stringify!(
             binary_bad_shape_missing_input_and_sink_prefix_remain_observable
         )),
@@ -205,12 +179,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 Observed::MissingInput(Some(OperatingError::MissingInput { position: 2 })),
             ),
         ])),
-    },
-    Case {
-        name: CaseName("a_binary_sink_that_stops_keeps_the_prefix_it_was_sent"),
-        word: Word::Succeeds,
-        input: || (Boundary::Stopped, BINARY),
-        expect: Expect::Value(Cow::Borrowed(&[(Join, STOPPED), (Union, STOPPED)])),
     },
     Case {
         name: CaseName(stringify!(
@@ -263,20 +231,12 @@ fn subject((boundary, kinds): Input) -> Result<Value, Failure> {
 fn observe(boundary: Boundary, kind: OperationKind) -> Result<Observed, Failure> {
     let mut case = fixture(kind);
     let operation = case.operation.clone();
-    let delivered = |case: &mut Fixture, operation: &Operation, stop: Option<usize>| {
-        compare_delivery(
-            operation,
-            &case.inputs,
-            &[],
-            SOURCE,
-            &mut case.symbols,
-            stop,
-        )
-        .and_then(settled)
+    let delivered = |case: &mut Fixture, operation: &Operation| {
+        compare_delivery(operation, &case.inputs, &[], SOURCE, &mut case.symbols).and_then(settled)
     };
     Ok(match boundary {
         Boundary::Delivered => {
-            let observed = delivered(&mut case, &operation, None)?;
+            let observed = delivered(&mut case, &operation)?;
             let conforms = conformance(&case.expected, &observed.rows, &case.symbols);
             Observed::Delivered(observed.rows.len(), conforms)
         }
@@ -285,7 +245,7 @@ fn observe(boundary: Boundary, kind: OperationKind) -> Result<Observed, Failure>
                 matrix(&[&[1, 10], &[1, 11], &[2, 12]]),
                 matrix(&[&[1, 20], &[2, 21], &[1, 22]]),
             ];
-            let observed = delivered(&mut case, &operation, None)?;
+            let observed = delivered(&mut case, &operation)?;
             Observed::Rows(Cow::Owned(
                 observed.rows.iter().map(|row| [row[0], row[1]]).collect(),
             ))
@@ -308,27 +268,12 @@ fn observe(boundary: Boundary, kind: OperationKind) -> Result<Observed, Failure>
                 }
                 _ => {}
             }
-            let observed = delivered(&mut case, &invalid, None)?;
+            let observed = delivered(&mut case, &invalid)?;
             Observed::Refused([
                 observed.schema.err(),
                 observed.collected.err(),
                 observed.stream_error,
             ])
-        }
-        Boundary::Stopped => {
-            if case.inputs.len() == 1 {
-                case.inputs = vec![repeated(&case.inputs[0], 2)];
-            }
-            let observed = delivered(&mut case, &operation, Some(1))?;
-            let collected = observed.collected?;
-            Observed::Stopped {
-                streamed: observed.stream_error,
-                rows: observed.rows.len(),
-                first_collected: observed
-                    .rows
-                    .first()
-                    .is_some_and(|row| *row == collected.cells[..collected.kinds.len()]),
-            }
         }
         Boundary::MissingInput => Observed::MissingInput(
             schema_of(
@@ -342,7 +287,7 @@ fn observe(boundary: Boundary, kind: OperationKind) -> Result<Observed, Failure>
             .err(),
         ),
         Boundary::Altered => {
-            let observed = delivered(&mut case, &operation, None)?;
+            let observed = delivered(&mut case, &operation)?;
             let table = observed.collected?;
             let rows = observed.rows;
             Observed::Compared {

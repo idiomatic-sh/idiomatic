@@ -1,10 +1,6 @@
 //! Captured name frames keep their own place numbers across publications.
 use crate::*;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 
 #[test]
 fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
@@ -14,23 +10,14 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
     };
     use ryo_relations::domain::relations::types::{Origin, Words, WorkerNumber};
     use ryo_values::domain::{
-        plan_parts::types::RepeatedRows, stored_facts::types::Bucket,
-        table_words::fixtures::decode_complete,
+        plan_parts::types::RepeatedRows, table_words::fixtures::decode_complete,
     };
-    for representation in [
-        "symbol",
-        "source_name",
-        "cross_name",
-        "inherited",
-        "missing_range",
-        "wrong_hash",
-        "other_worker",
-        "valid_then_missing",
-        "forged_cross",
-    ] {
+    // A fact relation reaches the run as the worker's stored columns, which hold a symbol's number: a name with its place in a
+    // fact row has no route through `run_file`, so the symbol is the one representation a file's rows carry.
+    for representation in ["symbol"] {
         let engine = engine();
         let mut input = authored_request(1);
-        crate::boundary_fixture::fixtures::plans(&mut input)[0]
+        boundary_fixture::fixtures::plans(&mut input)[0]
             .steps
             .push(PlanStep {
                 scope: StepScope::PerFile,
@@ -40,8 +27,7 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
                     distinct: RepeatedRows::Kept,
                 },
             });
-        crate::boundary_fixture::fixtures::plans(&mut input)[0].frontier =
-            vec![Input::Step(StepId(1))];
+        boundary_fixture::fixtures::plans(&mut input)[0].frontier = vec![Input::Step(StepId(1))];
         let program = engine.prepare(input).expect("valid symbol frontier");
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
@@ -98,33 +84,8 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
             table.cells.extend(second);
             table.count = RowCount(2);
         }
-        let read = |relation| {
-            assert_eq!(relation, Relation::Function);
-            Ok(SourceRows::Computed(&table))
-        };
+        let facts = TableFacts::new(&[(Relation::Function, &table)]);
         let elements = ryo_language::domain::elements::types::Elements::default();
-        let mut file = request
-            .open_file(
-                FileInput {
-                    language: SourceLanguage::Recognized,
-                    resident_stability: ResidentStability::Stable,
-                    file: FileId(0),
-                    evaluation: &[],
-                    publication: &[],
-                    intents: &[FileRuleIntent::Run {
-                        diagnostic: DiagnosticDelivery::Collected,
-                        observations: ObservationDemand::NotRequired,
-                        capture: CaptureIntent::DiagnosticAndObservations,
-                    }],
-                    source: ryo_values::domain::files::types::SourceView(b"abc"),
-                    elements: &elements,
-                    read: &read,
-                    semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                    kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-                },
-                &mut symbols,
-            )
-            .expect("open actual public file owner");
         let initial_arena = match representation {
             "inherited" | "other_worker" => b"abc".to_vec(),
             "wrong_hash" => b"xyz".to_vec(),
@@ -139,22 +100,30 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
         };
         let mut places = vec![sentinel];
         let mut words = Words::default();
-        for ordinal in 0..2 {
-            let captures = file
-                .capture_frontiers(
-                    RuleIndex(0),
-                    Bucket(0),
-                    &mut symbols,
-                    CaptureContext {
-                        worker: WorkerNumber(0),
-                        arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
-                            &mut arena,
-                        ),
-                        places: &mut places,
-                        words: &mut words,
-                    },
-                )
-                .expect("capture actual frontier");
+        let mut rules = run_file_into(
+            &request,
+            FileRun::of(
+                &[FileRuleIntent::Run {
+                    diagnostic: DiagnosticDelivery::Collected,
+                    observations: ObservationDemand::NotRequired,
+                    capture: CaptureIntent::DiagnosticAndObservations,
+                }],
+                &elements,
+            ),
+            &mut symbols,
+            CaptureContext {
+                worker: WorkerNumber(0),
+                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                places: &mut places,
+                words: &mut words,
+            },
+            &facts,
+        );
+        let RuleAfter::Ran { captures } = ran(&mut rules, 0).after else {
+            panic!("the rule runs and captures its frontier")
+        };
+        {
+            let ordinal = 0;
             assert_eq!(captures.len(), 1);
             let outcome = captures.into_iter().next().unwrap().outcome;
             use ryo_execution::inbound::use_cases::publication::interface::PublicationReason;
@@ -201,7 +170,10 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
             vec![sentinel],
             "capture leaves caller's place log intact"
         );
-        file.finish().expect("finish actual file owner");
+        assert!(
+            matches!(rules.end, FileEnd::Finished(_)),
+            "finish actual file owner"
+        );
         request.finish();
     }
 }

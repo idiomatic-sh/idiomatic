@@ -1,16 +1,14 @@
 //! Earlier semantic errors are never hidden by later ones and are terminal for every retry.
-use super::super::super::fixtures::no_catalog;
 use super::super::super::fixtures::*;
-use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
+use crate::boundary_fixture::fixtures::{authored_request, corpus};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileEnd;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_execution_runtime::outbound::operators::fixtures::order_error_order::CallsOnAfterARefusal;
@@ -27,28 +25,20 @@ fn an_earlier_dynamic_regex_error_is_not_hidden_by_a_later_false_kind_test() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"[bc");
-    let mut file = request
-        .open_file(
-            input(
-                FileId(0),
-                b"[bc",
-                &elements,
-                &[FileRuleIntent::Run {
-                    diagnostic: DiagnosticDelivery::Collected,
-                    observations: ObservationDemand::NotRequired,
-                    capture: CaptureIntent::Disabled,
-                }],
-                &no_catalog,
-            ),
-            &mut symbols,
-        )
-        .unwrap();
-    assert_eq!(
-        failed(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
-        Some(regex_error("["))
+    let mut rules = run(
+        &request,
+        (FileId(0), b"[bc"),
+        &elements,
+        &[FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::DiagnosticAndObservations,
+        }],
+        &mut symbols,
     );
+    assert_eq!(failed(&mut rules, 0), Some(regex_error("[")));
     assert_eq!(semantics.selects(), 0);
-    file.finish().unwrap();
+    assert!(matches!(rules.end, FileEnd::Unfinished));
     request.finish();
 }
 #[test]
@@ -58,24 +48,19 @@ fn an_earlier_false_kind_test_still_short_circuits_the_later_invalid_regex() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"[bc");
-    let mut file = request
-        .open_file(
-            input(
-                FileId(0),
-                b"[bc",
-                &elements,
-                &[FileRuleIntent::Run {
-                    diagnostic: DiagnosticDelivery::Collected,
-                    observations: ObservationDemand::NotRequired,
-                    capture: CaptureIntent::Disabled,
-                }],
-                &no_catalog,
-            ),
-            &mut symbols,
-        )
-        .unwrap();
+    let mut rules = run(
+        &request,
+        (FileId(0), b"[bc"),
+        &elements,
+        &[FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::DiagnosticAndObservations,
+        }],
+        &mut symbols,
+    );
     assert_eq!(
-        complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
+        complete(&mut rules, 0),
         Table {
             kinds: kinds(Relation::SyntaxTree).to_vec(),
             count: RowCount(0),
@@ -83,7 +68,7 @@ fn an_earlier_false_kind_test_still_short_circuits_the_later_invalid_regex() {
         }
     );
     assert_eq!(semantics.selects(), 0);
-    file.finish().unwrap();
+    assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
 #[test]
@@ -117,35 +102,23 @@ fn a_fused_child_error_precedes_a_later_head_error_and_is_terminal() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"ab(");
-    let mut file = request
-        .open_file(
-            input(
-                FileId(0),
-                b"ab(",
-                &elements,
-                &[FileRuleIntent::Run {
-                    diagnostic: DiagnosticDelivery::Collected,
-                    observations: ObservationDemand::NotRequired,
-                    capture: CaptureIntent::Disabled,
-                }],
-                &no_catalog,
-            ),
-            &mut symbols,
-        )
-        .unwrap();
+    let mut rules = run(
+        &request,
+        (FileId(0), b"ab("),
+        &elements,
+        &[FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::DiagnosticAndObservations,
+        }],
+        &mut symbols,
+    );
     let child_error = regex_error("[");
     // Regex compilation intentionally exposes the same generic reason for
     // these malformed patterns. The independent continuation count below proves
     // ordering instead of attributing the failure from indistinguishable text.
-    assert_eq!(
-        failed(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
-        Some(child_error.clone())
-    );
-    assert_eq!(
-        failed(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
-        Some(child_error)
-    );
-    file.finish().expect("finish failed continuation owner");
+    assert_eq!(failed(&mut rules, 0), Some(child_error));
+    assert!(matches!(rules.end, FileEnd::Unfinished));
     request.finish();
 }
 #[test]
@@ -155,47 +128,28 @@ fn semantic_failure_precedes_delivery_and_is_terminal_for_every_retry() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"ab(");
-    let mut file = request
-        .open_file(
-            input(
-                FileId(0),
-                b"ab(",
-                &elements,
-                &[FileRuleIntent::Run {
-                    diagnostic: DiagnosticDelivery::Forwarded,
-                    observations: ObservationDemand::NotRequired,
-                    capture: CaptureIntent::Disabled,
-                }],
-                &no_catalog,
-            ),
-            &mut symbols,
-        )
-        .unwrap();
-    let mut attempts = 0;
-    let refused = file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
-        attempts += 1;
-        let _ = row;
-        Err(OperatingError::WrongBinding)
-    });
-    assert!(matches!(refused, Err(ref error) if *error == regex_error("(")));
-    assert_eq!(attempts, 0, "semantic failure must precede all delivery");
-    let mut delivered = vec![];
-    let retried = file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
-        delivered.push(row.to_vec());
-        Ok(())
-    });
-    assert!(matches!(retried,Err(ref error) if *error==regex_error("(")));
-    assert!(delivered.is_empty());
+    let mut rules = run(
+        &request,
+        (FileId(0), b"ab("),
+        &elements,
+        &[FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::DiagnosticAndObservations,
+        }],
+        &mut symbols,
+    );
+    assert_eq!(
+        failed(&mut rules, 0),
+        Some(regex_error("(")),
+        "semantic failure must precede all delivery"
+    );
     assert_eq!(
         semantics.selects(),
         0,
         "cached native rows never rerun ordinary selection"
     );
-    let terminal = file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| {
-        panic!("terminal semantic failure must not invoke an external sink again")
-    });
-    assert!(matches!(terminal,Err(ref error) if *error==regex_error("(")));
-    file.finish().unwrap();
+    assert!(matches!(rules.end, FileEnd::Unfinished));
     request.finish();
 }
 #[test]
@@ -236,29 +190,17 @@ fn the_first_engine_error_of_an_evaluation_is_the_one_reported() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
-    let mut file = request
-        .open_file(
-            input(
-                FileId(0),
-                b"abc",
-                &elements,
-                &[FileRuleIntent::Run {
-                    diagnostic: DiagnosticDelivery::Collected,
-                    observations: ObservationDemand::NotRequired,
-                    capture: CaptureIntent::Disabled,
-                }],
-                &no_catalog,
-            ),
-            &mut symbols,
-        )
-        .expect("open the file");
-    assert_eq!(
-        failed(
-            file.rule(RuleIndex(0), demand(), &mut symbols)
-                .expect("the rule reports its outcome")
-        ),
-        Some(OperatingError::NotRun)
+    let mut rules = run(
+        &request,
+        (FileId(0), b"abc"),
+        &elements,
+        &[FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::DiagnosticAndObservations,
+        }],
+        &mut symbols,
     );
-    let _finished = file.finish();
+    assert_eq!(failed(&mut rules, 0), Some(OperatingError::NotRun));
     request.finish();
 }

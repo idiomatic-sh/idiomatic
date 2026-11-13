@@ -1,30 +1,25 @@
-//! The delivery protocol every conformance group drives: an authored plan through the real prepare, open_file, collect
-//! and forward steps, and what it observed.
+//! The delivery protocol every conformance group drives: an authored plan through the real prepare, then file 0 run through
+//! `run_file` with the rule's diagnostic collected, and what it observed.
 use super::super::super::fixtures as owner_fixtures;
 use super::super::super::fixtures::requests::Authored;
 use super::super::super::fixtures::requests::Preparation;
+use super::super::super::fixtures::requests::RunFile;
 use crate::inbound::use_cases::execution::interface::CaptureIntent;
 use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase as _;
 use crate::inbound::use_cases::execution::interface::FileRuleIntent;
 use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use crate::inbound::use_cases::execution::interface::RuleIndex;
 use crate::inbound::use_cases::execution::interface::SemanticLookup;
+use crate::inbound::use_cases::execution::interface::{EmittedRoot, FileEnd, FileRules, RuleAfter};
 use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort as _;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_values::domain::rows::types::Table;
 use std::sync::Arc;
@@ -48,7 +43,7 @@ pub(crate) struct ObservedDelivery {
     pub(crate) rows: Vec<Vec<Cell>>,
     pub(crate) stream_error: Option<OperatingError>,
 }
-/// Delivers an authored plan through the real prepare, open_file, collect and forward protocol.
+/// Delivers an authored plan through the real prepare and the one per-file route, collected.
 #[allow(
     clippy::too_many_arguments,
     reason = "the delivery protocol's inputs, each read once, as compare_delivery_with_port passes them"
@@ -59,7 +54,6 @@ pub(crate) fn deliver(
     bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
     source: &[u8],
     symbols: &mut Symbols,
-    stop: Option<usize>,
     semantic: Option<&dyn SemanticLookup>,
     port: Arc<dyn OperatorsPort>,
 ) -> Result<ObservedDelivery, OperatingError> {
@@ -112,46 +106,46 @@ pub(crate) fn deliver(
         modified: Nanoseconds(0),
         executable: ExecutablePermission::Unknown,
     })];
-    let read = |relation| {
-        authored
+    let facts = owner_fixtures::TableFacts::new(
+        &authored
             .facts
             .iter()
-            .find(|(actual, _)| *actual == relation)
-            .map(|(_, table)| SourceRows::Computed(table))
-            .ok_or(OperatingError::NotRead)
-    };
+            .map(|(relation, table)| (*relation, table))
+            .collect::<Vec<_>>(),
+    );
     let request = owner_fixtures::requests::execution().execution(&program, &corpus, None.into());
     let elements = Elements::default();
-    let input = |diagnostic| {
-        FileInput {
-        language: SourceLanguage::Recognized,
-        resident_stability: ResidentStability::Stable,
-        file: FileId(0),
-        evaluation: &[],
-        publication: &[],
-        intents: diagnostic,
-        source: ryo_values::domain::files::types::SourceView(source),
-        elements: &elements,
-        read: &read,
-        semantic: match semantic {
-            Some(lookup) => ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Supplied(lookup),
-            None => ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-        },
-        kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
-    }
+    let root = |diagnostic, symbols: &mut Symbols| -> Result<RootOutcome, OperatingError> {
+        let FileRules { rules, end } = owner_fixtures::requests::run_file(
+            &request,
+            RunFile {
+                source,
+                elements: &elements,
+                intents: &[FileRuleIntent::Run {
+                    diagnostic,
+                    observations: ObservationDemand::NotRequired,
+                    capture: CaptureIntent::DiagnosticAndObservations,
+                }],
+                semantic,
+            },
+            symbols,
+            &facts,
+        );
+        if let FileEnd::Refused(stop) = end {
+            return Err(owner_fixtures::facts::operating(stop));
+        }
+        let ran = rules.into_iter().next().ok_or(OperatingError::NotRun)?;
+        match (ran.emit, ran.after) {
+            (EmittedRoot::Delivered(outcome), _) => Ok(outcome),
+            (EmittedRoot::Withheld, RuleAfter::Stopped(stop)) => {
+                Err(owner_fixtures::facts::operating(stop))
+            }
+            (EmittedRoot::Withheld, RuleAfter::Ran { .. } | RuleAfter::Unreached) => {
+                Err(OperatingError::NotRun)
+            }
+        }
     };
-    let collected_intent = [FileRuleIntent::Run {
-        diagnostic: DiagnosticDelivery::Collected,
-        observations: ObservationDemand::NotRequired,
-        capture: CaptureIntent::Disabled,
-    }];
-    let mut collected_file = request.open_file(input(&collected_intent), symbols)?;
-    let outcome = collected_file.rule(
-        RuleIndex(0),
-        crate::inbound::use_cases::execution::fixtures::requests::emitted(),
-        symbols,
-    )?;
-    let (settlement, collected) = match outcome.emit {
+    let (settlement, collected) = match root(DiagnosticDelivery::Collected, symbols)? {
         RootOutcome::Complete(table) => (Settlement::Complete, Ok(table)),
         RootOutcome::Failed(error) => (Settlement::Failed, Err(error)),
         RootOutcome::Unknown(error) => (Settlement::Unknown, Err(error)),
@@ -160,24 +154,20 @@ pub(crate) fn deliver(
         | RootOutcome::NoQuery
         | RootOutcome::Deferred { .. } => (Settlement::Unsettled, Err(OperatingError::NotRun)),
     };
-    collected_file.finish()?;
-    let forward_intent = [FileRuleIntent::Run {
-        diagnostic: DiagnosticDelivery::Forwarded,
-        observations: ObservationDemand::NotRequired,
-        capture: CaptureIntent::Disabled,
-    }];
-    let mut callback_file = request.open_file(input(&forward_intent), symbols)?;
-    let mut rows = vec![];
-    let stream_error = callback_file
-        .emit_rows(RuleIndex(0), symbols, &mut |row| {
-            if stop == Some(rows.len()) {
-                return Err(OperatingError::WrongOperation);
-            }
-            rows.push(row.to_vec());
-            Ok(())
-        })
-        .err();
-    callback_file.finish()?;
+    // `run_file` delivers a root collected, the one diagnostic delivery on the production route (a forwarded root has none: the
+    // file run refuses it), so the delivered rows are the collected table's and the delivery's refusal is the collected one.
+    let (rows, stream_error) = match &collected {
+        Ok(table) => (
+            table
+                .cells
+                .chunks(table.kinds.len().max(1))
+                .take(table.count.0)
+                .map(<[Cell]>::to_vec)
+                .collect(),
+            None,
+        ),
+        Err(error) => (vec![], Some(error.clone())),
+    };
     request.finish();
     Ok(ObservedDelivery {
         settlement,

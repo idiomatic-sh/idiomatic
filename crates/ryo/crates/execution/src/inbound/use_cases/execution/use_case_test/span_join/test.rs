@@ -2,7 +2,6 @@
 use super::super::super::fixtures;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_relations::domain::relations::{
     service::{kinds, node_id, node_position},
     types::{CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as Cell},
@@ -86,13 +85,18 @@ fn subject(stretch_first: Input) -> Result<Value, Failure> {
             reach: None,
         },
     ]);
-    let foreign_reads = std::cell::Cell::new(0);
+    let foreign_reads = std::sync::atomic::AtomicUsize::new(0);
+    let columns = fixtures::facts::columns_of(&source);
     let read = |relation| {
         if relation != Relation::Function {
-            foreign_reads.set(foreign_reads.get() + 1);
+            let _reads = foreign_reads.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
-        Ok(SourceRows::Computed(&source))
+        Ok(ryo_relations::domain::relations::types::ColumnsView {
+            kinds: kinds(Relation::Function),
+            columns: &columns,
+        })
     };
+    let facts = fixtures::facts::ReadFacts::new(read);
     let out = fixtures::requests::published_from(
         plan,
         vec![],
@@ -100,7 +104,7 @@ fn subject(stretch_first: Input) -> Result<Value, Failure> {
         b"abcd",
         &elements,
         &mut symbols,
-        &read,
+        &facts,
     )?;
     Ok(Joined {
         rows: out.count.0,
@@ -116,7 +120,7 @@ fn subject(stretch_first: Input) -> Result<Value, Failure> {
             })
             .collect(),
         kinds: out.kinds.into(),
-        foreign_reads: foreign_reads.get(),
+        foreign_reads: foreign_reads.load(std::sync::atomic::Ordering::Relaxed),
     })
 }
 const JOINED: Joined = Joined {

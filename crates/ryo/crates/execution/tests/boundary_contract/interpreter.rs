@@ -2,6 +2,7 @@
 //! outside this directory names it, and the rewrite deletes it whole.
 mod activation;
 mod file_intents;
+pub(crate) mod fixtures;
 mod project_phase;
 mod publication;
 mod scheduler;

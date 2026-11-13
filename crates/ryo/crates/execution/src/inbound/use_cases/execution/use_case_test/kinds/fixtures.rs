@@ -166,7 +166,7 @@ pub(super) fn a_file_with_no_names_teaches_nothing_about_kinds() -> Result<Obser
     };
     let (engine, prepared) =
         fixtures::requests::prepared(inputs::plan(vec![operation]), vec![], vec![])?;
-    let never = |_| Err(OperatingError::NotRead);
+    let never = fixtures::TableFacts::new(&[]);
     let empty = fixtures::requests::run_prepared(
         &engine,
         &prepared,
@@ -224,7 +224,7 @@ pub(super) fn another_language_does_not_inherit_the_sets_of_the_first()
         fixtures::requests::prepared(inputs::plan(vec![operation]), vec![], vec![])?;
     let found = |names: &[(u16, &str)], token_kind: u16| -> Result<Vec<Cell>, OperatingError> {
         let (elements, mut symbols) = tree_of(names, token_kind);
-        let never = |_| Err(OperatingError::NotRead);
+        let never = fixtures::TableFacts::new(&[]);
         Ok(fixtures::requests::run_prepared(
             &engine,
             &prepared,

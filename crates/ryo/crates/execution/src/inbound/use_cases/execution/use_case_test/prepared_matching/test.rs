@@ -369,7 +369,7 @@ fn run_probe(probe: Probe) -> Result<Probed, Failure> {
             matchers.glob(test, TextView(text), matcher).is_some()
         }
     });
-    let read = |_| Err(OperatingError::NotRead);
+    let read = fixtures::TableFacts::new(&[]);
     let elements = Elements::default();
     let mut answers = Vec::new();
     for _file in 0..probe.files {

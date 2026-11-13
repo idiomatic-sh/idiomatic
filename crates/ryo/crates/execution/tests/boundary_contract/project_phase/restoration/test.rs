@@ -1,33 +1,28 @@
 //! Named restoration retains partition-qualified physical coverage despite cached readiness.
 use crate::boundary_fixture::fixtures::Observed as _;
+use crate::boundary_fixture::fixtures::{FileRun, ran, run_file};
 use crate::boundary_fixture::fixtures::{corpus, engine, source};
-use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
+use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileInput;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
-use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
+use ryo_execution::inbound::use_cases::execution::interface::{FileEnd, RuleAfter};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_restoration::ConsumerFrontier;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::CapturedFacts;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::ProjectFacts;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Relation, Value};
-use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::{
     files::types::CorpusInput,
@@ -76,17 +71,16 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                     | Value::Flag(_) => {}
                 }
             }
-            let read = |_| Ok(SourceRows::Computed(&table));
+            let facts = TableFacts::new(&[(Relation::Function, &table)]);
             let mut symbols = Symbols::default();
-            let mut file = request
-                .open_file(
-                    FileInput {
-                        language: SourceLanguage::Recognized,
-                        resident_stability: ResidentStability::Stable,
-                        file: file_id,
-                        evaluation: &[],
-                        publication: &[],
-                        intents: &[
+            // The consumer's own file frontier is kept in its own bucket.
+            let mut rules = run_file(
+                &request,
+                FileRun {
+                    file: file_id,
+                    first: &[Bucket(0), Bucket(10)],
+                    ..FileRun::of(
+                        &[
                             FileRuleIntent::Run {
                                 diagnostic: DiagnosticDelivery::Disabled,
                                 observations: ObservationDemand::Required,
@@ -98,62 +92,30 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                                 capture: CaptureIntent::DiagnosticAndObservations,
                             },
                         ],
-                        source: ryo_values::domain::files::types::SourceView(b"abc"),
-                        elements: &elements,
-                        read: &read,
-                        semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                        kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-                    },
-                    &mut symbols,
-                )
-                .unwrap();
-            let mut arena = vec![];
-            let mut places = vec![];
-            let mut words = Words::default();
-            let capture = file
-                .capture_frontiers(
-                    RuleIndex(0),
-                    Bucket(0),
-                    &mut symbols,
-                    CaptureContext {
-                        worker: WorkerNumber(0),
-                        arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
-                            &mut arena,
-                        ),
-                        places: &mut places,
-                        words: &mut words,
-                    },
-                )
-                .unwrap()
-                .pop()
-                .unwrap();
-            file.commit_frontier(RuleIndex(0), capture.input).unwrap();
+                        &elements,
+                    )
+                },
+                &mut symbols,
+                &facts,
+            );
+            let RuleAfter::Ran {
+                captures: mut produced,
+            } = ran(&mut rules, 0).after
+            else {
+                panic!("the producer runs and captures")
+            };
+            let capture = produced.pop().unwrap();
             captures.push((file_id, capture.outcome.unwrap()));
-            // The consumer's own file frontier, kept in its own bucket.
-            for consumer in file
-                .capture_frontiers(
-                    RuleIndex(1),
-                    Bucket(10),
-                    &mut symbols,
-                    CaptureContext {
-                        worker: WorkerNumber(0),
-                        arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
-                            &mut arena,
-                        ),
-                        places: &mut places,
-                        words: &mut words,
-                    },
-                )
-                .unwrap()
-            {
-                file.commit_frontier(RuleIndex(1), consumer.input).unwrap();
+            let RuleAfter::Ran { captures: consumed } = ran(&mut rules, 1).after else {
+                panic!("the consumer runs and captures")
+            };
+            for consumer in consumed {
                 consumer_captures.push((file_id, consumer.outcome.unwrap()));
             }
-            let root = file
-                .finish()
-                .unwrap()
-                .readiness
-                .observed("the finished file observed its readiness");
+            let FileEnd::Finished(root) = rules.end else {
+                panic!("the file finishes")
+            };
+            let root = root.observed("the finished file observed its readiness");
             assert!(root.complete.0.iter().any(|bits| *bits != 0));
             readiness.push(FileObservationReadiness {
                 file: file_id,

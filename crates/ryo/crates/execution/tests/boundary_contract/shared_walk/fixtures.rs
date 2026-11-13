@@ -1,16 +1,15 @@
 //! Completed source data and authored requests; every execution enters the public owner.
 use crate::boundary_fixture::fixtures::authored_request;
-use ryo_execution::inbound::use_cases::execution::interface::FileInput;
+use crate::boundary_fixture::fixtures::{FileRun, ran, root, run_file};
+use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::FileRules;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
+use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
-use ryo_execution::inbound::use_cases::execution::interface::RuleOutcome;
-use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
-use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution_runtime::outbound::operators::fixtures::shared_walk::SemanticCalls;
 use ryo_language::domain::builders::fixtures::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::{
@@ -129,27 +128,32 @@ pub(crate) fn tree(file: FileId, source: &[u8; 3]) -> (Elements, Symbols) {
     index_kinds(&mut elements);
     (elements, symbols)
 }
-pub(crate) fn input<'a, 'facts>(
-    file: FileId,
-    source: &'a [u8],
-    elements: &'a Elements,
-    intents: &'a [FileRuleIntent],
-    read: &'a dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
-) -> FileInput<'a, 'facts> {
-    FileInput {
-        language: SourceLanguage::Recognized,
-        resident_stability: ResidentStability::Stable,
-        file,
-        evaluation: &[],
-        publication: &[],
-        intents,
-        source: ryo_values::domain::files::types::SourceView(source),
-        elements,
-        read,
-        semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-        kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-    }
+/// File `file` of `source` with the tree `elements`, run through `run_file` with `intents` over facts that hold no relation:
+/// the completed SyntaxTree comes from the tree, and a read of any catalog relation is refused.
+pub(crate) fn run(
+    request: &RequestExecution,
+    (file, source): (FileId, &[u8]),
+    elements: &Elements,
+    intents: &[FileRuleIntent],
+    symbols: &mut Symbols,
+) -> FileRules {
+    run_file(
+        request,
+        FileRun {
+            file,
+            source,
+            ..FileRun::of(intents, elements)
+        },
+        symbols,
+        &TableFacts::new(&[]),
+    )
 }
+/// A rule's diagnostic collected, with no observation and no capture.
+pub(crate) const COLLECTED: FileRuleIntent = FileRuleIntent::Run {
+    diagnostic: ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery::Collected,
+    observations: ryo_execution::inbound::use_cases::execution::interface::ObservationDemand::NotRequired,
+    capture: ryo_execution::inbound::use_cases::execution::interface::CaptureIntent::DiagnosticAndObservations,
+};
 pub(crate) fn expected(file: FileId, elements: &Elements, positions: &[u32]) -> Table {
     let mut cells = vec![];
     for position in positions {
@@ -171,22 +175,24 @@ pub(crate) fn expected(file: FileId, elements: &Elements, positions: &[u32]) -> 
         cells,
     }
 }
-pub(crate) fn complete(outcome: RuleOutcome) -> Table {
-    match outcome.emit {
-        RootOutcome::Complete(table) => table,
-        RootOutcome::Failed(error) => panic!("native publication failed: {error:?}"),
-        RootOutcome::Unknown(error) => panic!("native publication unknown: {error:?}"),
-        RootOutcome::Partial { table, affected } => {
+/// The table rule `rule` of `rules` delivered complete.
+pub(crate) fn complete(rules: &mut FileRules, rule: usize) -> Table {
+    match root(ran(rules, rule)) {
+        Ok(RootOutcome::Complete(table)) => table,
+        Ok(RootOutcome::Failed(error)) => panic!("native publication failed: {error:?}"),
+        Ok(RootOutcome::Unknown(error)) => panic!("native publication unknown: {error:?}"),
+        Ok(RootOutcome::Partial { table, affected }) => {
             panic!("native publication partial: {table:?}; affected {affected:?}")
         }
-        RootOutcome::Skipped(_) => panic!("native publication was skipped"),
-        RootOutcome::NoQuery => panic!("native publication has no query"),
-        RootOutcome::Deferred { phase } => panic!("native publication deferred to {phase:?}"),
+        Ok(RootOutcome::Skipped(_)) => panic!("native publication was skipped"),
+        Ok(RootOutcome::NoQuery) => panic!("native publication has no query"),
+        Ok(RootOutcome::Deferred { phase }) => panic!("native publication deferred to {phase:?}"),
+        Err(stop) => panic!("native publication stopped: {stop:?}"),
     }
 }
-/// The error a rule's root failed with; `None` when the root did not fail.
-pub(crate) fn failed(outcome: RuleOutcome) -> Option<OperatingError> {
-    if let RootOutcome::Failed(error) = outcome.emit {
+/// The error rule `rule` of `rules` failed with; `None` when its root did not fail.
+pub(crate) fn failed(rules: &mut FileRules, rule: usize) -> Option<OperatingError> {
+    if let Ok(RootOutcome::Failed(error)) = root(ran(rules, rule)) {
         Some(error)
     } else {
         None
@@ -195,8 +201,4 @@ pub(crate) fn failed(outcome: RuleOutcome) -> Option<OperatingError> {
 pub(crate) fn regex_error(pattern: &str) -> OperatingError {
     ryo_execution::inbound::use_cases::execution::fixtures::regex_refusal(pattern)
         .expect("intentionally malformed regular expression")
-}
-
-pub(crate) fn no_catalog(_: Relation) -> Result<SourceRows<'static>, OperatingError> {
-    panic!("completed SyntaxTree is supplied by the public file input")
 }

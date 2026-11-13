@@ -1,35 +1,28 @@
 //! Missing transport remains an error; explicit syntax rejection and refused acceptance remain partial.
-use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine, source};
+use crate::boundary_fixture::fixtures::{
+    FileRun, authored_request, corpus, engine, run_file, source,
+};
+use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
-use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
-use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
-use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileInput;
+use ryo_execution::inbound::use_cases::execution::interface::FileEnd;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
-use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::CapturedFacts;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::ProjectFacts;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_relations::domain::relations::{
     fixtures::kinds,
     types::{CellKind, FileId, Relation, Value},
@@ -144,83 +137,38 @@ fn exercise(case: Case) {
     corpus.push(second);
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let table = source();
-    let read = |_| Ok(SourceRows::Computed(&table));
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
-    let mut file = request
-        .open_file(
-            FileInput {
-                language: SourceLanguage::Recognized,
-                resident_stability: ResidentStability::Stable,
-                file: FileId(0),
-                evaluation: &[],
-                publication: &[],
-                intents: &[FileRuleIntent::Run {
-                    diagnostic: DiagnosticDelivery::Collected,
-                    observations: ObservationDemand::NotRequired,
-                    capture: CaptureIntent::DiagnosticAndObservations,
-                }],
-                source: ryo_values::domain::files::types::SourceView(b"abc"),
-                elements: &elements,
-                read: &read,
-                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-            },
-            &mut symbols,
-        )
-        .unwrap();
-    let mut arena = vec![];
-    let mut places = vec![];
-    let mut words = Words::default();
-    let capture = file
-        .capture_frontiers(
-            RuleIndex(0),
-            Bucket(0),
-            &mut symbols,
-            CaptureContext {
-                worker: WorkerNumber(0),
-                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
-                places: &mut places,
-                words: &mut words,
-            },
-        )
-        .unwrap()
-        .pop()
-        .unwrap()
-        .outcome
-        .unwrap();
-    file.finish().unwrap();
+    let capture = crate::project_phase::fixtures::captured_in_file_0(
+        &request,
+        &[(Relation::Function, table)],
+        &[],
+        &mut symbols,
+    )
+    .pop()
+    .unwrap();
     let stored = CapturedFacts {
         captures: vec![(FileId(0), capture)],
         reads: AtomicUsize::new(0),
     };
     if matches!(case, Case::RejectedSyntax) {
-        let forbidden_read = |_| -> Result<SourceRows<'_>, OperatingError> {
-            panic!("skipped file must not read facts")
-        };
-        let mut rejected = request
-            .open_file(
-                FileInput {
-                    language: SourceLanguage::Recognized,
-                    resident_stability: ResidentStability::Stable,
-                    file: FileId(1),
-                    evaluation: &[],
-                    publication: &[],
-                    intents: &[FileRuleIntent::Skipped(ApplicabilityReason::SyntaxRejected)],
-                    source: ryo_values::domain::files::types::SourceView(b"def broken(:"),
-                    elements: &elements,
-                    read: &forbidden_read,
-                    semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                    kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-                },
-                &mut symbols,
-            )
-            .unwrap();
-        assert!(matches!(
-            rejected.rule(RuleIndex(0), demand(), &mut symbols),
-            Err(OperatingError::NotRun)
-        ));
-        rejected.finish().unwrap();
+        let forbidden = TableFacts::new(&[]);
+        let rejected = run_file(
+            &request,
+            FileRun {
+                file: FileId(1),
+                source: b"def broken(:",
+                ..FileRun::of(
+                    &[FileRuleIntent::Skipped(ApplicabilityReason::SyntaxRejected)],
+                    &elements,
+                )
+            },
+            &mut symbols,
+            &forbidden,
+        );
+        assert!(rejected.rules.is_empty(), "the skipped rule does not run");
+        assert_eq!(forbidden.reads(), 0, "skipped file must not read facts");
+        assert!(matches!(rejected.end, FileEnd::Finished(_)));
     }
     #[expect(
         clippy::wildcard_enum_match_arm,

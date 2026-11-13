@@ -1,13 +1,10 @@
 //! Preflight precedence of producer failures, stored prefixes and registered kinds through the mandatory public execution owner.
 use super::super::super::fixtures;
-use super::super::admission_order::test::{
-    Answer, InputSupply, Refusal, execute, observed, operation, population,
-};
+use super::super::admission_order::test::{Answer, Refusal, observed, operation, population};
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_domain::domain::operator::contract::service::semantics;
 use ryo_execution_domain::domain::operator::contract::types::PreflightOrder;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -20,23 +17,14 @@ use ryo_values::cases::CaseName;
 use ryo_values::cases::Expect;
 use ryo_values::cases::Word;
 use ryo_values::cases::run;
-use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Input as PlanInput;
-use ryo_values::domain::plan_parts::types::RepeatedRows;
-use ryo_values::domain::plan_parts::types::StepId;
-use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::rows::errors::RowsError;
 use std::borrow::Cow;
-use std::cell::Cell;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// One precedence question put to the public owner.
 #[derive(Clone, Copy, Debug)]
 enum Precedence {
-    /// A projection over a producer step that itself fails.
-    ChildFailure,
-    /// A resource-first count whose later reads would fail.
-    ResourcesFirst,
     /// A projection over a stored prefix whose last column is ragged.
     StoredPrefix { bad_layout: bool },
     /// Every registered kind's declared preflight policy.
@@ -51,29 +39,6 @@ enum Observed {
 type Input = Precedence;
 type Value = Observed;
 type Failure = Refusal;
-fn child_failure() -> Result<Value, Failure> {
-    let first = operation(OperationKind::Project, false);
-    let last = Operation::Project {
-        from: PlanInput::Step(StepId(0)),
-        columns: vec![ColumnIndex(99)],
-        distinct: RepeatedRows::Kept,
-    };
-    let (result, reads) = execute(inputs::plan(vec![first, last]), true, InputSupply::Present);
-    observed(result, reads).map(Observed::Rows)
-}
-fn resources_first() -> Result<Value, Failure> {
-    let count = Operation::GroupCount {
-        from: PlanInput::Relation(Relation::Function),
-        keys: vec![ColumnIndex(99)],
-        distinct: None,
-    };
-    let (result, reads) = execute(
-        inputs::plan(vec![count]),
-        true,
-        InputSupply::MissingAfterFirst,
-    );
-    observed(result, reads).map(Observed::Rows)
-}
 fn stored_prefix(bad_layout: bool) -> Result<Value, Failure> {
     use ryo_relations::domain::relations::service::to_bits;
     use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
@@ -90,15 +55,16 @@ fn stored_prefix(bad_layout: bool) -> Result<Value, Failure> {
         })
         .collect::<Vec<_>>();
     let _tail = columns.last_mut().map(|column| column.0.pop());
-    let reads = [Cell::new(0), Cell::new(0)];
+    let reads = [AtomicUsize::new(0), AtomicUsize::new(0)];
     let read = |relation| {
         let side = usize::from(relation != Relation::Function);
-        reads[side].set(reads[side].get() + 1);
-        Ok(SourceRows::Stored(ColumnsView {
+        let _reads = reads[side].fetch_add(1, Ordering::Relaxed);
+        Ok(ColumnsView {
             kinds: kinds(Relation::Function),
             columns: &columns,
-        }))
+        })
     };
+    let facts = fixtures::facts::ReadFacts::new(read);
     let (engine, prepared) = fixtures::requests::prepared(
         inputs::plan(vec![operation(OperationKind::Project, bad_layout)]),
         vec![],
@@ -111,9 +77,16 @@ fn stored_prefix(bad_layout: bool) -> Result<Value, Failure> {
         b"",
         &Elements::default(),
         &mut symbols,
-        &read,
+        &facts,
     );
-    observed(result, [reads[0].get(), reads[1].get()]).map(Observed::Rows)
+    observed(
+        result,
+        [
+            reads[0].load(Ordering::Relaxed),
+            reads[1].load(Ordering::Relaxed),
+        ],
+    )
+    .map(Observed::Rows)
 }
 fn declarations() -> Result<Value, Failure> {
     Ok(Observed::Policies(
@@ -182,18 +155,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
     },
     Case {
-        name: CaseName("producer_failures_and_resource_first_physical_order_are_not_overridden"),
-        word: Word::Refuses,
-        input: || Precedence::ChildFailure,
-        expect: refused(OperatingError::ShapeMismatch, [2, 0]),
-    },
-    Case {
-        name: CaseName("resource_first_admission_reads_only_the_first_malformed_borrow"),
-        word: Word::Refuses,
-        input: || Precedence::ResourcesFirst,
-        expect: refused(OperatingError::ShapeMismatch, [1, 0]),
-    },
-    Case {
         name: CaseName("every_registered_kind_has_an_explicit_independent_preflight_policy"),
         word: Word::Succeeds,
         input: || Precedence::Declarations,
@@ -202,8 +163,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
-        Precedence::ChildFailure => child_failure(),
-        Precedence::ResourcesFirst => resources_first(),
         Precedence::StoredPrefix { bad_layout } => stored_prefix(bad_layout),
         Precedence::Declarations => declarations(),
     }

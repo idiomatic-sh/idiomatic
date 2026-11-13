@@ -87,14 +87,6 @@ pub(super) fn every_entry_method_refuses_an_incomplete_extra_or_undeclared_root(
     );
 }
 
-/// The four file-session methods' control: each method that takes a rule index, given an undeclared one.
-const UNDECLARED_RULE: &[(&str, &str)] = &[
-    ("rule of an undeclared rule", "Err(NotRun)"),
-    ("emit_rows of an undeclared rule", "Err(NotRun)"),
-    ("capture_frontiers of an undeclared rule", "Err(NotRun)"),
-    ("commit_frontier of an undeclared rule", "Err(NotRun)"),
-];
-
 /// What each refusing method's control gives it, and the answer it meets, as debug text; `None` for a method that takes no
 /// root.
 fn answers(method: Method) -> Option<&'static [(&'static str, &'static str)]> {
@@ -117,13 +109,7 @@ fn answers(method: Method) -> Option<&'static [(&'static str, &'static str)]> {
                 "Ok(Ok(()))",
             ),
         ]),
-        Method::RequestOpenFile => Some(&[
-            ("0 intents of one kind for 2 rules", "Err(ShapeMismatch)"),
-            ("1 intents of one kind for 2 rules", "Err(ShapeMismatch)"),
-            ("2 intents of one kind for 2 rules", "Ok(())"),
-            ("3 intents of one kind for 2 rules", "Err(ShapeMismatch)"),
-        ]),
-        Method::RequestRunFile => Some(&[
+        Method::UseCaseExecution | Method::RequestRunFile => Some(&[
             (
                 "0 intents of one kind for 2 rules",
                 "Some(Operating(ShapeMismatch))",
@@ -152,14 +138,6 @@ fn answers(method: Method) -> Option<&'static [(&'static str, &'static str)]> {
             ("0 sets of inapplicable files for 3 rules", "Ok(())"),
             ("3 sets of inapplicable files for 3 rules", "Ok(())"),
         ]),
-        Method::UseCaseExecution
-        | Method::FileEmitRows
-        | Method::FileRule
-        | Method::FileCaptureFrontiers
-        | Method::FileCommitFrontier => Some(UNDECLARED_RULE),
-        Method::RequestProjectPhase
-        | Method::FileFinish
-        | Method::RequestFinish
-        | Method::StageFinish => None,
+        Method::RequestProjectPhase | Method::RequestFinish | Method::StageFinish => None,
     }
 }

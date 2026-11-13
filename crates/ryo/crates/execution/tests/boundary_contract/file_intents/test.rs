@@ -1,9 +1,5 @@
 //! File-start declarations are enforced through every public execution route.
 use super::super::*;
-use super::fixtures::{computed, input, with_capture};
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_values::domain::runs::types::ApplicabilityRefusal;
 
 #[test]
@@ -13,18 +9,30 @@ fn every_prepared_rule_requires_exactly_one_file_start_intent() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let elements = ryo_language::domain::elements::types::Elements::default();
-    let read = |_| panic!("malformed intent vectors cannot read a provider");
+    let facts = TableFacts::new(&[]);
     let mut symbols = Symbols::default();
     for intents in [
         &[][..],
         &[FileRuleIntent::Undemanded][..],
         &[FileRuleIntent::Undemanded; 3][..],
     ] {
+        let rules = run_file(
+            &request,
+            FileRun::of(intents, &elements),
+            &mut symbols,
+            &facts,
+        );
+        assert!(rules.rules.is_empty());
         assert!(matches!(
-            request.open_file(input(intents, &elements, &read), &mut symbols),
-            Err(OperatingError::ShapeMismatch)
+            rules.end,
+            FileEnd::Refused(FileStop::Operating(OperatingError::ShapeMismatch))
         ));
     }
+    assert_eq!(
+        facts.reads(),
+        0,
+        "malformed intent vectors cannot read a provider"
+    );
     request.finish();
 }
 
@@ -35,7 +43,7 @@ fn absent_skipped_and_refused_rules_cannot_acquire_any_root() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let elements = ryo_language::domain::elements::types::Elements::default();
-    let read = |_| panic!("undeclared roots cannot read a provider");
+    let facts = TableFacts::new(&[]);
     for intent in [
         FileRuleIntent::Undemanded,
         FileRuleIntent::Skipped(ApplicabilityReason::SyntaxRejected),
@@ -44,35 +52,16 @@ fn absent_skipped_and_refused_rules_cannot_acquire_any_root() {
     ] {
         let intents = [intent];
         let mut symbols = Symbols::default();
-        let mut file = request
-            .open_file(input(&intents, &elements, &read), &mut symbols)
-            .unwrap();
-        assert!(matches!(
-            file.rule(RuleIndex(0), demand(), &mut symbols),
-            Err(OperatingError::NotRun)
-        ));
-        assert!(matches!(
-            file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| panic!("no delivery")),
-            Err(OperatingError::NotRun)
-        ));
-        assert!(matches!(
-            with_capture(|context| file.capture_frontiers(
-                RuleIndex(0),
-                ryo_values::domain::stored_facts::types::Bucket(0),
-                &mut symbols,
-                context,
-            )),
-            Err(OperatingError::NotRun)
-        ));
-        assert!(matches!(
-            file.commit_frontier(
-                RuleIndex(0),
-                ryo_values::domain::plan_parts::types::InputNumber(0)
-            ),
-            Err(OperatingError::NotRun)
-        ));
-        file.finish().unwrap();
+        let rules = run_file(
+            &request,
+            FileRun::of(&intents, &elements),
+            &mut symbols,
+            &facts,
+        );
+        assert!(rules.rules.is_empty(), "an undeclared root does not run");
+        assert!(matches!(rules.end, FileEnd::Finished(_)));
     }
+    assert_eq!(facts.reads(), 0, "undeclared roots cannot read a provider");
     request.finish();
 }
 
@@ -83,54 +72,33 @@ fn rule_demand_is_immutable_and_capture_cannot_be_added_after_open() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let elements = ryo_language::domain::elements::types::Elements::default();
-    let reads = Cell::new(0);
     let table = source();
-    let read = |relation| {
-        assert_eq!(relation, Relation::Function);
-        reads.set(reads.get() + 1);
-        computed(&table)
-    };
+    let facts = TableFacts::new(&[(Relation::Function, &table)]);
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
         observations: ObservationDemand::NotRequired,
         capture: CaptureIntent::Disabled,
     }];
     let mut symbols = Symbols::default();
-    let mut file = request
-        .open_file(input(&intents, &elements, &read), &mut symbols)
-        .unwrap();
-    for changed in [
-        RuleDemand {
-            emit: EmitDemand::Disabled,
-            observations: ObservationDemand::NotRequired,
-        },
-        RuleDemand {
-            emit: EmitDemand::Enabled,
-            observations: ObservationDemand::Required,
-        },
-    ] {
-        assert!(matches!(
-            file.rule(RuleIndex(0), changed, &mut symbols),
-            Err(OperatingError::NotRun)
-        ));
-    }
+    let mut rules = run_file(
+        &request,
+        FileRun::of(&intents, &elements),
+        &mut symbols,
+        &facts,
+    );
+    let ran = ran(&mut rules, 0);
     assert!(matches!(
-        with_capture(|context| file.capture_frontiers(
-            RuleIndex(0),
-            ryo_values::domain::stored_facts::types::Bucket(0),
-            &mut symbols,
-            context,
-        )),
-        Err(OperatingError::NotRun)
+        ran.emit,
+        EmittedRoot::Delivered(RootOutcome::Complete(_))
     ));
-    assert_eq!(reads.get(), 0, "refused root changes do not admit a source");
-    assert!(matches!(
-        file.rule(RuleIndex(0), demand(), &mut symbols)
-            .unwrap()
-            .emit,
-        RootOutcome::Complete(_)
-    ));
-    assert!(reads.get() > 0);
-    file.finish().unwrap();
+    assert!(
+        matches!(
+            ran.after,
+            RuleAfter::Stopped(FileStop::Operating(OperatingError::NotRun))
+        ),
+        "a rule whose capture is disabled refuses the capture after its root"
+    );
+    assert!(facts.reads() > 0);
+    assert!(matches!(rules.end, FileEnd::Unfinished));
     request.finish();
 }

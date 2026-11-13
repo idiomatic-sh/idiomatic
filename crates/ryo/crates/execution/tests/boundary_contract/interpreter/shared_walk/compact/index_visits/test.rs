@@ -1,6 +1,6 @@
 //! An indexed join counts the matching right-hand visits and does no work on replay.
 use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine};
-use crate::shared_walk::fixtures::{complete, input};
+use crate::interpreter::shared_walk::fixtures::{complete, input};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;

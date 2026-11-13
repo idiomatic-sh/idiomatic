@@ -1,34 +1,29 @@
 //! Deferred roots do not hide owning-phase faults or renumber file frontier refusals.
-use crate::boundary_fixture::fixtures::{
-    authored_request, corpus, demand, engine, prepared, source,
-};
-use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
+use crate::boundary_fixture::fixtures::{FileRun, ran, root, run_file};
+use crate::boundary_fixture::fixtures::{authored_request, corpus, engine, prepared, source};
+use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileInput;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
-use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
+use ryo_execution::inbound::use_cases::execution::interface::{FileStop, RuleAfter};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_negative::NoFileFrontiers;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::ProjectFacts;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     fixtures::kinds,
-    types::{CellKind, FileId, Relation, Words, WorkerNumber},
+    types::{CellKind, FileId, Relation},
 };
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, InputNumber, StepId, StepScope},
@@ -89,39 +84,23 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
     phase.finish().unwrap();
 
     let elements = ryo_language::domain::elements::types::Elements::default();
-    let read = |actual| {
-        assert_eq!(actual, Relation::Function);
-        Err(OperatingError::NotRead)
-    };
-    let mut file = request
-        .open_file(
-            FileInput {
-                language: SourceLanguage::Recognized,
-                resident_stability: ResidentStability::Stable,
-                file: FileId(0),
-                evaluation: &[],
-                publication: &[],
-                intents: &[FileRuleIntent::Run {
-                    diagnostic: DiagnosticDelivery::Collected,
-                    observations: ObservationDemand::NotRequired,
-                    capture: CaptureIntent::Disabled,
-                }],
-                source: ryo_values::domain::files::types::SourceView(b"abc"),
-                elements: &elements,
-                read: &read,
-                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-            },
-            &mut symbols,
-        )
-        .unwrap();
-    assert!(matches!(
-        file.rule(RuleIndex(0), demand(), &mut symbols)
-            .unwrap()
-            .emit,
-        RootOutcome::Failed(OperatingError::NotRead)
-    ));
-    file.finish().unwrap();
+    // No relation is held: the rule's read of Function is refused.
+    let facts = TableFacts::new(&[]);
+    let mut rules = run_file(
+        &request,
+        FileRun::of(
+            &[FileRuleIntent::Run {
+                diagnostic: DiagnosticDelivery::Collected,
+                observations: ObservationDemand::NotRequired,
+                capture: CaptureIntent::DiagnosticAndObservations,
+            }],
+            &elements,
+        ),
+        &mut symbols,
+        &facts,
+    );
+    assert!(matches!(root(ran(&mut rules, 0)), Err(FileStop::Facts(_))));
+    assert_eq!(facts.history(), [Relation::Function]);
     request.finish();
 }
 
@@ -176,54 +155,26 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let table = source();
-    let read = |actual| {
-        assert_eq!(
-            actual,
-            Relation::Function,
-            "file capture cannot read the intervening project frontier"
-        );
-        Ok(SourceRows::Computed(&table))
-    };
+    // File capture cannot read the intervening project frontier: the facts hold Function alone.
+    let facts = TableFacts::new(&[(Relation::Function, &table)]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
-    let mut file = request
-        .open_file(
-            FileInput {
-                language: SourceLanguage::Recognized,
-                resident_stability: ResidentStability::Stable,
-                file: FileId(0),
-                evaluation: &[],
-                publication: &[],
-                intents: &[FileRuleIntent::Run {
-                    diagnostic: DiagnosticDelivery::Collected,
-                    observations: ObservationDemand::NotRequired,
-                    capture: CaptureIntent::DiagnosticAndObservations,
-                }],
-                source: ryo_values::domain::files::types::SourceView(b"abc"),
-                elements: &elements,
-                read: &read,
-                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-            },
-            &mut symbols,
-        )
-        .unwrap();
-    let mut arena = vec![];
-    let mut places = vec![];
-    let mut words = Words::default();
-    let captures = file
-        .capture_frontiers(
-            RuleIndex(0),
-            Bucket(0),
-            &mut symbols,
-            CaptureContext {
-                worker: WorkerNumber(0),
-                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
-                places: &mut places,
-                words: &mut words,
-            },
-        )
-        .unwrap();
+    let mut rules = run_file(
+        &request,
+        FileRun::of(
+            &[FileRuleIntent::Run {
+                diagnostic: DiagnosticDelivery::Collected,
+                observations: ObservationDemand::NotRequired,
+                capture: CaptureIntent::DiagnosticAndObservations,
+            }],
+            &elements,
+        ),
+        &mut symbols,
+        &facts,
+    );
+    let RuleAfter::Ran { captures } = ran(&mut rules, 0).after else {
+        panic!("the rule runs and captures its frontiers")
+    };
     assert_eq!(
         captures
             .iter()
@@ -239,6 +190,5 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
         &captures[1].outcome,
         Err(OperatingError::Table(RowsError::NoSuchColumn { index: 99 }))
     ));
-    file.finish().unwrap();
     request.finish();
 }
