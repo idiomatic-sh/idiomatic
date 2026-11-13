@@ -1,3 +1,7 @@
+# language 0.4.8
+
+Places `contract` 0.5.0, whose `parse` contract no longer answers the relations the catalog declares `optional`. The language fixtures' parse contracts carry it. Everything else is as in 0.4.7.
+
 # language 0.4.7
 
 Places `benchmark` 0.2.4 (and through it `benchmark-linter` 0.2.3): every linter bench's entry and composition are the harness's profile-run templates. Everything else is as in 0.4.6.

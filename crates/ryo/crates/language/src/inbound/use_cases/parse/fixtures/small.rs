@@ -171,7 +171,7 @@ impl ParseUseCase for Small {
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn crate::domain::semantics::types::Semantics> {
+    fn semantics(&self) -> Option<&dyn crate::domain::answers::types::Semantics<Seen>> {
         None
     }
 
@@ -262,5 +262,5 @@ impl ParseUseCase for Small {
         crate::domain::answers::service::source_locations()
     }
 
-    ryo_relations::each_relation!(absent_but_two);
+    ryo_relations::each_relation!(@declared ryo_relations::baseline_relations, absent_but_two);
 }

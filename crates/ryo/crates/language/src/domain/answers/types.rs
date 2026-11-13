@@ -87,6 +87,41 @@ impl<R: RelationsItem, M: 'static> Clone for Reader<R, M> {
 
 impl<R: RelationsItem, M: 'static> Copy for Reader<R, M> {}
 
+/// The methods of `Semantics`, one for each relation of a file's tree the catalog declares `optional`.
+macro_rules! semantics_methods {
+    (
+        syntax { $( $variant:ident $module:ident $row:ident $column:ident ; )* }
+        manifest { $( $manifest:tt )* }
+        engine { $( $engine:tt )* }
+    ) => {
+        /// What a language answers of the optional semantic capabilities (`OptionalCapability`) of its files' trees, beyond its syntax,
+        /// given the model it works out of each file (`M`, its `FileModel`). The method of each is generated from the catalog's one
+        /// declaration and has no default body, so a language that answers any of them answers each, and a relation the catalog
+        /// declares `optional` stops every language that answers them from compiling until it has answered it. A language that
+        /// answers none of them implements no `Semantics` and says so once, with `None` from `ParseUseCase::semantics`, and the
+        /// engine reads none of them for its files.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use ryo_language::domain::answers::types::Semantics;
+        ///
+        /// let answers: Option<&dyn Semantics> = None;
+        /// assert!(answers.is_none());
+        /// ```
+        pub trait Semantics<M: 'static = ()>: Send + Sync {
+            $(
+                #[doc = stringify!($module)]
+                fn $module(
+                    &self,
+                ) -> Support<Reader<ryo_relations::domain::relations::collections::relations::$module::item::$variant, M>>;
+            )*
+        }
+    };
+}
+
+ryo_relations::each_relation!(@declared ryo_relations::optional_relations, semantics_methods);
+
 /// What a language does for a relation: it reads it, or it says the relation is not in the language. A language can say it
 /// reads a relation only through the item that reads it (`reads::<Item>()`), which implements the trait ryo owns for it;
 /// there is no way to make the answer from a reader written beside the item.

@@ -107,24 +107,51 @@ macro_rules! relation_names {
     };
 }
 
-/// Hands the variants of the relations the catalog declares `optional` to `$callback`, in the catalog's order.
+/// Hands the catalog to `$callback` in the form `each_relation` gives, keeping only the relations it declares `optional`: the ones a
+/// language answers through its `Semantics`, or the project, and the capability enum is named after.
 #[macro_export]
 #[doc(hidden)]
 macro_rules! optional_relations {
-    (
-        $callback:path ;
-        $( $group:ident { $( $variant:ident $module:ident $row:ident $column:ident $capability:ident ; )* } )*
-    ) => {
-        $crate::optional_relations! { @kept $callback [] $( $( $variant $capability )* )* }
+    ($callback:path ; $( $groups:tt )*) => {
+        $crate::kept_relations! { optional $callback [] $( $groups )* }
     };
-    (@kept $callback:path [ $( $kept:ident )* ] $variant:ident optional $( $rest:ident )*) => {
-        $crate::optional_relations! { @kept $callback [ $( $kept )* $variant ] $( $rest )* }
+}
+
+/// Hands the catalog to `$callback` in the form `each_relation` gives, keeping only the relations it declares `baseline`: the ones every
+/// language answers.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! baseline_relations {
+    ($callback:path ; $( $groups:tt )*) => {
+        $crate::kept_relations! { baseline $callback [] $( $groups )* }
     };
-    (@kept $callback:path [ $( $kept:ident )* ] $variant:ident baseline $( $rest:ident )*) => {
-        $crate::optional_relations! { @kept $callback [ $( $kept )* ] $( $rest )* }
+}
+
+/// Keeps, group by group and in the catalog's order, the relations whose capability word is the first word (`optional` or `baseline`),
+/// and hands the groups to `$callback` without the words.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! kept_relations {
+    (@rows optional $callback:path [ $( $done:tt )* ] $group:ident [ $( $kept:tt )* ]
+        [ $variant:ident $module:ident $row:ident $column:ident optional ; $( $rest:tt )* ] $( $groups:tt )*) => {
+        $crate::kept_relations! { @rows optional $callback [ $( $done )* ] $group [ $( $kept )* $variant $module $row $column ; ] [ $( $rest )* ] $( $groups )* }
     };
-    (@kept $callback:path [ $( $kept:ident )* ]) => {
-        $callback! { $( $kept )* }
+    (@rows baseline $callback:path [ $( $done:tt )* ] $group:ident [ $( $kept:tt )* ]
+        [ $variant:ident $module:ident $row:ident $column:ident baseline ; $( $rest:tt )* ] $( $groups:tt )*) => {
+        $crate::kept_relations! { @rows baseline $callback [ $( $done )* ] $group [ $( $kept )* $variant $module $row $column ; ] [ $( $rest )* ] $( $groups )* }
+    };
+    (@rows $word:ident $callback:path [ $( $done:tt )* ] $group:ident [ $( $kept:tt )* ]
+        [ $variant:ident $module:ident $row:ident $column:ident $other:ident ; $( $rest:tt )* ] $( $groups:tt )*) => {
+        $crate::kept_relations! { @rows $word $callback [ $( $done )* ] $group [ $( $kept )* ] [ $( $rest )* ] $( $groups )* }
+    };
+    (@rows $word:ident $callback:path [ $( $done:tt )* ] $group:ident [ $( $kept:tt )* ] [] $( $groups:tt )*) => {
+        $crate::kept_relations! { $word $callback [ $( $done )* $group { $( $kept )* } ] $( $groups )* }
+    };
+    ($word:ident $callback:path [ $( $done:tt )* ] $group:ident { $( $rows:tt )* } $( $groups:tt )*) => {
+        $crate::kept_relations! { @rows $word $callback [ $( $done )* ] $group [] [ $( $rows )* ] $( $groups )* }
+    };
+    ($word:ident $callback:path [ $( $done:tt )* ]) => {
+        $callback! { $( $done )* }
     };
 }
 

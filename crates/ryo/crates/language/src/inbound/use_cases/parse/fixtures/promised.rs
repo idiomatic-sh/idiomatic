@@ -84,12 +84,32 @@ impl<const FORBIDDEN: bool>
         );
     }
 }
-/// Explicit advertised promises, independent of the reader implementations.
+/// A language whose promises are what its `Semantics` answers: it implements one when the list it is given is not empty, and answers
+/// `identifier` through it with a reader when the flag is set and `NotYetRead` when not.
 pub(crate) struct Promised(
     pub(crate) &'static [ryo_relations::domain::catalog::types::OptionalCapability],
     pub(crate) bool,
 );
-macro_rules! forwarded_optional_method {
+/// Answers each relation every language answers as `Small` does.
+macro_rules! forwarded_methods {
+    (syntax { $( $variant:ident $method:ident $row:ident $column:ident ; )* }
+     manifest { $( $manifest:tt )* } engine { $( $engine:tt )* }) => {
+        $(
+            fn $method(
+                &self,
+            ) -> Support<
+                Reader<
+                    ryo_relations::domain::relations::collections::relations::$method::item::$variant,
+                    Seen,
+                >,
+            > {
+                Small.$method()
+            }
+        )*
+    };
+}
+/// Answers each optional relation but `identifier` as not in the language.
+macro_rules! absent_optional_method {
     (Identifier identifier) => {};
     ($variant:ident $method:ident) => {
         fn $method(
@@ -100,14 +120,14 @@ macro_rules! forwarded_optional_method {
                 Seen,
             >,
         > {
-            Small.$method()
+            absent(AbsenceCause::NoSuchConstruct)
         }
     };
 }
-macro_rules! forwarded_optional_methods {
+macro_rules! absent_optional_methods {
     (syntax { $( $variant:ident $method:ident $row:ident $column:ident ; )* }
      manifest { $( $manifest:tt )* } engine { $( $engine:tt )* }) => {
-        $(forwarded_optional_method!($variant $method);)*
+        $(absent_optional_method!($variant $method);)*
     };
 }
 impl ParseUseCase for Promised {
@@ -121,8 +141,8 @@ impl ParseUseCase for Promised {
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn crate::domain::semantics::types::Semantics> {
-        None
+    fn semantics(&self) -> Option<&dyn crate::domain::answers::types::Semantics<Seen>> {
+        if self.0.is_empty() { None } else { Some(self) }
     }
 
     fn completion_requirement(&self) -> crate::domain::elements::types::CompletionRequirement {
@@ -144,7 +164,7 @@ impl ParseUseCase for Promised {
         crate::inbound::use_cases::parse::types::Recognition::Declines
     }
     fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
-        self.0
+        &[]
     }
 
     fn configuration_identity(
@@ -180,6 +200,9 @@ impl ParseUseCase for Promised {
     fn complete(&self, request: &ParseRequest<'_>, completion: &mut Completion<'_>) {
         Small.complete(request, completion);
     }
+    ryo_relations::each_relation!(@declared ryo_relations::baseline_relations, forwarded_methods);
+}
+impl crate::domain::answers::types::Semantics<Seen> for Promised {
     fn identifier(
         &self,
     ) -> Support<
@@ -196,5 +219,5 @@ impl ParseUseCase for Promised {
             reads::<IdentifierProbe<false>>()
         }
     }
-    ryo_relations::each_relation!(forwarded_optional_methods);
+    ryo_relations::each_relation!(@declared ryo_relations::optional_relations, absent_optional_methods);
 }

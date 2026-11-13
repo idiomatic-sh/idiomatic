@@ -175,14 +175,14 @@ crate::each_relation!(@declared catalog_lookups);
 
 /// The map from each optional capability to its relation, generated from the relations the catalog declares `optional`.
 macro_rules! capability_lookups {
-    ( $( $variant:ident )* ) => {
+    ( $( $group:ident { $( $variant:ident $module:ident $row:ident $column:ident ; )* } )* ) => {
         /// The catalog relation promised by an optional capability.
         #[must_use]
         pub const fn capability_relation(
             capability: crate::domain::catalog::types::OptionalCapability,
         ) -> Relation {
             match capability {
-                $( crate::domain::catalog::types::OptionalCapability::$variant => Relation::$variant, )*
+                $( $( crate::domain::catalog::types::OptionalCapability::$variant => Relation::$variant, )* )*
             }
         }
     };

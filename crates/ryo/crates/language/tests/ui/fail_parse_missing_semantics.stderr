@@ -4,4 +4,4 @@ error[E0046]: not all trait items implemented, missing: `semantics`
 102 | impl ParseUseCase for Language {
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `semantics` in implementation
     |
-    = help: implement the missing item: `fn semantics(&self) -> Option<&dyn Semantics> { todo!() }`
+    = help: implement the missing item: `fn semantics(&self) -> Option<&dyn Semantics<<Self as ParseUseCase>::FileModel>> { todo!() }`

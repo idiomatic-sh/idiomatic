@@ -1,5 +1,9 @@
 # contract
 
+## 0.5.0
+
+`Parse` no longer renders the methods of the relations the catalog declares `optional` (`identifier`, `binding_read`, `token_link` and the rest): the engine's `ParseUseCase` no longer has them, and a language that answers them does so in its `Semantics`. The scenario `compiler-feature-method-is-required` goes with them: what it proved, that an optional relation cannot go unanswered, is now the compiler's refusal of a `Semantics` without the method. The rendered fixtures carry the change, and the scenarios that mutate a rendering expect one finding fewer for each removed member. Everything else is as in 0.4.0.
+
 ## 0.4.0
 
 `Parse` renders the required `ParseUseCase` method `semantics`, answering `None`: a language that implements no `Semantics` says so once, and a scaffolded contract compiles against the engine's trait as it is. The rendered fixtures carry it, and the scenarios that mutate a rendering expect one more finding for each member it lacks. Everything else is as in 0.3.0.

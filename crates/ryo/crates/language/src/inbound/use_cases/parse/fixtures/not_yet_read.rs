@@ -89,7 +89,7 @@ pub(super) fn report_not_yet_read(
         }
     };
     let promises = parse.capabilities();
-    if duplicates(promises) != 0 {
+    if duplicates(&promises) != 0 {
         findings
             .0
             .push(format!("duplicate advertised capabilities: {promises:?}"));
@@ -101,7 +101,7 @@ pub(super) fn report_not_yet_read(
         }
         let line = format!("not yet read: {}", folder_of(relation));
         drop(writeln!(errors, "{line}"));
-        let required = needs_answer(relation, promises, shipped);
+        let required = needs_answer(relation, &promises, shipped);
         if required {
             findings.0.push(format!("{line}: {name} must answer its required baseline and advertised optional capabilities"));
         }
