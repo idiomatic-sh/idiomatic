@@ -52,6 +52,7 @@ impl VerifyInventoryUseCase for VerifyInventoryUseCaseImpl {
             self.receipts.as_ref(),
             self.execution.as_ref(),
             self.store.as_ref(),
+            &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
         )
     }
 }

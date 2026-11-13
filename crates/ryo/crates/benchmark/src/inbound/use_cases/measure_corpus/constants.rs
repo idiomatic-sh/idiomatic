@@ -33,3 +33,6 @@ pub(super) const CANDIDATE_RETAINED: &str = "candidate retained-cache";
 pub(super) const REFERENCE_EDITED: &str = "reference edited retained vs fresh";
 /// The comparison of the candidate's edited retained report and its fresh report.
 pub(super) const CANDIDATE_EDITED: &str = "candidate edited retained vs fresh";
+/// An explicit cohort is measured only within the rules its certificate covers.
+pub(super) const COHORT_OUTSIDE_CERTIFICATE: &str =
+    "measured cohort names a rule the certificate does not cover";

@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - one certification workflow: certify, the registered context it prepares and the profile-case shard it runs share the sealed paths and ports; the profile-case route has no production constructor left, and its removal brings this file under the limit
 //! A complete disposition inventory is distinct from verified subset coverage.
 use super::types::{PreparedCases, RegisteredContext};
 use crate::application::case_execution::{
@@ -59,6 +60,18 @@ pub(super) fn certify(
     )?;
     let audit = crate::application::suite_auditing::service::audit(suite, directory, &tool)?;
     if scope == ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted {
+        if let ryo_benchmark_contracts::domain::requests::types::CertificationCases::Registered {
+            coverage:
+                ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Selected {
+                    ..
+                },
+            ..
+        } = case_source
+        {
+            return Err(Error::Invalid(
+                super::constants::SELECTED_COVERAGE_REQUIRES_INTERIM.into(),
+            ));
+        }
         require_accounted(&audit, &tool)?;
     }
     if audit.implemented.is_empty() {
@@ -91,6 +104,7 @@ pub(super) fn certify(
         ryo_benchmark_contracts::domain::requests::types::CertificationCases::Registered {
             registration,
             output,
+            coverage,
         } => {
             let RegisteredContext {
                 registration,
@@ -104,11 +118,13 @@ pub(super) fn certify(
                 selected_rules,
                 reference_executable,
                 candidate_executable,
+                coverage,
             )?;
             paths.extend(context_paths);
             PreparedCases::Registered {
                 registration,
                 output: output.clone(),
+                coverage: coverage.clone(),
             }
         }
     };
@@ -139,6 +155,7 @@ pub(super) fn certify(
         PreparedCases::Registered {
             registration,
             output,
+            coverage,
         } => crate::application::inventory_verification::service::certify_registered(
             registration,
             output,
@@ -146,6 +163,7 @@ pub(super) fn certify(
             receipts,
             execution,
             inventory_store,
+            coverage,
         )?,
     };
     let after = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
@@ -186,6 +204,7 @@ pub(super) fn prepare(
     rules: &Path,
     reference: &Path,
     candidate: &Path,
+    coverage: &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage,
 ) -> Result<RegisteredContext, Error> {
     let loaded = store.load(registration)?;
     crate::application::inventory_verification::authority::service::require_authority(
@@ -200,8 +219,11 @@ pub(super) fn prepare(
         rules,
         reference,
         candidate,
+        coverage,
     )?;
-    for entry in &loaded.rules {
+    for entry in
+        crate::domain::suite::service::covered(coverage, &loaded.rules, |entry| &entry.rule_id)
+    {
         crate::application::inventory_verification::authority::service::verify_context(
             entry, suite, store,
         )

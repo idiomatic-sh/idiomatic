@@ -13,7 +13,9 @@ use ryo_benchmark::inbound::use_cases::stage_suite::{
 use ryo_benchmark::outbound::suite::interface::SuitePort;
 use ryo_benchmark::outbound::suite::types::{ArtifactPath, ArtifactText};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{BenchmarkCoverage, CertificationCases};
+use ryo_benchmark_contracts::domain::requests::types::{
+    BenchmarkCoverage, CertificationCases, RegisteredCoverage,
+};
 use ryo_benchmark_contracts::domain::workloads::types::rule_count::value::RuleCount;
 use ryo_benchmark_contracts::domain::workloads::types::{StagePurpose, Tool};
 use std::{
@@ -58,13 +60,14 @@ pub(super) fn paths(
     })
 }
 
-/// The registered case inventory an accounted measurement is held to, with the scratch directory for its results.
+/// The registered case inventory a measurement is held to, with the scratch directory for its results and the rules it proves.
 fn registered_cases(
-    selection_or_inventory: Option<Selection<'_>>,
+    inventory: Option<Selection<'_>>,
+    coverage: RegisteredCoverage,
     cache: &Path,
     suite_source: &Arc<dyn SuitePort>,
 ) -> Result<CertificationCases, Error> {
-    let input = selection_or_inventory
+    let input = inventory
         .and_then(|s| s.0.strip_prefix(CASE_INVENTORY))
         .filter(|s| !s.is_empty())
         .ok_or_else(|| Error::Invalid(CANONICAL_BENCHMARK_REQUIRES_EXPLI.into()))?;
@@ -73,6 +76,7 @@ fn registered_cases(
         output: suite_source
             .retained_directory(ArtifactPath(cache), ArtifactText(REGISTERED_CASE_RESULTS))?
             .0,
+        coverage,
     })
 }
 
@@ -144,25 +148,6 @@ pub(super) fn scope_of(command: MeasureCommand<'_>) -> BenchmarkCoverage {
     } else {
         BenchmarkCoverage::Interim
     }
-}
-
-/// Narrow the audit to the rules the invocation selects, and certify against the profile's own cases.
-fn profile_cases(audit: Audit, selection: Option<Selection<'_>>) -> Result<Certifying, Error> {
-    let audit = match selection {
-        Some(selected) => audit.select(
-            &selected
-                .0
-                .split(',')
-                .map(ryo::linter::RuleId::try_from)
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| Error::Invalid(e.to_string()))?,
-        )?,
-        None => audit,
-    };
-    Ok(Certifying {
-        audit,
-        cases: CertificationCases::Profile,
-    })
 }
 
 /// How many rules the tool ships, defers and leaves pending, and how many of the shipped ones are authored.
@@ -238,20 +223,37 @@ impl RuleTally {
     }
 }
 
-/// The cases the run is certified against, and the audit narrowed to what it selects.
+/// The registered cases the run is certified against, and the audit narrowed to what a diagnostic run selects.
 pub(super) fn cases_for(
     scope: BenchmarkCoverage,
     audit: Audit,
-    selection_or_inventory: Option<Selection<'_>>,
+    inventory: Option<Selection<'_>>,
+    selection: Option<Selection<'_>>,
     cache: &Path,
     suite_source: &Arc<dyn SuitePort>,
 ) -> Result<Certifying, Error> {
-    if scope == BenchmarkCoverage::Accounted {
-        Ok(Certifying {
-            audit,
-            cases: registered_cases(selection_or_inventory, cache, suite_source)?,
-        })
+    let (audit, coverage) = if scope == BenchmarkCoverage::Accounted {
+        (audit, RegisteredCoverage::Full)
     } else {
-        profile_cases(audit, selection_or_inventory)
-    }
+        let audit = match selection {
+            Some(selected) => audit.select(
+                &selected
+                    .0
+                    .split(',')
+                    .map(ryo::linter::RuleId::try_from)
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|e| Error::Invalid(e.to_string()))?,
+            )?,
+            None => audit,
+        };
+        let coverage = RegisteredCoverage::Selected {
+            rules: audit.authored().to_vec(),
+            source: locations::directory().canonicalize()?,
+        };
+        (audit, coverage)
+    };
+    Ok(Certifying {
+        audit,
+        cases: registered_cases(inventory, coverage, cache, suite_source)?,
+    })
 }

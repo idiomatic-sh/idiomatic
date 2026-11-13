@@ -137,3 +137,6 @@ pub(crate) const FIXTURE_DIGEST_REQUIRED: &str =
 /// Each controlled mutation has an independently specified diagnostic.
 #[cfg(any(test, feature = "fixtures"))]
 pub(crate) const FIXTURE_REFUSAL_REQUIRED: &str = "mutation must produce its specific refusal";
+/// A selected registered coverage never stands for the accounted inventory.
+pub(crate) const SELECTED_COVERAGE_REQUIRES_INTERIM: &str =
+    "selected registered coverage certifies only an interim run";
