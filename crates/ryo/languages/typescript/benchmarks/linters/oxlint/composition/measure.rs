@@ -233,7 +233,8 @@ fn compare(
         ));
     let profile = if matches!(
         command.0,
-        constants::MEASURE_VALID | constants::MEASURE_ACCOUNTED_VALID
+        ryo_benchmark_contracts::domain::requests::constants::MEASURE_VALID
+            | ryo_benchmark_contracts::domain::requests::constants::MEASURE_ACCOUNTED_VALID
     ) {
         SourceProfile::Valid
     } else {

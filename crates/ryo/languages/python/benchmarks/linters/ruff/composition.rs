@@ -8,6 +8,10 @@ use ryo_benchmark::domain::command_line::types::{
 use ryo_benchmark::outbound::linter::interface::LinterPort as _;
 use ryo_benchmark::outbound::suite::types::ArtifactPath;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::constants::{
+    DIAGNOSTIC_RYO, MEASURE, MEASURE_ACCOUNTED_VALID, MEASURE_SCOPED, MEASURE_VALID, PROFILE_RYO,
+    RUN_RYO,
+};
 use std::{path::PathBuf, sync::Arc};
 mod certification;
 mod commands;
@@ -29,11 +33,7 @@ pub(crate) fn run(
         Arc::new(ryo_benchmark::outbound::suite::factory::local());
     let command = args.next();
     match command.as_deref() {
-        Some(
-            self::constants::RUN_RYO
-            | self::constants::PROFILE_RYO
-            | self::constants::DIAGNOSTIC_RYO,
-        ) => self::commands::worker(
+        Some(RUN_RYO | PROFILE_RYO | DIAGNOSTIC_RYO) => self::commands::worker(
             args.map(BenchmarkArgument),
             WorkerCommand(command.as_deref().unwrap_or_default())
                 .tracing()
@@ -52,17 +52,14 @@ pub(crate) fn run(
             )?;
             Ok(())
         }
-        Some(
-            self::constants::MEASURE
-            | self::constants::MEASURE_ACCOUNTED_VALID
-            | self::constants::MEASURE_SCOPED
-            | self::constants::MEASURE_VALID,
-        ) => self::measure::measure(
-            MeasureCommand(command.as_deref().unwrap_or_default()),
-            &mut args.map(BenchmarkArgument),
-            observations,
-            &suite_source,
-        ),
+        Some(MEASURE | MEASURE_ACCOUNTED_VALID | MEASURE_SCOPED | MEASURE_VALID) => {
+            self::measure::measure(
+                MeasureCommand(command.as_deref().unwrap_or_default()),
+                &mut args.map(BenchmarkArgument),
+                observations,
+                &suite_source,
+            )
+        }
         Some(self::constants::PARITY) => self::parity::parity(
             &mut args.map(BenchmarkArgument),
             observations,

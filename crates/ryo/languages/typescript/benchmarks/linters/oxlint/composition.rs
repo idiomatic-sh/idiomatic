@@ -2,9 +2,8 @@
 use self::commands::{audit, reference, verify_cases, verify_reference_cases, worker};
 use self::compare::parity;
 use self::constants::{
-    AUDIT, CARGO_BENCH_ARGUMENT, DIAGNOSTIC_RYO, EXPECTED_EXECUTABLE, MEASURE,
-    MEASURE_ACCOUNTED_VALID, MEASURE_SCOPED, MEASURE_VALID, PARITY, PROFILE_RYO, RUN_RYO,
-    UNSUPPORTED_WORKER_COMMAND, USAGE, VERIFY_CASES, VERIFY_REFERENCE_CASES, VERIFY_TOOL,
+    AUDIT, CARGO_BENCH_ARGUMENT, EXPECTED_EXECUTABLE, PARITY, UNSUPPORTED_WORKER_COMMAND, USAGE,
+    VERIFY_CASES, VERIFY_REFERENCE_CASES, VERIFY_TOOL,
 };
 use self::locations::directory;
 use self::measure::measure;
@@ -14,6 +13,10 @@ use ryo_benchmark::domain::command_line::types::{
 use ryo_benchmark::outbound::linter::interface::LinterPort as _;
 use ryo_benchmark::outbound::suite::types::ArtifactPath;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::constants::{
+    DIAGNOSTIC_RYO, MEASURE, MEASURE_ACCOUNTED_VALID, MEASURE_SCOPED, MEASURE_VALID, PROFILE_RYO,
+    RUN_RYO,
+};
 use std::{path::PathBuf, sync::Arc};
 mod certification;
 mod commands;

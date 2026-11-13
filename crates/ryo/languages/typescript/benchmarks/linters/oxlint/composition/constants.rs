@@ -13,14 +13,6 @@ pub(crate) const EXPECTED_OXLINT: &str = "expected oxlint executable";
 pub(crate) const PROFILE_DIRECTORY: &str = "profile";
 /// Stable command, artifact or observation identity for cases directory.
 pub(crate) const CASES_DIRECTORY: &str = "cases";
-/// Accounted full-input measurement command.
-pub(crate) const MEASURE: &str = "measure";
-/// Interim subset measurement command.
-pub(crate) const MEASURE_SCOPED: &str = "diagnostic-measure";
-/// Interim subset command with explicitly audited invalid-source exclusions.
-pub(crate) const MEASURE_VALID: &str = "diagnostic-measure-valid";
-/// Accounted measurement command with explicitly audited invalid-source exclusions.
-pub(crate) const MEASURE_ACCOUNTED_VALID: &str = "measure-valid";
 /// Required argument or refusal for release required.
 pub(crate) const RELEASE_REQUIRED: &str =
     "measurement requires a release-profile benchmark executable";
@@ -104,9 +96,3 @@ pub(crate) const SOURCE_SUFFIXES: [&str; 4] =
     [TS_EXTENSION, MTS_EXTENSION, CTS_EXTENSION, TSX_EXTENSION];
 /// Stable command, artifact or observation identity for rules directory.
 pub(crate) const RULES_DIRECTORY: &str = "rules";
-/// Child SDK execution command.
-pub(crate) const RUN_RYO: &str = "run-ryo";
-/// Separate trace-only child execution command.
-pub(crate) const PROFILE_RYO: &str = "profile-ryo";
-/// Diagnostic-only worker that flushes rule/file events as JSONL.
-pub(crate) const DIAGNOSTIC_RYO: &str = "diagnostic-ryo";

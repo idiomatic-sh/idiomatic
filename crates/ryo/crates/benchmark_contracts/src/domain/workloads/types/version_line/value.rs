@@ -11,3 +11,10 @@ impl std::fmt::Display for VersionLine {
         self.0.fmt(f)
     }
 }
+
+impl From<&super::super::Tool> for VersionLine {
+    /// The line most pinned tools print: `<tool> <version>`.
+    fn from(tool: &super::super::Tool) -> Self {
+        Self(format!("{} {}", tool.tool, tool.version).into())
+    }
+}

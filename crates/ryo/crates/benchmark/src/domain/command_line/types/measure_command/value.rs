@@ -1,5 +1,5 @@
 //! The first argument of a measure invocation and the scope it holds the run to.
-use super::super::super::constants::{MEASURE, MEASURE_ACCOUNTED_VALID};
+use ryo_benchmark_contracts::domain::requests::constants::{MEASURE, MEASURE_ACCOUNTED_VALID};
 use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
 
 /// The first argument of a measure invocation.

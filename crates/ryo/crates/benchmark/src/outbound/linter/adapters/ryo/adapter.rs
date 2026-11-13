@@ -90,7 +90,7 @@ impl LinterPort for LinterRyoAdapter {
         std::fs::create_dir_all(&request.state)?;
         std::fs::write(&request_path, request_json.0)?;
         let mut arguments = vec![
-            super::constants::WORKER.into(),
+            ryo_benchmark_contracts::domain::requests::constants::RUN_RYO.into(),
             ryo_benchmark_contracts::domain::requests::constants::REQUEST_FILE.into(),
             request_path.into_os_string(),
         ];
@@ -167,6 +167,6 @@ impl LinterPort for LinterRyoAdapter {
         CanonicalText::from(prepared)
     }
     fn version_line(&self, tool: &Tool) -> VersionLine {
-        VersionLine(format!("{} {}", tool.tool, tool.version).into())
+        VersionLine::from(tool)
     }
 }

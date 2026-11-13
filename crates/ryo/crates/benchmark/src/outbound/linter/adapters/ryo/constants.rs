@@ -1,8 +1,6 @@
 //! Candidate worker invocation protocol.
 /// Candidate-specific retained state directory within one observation.
 pub(super) const CACHE: &str = "ryo";
-/// Executable subcommand accepting one explicit JSON worker request.
-pub(super) const WORKER: &str = "run-ryo";
 /// Stable request filename inside the owned worker state directory.
 pub(super) const REQUEST_FILENAME: &str = "request.json";
 /// Text of the accepted syntax in this part.

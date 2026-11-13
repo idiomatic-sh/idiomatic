@@ -13,12 +13,6 @@ pub(crate) const EXPECTED_RUFF: &str = "expected Ruff executable";
 pub(crate) const PROFILE_DIRECTORY: &str = "profile";
 /// Stable command, artifact or observation identity for cases directory.
 pub(crate) const CASES_DIRECTORY: &str = "cases";
-/// Accounted full-input measurement command.
-pub(crate) const MEASURE: &str = "measure";
-/// Interim subset measurement command.
-pub(crate) const MEASURE_SCOPED: &str = "diagnostic-measure";
-/// Interim subset command with explicitly audited invalid-source exclusions.
-pub(crate) const MEASURE_VALID: &str = "diagnostic-measure-valid";
 /// Required argument or refusal for release required.
 pub(crate) const RELEASE_REQUIRED: &str =
     "measurement requires a release-profile benchmark executable";
@@ -65,8 +59,6 @@ pub(crate) const PARITY_SCRATCH: &str = "parity-";
 pub(crate) const EXPECTED_EXECUTABLE: &str = "expected executable path";
 /// CLI usage shown when command dispatch fails.
 pub(crate) const USAGE: &str = "usage: ruff benchmark: audit | verify-tool <executable> | verify-cases <ruff> [profile] | verify-reference-cases <ruff> [profile] | measure <ruff> <fresh-cache> | parity <ruff> <ryo-worker> <staged-request> <accepted-differences> <per-rule-output> | run-ryo (<json>|--request-file <path>) <python-target=3.MINOR> | diagnostic-ryo (<json>|--request-file <path>) <python-target=3.MINOR> <events.jsonl> (MINOR:7..15)";
-/// Accounted measurement command with explicitly audited invalid-source exclusions.
-pub(crate) const MEASURE_ACCOUNTED_VALID: &str = "measure-valid";
 /// This benchmark package's root, where its rules, fragments and profiles are.
 pub(crate) const MANIFEST_DIRECTORY: &str = env!("CARGO_MANIFEST_DIR");
 /// Text `unsupported worker command`.
@@ -132,9 +124,3 @@ pub(crate) const CONTAINER: &str = "/container";
 pub(crate) const LXC: &str = "/lxc";
 /// Text `kubepods`.
 pub(crate) const KUBEPODS: &str = "kubepods";
-/// The timed worker command.
-pub(crate) const RUN_RYO: &str = "run-ryo";
-/// The profiling worker command.
-pub(crate) const PROFILE_RYO: &str = "profile-ryo";
-/// The diagnostic worker command.
-pub(crate) const DIAGNOSTIC_RYO: &str = "diagnostic-ryo";

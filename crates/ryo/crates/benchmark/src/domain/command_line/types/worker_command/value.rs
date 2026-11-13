@@ -1,6 +1,6 @@
 //! The first argument of a worker invocation and the tracing it asks for.
-use super::super::super::constants::{DIAGNOSTIC_RYO, PROFILE_RYO, RUN_RYO};
 use super::super::WorkerTracing;
+use ryo_benchmark_contracts::domain::requests::constants::{DIAGNOSTIC_RYO, PROFILE_RYO, RUN_RYO};
 
 /// The first argument of a worker invocation.
 #[derive(Clone, Copy, Debug)]
