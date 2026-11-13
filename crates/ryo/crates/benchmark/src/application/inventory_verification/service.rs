@@ -1,6 +1,7 @@
 //! Enumerate every registered default, invoke the existing verifier, and retain every result.
 use super::authority::service::{refused, require_authority, verify_context};
 use super::constants;
+use crate::domain::suite::service::covered;
 use crate::domain::suite::types::inventory::value::{
     FailureReason, Inventory, InventoryVerdict, PassedRule, RuleEvidence,
 };
@@ -111,17 +112,11 @@ pub fn verify(
     coverage: &RegisteredCoverage,
 ) -> Result<InventoryVerdict, Error> {
     require_authority(registration, suite, store)?;
-    let mut inventory = Inventory::new(&match coverage {
-        RegisteredCoverage::Full => registration
-            .defaults
-            .iter()
+    let mut inventory = Inventory::new(
+        &covered(coverage, &registration.defaults, |rule| rule)
             .map(|rule| RuleLabel(rule.0.clone()))
             .collect::<Vec<_>>(),
-        RegisteredCoverage::Selected { rules, .. } => rules
-            .iter()
-            .map(|rule| RuleLabel(rule.to_string()))
-            .collect(),
-    })?;
+    )?;
     store.begin(output)?;
     store.publish(
         output,
@@ -290,15 +285,7 @@ pub fn certify_registered(
         ));
     }
     Ok(CaseCount(
-        registration
-            .rules
-            .iter()
-            .filter(|rule| match coverage {
-                RegisteredCoverage::Full => true,
-                RegisteredCoverage::Selected { rules, .. } => rules
-                    .iter()
-                    .any(|selected| selected.to_string() == rule.rule_id.0),
-            })
+        covered(coverage, &registration.rules, |rule| &rule.rule_id)
             .map(|rule| rule.cases.len())
             .sum(),
     ))

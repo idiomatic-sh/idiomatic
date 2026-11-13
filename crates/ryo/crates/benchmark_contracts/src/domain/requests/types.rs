@@ -137,6 +137,7 @@ pub enum CertificationCases {
     Registered {
         registration: PathBuf,
         output: PathBuf,
+        /// Which registered rules the certification proves.
         coverage: RegisteredCoverage,
     },
 }

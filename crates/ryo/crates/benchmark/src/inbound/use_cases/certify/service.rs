@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - one certification workflow: certify, the registered context it prepares and the profile-case shard it runs share the sealed paths and ports; the profile-case route is deleted by ryo-obev, which brings this file under the limit
+// ignore: idiomatic.arch/file-length - one certification workflow: certify, the registered context it prepares and the profile-case shard it runs share the sealed paths and ports; the profile-case route has no production constructor left, and its removal brings this file under the limit
 //! A complete disposition inventory is distinct from verified subset coverage.
 use super::types::{PreparedCases, RegisteredContext};
 use crate::application::case_execution::{
@@ -221,13 +221,9 @@ pub(super) fn prepare(
         candidate,
         coverage,
     )?;
-    for entry in loaded.rules.iter().filter(|entry| match coverage {
-        ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full => true,
-        ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Selected {
-            rules,
-            ..
-        } => rules.iter().any(|rule| rule.to_string() == entry.rule_id.0),
-    }) {
+    for entry in
+        crate::domain::suite::service::covered(coverage, &loaded.rules, |entry| &entry.rule_id)
+    {
         crate::application::inventory_verification::authority::service::verify_context(
             entry, suite, store,
         )

@@ -2,10 +2,11 @@
 use super::types::{CaseOwnership, ContextAbsence};
 use crate::domain::suite::constants;
 use crate::domain::suite::types::audit::value::Audit;
+use ryo_benchmark_contracts::domain::documents::types::text::value::RuleName;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::{CoverageAccounting, ProjectContext};
 use ryo_benchmark_contracts::domain::requests::types::{
-    CohortSelection, ContextSeal, FileMetadataDeclaration, StagedSources,
+    CohortSelection, ContextSeal, FileMetadataDeclaration, RegisteredCoverage, StagedSources,
 };
 use ryo_benchmark_contracts::domain::workloads::types::{
     Cases, ContextDeclaration, InventoryDeclaration, ReferenceBehavior, RequestedFiles,
@@ -380,4 +381,18 @@ pub(crate) fn expected_report(
     };
     report.diagnostics.sort();
     report
+}
+
+/// The items whose registered rule the coverage proves: every item under Full, only the selected rules' items otherwise.
+pub fn covered<'a, T>(
+    coverage: &'a RegisteredCoverage,
+    items: &'a [T],
+    rule: fn(&T) -> &RuleName,
+) -> impl Iterator<Item = &'a T> + 'a {
+    items.iter().filter(move |item| match coverage {
+        RegisteredCoverage::Full => true,
+        RegisteredCoverage::Selected { rules, .. } => rules
+            .iter()
+            .any(|selected| selected.to_string() == rule(item).0),
+    })
 }
