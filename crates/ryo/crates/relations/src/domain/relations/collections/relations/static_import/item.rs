@@ -30,6 +30,8 @@ macro_rules! static_import {
                 StaticImportExpectedRow
             },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The import: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

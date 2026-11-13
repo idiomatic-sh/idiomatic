@@ -31,6 +31,8 @@ macro_rules! directive {
                 DirectiveExpectedRow
             },
             class Literal,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The file it is in.
                 file File: FileId => File;

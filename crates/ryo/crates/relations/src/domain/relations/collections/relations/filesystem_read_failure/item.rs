@@ -30,6 +30,8 @@ macro_rules! filesystem_read_failure {
                 FilesystemReadFailureExpectedRow
             },
             class Engine,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The file.
                 path Path: FileId => File;

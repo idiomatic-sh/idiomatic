@@ -30,6 +30,8 @@ macro_rules! scope {
                 ScopeExpectedRow
             },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The enclosing scope: its file and where it starts; the module of the file, which no scope encloses, is its own.
                 parent Parent: NodeId => Node;

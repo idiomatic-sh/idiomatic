@@ -275,7 +275,7 @@ fn refuses() {
 
 /// A retained worker alternates absent/advertised/absent promises without cached leakage.
 fn optional_readiness_is_fail_closed() -> usize {
-    use ryo_relations::domain::capabilities::types::OptionalCapability;
+    use ryo_relations::domain::catalog::types::OptionalCapability;
     let mut elements = Elements::default();
     let mut symbols = Symbols::default();
     let source = ByteSlice(b"ab");

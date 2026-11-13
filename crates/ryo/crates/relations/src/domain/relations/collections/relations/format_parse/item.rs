@@ -22,6 +22,8 @@ macro_rules! format_parse {
             expected { /// One expected row of `format-parse`.
                 FormatParseExpectedRow },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The original literal occurrence.
                 id Id: NodeId => Node;

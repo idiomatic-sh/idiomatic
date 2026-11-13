@@ -8,13 +8,9 @@ The portable relation catalog, its typed row and column schemas, closed term voc
 
 The generic absence causes a language can report for a relation. Provider readers and sealed support answers remain in `ryo-language`.
 
-### capabilities
-
-The opt-in semantic promises a language declares beyond the required relation baseline.
-
 ### catalog
 
-The one list of the relations ryo owns and the macro that declares a relation from its columns.
+The one list of the relations ryo owns, with the optional capability a language promises each by, and the macro that declares a relation from its columns, its scope and whether it needs the languages' notes.
 
 ### declaration_kind
 

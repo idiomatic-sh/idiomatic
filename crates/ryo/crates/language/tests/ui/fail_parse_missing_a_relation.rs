@@ -1,13 +1,13 @@
 //! parse_missing_a_relation: the compiler rejects this.
 
-use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_language::domain::answers::types::{Reader, Support};
 use ryo_language::domain::elements::types::{Completion, Elements, TableBuilder};
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::terms::types::UnknownName;
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
 use ryo_language::inbound::use_cases::parse::interface::ParseUseCase;
 use ryo_language::inbound::use_cases::parse::types::ParseRequest;
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::terms::types::UnknownName;
 
 /// Answers every syntax relation of the catalog but `function`.
 macro_rules! all_but_function {
@@ -41,7 +41,9 @@ impl ParseUseCase for Missing {
     ) {
     }
 
-    fn completion_requirement(&self) -> ryo_language::domain::elements::types::CompletionRequirement {
+    fn completion_requirement(
+        &self,
+    ) -> ryo_language::domain::elements::types::CompletionRequirement {
         ryo_language::domain::elements::types::CompletionRequirement::Independent
     }
 
@@ -60,9 +62,7 @@ impl ParseUseCase for Missing {
         ryo_language::inbound::use_cases::parse::types::Recognition::Declines
     }
 
-    fn capabilities(
-        &self,
-    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability] {
+    fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
         &[]
     }
 

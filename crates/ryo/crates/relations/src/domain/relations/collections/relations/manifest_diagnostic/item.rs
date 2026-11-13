@@ -20,6 +20,8 @@ macro_rules! manifest_diagnostic {
             expected { /// One independently expected diagnostic row.
                 ManifestDiagnosticExpectedRow },
             class Manifest,
+            scope Project,
+            notes Unneeded,
             columns {
                 /// The real manifest identity.
                 file File: FileId => File;

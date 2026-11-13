@@ -30,6 +30,8 @@ macro_rules! inherits {
                 InheritsExpectedRow
             },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The base or contract: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

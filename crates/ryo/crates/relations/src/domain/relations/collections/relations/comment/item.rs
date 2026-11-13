@@ -30,6 +30,8 @@ macro_rules! comment {
                 CommentExpectedRow
             },
             class Lexical,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The comment: its file and where it starts.
                 id Id: NodeId => Node;
