@@ -114,10 +114,6 @@ fn total(name: &str, bytes: u64) -> DumpTotal {
     }
 }
 
-#[expect(
-    clippy::expect_used,
-    reason = "a poisoned fixture lock must fail the test"
-)]
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let mut children = ChildrenFake::default();
     match scenario {
@@ -128,7 +124,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             ];
         }
         Scenario::FailedChild => children.status = ProcessExitCode(2),
-        _ => {}
+        Scenario::Unasked
+        | Scenario::HeapChild
+        | Scenario::CpuChild
+        | Scenario::PeakReport
+        | Scenario::AnsweredCommand
+        | Scenario::NoDump => {}
     }
     let mut tools = ProfileToolsFake {
         threads: NonZeroUsize::new(8).unwrap_or(NonZeroUsize::MIN),

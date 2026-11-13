@@ -98,6 +98,10 @@ impl TableFacts {
     ///
     /// When a table's kinds are not its relation's, or the facts fake opens no worker.
     #[must_use]
+    #[expect(
+        clippy::expect_used,
+        reason = "a fixture whose facts fake opens no worker fails the test that built it"
+    )]
     pub fn new(
         rows: &[(
             ryo_relations::domain::relations::types::Relation,
@@ -176,6 +180,10 @@ impl TableFacts {
     ///
     /// When a read panicked while it recorded itself.
     #[must_use]
+    #[expect(
+        clippy::expect_used,
+        reason = "a poisoned record means a read panicked, which fails the test that reads it"
+    )]
     pub fn history(&self) -> Vec<ryo_relations::domain::relations::types::Relation> {
         self.history.lock().expect("the reads are recorded").clone()
     }

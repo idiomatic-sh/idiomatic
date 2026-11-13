@@ -146,10 +146,6 @@ pub(crate) fn over_the_tree(
     *edges = Source::Relation(Relation::SyntaxChild);
     *domain = domain_source;
     operations.push(operation);
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "the fake serves the axis's source and its declared domain; every other relation is not read"
-    )]
     let mut held = vec![(Relation::Function, &from)];
     if let Some(domain) = domain_rows.as_ref() {
         held.push((Relation::Identifier, domain));
