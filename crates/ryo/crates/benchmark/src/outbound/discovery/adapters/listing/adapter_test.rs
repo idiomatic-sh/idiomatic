@@ -116,7 +116,9 @@ fn subject(command: Input) -> Result<Value, Failure> {
             )
         })
         .map_err(|error| match error {
-            Error::Invalid(message) if matches!(command, Command::FailsSayingWhyOnStandardOutput) => {
+            Error::Invalid(message)
+                if matches!(command, Command::FailsSayingWhyOnStandardOutput) =>
+            {
                 Refusal::Said(Box::leak(message.into_boxed_str()))
             }
             Error::Invalid(_) => Refusal::Invalid,
