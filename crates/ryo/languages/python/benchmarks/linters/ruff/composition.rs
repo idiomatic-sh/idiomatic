@@ -1,5 +1,7 @@
 //! Python composition provides its linked language only at this outer edge.
+use self::commands::reference;
 use self::constants::UNSUPPORTED_WORKER_COMMAND;
+use self::locations::directory;
 use ryo_benchmark::outbound::linter::interface::LinterPort as _;
 use ryo_benchmark::outbound::suite::types::ArtifactPath;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -75,9 +77,8 @@ pub(crate) fn run(
                 args.next()
                     .ok_or_else(|| Error::Invalid(self::constants::EXPECTED_EXECUTABLE.into()))?,
             );
-            let tool = suite_source.profile(ArtifactPath(&locations::directory()))?;
-            let expected =
-                commands::reference(executable.clone(), tool.clone())?.version_line(&tool);
+            let tool = suite_source.profile(ArtifactPath(&directory()))?;
+            let expected = reference(executable.clone(), tool.clone())?.version_line(&tool);
             suite_source.verify_tool(ArtifactPath(&executable), &tool, &expected)
         }
         _ => Err(Error::Invalid(self::constants::USAGE.into())),
