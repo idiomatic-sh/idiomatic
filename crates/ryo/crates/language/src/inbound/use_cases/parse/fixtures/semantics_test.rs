@@ -55,8 +55,8 @@ impl SemanticSession for FixtureSession {
 }
 
 impl ParseEngine for FixtureParse {
-    fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
-        &[]
+    fn capabilities(&self) -> Vec<ryo_relations::domain::catalog::types::OptionalCapability> {
+        Vec::new()
     }
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> {
         ParseConfigurationIdentity("")

@@ -152,7 +152,7 @@ impl ParseUseCase for AllocatingLanguage {
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn crate::domain::semantics::types::Semantics> {
+    fn semantics(&self) -> Option<&dyn crate::domain::answers::types::Semantics> {
         None
     }
 
@@ -224,7 +224,7 @@ impl ParseUseCase for AllocatingLanguage {
         }
     }
 
-    ryo_relations::each_relation!(all_but_function);
+    ryo_relations::each_relation!(@declared ryo_relations::baseline_relations, all_but_function);
 }
 
 /// Runs the allocation row over the double and says whether it held.

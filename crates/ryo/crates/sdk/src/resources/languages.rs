@@ -21,7 +21,8 @@ pub use ryo_language::domain::semantics::errors::SemanticsError;
 pub use ryo_language::domain::semantics::types::{
     RenderContext, RenderOutcome, RenderRequest, RenderedNode,
 };
-pub use ryo_language::domain::semantics::types::{SemanticSession, SemanticSlot, Semantics};
+pub use ryo_language::domain::answers::types::Semantics;
+pub use ryo_language::domain::semantics::types::{SemanticSession, SemanticSlot};
 
 pub use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 

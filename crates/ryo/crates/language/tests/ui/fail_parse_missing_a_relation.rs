@@ -41,7 +41,7 @@ impl ParseUseCase for Missing {
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn ryo_language::domain::semantics::types::Semantics> {
+    fn semantics(&self) -> Option<&dyn ryo_language::domain::answers::types::Semantics> {
         None
     }
 
@@ -112,7 +112,7 @@ impl ParseUseCase for Missing {
 
     fn complete(&self, _request: &ParseRequest<'_>, _completion: &mut Completion<'_>) {}
 
-    ryo_relations::each_relation!(all_but_function);
+    ryo_relations::each_relation!(@declared ryo_relations::baseline_relations, all_but_function);
 }
 
 fn main() {}

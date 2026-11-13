@@ -27,8 +27,8 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
         _: &mut ryo_language::domain::semantics::types::SemanticSlot,
     ) {
     }
-    fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
-        self.0
+    fn capabilities(&self) -> Vec<ryo_relations::domain::catalog::types::OptionalCapability> {
+        self.0.to_vec()
     }
     fn configuration_identity(
         &self,

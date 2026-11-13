@@ -1,20 +1,20 @@
 //! What the `parse` use case promises: the one contract a language implements to be read by ryo. A
 //! language implements this and `project`, and those two are all of ryo it implements: it says which
-//! files it reads, builds their trees, and answers, for every syntax relation of the catalog, how it reads it or
-//! that it is not in the language. The method of each relation is generated from the catalog's one list
-//! (`domain/relations/catalog.rs`) and has no default body, so a relation added to the catalog stops every
-//! language from compiling until it has answered.
+//! files it reads, builds their trees, and answers, for every syntax relation of the catalog every language answers, how it reads it or
+//! that it is not in the language; the relations the catalog declares `optional` it answers through its `Semantics`, or none of them.
+//! The method of each relation is generated from the catalog's one list (`relations`' `each_relation!`) and has no default body, so a
+//! relation added to the catalog stops every language from compiling until it has answered.
 
 use super::errors::ParseError;
 use super::types::{KindNames, ParseConfigurationIdentity, ParseRequest, SkippedDirectory};
-use crate::domain::answers::types::{Reader, Support};
+use crate::domain::answers::types::{Reader, Semantics, Support};
 use crate::domain::elements::types::{Completion, TableBuilder, Tree};
-use crate::domain::semantics::types::{SemanticSlot, Semantics};
+use crate::domain::semantics::types::SemanticSlot;
 use crate::inbound::use_cases::parse::types::Recognition;
 use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::terms::types::UnknownName;
 
-/// What the methods of a trait are made of, one for each syntax relation of the catalog.
+/// What the methods of a trait are made of, one for each syntax relation of the catalog every language answers (`baseline`).
 macro_rules! syntax_methods {
     (
         syntax { $( $variant:ident $module:ident $row:ident $column:ident ; )* }
@@ -32,7 +32,8 @@ macro_rules! syntax_methods {
 
 /// What a language offers for its files.
 pub trait ParseUseCase: Send + Sync {
-    /// Optional semantic capabilities this provider promises to answer, including proven language absence.
+    /// The optional capabilities of the project's relations this provider promises to answer, including proven language absence. Those of
+    /// its files' trees are never listed here: they are read from what its `Semantics` answers, so the two cannot disagree.
     fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability];
 
     /// Canonical immutable parser settings that can change the tree or diagnostics.
@@ -49,7 +50,7 @@ pub trait ParseUseCase: Send + Sync {
 
     /// The language's answers to the optional semantic capabilities, or `None` when it implements no `Semantics`. It has no default,
     /// so every language says once whether it answers them.
-    fn semantics(&self) -> Option<&dyn Semantics>;
+    fn semantics(&self) -> Option<&dyn Semantics<Self::FileModel>>;
 
     /// What the language works out of a file once, when it parses it, for its readers to read: an index of the file, so that no reader
     /// searches the file again for each element it is given. A language that works out nothing has `()`. The engine makes one for each
@@ -117,5 +118,5 @@ pub trait ParseUseCase: Send + Sync {
     /// request asks for, bytes only the language reads (`write_notes`). It reaches nothing else of the table.
     fn complete(&self, request: &ParseRequest<'_>, completion: &mut Completion<'_>);
 
-    ryo_relations::each_relation!(syntax_methods);
+    ryo_relations::each_relation!(@declared ryo_relations::baseline_relations, syntax_methods);
 }
