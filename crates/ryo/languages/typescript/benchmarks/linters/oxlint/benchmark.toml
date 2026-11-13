@@ -122,8 +122,8 @@ defaults = [
 [query-modules]
 "typescript/oxlint/eslint-directives" = "fragments/eslint-directives.ryoql"
 
-# Defaults blocked by a documented limitation: the TypeScript provider answers the binding relations, `numeric_literal` and no
-# regular expression relation absent, and its ESTree kinds keep no parentheses.
+# Defaults deferred: those blocked by a documented limitation (the TypeScript provider answers the binding relations,
+# `numeric_literal` and no regular expression relation absent, and its ESTree kinds keep no parentheses), and the unauthored.
 [deferred]
 binding_relations = [
   "eslint.no-unused-vars",
@@ -147,9 +147,7 @@ regular_expressions = [
 parenthesized_expression = [
   "eslint.no-cond-assign",
 ]
-
-# Defaults no relation blocks, not yet authored.
-[pending]
+# Defaults no relation blocks, not yet authored; deferred rather than pending so that verify-cases runs the authored subset.
 unauthored = [
   "eslint.constructor-super",
   "eslint.getter-return",
