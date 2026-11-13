@@ -9,7 +9,7 @@ use ryo_values::domain::plan_parts::service::each_column;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::StepId;
-use ryo_values::domain::plans::service::each_input;
+use ryo_values::domain::plans::service::{each_input, inputs_of, named};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
 
@@ -110,12 +110,7 @@ fn movable(steps: &[PlanStep], place: StepIndex, roots: &[StepId]) -> Option<Mov
     // Another step that reads the capture, or an emit of it, would see the rows the filter would take out.
     let readers = steps
         .iter()
-        .filter(|step| {
-            let mut reads = false;
-            let mut copy = step.operation.clone();
-            each_input(&mut copy, &mut |each| reads |= *each == Input::Step(*read));
-            reads
-        })
+        .filter(|step| named(&inputs_of(&step.operation)).contains(&Input::Step(*read)))
         .count();
     if readers != 1 || roots.contains(read) || captured.scope != steps.get(place.0)?.scope {
         return None;

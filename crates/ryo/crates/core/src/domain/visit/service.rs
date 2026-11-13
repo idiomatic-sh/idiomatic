@@ -181,27 +181,26 @@ fn reads_role(operation: &Operation) -> RoleRead {
                         || *domain_id == role_column()
                         || compares_role(domain_filter) == RoleCompared::Compared))
         }
-        Operation::SpanBetween { from, .. }
-        | Operation::SpanBounds { from, .. }
-        | Operation::SourceMatches { from, .. }
-        | Operation::RenderSyntax { from, .. }
-        | Operation::FitsRendered { from, .. }
-        | Operation::Replace { from, .. }
-        | Operation::Extend { from, .. }
-        | Operation::GroupCount { from, .. }
-        | Operation::GroupDigest { from, .. }
-        | Operation::Capture { from, .. }
-        | Operation::Rank { from, .. }
-        | Operation::Words { from, .. } => edges(*from) == EdgeInput::Edges,
-        Operation::OrderedMatch { left, right, .. }
-        | Operation::Union { left, right }
-        | Operation::Intersection { left, right }
-        | Operation::Difference { left, right } => {
-            edges(*left) == EdgeInput::Edges || edges(*right) == EdgeInput::Edges
-        }
-        Operation::OrderedDfs {
-            from, edges: graph, ..
-        } => edges(*from) == EdgeInput::Edges || edges(*graph) == EdgeInput::Edges,
+        // The other steps read the role when one of their inputs is the edges.
+        Operation::SpanBetween { .. }
+        | Operation::SpanBounds { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::Replace { .. }
+        | Operation::Extend { .. }
+        | Operation::GroupCount { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::Words { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::Union { .. }
+        | Operation::Intersection { .. }
+        | Operation::Difference { .. }
+        | Operation::OrderedDfs { .. } => named(&inputs_of(operation))
+            .iter()
+            .any(|input| edges(*input) == EdgeInput::Edges),
         Operation::Closure { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }

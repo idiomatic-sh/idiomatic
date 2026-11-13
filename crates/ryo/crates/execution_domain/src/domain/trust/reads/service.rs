@@ -5,8 +5,9 @@ use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::service::{columns, kind_column};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, Operand};
-use ryo_values::domain::plans::service::{inputs_of, named};
+use ryo_values::domain::plans::service::{comparisons_of, inputs_of, kind_of, named};
 use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::query_operators::types::OperationKind;
 
 /// Adds the reads in `more` to `uses`, each once: a read the steps before already made is the same read, and the reads of a plan whose
 /// steps meet again would otherwise double at every meeting.
@@ -85,9 +86,9 @@ pub(super) fn step_reads(
         mut uses,
         provenance: first,
     } = parts.next().unwrap_or_default();
-    match operation {
-        Operation::Select { comparisons, .. } => {
-            for comparison in comparisons {
+    match kind_of(operation) {
+        OperationKind::Select => {
+            for comparison in comparisons_of(operation) {
                 if let Operand::Column(column) = &comparison.left
                     && let Some(Some(read)) =
                         first.get(usize::try_from(column.0).unwrap_or(usize::MAX))
@@ -97,38 +98,38 @@ pub(super) fn step_reads(
                 }
             }
         }
-        Operation::Antijoin { .. } | Operation::Difference { .. } => {
+        OperationKind::Antijoin | OperationKind::Difference => {
             // The left rows that remain, as they were; the right rows only decide which remain.
             let right = parts.next().unwrap_or_default();
             absorb(&mut uses, right.uses);
         }
-        Operation::Join { .. }
-        | Operation::Union { .. }
-        | Operation::Intersection { .. }
-        | Operation::GroupCount { .. }
-        | Operation::Replace { .. }
-        | Operation::OrderedMatch { .. }
-        | Operation::OrderedDfs { .. }
-        | Operation::GroupDigest { .. }
-        | Operation::Capture { .. }
-        | Operation::Rank { .. }
-        | Operation::Words { .. }
-        | Operation::Axis { .. }
-        | Operation::Closure { .. }
-        | Operation::Cycles { .. }
-        | Operation::Rows { .. }
-        | Operation::Hosted { .. } => {
+        OperationKind::Join
+        | OperationKind::Union
+        | OperationKind::Intersection
+        | OperationKind::GroupCount
+        | OperationKind::Replace
+        | OperationKind::OrderedMatch
+        | OperationKind::OrderedDfs
+        | OperationKind::GroupDigest
+        | OperationKind::Capture
+        | OperationKind::Rank
+        | OperationKind::Words
+        | OperationKind::Axis
+        | OperationKind::Closure
+        | OperationKind::Cycles
+        | OperationKind::Rows
+        | OperationKind::Hosted => {
             for part in parts {
                 absorb(&mut uses, part.uses);
             }
         }
-        Operation::Project { .. }
-        | Operation::Extend { .. }
-        | Operation::SpanBetween { .. }
-        | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. }
-        | Operation::SourceMatches { .. }
-        | Operation::SpanBounds { .. } => {}
+        OperationKind::Project
+        | OperationKind::Extend
+        | OperationKind::SpanBetween
+        | OperationKind::RenderSyntax
+        | OperationKind::FitsRendered
+        | OperationKind::SourceMatches
+        | OperationKind::SpanBounds => {}
     }
     Ok(StepReads { uses, provenance })
 }
