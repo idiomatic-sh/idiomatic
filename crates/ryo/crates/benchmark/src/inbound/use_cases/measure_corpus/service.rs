@@ -255,7 +255,7 @@ fn measure_project(
 
 /// Require two reports to agree in full, naming what was compared when they differ.
 fn agree(what: ComparisonName, first: &RunReport, second: &RunReport) -> Result<(), Error> {
-    crate::domain::diagnostics::service::compare(first, second)
+    crate::domain::diagnostics::service::compare_conditions(first, second)
         .map_err(|difference| Error::Invalid(format!("{} mismatch: {difference:?}", what.0)))
 }
 
