@@ -120,7 +120,8 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                     .step = StepId(3);
                 let prepared = engine.prepare(authored).unwrap();
                 let corpus = corpus();
-                let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+                let request =
+                    ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
                 let covered = [Covered {
                     file: FileId(0),
                     rules: vec![RuleIndex(0)],

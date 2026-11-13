@@ -39,7 +39,9 @@ pub(super) fn scopes(entry: Entry) -> Result<Scopes, OperatingError> {
     let prepared = program(entry, 3);
     let corpus = corpus();
     let request = begin(&prepared, &corpus, None);
-    let mut arenas = Vec::new();
+    let mut arenas =
+        crate::application::file_dag::program::request_execution::types::ObservationArenas::default(
+        );
     let check = |phase: &ProjectPhase<'_>| -> Result<Scopes, OperatingError> {
         let scope = |rule| {
             phase.project_scope(

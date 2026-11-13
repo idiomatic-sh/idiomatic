@@ -120,7 +120,7 @@ pub(crate) fn deliver(
             .map(|(_, table)| SourceRows::Computed(table))
             .ok_or(OperatingError::NotRead)
     };
-    let request = owner_fixtures::requests::execution().execution(&program, &corpus, None);
+    let request = owner_fixtures::requests::execution().execution(&program, &corpus, None.into());
     let elements = Elements::default();
     let input = |diagnostic| {
         FileInput {

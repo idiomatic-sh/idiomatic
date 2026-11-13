@@ -72,7 +72,7 @@ fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
     for diagnostic in [DiagnosticDelivery::Collected, DiagnosticDelivery::Forwarded] {
         for independent_first in [false, true] {
             let corpus = corpus();
-            let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+            let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
             let (elements, mut symbols) = tree(FileId(0), b"abc");
             let intents = [
                 FileRuleIntent::Run {
@@ -161,7 +161,7 @@ fn independent_semantic_relation_selectors_share_one_source_walk() {
     }
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
     let table = named_functions(&mut symbols);
     let elements = ryo_language::domain::elements::types::Elements::default();

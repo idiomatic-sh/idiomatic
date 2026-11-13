@@ -44,7 +44,7 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
             vec![Input::Step(StepId(1))];
         let program = engine.prepare(input).expect("valid symbol frontier");
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
         let mut symbols = Symbols::default();
         let symbol = if representation == "cross_name" {
             ryo_language::domain::symbols::fixtures::intern_derived(

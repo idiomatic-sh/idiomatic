@@ -42,7 +42,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         let engine = engine();
         let prepared = mixed_program(&engine, relation);
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
         let table = source();
         let file_reads = Cell::new(0);
         let read = |actual| {
@@ -269,7 +269,7 @@ fn an_observed_population_is_a_separate_acquisition_with_the_same_answer() {
         ),
     );
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let table = source();
     let read = |_| Ok(SourceRows::Computed(&table));
     let mut symbols = Symbols::default();
@@ -314,7 +314,7 @@ fn an_observed_population_is_a_separate_acquisition_with_the_same_answer() {
         stored.reads.load(Ordering::SeqCst),
         project.reads.load(Ordering::SeqCst),
     );
-    let mut arenas = vec![];
+    let mut arenas = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas::default();
     let stage = request
         .observations(&mut arenas)
         .expect("a named program opens its stage");

@@ -219,7 +219,7 @@ pub(crate) fn run_prepared_context<'facts>(
         size: FileSize(u64::try_from(source.len()).map_err(|_| OperatingError::NotRun)?),
         modified: Nanoseconds(0),
     })];
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let mut file = request.open_file(
         FileInput {
             language: SourceLanguage::Recognized,

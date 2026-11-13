@@ -7,8 +7,8 @@ use super::super::interface::JobSchedulingPort;
 pub(crate) struct JobSchedulingFake;
 
 impl JobSchedulingPort for JobSchedulingFake {
-    fn run(&self, jobs: Vec<Box<dyn FnOnce() + Send + '_>>) {
-        for job in jobs {
+    fn run(&self, jobs: super::super::types::Jobs<'_>) {
+        for job in jobs.0 {
             job();
         }
     }

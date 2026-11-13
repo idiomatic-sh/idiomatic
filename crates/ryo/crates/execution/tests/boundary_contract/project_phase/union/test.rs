@@ -195,7 +195,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         [Input::BoundObservation(ObservationBindingId(0))]
     );
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let covered = [Covered {
         file: FileId(0),
         rules: vec![RuleIndex(0), RuleIndex(1)],
@@ -207,7 +207,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     };
     let project = ProjectFacts::new(relation);
     let project_symbols = Symbols::default();
-    let mut arenas = vec![];
+    let mut arenas = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas::default();
     let stage = request.observations(&mut arenas).unwrap();
     let mut symbols = Symbols::default();
     let partials = Partials::default();

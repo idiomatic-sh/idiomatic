@@ -263,6 +263,7 @@ impl FileAnalysis {
                 };
                 self.language
                     .begin_semantics(language, source, &mut worker.tables.elements)
+                    .into()
             })
         } else {
             None

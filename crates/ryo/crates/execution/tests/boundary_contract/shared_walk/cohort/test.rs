@@ -51,7 +51,7 @@ fn only_admitted_classes_allocate_scratch_and_result_slots() {
         }
         let program = engine.prepare(authored).unwrap();
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
         let mut intents = vec![FileRuleIntent::Undemanded; declarations];
         intents[0] = FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
@@ -112,7 +112,7 @@ fn a_failed_dependency_does_not_prepare_a_later_class_of_the_same_rule() {
         .step = StepId(2);
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"[bc");
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
@@ -170,7 +170,7 @@ fn later_cohorts_add_only_the_new_class_and_aliases_replay_both_results() {
     }
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
@@ -214,7 +214,7 @@ fn full_rule_count_shares_source_decoding_and_ordered_predicate_prefixes() {
     }
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = vec![
         FileRuleIntent::Run {
@@ -280,7 +280,7 @@ fn shared_prefixes_preserve_distinct_parameter_bindings_and_first_errors() {
     }
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,

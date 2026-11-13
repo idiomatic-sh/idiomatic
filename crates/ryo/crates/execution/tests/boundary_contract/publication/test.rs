@@ -11,7 +11,7 @@ fn semantic_failure_discards_every_after_success_row() {
             let engine = engine();
             let prepared = program(&engine);
             let corpus = corpus();
-            let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+            let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
             let table = rows(second);
             let elements = ryo_language::domain::elements::types::Elements::default();
             let read = function_rows(&table);
@@ -62,7 +62,7 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
         let engine = engine();
         let prepared = program(&engine);
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
         let table = rows((1, 2));
         let elements = ryo_language::domain::elements::types::Elements::default();
         let read = function_rows(&table);

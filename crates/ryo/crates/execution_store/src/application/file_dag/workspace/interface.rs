@@ -123,7 +123,10 @@ pub trait WorkspacePort: sealed::Sealed {
     ///     workspace.capture_admitted(publications);
     /// }
     /// ```
-    fn capture_admitted(&mut self, publications: Vec<Publication>);
+    fn capture_admitted(
+        &mut self,
+        publications: crate::application::file_dag::workspace::types::AdmittedPublications,
+    );
     /// Releases the admitted publications.
     ///
     /// # Examples

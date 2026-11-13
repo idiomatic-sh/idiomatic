@@ -89,6 +89,6 @@ pub trait ExecutionUseCase {
         &self,
         program: &PreparedExecutionProgram,
         corpus: &[CorpusInput],
-        observer: Option<std::sync::Arc<dyn ObserverPort>>,
+        observer: crate::inbound::use_cases::metadata::types::Observing,
     ) -> RequestExecution;
 }

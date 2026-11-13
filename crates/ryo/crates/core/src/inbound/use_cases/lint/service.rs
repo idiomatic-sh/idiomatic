@@ -343,7 +343,8 @@ pub(super) fn settled(ordinary: OrdinaryOutcome, answered: &mut Answered) -> Res
 fn features_of(fed: Option<&FedTotals>, run: &LintRun<'_>) -> Vec<FeatureFed> {
     match fed {
         Some(fed) => kernel_metadata()
-            .fed_over(run.metadata, &by_step(&fed.0, run.metadata))
+            .fed_over(run.metadata, (&by_step(&fed.0, run.metadata)[..]).into())
+            .0
             .into_iter()
             .map(FeatureFed::from)
             .collect(),
@@ -355,7 +356,8 @@ fn features_of(fed: Option<&FedTotals>, run: &LintRun<'_>) -> Vec<FeatureFed> {
 fn work_of(fed: Option<&FedTotals>, run: &LintRun<'_>) -> Vec<RuleWork> {
     match fed {
         Some(fed) => kernel_metadata()
-            .work_over(run.metadata, &by_step(&fed.0, run.metadata))
+            .work_over(run.metadata, (&by_step(&fed.0, run.metadata)[..]).into())
+            .0
             .into_iter()
             .zip(run.rules)
             .map(|(steps, rule)| RuleWork {

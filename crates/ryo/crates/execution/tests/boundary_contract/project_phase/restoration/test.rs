@@ -53,7 +53,7 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
         };
         entry.path = FilePath("second.py".into());
         corpus.push(second);
-        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
         let elements = ryo_language::domain::elements::types::Elements::default();
         let mut captures = vec![];
         let mut consumer_captures = vec![];
@@ -175,7 +175,7 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
             captures,
             reads: AtomicUsize::new(0),
         };
-        let mut arenas = vec![];
+        let mut arenas = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas::default();
         let stage = request.observations(&mut arenas).unwrap();
         let covered = [Covered {
             file: FileId(0),

@@ -59,7 +59,7 @@ fn exercise_readiness_chain(empty: bool) {
     };
     let prepared = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = [readiness_intent(), readiness_intent(), readiness_intent()];
     let mut file = request
@@ -120,7 +120,7 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
     authored.hosted = vec![readiness_hosted()];
     let prepared = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let calls = std::cell::RefCell::new(Vec::new());
     let read = |relation| {

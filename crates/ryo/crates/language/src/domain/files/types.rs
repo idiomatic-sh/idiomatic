@@ -30,6 +30,12 @@ impl ProjectEntries {
     }
 }
 
+impl From<Vec<FilePath>> for ProjectEntries {
+    fn from(paths: Vec<FilePath>) -> Self {
+        Self(paths)
+    }
+}
+
 impl Extend<FilePath> for ProjectEntries {
     fn extend<I: IntoIterator<Item = FilePath>>(&mut self, paths: I) {
         self.0.extend(paths);

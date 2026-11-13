@@ -22,7 +22,7 @@ fn a_skipped_rule_is_refused_without_a_walk_pass() {
     let engine = engine();
     let prepared = engine.prepare(authored_request(1)).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let mut symbols = Symbols::default();
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |_| -> Result<SourceRows<'_>, OperatingError> {

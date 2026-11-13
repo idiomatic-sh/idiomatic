@@ -88,11 +88,7 @@ pub(super) fn begin_file(
     tree: &languages::Elements,
     slot: &mut languages::SemanticSlot,
 ) {
-    if let Some(session) =
-        syntax.begin_semantics(tree, source_kind(request.path), std::mem::take(slot))
-    {
-        *slot = languages::SemanticSlot::Begun(session);
-    }
+    *slot = syntax.begin_semantics(tree, source_kind(request.path), std::mem::take(slot));
 }
 
 /// Reads the tree of one file into the worker's table.

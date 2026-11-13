@@ -107,3 +107,15 @@ pub enum Recycled {
 /// The column kinds of each input a derived request reads: one list per input, in input order.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct InputSchemas(pub Vec<Vec<CellKind>>);
+
+impl From<Option<derived_payload::value::DerivedPayload>> for Recycled {
+    fn from(payload: Option<derived_payload::value::DerivedPayload>) -> Self {
+        payload.map_or(Self::Nothing, Self::Payload)
+    }
+}
+
+impl From<Vec<Vec<CellKind>>> for InputSchemas {
+    fn from(schemas: Vec<Vec<CellKind>>) -> Self {
+        Self(schemas)
+    }
+}

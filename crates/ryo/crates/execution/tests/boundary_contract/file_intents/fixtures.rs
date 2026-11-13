@@ -73,7 +73,7 @@ pub(crate) fn answered_rule(
     rule: RuleIndex,
 ) -> (Result<RootOutcome, OperatingError>, usize) {
     let corpus = crate::boundary_fixture::fixtures::corpus();
-    let request = ExecutionUseCaseImpl::new().execution(program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(program, &corpus, None.into());
     let reads = Cell::new(0);
     let read = |relation| {
         reads.set(reads.get() + 1);

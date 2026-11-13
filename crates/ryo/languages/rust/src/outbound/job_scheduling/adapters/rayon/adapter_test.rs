@@ -41,7 +41,7 @@ fn subject(threads: Input) -> Value {
                 job
             })
             .collect();
-        JobSchedulingRayonAdapter.run(jobs);
+        JobSchedulingRayonAdapter.run(crate::outbound::job_scheduling::types::Jobs(jobs));
     });
     inside.load(Ordering::Relaxed)
 }

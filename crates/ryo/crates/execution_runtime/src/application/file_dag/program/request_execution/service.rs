@@ -47,7 +47,7 @@ use std::sync::Arc;
 impl ProgramRequestExecutionPort for RequestExecution {
     fn observations<'a>(
         &'a self,
-        arenas: &'a mut Vec<ryo_values::domain::stored_facts::types::ArenaBytes>,
+        arenas: &'a mut crate::application::file_dag::program::request_execution::types::ObservationArenas,
     ) -> Result<ObservationStage<'a>, OperatingError> {
         let metadata = self
             .program
@@ -58,7 +58,7 @@ impl ProgramRequestExecutionPort for RequestExecution {
             crate::application::file_dag::observations::types::CrossPublications::new(
                 metadata,
                 &phase.publication,
-                arenas,
+                &mut arenas.0,
             );
         Ok(ObservationStage {
             phase,
@@ -352,7 +352,9 @@ fn rest_of_rule(
     refused: &RefCell<Option<FactsError>>,
 ) -> Result<RuleAfter, OperatingError> {
     let first = *at.first.get(at.rule.0).ok_or(OperatingError::NotRun)?;
-    let captured = session.capture_frontiers(at.rule, first, symbols, capture)?;
+    let captured = session
+        .capture_frontiers(at.rule, first, symbols, capture)?
+        .0;
     if let Some(error) = refused.take() {
         return Ok(RuleAfter::Stopped(FileStop::Facts(error)));
     }

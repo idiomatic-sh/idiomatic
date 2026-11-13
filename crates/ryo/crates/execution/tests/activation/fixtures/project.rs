@@ -49,7 +49,7 @@ pub(crate) fn measure_project(
         ];
     let delivered = std::cell::Cell::new(0);
     for _ in 0..2 {
-        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
         let partials = Partials::default();
         let mut symbols = Symbols::default();
         tracing::dispatcher::with_default(&dispatch, || {

@@ -44,7 +44,7 @@ pub(crate) fn turns(adapter: &impl JobSchedulingPort, count: u32) -> Vec<u32> {
             }
         })
         .collect();
-    adapter.run(jobs);
+    adapter.run(super::super::types::Jobs(jobs));
     turns.into_iter().flatten().collect()
 }
 

@@ -88,16 +88,16 @@ pub(in super::super) fn observations_need_a_named_program() -> Vec<Probe> {
     let engine = engine();
     let corpus = corpus();
     let unnamed = prepared_rules(&engine, 2);
-    let request = ExecutionUseCaseImpl::new().execution(&unnamed, &corpus, None);
-    let mut arenas = Vec::new();
+    let request = ExecutionUseCaseImpl::new().execution(&unnamed, &corpus, None.into());
+    let mut arenas = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas::default();
     let mut probes = vec![probe(
         "the stage of an unnamed program",
         request.observations(&mut arenas).map(|_| ()),
     )];
     request.finish();
     let named = engine.prepare(named_request()).expect("named request");
-    let request = ExecutionUseCaseImpl::new().execution(&named, &corpus, None);
-    let mut arenas = Vec::new();
+    let request = ExecutionUseCaseImpl::new().execution(&named, &corpus, None.into());
+    let mut arenas = ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas::default();
     let ran = request.observations(&mut arenas).map(|stage| {
         stage
             .run_batches(
@@ -174,7 +174,7 @@ pub(in super::super) fn file_session_undeclared_rule() -> Vec<Probe> {
     let engine = engine();
     let program = prepared_rules(&engine, 2);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |_| Err(OperatingError::NotRead);
     let intent = every_intent()

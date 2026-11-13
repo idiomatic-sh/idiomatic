@@ -17,16 +17,14 @@ impl PreparedProgram {
     pub(crate) fn rule_count(&self) -> RuleTotal {
         RuleTotal(self.rules.len())
     }
-    pub(crate) fn rule_order(&self) -> impl Iterator<Item = RuleIndex> + '_ {
-        let order = match &self.schedule {
-            RuleSchedule::Independent => None,
-            RuleSchedule::Dependencies { order, .. } => Some(order.as_slice()),
-        };
-        order
-            .into_iter()
-            .flatten()
-            .copied()
-            .chain((0..if order.is_none() { self.rules.len() } else { 0 }).map(RuleIndex))
+    pub(crate) fn rule_order(
+        &self,
+    ) -> crate::application::file_dag::program::prepared_execution::types::RuleOrder<'_> {
+        use crate::application::file_dag::program::prepared_execution::types::RuleOrder;
+        match &self.schedule {
+            RuleSchedule::Independent => RuleOrder::Independent(0..self.rules.len()),
+            RuleSchedule::Dependencies { order, .. } => RuleOrder::Dependencies(order.iter()),
+        }
     }
     pub(crate) fn demanded_rules(&self, governs: impl Fn(RuleIndex) -> Demand) -> Vec<Demand> {
         let mut demanded: Vec<_> = (0..self.rules.len())

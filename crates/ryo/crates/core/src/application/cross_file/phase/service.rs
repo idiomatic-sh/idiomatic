@@ -149,7 +149,7 @@ impl CrossFile {
             unknown: &unknown.0,
         };
         let memory = ports.memory;
-        if let Some(batches) = run.program.observation_batches() {
+        if let Some(batches) = run.program.observation_batches().0 {
             for each in todo {
                 within(memory.resident_bytes()?, run.budget, || {
                     vec![each.id.clone()]

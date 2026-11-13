@@ -62,11 +62,14 @@ impl ValidateUseCase for ValidateUseCaseImpl {
             .map_err(|error| match error {
                 QueryLanguageError::Refused { error } => ValidateError::Uncompilable { error },
             })?;
-        match kernel_metadata().kind_refusal(
-            &plan,
-            &vocabularies,
-            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl::new(),
-        ) {
+        match kernel_metadata()
+            .kind_refusal(
+                &plan,
+                &vocabularies,
+                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl::new(),
+            )
+            .0
+        {
             Some(message) => Err(ValidateError::UnknownKind {
                 reason: message.message.0.into(),
                 origin: match message.origin {

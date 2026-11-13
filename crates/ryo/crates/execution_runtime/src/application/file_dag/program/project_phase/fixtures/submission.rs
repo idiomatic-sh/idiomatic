@@ -75,7 +75,9 @@ pub(crate) fn submit(
         &prepared, &corpus, None,
     );
     let covered = covered(rule_count);
-    let mut arenas = Vec::new();
+    let mut arenas =
+        crate::application::file_dag::program::request_execution::types::ObservationArenas::default(
+        );
     let held = match entry {
         Entry::Phase => Held::Phase(request.project_phase().expect("the phase opens")),
         Entry::Stage => Held::Stage(request.observations(&mut arenas).expect("the stage opens")),

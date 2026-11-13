@@ -23,8 +23,14 @@ impl ExecutionUseCase for ExecutionUseCaseImpl {
         &self,
         program: &PreparedExecutionProgram,
         corpus: &[CorpusInput],
-        observer: Option<std::sync::Arc<dyn ObserverPort>>,
+        observer: crate::inbound::use_cases::metadata::types::Observing,
     ) -> RequestExecution {
+        let observer = match observer {
+            crate::inbound::use_cases::metadata::types::Observing::Observer(observer) => {
+                Some(observer)
+            }
+            crate::inbound::use_cases::metadata::types::Observing::Unobserved => None,
+        };
         begin(program, corpus, observer)
     }
 }

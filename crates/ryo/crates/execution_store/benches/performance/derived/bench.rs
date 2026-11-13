@@ -59,12 +59,12 @@ fn prepare_build_and_view(bencher: divan::Bencher<'_, '_>, variant: Variant) {
             DerivedRequest::Equality {
                 columns: vec![ColumnIndex(0)],
             },
-            vec![vec![CellKind::Number]],
+            vec![vec![CellKind::Number]].into(),
         );
         prepared.validate().expect("the request is valid");
         let mut room = BuildWorkspace::default();
         let BuildOutcome::Built(payload) = adapter
-            .build(&prepared, BuildInputs::Rows(&rows), &mut room, None)
+            .build(&prepared, BuildInputs::Rows(&rows), &mut room, None.into())
             .expect("the payload is built")
         else {
             panic!("the equality payload is built");

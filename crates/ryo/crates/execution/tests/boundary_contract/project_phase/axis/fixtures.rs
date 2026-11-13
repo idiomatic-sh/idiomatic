@@ -121,7 +121,7 @@ pub(super) fn rows(
             })
         })
         .collect();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let mut arena = vec![];
     let mut places = vec![];
     let mut words = Words::default();

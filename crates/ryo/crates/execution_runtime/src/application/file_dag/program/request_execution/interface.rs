@@ -28,7 +28,7 @@ pub trait ProgramRequestExecutionPort {
     /// phase.
     fn observations<'a>(
         &'a self,
-        arenas: &'a mut Vec<ryo_values::domain::stored_facts::types::ArenaBytes>,
+        arenas: &'a mut crate::application::file_dag::program::request_execution::types::ObservationArenas,
     ) -> Result<ObservationStage<'a>, OperatingError>;
     fn finish(self)
     where

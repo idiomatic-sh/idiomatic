@@ -37,7 +37,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         tree: &languages::Elements,
         source_kind: PythonSourceKind,
         retained: languages::SemanticSlot,
-    ) -> Option<Box<dyn languages::SemanticSession>> {
+    ) -> languages::SemanticSlot {
         // The tree `read` parsed, when it kept one for this file: the session renders from it and parses nothing.
         let parsed = match retained {
             languages::SemanticSlot::Retained(kept) => {
@@ -49,7 +49,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
             }
             languages::SemanticSlot::Empty | languages::SemanticSlot::Begun(_) => None,
         };
-        Some(Box::new(super::semantic::PythonSemanticSession::new(
+        languages::SemanticSlot::Begun(Box::new(super::semantic::PythonSemanticSession::new(
             tree,
             source_kind,
             self.settings,

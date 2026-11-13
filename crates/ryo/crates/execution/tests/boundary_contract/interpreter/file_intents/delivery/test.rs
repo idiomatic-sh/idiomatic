@@ -23,7 +23,7 @@ fn diagnostic_delivery_is_bound_before_admission_and_cannot_switch_after_publica
     let engine = engine();
     let program = prepared(&engine);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let elements = ryo_language::domain::elements::types::Elements::default();
     let table = source();
     for diagnostic in [DiagnosticDelivery::Collected, DiagnosticDelivery::Forwarded] {

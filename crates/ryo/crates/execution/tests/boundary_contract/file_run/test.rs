@@ -6,7 +6,7 @@ fn public_file_run_publishes_once_and_finishes() {
     let engine = engine();
     let program = prepared(&engine);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
     let reads = Cell::new(0);
     let read = |relation| {
@@ -72,7 +72,7 @@ fn public_file_run_refuses_replaced_symbol_population_before_reading() {
     let engine = engine();
     let program = prepared(&engine);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let reads = Cell::new(0);
     let read = |_| {
         reads.set(reads.get() + 1);
@@ -115,7 +115,7 @@ fn public_open_refuses_file_outside_request() {
     let engine = engine();
     let program = prepared(&engine);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let read = |_| Err(OperatingError::NotRead);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
@@ -149,7 +149,7 @@ fn public_file_start_skipped_rule_cannot_be_executed() {
     let engine = engine();
     let program = prepared(&engine);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
     let reads = Cell::new(0);
     let read = |relation| {
@@ -198,7 +198,7 @@ fn public_skip_of_one_shared_rule_preserves_the_other_rules_reader() {
     // digests and logical applicability remain distinct.
     let program = prepared_rules(&engine, 2);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
     let reads = Cell::new(0);
     let read = |relation| {

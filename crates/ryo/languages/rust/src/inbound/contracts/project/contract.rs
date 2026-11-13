@@ -110,7 +110,8 @@ impl ProjectContract {
                 job
             })
             .collect();
-        self.scheduler.run(jobs);
+        self.scheduler
+            .run(crate::outbound::job_scheduling::types::Jobs(jobs));
         answers.into_iter().flatten().collect()
     }
 

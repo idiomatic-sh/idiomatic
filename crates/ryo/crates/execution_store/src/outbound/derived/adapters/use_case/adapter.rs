@@ -30,24 +30,20 @@ impl DerivedUseCaseAdapter {
 }
 
 impl DerivedPort for DerivedUseCaseAdapter {
-    fn prepare(&self, request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
-        PrepareDerivedUseCase::prepare_derived(
-            &*self.use_cases.prepare,
-            request,
-            ryo_derived::domain::contract::types::InputSchemas(schemas),
-        )
+    fn prepare(
+        &self,
+        request: DerivedRequest,
+        schemas: ryo_derived::domain::contract::types::InputSchemas,
+    ) -> PreparedDerived {
+        PrepareDerivedUseCase::prepare_derived(&*self.use_cases.prepare, request, schemas)
     }
     fn build(
         &self,
         prepared: &PreparedDerived,
         inputs: BuildInputs<'_>,
         room: &mut BuildWorkspace,
-        recycled: Option<DerivedPayload>,
+        recycled: ryo_derived::domain::contract::types::Recycled,
     ) -> Result<BuildOutcome, DerivedFault> {
-        let recycled = match recycled {
-            Some(payload) => ryo_derived::domain::contract::types::Recycled::Payload(payload),
-            None => ryo_derived::domain::contract::types::Recycled::Nothing,
-        };
         BuildUseCase::build(&*self.use_cases.build, prepared, inputs, room, recycled)
     }
     fn view<'a>(

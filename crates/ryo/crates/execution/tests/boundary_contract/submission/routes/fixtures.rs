@@ -61,7 +61,7 @@ pub(in super::super) fn file_route() -> Vec<Probe> {
         for intent in every_intent() {
             // The incomplete and extra sets over one request, the complete set over a fresh one.
             for lengths in [&[0, 1, 3][..], &[2]] {
-                let request = ExecutionUseCaseImpl::new().execution(program, &corpus, None);
+                let request = ExecutionUseCaseImpl::new().execution(program, &corpus, None.into());
                 for &length in lengths {
                     answers.insert(probe(
                         format!("{length} intents of one kind for 2 rules"),
@@ -120,7 +120,7 @@ pub(in super::super) fn run_file_route() -> Vec<Probe> {
     let mut answers = BTreeSet::new();
     for program in &programs {
         for intent in every_intent() {
-            let request = ExecutionUseCaseImpl::new().execution(program, &corpus, None);
+            let request = ExecutionUseCaseImpl::new().execution(program, &corpus, None.into());
             for length in [0, 1, 3] {
                 answers.insert(probe(
                     format!("{length} intents of one kind for 2 rules"),

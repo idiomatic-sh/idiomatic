@@ -1,7 +1,8 @@
 //! What a caller may read of a prepared program.
 use crate::application::file_dag::program::preparation::types::RuleTotal;
 use crate::application::file_dag::program::prepared_execution::types::{
-    Demand, NamedLayout, ObservationContract, ReplayClosure,
+    Demand, Demands, FrontierDependencies, ObservationBatches, ObservationContract,
+    ObservationLayout, RelationReads, ReplayClosure, RuleOrder,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -20,10 +21,10 @@ use ryo_values::domain::stored_facts::types::Bucket;
 /// }
 /// ```
 pub trait ProgramPreparedExecutionPort {
-    fn observation_batches(&self) -> Option<&[Vec<RuleIndex>]>;
+    fn observation_batches(&self) -> ObservationBatches<'_>;
     fn rule_count(&self) -> RuleTotal;
-    fn rule_order(&self) -> impl Iterator<Item = RuleIndex> + '_;
-    fn demanded_rules(&self, governs: impl Fn(RuleIndex) -> Demand) -> Vec<Demand>;
+    fn rule_order(&self) -> RuleOrder<'_>;
+    fn demanded_rules(&self, governs: impl Fn(RuleIndex) -> Demand) -> Demands;
     /// The rule's emitted root.
     ///
     /// # Errors
@@ -62,13 +63,13 @@ pub trait ProgramPreparedExecutionPort {
         input: ryo_values::domain::plan_parts::types::InputNumber,
     ) -> Result<FrontierPurpose, OperatingError>;
     fn semantic_needed(&self) -> SemanticNeed;
-    fn observation_layout(&self) -> Option<NamedLayout<'_>>;
+    fn observation_layout(&self) -> ObservationLayout<'_>;
     /// The relations the rule's observations read.
     ///
     /// # Errors
     ///
     /// [`OperatingError::NotRun`] for a rule the program does not hold.
-    fn observation_reads(&self, rule: RuleIndex) -> Result<Vec<RelationRead>, OperatingError>;
+    fn observation_reads(&self, rule: RuleIndex) -> Result<RelationReads, OperatingError>;
     /// Whether the rule declares or binds an observation.
     ///
     /// # Errors
@@ -87,7 +88,7 @@ pub trait ProgramPreparedExecutionPort {
     fn frontier_dependencies(
         &self,
         rule: RuleIndex,
-    ) -> Result<&[Vec<ryo_values::domain::plan_parts::types::ObservationBindingId>], OperatingError>;
+    ) -> Result<FrontierDependencies<'_>, OperatingError>;
 }
 pub trait PreparedReporting {
     fn metadata(&self) -> &[ryo_values::domain::run_metadata::types::RuleRunMetadata];

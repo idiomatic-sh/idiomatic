@@ -35,7 +35,7 @@ fn finish_after(runs: Runs) -> Result<Value, Failure> {
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = fixtures::requests::execution().execution(&program, &corpus, None);
+    let request = fixtures::requests::execution().execution(&program, &corpus, None.into());
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     let read = |_| -> Result<SourceRows<'_>, OperatingError> { Err(OperatingError::NotRead) };

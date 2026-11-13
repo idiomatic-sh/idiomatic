@@ -12,8 +12,8 @@ pub(crate) trait SyntaxPort: Send + Sync {
         _tree: &ryo::languages::Elements,
         _source_kind: PythonSourceKind,
         _retained: ryo::languages::SemanticSlot,
-    ) -> Option<Box<dyn ryo::languages::SemanticSession>> {
-        None
+    ) -> ryo::languages::SemanticSlot {
+        ryo::languages::SemanticSlot::Empty
     }
 
     /// Parse only carriers already classified in a resolved type context, using the existing mapping writer.

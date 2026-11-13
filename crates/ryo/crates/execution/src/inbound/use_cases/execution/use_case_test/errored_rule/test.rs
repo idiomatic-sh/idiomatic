@@ -224,7 +224,7 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = fixtures::requests::execution().execution(&prepared, &corpus, None);
+    let request = fixtures::requests::execution().execution(&prepared, &corpus, None.into());
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     let run = FileRuleIntent::Run {

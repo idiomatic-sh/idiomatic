@@ -21,7 +21,7 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> (Sample, Window) {
     let engine = engine();
     let prepared = prepared(&engine, total);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let mut intents = vec![FileRuleIntent::Undemanded; total];
     for &index in demanded {
         intents[index] = FileRuleIntent::Run {

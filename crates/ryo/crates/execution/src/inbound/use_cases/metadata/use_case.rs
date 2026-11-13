@@ -28,28 +28,32 @@ impl MetadataUseCase for MetadataUseCaseImpl {
         plan: &Plan,
         vocabularies: &KindVocabularies,
         matching: &impl ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
-    ) -> Option<KindRefusal> {
-        ryo_execution_domain::domain::kind_check::service::refusal(
+    ) -> super::types::KindRefusalFound {
+        super::types::KindRefusalFound(ryo_execution_domain::domain::kind_check::service::refusal(
             plan,
             vocabularies,
             ryo_execution_domain::domain::matching::types::PatternMatcher(matching),
-        )
+        ))
     }
-    fn kinds_asked(&self, plan: &Plan, bound: &[ParameterBinding]) -> Vec<AskedKind> {
-        ryo_execution_domain::domain::kind_check::service::kinds_asked(plan, bound)
+    fn kinds_asked(&self, plan: &Plan, bound: &[ParameterBinding]) -> super::types::AskedKinds {
+        super::types::AskedKinds(
+            ryo_execution_domain::domain::kind_check::service::kinds_asked(plan, bound),
+        )
     }
     fn first_unknown(
         &self,
         plans: &[Plan],
-        bindings: &[Vec<ParameterBinding>],
+        bindings: super::types::PlanBindings<'_>,
         vocabularies: &KindVocabularies,
         matching: &impl ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
-    ) -> Option<UnknownKind> {
-        ryo_execution_domain::domain::kind_check::service::first_unknown(
-            plans,
-            bindings,
-            vocabularies,
-            ryo_execution_domain::domain::matching::types::PatternMatcher(matching),
+    ) -> super::types::UnknownKindFound {
+        super::types::UnknownKindFound(
+            ryo_execution_domain::domain::kind_check::service::first_unknown(
+                plans,
+                bindings.0,
+                vocabularies,
+                ryo_execution_domain::domain::matching::types::PatternMatcher(matching),
+            ),
         )
     }
     fn unknown_kind_message(
@@ -74,30 +78,36 @@ impl MetadataUseCase for MetadataUseCaseImpl {
     fn unplace(&self, mask: &mut Mask, rule: RuleNumber) {
         ryo_execution_domain::domain::placement::service::unplace(mask, rule);
     }
-    fn feature_catalog(&self) -> Vec<Feature> {
-        ryo_execution_domain::domain::features::service::catalog()
+    fn feature_catalog(&self) -> super::types::FeatureCatalog {
+        super::types::FeatureCatalog(ryo_execution_domain::domain::features::service::catalog())
     }
     fn work_over(
         &self,
         metadata: &[ryo_values::domain::run_metadata::types::RuleRunMetadata],
-        fed: &[Vec<RowsFed>],
-    ) -> Vec<Vec<StepWork>> {
-        ryo_execution_domain::domain::features::service::work_over(metadata, fed)
+        fed: super::types::FedRows<'_>,
+    ) -> super::types::StepWorks {
+        super::types::StepWorks(ryo_execution_domain::domain::features::service::work_over(
+            metadata, fed.0,
+        ))
     }
     fn fed_over(
         &self,
         metadata: &[ryo_values::domain::run_metadata::types::RuleRunMetadata],
-        fed: &[Vec<RowsFed>],
-    ) -> Vec<FeatureRows> {
-        ryo_execution_domain::domain::features::service::fed_over(metadata, fed)
+        fed: super::types::FedRows<'_>,
+    ) -> super::types::FeatureRowsByRule {
+        super::types::FeatureRowsByRule(ryo_execution_domain::domain::features::service::fed_over(
+            metadata, fed.0,
+        ))
     }
     fn partial_of(
         &self,
         said: &[ReadInPart],
         recovery: Recovery,
         wanted: &[Relation],
-    ) -> Vec<Partial> {
-        ryo_execution_domain::domain::coverage::service::partial_of(said, recovery, wanted)
+    ) -> super::types::PartialReads {
+        super::types::PartialReads(ryo_execution_domain::domain::coverage::service::partial_of(
+            said, recovery, wanted,
+        ))
     }
     fn unknown_message(&self, partial: &Partial, scope: CoverageScope<'_>) -> Message {
         ryo_execution_domain::domain::coverage::service::unknown_message(partial, scope)
@@ -115,8 +125,10 @@ impl MetadataUseCase for MetadataUseCaseImpl {
     fn scoped_needs(&self, plan: &Plan) -> Needs {
         ryo_execution_domain::domain::trust::service::scoped_needs(plan)
     }
-    fn observed_reads(&self, plan: &Plan) -> Vec<RelationRead> {
-        ryo_execution_domain::domain::trust::service::observed_reads(plan)
+    fn observed_reads(&self, plan: &Plan) -> super::types::ObservedReads {
+        super::types::ObservedReads(
+            ryo_execution_domain::domain::trust::service::observed_reads(plan),
+        )
     }
     fn matters(&self, read: &RelationRead, partial: &Partial) -> Bearing {
         ryo_execution_domain::domain::trust::service::matters(read, partial)
@@ -130,8 +142,12 @@ impl MetadataUseCase for MetadataUseCaseImpl {
         named: &[FilePath],
         needs: &[Needs],
         ids: &[RuleId],
-    ) -> Vec<Unknown> {
-        ryo_execution_domain::domain::trust::service::project_unknowns(partials, named, needs, ids)
+    ) -> super::types::ProjectUnknowns {
+        super::types::ProjectUnknowns(
+            ryo_execution_domain::domain::trust::service::project_unknowns(
+                partials, named, needs, ids,
+            ),
+        )
     }
     fn operators(&self) -> &'static [QueryOperator] {
         &ryo_execution_domain::domain::operator::constants::OPERATORS

@@ -78,7 +78,7 @@ impl FileAnalysis {
         symbols: &mut Symbols,
         facts: &mut dyn FactsWorker,
     ) -> Result<Projected, FileAnalysisError> {
-        let mut candidates = self.language.project_entries(input);
+        let mut candidates = self.language.project_entries(input).into_paths();
         candidates.sort_unstable();
         candidates.dedup();
         let observed_entries = ryo_language::domain::project_context::service::observed(
@@ -101,7 +101,9 @@ impl FileAnalysis {
         let said: Vec<ReadInPart> = std::mem::take(&mut writer.partials);
         let mut projected = Projected {
             unknowns: Vec::new(),
-            partials: MetadataUseCaseImpl.partial_of(&said, Recovery::Whole, &[]),
+            partials: MetadataUseCaseImpl
+                .partial_of(&said, Recovery::Whole, &[])
+                .0,
             refused: answer
                 .refused
                 .into_iter()
@@ -208,8 +210,9 @@ impl FileVisits {
             .map(|file| input_path(file).clone())
             .chain(now.unlisted.iter().cloned())
             .collect();
-        now.unknowns =
-            MetadataUseCaseImpl.project_unknowns(&now.partials, &named, run.needs, run.ids);
+        now.unknowns = MetadataUseCaseImpl
+            .project_unknowns(&now.partials, &named, run.needs, run.ids)
+            .0;
         Ok(Ok(now))
     }
 

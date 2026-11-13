@@ -84,7 +84,7 @@ impl Execution {
             Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort>,
         >,
     ) -> RequestExecution {
-        ExecutionUseCaseImpl::new().execution(program, corpus, observer)
+        ExecutionUseCaseImpl::new().execution(program, corpus, observer.into())
     }
 }
 

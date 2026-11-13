@@ -21,3 +21,20 @@ pub struct RequestExecution {
     /// The prepared program's digest port, handed to each publication scope.
     pub(crate) digest: std::sync::Arc<dyn crate::outbound::digest::interface::DigestPort>,
 }
+
+/// The arenas the cross-file observations publish their stored facts into, kept by the caller across requests.
+#[derive(Debug, Default)]
+pub struct ObservationArenas(pub Vec<ryo_values::domain::stored_facts::types::ArenaBytes>);
+
+impl std::ops::Deref for ObservationArenas {
+    type Target = Vec<ryo_values::domain::stored_facts::types::ArenaBytes>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for ObservationArenas {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}

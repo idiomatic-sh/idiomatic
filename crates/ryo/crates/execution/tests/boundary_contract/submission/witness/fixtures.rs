@@ -99,7 +99,7 @@ impl ExecutionUseCase for Witness {
         &self,
         _: &PreparedExecutionProgram,
         _: &[CorpusInput],
-        _: Option<std::sync::Arc<dyn ObserverPort>>,
+        _: ryo_execution::inbound::use_cases::metadata::types::Observing,
     ) -> RequestExecution {
         witness(Method::UseCaseExecution)
     }
@@ -108,7 +108,7 @@ impl ExecutionUseCase for Witness {
 impl ProgramRequestExecutionPort for Witness {
     fn observations<'a>(
         &'a self,
-        _: &'a mut Vec<ArenaBytes>,
+        _: &'a mut ryo_execution_runtime::application::file_dag::program::request_execution::types::ObservationArenas,
     ) -> Result<ObservationStage<'a>, OperatingError> {
         witness(Method::RequestObservations)
     }
@@ -211,7 +211,7 @@ impl ProgramFileSessionPort for Witness {
         _: Bucket,
         _: &mut Symbols,
         _: CaptureContext<'_>,
-    ) -> Result<Vec<FrontierCapture>, OperatingError> {
+    ) -> Result<ryo_execution_runtime::application::file_dag::program::file_session::types::FrontierCaptures, OperatingError>{
         witness(Method::FileCaptureFrontiers)
     }
     fn commit_frontier(&mut self, _: RuleIndex, _: InputNumber) -> Result<(), OperatingError> {

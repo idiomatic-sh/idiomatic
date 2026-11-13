@@ -117,7 +117,8 @@ pub(super) fn admitted_graph_of(
         published
             .iter()
             .map(|publication| Publication::of(publication.clone()))
-            .collect(),
+            .collect::<Vec<_>>()
+            .into(),
     );
     let inputs = originals
         .iter()
@@ -125,5 +126,10 @@ pub(super) fn admitted_graph_of(
         .collect::<Vec<_>>();
     let admitted = WorkspacePort::inputs(&workspace, &inputs);
     DerivedAdmittedViewsPort::prepare_graph(&admitted, contract, &contract.resources, &originals)
-        .map(|graph| graph.is_some())
+        .map(|graph| {
+            matches!(
+                graph,
+                crate::application::file_dag::relations::types::Lookup::Found(_)
+            )
+        })
 }

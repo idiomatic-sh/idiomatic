@@ -231,7 +231,10 @@ pub(super) fn read_through_the_ports(
     } else {
         1
     };
-    WorkspacePort::capture_admitted(workspace, vec![Publication::of(publication.clone()); held]);
+    WorkspacePort::capture_admitted(
+        workspace,
+        vec![Publication::of(publication.clone()); held].into(),
+    );
     if matches!(input, Held::AfterRelease) {
         WorkspacePort::release_inputs(workspace);
     }

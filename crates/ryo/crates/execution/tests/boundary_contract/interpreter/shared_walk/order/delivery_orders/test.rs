@@ -33,7 +33,7 @@ fn frontier_and_callback_share_the_same_atomic_semantic_failure() {
             vec![Input::Step(StepId(0))];
         let program = engine.prepare(authored).unwrap();
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
         let (elements, mut symbols) = tree(FileId(0), b"ab(");
         let intents = [FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Forwarded,
