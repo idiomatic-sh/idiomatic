@@ -3,7 +3,7 @@ use cucumber::then;
 use ryo_benchmark::inbound::use_cases::compare_corpus::{
     fixtures::{Scenario, configured, corpus, syntax, use_case},
     interface::CompareCorpusUseCase as _,
-    types::CorpusParity,
+    types::{AcceptedDifferencesFile, CorpusParity},
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use ryo_benchmark_contracts::domain::reports::types::ContestantName;
@@ -33,7 +33,7 @@ fn compare(configured_rule: bool) -> (Result<(), ReportsError>, Vec<u8>) {
         &CorpusParity {
             request: &corpus.request,
             configured: &configured(),
-            accepted: &corpus.accepted,
+            accepted: AcceptedDifferencesFile::Declared(&corpus.accepted),
             reference: ContestantName("fixture"),
             syntax: &syntax(),
         },

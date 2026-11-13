@@ -221,24 +221,40 @@ fn count(value: usize) -> Result<CountSchema, Error> {
         .map_err(|_too_many| Error::Invalid(constants::EMPTY_METRIC.into()))
 }
 
-/// The parity counts as one BMF document under the reference's name: its differing rules and unaccepted differences.
-pub(super) fn parity_metrics(parity: &ParityReport<'_>) -> Result<Vec<u8>, Error> {
+/// The counts of one parity report under the reference's name: its differing rules and unaccepted differences.
+pub(super) fn parity_counts(parity: &ParityReport<'_>) -> (String, [usize; 2]) {
     let differing = parity
         .rules
         .iter()
         .filter(|rule| !rule.missing.is_empty() || !rule.extra.is_empty())
         .count();
-    let document = BTreeMap::from([(
-        parity.reference.0,
-        BTreeMap::from([
-            (constants::DIFFERING_RULES, count(differing)?),
-            (
-                constants::UNACCEPTED_DIFFERENCES,
-                count(parity.problems.len())?,
-            ),
-        ]),
-    )]);
+    (
+        parity.reference.0.to_owned(),
+        [differing, parity.problems.len()],
+    )
+}
+
+/// Every parity report's counts as one BMF document, each under its reference's name.
+pub(super) fn parity_document(
+    reports: &BTreeMap<String, [usize; 2]>,
+) -> Result<Vec<u8>, Error> {
+    let mut document = BTreeMap::new();
+    for (name, [differing, unaccepted]) in reports {
+        let _previous = document.insert(
+            name.as_str(),
+            BTreeMap::from([
+                (constants::DIFFERING_RULES, count(*differing)?),
+                (constants::UNACCEPTED_DIFFERENCES, count(*unaccepted)?),
+            ]),
+        );
+    }
     serde_json::to_vec(&document).map_err(|error| Error::Json(Box::new(error)))
+}
+
+/// The parity counts of one report as one BMF document under the reference's name.
+#[cfg(test)]
+pub(super) fn parity_metrics(parity: &ParityReport<'_>) -> Result<Vec<u8>, Error> {
+    parity_document(&BTreeMap::from([parity_counts(parity)]))
 }
 
 /// A position as the per-rule document spells an end: `[line, column]`.

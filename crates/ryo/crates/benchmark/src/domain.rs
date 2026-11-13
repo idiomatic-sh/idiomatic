@@ -11,6 +11,7 @@ pub(crate) mod inventory_receipts;
 pub(crate) mod invocation_identity;
 pub mod measurements;
 pub mod observations;
+pub mod operations;
 pub(crate) mod process_failure;
 pub mod process_output;
 pub(crate) mod process_receipts;

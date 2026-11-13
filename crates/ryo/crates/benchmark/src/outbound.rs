@@ -13,5 +13,7 @@ pub mod collection;
 
 pub mod context;
 
+pub mod artifacts;
+
 /// External registration and inventory-result files.
 pub mod inventory;

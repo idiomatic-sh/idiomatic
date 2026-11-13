@@ -1,0 +1,1 @@
+//! The registrar's cases.

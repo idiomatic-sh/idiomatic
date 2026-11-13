@@ -299,6 +299,144 @@ impl TryFrom<CaseText<'_>> for CaseDocument {
     }
 }
 
+/// The canonical text of a case's raw declaration, as a value.
+fn raw(text: &CanonicalJson) -> Result<serde_json::Value, Error> {
+    serde_json::from_str(&text.0).map_err(|error| Error::Json(Box::new(error)))
+}
+
+/// The wire form of a registered case, as the authoring writes it: optional inputs are written only when declared.
+pub(in super::super) fn case_value(case: &CaseDocument) -> Result<serde_json::Value, Error> {
+    let mut written = serde_json::Map::new();
+    let mut put = |key: &str, value: serde_json::Value| {
+        let _previous = written.insert(key.to_owned(), value);
+    };
+    put("rule", case.rule.0.clone().into());
+    put("name", case.name.0.clone().into());
+    put("case_sha256", case.case_sha256.0.clone().into());
+    put("source_sha256", case.source_sha256.0.clone().into());
+    put("files", case.files.iter().map(|file| file.0.clone()).collect());
+    put(
+        "comparison",
+        match case.comparison {
+            CaseComparison::Rule => "rule",
+            CaseComparison::Full => "full",
+        }
+        .into(),
+    );
+    put(
+        "expected",
+        crate::outbound::inventory::adapters::local::discrepancy::schemas::findings_value(
+            &case.expected,
+        ),
+    );
+    put("project_context_mode", mode(case.project_context_mode).into());
+    put(
+        "context_identity",
+        match &case.context_identity {
+            CaseContextIdentity::Isolated => serde_json::Value::Null,
+            CaseContextIdentity::Listed(identity) => serde_json::json!({
+                "mode": mode(identity.mode),
+                "logical_root": identity.logical_root.0,
+                "manifest_hash": identity.manifest_hash.0,
+                "present_paths": identity.present_paths.iter().map(|path| path.0.clone()).collect::<Vec<_>>(),
+                "missing_paths": identity.missing_paths.iter().map(|path| path.0.clone()).collect::<Vec<_>>(),
+            }),
+        },
+    );
+    put(
+        "reference_discrepancy",
+        match &case.reference_discrepancy {
+            CaseReference::Agrees => serde_json::Value::Null,
+            CaseReference::Differs(record) => {
+                crate::outbound::inventory::adapters::local::discrepancy::schemas::discrepancy_value(
+                    record,
+                )
+            }
+        },
+    );
+    if let ExpectationContract::Declared(contract) = case.expectation_contract {
+        put(
+            "expectation_contract",
+            match contract {
+                ComparisonContract::Diagnostics => "diagnostics",
+                ComparisonContract::CompleteReport => "complete-report",
+            }
+            .into(),
+        );
+    }
+    if let RuleContextRecord::Declared(text) = &case.rule_context {
+        put("rule_context", raw(text)?);
+    }
+    if let RuleObservationsRecord::Declared(text) = &case.rule_observations {
+        put("rule_observations", raw(text)?);
+    }
+    if let RuleCohort::Declared(rules) = &case.selected_rules {
+        put("selected_rules", rules.iter().map(|rule| rule.0.clone()).collect());
+    }
+    if case.file_observation == FileObservation::PosixExecutable {
+        put("file_observation", "posix-executable".into());
+    }
+    if let FileMetadata::Declared(files) = &case.file_metadata {
+        put(
+            "file_metadata",
+            files
+                .iter()
+                .map(|(file, executable)| (file.0.clone(), (*executable == FileExecutable::Set).into()))
+                .collect::<serde_json::Map<_, _>>()
+                .into(),
+        );
+    }
+    if let FileMetadataDigest::Declared(digest) = &case.file_metadata_sha256 {
+        put("file_metadata_sha256", digest.0.clone().into());
+    }
+    let declared_scope = !matches!(case.project_search_roots, DeclaredScope::Undeclared);
+    let declared_inventory = !matches!(case.given_project_inventory, ProjectInventory::Undeclared);
+    if declared_scope || declared_inventory {
+        put(
+            "project_search_roots",
+            match &case.project_search_roots {
+                DeclaredScope::Roots(roots) => roots.iter().map(|root| root.0.clone()).collect(),
+                DeclaredScope::Undeclared => serde_json::Value::Null,
+            },
+        );
+        let inventory = match &case.given_project_inventory {
+            ProjectInventory::Declared(inventory) => inventory.clone(),
+            ProjectInventory::Undeclared => ProjectInventoryDocument::default(),
+        };
+        put(
+            "given_project_inventory",
+            serde_json::json!({
+                "completeness": match inventory.completeness {
+                    InventoryCompleteness::Partial => "partial",
+                    InventoryCompleteness::CompleteWithinDeclaredScope => "complete-within-declared-scope",
+                },
+                "entries": inventory.entries.iter().map(|entry| serde_json::json!({
+                    "path": entry.path.0,
+                    "state": match entry.state {
+                        EntryState::Regular => "file",
+                        EntryState::Directory => "directory",
+                        EntryState::Other => "other",
+                        EntryState::Missing => "missing",
+                        EntryState::Unknown => "unknown",
+                    },
+                })).collect::<Vec<_>>(),
+            }),
+        );
+    }
+    if let ProjectInputsDigest::Declared(digest) = &case.project_inputs_sha256 {
+        put("project_inputs_sha256", digest.0.clone().into());
+    }
+    Ok(written.into())
+}
+
+/// The wire spelling of a context mode.
+fn mode(mode: ContextMode) -> &'static str {
+    match mode {
+        ContextMode::Isolated => "isolated",
+        ContextMode::ListedDisk => "listed-disk",
+    }
+}
+
 #[cfg(test)]
 #[path = "schemas_test.rs"]
 mod tests;

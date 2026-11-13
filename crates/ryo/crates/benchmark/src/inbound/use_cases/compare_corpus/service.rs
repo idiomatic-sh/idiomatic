@@ -1,6 +1,6 @@
 //! Both contestants run once through the shared measurement; each configured rule is compared and judged.
 use super::constants::{SELECTION_DIFFERS, UNACCEPTED};
-use super::types::{CorpusParity, ParityBoundaries, SourceTexts};
+use super::types::{AcceptedDifferencesFile, CorpusParity, ParityBoundaries, SourceTexts};
 use crate::application::measurement::{service::run_with, types::Pinning};
 use crate::domain::corpus_discrepancy::types::ObservedDifferences;
 use crate::outbound::suite::types::ArtifactPath;
@@ -26,12 +26,15 @@ pub(super) fn compare_corpus(
         &request.files,
         &request.context_manifest,
     );
-    let accepted = crate::domain::corpus_discrepancy::service::admit_accepted(
-        &boundaries
-            .suite
-            .accepted_differences(ArtifactPath(parity.accepted))?,
-        &corpus,
-    )?;
+    let accepted = match parity.accepted {
+        AcceptedDifferencesFile::Declared(file) => {
+            crate::domain::corpus_discrepancy::service::admit_accepted(
+                &boundaries.suite.accepted_differences(ArtifactPath(file))?,
+                &corpus,
+            )?
+        }
+        AcceptedDifferencesFile::Absent => Default::default(),
+    };
     // Findings do not depend on thread count, so both contestants run at default threads.
     let reference = run_with(
         boundaries.context,

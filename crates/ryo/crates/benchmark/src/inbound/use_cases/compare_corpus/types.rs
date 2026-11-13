@@ -9,13 +9,22 @@ pub struct CorpusParity<'a> {
     pub request: &'a RunRequest,
     /// The rule set the reference's committed profile configures; the request must select exactly these.
     pub configured: &'a [ryo::linter::RuleId],
-    /// The file naming the differences accepted for this corpus.
-    pub accepted: &'a std::path::Path,
+    /// The differences accepted for this corpus.
+    pub accepted: AcceptedDifferencesFile<'a>,
     /// The reference's name in the published evidence.
     pub reference: ContestantName<'a>,
     /// The rule both contestants report for a source their parser rejects; outside the selection, only
     /// its findings may appear, and only where both contestants report them.
     pub syntax: &'a ryo::linter::RuleId,
+}
+
+/// Where the differences accepted for a corpus are written, if anywhere.
+#[derive(Clone, Copy, Debug)]
+pub enum AcceptedDifferencesFile<'a> {
+    /// This file names them.
+    Declared(&'a std::path::Path),
+    /// None is accepted: every difference fails the comparison.
+    Absent,
 }
 
 /// The boundaries one corpus comparison calls, borrowed from the use case.

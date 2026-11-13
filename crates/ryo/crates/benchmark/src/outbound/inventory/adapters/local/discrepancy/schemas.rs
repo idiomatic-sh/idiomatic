@@ -7,8 +7,9 @@ use ryo_benchmark_contracts::domain::documents::types::finding::value::{
     FindingOffset, RecordedFinding,
 };
 use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
-    DiscrepancyIdentity, DiscrepancyRecord, ObservedExecutable,
+    DiscrepancyIdentity, DiscrepancyRecord, ObservedExecutable, ProcessExpectation,
 };
+use ryo_benchmark_contracts::domain::documents::types::text::value::FileMetadataDigest;
 use ryo_benchmark_contracts::domain::documents::types::text::value::{
     PathText, ReasonText, RuleName, Sha256Text,
 };
@@ -257,6 +258,111 @@ impl TryFrom<DiscrepancyText<'_>> for DiscrepancyRecord {
         serde_json::from_str::<DiscrepancySchema>(text.0)
             .map(Self::from)
             .map_err(|error| Error::Json(Box::new(error)))
+    }
+}
+
+/// The wire form of one finding.
+fn finding_value(finding: &RecordedFinding) -> serde_json::Value {
+    serde_json::json!({
+        "rule": finding.rule.0,
+        "file": finding.file.0,
+        "start": finding.span.start.0,
+        "end": finding.span.end.0,
+    })
+}
+
+/// The wire form of every finding, in order.
+pub(in super::super) fn findings_value(rows: &[RecordedFinding]) -> serde_json::Value {
+    serde_json::Value::Array(rows.iter().map(finding_value).collect())
+}
+
+/// The wire form of one output template part.
+fn part_value(part: &OutputPart) -> serde_json::Value {
+    match part {
+        OutputPart::Literal(text) => serde_json::json!({"kind": "literal", "value": text.0}),
+        OutputPart::InputPath { file, encoding } => serde_json::json!({
+            "kind": "input-path",
+            "file": file,
+            "encoding": match encoding {
+                PathEncoding::Utf8Bytes => "utf8-bytes",
+                PathEncoding::JsonStringContent => "json-string-content",
+            },
+        }),
+    }
+}
+
+/// The wire form of one raw process artifact.
+fn artifact_value(artifact: &ProcessArtifact) -> serde_json::Value {
+    serde_json::json!({"path": artifact.path, "sha256": artifact.sha256.0})
+}
+
+/// The wire form of an explicit process failure.
+fn process_value(process: &ProcessFailure) -> serde_json::Value {
+    serde_json::json!({
+        "kind": "process-failure",
+        "exit": process.exit.0,
+        "stdout": process.stdout.iter().map(part_value).collect::<Vec<_>>(),
+        "stderr": process.stderr.iter().map(part_value).collect::<Vec<_>>(),
+        "observations": process.observations.iter().map(|observation| serde_json::json!({
+            "executable-sha256": observation.executable_sha256.0,
+            "invocation": artifact_value(&observation.invocation),
+            "stdout": artifact_value(&observation.stdout),
+            "stderr": artifact_value(&observation.stderr),
+        })).collect::<Vec<_>>(),
+    })
+}
+
+/// The wire form of a documented difference, as the authoring writes it: a process failure carries no basis and
+/// no reference findings.
+pub(in super::super) fn discrepancy_value(record: &DiscrepancyRecord) -> serde_json::Value {
+    let identity = &record.identity;
+    let mut written = serde_json::json!({
+        "tool": identity.tool.0,
+        "version": identity.version.0,
+        "profile-sha256": identity.profile.0,
+        "settings-sha256": identity.settings.0,
+        "source-sha256": identity.source.0,
+        "reference-output-sha256": identity.reference_output.0,
+        "intended-output-sha256": identity.intended_output.0,
+    });
+    if let (ObservedExecutable::Observed(digest), Some(fields)) =
+        (&identity.observed_executable_sha256, written.as_object_mut())
+    {
+        let _previous = fields.insert("observed-executable-sha256".into(), digest.0.clone().into());
+    }
+    if let (FileMetadataDigest::Declared(digest), Some(fields)) =
+        (&identity.file_metadata, written.as_object_mut())
+    {
+        let _previous = fields.insert("file-metadata-sha256".into(), digest.0.clone().into());
+    }
+    let approved = record
+        .approved_executable_sha256
+        .iter()
+        .map(|digest| digest.0.clone())
+        .collect::<Vec<_>>();
+    match &record.process {
+        ProcessExpectation::Failure(process) => serde_json::json!({
+            "identity": written,
+            "approved_executable_sha256": approved,
+            "reference_expected": null,
+            "intended_expected": findings_value(&record.intended_expected),
+            "reason": record.reason.0,
+            "process": process_value(process),
+        }),
+        ProcessExpectation::Absent => serde_json::json!({
+            "basis": match record.basis {
+                DiscrepancyBasis::LanguageDefect => "language-defect",
+                DiscrepancyBasis::ToolContract => "tool-contract-difference",
+            },
+            "identity": written,
+            "approved_executable_sha256": approved,
+            "reference_expected": match &record.reference_expected {
+                ExpectedFindings::Derived(rows) => findings_value(rows),
+                ExpectedFindings::Underivable => serde_json::Value::Null,
+            },
+            "intended_expected": findings_value(&record.intended_expected),
+            "reason": record.reason.0,
+        }),
     }
 }
 

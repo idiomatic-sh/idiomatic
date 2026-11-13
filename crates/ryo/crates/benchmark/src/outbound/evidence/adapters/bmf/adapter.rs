@@ -55,7 +55,16 @@ impl EvidencePort for EvidenceBmfAdapter {
         &self,
         parity: &ryo_benchmark_contracts::domain::reports::types::ParityReport<'_>,
     ) -> Result<(), Error> {
-        let metrics = schemas::parity_metrics(parity)?;
+        let metrics = {
+            let mut reports = self
+                .connection
+                .parity
+                .lock()
+                .map_err(|_poisoned| Error::Invalid(constants::POISONED.into()))?;
+            let (name, counts) = schemas::parity_counts(parity);
+            let _previous = reports.insert(name, counts);
+            schemas::parity_document(&reports)?
+        };
         let rules = schemas::parity_rules(parity)?;
         let mut output = self
             .connection
