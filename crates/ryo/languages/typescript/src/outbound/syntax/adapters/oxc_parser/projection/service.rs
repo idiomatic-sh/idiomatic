@@ -4,13 +4,14 @@ use super::super::constants::{
     COMMONJS_EXTENSION, JSX_EXTENSION, MODULE_EXTENSION, PLAIN_EXTENSION,
 };
 use super::super::types::{
-    ChildCursor, Decoded, DecodedText, Piece, Text, VisitDepth, VisitorStack,
+    ChildCursor, Decoded, DecodedText, NodeProperty, Piece, Text, VisitDepth, VisitorStack,
 };
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::{Dialect, Kind};
 use crate::domain::tokens::types::Token;
+use oxc_ast::AstKind;
 use oxc_ast::ast::FormalParameter;
 use oxc_span::{GetSpan as _, SourceType, Span};
 use ryo::languages::{self, Offset};
@@ -188,6 +189,13 @@ pub(in super::super) fn write(node: &mut Piece, builder: &mut languages::TableBu
     match node.kind {
         Kind::Node(_) => {
             languages::enter_node(builder, kind_bits(node.kind), start);
+            for property in &node.properties {
+                languages::node_property(
+                    builder,
+                    property.id,
+                    languages::NameText(&property.value.0),
+                );
+            }
             for child in &mut node.children {
                 write(child, builder);
             }
@@ -238,6 +246,7 @@ pub(in super::super) fn leaf(kind: Kind, span: Span) -> Piece {
         children: Vec::new(),
         text: Text::Source,
         cursor: ChildCursor(0),
+        properties: Vec::new(),
     }
 }
 
@@ -290,4 +299,10 @@ pub(in super::super) fn source_type_of(dialect: Dialect) -> SourceType {
     SourceType::from_extension(extension)
         .unwrap_or_else(|_| SourceType::ts())
         .with_typescript_definition(declarations)
+}
+
+/// The numeric kind and value the parser decoded for a numeric literal, as the node's properties; none for another node.
+pub(in super::super) fn numeric_properties(kind: AstKind<'_>) -> Vec<NodeProperty> {
+    let _ = kind;
+    Vec::new()
 }

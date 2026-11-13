@@ -319,9 +319,19 @@ pub use ryo_language::inbound::use_cases::project::types::Refused;
 pub use ryo_language::domain::builders::service::{
     enter_implied_node, node_property, node_property_fmt,
 };
+pub use ryo_language::domain::decoded::constants::FLOAT_TEXT_BYTES;
+pub use ryo_language::domain::decoded::service::binary64_text;
 pub use ryo_language::domain::decoded::service::property_at;
+pub use ryo_language::domain::decoded::types::{FloatBits, FloatBuffer};
 pub use ryo_language::domain::elements::service::source_order;
 pub use ryo_language::domain::elements::types::SourceOrder;
+pub use ryo_language::domain::keys::service::{
+    clear_keys, intern_key, key_class_at, push_key_word,
+};
+pub use ryo_language::domain::keys::types::{
+    BucketLink, KeyDigest, KeyRecord, KeyRecordIndex, KeyState, KeyWordIndex, RetainedKeyIndex,
+    ShapeWord, WordRange,
+};
 pub use ryo_relations::domain::relations::constants::{IMPLIED, NO_SPAN};
 pub use ryo_relations::domain::relations::service::location;
 pub use ryo_relations::domain::relations::types::PropertyId;

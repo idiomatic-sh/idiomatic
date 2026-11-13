@@ -1,5 +1,6 @@
 //! The edges of the standard syntax tree, in source order.
 
+use crate::domain::model::types::ReadIndexes;
 use crate::domain::syntax::service::parent;
 use ryo::languages;
 
@@ -7,7 +8,7 @@ use ryo::languages;
 pub(crate) struct SyntaxChildItem;
 
 ryo::reads! {
-    SyntaxChildItem => languages::SyntaxChild |tree, at, _symbols| {
+    SyntaxChildItem => languages::SyntaxChild, model(ReadIndexes) |tree, _model, at, _symbols| {
         kinds: every,
         require (parent(tree, at) != at);
         row {

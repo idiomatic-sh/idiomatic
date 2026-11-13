@@ -10,6 +10,7 @@ pub mod diagnostics;
 pub mod elements;
 pub mod expansions;
 pub mod files;
+pub mod keys;
 pub mod kind_index;
 pub mod location;
 pub mod names;

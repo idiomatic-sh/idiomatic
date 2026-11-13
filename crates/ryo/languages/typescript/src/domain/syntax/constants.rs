@@ -22,3 +22,11 @@ pub(crate) const UNSPECIFIED_CODE: &str = "unspecified";
 
 /// The configuration identity of a parse that takes no configuration.
 pub(crate) const NO_CONFIGURATION: &str = "";
+
+/// The numeric kind the parser gives a numeric literal: [`FLOAT_NUMBER`] for a Number, [`INTEGER_NUMBER`] for a BigInt.
+pub(crate) const NUMERIC_KIND: ryo::languages::PropertyId = ryo::languages::PropertyId(1);
+/// The value the parser decoded for a numeric literal: a Number's one binary64 spelling, a BigInt's base-10 digits.
+pub(crate) const NUMERIC_VALUE: ryo::languages::PropertyId = ryo::languages::PropertyId(2);
+
+/// An expression whose children could not all be read has no class a query could compare.
+pub(crate) const SHAPES_INCOMPLETE: &str = "expression shapes require a complete syntax tree";

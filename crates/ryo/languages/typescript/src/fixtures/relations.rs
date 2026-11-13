@@ -70,6 +70,14 @@ mod static_import {
 mod string_literal {
     include!("../../tests/fixtures/relations/string_literal/expected.rs");
 }
+/// The rows the `numeric-literal` relation must give for its fixture.
+mod numeric_literal {
+    include!("../../tests/fixtures/relations/numeric_literal/expected.rs");
+}
+/// The rows the `expression-shape` relation must give for its fixture.
+mod expression_shape {
+    include!("../../tests/fixtures/relations/expression_shape/expected.rs");
+}
 /// The rows the `syntax-child` relation must give for its fixture.
 mod syntax_child {
     include!("../../tests/fixtures/relations/syntax_child/expected.rs");
@@ -99,6 +107,8 @@ pub(super) fn expected() -> Vec<Expected> {
         source_location::expected(),
         comment::expected(),
         string_literal::expected(),
+        numeric_literal::expected(),
+        expression_shape::expected(),
         directive::expected(),
         function::expected(),
         scope::expected(),

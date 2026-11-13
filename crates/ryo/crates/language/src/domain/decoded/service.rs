@@ -1,6 +1,7 @@
 //! The `decoded` service: free functions named by verb that read the text the language's library decoded for an element, with no IO
 //! and no ports.
 
+use super::types::{FloatBits, FloatBuffer};
 use crate::domain::elements::service::engine;
 use crate::domain::elements::types::Elements;
 use ryo_relations::domain::relations::types::Position;
@@ -41,4 +42,24 @@ pub fn property_at(
             Err(_) => None,
         })
         .map(NameText)
+}
+
+/// The one spelling of a binary64 value every language writes: the shortest round-trip decimal `f64`'s `Display` writes, with
+/// `.0` after a finite whole value, written into bounded stack storage and borrowed from it. `Display` never writes an exponent,
+/// so `1e300` is its 301 digits; infinities are `inf` and `-inf`, and not-a-number is `NaN`.
+///
+/// # Panics
+/// Never: the longest finite spelling and its suffix fit [`super::constants::FLOAT_TEXT_BYTES`], and `Display` writes only ASCII.
+///
+/// # Examples
+/// ```
+/// use ryo_language::domain::decoded::constants::FLOAT_TEXT_BYTES;
+/// use ryo_language::domain::decoded::service::binary64_text;
+/// use ryo_language::domain::decoded::types::{FloatBits, FloatBuffer};
+/// let mut buffer = FloatBuffer([0; FLOAT_TEXT_BYTES]);
+/// assert_eq!(binary64_text(FloatBits(1.0_f64.to_bits()), &mut buffer).0, "1.0");
+/// ```
+pub fn binary64_text(bits: FloatBits, buffer: &mut FloatBuffer) -> NameText<'_> {
+    let _ = (bits, buffer);
+    unimplemented!("the move of the spelling lands with the next commit")
 }

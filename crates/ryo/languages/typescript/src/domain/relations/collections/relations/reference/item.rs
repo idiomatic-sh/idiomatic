@@ -1,4 +1,5 @@
 //! TypeScript reference rows.
+use crate::domain::model::types::ReadIndexes;
 use crate::domain::names::service as names;
 use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service as scopes;
@@ -7,7 +8,7 @@ use ryo::languages;
 
 /// Reads the `reference` rows of one TypeScript file from its syntax tree.
 pub(crate) struct ReferenceItem;
-ryo::reads! { ReferenceItem => languages::Reference |tree,at,symbols| {
+ryo::reads! { ReferenceItem => languages::Reference, model(ReadIndexes) |tree,_model,at,symbols| {
  kinds: [Kind::Node(Node::Identifier),Kind::Node(Node::MemberExpression),Kind::Node(Node::TSQualifiedName)] as kind_bits,
  require names::referenced(tree,at) == crate::domain::names::types::Reference::Use;
  row { occurrence: node(at),owner: value(scopes::owner(tree,at)),target: value(names::target(tree,symbols,at)),file: file,span: span(at) }
