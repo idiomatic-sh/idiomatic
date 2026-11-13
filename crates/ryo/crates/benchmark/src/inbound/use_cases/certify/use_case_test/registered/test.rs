@@ -35,6 +35,8 @@ enum Scenario {
     SelectedUnnarrowed,
     /// A diagnostic run selects rule A from a copy of the registered profile.
     SelectedElsewhere,
+    /// A diagnostic run selects rules A and C, and C is not registered.
+    SelectedUnregistered,
 }
 
 type Input = Scenario;
@@ -134,14 +136,28 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             crate::application::registered_certification::constants::SELECTED_SOURCE_DIFFERS_FROM_AUTHORITY,
         )),
     },
+    Case {
+        name: CaseName("selected refuses a rule the registration does not hold"),
+        word: Word::Refuses,
+        input: || Scenario::SelectedUnregistered,
+        expect: Expect::Error(Cow::Borrowed(
+            crate::application::registered_certification::constants::SELECTED_RULES_DIFFER_FROM_MEASURED,
+        )),
+    },
 ];
 
 /// The number of cases a certificate of rule A alone holds.
 fn selected_subset() -> Result<Value, Failure> {
     let f = Fixture::new();
     let measured = narrowed(&f, &["A"]);
-    let certificate = selected(&f, &measured, BenchmarkCoverage::Interim, &f.profile)
-        .map_err(|error| failed(&error))?;
+    let certificate = selected(
+        &f,
+        &measured,
+        BenchmarkCoverage::Interim,
+        &f.profile,
+        &["A"],
+    )
+    .map_err(|error| failed(&error))?;
     Ok(certificate.cases().0)
 }
 
@@ -150,18 +166,30 @@ fn selected_accounted() -> Result<Value, Failure> {
     let f = Fixture::new();
     let measured = narrowed(&f, &["A"]);
     let reason = crate::inbound::use_cases::certify::constants::SELECTED_COVERAGE_REQUIRES_INTERIM;
-    selected(&f, &measured, BenchmarkCoverage::Accounted, &f.profile)
-        .map(|_| 0)
-        .map_err(|error| refusal(&f, &error, reason, 0))
+    selected(
+        &f,
+        &measured,
+        BenchmarkCoverage::Accounted,
+        &f.profile,
+        &["A"],
+    )
+    .map(|_| 0)
+    .map_err(|error| refusal(&f, &error, reason, 0))
 }
 
 /// Selecting rule A while the measured profile holds A and B refuses before any case runs.
 fn selected_unnarrowed() -> Result<Value, Failure> {
     let f = Fixture::new();
     let reason = crate::application::registered_certification::constants::SELECTED_RULES_DIFFER_FROM_MEASURED;
-    selected(&f, &f.profile, BenchmarkCoverage::Interim, &f.profile)
-        .map(|_| 0)
-        .map_err(|error| refusal(&f, &error, reason, 0))
+    selected(
+        &f,
+        &f.profile,
+        BenchmarkCoverage::Interim,
+        &f.profile,
+        &["A"],
+    )
+    .map(|_| 0)
+    .map_err(|error| refusal(&f, &error, reason, 0))
 }
 
 /// A source with the registered bytes at another path is not the registered authority.
@@ -171,9 +199,31 @@ fn selected_elsewhere() -> Result<Value, Failure> {
     let elsewhere = f._root.path().join("elsewhere");
     copy_measured_profile(&f, &elsewhere);
     let reason = crate::application::registered_certification::constants::SELECTED_SOURCE_DIFFERS_FROM_AUTHORITY;
-    selected(&f, &measured, BenchmarkCoverage::Interim, &elsewhere)
-        .map(|_| 0)
-        .map_err(|error| refusal(&f, &error, reason, 0))
+    selected(
+        &f,
+        &measured,
+        BenchmarkCoverage::Interim,
+        &elsewhere,
+        &["A"],
+    )
+    .map(|_| 0)
+    .map_err(|error| refusal(&f, &error, reason, 0))
+}
+
+/// Selecting a rule the measured profile declares but the registration lacks refuses before any case runs.
+fn selected_unregistered() -> Result<Value, Failure> {
+    let f = Fixture::new();
+    let measured = narrowed(&f, &["A", "C"]);
+    let reason = crate::application::registered_certification::constants::SELECTED_RULES_DIFFER_FROM_MEASURED;
+    selected(
+        &f,
+        &measured,
+        BenchmarkCoverage::Interim,
+        &f.profile,
+        &["A", "C"],
+    )
+    .map(|_| 0)
+    .map_err(|error| refusal(&f, &error, reason, 0))
 }
 
 fn executes() -> Result<Value, Failure> {
@@ -211,6 +261,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::SelectedAccounted => selected_accounted(),
         Scenario::SelectedUnnarrowed => selected_unnarrowed(),
         Scenario::SelectedElsewhere => selected_elsewhere(),
+        Scenario::SelectedUnregistered => selected_unregistered(),
     }
 }
 

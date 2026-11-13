@@ -384,7 +384,7 @@ pub(crate) fn expected_report(
 }
 
 /// The items whose registered rule the coverage proves: every item under Full, only the selected rules' items otherwise.
-pub fn covered<'a, T>(
+pub(crate) fn covered<'a, T>(
     coverage: &'a RegisteredCoverage,
     items: &'a [T],
     rule: fn(&T) -> &RuleName,

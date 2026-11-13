@@ -363,14 +363,9 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn narrowed(
     let destination = fixture._root.path().join("narrowed");
     copy_measured_profile(fixture, &destination);
     let manifest = std::fs::read_to_string(destination.join("benchmark.toml")).unwrap();
-    let defaults = rules
-        .iter()
-        .map(|rule| format!("'{rule}'"))
-        .collect::<Vec<_>>()
-        .join(",");
     write(
         &destination.join("benchmark.toml"),
-        &manifest.replace("defaults=['A','B']", &format!("defaults=[{defaults}]")),
+        &manifest.replace("defaults=['A','B']", &format!("defaults={rules:?}")),
     );
     for rule in ["A", "B"] {
         if !rules.contains(&rule) {
@@ -380,12 +375,13 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn narrowed(
     destination
 }
 
-/// Certify the `measured` profile under `scope` with rule A selected from `source`, while registered rule B fails.
+/// Certify the `measured` profile under `scope` with `rules` selected from `source`, while registered rule B fails.
 pub(in crate::inbound::use_cases::certify::use_case_test) fn selected(
     f: &Fixture,
     measured: &Path,
     scope: BenchmarkCoverage,
     source: &Path,
+    rules: &[&str],
 ) -> Result<crate::domain::suite::types::certificate::value::Certificate, ReportsError> {
     *f.execution.failing.lock().unwrap() = Some("B");
     f.certify_as(
@@ -393,7 +389,10 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn selected(
         &measured.join("rules"),
         scope,
         RegisteredCoverage::Selected {
-            rules: vec![ryo::linter::RuleId::try_from("A").unwrap()],
+            rules: rules
+                .iter()
+                .map(|rule| ryo::linter::RuleId::try_from(*rule).unwrap())
+                .collect(),
             source: source.to_owned(),
         },
     )
