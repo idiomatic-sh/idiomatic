@@ -6,7 +6,7 @@
 # product under crates/ is a workspace of its own, with its own tastemaker.toml (and so is each of Tastemaker's samples), and
 # tastemaker/ is the packages this workspace depends on; neither is the root's to place. It depends on idiomatic.benchmarks, the rules kept only for benchmarks and placed on
 # no product, so validating here proves them.
-tastemaker = "0.1.0"
+tastemaker = "0.1.3"
 workspace = { name = "idiomatic", dependencies = [
   { package = "idiomatic.arch", path = "tastemaker" },
   { package = "idiomatic.benchmarks", path = "tastemaker/benchmarks" },
