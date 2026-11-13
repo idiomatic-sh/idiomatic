@@ -1,0 +1,36 @@
+[package]
+name = "idiomatic-sh-ryo-evaluation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+# A spike: the candidate fused, lazy evaluator, measured beside the interpreter on its branch and never published.
+publish = false
+description = "Fused, lazy evaluation of compiled Ryo plans: one walk over the parser's tree for every rule, facts built on demand through one port"
+autobenches = false
+autotests = false
+
+[lib]
+name = "ryo_evaluation"
+
+[dependencies]
+
+[dev-dependencies]
+ryo_execution = { package = "idiomatic-sh-ryo-execution", path = "../execution", features = ["fixtures"] }
+ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../execution_runtime", features = ["fixtures"] }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values" }
+ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language" }
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", features = ["fixtures"] }
+ryo_python = { package = "idiomatic-sh-ryo-python", path = "../../languages/python", features = ["fixtures"] }
+
+[[test]]
+name = "parity"
+path = "tests/parity/main.rs"
+
+[features]
+# Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
+fixtures = []
+
+[lints]
+workspace = true

@@ -1403,6 +1403,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "idiomatic-sh-ryo-evaluation"
+version = "0.1.4"
+dependencies = [
+ "idiomatic-sh-ryo-execution",
+ "idiomatic-sh-ryo-execution-runtime",
+ "idiomatic-sh-ryo-python",
+ "idiomatic-sh-ryo-query_language",
+ "idiomatic-sh-ryo-sdk",
+ "idiomatic-sh-ryo-values",
+]
+
+[[package]]
 name = "idiomatic-sh-ryo-execution"
 version = "0.1.4"
 dependencies = [
