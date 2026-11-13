@@ -58,19 +58,19 @@ def test_rust_memory_guard_retains_actual_output_and_exit(tmp_path, status):
     assert "if: always() && steps.speed_check.outcome != 'skipped'" in workflow
 
 
+def test_ci_tests_runs_the_workspace_templates_pytest_line():
+    data = tomllib.loads((ROOT / "asymptote.toml").read_text())
+    command = next(item for item in data["tools"] if item["id"] == "ci-tests")["run"]
+    assert command == ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.",
+                       "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
+
+
 @pytest.mark.parametrize("status", [0, 101])
-@pytest.mark.parametrize("identity", ["ci-tests", "test-bdd"])
-def test_failed_tool_stdout_is_retained_without_changing_the_command(tmp_path, identity, status):
-    if identity == "ci-tests":
-        data = tomllib.loads((ROOT / "asymptote.toml").read_text())
-        expected = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.",
-                    "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
-        output = tmp_path / "target/checks/ci-tests"
-    else:
-        data = tomllib.loads((ROOT / "crates/ryo/asymptote.toml").read_text())
-        expected = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "bdd"]
-        output = tmp_path / "target/checks/bdd"
-    command = next(item for item in data["tools"] if item["id"] == identity)["run"]
+def test_failed_tool_stdout_is_retained_without_changing_the_command(tmp_path, status):
+    data = tomllib.loads((ROOT / "crates/ryo/asymptote.toml").read_text())
+    expected = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "bdd"]
+    output = tmp_path / "target/checks/bdd"
+    command = next(item for item in data["tools"] if item["id"] == "test-bdd")["run"]
     fake = f'{expected[0]}() {{ printf "%s\\0" "$@" > child-arguments; printf "underlying failed scenario\\n"; printf "child stderr\\n" >&2; return {status}; }}; '
     result = subprocess.run([*command[:2], fake + command[2]], cwd=tmp_path, capture_output=True, text=True)
     assert result.returncode == status
