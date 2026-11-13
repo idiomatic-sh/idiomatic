@@ -1,5 +1,9 @@
 # benchmark-linter
 
+## 0.2.3
+
+Every linter bench gets the harness's heap and CPU profile run with no line of its own: `bench.rs` is the verbatim `bench-entry` template (its `mod` lines rendered from the bench's optional `frontend_projection.rs`, `host.rs` and `host_policy.rs`), a new verbatim `composition-profile` template places `composition/profile.rs`, which wires the harness's `profile` use case at the bench's edge, and `composition.rs` (template `composition-root`) declares `pub(crate) mod profile;`. The Ruff-only Python profile driver's placements (`profile_ryo.py`, `worker_profile_contract.py`, `test_worker_profile_contract.py`) are removed. Everything else is as in 0.2.2.
+
 ## 0.2.2
 
 Places `Cargo.toml`, the linter's own unpublished package: its `bench.rs` and `tests.rs` targets move out of the language provider's manifest, so the provider's published package carries no linter rule set or harness. Nothing else changes.
