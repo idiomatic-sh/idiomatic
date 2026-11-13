@@ -88,8 +88,6 @@ pub(super) const SOURCE_SHA256: &str =
     ryo_benchmark_contracts::domain::receipts::constants::SOURCE_SHA256;
 /// Text of the prior worker control v1 in this part.
 pub(super) const PRIOR_WORKER_CONTROL_V1: &str = "prior-worker-control/v1";
-/// Text of the worker sha256 in this part.
-pub(super) const WORKER_SHA256: &str = "worker_sha256";
 /// Text of the control source sha256 in this part.
 pub(super) const CONTROL_SOURCE_SHA256: &str = "control_source_sha256";
 /// Text of the control query sha256 in this part.

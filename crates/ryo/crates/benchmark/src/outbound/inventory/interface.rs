@@ -1,14 +1,18 @@
 //! What the `inventory` port asks of the outside, in the core's own vocabulary: plain data in and out,
 //! and the handles (traits this file declares) it hands back. It never takes an adapter's
 //! configuration (a directory, a budget, a client): the port's factory takes that.
+use super::types::CaseDocuments;
 use super::types::ContextFiles;
+use super::types::ProfileProjection;
 use super::types::RawArtifacts;
 use super::types::ReceiptFile;
 use super::types::Registration;
 use super::types::Row;
+use super::types::RuleInstanceRecord;
 use super::types::Summary;
 use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
+use ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -75,4 +79,31 @@ pub trait InventoryPort {
     /// # Errors
     /// Refuses an audit the document encoding cannot represent.
     fn audit_report(&self, audit: &ReceiptAudit) -> Result<CapturedBytes, Error>;
+    /// Write a registration where `load` reads it.
+    ///
+    /// # Errors
+    /// Refuses a registration the document cannot represent, and filesystem failures.
+    fn store(&self, path: &Path, registration: &Registration) -> Result<(), Error>;
+    /// Stage the settings profile at `source` for one rule at `destination`: its bytes when the projection
+    /// leaves it unchanged, else the projected profile.
+    ///
+    /// # Errors
+    /// Refuses an unreadable or malformed profile and an unwritable destination.
+    fn stage_profile(
+        &self,
+        source: &Path,
+        destination: &Path,
+        projection: &ProfileProjection,
+    ) -> Result<(), Error>;
+    /// Derive the registered case of every case a staged profile authors, validating each documented difference
+    /// against the staged evidence.
+    ///
+    /// # Errors
+    /// Refuses malformed cases, duplicate identities, an empty inventory and stale or unsafe discrepancy evidence.
+    fn case_inventory(&self, stage: &Path) -> Result<CaseDocuments, Error>;
+    /// Encode a rule's source identity, with the effective settings of its staged profile.
+    ///
+    /// # Errors
+    /// Refuses an unreadable staged profile and settings outside the reviewed execution keys.
+    fn instance(&self, record: &RuleInstanceRecord) -> Result<CanonicalJson, Error>;
 }

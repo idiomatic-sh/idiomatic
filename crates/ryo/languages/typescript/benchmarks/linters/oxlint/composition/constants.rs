@@ -46,14 +46,20 @@ pub(crate) const AUDIT: &str = "audit";
 pub(crate) const VERIFY_TOOL: &str = "verify-tool";
 /// The command comparing the configured rules over a staged request, rule by rule.
 pub(crate) const PARITY: &str = "parity";
-/// Refusal of a parity command line that is not its five paths.
-pub(crate) const PARITY_ARGUMENTS: &str = "expected parity <oxlint> <ryo-worker> <staged-request> <accepted-differences> <per-rule-output>";
-/// Name prefix of the scratch directory both parity contestants keep their state in.
-pub(crate) const PARITY_SCRATCH: &str = "parity-";
+/// Refusal of a parity command line that is not its two paths.
+pub(crate) const PARITY_ARGUMENTS: &str = "expected parity <oxlint> <output>";
+/// The state directory of one project's parity, below its output.
+pub(crate) const PARITY_STATE: &str = "state";
+/// One project's per-rule parity document, below its output.
+pub(crate) const PER_RULE: &str = "per-rule.json";
+/// Where a project's accepted differences are, relative to this bench.
+pub(crate) const EVIDENCE_DIRECTORY: &str = "profiles/evidence";
+/// The suffix of a project's accepted-differences file, after the project's name.
+pub(crate) const ACCEPTED_SUFFIX: &str = "-accepted-differences.json";
 /// Required argument or refusal for expected executable.
 pub(crate) const EXPECTED_EXECUTABLE: &str = "expected executable path";
 /// CLI usage shown when command dispatch fails.
-pub(crate) const USAGE: &str = "usage: oxlint benchmark: audit | verify-tool <executable> | verify-cases <oxlint> [profile] | verify-reference-cases <oxlint> [profile] | measure <oxlint> <fresh-cache> <collector> | parity <oxlint> <ryo-worker> <staged-request> <accepted-differences> <per-rule-output> | run-ryo (<json>|--request-file <path>) | profile-ryo (<json>|--request-file <path>) <dir> | diagnostic-ryo (<json>|--request-file <path>) <events.jsonl>";
+pub(crate) const USAGE: &str = "usage: oxlint benchmark: audit | verify-tool <executable> | verify-cases <oxlint> [profile] | verify-reference-cases <oxlint> [profile] | measure <oxlint> <fresh-cache> <collector> | parity <oxlint> <output> | run-ryo (<json>|--request-file <path>) | profile-ryo (<json>|--request-file <path>) <dir> | diagnostic-ryo (<json>|--request-file <path>) <events.jsonl>";
 /// This benchmark package's root, where its rules and fragments are.
 pub(crate) const MANIFEST_DIRECTORY: &str = env!("CARGO_MANIFEST_DIR");
 /// Text `unsupported worker command`.

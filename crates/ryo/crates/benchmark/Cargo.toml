@@ -27,6 +27,7 @@ tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["json"] }
 tracing-chrome.workspace = true
 tempfile.workspace = true
+cargo_metadata.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 wait4.workspace = true

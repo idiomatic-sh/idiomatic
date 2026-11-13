@@ -1,7 +1,7 @@
 //! What the `compare_corpus` use case promises, against the fakes of the ports it calls, from its fixtures.
 use super::fixtures::{Outside, Scenario, configured, corpus, syntax, use_case_with};
 use super::interface::CompareCorpusUseCase as _;
-use super::types::CorpusParity;
+use super::types::{AcceptedDifferencesFile, Corpus, CorpusParity};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::reports::types::ContestantName;
 
@@ -117,9 +117,11 @@ fn subject((scenario, outside): Input) -> Result<Value, Failure> {
     let mut observations = Vec::new();
     let result = use_case_with(outside).compare_corpus(
         &CorpusParity {
-            request: &corpus.request,
+            corpus: Corpus::Request {
+                request: &corpus.request,
+                accepted: AcceptedDifferencesFile::Declared(&corpus.accepted),
+            },
             configured: &configured(),
-            accepted: &corpus.accepted,
             reference: ContestantName("fixture"),
             syntax: &syntax(),
         },

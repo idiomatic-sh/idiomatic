@@ -9,7 +9,6 @@ REPOSITORY = RUFF_DIR.parents[6]
 PROFILE_DIR = RUFF_DIR / 'profiles'
 DISCREPANCY_SOURCE_ROOTS = {
     'UP031': RUFF_DIR,
-    'F821': PROFILE_DIR / 'F821-stub-annotation-context',
 }
 MANIFEST = Path(os.environ.get('RYO_RUFF_PREPARED_MANIFEST', PROFILE_DIR / 'prepared.json'))
 SHAPE_PROFILE = 'shape-110'

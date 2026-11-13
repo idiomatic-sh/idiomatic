@@ -2,8 +2,6 @@
 use super::constants;
 use ryo_benchmark_contracts::domain::context::types::ContextManifest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use sha2::{Digest as _, Sha256};
-use std::ffi::OsStr;
 use std::path::{Component, Path, PathBuf};
 
 /// Whether a validated path names the logical root or a member beneath it.
@@ -123,11 +121,4 @@ pub(super) fn no_symlinks(boundary: &Path, relative: &Path) -> Result<(), Error>
         }
     }
     Ok(())
-}
-
-/// Hash one length-framed field without delimiter ambiguity.
-pub(super) fn frame(hash: &mut Sha256, field: &OsStr) {
-    let bytes = field.as_encoded_bytes();
-    hash.update(u64::try_from(bytes.len()).unwrap_or(u64::MAX).to_le_bytes());
-    hash.update(bytes);
 }

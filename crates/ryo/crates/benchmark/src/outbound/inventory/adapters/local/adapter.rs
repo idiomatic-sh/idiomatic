@@ -3,11 +3,13 @@ use super::constants;
 use super::types::{AuditJson, InvocationBytes, RegistrationBytes, RowJson, SummaryJson};
 use crate::outbound::inventory::interface::InventoryPort;
 use crate::outbound::inventory::types::{
-    ContextFiles, RawArtifacts, ReceiptFile, Registration, Row, Summary,
+    CaseDocuments, ContextFiles, ProfileProjection, RawArtifacts, ReceiptFile, Registration, Row,
+    RuleInstanceRecord, Summary,
 };
 use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
 use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::ArtifactPointer;
+use ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::receipts::constants::{
     CASES_JSONL, INVOCATION_JSON, STDERR_BIN, STDOUT_BIN,
@@ -260,5 +262,32 @@ impl InventoryPort for InventoryLocalAdapter {
     }
     fn audit_report(&self, audit: &ReceiptAudit) -> Result<CapturedBytes, Error> {
         AuditJson::try_from(audit).map(|json| json.0)
+    }
+    fn store(&self, path: &Path, registration: &Registration) -> Result<(), Error> {
+        Ok(std::fs::write(
+            path,
+            super::registration::schemas::registration_bytes(registration)?,
+        )?)
+    }
+    fn stage_profile(
+        &self,
+        source: &Path,
+        destination: &Path,
+        projection: &ProfileProjection,
+    ) -> Result<(), Error> {
+        let bytes = std::fs::read(source)?;
+        let text =
+            std::str::from_utf8(&bytes).map_err(|error| Error::Invalid(error.to_string()))?;
+        match super::profile::schemas::projected(text, projection)? {
+            Some(projected) => std::fs::write(destination, projected)?,
+            None => std::fs::write(destination, &bytes)?,
+        }
+        Ok(())
+    }
+    fn case_inventory(&self, stage: &Path) -> Result<CaseDocuments, Error> {
+        super::authored::schemas::case_inventory(stage)
+    }
+    fn instance(&self, record: &RuleInstanceRecord) -> Result<CanonicalJson, Error> {
+        super::instance::schemas::instance(record)
     }
 }

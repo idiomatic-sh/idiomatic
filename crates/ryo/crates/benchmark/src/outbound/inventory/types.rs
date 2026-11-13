@@ -3,9 +3,10 @@ use ryo_benchmark_contracts::domain::documents::types::case_document::value::Cas
 use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
 use ryo_benchmark_contracts::domain::documents::types::text::value::{
-    CanonicalJson, ReasonText, RuleName, Sha256Text,
+    CanonicalJson, PathText, ReasonText, RuleName, Sha256Text,
 };
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use ryo_benchmark_contracts::domain::requests::types::ParserSelection;
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -244,4 +245,59 @@ pub struct RawArtifacts {
     pub bytes: BTreeMap<PathBuf, CapturedBytes>,
     /// The raw invocation record of every captured process, keyed like its artifact.
     pub invocations: BTreeMap<PathBuf, InvocationDocument>,
+}
+
+/// Every registered case of a staged profile, in rule and name order.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CaseDocuments(pub Vec<CaseDocument>);
+
+/// The applicability of one rule, as a profile writes it (`always` or `accepted-syntax`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ApplicabilityText(pub String);
+
+/// What a settings profile becomes when it is staged for one registered rule: every other key is kept,
+/// `deferred` and `pending` are dropped.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProfileProjection {
+    /// The one rule the staged profile selects.
+    pub defaults: Vec<RuleName>,
+    /// The rules whose definitions the selected rule reads; written only when there are any.
+    pub supporting_rules: Vec<RuleName>,
+    /// The parser configuration both contestants share.
+    pub parser_configuration: ParserSelection,
+    /// The query modules the staged definitions import, by logical name; written only when there are any.
+    pub query_modules: BTreeMap<RegisteredModuleName, PathBuf>,
+    /// The applicability of the selected and supporting rules; written only when there are any.
+    pub rule_applicability: BTreeMap<RuleName, ApplicabilityText>,
+}
+
+/// The source identity of one registered rule, encoded as its registration's `instance`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuleInstanceRecord {
+    /// The staged profile directory, whose profile the effective settings are read from.
+    pub stage: PathBuf,
+    /// The registered rule.
+    pub rule: RuleName,
+    /// The rule's definition, relative to its bench.
+    pub query_file: PathText,
+    /// The digest of the definition.
+    pub query_sha256: Sha256Text,
+    /// The rule's cases, relative to its bench.
+    pub cases_file: PathText,
+    /// The digest of the cases.
+    pub cases_sha256: Sha256Text,
+    /// How many cases the staged profile registers.
+    pub case_count: CaseCount,
+    /// The settings profile, relative to the repository.
+    pub settings_source: PathText,
+    /// The digest of the settings profile.
+    pub settings_source_sha256: Sha256Text,
+    /// The parser configuration of the staged profile.
+    pub parser_configuration: ParserSelection,
+    /// Where the discrepancy evidence was staged from, relative to the repository.
+    pub evidence_source_root: PathText,
+    /// The digest of the staged profile.
+    pub profile_sha256: Sha256Text,
+    /// The digest of each staged query module, by logical name.
+    pub module_sha256: BTreeMap<RegisteredModuleName, Sha256Text>,
 }

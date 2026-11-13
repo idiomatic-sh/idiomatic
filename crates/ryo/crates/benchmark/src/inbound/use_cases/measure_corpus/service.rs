@@ -1,4 +1,3 @@
-// ignore: idiomatic.arch/file-length - one corpus workflow read top to bottom: the cohort guard, the project loop, one project's ordered trials and the requests they send share CorpusBoundaries and CorpusMeasurement, and no placed role splits them
 //! Every project is measured in both orders and compared cold, retained and edited.
 use super::constants::{
     CANDIDATE_EDITED, CANDIDATE_FIRST, CANDIDATE_RETAINED, CLEAN_EDITED_DIRECTORY,
@@ -11,20 +10,19 @@ use super::types::{
 };
 use crate::application::certified_measurement::service::{admit, conclude, pair, require_covered};
 use crate::application::measurement::service::run as execute;
+use crate::application::project_request::types::ProjectCorpus;
 use crate::domain::measurements::types::{pair::value::Pair, sample::value::BenchmarkSample};
 use crate::outbound::linter::interface::LinterPort;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet, ArtifactText};
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::measurements::types::{
     Measurement, ResourceObservation, RunOrder, SampleName,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use ryo_benchmark_contracts::domain::requests::types::{
-    BenchmarkCoverage, CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration,
-    RunRequest, StagedSources,
+    BenchmarkCoverage, CohortSelection, RunRequest,
 };
-use ryo_benchmark_contracts::domain::workloads::types::{ConfigurationOverride, Project};
+use ryo_benchmark_contracts::domain::workloads::types::Project;
 use std::path::{Path, PathBuf};
 
 /// Refuse a cohort outside the certificate, measure every project of the corpus, then publish the samples of an accounted run or say that a diagnostic one is not a metric.
@@ -204,16 +202,14 @@ fn measure_project(
         boundaries
             .workspace
             .apply_patch(&mut workspace, &corpus.frozen_workload.join(&project.patch))?;
-        let edited_request = RunRequest {
-            context_manifest: seal_context(
-                boundaries,
-                corpus.context_mode,
-                workspace.root(),
-                &files,
-                &tracked_paths,
-            )?,
-            ..initial.clone()
-        };
+        let edited_request = request(
+            boundaries,
+            corpus,
+            workspace.root(),
+            &files,
+            &tracked_paths,
+            initial.state.clone(),
+        )?;
         let clean_request = RunRequest {
             state: trial.join(CLEAN_EDITED_DIRECTORY),
             ..edited_request.clone()
@@ -316,7 +312,7 @@ fn measured(
     )
 }
 
-/// One run of the corpus project over its explicit files, with its own state directory.
+/// One run of the corpus project over its explicit files, built by the one project request builder.
 fn request(
     boundaries: &CorpusBoundaries<'_>,
     corpus: &CorpusMeasurement<'_>,
@@ -325,44 +321,19 @@ fn request(
     tracked: &[PathBuf],
     state: PathBuf,
 ) -> Result<RunRequest, Error> {
-    Ok(RunRequest {
-        performance: Default::default(),
-        selected_rules: corpus.cohort.clone(),
-        rule_observations: InputDeclaration::Undeclared,
-        rule_context: crate::domain::rule_context::service::resolve(
-            corpus.rule_context,
-            &ConfigurationOverride::Inherited,
-        )?,
-        project_search_roots: corpus.search_roots.clone(),
-        given_project_inventory: Default::default(),
-        staged_sources: StagedSources::Unlisted,
-        file_metadata: FileMetadataDeclaration::Undeclared,
-        context_manifest: seal_context(boundaries, corpus.context_mode, root, files, tracked)?,
-        root: root.to_owned(),
-        files: files.to_vec(),
+    crate::application::project_request::service::request(
+        boundaries.context,
+        &ProjectCorpus {
+            cohort: corpus.cohort,
+            rule_context: corpus.rule_context,
+            search_roots: corpus.search_roots,
+            context_mode: corpus.context_mode,
+        },
+        root,
+        files,
+        tracked,
         state,
-    })
-}
-
-/// Select the declared generic corpus mode and delegate all observation to the context boundary.
-fn seal_context(
-    boundaries: &CorpusBoundaries<'_>,
-    mode: ProjectContextMode,
-    root: &Path,
-    files: &[ryo::linter::RelativePath],
-    tracked: &[PathBuf],
-) -> Result<ContextSeal, Error> {
-    match mode {
-        ProjectContextMode::Isolated => Ok(ContextSeal::Unsealed),
-        ProjectContextMode::ListedDisk => boundaries
-            .context
-            .seal_existing(
-                root,
-                files,
-                crate::outbound::context::types::CorpusFiles(tracked),
-            )
-            .map(ContextSeal::Sealed),
-    }
+    )
 }
 
 /// Count the findings of each rule, duplicates included.

@@ -1,5 +1,6 @@
 //! Only this boundary knows the BMF field and metric names.
 use super::constants;
+use super::types::{ParityCount, ParityCounts, ReportName};
 use crate::outbound::evidence::types::measured_publication::value::MeasuredPublication;
 use ryo_benchmark_contracts::domain::measurements::types::PublicationSample;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -221,23 +222,39 @@ fn count(value: usize) -> Result<CountSchema, Error> {
         .map_err(|_too_many| Error::Invalid(constants::EMPTY_METRIC.into()))
 }
 
-/// The parity counts as one BMF document under the reference's name: its differing rules and unaccepted differences.
-pub(super) fn parity_metrics(parity: &ParityReport<'_>) -> Result<Vec<u8>, Error> {
+/// The counts of one parity report under the reference's name: its differing rules and unaccepted differences.
+pub(super) fn parity_counts(parity: &ParityReport<'_>) -> (ReportName, ParityCounts) {
     let differing = parity
         .rules
         .iter()
         .filter(|rule| !rule.missing.is_empty() || !rule.extra.is_empty())
         .count();
-    let document = BTreeMap::from([(
-        parity.reference.0,
-        BTreeMap::from([
-            (constants::DIFFERING_RULES, count(differing)?),
-            (
-                constants::UNACCEPTED_DIFFERENCES,
-                count(parity.problems.len())?,
-            ),
-        ]),
-    )]);
+    (
+        ReportName(parity.reference.0.to_owned()),
+        ParityCounts {
+            differing: ParityCount(differing),
+            unaccepted: ParityCount(parity.problems.len()),
+        },
+    )
+}
+
+/// Every parity report's counts as one BMF document, each under its reference's name.
+pub(super) fn parity_document(
+    reports: &BTreeMap<ReportName, ParityCounts>,
+) -> Result<Vec<u8>, Error> {
+    let mut document = BTreeMap::new();
+    for (name, counts) in reports {
+        let _previous = document.insert(
+            name.0.as_str(),
+            BTreeMap::from([
+                (constants::DIFFERING_RULES, count(counts.differing.0)?),
+                (
+                    constants::UNACCEPTED_DIFFERENCES,
+                    count(counts.unaccepted.0)?,
+                ),
+            ]),
+        );
+    }
     serde_json::to_vec(&document).map_err(|error| Error::Json(Box::new(error)))
 }
 

@@ -6,6 +6,7 @@ pub mod compare;
 pub mod compare_corpus;
 pub mod measure;
 pub mod measure_corpus;
+pub mod operate;
 pub mod profile;
 pub mod run_ryo;
 

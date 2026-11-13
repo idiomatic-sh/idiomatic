@@ -198,8 +198,8 @@ inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "c
 [[tools]]
 id = "correctness-python-ruff-candidates"
 group = "ruff-candidates"
-# This job checks authoring guards and optimized Python release behavior. The dedicated
-# ruff-all-defaults CI job owns strict 413-rule verification and its receipts.
+# This job checks authoring guards and optimized Python release behavior.
+# The bench-correctness CI job (tool bench-correctness) owns strict all-default verification and its receipts.
 run = ["python3", "-c", "import os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\nself_test = subprocess.run([sys.executable, str(helper), '--self-test'])\nif self_test.returncode:\n    sys.exit(self_test.returncode)\nrelease_tests = [\n    ['cargo', 'test', '--release', '--locked', '-p', 'idiomatic-sh-ryo-python', '--lib', 'boolean_parser_payload_is_written_in_optimized_builds'],\n]\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\nfor command in release_tests:\n    result = subprocess.run(command, env=environment)\n    if result.returncode:\n        sys.exit(result.returncode)\nsys.exit(0)"]
 timeout-seconds = 3600
 inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
@@ -232,26 +232,31 @@ timeout-seconds = 7200
 inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
-id = "performance-python-ruff"
-group = "perf"
-# Complete default disposition accounting and case certification precede every run.
-# Both contestants select the complete immutable configured inventory (all413 Ruff defaults). Missing
-# tools, mismatched pins and unassessed defaults are failures, never skipped work.
-run = ["bash", "-o", "pipefail", "-c", "set -euo pipefail\nmkdir -p target/benchmark/python\ncargo build --locked --release -p idiomatic-sh-ryo-benchmark --bin ryo-benchmark-collector --message-format=json > target/benchmark/python/collector-build.jsonl\npython3 ../../ci/scripts/checks/seal_cargo_artifact.py target/benchmark/python/collector-build.jsonl ryo-benchmark-collector bin /crates/benchmark/src/main.rs false target/benchmark/python/collector\ncargo bench --no-run --locked -p idiomatic-sh-ryo-python-ruff-benchmark --bench ruff --message-format=json > target/benchmark/python/worker-build.jsonl\npython3 ../../ci/scripts/checks/seal_cargo_artifact.py target/benchmark/python/worker-build.jsonl ruff bench /languages/python/benchmarks/linters/ruff/bench.rs true target/benchmark/python/worker\nproof=\"$(mktemp -d target/benchmark/python/cases.XXXXXX)\"\n# Source preparation requires a fresh destination; the shared Rust runner owns execution.\nrmdir \"$proof\"\npython3 languages/python/benchmarks/linters/ruff/verify_profiles.py \"$(command -v ruff)\" --full-inventory --prepare-inventory --worker \"$PWD/target/benchmark/python/worker\" --output-dir \"$PWD/$proof\"\n{ target/benchmark/python/worker measure-valid \"$(command -v ruff)\" target/benchmark/python/state \"$PWD/target/benchmark/python/collector\" \"--case-inventory=$PWD/$proof/registration.json\" 2>&1 1>&3 | tee target/benchmark/python/observations.log >&2; } 3>&1 | tee target/benchmark/python/measurements.json"]
-output = "bmf"
-timeout-seconds = 14400
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
+id = "bench-correctness"
+group = "bench-correctness"
+# Every default of each linter bench, verified against its registered cases by the shared runner: the collector builds and
+# seals the bench's worker, registers every default and writes target/benchmark/<lang>/<linter>/verify-inventory/. One Linux
+# runner runs this group (the bench-correctness job), never the check matrix.
+run = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "verify-inventory", "languages/{lang}/benchmarks/linters/{linter}"]
+timeout-seconds = 21600
+inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", "Cargo.toml", "Cargo.lock", "crates", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
-id = "performance-python-ruff-parity"
+id = "bench-measure"
 group = "perf"
-# Every rule the committed Ruff profile configures (benchmark.toml defaults, all 413) runs in ryo and in the pinned Ruff over the whole
-# Django corpus, compared finding by finding through the shared benchmark runner; a request selecting any other rule set is refused.
-# The corpus stays outside the repository: its pinned run-ryo request is placed (or linked) at
-# target/benchmark/python/django/cold-request.json, and the digest languages/python/benchmarks/linters/ruff/profiles/evidence/django-413-accepted-differences.json
-# names ties the run to it. The measures are the rules that differ and the differences that file does not accept; target/benchmark/python/parity/per-rule.json
-# holds each rule's row.
-run = ["bash", "-o", "pipefail", "-c", "set -euo pipefail\nout=target/benchmark/python/parity\nrm -rf \"$out\"\nmkdir -p \"$out\"\ncargo bench --no-run --locked -p idiomatic-sh-ryo-python-ruff-benchmark --bench ruff --message-format=json > \"$out/worker-build.jsonl\"\npython3 ../../ci/scripts/checks/seal_cargo_artifact.py \"$out/worker-build.jsonl\" ruff bench /languages/python/benchmarks/linters/ruff/bench.rs true \"$out/worker\" >&2\npython3 languages/python/benchmarks/linters/ruff/verify_profiles.py --stage-request target/benchmark/python/django/cold-request.json --output-dir \"$PWD/$out/stage\" >&2\n\"$out/worker\" parity \"$(command -v ruff)\" \"$PWD/$out/worker\" \"$PWD/$out/stage/request.json\" languages/python/benchmarks/linters/ruff/profiles/evidence/django-413-accepted-differences.json \"$out/per-rule.json\""]
+# Each linter bench's certified measure over every project of its language: the collector seals the worker and itself,
+# registers every default, and runs the worker's measure-valid; run it on a quiet Linux machine.
+run = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "measure-valid", "languages/{lang}/benchmarks/linters/{linter}"]
+output = "bmf"
+timeout-seconds = 14400
+inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", "Cargo.toml", "Cargo.lock", "crates", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "bench-parity"
+group = "perf"
+# Each linter bench's rule-by-rule parity with its pinned reference over every project of its language; a project's
+# accepted differences are profiles/evidence/<project>-accepted-differences.json of the bench, none when it is absent.
+run = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "parity", "languages/{lang}/benchmarks/linters/{linter}"]
 output = "bmf"
 timeout-seconds = 7200
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", "Cargo.toml", "Cargo.lock", "crates", "../../rust-toolchain.toml", "../../.cargo"]
