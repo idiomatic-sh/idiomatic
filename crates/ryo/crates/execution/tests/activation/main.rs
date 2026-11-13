@@ -189,6 +189,12 @@ const IDLE: Sample = Sample {
     bytes: 0,
 };
 const OPENED: Window = Window::opened(0);
+/// A file measurement whose demanded rule ran on past its activation: each of its two runs read one provider, which the facts
+/// refused, so the run stopped there.
+const RAN: Window = Window {
+    provider_reads: 2,
+    ..Window::opened(0)
+};
 const fn windows(windows: &'static [Window]) -> Cow<'static, [Window]> {
     Cow::Borrowed(windows)
 }
@@ -197,7 +203,7 @@ const CASES: &[Case<Input, Value, OperatingError>] = &[
         name: CaseName("same_131_rule_sparse_intent_reads_only_its_required_metadata"),
         word: Word::Succeeds,
         input: || Input::Sparse,
-        expect: Expect::Value((windows(&[OPENED]), Answer::Work([1; 3]))),
+        expect: Expect::Value((windows(&[RAN]), Answer::Work([1; 3]))),
     },
     Case {
         name: CaseName(
@@ -214,7 +220,7 @@ const CASES: &[Case<Input, Value, OperatingError>] = &[
         word: Word::Succeeds,
         input: || Input::Selector,
         expect: Expect::Value((
-            windows(&[OPENED, OPENED]),
+            windows(&[RAN, RAN]),
             Answer::Selector {
                 work: [1; 3],
                 graph_hits: 0,
@@ -228,7 +234,7 @@ const CASES: &[Case<Input, Value, OperatingError>] = &[
         word: Word::Succeeds,
         input: || Input::Graph,
         expect: Expect::Value((
-            windows(&[OPENED, OPENED]),
+            windows(&[RAN, RAN]),
             Answer::Tail {
                 work: [1, 3, 1],
                 graph_hits: 1,
@@ -243,7 +249,7 @@ const CASES: &[Case<Input, Value, OperatingError>] = &[
         word: Word::Succeeds,
         input: || Input::Mixed,
         expect: Expect::Value((
-            windows(&[OPENED, OPENED]),
+            windows(&[RAN, RAN]),
             Answer::Tail {
                 work: [3, 5, 2],
                 graph_hits: 1,
@@ -258,7 +264,7 @@ const CASES: &[Case<Input, Value, OperatingError>] = &[
         word: Word::Succeeds,
         input: || Input::TailSelectors,
         expect: Expect::Value((
-            windows(&[OPENED, OPENED]),
+            windows(&[RAN, RAN]),
             Answer::Tail {
                 work: [2; 3],
                 graph_hits: 0,
@@ -275,7 +281,7 @@ const CASES: &[Case<Input, Value, OperatingError>] = &[
         word: Word::Succeeds,
         input: || Input::Dense,
         expect: Expect::Value((
-            windows(&[OPENED, OPENED]),
+            windows(&[RAN, RAN]),
             Answer::Dense {
                 work: [131, 261, 2],
                 grows: true,

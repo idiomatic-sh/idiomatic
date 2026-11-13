@@ -1,6 +1,6 @@
 //! Observation capture and diagnostic delivery are bound before admission.
 use crate::boundary_fixture::fixtures::{corpus, demand, engine, prepared, source};
-use crate::file_intents::fixtures::input;
+use crate::interpreter::fixtures::input;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;

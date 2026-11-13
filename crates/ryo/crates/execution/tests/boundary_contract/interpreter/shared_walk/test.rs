@@ -1,7 +1,8 @@
 //! The `shared_walk` cases.
 use crate::boundary_fixture::fixtures::{corpus, demand};
+use crate::interpreter::shared_walk::fixtures::no_catalog;
 use crate::interpreter::shared_walk::fixtures::walked;
-use crate::shared_walk::fixtures::no_catalog;
+use crate::interpreter::shared_walk::fixtures::{complete, failed, input};
 use crate::shared_walk::fixtures::*;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
@@ -93,7 +94,7 @@ fn skipping_all_demanded_rules_does_not_start_the_walk() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
-    let mut file = request
+    let file = request
         .open_file(
             input(
                 FileId(0),

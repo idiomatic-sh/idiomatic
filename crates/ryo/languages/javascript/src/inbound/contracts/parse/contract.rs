@@ -5,11 +5,10 @@
 use std::sync::Arc;
 
 use ryo::languages::{
-    self, AbsenceCause, ByteSlice, Completion, CompletionRequirement, Count, Elements,
-    EmbeddedExpression, FormatSpecification, InterpolatedStringLiteral, KindNames,
-    LiteralExpressionParse, NoteRequest, OptionalCapability, Parse, ParseConfigurationIdentity,
-    ParseError, ParseRequest, Position, Reader, Recognition, SemanticSlot, SkippedDirectory,
-    Support, TableBuilder, Tree, UnknownName,
+    self, AbsenceCause, ByteSlice, Completion, CompletionRequirement, Count, Elements, KindNames,
+    NoteRequest, OptionalCapability, Parse, ParseConfigurationIdentity, ParseError, ParseRequest,
+    Position, Reader, Recognition, SemanticSlot, SkippedDirectory, Support, TableBuilder, Tree,
+    UnknownName,
 };
 
 use crate::domain::language::service::{reading_of, reads, recognized};
@@ -266,122 +265,12 @@ impl Parse for ParseContract {
         languages::reads::<CallArgumentItem>()
     }
 
-    fn embedded_expression(&self) -> Support<Reader<EmbeddedExpression, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, ()>> {
         languages::native_semantic_syntax()
     }
 
     fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, ()>> {
         languages::native_semantic_child()
-    }
-
-    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_parse(&self) -> Support<Reader<languages::FormatParse, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_field(&self) -> Support<Reader<languages::FormatField, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn literal_expression_parse(&self) -> Support<Reader<LiteralExpressionParse, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_specification(&self) -> Support<Reader<FormatSpecification, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn interpolated_string_literal(&self) -> Support<Reader<InterpolatedStringLiteral, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, ()>> {
-        // This provider does not expose a parser target version.
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_read(&self) -> Support<Reader<languages::BindingRead, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_use(&self) -> Support<Reader<languages::BindingUse, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn identifier(&self) -> Support<Reader<languages::Identifier, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, ()>> {
-        // Qualified source identities are applicable, but this provider has not implemented their reader.
-        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn resolves(&self) -> Support<Reader<languages::Resolves, ()>> {
@@ -391,10 +280,5 @@ impl Parse for ParseContract {
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
         languages::reads::<StaticImportItem>()
-    }
-
-    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
-        // JavaScript module imports exist; a versioned host-library catalog is not read.
-        languages::absent(AbsenceCause::NotYetRead)
     }
 }

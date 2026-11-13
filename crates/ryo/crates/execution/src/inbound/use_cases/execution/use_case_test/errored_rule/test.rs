@@ -8,10 +8,6 @@ use crate::outbound::query_language::{
     errors::QueryLanguageError, fixtures::fake::QueryLanguageFake, interface::QueryLanguagePort,
 };
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort as _;
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::{
     service::kinds,
@@ -208,16 +204,9 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(
         .collect::<Result<Vec<_>, _>>()
         .expect("both written rules bind their parameters");
     // An errored rule does not refuse the request: it is refused on its own roots.
-    let (engine, prepared) = fixtures::requests::prepared_many(plans, bindings, vec![])?;
+    let (_engine, prepared) = fixtures::requests::prepared_many(plans, bindings, vec![])?;
     let population = sources();
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "the fake serves the one relation both rules read; every other relation is not read"
-    )]
-    let read = |relation| match relation {
-        Relation::Function => Ok(SourceRows::Computed(&population)),
-        _ => Err(OperatingError::NotRead),
-    };
+    let facts = fixtures::TableFacts::new(&[(Relation::Function, &population)]);
     let corpus = [CorpusInput::Available(CorpusEntry {
         path: ryo_language::domain::files::types::FilePath("errored-rule.py".into()),
         executable: ExecutablePermission::Unknown,
@@ -230,47 +219,32 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(
     let run = FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
         observations: ObservationDemand::NotRequired,
-        capture: CaptureIntent::Disabled,
+        capture: CaptureIntent::DiagnosticAndObservations,
     };
     let intents = [run, run];
-    let mut file = request
-        .open_file(
-            FileInput {
-                language: SourceLanguage::Recognized,
-                resident_stability: ResidentStability::Stable,
-                file: FileId(0),
-                evaluation: &[],
-                publication: &[],
-                intents: &intents,
-                source: ryo_values::domain::files::types::SourceView(b""),
-                elements: &elements,
-                read: &read,
-                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
-            },
-            &mut symbols,
-        )?;
-    let demand = || RuleDemand {
-        emit: EmitDemand::Enabled,
-        observations: ObservationDemand::NotRequired,
-    };
-    let sibling = file.rule(RuleIndex(0), demand(), &mut symbols)?;
-    let sound = if let RootOutcome::Complete(rows) = sibling.emit {
-        Some(rows.count.0)
-    } else {
-        None
-    };
-    let errored = file
-        .rule(RuleIndex(1), demand(), &mut symbols)
-        .map_or_else(Some, |answer| {
-            if let RootOutcome::Failed(error) = answer.emit {
-                Some(error)
-            } else {
-                None
-            }
-        });
-    file.finish()?;
+    let rules = fixtures::requests::run_file(
+        &request,
+        fixtures::requests::RunFile {
+            source: b"",
+            elements: &elements,
+            intents: &intents,
+            semantic: None,
+        },
+        &mut symbols,
+        &facts,
+    )
+    .rules;
     request.finish();
+    let mut ran = rules.into_iter();
+    let sound = match ran.next().map(|rule| rule.emit) {
+        Some(EmittedRoot::Delivered(RootOutcome::Complete(rows))) => Some(rows.count.0),
+        _ => None,
+    };
+    let errored = ran.next().and_then(|rule| match (rule.emit, rule.after) {
+        (EmittedRoot::Delivered(RootOutcome::Failed(error)), _) => Some(error),
+        (_, RuleAfter::Stopped(stop)) => Some(fixtures::facts::operating(stop)),
+        _ => None,
+    });
     Ok(Siblings { sound, errored })
 }
 const CASES: &[Case<Input, Value, Failure>] = &[

@@ -1,10 +1,9 @@
-//! Every operation executes through the real prepare/open_file/collect-or-deliver protocol.
+//! Every operation executes through the real prepare and the one per-file route, collected or forwarded.
 use super::super::super::fixtures as owner_fixtures;
 use super::fixtures::{ObservedDelivery, Settlement, deliver};
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::SemanticLookup;
 use ryo_execution_domain::domain::operator::service::prepare_operator;
-use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::*;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 use ryo_language::domain::symbols::types::Symbols;
@@ -33,9 +32,8 @@ pub(crate) fn compare_delivery(
     bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
     source: &[u8],
     symbols: &mut Symbols,
-    stop: Option<usize>,
 ) -> Result<ObservedDelivery, OperatingError> {
-    compare_delivery_with_semantic(operation, inputs, bindings, source, symbols, stop, None)
+    compare_delivery_with_semantic(operation, inputs, bindings, source, symbols, None)
 }
 pub(crate) fn compare_delivery_with_semantic(
     operation: &Operation,
@@ -43,7 +41,6 @@ pub(crate) fn compare_delivery_with_semantic(
     bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
     source: &[u8],
     symbols: &mut Symbols,
-    stop: Option<usize>,
     semantic: Option<&dyn SemanticLookup>,
 ) -> Result<ObservedDelivery, OperatingError> {
     compare_delivery_with_port(
@@ -52,7 +49,6 @@ pub(crate) fn compare_delivery_with_semantic(
         bindings,
         source,
         symbols,
-        stop,
         semantic,
         Arc::new(owner_fixtures::operators()),
     )
@@ -65,15 +61,12 @@ pub(crate) fn compare_delivery_with_port(
     bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
     source: &[u8],
     symbols: &mut Symbols,
-    stop: Option<usize>,
     semantic: Option<&dyn SemanticLookup>,
     port: Arc<dyn OperatorsPort>,
 ) -> Result<ObservedDelivery, OperatingError> {
     let schema = schema(operation, inputs, bindings);
     let authored = author(operation, inputs, bindings, symbols);
-    deliver(
-        authored, schema, bindings, source, symbols, stop, semantic, port,
-    )
+    deliver(authored, schema, bindings, source, symbols, semantic, port)
 }
 
 /// A delivery whose root completed or failed; an unknown or unsettled root is refused with its error.

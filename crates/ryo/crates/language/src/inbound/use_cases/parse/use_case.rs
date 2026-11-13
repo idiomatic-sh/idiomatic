@@ -4,7 +4,7 @@
 use super::constants::NO_CONFIGURATION;
 use super::errors::ParseError;
 use super::interface::ParseUseCase;
-use super::service::{baseline_in, build_in, kinds_read_in, read_in, walk_in};
+use super::service::{baseline_in, build_in, kinds_read_in, promises_in, read_in, walk_in};
 use super::types::{KindNames, ParseConfigurationIdentity, ParseRequest, SkippedDirectory};
 use super::types::{ParseEngine, absence_in};
 use crate::domain::elements::types::Elements;
@@ -42,7 +42,7 @@ impl ParseUseCase for ParseUseCaseImpl {
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn crate::domain::semantics::types::Semantics> {
+    fn semantics(&self) -> Option<&dyn crate::domain::answers::types::Semantics> {
         None
     }
 
@@ -86,13 +86,13 @@ impl ParseUseCase for ParseUseCaseImpl {
 
     fn complete(&self, _request: &ParseRequest<'_>, _completion: &mut Completion<'_>) {}
 
-    ryo_relations::each_relation!(absent_syntax);
+    ryo_relations::each_relation!(@declared ryo_relations::baseline_relations, absent_syntax);
 }
 
 /// Every `ParseUseCase` is a `ParseEngine`: the engine reads it through the use case's own drive.
 impl<P: ParseUseCase> ParseEngine for P {
-    fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
-        ParseUseCase::capabilities(self)
+    fn capabilities(&self) -> Vec<ryo_relations::domain::catalog::types::OptionalCapability> {
+        promises_in(self)
     }
 
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> {

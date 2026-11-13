@@ -1,5 +1,5 @@
 //! Drive a provider's parse contract, then dispatch each requested relation through its own reader.
-//! The table is traversed once; optional capability promises gate both absence answers and reads.
+//! The table is traversed once; what a language's `Semantics` answers decides both absence answers and reads of its optional relations.
 
 use super::constants::COUNT;
 use super::errors::ParseError;
@@ -17,8 +17,11 @@ use crate::domain::relation_masks::service::{add, none, places};
 use crate::domain::relation_masks::types::RelationSet;
 use crate::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::answers::types::AbsenceCause;
-use ryo_relations::domain::relations::service::{KIND_LIMIT, all, number_of, optional_capability};
-use ryo_relations::domain::relations::types::{FileId, KindBits, Relation, RowWriter};
+use ryo_relations::domain::catalog::types::OptionalCapability;
+use ryo_relations::domain::relations::service::{
+    KIND_LIMIT, all, number_of, optional_capability, provenance_of,
+};
+use ryo_relations::domain::relations::types::{FileId, KindBits, Provenance, Relation, RowWriter};
 
 /// The kinds the readers of the language look at, every reader's declared `kinds:` together. A reader of every element names none: it
 /// reads all and models nothing, so it does not count.
@@ -35,6 +38,24 @@ where
         }
     }
     found
+}
+
+/// Every optional promise of the language: each relation of its files' trees it answers through its `Semantics` other than `NotYetRead`,
+/// in the catalog's order, then the project's it lists in `capabilities`. The first are read from the answers, never from a list, so a
+/// language's promise and its answer cannot disagree.
+#[must_use]
+pub(crate) fn promises_in<L>(language: &L) -> Vec<OptionalCapability>
+where
+    L: ParseUseCase + ?Sized,
+{
+    let mut promised: Vec<OptionalCapability> = all()
+        .iter()
+        .filter(|relation| provenance_of(**relation) == Provenance::Trees)
+        .filter(|relation| absence_in(language, **relation) != Some(AbsenceCause::NotYetRead))
+        .filter_map(|relation| optional_capability(*relation))
+        .collect();
+    promised.extend_from_slice(language.capabilities());
+    promised
 }
 
 /// Builds the tree of the file in `table`, the worker's own: the language reads the file with its library into the builder the

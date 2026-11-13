@@ -44,7 +44,7 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
     let engine = engine();
     let raw = authored_request(2);
     let compiler = compiling_with(Arc::new(AuthoredQueryProvider(
-        crate::boundary_fixture::fixtures::plans_of(&raw)[0].clone(),
+        boundary_fixture::fixtures::plans_of(&raw)[0].clone(),
     )));
     let compiled = compiler
         .compile_rules(CompileRequest {
@@ -65,55 +65,27 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
-    let read = |relation| {
-        if relation == Relation::Function {
-            Ok(SourceRows::Computed(&table))
-        } else {
-            Err(OperatingError::NotRead)
-        }
-    };
+    let facts = TableFacts::new(&[(Relation::Function, &table)]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
-    let mut file = request
-        .open_file(
-            FileInput {
-                language: SourceLanguage::Recognized,
-                resident_stability: ResidentStability::Stable,
-                file: FileId(0),
-                evaluation: &[],
-                publication: &[],
-                intents: &[
-                    FileRuleIntent::Run {
-                        diagnostic: DiagnosticDelivery::Collected,
-                        observations: ObservationDemand::NotRequired,
-                        capture: CaptureIntent::Disabled,
-                    },
-                    FileRuleIntent::Run {
-                        diagnostic: DiagnosticDelivery::Collected,
-                        observations: ObservationDemand::NotRequired,
-                        capture: CaptureIntent::Disabled,
-                    },
-                ],
-                source: ryo_values::domain::files::types::SourceView(b"abc"),
-                elements: &elements,
-                read: &read,
-                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-            },
-            &mut symbols,
-        )
-        .expect("open");
-    for rule in [RuleIndex(0), RuleIndex(1)] {
-        let RootOutcome::Complete(table) = file
-            .rule(rule, demand(), &mut symbols)
-            .expect("run independent rule")
-            .emit
-        else {
+    let collected = FileRuleIntent::Run {
+        diagnostic: DiagnosticDelivery::Collected,
+        observations: ObservationDemand::NotRequired,
+        capture: CaptureIntent::DiagnosticAndObservations,
+    };
+    let mut rules = run_file(
+        &request,
+        FileRun::of(&[collected, collected], &elements),
+        &mut symbols,
+        &facts,
+    );
+    for rule in [0, 1] {
+        let Ok(RootOutcome::Complete(table)) = root(ran(&mut rules, rule)) else {
             panic!("complete root")
         };
         assert_eq!(table.cells, [Value::Node(node_id(FileId(0), Position(2)))]);
     }
-    file.finish().expect("finish");
+    assert!(matches!(rules.end, FileEnd::Finished(_)), "finish");
     request.finish();
 
     let raw = authored_request(2);
@@ -151,7 +123,7 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
     for populated in [false, true] {
         let engine = engine();
         let mut input = authored_request(1);
-        crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
+        boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
             PlanStep {
                 scope: StepScope::PerFile,
                 operation: Operation::Hosted {
@@ -168,9 +140,7 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
                 },
             },
         ];
-        crate::boundary_fixture::fixtures::plans(&mut input)[0]
-            .emit
-            .step = StepId(1);
+        boundary_fixture::fixtures::plans(&mut input)[0].emit.step = StepId(1);
         input.hosted = vec![HostRelation {
             name: HostName("partitioned-edges".into()),
             columns: ["from", "to", "key"]
@@ -199,71 +169,26 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
         let elements = ryo_language::domain::elements::types::Elements::default();
-        let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
-        for delivery in [0, 1, 2] {
+        let facts = TableFacts::new(&[]);
+        for delivery in [DiagnosticDelivery::Collected] {
             let mut symbols = Symbols::default();
             let intents = [FileRuleIntent::Run {
-                diagnostic: if delivery == 0 {
-                    DiagnosticDelivery::Collected
-                } else {
-                    DiagnosticDelivery::Forwarded
-                },
+                diagnostic: delivery,
                 observations: ObservationDemand::NotRequired,
-                capture: CaptureIntent::Disabled,
+                capture: CaptureIntent::DiagnosticAndObservations,
             }];
-            let mut file = request
-                .open_file(
-                    FileInput {
-                        language: SourceLanguage::Recognized,
-                        resident_stability: ResidentStability::Stable,
-                        file: FileId(0),
-                        evaluation: &[],
-                        publication: &[],
-                        intents: &intents,
-                        source: ryo_values::domain::files::types::SourceView(b"abc"),
-                        elements: &elements,
-                        read: &read,
-                        semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                        kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-                    },
-                    &mut symbols,
-                )
-                .expect("closure file");
-            let mut cells = Vec::new();
-            if delivery == 2 {
-                let mut callbacks = 0;
-                let result = file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| {
-                    callbacks += 1;
-                    Err(OperatingError::WrongBinding)
-                });
-                if populated {
-                    assert!(matches!(result, Err(OperatingError::WrongBinding)));
-                    assert_eq!(callbacks, 1, "stop at the first output refusal");
-                } else {
-                    assert!(result.is_ok());
-                    assert_eq!(callbacks, 0);
-                }
-                file.finish().expect("release closure after sink refusal");
-                continue;
-            }
-            if delivery == 1 {
-                file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
-                    cells.extend_from_slice(row);
-                    Ok(())
-                })
-                .expect("delivered closure rows");
-            } else {
-                let RootOutcome::Complete(table) = file
-                    .rule(RuleIndex(0), demand(), &mut symbols)
-                    .expect("closure run")
-                    .emit
-                else {
-                    panic!("complete closure required")
-                };
-                assert_eq!(table.kinds, vec![CellKind::Number; 3]);
-                assert_eq!(table.count, RowCount(if populated { 6 } else { 0 }));
-                cells = table.cells;
-            }
+            let mut rules = run_file(
+                &request,
+                FileRun::of(&intents, &elements),
+                &mut symbols,
+                &facts,
+            );
+            let Ok(RootOutcome::Complete(table)) = root(ran(&mut rules, 0)) else {
+                panic!("complete closure required")
+            };
+            assert_eq!(table.kinds, vec![CellKind::Number; 3]);
+            assert_eq!(table.count, RowCount(if populated { 6 } else { 0 }));
+            let cells = table.cells;
             assert_eq!(cells.len() % 3, 0, "no incomplete published row");
             let rows: Vec<_> = cells.chunks_exact(3).map(|row| row.to_vec()).collect();
             // The key partitions come in key-hash order: under the derived key hash (one `FxHasher` step) key 5 hashes to
@@ -287,8 +212,12 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
                 rows, expected,
                 "every key partition, both public output forms"
             );
-            file.finish().expect("closure releases the file owner");
+            assert!(
+                matches!(rules.end, FileEnd::Finished(_)),
+                "closure releases the file owner"
+            );
         }
+        assert_eq!(facts.reads(), 0, "hosted rows read no provider");
         request.finish();
     }
 }
@@ -299,7 +228,7 @@ fn independent_compilation_preserves_unused_steps_and_original_frontier_order() 
     use ryo_values::domain::plan_parts::types::RepeatedRows;
     let engine = engine();
     let mut raw = authored_request(1);
-    crate::boundary_fixture::fixtures::plans(&mut raw)[0]
+    boundary_fixture::fixtures::plans(&mut raw)[0]
         .steps
         .extend([
             PlanStep {
@@ -319,12 +248,12 @@ fn independent_compilation_preserves_unused_steps_and_original_frontier_order() 
                 },
             },
         ]);
-    crate::boundary_fixture::fixtures::plans(&mut raw)[0].frontier = vec![
+    boundary_fixture::fixtures::plans(&mut raw)[0].frontier = vec![
         Input::Step(StepId(2)),
         Input::Step(StepId(0)),
         Input::Step(StepId(2)),
     ];
-    let original = crate::boundary_fixture::fixtures::plans(&mut raw)[0].clone();
+    let original = boundary_fixture::fixtures::plans(&mut raw)[0].clone();
     let compiler = compiling_with(Arc::new(AuthoredQueryProvider(original.clone())));
     let compiled = compiler
         .compile_rules(CompileRequest {

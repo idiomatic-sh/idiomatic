@@ -2,13 +2,8 @@
 use crate::boundary_fixture::fixtures::Observed as _;
 use crate::file_intents::fixtures::*;
 use crate::*;
-use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::Demand;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_values::domain::runs::types::ApplicabilityRefusal;
 
 #[test]
@@ -32,60 +27,35 @@ fn diagnostic_disabled_observation_producer_runs_and_captures_only_named_frontie
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let elements = ryo_language::domain::elements::types::Elements::default();
     let table = source();
-    let read = |relation| {
-        assert_eq!(
-            relation,
-            Relation::Function,
-            "disabled diagnostic frontiers cannot read Identifier"
-        );
-        Ok(SourceRows::Computed(&table))
-    };
-    let producer_roots = RuleDemand {
-        emit: EmitDemand::Disabled,
-        observations: ObservationDemand::Required,
-    };
+    // Disabled diagnostic frontiers cannot read Identifier: the facts hold Function alone, and refuse any other read.
+    let facts = TableFacts::new(&[(Relation::Function, &table)]);
     let intents = [
         FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Disabled,
-            observations: producer_roots.observations,
+            observations: ObservationDemand::Required,
             capture: CaptureIntent::Observations,
         },
         FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
             observations: ObservationDemand::NotRequired,
-            capture: CaptureIntent::Disabled,
+            capture: CaptureIntent::DiagnosticAndObservations,
         },
     ];
     let mut symbols = Symbols::default();
-    let mut file = request
-        .open_file(input(&intents, &elements, &read), &mut symbols)
-        .unwrap();
-    assert!(matches!(
-        file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| panic!("no diagnostic")),
-        Err(OperatingError::NotRun)
-    ));
-    let produced = file
-        .rule(RuleIndex(0), producer_roots, &mut symbols)
-        .unwrap();
-    assert!(matches!(produced.emit, RootOutcome::NoQuery));
-    assert!(matches!(
-        produced.observations[0].outcome,
-        RootOutcome::Complete(_)
-    ));
-    let (mut arena, mut places, mut words) = (vec![], vec![], Words::default());
-    let captures = file
-        .capture_frontiers(
-            RuleIndex(0),
-            ryo_values::domain::stored_facts::types::Bucket(0),
-            &mut symbols,
-            CaptureContext {
-                worker: WorkerNumber(0),
-                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
-                places: &mut places,
-                words: &mut words,
-            },
-        )
-        .unwrap();
+    let mut rules = run_file(
+        &request,
+        FileRun::of(&intents, &elements),
+        &mut symbols,
+        &facts,
+    );
+    let produced = ran(&mut rules, 0);
+    assert!(
+        matches!(produced.emit, EmittedRoot::Withheld),
+        "no diagnostic"
+    );
+    let RuleAfter::Ran { captures } = produced.after else {
+        panic!("the producer runs and captures")
+    };
     assert_eq!(
         captures.len(),
         1,
@@ -93,21 +63,17 @@ fn diagnostic_disabled_observation_producer_runs_and_captures_only_named_frontie
     );
     for capture in captures {
         capture.outcome.expect("named frontier publication");
-        file.commit_frontier(RuleIndex(0), capture.input).unwrap();
     }
     assert!(matches!(
-        file.rule(RuleIndex(1), demand(), &mut symbols)
-            .unwrap()
-            .emit,
-        RootOutcome::Deferred {
+        root(ran(&mut rules, 1)),
+        Ok(RootOutcome::Deferred {
             phase: StepScope::CrossFile
-        },
+        }),
     ));
-    let readiness = file
-        .finish()
-        .unwrap()
-        .readiness
-        .observed("the finished file observed its readiness");
+    let FileEnd::Finished(readiness) = rules.end else {
+        panic!("the file finishes")
+    };
+    let readiness = readiness.observed("the finished file observed its readiness");
     assert!(readiness.complete.0.iter().any(|bits| *bits != 0));
     assert!(readiness.skipped.0.is_empty());
     request.finish();
@@ -122,21 +88,23 @@ fn file_start_refusal_preserves_unknown_readiness_without_a_skip_proof() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let elements = ryo_language::domain::elements::types::Elements::default();
-    let read = |_| panic!("applicability refusal cannot read a provider");
+    let facts = TableFacts::new(&[]);
     for reason in [
         ApplicabilityRefusal::SyntaxUndetermined,
         ApplicabilityRefusal::MetadataUnavailable,
     ] {
         let intents = [FileRuleIntent::Refused(reason), FileRuleIntent::Undemanded];
         let mut symbols = Symbols::default();
-        let file = request
-            .open_file(input(&intents, &elements, &read), &mut symbols)
-            .unwrap();
-        let readiness = file
-            .finish()
-            .unwrap()
-            .readiness
-            .observed("named frontier readiness");
+        let rules = run_file(
+            &request,
+            FileRun::of(&intents, &elements),
+            &mut symbols,
+            &facts,
+        );
+        let FileEnd::Finished(readiness) = rules.end else {
+            panic!("the file finishes")
+        };
+        let readiness = readiness.observed("named frontier readiness");
         let checked = validate_frontiers(&readiness, readiness.layout, readiness.slots).unwrap();
         assert!(matches!(
             frontier_state(checked, ObservationReadinessSlot(0)).unwrap(),
@@ -148,6 +116,11 @@ fn file_start_refusal_preserves_unknown_readiness_without_a_skip_proof() {
         );
         assert!(readiness.complete.0.iter().all(|word| *word == 0));
     }
+    assert_eq!(
+        facts.reads(),
+        0,
+        "applicability refusal cannot read a provider"
+    );
     request.finish();
 }
 
@@ -160,83 +133,38 @@ fn diagnostic_delivery_is_bound_before_admission_and_cannot_switch_after_publica
     let elements = ryo_language::domain::elements::types::Elements::default();
     let table = source();
     for diagnostic in [DiagnosticDelivery::Collected, DiagnosticDelivery::Forwarded] {
-        let reads = Cell::new(0);
-        let read = |relation| {
-            assert_eq!(relation, Relation::Function);
-            reads.set(reads.get() + 1);
-            Ok(SourceRows::Computed(&table))
-        };
+        let facts = TableFacts::new(&[(Relation::Function, &table)]);
         let intents = [FileRuleIntent::Run {
             diagnostic,
             observations: ObservationDemand::NotRequired,
-            capture: CaptureIntent::Disabled,
+            capture: CaptureIntent::DiagnosticAndObservations,
         }];
         let mut symbols = Symbols::default();
-        let mut file = request
-            .open_file(input(&intents, &elements, &read), &mut symbols)
-            .unwrap();
-        match diagnostic {
-            DiagnosticDelivery::Collected => assert!(matches!(
-                file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| panic!(
-                    "wrong mode cannot deliver"
-                )),
-                Err(OperatingError::NotRun)
-            )),
-            DiagnosticDelivery::Forwarded => assert!(matches!(
-                file.rule(RuleIndex(0), demand(), &mut symbols),
-                Err(OperatingError::NotRun)
-            )),
-            DiagnosticDelivery::Disabled => unreachable!(),
-        }
-        assert_eq!(reads.get(), 0, "wrong mode cannot admit any provider");
+        let mut rules = run_file(
+            &request,
+            FileRun::of(&intents, &elements),
+            &mut symbols,
+            &facts,
+        );
         let expected = Table {
             kinds: vec![CellKind::Node],
             count: RowCount(1),
             cells: vec![table.cells[0]],
         };
-        match diagnostic {
-            DiagnosticDelivery::Collected => {
-                let RootOutcome::Complete(actual) = file
-                    .rule(RuleIndex(0), demand(), &mut symbols)
-                    .unwrap()
-                    .emit
-                else {
-                    panic!("correct declared collected mode remains runnable")
-                };
-                assert_eq!(actual, expected);
-            }
-            DiagnosticDelivery::Forwarded => {
-                let mut rows = vec![];
-                file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
-                    rows.push(row.to_vec());
-                    Ok(())
-                })
-                .expect("correct declared forwarded mode remains runnable");
-                assert_eq!(rows, [expected.cells]);
-            }
-            DiagnosticDelivery::Disabled => unreachable!(),
+        if diagnostic == DiagnosticDelivery::Forwarded {
+            // The per-file route delivers a collected root; a forwarded one has no delivery there and is refused.
+            assert!(matches!(
+                root(ran(&mut rules, 0)),
+                Err(FileStop::Operating(OperatingError::NotRun))
+            ));
+            continue;
         }
-        let admitted_reads = reads.get();
-        assert!(admitted_reads > 0);
-        match diagnostic {
-            DiagnosticDelivery::Collected => assert!(matches!(
-                file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| panic!(
-                    "publication cannot change mode"
-                )),
-                Err(OperatingError::NotRun)
-            )),
-            DiagnosticDelivery::Forwarded => assert!(matches!(
-                file.rule(RuleIndex(0), demand(), &mut symbols),
-                Err(OperatingError::NotRun)
-            )),
-            DiagnosticDelivery::Disabled => unreachable!(),
-        }
-        assert_eq!(
-            reads.get(),
-            admitted_reads,
-            "mode rejection cannot reread a published provider"
-        );
-        file.finish().unwrap();
+        let Ok(RootOutcome::Complete(actual)) = root(ran(&mut rules, 0)) else {
+            panic!("the declared {diagnostic:?} mode delivers its root")
+        };
+        assert_eq!(actual, expected);
+        assert!(facts.reads() > 0);
+        assert!(matches!(rules.end, FileEnd::Finished(_)));
     }
     request.finish();
 }

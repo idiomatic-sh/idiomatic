@@ -74,8 +74,8 @@ impl Parse for ParseContract {
         begin_file(self.syntax.as_ref(), request, tree, slot);
     }
 
-    fn semantics(&self) -> Option<&dyn languages::Semantics> {
-        None
+    fn semantics(&self) -> Option<&dyn languages::Semantics<Declarations>> {
+        Some(self)
     }
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
@@ -207,131 +207,12 @@ impl Parse for ParseContract {
         languages::reads::<StaticCallItem>()
     }
 
-    fn embedded_expression(
-        &self,
-    ) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
-        languages::reads::<EmbeddedExpressionItem>()
-    }
-
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
         languages::reads::<SemanticSyntaxItem>()
     }
 
     fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
         languages::reads::<SemanticChildItem>()
-    }
-
-    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Declarations>> {
-        languages::reads::<ExpressionShapeItem>()
-    }
-
-    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
-        languages::reads::<ConstantKeyItem>()
-    }
-
-    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
-        languages::reads::<super::readers::format::composition::FormatParseItem>()
-    }
-
-    fn literal_expression_parse(
-        &self,
-    ) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
-        languages::reads::<
-            super::readers::literal_expression::composition::LiteralExpressionParseItem,
-        >()
-    }
-
-    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
-        languages::reads::<super::readers::raw_format::composition::RawFormatSegmentItem>()
-    }
-
-    fn token_link(&self) -> Support<Reader<languages::TokenLink, Self::FileModel>> {
-        languages::reads::<super::readers::token_link::composition::TokenLinkItem>()
-    }
-
-    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
-        languages::reads::<super::readers::raw_format::composition::RawFormatFieldItem>()
-    }
-
-    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
-        languages::reads::<super::readers::format::composition::FormatFieldItem>()
-    }
-
-    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
-        languages::reads::<super::readers::brace_format::composition::BraceFormatParseItem>()
-    }
-
-    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
-        languages::reads::<super::readers::brace_format::composition::BraceFormatFieldItem>()
-    }
-
-    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
-        languages::reads::<FunctionTerminalItem>()
-    }
-
-    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
-        languages::reads::<ExpressionTypeItem>()
-    }
-
-    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
-        languages::reads::<LiteralPropertiesItem>()
-    }
-
-    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
-        languages::reads::<NumericLiteralItem>()
-    }
-
-    fn format_specification(
-        &self,
-    ) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
-        languages::reads::<super::readers::format_specification::composition::FormatSpecificationItem>(
-        )
-    }
-
-    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
-        languages::reads::<BytesLiteralItem>()
-    }
-
-    fn interpolated_string_literal(
-        &self,
-    ) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
-        languages::reads::<InterpolatedStringLiteralItem>()
-    }
-
-    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
-        languages::reads::<CompilerFeatureItem>()
-    }
-
-    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
-        languages::reads::<LanguageTargetItem>()
-    }
-
-    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
-        languages::reads::<ImplicitSymbolItem>()
-    }
-
-    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
-        languages::reads::<BindingEventItem>()
-    }
-
-    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
-        languages::reads::<BindingReadItem>()
-    }
-
-    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
-        languages::reads::<BindingUseItem>()
-    }
-
-    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
-        languages::reads::<BindingShadowItem>()
-    }
-
-    fn identifier(&self) -> Support<Reader<languages::Identifier, Declarations>> {
-        languages::reads::<IdentifierItem>()
-    }
-
-    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Declarations>> {
-        languages::reads::<QualifiedNameItem>()
     }
 
     fn resolves(&self) -> Support<Reader<languages::Resolves, Declarations>> {
@@ -344,12 +225,6 @@ impl Parse for ParseContract {
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, Declarations>> {
         languages::reads::<StaticImportItem>()
-    }
-
-    fn standard_library_import(
-        &self,
-    ) -> Support<Reader<languages::StandardLibraryImport, Declarations>> {
-        languages::reads::<StandardLibraryImportItem>()
     }
 
     fn string_literal(&self) -> Support<Reader<languages::StringLiteral, Declarations>> {
@@ -396,5 +271,130 @@ impl Parse for ParseContract {
 
     fn sequence_element(&self) -> Support<Reader<languages::SequenceElement, Declarations>> {
         languages::absent(AbsenceCause::NotAKeyedDocument)
+    }
+}
+
+impl languages::Semantics<Declarations> for ParseContract {
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Declarations>> {
+        languages::reads::<EmbeddedExpressionItem>()
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Declarations>> {
+        languages::reads::<ExpressionShapeItem>()
+    }
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Declarations>> {
+        languages::reads::<ConstantKeyItem>()
+    }
+
+    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Declarations>> {
+        languages::reads::<super::readers::format::composition::FormatParseItem>()
+    }
+
+    fn literal_expression_parse(
+        &self,
+    ) -> Support<Reader<languages::LiteralExpressionParse, Declarations>> {
+        languages::reads::<
+            super::readers::literal_expression::composition::LiteralExpressionParseItem,
+        >()
+    }
+
+    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Declarations>> {
+        languages::reads::<super::readers::raw_format::composition::RawFormatSegmentItem>()
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, Declarations>> {
+        languages::reads::<super::readers::token_link::composition::TokenLinkItem>()
+    }
+
+    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Declarations>> {
+        languages::reads::<super::readers::raw_format::composition::RawFormatFieldItem>()
+    }
+
+    fn format_field(&self) -> Support<Reader<languages::FormatField, Declarations>> {
+        languages::reads::<super::readers::format::composition::FormatFieldItem>()
+    }
+
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Declarations>> {
+        languages::reads::<super::readers::brace_format::composition::BraceFormatParseItem>()
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Declarations>> {
+        languages::reads::<super::readers::brace_format::composition::BraceFormatFieldItem>()
+    }
+
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Declarations>> {
+        languages::reads::<FunctionTerminalItem>()
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Declarations>> {
+        languages::reads::<ExpressionTypeItem>()
+    }
+
+    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Declarations>> {
+        languages::reads::<LiteralPropertiesItem>()
+    }
+
+    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Declarations>> {
+        languages::reads::<NumericLiteralItem>()
+    }
+
+    fn format_specification(
+        &self,
+    ) -> Support<Reader<languages::FormatSpecification, Declarations>> {
+        languages::reads::<super::readers::format_specification::composition::FormatSpecificationItem>(
+        )
+    }
+
+    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Declarations>> {
+        languages::reads::<BytesLiteralItem>()
+    }
+
+    fn interpolated_string_literal(
+        &self,
+    ) -> Support<Reader<languages::InterpolatedStringLiteral, Declarations>> {
+        languages::reads::<InterpolatedStringLiteralItem>()
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Declarations>> {
+        languages::reads::<CompilerFeatureItem>()
+    }
+
+    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Declarations>> {
+        languages::reads::<LanguageTargetItem>()
+    }
+
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Declarations>> {
+        languages::reads::<ImplicitSymbolItem>()
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Declarations>> {
+        languages::reads::<BindingEventItem>()
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Declarations>> {
+        languages::reads::<BindingReadItem>()
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Declarations>> {
+        languages::reads::<BindingUseItem>()
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Declarations>> {
+        languages::reads::<BindingShadowItem>()
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Declarations>> {
+        languages::reads::<IdentifierItem>()
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Declarations>> {
+        languages::reads::<QualifiedNameItem>()
+    }
+
+    fn standard_library_import(
+        &self,
+    ) -> Support<Reader<languages::StandardLibraryImport, Declarations>> {
+        languages::reads::<StandardLibraryImportItem>()
     }
 }

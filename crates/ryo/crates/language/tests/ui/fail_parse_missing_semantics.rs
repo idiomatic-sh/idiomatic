@@ -179,7 +179,7 @@ impl ParseUseCase for Language {
         ryo_language::domain::answers::service::reads::<FunctionItem>()
     }
 
-    ryo_relations::each_relation!(all_but_function);
+    ryo_relations::each_relation!(@declared ryo_relations::baseline_relations, all_but_function);
 }
 
 impl ProjectUseCase for Language {

@@ -1,0 +1,94 @@
+description = "A linter bench's process entry: the harness's profile run first, then the linter's composition, on the harness's allocator."
+why = "Every linter bench gets the heap and CPU profiles with no line of its own: the scaffold writes this entry, and a bench whose main does not hand its arguments to the profile run is refused."
+match = "text"
+content = '''
+//! One executable composes the shared benchmark and its linter: the harness records any profile, then the composition runs the command.
+mod adapter;
+mod composition;
+mod constants;
+{%- if present["frontend-projection-module"] | default(false) %}
+mod frontend_projection;
+{%- endif %}
+{%- if present["host-probe"] | default(false) %}
+mod host;
+{%- endif %}
+{%- if present["host-policy"] | default(false) %}
+mod host_policy;
+{%- endif %}
+mod schemas;
+mod settings;
+
+fn main() -> std::process::ExitCode {
+    let mut output = std::io::stdout().lock();
+    let mut observations = std::io::stderr().lock();
+    let outcome = composition::profile::command()
+        .and_then(|command| composition::run(command, &mut output, &mut observations));
+    match outcome {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(error) => {
+            drop(std::io::Write::write_fmt(
+                &mut observations,
+                format_args!("{error}\n"),
+            ));
+            std::process::ExitCode::FAILURE
+        }
+    }
+}
+'''
+
+[given]
+file = 'bench.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'bench.rs' = '''
+//! One executable composes the shared benchmark and its linter: the harness records any profile, then the composition runs the command.
+mod adapter;
+mod composition;
+mod constants;
+mod schemas;
+mod settings;
+
+fn main() -> std::process::ExitCode {
+    let mut output = std::io::stdout().lock();
+    let mut observations = std::io::stderr().lock();
+    let outcome = composition::profile::command()
+        .and_then(|command| composition::run(command, &mut output, &mut observations));
+    match outcome {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(error) => {
+            drop(std::io::Write::write_fmt(
+                &mut observations,
+                format_args!("{error}\n"),
+            ));
+            std::process::ExitCode::FAILURE
+        }
+    }
+}
+'''
+
+[[scenarios]]
+id = 'own-main'
+scenario = 'A bench whose main runs without the profile run.'
+given.files.'bench.rs' = '''
+//! One executable composes the shared benchmark and its linter: the harness records any profile, then the composition runs the command.
+mod adapter;
+mod composition;
+mod constants;
+mod schemas;
+mod settings;
+
+fn main() -> std::process::ExitCode {
+    let mut output = std::io::stdout().lock();
+    let mut observations = std::io::stderr().lock();
+    drop(composition::run(Vec::new(), &mut output, &mut observations));
+    std::process::ExitCode::SUCCESS
+}
+'''
+then.findings = [{ rule = 'bench-entry#template', path = 'bench.rs' }]
+
+[[scenarios]]
+id = 'missing'
+scenario = 'The entry is missing.'
+then.findings = [{ rule = 'bench-entry#count', path = '.' }]

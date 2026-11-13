@@ -1,22 +1,16 @@
 //! The support of the `controls` cases and of the groups nested in it.
-use super::super::inventory::fixtures::every_intent;
-use super::super::routes::fixtures::{file_route, run_file_route};
+use super::super::routes::fixtures::run_file_route;
 use super::super::witness::fixtures::{Method, Probe, probe};
-use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine, prepared_rules};
+use crate::boundary_fixture::fixtures::{authored_request, corpus, engine, prepared_rules};
 use crate::file_intents::fixtures::named_request;
 use crate::project_phase::negative::fixtures::{Entry, Held, with_held};
-use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileInput;
-use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
 use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
-use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramObservationStagePort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
@@ -24,14 +18,12 @@ use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::interface::RefusedFiles;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
 use ryo_execution::inbound::use_cases::execution::interface::{
     BatchNumber, BatchOccurrence, ObservationBatches,
 };
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_negative::NoFacts;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
 
 /// What a method does with a root set: refuse an incomplete, extra or undeclared one, or
@@ -44,20 +36,13 @@ pub(in super::super) enum Control {
 pub(in super::super) fn control(method: Method) -> Control {
     match method {
         Method::UseCasePrepare => Control::Refuses(prepare_refuses_an_incomplete_or_extra_rule_set),
-        Method::UseCaseExecution => Control::Refuses(file_session_undeclared_rule),
-        Method::RequestOpenFile => Control::Refuses(file_route),
-        Method::RequestRunFile => Control::Refuses(run_file_route),
+        Method::UseCaseExecution | Method::RequestRunFile => Control::Refuses(run_file_route),
         Method::RequestObservations => Control::Refuses(observations_need_a_named_program),
         Method::RequestProjectPhase => {
             Control::AcceptsNoRoot("opens the phase; its roots are declared through evaluate_rules")
         }
         Method::RootsEvaluateRules => Control::Refuses(occurrence_of_an_undeclared_rule),
         Method::ObservedRunBatches => Control::Refuses(observed_undeclared_rule),
-        Method::FileEmitRows
-        | Method::FileRule
-        | Method::FileCaptureFrontiers
-        | Method::FileCommitFrontier => Control::Refuses(file_session_undeclared_rule),
-        Method::FileFinish => Control::AcceptsNoRoot("releases the file session"),
         Method::RequestFinish => Control::AcceptsNoRoot("drops the request"),
         Method::StageFinish => Control::AcceptsNoRoot("releases the phase"),
     }
@@ -169,80 +154,6 @@ pub(in super::super) fn occurrence_of_an_undeclared_rule() -> Vec<Probe> {
             ),
         ]
     })
-}
-
-/// Every file-session method that takes a RuleIndex refuses a rule the session did not declare.
-pub(in super::super) fn file_session_undeclared_rule() -> Vec<Probe> {
-    let engine = engine();
-    let program = prepared_rules(&engine, 2);
-    let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
-    let elements = ryo_language::domain::elements::types::Elements::default();
-    let read = |_| Err(OperatingError::NotRead);
-    let intent = every_intent()
-        .into_iter()
-        .find(|intent| matches!(intent, FileRuleIntent::Run { .. }))
-        .expect("a running intent exists");
-    let intents = [intent, intent];
-    let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
-    let mut file = request
-        .open_file(
-            FileInput {
-                language: SourceLanguage::Recognized,
-                resident_stability: ResidentStability::Stable,
-                file: ryo_relations::domain::relations::types::FileId(0),
-                evaluation: &[],
-                publication: &[],
-                intents: &intents,
-                source: ryo_values::domain::files::types::SourceView(b"abc"),
-                elements: &elements,
-                read: &read,
-                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-            },
-            &mut symbols,
-        )
-        .expect("a complete declared set opens");
-    let undeclared = RuleIndex(2);
-    let mut probes = vec![
-        probe(
-            "rule of an undeclared rule",
-            file.rule(undeclared, demand(), &mut symbols).map(|_| ()),
-        ),
-        probe(
-            "emit_rows of an undeclared rule",
-            file.emit_rows(undeclared, &mut symbols, &mut |_| Ok(()))
-                .map(|_| ()),
-        ),
-    ];
-    let (mut arena, mut places, mut words) = (vec![], vec![], Default::default());
-    let bucket = ryo_values::domain::stored_facts::types::Bucket(0);
-    probes.push(probe(
-        "capture_frontiers of an undeclared rule",
-        file.capture_frontiers(
-            undeclared,
-            bucket,
-            &mut symbols,
-            CaptureContext {
-                worker: ryo_relations::domain::relations::types::WorkerNumber(0),
-                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
-                places: &mut places,
-                words: &mut words,
-            },
-        )
-        .map(|_| ()),
-    ));
-    probes.push(probe(
-        "commit_frontier of an undeclared rule",
-        file.commit_frontier(
-            undeclared,
-            ryo_values::domain::plan_parts::types::InputNumber(0),
-        )
-        .map(|_| ()),
-    ));
-    let _ = file.finish();
-    request.finish();
-    probes
 }
 
 /// What one observation stage of the controls' program reads: `occurrences` over `rules`, with `inapplicable` files by rule.

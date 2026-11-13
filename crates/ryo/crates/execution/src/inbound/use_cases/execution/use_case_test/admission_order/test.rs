@@ -2,7 +2,6 @@
 use super::super::super::fixtures;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -38,7 +37,7 @@ use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::rows::types::RowCount;
 use ryo_values::domain::rows::types::Table;
 use std::borrow::Cow;
-use std::cell::Cell;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[expect(
     clippy::wildcard_enum_match_arm,
@@ -118,7 +117,6 @@ pub(crate) enum InputSupply {
     Present,
     MissingLeft,
     MissingRight,
-    MissingAfterFirst,
     Changed,
 }
 pub(crate) fn execute(
@@ -131,34 +129,38 @@ pub(crate) fn execute(
     let left = population(Relation::Function, malformed, symbol);
     let changed = population(Relation::Function, malformed, symbol);
     let right = population(Relation::Resolves, false, symbol);
-    let counts = [Cell::new(0), Cell::new(0)];
+    let (left, changed, right) = (
+        fixtures::facts::columns_of(&left),
+        fixtures::facts::columns_of(&changed),
+        fixtures::facts::columns_of(&right),
+    );
+    let counts = [AtomicUsize::new(0), AtomicUsize::new(0)];
     #[expect(
         clippy::wildcard_enum_match_arm,
         reason = "the fake serves the join's two sides; every other relation is not read"
     )]
     let read = |relation| match relation {
         Relation::Function => {
-            counts[0].set(counts[0].get() + 1);
-            if matches!(supply, InputSupply::MissingLeft)
-                || (matches!(supply, InputSupply::MissingAfterFirst) && counts[0].get() > 1)
-            {
-                Err(OperatingError::NotRead)
-            } else if matches!(supply, InputSupply::Changed) && counts[0].get() > 1 {
-                Ok(SourceRows::Computed(&changed))
+            let reads = counts[0].fetch_add(1, Ordering::Relaxed) + 1;
+            if matches!(supply, InputSupply::MissingLeft) {
+                Err(fixtures::facts::not_held())
+            } else if matches!(supply, InputSupply::Changed) && reads > 1 {
+                Ok(fixtures::facts::view(relation, &changed))
             } else {
-                Ok(SourceRows::Computed(&left))
+                Ok(fixtures::facts::view(relation, &left))
             }
         }
         Relation::Resolves => {
-            counts[1].set(counts[1].get() + 1);
+            let _reads = counts[1].fetch_add(1, Ordering::Relaxed);
             if matches!(supply, InputSupply::MissingRight) {
-                Err(OperatingError::NotRead)
+                Err(fixtures::facts::not_held())
             } else {
-                Ok(SourceRows::Computed(&right))
+                Ok(fixtures::facts::view(relation, &right))
             }
         }
-        _ => Err(OperatingError::NotRead),
+        _ => Err(fixtures::facts::not_held()),
     };
+    let facts = fixtures::facts::ReadFacts::new(read);
     let (engine, prepared) = fixtures::requests::prepared(plan, vec![], vec![])
         .expect("static faults stay deferred in a structurally valid request");
     let result = fixtures::requests::run_prepared(
@@ -167,9 +169,10 @@ pub(crate) fn execute(
         b"",
         &Elements::default(),
         &mut symbols,
-        &read,
+        &facts,
     );
-    (result, [counts[0].get(), counts[1].get()])
+    let [left, right] = counts.map(AtomicUsize::into_inner);
+    (result, [left, right])
 }
 /// What an admitted plan answered: its row count, the positions of its node cells in output order,
 /// and how often each side was read.

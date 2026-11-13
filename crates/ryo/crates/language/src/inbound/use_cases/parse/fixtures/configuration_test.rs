@@ -27,7 +27,7 @@ impl ParseUseCase for SelectedParser {
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn crate::domain::semantics::types::Semantics> {
+    fn semantics(&self) -> Option<&dyn crate::domain::answers::types::Semantics> {
         None
     }
 
@@ -83,7 +83,7 @@ impl ParseUseCase for SelectedParser {
         Ok(())
     }
     fn complete(&self, _request: &ParseRequest<'_>, _completion: &mut Completion<'_>) {}
-    ryo_relations::each_relation!(absent_syntax);
+    ryo_relations::each_relation!(@declared ryo_relations::baseline_relations, absent_syntax);
 }
 
 /// References are not invoked by a rows-only read.

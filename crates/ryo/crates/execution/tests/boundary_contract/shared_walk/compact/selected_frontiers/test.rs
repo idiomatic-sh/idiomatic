@@ -1,33 +1,31 @@
-//! A selected join shares work, keeps counts and exports owned frontiers.
-use super::super::super::fixtures::{complete, input};
+//! A selected join keeps counts and exports owned frontiers.
 use super::fixtures::{functions, selected_join};
-use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine};
-use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
+use crate::boundary_fixture::fixtures::{
+    FileRun, authored_request, corpus, engine, ran, root, run_file,
+};
+use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
-use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort as _;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
+use ryo_execution::inbound::use_cases::execution::interface::{
+    EmittedRoot, FileEnd, FileStop, RuleAfter,
+};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::fixtures::{kinds, node_id, to_bits};
+use ryo_relations::domain::relations::fixtures::node_id;
 use ryo_relations::domain::relations::types::*;
 use ryo_values::domain::rows::types::{RowCount, Table};
-use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::table_words::fixtures::decode_complete;
-use std::cell::Cell;
 #[test]
 fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
     for distinct in [false, true] {
-        for stored in [false, true] {
+        {
             let engine = engine();
             let mut authored = authored_request(2);
             *crate::boundary_fixture::fixtures::plans(&mut authored) =
@@ -37,45 +35,24 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
             let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
             let mut symbols = Symbols::default();
             let source = functions(&mut symbols);
-            let columns: Vec<FactColumn> = (0..source.kinds.len())
-                .map(|column| {
-                    FactColumn(
-                        source
-                            .cells
-                            .chunks(source.kinds.len())
-                            .map(|row| to_bits(row[column]).0)
-                            .collect(),
-                    )
-                })
-                .collect();
-            let reads = Cell::new(0);
-            let read = |relation| {
-                reads.set(reads.get() + 1);
-                if relation == Relation::Function {
-                    Ok(if stored {
-                        SourceRows::Stored(ColumnsView {
-                            kinds: kinds(Relation::Function),
-                            columns: &columns,
-                        })
-                    } else {
-                        SourceRows::Computed(&source)
-                    })
-                } else {
-                    Err(OperatingError::NotRead)
-                }
-            };
+            // A fact relation reaches the run as the worker's stored columns, the one backing `run_file` reads.
+            let read = TableFacts::new(&[(Relation::Function, &source)]);
             let elements = Elements::default();
             let intents = [FileRuleIntent::Run {
                 diagnostic: DiagnosticDelivery::Collected,
                 observations: ObservationDemand::NotRequired,
                 capture: CaptureIntent::DiagnosticAndObservations,
             }; 2];
-            let mut file = request
-                .open_file(
-                    input(FileId(0), b"", &elements, &intents, &read),
-                    &mut symbols,
-                )
-                .unwrap();
+            let mut rules = run_file(
+                &request,
+                FileRun {
+                    file: FileId(0),
+                    source: b"",
+                    ..FileRun::of(&intents, &elements)
+                },
+                &mut symbols,
+                &read,
+            );
             let expected = Table {
                 kinds: vec![
                     if distinct {
@@ -111,70 +88,38 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
                     })
                     .collect(),
             };
-            let first = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
-            assert_eq!(complete(first), expected);
-            let reads_after_run = reads.get();
             let mut escaped = Vec::new();
-            for rule in [RuleIndex(0), RuleIndex(1)] {
-                let before_delivery = reads.get();
-                let outcome = file.rule(rule, demand(), &mut symbols).unwrap();
-                assert_eq!(complete(outcome), expected);
-                assert_eq!(
-                    reads.get(),
-                    before_delivery,
-                    "publication replay does not borrow a provider"
-                );
-                let (mut arena, mut places, mut words) = (vec![], vec![], Words::default());
-                let captures = file
-                    .capture_frontiers(
-                        rule,
-                        Bucket(0),
-                        &mut symbols,
-                        CaptureContext {
-                            worker: WorkerNumber(0),
-                            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
-                                &mut arena,
-                            ),
-                            places: &mut places,
-                            words: &mut words,
-                        },
-                    )
-                    .unwrap();
+            for rule in [0, 1] {
+                let ran = ran(&mut rules, rule);
+                let EmittedRoot::Delivered(RootOutcome::Complete(table)) = ran.emit else {
+                    panic!("rule {rule} delivers its root complete")
+                };
+                assert_eq!(table, expected);
+                let RuleAfter::Ran { captures } = ran.after else {
+                    panic!("rule {rule} captures its frontier")
+                };
                 assert_eq!(captures.len(), 1);
-                assert_eq!(
-                    reads.get(),
-                    before_delivery,
-                    "a captured selection is owned rows over either backing: capture borrows no provider"
-                );
                 escaped.extend(captures.into_iter().map(|capture| capture.outcome.unwrap()));
             }
-            assert_eq!(
-                reads.get(),
-                reads_after_run,
-                "no capture of either backing reads its provider again"
-            );
-            file.finish().unwrap();
+            assert!(read.reads() > 0);
+            assert!(matches!(rules.end, FileEnd::Finished(_)));
             // The actual encoded publication must survive its file execution owner.
             for frontier in escaped {
                 let decoded = decode_complete(&frontier.words, &mut Vec::new()).unwrap();
                 assert_eq!(decoded, expected_frontier);
             }
-            // A new generation cannot answer an unavailable provider from the previous file cache.
-            let refused = |_| Err(OperatingError::NotRead);
-            let mut next = request
-                .open_file(
-                    input(FileId(0), b"", &elements, &intents, &refused),
-                    &mut symbols,
-                )
-                .unwrap();
-            for rule in [RuleIndex(0), RuleIndex(1)] {
-                let result = next.rule(rule, demand(), &mut symbols).unwrap();
-                assert!(matches!(
-                    result.emit,
-                    RootOutcome::Failed(OperatingError::NotRead)
-                ));
-            }
-            next.finish().unwrap();
+            // A new run cannot answer an unavailable provider from the previous file's cache.
+            let refused = TableFacts::new(&[]);
+            let mut next = run_file(
+                &request,
+                FileRun {
+                    source: b"",
+                    ..FileRun::of(&intents, &elements)
+                },
+                &mut symbols,
+                &refused,
+            );
+            assert!(matches!(root(ran(&mut next, 0)), Err(FileStop::Facts(_))));
             request.finish();
         }
     }

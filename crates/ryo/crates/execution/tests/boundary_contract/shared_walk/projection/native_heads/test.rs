@@ -1,17 +1,14 @@
 //! Native heads keep their projected columns and source row order, and unused intents evaluate nothing.
-use super::super::super::fixtures::no_catalog;
 use super::super::super::fixtures::*;
-use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
+use crate::boundary_fixture::fixtures::{authored_request, corpus};
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileEnd;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
-use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_language::domain::elements::fixtures::text_at;
@@ -58,21 +55,22 @@ fn distinct_native_heads_keep_reordered_duplicate_columns_and_source_row_order()
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
         observations: ObservationDemand::NotRequired,
-        capture: CaptureIntent::Disabled,
+        capture: CaptureIntent::DiagnosticAndObservations,
     }; 2];
-    let mut file = request
-        .open_file(
-            input(FileId(0), b"abc", &elements, &intents, &no_catalog),
-            &mut symbols,
-        )
-        .unwrap();
+    let mut rules = run(
+        &request,
+        (FileId(0), b"abc"),
+        &elements,
+        &intents,
+        &mut symbols,
+    );
     let a = Value::Symbol(text_at(&elements, Position(1)));
     let b = Value::Symbol(text_at(&elements, Position(2)));
     let c = Value::Symbol(text_at(&elements, Position(3)));
     let first = Value::Node(node_id(FileId(0), Position(1)));
     let last = Value::Node(node_id(FileId(0), Position(3)));
     assert_eq!(
-        complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
+        complete(&mut rules, 0),
         Table {
             kinds: vec![CellKind::Symbol, CellKind::Node, CellKind::Symbol],
             count: RowCount(2),
@@ -84,7 +82,7 @@ fn distinct_native_heads_keep_reordered_duplicate_columns_and_source_row_order()
         end: Offset(2),
     });
     assert_eq!(
-        complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
+        complete(&mut rules, 1),
         Table {
             kinds: vec![
                 CellKind::Span,
@@ -101,7 +99,7 @@ fn distinct_native_heads_keep_reordered_duplicate_columns_and_source_row_order()
         0,
         "both projected heads use shared replay, without ordinary selector rescans"
     );
-    file.finish().unwrap();
+    assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
 #[test]
@@ -137,14 +135,15 @@ fn fused_select_reads_projected_ordinals_and_forwards_exact_rows_in_source_order
         let intents = [FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
             observations: ObservationDemand::NotRequired,
-            capture: CaptureIntent::Disabled,
+            capture: CaptureIntent::DiagnosticAndObservations,
         }];
-        let mut file = request
-            .open_file(
-                input(FileId(0), b"abc", &elements, &intents, &no_catalog),
-                &mut symbols,
-            )
-            .unwrap();
+        let mut rules = run(
+            &request,
+            (FileId(0), b"abc"),
+            &elements,
+            &intents,
+            &mut symbols,
+        );
         let mut cells = vec![];
         for position in positions {
             let node = Value::Node(node_id(FileId(0), Position(*position)));
@@ -155,14 +154,14 @@ fn fused_select_reads_projected_ordinals_and_forwards_exact_rows_in_source_order
             ]);
         }
         assert_eq!(
-            complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
+            complete(&mut rules, 0),
             Table {
                 kinds: vec![CellKind::Node, CellKind::Symbol, CellKind::Node],
                 count: RowCount(positions.len()),
                 cells
             }
         );
-        file.finish().unwrap();
+        assert!(matches!(rules.end, FileEnd::Finished(_)));
         request.finish();
     }
 }
@@ -186,33 +185,26 @@ fn mixed_intents_keep_excluded_errors_unreachable_while_an_active_neighbor_walks
         FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
             observations: ObservationDemand::NotRequired,
-            capture: CaptureIntent::Disabled,
+            capture: CaptureIntent::DiagnosticAndObservations,
         },
     ];
-    let mut file = request
-        .open_file(
-            input(FileId(0), b"[bc", &elements, &intents, &no_catalog),
-            &mut symbols,
-        )
-        .unwrap();
+    let mut rules = run(
+        &request,
+        (FileId(0), b"[bc"),
+        &elements,
+        &intents,
+        &mut symbols,
+    );
     assert_eq!(
-        complete(file.rule(RuleIndex(2), demand(), &mut symbols).unwrap()),
+        complete(&mut rules, 2),
         expected(FileId(0), &elements, &[2])
     );
-    for rule in [RuleIndex(0), RuleIndex(1)] {
-        assert!(matches!(
-            file.rule(rule, demand(), &mut symbols),
-            Err(OperatingError::NotRun)
-        ));
-        assert!(matches!(
-            file.emit_rows(rule, &mut symbols, &mut |_| panic!(
-                "excluded root cannot deliver rows"
-            )),
-            Err(OperatingError::NotRun)
-        ));
-    }
+    assert!(
+        rules.rules.is_empty(),
+        "excluded roots do not run and deliver no rows"
+    );
     assert_eq!(semantics.selects(), 0);
-    file.finish().unwrap();
+    assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
 #[test]
@@ -226,24 +218,25 @@ fn a_run_intent_with_no_enabled_roots_does_not_evaluate_its_predicates() {
         FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Disabled,
             observations: ObservationDemand::NotRequired,
-            capture: CaptureIntent::Disabled,
+            capture: CaptureIntent::Observations,
         },
         FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
             observations: ObservationDemand::NotRequired,
-            capture: CaptureIntent::Disabled,
+            capture: CaptureIntent::DiagnosticAndObservations,
         },
     ];
-    let mut file = request
-        .open_file(
-            input(FileId(0), b"abc", &elements, &intents, &no_catalog),
-            &mut symbols,
-        )
-        .unwrap();
+    let mut rules = run(
+        &request,
+        (FileId(0), b"abc"),
+        &elements,
+        &intents,
+        &mut symbols,
+    );
     assert_eq!(
-        complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
+        complete(&mut rules, 1),
         expected(FileId(0), &elements, &[2]),
     );
-    file.finish().unwrap();
+    assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }

@@ -132,15 +132,8 @@ fn subject(kind: Input) -> Result<Value, Failure> {
             let keys = (0..i64::try_from(population).unwrap_or(i64::MAX)).collect::<Vec<_>>();
             vec![numbers(&keys), numbers(&keys)]
         };
-        let delivered = compare_delivery(
-            &case.operation,
-            &inputs,
-            &[],
-            SOURCE,
-            &mut case.symbols,
-            None,
-        )
-        .and_then(settled)?;
+        let delivered = compare_delivery(&case.operation, &inputs, &[], SOURCE, &mut case.symbols)
+            .and_then(settled)?;
         scales.push(Scale {
             population,
             rows: delivered.rows.len(),

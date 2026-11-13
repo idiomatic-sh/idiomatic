@@ -1,0 +1,7 @@
+error[E0046]: not all trait items implemented, missing: `binding_read`
+   --> tests/ui/fail_semantics_missing_a_relation.rs:212:1
+    |
+212 | impl ryo_language::domain::answers::types::Semantics for Language {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `binding_read` in implementation
+    |
+    = help: implement the missing item: `fn binding_read(&self) -> Support<Reader<ryo_relations::domain::relations::collections::relations::binding_read::item::BindingRead, ()>> { todo!() }`

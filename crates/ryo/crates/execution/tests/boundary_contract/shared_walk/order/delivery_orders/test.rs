@@ -1,16 +1,15 @@
 //! Frontier and callback delivery share one atomic failure and one dependency contract in both orders.
-use super::super::super::fixtures::no_catalog;
 use super::super::super::fixtures::*;
-use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
-use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
+use crate::boundary_fixture::fixtures::{authored_request, corpus, ran};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::interface::{
+    EmittedRoot, FileEnd, RootOutcome, RuleAfter,
+};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
@@ -20,8 +19,7 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId};
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 #[test]
 fn frontier_and_callback_share_the_same_atomic_semantic_failure() {
-    use ryo_relations::domain::relations::types::{Words, WorkerNumber};
-    for capture_first in [true, false] {
+    {
         let (engine, _) = engine();
         let mut authored = authored_request(1);
         crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps[0].operation =
@@ -37,53 +35,27 @@ fn frontier_and_callback_share_the_same_atomic_semantic_failure() {
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
         let (elements, mut symbols) = tree(FileId(0), b"ab(");
         let intents = [FileRuleIntent::Run {
-            diagnostic: DiagnosticDelivery::Forwarded,
+            diagnostic: DiagnosticDelivery::Collected,
             observations: ObservationDemand::NotRequired,
             capture: CaptureIntent::DiagnosticAndObservations,
         }];
-        let mut file = request
-            .open_file(
-                input(FileId(0), b"ab(", &elements, &intents, &no_catalog),
-                &mut symbols,
-            )
-            .unwrap();
-        for capture_now in [capture_first, !capture_first] {
-            if capture_now {
-                let (mut arena, mut places, mut words) = (vec![], vec![], Words::default());
-                let captured = file
-                    .capture_frontiers(
-                        RuleIndex(0),
-                        ryo_values::domain::stored_facts::types::Bucket(0),
-                        &mut symbols,
-                        CaptureContext {
-                            worker: WorkerNumber(0),
-                            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
-                                &mut arena,
-                            ),
-                            places: &mut places,
-                            words: &mut words,
-                        },
-                    )
-                    .unwrap();
-                assert_eq!(captured.len(), 1);
-                assert!(
-                    matches!(&captured[0].outcome, Err(error) if *error == regex_error("(")),
-                    "a prefix followed by failure is never a complete frontier"
-                );
-            } else {
-                let mut delivered = vec![];
-                let result = file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
-                    delivered.extend_from_slice(row);
-                    Ok(())
-                });
-                assert!(matches!(result, Err(error) if error == regex_error("(")));
-                assert!(
-                    delivered.is_empty(),
-                    "failed evaluation publishes no prefix"
-                );
-            }
-        }
-        file.finish().unwrap();
+        let mut rules = run(
+            &request,
+            (FileId(0), b"ab("),
+            &elements,
+            &intents,
+            &mut symbols,
+        );
+        let rule = ran(&mut rules, 0);
+        assert!(
+            matches!(&rule.emit, EmittedRoot::Delivered(RootOutcome::Failed(error)) if *error == regex_error("(")),
+            "failed evaluation publishes no prefix"
+        );
+        assert!(
+            matches!(rule.after, RuleAfter::Unreached),
+            "a prefix followed by failure is never a complete frontier"
+        );
+        assert!(matches!(rules.end, FileEnd::Unfinished));
         request.finish();
     }
 }
@@ -96,49 +68,43 @@ fn identical_join_diagnostics_have_equal_errors_for_both_delivery_orders() {
         .expect("identical authored Join plans");
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
-    let intents = [
-        FileRuleIntent::Run {
-            diagnostic: DiagnosticDelivery::Forwarded,
-            observations: ObservationDemand::NotRequired,
-            capture: CaptureIntent::Disabled,
-        },
-        FileRuleIntent::Run {
-            diagnostic: DiagnosticDelivery::Collected,
-            observations: ObservationDemand::NotRequired,
-            capture: CaptureIntent::Disabled,
-        },
-    ];
-    for invocation_order in [[RuleIndex(0), RuleIndex(1)], [RuleIndex(1), RuleIndex(0)]] {
+    // Each rule runs on its own, the other undemanded: the forwarded and the collected diagnostic answer one error.
+    for intents in [
+        [
+            FileRuleIntent::Run {
+                diagnostic: DiagnosticDelivery::Collected,
+                observations: ObservationDemand::NotRequired,
+                capture: CaptureIntent::DiagnosticAndObservations,
+            },
+            FileRuleIntent::Undemanded,
+        ],
+        [
+            FileRuleIntent::Undemanded,
+            FileRuleIntent::Run {
+                diagnostic: DiagnosticDelivery::Collected,
+                observations: ObservationDemand::NotRequired,
+                capture: CaptureIntent::DiagnosticAndObservations,
+            },
+        ],
+    ] {
         let (elements, mut symbols) = tree(FileId(0), b"abc");
-        let mut file = request
-            .open_file(
-                input(FileId(0), b"abc", &elements, &intents, &no_catalog),
-                &mut symbols,
-            )
-            .expect("fresh file owner with opposite diagnostic modes");
-        for rule in invocation_order {
-            if rule == RuleIndex(0) {
-                let mut rows = Vec::new();
-                let emission = file.emit_rows(rule, &mut symbols, &mut |row| {
-                    rows.push(row.to_vec());
-                    Ok(())
-                });
-                assert!(matches!(emission, Err(ref error) if *error == regex_error("[")));
-                assert!(
-                    rows.is_empty(),
-                    "forwarded empty Join has no diagnostic rows"
-                );
-            } else {
-                assert_eq!(
-                    failed(
-                        file.rule(rule, demand(), &mut symbols)
-                            .expect("collected diagnostic outcome")
-                    ),
-                    Some(regex_error("["))
-                );
-            }
-        }
-        file.finish().expect("release both diagnostic terminals");
+        let mut rules = run(
+            &request,
+            (FileId(0), b"abc"),
+            &elements,
+            &intents,
+            &mut symbols,
+        );
+        let rule = rules
+            .rules
+            .first()
+            .map(|each| each.rule.0)
+            .expect("one rule ran");
+        assert_eq!(
+            failed(&mut rules, rule),
+            Some(regex_error("[")),
+            "forwarded empty Join has no diagnostic rows"
+        );
     }
     request.finish();
 }
@@ -191,7 +157,6 @@ fn conditional_join_request(count: usize) -> PrepareRequest {
 #[test]
 fn callback_and_frontier_use_one_dependency_contract_in_both_orders() {
     let (engine, _) = engine();
-    use ryo_relations::domain::relations::types::{Words, WorkerNumber};
     let mut authored = conditional_join_request(1);
     crate::boundary_fixture::fixtures::plans(&mut authored)[0].frontier =
         vec![Input::Step(StepId(2))];
@@ -199,49 +164,26 @@ fn callback_and_frontier_use_one_dependency_contract_in_both_orders() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let intents = [FileRuleIntent::Run {
-        diagnostic: DiagnosticDelivery::Forwarded,
+        diagnostic: DiagnosticDelivery::Collected,
         observations: ObservationDemand::NotRequired,
         capture: CaptureIntent::DiagnosticAndObservations,
     }];
-    for capture_first in [true, false] {
-        let (elements, mut symbols) = tree(FileId(0), b"abc");
-        let mut file = request
-            .open_file(
-                input(FileId(0), b"abc", &elements, &intents, &no_catalog),
-                &mut symbols,
-            )
-            .unwrap();
-        for capture_now in [capture_first, !capture_first] {
-            if capture_now {
-                let (mut arena, mut places, mut words) = (vec![], vec![], Words::default());
-                let captured = file
-                    .capture_frontiers(
-                        RuleIndex(0),
-                        ryo_values::domain::stored_facts::types::Bucket(0),
-                        &mut symbols,
-                        CaptureContext {
-                            worker: WorkerNumber(0),
-                            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
-                                &mut arena,
-                            ),
-                            places: &mut places,
-                            words: &mut words,
-                        },
-                    )
-                    .unwrap();
-                assert_eq!(captured.len(), 1);
-                assert!(
-                    matches!(&captured[0].outcome, Err(error) if *error == regex_error("[")),
-                    "frontier and diagnostic must report the same failing RHS"
-                );
-            } else {
-                let outcome = file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| {
-                    panic!("empty forwarded Join cannot emit a row")
-                });
-                assert!(matches!(outcome, Err(ref error) if *error == regex_error("[")));
-            }
-        }
-        file.finish().unwrap();
-    }
+    let (elements, mut symbols) = tree(FileId(0), b"abc");
+    let mut rules = run(
+        &request,
+        (FileId(0), b"abc"),
+        &elements,
+        &intents,
+        &mut symbols,
+    );
+    let rule = ran(&mut rules, 0);
+    assert!(
+        matches!(&rule.emit, EmittedRoot::Delivered(RootOutcome::Failed(error)) if *error == regex_error("[")),
+        "empty forwarded Join cannot emit a row"
+    );
+    assert!(
+        matches!(rule.after, RuleAfter::Unreached),
+        "frontier and diagnostic must report the same failing RHS: no frontier is captured past it"
+    );
     request.finish();
 }

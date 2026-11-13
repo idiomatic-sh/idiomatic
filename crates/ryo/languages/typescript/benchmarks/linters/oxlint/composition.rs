@@ -2,8 +2,8 @@
 use self::commands::{audit, reference, verify_cases, verify_reference_cases, worker};
 use self::compare::parity;
 use self::constants::{
-    AUDIT, CARGO_BENCH_ARGUMENT, EXPECTED_EXECUTABLE, PARITY, UNSUPPORTED_WORKER_COMMAND, USAGE,
-    VERIFY_CASES, VERIFY_REFERENCE_CASES, VERIFY_TOOL,
+    AUDIT, EXPECTED_EXECUTABLE, PARITY, UNSUPPORTED_WORKER_COMMAND, USAGE, VERIFY_CASES,
+    VERIFY_REFERENCE_CASES, VERIFY_TOOL,
 };
 use self::locations::directory;
 use self::measure::measure;
@@ -24,14 +24,14 @@ mod compare;
 pub(crate) mod constants;
 mod locations;
 mod measure;
+pub(crate) mod profile;
 /// Dispatch benchmark commands and retain the complete certification-to-observation timeline.
 pub(crate) fn run(
+    arguments: Vec<BenchmarkArgument>,
     output: &mut dyn std::io::Write,
     observations: &mut dyn std::io::Write,
 ) -> Result<(), Error> {
-    let mut args = std::env::args()
-        .skip(1)
-        .filter(|argument| argument != CARGO_BENCH_ARGUMENT);
+    let mut args = arguments.into_iter().map(|argument| argument.0);
     let suite_source: Arc<dyn ryo_benchmark::outbound::suite::interface::SuitePort> =
         Arc::new(ryo_benchmark::outbound::suite::factory::local());
     let command = args.next();

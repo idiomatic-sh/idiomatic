@@ -53,7 +53,7 @@ impl ParseUseCase for Ordered {
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn crate::domain::semantics::types::Semantics> {
+    fn semantics(&self) -> Option<&dyn crate::domain::answers::types::Semantics<Seen>> {
         None
     }
 
@@ -117,5 +117,5 @@ impl ParseUseCase for Ordered {
     fn complete(&self, _request: &ParseRequest<'_>, _completion: &mut Completion<'_>) {
         self.events.lock().unwrap().push("complete");
     }
-    ryo_relations::each_relation!(forward);
+    ryo_relations::each_relation!(@declared ryo_relations::baseline_relations, forward);
 }

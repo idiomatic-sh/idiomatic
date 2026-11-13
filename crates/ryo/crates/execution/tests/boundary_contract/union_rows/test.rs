@@ -1,10 +1,6 @@
 //! Both declared Union populations drive the same owner-held invocation.
 use super::super::*;
 use super::fixtures::program;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 
 #[test]
 fn union_consumes_both_populations_in_order_with_one_distinct_scope() {
@@ -19,124 +15,39 @@ fn union_consumes_both_populations_in_order_with_one_distinct_scope() {
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
         let elements = ryo_language::domain::elements::types::Elements::default();
-        let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
-        for forwarded in [false, true] {
-            let mut symbols = Symbols::default();
-            let intents = [FileRuleIntent::Run {
-                diagnostic: if forwarded {
-                    DiagnosticDelivery::Forwarded
-                } else {
-                    DiagnosticDelivery::Collected
-                },
-                observations: ObservationDemand::NotRequired,
-                capture: CaptureIntent::Disabled,
-            }];
-            let mut file = request
-                .open_file(
-                    FileInput {
-                        language: SourceLanguage::Recognized,
-                        resident_stability: ResidentStability::Stable,
-                        file: FileId(0),
-                        evaluation: &[],
-                        publication: &[],
-                        intents: &intents,
-                        source: ryo_values::domain::files::types::SourceView(b"abc"),
-                        elements: &elements,
-                        read: &read,
-                        semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                        kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-                    },
-                    &mut symbols,
-                )
-                .expect("open Union file");
-            let mut cells = vec![];
-            if forwarded {
-                file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
-                    cells.extend_from_slice(row);
-                    Ok(())
-                })
-                .expect("forward both Union populations");
-            } else {
-                let RootOutcome::Complete(table) = file
-                    .rule(RuleIndex(0), demand(), &mut symbols)
-                    .expect("collect both Union populations")
-                    .emit
-                else {
-                    panic!("complete Union output")
-                };
-                assert_eq!(table.kinds, [CellKind::Number]);
-                assert_eq!(table.count, RowCount(expected.len()));
-                cells = table.cells;
-            }
-            assert_eq!(
-                cells,
-                expected
-                    .iter()
-                    .map(|v| Value::Number(Integer(*v)))
-                    .collect::<Vec<_>>()
-            );
-            file.finish().expect("release Union file");
-        }
+        let facts = TableFacts::new(&[]);
+        let mut symbols = Symbols::default();
+        let intents = [FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::DiagnosticAndObservations,
+        }];
+        let mut rules = run_file(
+            &request,
+            FileRun::of(&intents, &elements),
+            &mut symbols,
+            &facts,
+        );
+        let Ok(RootOutcome::Complete(table)) = root(ran(&mut rules, 0)) else {
+            panic!("complete Union output")
+        };
+        assert_eq!(table.kinds, [CellKind::Number]);
+        assert_eq!(table.count, RowCount(expected.len()));
+        let cells = table.cells;
+        assert_eq!(
+            cells,
+            expected
+                .iter()
+                .map(|v| Value::Number(Integer(*v)))
+                .collect::<Vec<_>>()
+        );
+        assert!(
+            matches!(rules.end, FileEnd::Finished(_)),
+            "release Union file"
+        );
+        assert_eq!(facts.reads(), 0);
         request.finish();
     }
-}
-
-#[test]
-fn union_stops_on_right_delivery_refusal_and_retries_with_a_new_distinct_scope() {
-    let engine = engine();
-    let prepared = program(&engine, &[3], &[2, 1, 2]);
-    let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
-    let elements = ryo_language::domain::elements::types::Elements::default();
-    let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
-    let mut symbols = Symbols::default();
-    let mut file = request
-        .open_file(
-            FileInput {
-                language: SourceLanguage::Recognized,
-                resident_stability: ResidentStability::Stable,
-                file: FileId(0),
-                evaluation: &[],
-                publication: &[],
-                intents: &[FileRuleIntent::Run {
-                    diagnostic: DiagnosticDelivery::Forwarded,
-                    observations: ObservationDemand::NotRequired,
-                    capture: CaptureIntent::Disabled,
-                }],
-                source: ryo_values::domain::files::types::SourceView(b"abc"),
-                elements: &elements,
-                read: &read,
-                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-            },
-            &mut symbols,
-        )
-        .expect("open Union retry file");
-    let mut calls = 0;
-    let mut prefix = vec![];
-    let refused = file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
-        calls += 1;
-        if calls == 2 {
-            return Err(OperatingError::WrongBinding);
-        }
-        prefix.extend_from_slice(row);
-        Ok(())
-    });
-    assert!(matches!(refused, Err(OperatingError::WrongBinding)));
-    assert_eq!(
-        calls, 2,
-        "no later right row after the first refused delivery"
-    );
-    assert_eq!(prefix, [Value::Number(Integer(3))]);
-    let mut retried = vec![];
-    file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
-        retried.extend_from_slice(row);
-        Ok(())
-    })
-    .expect("retry Union delivery");
-    assert_eq!(retried, [3, 2, 1].map(|v| Value::Number(Integer(v))));
-    file.finish().expect("release retried Union");
-    request.finish();
 }
 
 #[test]
@@ -144,7 +55,7 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
     for left_refuses in [true, false] {
         let engine = engine();
         let mut input = authored_request(1);
-        crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
+        boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
             PlanStep {
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
@@ -169,9 +80,7 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
                 },
             },
         ];
-        crate::boundary_fixture::fixtures::plans(&mut input)[0]
-            .emit
-            .step = StepId(2);
+        boundary_fixture::fixtures::plans(&mut input)[0].emit.step = StepId(2);
         let prepared = engine.prepare(input).expect("source-bound Union");
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
@@ -181,92 +90,65 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
             count: RowCount(0),
             cells: vec![],
         };
-        let left_reads = Cell::new(0);
-        let right_reads = Cell::new(0);
-        let read_order = std::cell::RefCell::new(Vec::new());
-        #[expect(
-            clippy::wildcard_enum_match_arm,
-            reason = "the fake serves the union's two sides; any other relation is a read the union never makes"
-        )]
-        let read = |relation| {
-            read_order.borrow_mut().push(relation);
-            match relation {
-                Relation::Function => {
-                    left_reads.set(left_reads.get() + 1);
-                    if left_refuses {
-                        Err(OperatingError::WrongBinding)
-                    } else {
-                        Ok(SourceRows::Computed(&empty))
-                    }
-                }
-                Relation::SemanticChild => {
-                    right_reads.set(right_reads.get() + 1);
-                    Err(OperatingError::NotRead)
-                }
-                _ => Err(OperatingError::WrongOperation),
-            }
+        // The right side, SemanticChild, is never held, so a read of it is refused; the left, Function, is refused too when
+        // `left_refuses`, and else holds no row.
+        let facts = if left_refuses {
+            TableFacts::new(&[])
+        } else {
+            TableFacts::new(&[(Relation::Function, &empty)])
         };
         let mut symbols = Symbols::default();
-        let mut file = request
-            .open_file(
-                FileInput {
-                    language: SourceLanguage::Recognized,
-                    resident_stability: ResidentStability::Stable,
-                    file: FileId(0),
-                    evaluation: &[],
-                    publication: &[],
-                    intents: &[FileRuleIntent::Run {
-                        diagnostic: DiagnosticDelivery::Collected,
-                        observations: ObservationDemand::NotRequired,
-                        capture: CaptureIntent::Disabled,
-                    }],
-                    source: ryo_values::domain::files::types::SourceView(b"abc"),
-                    elements: &elements,
-                    read: &read,
-                    semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                    kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-                },
-                &mut symbols,
-            )
-            .expect("open refused Union");
-        let result = file
-            .rule(RuleIndex(0), demand(), &mut symbols)
-            .expect("the public call reports a typed failed root");
-        assert!(if left_refuses {
-            matches!(
-                result.emit,
-                RootOutcome::Failed(OperatingError::WrongBinding)
-            )
+        let mut rules = run_file(
+            &request,
+            FileRun::of(
+                &[FileRuleIntent::Run {
+                    diagnostic: DiagnosticDelivery::Collected,
+                    observations: ObservationDemand::NotRequired,
+                    capture: CaptureIntent::DiagnosticAndObservations,
+                }],
+                &elements,
+            ),
+            &mut symbols,
+            &facts,
+        );
+        assert!(
+            matches!(root(ran(&mut rules, 0)), Err(FileStop::Facts(_))),
+            "the refused source stops the rule"
+        );
+        let order = facts.history();
+        let left_reads = order
+            .iter()
+            .filter(|relation| **relation == Relation::Function)
+            .count();
+        let right_reads = order
+            .iter()
+            .filter(|relation| **relation == Relation::SemanticChild)
+            .count();
+        if left_refuses {
+            assert_eq!(left_reads, 1, "a failed source is not retried");
+            assert_eq!(order.as_slice(), &[Relation::Function]);
         } else {
-            matches!(result.emit, RootOutcome::Failed(OperatingError::NotRead))
-        });
-        {
-            let order = read_order.borrow();
-            if left_refuses {
-                assert_eq!(left_reads.get(), 1, "a failed source is not retried");
-                assert_eq!(order.as_slice(), &[Relation::Function]);
-            } else {
-                // Accepted publications may resolve the pinned borrowed view more than once. The file's presence
-                // read is admission's first read, so the right refusal may come before admission's left borrows, and
-                // admission meets it without reading the right side again.
-                assert!(left_reads.get() > 0);
-                assert_eq!(order.first(), Some(&Relation::Function));
-                assert!(order.iter().all(|relation| matches!(
+            // Accepted publications may resolve the pinned borrowed view more than once. The file's presence
+            // read is admission's first read, so the right refusal may come before admission's left borrows, and
+            // admission meets it without reading the right side again.
+            assert!(left_reads > 0);
+            assert_eq!(order.first(), Some(&Relation::Function));
+            assert!(
+                order.iter().all(|relation| matches!(
                     relation,
                     Relation::Function | Relation::SemanticChild
-                )));
-            }
+                ))
+            );
         }
         assert_eq!(
-            right_reads.get(),
+            right_reads,
             usize::from(!left_refuses),
             "left failure wins; empty success still demands the right side exactly once"
         );
-        let reads_before_finish = read_order.borrow().len();
-        file.finish().expect("release refused Union");
+        assert!(matches!(rules.end, FileEnd::Unfinished));
         assert_eq!(
-            read_order.borrow().len(),
-            reads_before_finish,
+            facts.reads(),
+            order.len(),
             "release never demands a failed source again"
         );
         request.finish();

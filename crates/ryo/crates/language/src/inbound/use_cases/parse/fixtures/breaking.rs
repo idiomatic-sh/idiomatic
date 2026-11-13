@@ -64,7 +64,7 @@ impl ParseUseCase for Breaking {
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn crate::domain::semantics::types::Semantics> {
+    fn semantics(&self) -> Option<&dyn crate::domain::answers::types::Semantics> {
         None
     }
 
@@ -131,5 +131,5 @@ impl ParseUseCase for Breaking {
 
     fn complete(&self, _request: &ParseRequest<'_>, _completion: &mut Completion<'_>) {}
 
-    ryo_relations::each_relation!(absent_all);
+    ryo_relations::each_relation!(@declared ryo_relations::baseline_relations, absent_all);
 }

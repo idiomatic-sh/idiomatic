@@ -2,30 +2,29 @@
 
 use super::{derived, operators};
 use crate::application::derived::service::DerivedPreparation;
+use crate::inbound::use_cases::execution::fixtures::TableFacts;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::{
+    Arena, CaptureContext, EmittedRoot, FactsWorker, FileEnd, FileRules, FileRunInput, KindSupport,
+    RequestExecution, RuleAfter, SemanticSupport, SourceLanguage,
+};
+use crate::inbound::use_cases::execution::interface::{
     CaptureIntent, DiagnosticDelivery, ExecutionUseCase, FileRuleIntent, ObservationDemand,
-    RuleIndex,
 };
 use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, RuleDemand};
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs::table_inputs;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort as _;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::{
-    FileInput, SourceLanguage, SourceRows,
-};
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 use ryo_execution_store::outbound::derived::interface::DerivedPort;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_relations::domain::relations::types::{FileId, KindBits, Offset, Relation};
+use ryo_relations::domain::relations::types::{FileId, KindBits, Offset, Words, WorkerNumber};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
@@ -37,8 +36,7 @@ use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, 
 use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
-use ryo_values::domain::stored_facts::types::Digest;
-use std::cell::Cell;
+use ryo_values::domain::stored_facts::types::{Bucket, Digest};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -58,30 +56,26 @@ pub(crate) fn published_file(
     elements: &Elements,
     symbols: &mut Symbols,
 ) -> Result<Table, OperatingError> {
-    let reads = Cell::new(0);
-    let read = |_: Relation| {
-        reads.set(reads.get() + 1);
-        Err(OperatingError::NotRead)
-    };
+    let facts = TableFacts::new(&[]);
     // Request-only and tree fixtures have no catalog provider: a run that demanded one answers the read's refusal,
     // even when it went on to publish.
-    let result = published_from(plan, bindings, hosted, source, elements, symbols, &read);
-    if reads.get() > 0 {
+    let result = published_from(plan, bindings, hosted, source, elements, symbols, &facts);
+    if facts.reads() > 0 {
         return Err(result.err().unwrap_or(OperatingError::NotRead));
     }
     result
 }
-pub(crate) fn published_from<'facts>(
+pub(crate) fn published_from(
     plan: Plan,
     bindings: Vec<ParameterBinding>,
     hosted: Vec<HostRelation>,
     source: &[u8],
     elements: &Elements,
     symbols: &mut Symbols,
-    read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
+    facts: &dyn FactsWorker,
 ) -> Result<Table, OperatingError> {
     let (engine, prepared) = prepared(plan, bindings, hosted)?;
-    run_prepared(&engine, &prepared, source, elements, symbols, read)
+    run_prepared(&engine, &prepared, source, elements, symbols, facts)
 }
 /// One authored request: its plans with their bindings, its rules, digests and hosted relations.
 pub(crate) struct Authored {
@@ -193,24 +187,25 @@ pub(crate) const fn emitted() -> RuleDemand {
     }
 }
 /// Repeat the supported public owner protocol over the same immutable compiled request.
-pub(crate) fn run_prepared<'facts>(
+pub(crate) fn run_prepared(
     _engine: &Preparation,
     prepared: &PreparedExecutionProgram,
     source: &[u8],
     elements: &Elements,
     symbols: &mut Symbols,
-    read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
+    facts: &dyn FactsWorker,
 ) -> Result<Table, OperatingError> {
-    run_prepared_context(_engine, prepared, source, elements, symbols, read, None)
+    run_prepared_context(_engine, prepared, source, elements, symbols, facts, None)
 }
-/// The same public owner with its real borrowed rendering capability.
-pub(crate) fn run_prepared_context<'facts>(
+/// The same public owner with its real borrowed rendering capability: file 0 run through `run_file` over `facts`, its one rule's
+/// diagnostic collected. A read of the facts they refused is the engine's `NotRead`, as the engine meets it.
+pub(crate) fn run_prepared_context(
     _engine: &Preparation,
     prepared: &PreparedExecutionProgram,
     source: &[u8],
     elements: &Elements,
     symbols: &mut Symbols,
-    read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
+    facts: &dyn FactsWorker,
     semantic: Option<&dyn crate::inbound::use_cases::execution::interface::SemanticLookup>,
 ) -> Result<Table, OperatingError> {
     let corpus = [CorpusInput::Available(CorpusEntry {
@@ -219,55 +214,83 @@ pub(crate) fn run_prepared_context<'facts>(
         size: FileSize(u64::try_from(source.len()).map_err(|_| OperatingError::NotRun)?),
         modified: Nanoseconds(0),
     })];
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
-    let mut file = request.open_file(
-        FileInput {
-            language: SourceLanguage::Recognized,
-            resident_stability: ResidentStability::Stable,
-            file: FileId(0),
-            evaluation: &[],
-            publication: &[],
+    let request = ExecutionUseCaseImpl::new().execution(prepared, &corpus, None.into());
+    let rules = run_file(
+        &request,
+        RunFile {
+            source,
+            elements,
             intents: &[FileRuleIntent::Run {
                 diagnostic: DiagnosticDelivery::Collected,
                 observations: ObservationDemand::NotRequired,
-                capture: CaptureIntent::Disabled,
+                capture: CaptureIntent::DiagnosticAndObservations,
             }],
-            source: ryo_values::domain::files::types::SourceView(source),
-            elements,
-            read,
-            semantic: match semantic {
-                Some(lookup) => ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Supplied(lookup),
-                None => ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-            },
-            kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+            semantic,
         },
         symbols,
-    )?;
-    let outcome = file.rule(
-        RuleIndex(0),
-        RuleDemand {
-            emit: EmitDemand::Enabled,
-            observations: ObservationDemand::NotRequired,
-        },
-        symbols,
+        facts,
     );
-    let finished = file.finish();
     request.finish();
-    finished?;
-    let table = match outcome?.emit {
-        RootOutcome::Complete(table) => table,
-        RootOutcome::Failed(error) => return Err(error),
-        RootOutcome::Unknown(error) => panic!(
+    let FileRules { rules, end } = rules;
+    if let FileEnd::Refused(stop) = end {
+        return Err(super::facts::operating(stop));
+    }
+    let ran = rules.into_iter().next().ok_or(OperatingError::NotRun)?;
+    let table = match (ran.emit, ran.after) {
+        (EmittedRoot::Delivered(RootOutcome::Complete(table)), RuleAfter::Ran { .. }) => table,
+        (EmittedRoot::Delivered(RootOutcome::Failed(error)), _) => return Err(error),
+        (_, RuleAfter::Stopped(stop)) => return Err(super::facts::operating(stop)),
+        (EmittedRoot::Delivered(RootOutcome::Unknown(error)), _) => panic!(
             "expected a complete publication or exact Failed outcome, got Unknown({error:?})"
         ),
-        RootOutcome::Partial { .. }
-        | RootOutcome::Skipped(_)
-        | RootOutcome::NoQuery
-        | RootOutcome::Deferred { .. } => {
+        (EmittedRoot::Delivered(_) | EmittedRoot::Withheld, _) => {
             panic!("authored per-file request must publish a complete table or its exact failure")
         }
     };
     Ok(table)
+}
+/// What file 0 of a request is run with through `run_file`: its source and tree, its rules' intents and the semantic capability.
+pub(crate) struct RunFile<'a> {
+    pub(crate) source: &'a [u8],
+    pub(crate) elements: &'a Elements,
+    pub(crate) intents: &'a [FileRuleIntent],
+    pub(crate) semantic:
+        Option<&'a dyn crate::inbound::use_cases::execution::interface::SemanticLookup>,
+}
+/// File 0 of `request` run through the one per-file route, over `facts`, every rule's first frontier bucket 0.
+pub(crate) fn run_file(
+    request: &RequestExecution,
+    file: RunFile<'_>,
+    symbols: &mut Symbols,
+    facts: &dyn FactsWorker,
+) -> FileRules {
+    let first = vec![Bucket(0); file.intents.len()];
+    let (mut arena, mut places, mut words) = (Vec::new(), Vec::new(), Words::default());
+    request.run_file(
+        FileRunInput {
+            language: SourceLanguage::Recognized,
+            file: FileId(0),
+            evaluation: &[],
+            publication: &[],
+            intents: file.intents,
+            source: ryo_values::domain::files::types::SourceView(file.source),
+            elements: file.elements,
+            semantic: match file.semantic {
+                Some(lookup) => SemanticSupport::Supplied(lookup),
+                None => SemanticSupport::Absent,
+            },
+            kinds: KindSupport::Absent,
+            first: &first,
+        },
+        symbols,
+        CaptureContext {
+            worker: WorkerNumber(0),
+            arena: Arena(&mut arena),
+            places: &mut places,
+            words: &mut words,
+        },
+        facts,
+    )
 }
 /// Exact typed input data, not a provider for one of the catalog relations.
 pub(crate) fn numbers(name: &str, width: usize, rows: &[&[i64]]) -> HostRelation {
@@ -352,14 +375,13 @@ pub(crate) fn table_request_context(
     semantic: Option<&dyn crate::inbound::use_cases::execution::interface::SemanticLookup>,
 ) -> Result<Table, OperatingError> {
     let authored = table_inputs(operation, inputs, &bindings, symbols);
-    let read = |relation| {
-        authored
+    let facts = TableFacts::new(
+        &authored
             .facts
             .iter()
-            .find(|(actual, _)| *actual == relation)
-            .map(|(_, table)| SourceRows::Computed(table))
-            .ok_or(OperatingError::NotRead)
-    };
+            .map(|(relation, table)| (*relation, table))
+            .collect::<Vec<_>>(),
+    );
     let (engine, prepared) = prepared(authored.plan, bindings, authored.hosted)?;
     run_prepared_context(
         &engine,
@@ -367,7 +389,7 @@ pub(crate) fn table_request_context(
         source,
         &Elements::default(),
         symbols,
-        &read,
+        &facts,
         semantic,
     )
 }

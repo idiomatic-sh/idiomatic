@@ -6,16 +6,10 @@ use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::inbound::use_cases::execution::interface::FileRuleIntent;
 use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use crate::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
-use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use crate::inbound::use_cases::execution::interface::{EmittedRoot, RuleAfter};
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort as _;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::{
     elements::types::Elements, files::types::FilePath, symbols::types::Symbols,
 };
@@ -54,7 +48,7 @@ fn subject(_: Input) -> Result<Value, Failure> {
             .map(|name| HostRow(vec![HostCell::File(name.into())]))
             .to_vec(),
     };
-    let (engine, prepared) = fixtures::requests::prepared(
+    let (_engine, prepared) = fixtures::requests::prepared(
         inputs::plan(vec![
             Operation::Hosted {
                 relation: HostedNumber(0),
@@ -80,37 +74,35 @@ fn subject(_: Input) -> Result<Value, Failure> {
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     // Hosted File data never invokes a catalog provider: were it called, the run would fail with the read refusal.
-    let read = |_| Err(OperatingError::NotRead);
-    let mut file = request.open_file(
-        FileInput {
-            language: SourceLanguage::Recognized,
-            resident_stability: ResidentStability::Stable,
-            file: FileId(0),
-            evaluation: &[],
-            publication: &[],
+    let facts = fixtures::TableFacts::new(&[]);
+    let ran = fixtures::requests::run_file(
+        &request,
+        fixtures::requests::RunFile {
+            source: b"",
+            elements: &elements,
             intents: &[FileRuleIntent::Run {
                 diagnostic: DiagnosticDelivery::Collected,
                 observations: ObservationDemand::NotRequired,
-                capture: CaptureIntent::Disabled,
+                capture: CaptureIntent::DiagnosticAndObservations,
             }],
-            source: ryo_values::domain::files::types::SourceView(b""),
-            elements: &elements,
-            read: &read,
-            semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-            kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+            semantic: None,
         },
         &mut symbols,
-    )?;
-    let emitted = file
-        .rule(
-            RuleIndex(0),
-            RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::NotRequired,
-            },
-            &mut symbols,
-        )?
-        .emit;
+        &facts,
+    )
+    .rules
+    .into_iter()
+    .next()
+    .ok_or(OperatingError::NotRun)?;
+    let emitted = match (ran.emit, ran.after) {
+        (EmittedRoot::Delivered(outcome), _) => outcome,
+        (EmittedRoot::Withheld, RuleAfter::Stopped(stop)) => {
+            return Err(fixtures::facts::operating(stop));
+        }
+        (EmittedRoot::Withheld, RuleAfter::Ran { .. } | RuleAfter::Unreached) => {
+            return Err(OperatingError::NotRun);
+        }
+    };
     let published = if let RootOutcome::Complete(table) = emitted {
         Some(Published {
             kinds: table.kinds.into(),
@@ -120,7 +112,6 @@ fn subject(_: Input) -> Result<Value, Failure> {
     } else {
         None
     };
-    file.finish()?;
     request.finish();
     Ok(published)
 }

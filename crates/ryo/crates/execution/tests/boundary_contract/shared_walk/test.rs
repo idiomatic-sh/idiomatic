@@ -1,16 +1,11 @@
 //! The public file owner shares one measured outer walk among distinct selectors.
-use super::fixtures::no_catalog;
 use super::fixtures::*;
-use crate::boundary_fixture::fixtures::{corpus, demand};
+use crate::boundary_fixture::fixtures::corpus;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
-use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
-use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileEnd;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_relations::domain::relations::types::FileId;
 
@@ -21,39 +16,23 @@ fn two_distinct_singleton_selectors_share_one_actual_native_walk() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
-    let mut file = request
-        .open_file(
-            input(
-                FileId(0),
-                b"abc",
-                &elements,
-                &[
-                    FileRuleIntent::Run {
-                        diagnostic: DiagnosticDelivery::Collected,
-                        observations: ObservationDemand::NotRequired,
-                        capture: CaptureIntent::Disabled,
-                    },
-                    FileRuleIntent::Run {
-                        diagnostic: DiagnosticDelivery::Collected,
-                        observations: ObservationDemand::NotRequired,
-                        capture: CaptureIntent::Disabled,
-                    },
-                ],
-                &no_catalog,
-            ),
-            &mut symbols,
-        )
-        .unwrap();
-    let words = complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap());
+    let mut rules = run(
+        &request,
+        (FileId(0), b"abc"),
+        &elements,
+        &[COLLECTED, COLLECTED],
+        &mut symbols,
+    );
+    let words = complete(&mut rules, 0);
     assert_eq!(words, expected(FileId(0), &elements, &[1, 3]));
-    let other = complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap());
+    let other = complete(&mut rules, 1);
     assert_eq!(other, expected(FileId(0), &elements, &[2]));
     assert_eq!(
         semantics.selects(),
         0,
         "neither native class rescans through ordinary Select dispatch"
     );
-    file.finish().unwrap();
+    assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
 
@@ -64,20 +43,16 @@ fn inactive_file_has_zero_shared_walk_work() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
-    let file = request
-        .open_file(
-            input(
-                FileId(0),
-                b"abc",
-                &elements,
-                &[FileRuleIntent::Undemanded, FileRuleIntent::Undemanded],
-                &no_catalog,
-            ),
-            &mut symbols,
-        )
-        .unwrap();
+    let rules = run(
+        &request,
+        (FileId(0), b"abc"),
+        &elements,
+        &[FileRuleIntent::Undemanded, FileRuleIntent::Undemanded],
+        &mut symbols,
+    );
+    assert!(rules.rules.is_empty());
     assert_eq!(semantics.selects(), 0);
-    file.finish().unwrap();
+    assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
 
@@ -88,20 +63,16 @@ fn skipping_all_demanded_rules_does_not_start_the_walk() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
-    let mut file = request
-        .open_file(
-            input(
-                FileId(0),
-                b"abc",
-                &elements,
-                &[FileRuleIntent::Skipped(ApplicabilityReason::DiagnosticNotApplicable); 2],
-                &no_catalog,
-            ),
-            &mut symbols,
-        )
-        .unwrap();
+    let rules = run(
+        &request,
+        (FileId(0), b"abc"),
+        &elements,
+        &[FileRuleIntent::Skipped(ApplicabilityReason::DiagnosticNotApplicable); 2],
+        &mut symbols,
+    );
+    assert!(rules.rules.is_empty());
     assert_eq!(semantics.selects(), 0);
-    file.finish().unwrap();
+    assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
 
@@ -115,86 +86,48 @@ fn equal_predicates_with_different_parameters_have_independent_native_results() 
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
-    let mut file = request
-        .open_file(
-            input(
-                FileId(0),
-                b"abc",
-                &elements,
-                &[
-                    FileRuleIntent::Run {
-                        diagnostic: DiagnosticDelivery::Collected,
-                        observations: ObservationDemand::NotRequired,
-                        capture: CaptureIntent::Disabled,
-                    },
-                    FileRuleIntent::Run {
-                        diagnostic: DiagnosticDelivery::Collected,
-                        observations: ObservationDemand::NotRequired,
-                        capture: CaptureIntent::Disabled,
-                    },
-                ],
-                &no_catalog,
-            ),
-            &mut symbols,
-        )
-        .unwrap();
+    let mut rules = run(
+        &request,
+        (FileId(0), b"abc"),
+        &elements,
+        &[COLLECTED, COLLECTED],
+        &mut symbols,
+    );
     assert_eq!(
-        complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
+        complete(&mut rules, 1),
         expected(FileId(0), &elements, &[3])
     );
     assert_eq!(
-        complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
+        complete(&mut rules, 0),
         expected(FileId(0), &elements, &[1])
     );
     assert_eq!(semantics.selects(), 0);
-    file.finish().unwrap();
+    assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
 
+/// A fault in one active class stays with its own rule: the rule before it, which shares the walk, delivers its rows, and the
+/// faulty rule answers its own error.
 #[test]
 fn a_fault_in_another_active_class_is_delayed_until_that_rule_is_requested() {
     let (engine, semantics) = engine();
-    let program = prepared(&engine, &[Selector::BadRegex, Selector::Kind("other")]);
+    let program = prepared(&engine, &[Selector::Kind("other"), Selector::BadRegex]);
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
-    let mut file = request
-        .open_file(
-            input(
-                FileId(0),
-                b"abc",
-                &elements,
-                &[
-                    FileRuleIntent::Run {
-                        diagnostic: DiagnosticDelivery::Collected,
-                        observations: ObservationDemand::NotRequired,
-                        capture: CaptureIntent::Disabled,
-                    },
-                    FileRuleIntent::Run {
-                        diagnostic: DiagnosticDelivery::Collected,
-                        observations: ObservationDemand::NotRequired,
-                        capture: CaptureIntent::Disabled,
-                    },
-                ],
-                &no_catalog,
-            ),
-            &mut symbols,
-        )
-        .unwrap();
+    let mut rules = run(
+        &request,
+        (FileId(0), b"abc"),
+        &elements,
+        &[COLLECTED, COLLECTED],
+        &mut symbols,
+    );
     assert_eq!(
-        complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
+        complete(&mut rules, 0),
         expected(FileId(0), &elements, &[2])
     );
-    assert_eq!(
-        failed(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
-        Some(regex_error("["))
-    );
-    assert_eq!(
-        complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
-        expected(FileId(0), &elements, &[2])
-    );
+    assert_eq!(failed(&mut rules, 1), Some(regex_error("[")));
     assert_eq!(semantics.selects(), 0);
-    file.finish().unwrap();
     request.finish();
 }
 
@@ -215,38 +148,22 @@ fn the_second_file_starts_with_fresh_walk_state_and_its_own_source_rows() {
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     for (file_id, source, first, last) in [(FileId(0), b"abc", 1, 3), (FileId(1), b"cba", 3, 1)] {
         let (elements, mut symbols) = tree(file_id, source);
-        let mut file = request
-            .open_file(
-                input(
-                    file_id,
-                    source,
-                    &elements,
-                    &[
-                        FileRuleIntent::Run {
-                            diagnostic: DiagnosticDelivery::Collected,
-                            observations: ObservationDemand::NotRequired,
-                            capture: CaptureIntent::Disabled,
-                        },
-                        FileRuleIntent::Run {
-                            diagnostic: DiagnosticDelivery::Collected,
-                            observations: ObservationDemand::NotRequired,
-                            capture: CaptureIntent::Disabled,
-                        },
-                    ],
-                    &no_catalog,
-                ),
-                &mut symbols,
-            )
-            .unwrap();
+        let mut rules = run(
+            &request,
+            (file_id, source),
+            &elements,
+            &[COLLECTED, COLLECTED],
+            &mut symbols,
+        );
         assert_eq!(
-            complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
+            complete(&mut rules, 0),
             expected(file_id, &elements, &[first])
         );
         assert_eq!(
-            complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
+            complete(&mut rules, 1),
             expected(file_id, &elements, &[last])
         );
-        file.finish().unwrap();
+        assert!(matches!(rules.end, FileEnd::Finished(_)));
     }
     assert_eq!(semantics.selects(), 0);
     request.finish();

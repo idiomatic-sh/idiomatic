@@ -1,0 +1,42 @@
+description = "A linter bench's composition: it declares the profile wiring the entry calls, and runs the bench's commands."
+why = "The entry calls `composition::profile`, so the composition declares it; the rest of the file is the linter's own."
+content = '''
+//! The linter's composition.
+pub(crate) mod profile;
+'''
+
+[given]
+file = 'composition.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'composition.rs' = '''
+//! The linter's composition.
+pub(crate) mod profile;
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'The composition carries its own commands.'
+given.files.'composition.rs' = '''
+//! The linter's composition.
+mod commands;
+pub(crate) mod profile;
+
+pub(crate) fn run() {}
+'''
+
+[[scenarios]]
+id = 'no-profile'
+scenario = 'A composition that does not declare the profile wiring.'
+given.files.'composition.rs' = '''
+//! The linter's composition.
+mod commands;
+'''
+then.findings = [{ rule = 'composition-root#template', path = 'composition.rs' }]
+
+[[scenarios]]
+id = 'missing'
+scenario = 'The composition is missing.'
+then.findings = [{ rule = 'composition-root#count', path = '.' }]

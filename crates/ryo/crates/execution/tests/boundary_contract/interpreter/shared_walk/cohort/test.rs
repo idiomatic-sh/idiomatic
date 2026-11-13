@@ -1,6 +1,8 @@
 //! Dormant declarations cannot allocate cohort scratch or retained result slots.
 use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
-use crate::shared_walk::{fixtures::no_catalog, fixtures::*};
+use crate::interpreter::shared_walk::fixtures::no_catalog;
+use crate::interpreter::shared_walk::fixtures::{complete, failed, input};
+use crate::shared_walk::fixtures::*;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;

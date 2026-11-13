@@ -1,7 +1,8 @@
 //! The shared walk uses one join dependency contract for callback delivery and shares one source walk.
 use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
+use crate::interpreter::shared_walk::fixtures::no_catalog;
 use crate::interpreter::shared_walk::fixtures::walked;
-use crate::shared_walk::fixtures::no_catalog;
+use crate::interpreter::shared_walk::fixtures::{complete, input};
 use crate::shared_walk::fixtures::*;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;

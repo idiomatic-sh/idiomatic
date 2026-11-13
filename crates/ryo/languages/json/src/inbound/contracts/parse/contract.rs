@@ -44,8 +44,8 @@ impl Parse for ParseContract {
 
     fn begin_semantics(&self, _: &ParseRequest<'_>, _: &Elements, _: &mut SemanticSlot) {}
 
-    fn semantics(&self) -> Option<&dyn languages::Semantics> {
-        None
+    fn semantics(&self) -> Option<&dyn languages::Semantics<Model>> {
+        Some(self)
     }
 
     fn completion_requirement(&self) -> CompletionRequirement {
@@ -59,10 +59,7 @@ impl Parse for ParseContract {
     }
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
-        &[
-            languages::OptionalCapability::Identifier,
-            languages::OptionalCapability::QualifiedName,
-        ]
+        &[]
     }
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
@@ -219,12 +216,6 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotCode)
     }
 
-    fn embedded_expression(
-        &self,
-    ) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
         languages::native_semantic_syntax()
     }
@@ -233,113 +224,124 @@ impl Parse for ParseContract {
         languages::native_semantic_child()
     }
 
-    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Model>> {
-        // Data documents do not contain executable source expressions.
+    fn resolves(&self) -> Support<Reader<languages::Resolves, Model>> {
         languages::absent(AbsenceCause::NotCode)
     }
 
-    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+    fn static_import(&self) -> Support<Reader<languages::StaticImport, Model>> {
+        languages::absent(AbsenceCause::NotCode)
+    }
+}
+
+impl languages::Semantics<Model> for ParseContract {
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Model>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Model>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_field(&self) -> Support<Reader<languages::FormatField, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn literal_expression_parse(
         &self,
-    ) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
+    ) -> Support<Reader<languages::LiteralExpressionParse, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
+    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn token_link(&self) -> Support<Reader<languages::TokenLink, Self::FileModel>> {
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
+    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Model>> {
         // This provider does not yet implement this optional semantic relation.
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Model>> {
         // This provider does not yet implement this optional semantic relation.
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn format_specification(
-        &self,
-    ) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
+    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
+    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn interpolated_string_literal(
         &self,
-    ) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
+    ) -> Support<Reader<languages::InterpolatedStringLiteral, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
+    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
+    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
+    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Model>> {
         // This provider does not expose a parser target version.
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Model>> {
         // This optional provider catalog is not yet implemented or advertised here.
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Model>> {
         // This optional analysis is not yet implemented or advertised by this provider.
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Model>> {
         // This optional analysis is not yet implemented or advertised by this provider.
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Model>> {
         // This optional analysis is not yet implemented or advertised by this provider.
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Model>> {
         // This optional analysis is not yet implemented or advertised by this provider.
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -353,16 +355,7 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotCode)
     }
 
-    fn resolves(&self) -> Support<Reader<languages::Resolves, Model>> {
-        languages::absent(AbsenceCause::NotCode)
-    }
-
-    fn static_import(&self) -> Support<Reader<languages::StaticImport, Model>> {
-        languages::absent(AbsenceCause::NotCode)
-    }
-
     fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, Model>> {
-        // JSON does not have module imports.
-        languages::absent(AbsenceCause::NotCode)
+        languages::absent(AbsenceCause::NotYetRead)
     }
 }

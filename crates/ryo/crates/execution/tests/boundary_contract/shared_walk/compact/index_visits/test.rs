@@ -1,15 +1,14 @@
-//! An indexed join counts the matching right-hand visits and does no work on replay.
-use super::super::super::fixtures::{complete, input};
-use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine};
+//! An indexed join answers the matching right-hand rows.
+use super::super::super::fixtures::complete;
+use crate::boundary_fixture::fixtures::{FileRun, authored_request, corpus, engine, run_file};
+use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileEnd;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
-use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort as _;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort as _;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_language::domain::elements::types::Elements;
@@ -98,19 +97,22 @@ fn indexed_join_counts_actual_matching_rhs_visits_and_does_no_work_on_replay() {
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
         let mut symbols = Symbols::default();
         let elements = Elements::default();
-        let read = |_| Err(OperatingError::NotRead);
+        let read = TableFacts::new(&[]);
         let intents = [FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
             observations: ObservationDemand::NotRequired,
-            capture: CaptureIntent::Disabled,
+            capture: CaptureIntent::DiagnosticAndObservations,
         }];
-        let mut file = request
-            .open_file(
-                input(FileId(0), b"", &elements, &intents, &read),
-                &mut symbols,
-            )
-            .unwrap();
-        let first = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
+        let mut rules = run_file(
+            &request,
+            FileRun {
+                file: FileId(0),
+                source: b"",
+                ..FileRun::of(&intents, &elements)
+            },
+            &mut symbols,
+            &read,
+        );
         let expected = Table {
             kinds: vec![CellKind::Number, CellKind::Number],
             count: RowCount(expected.len()),
@@ -121,10 +123,8 @@ fn indexed_join_counts_actual_matching_rhs_visits_and_does_no_work_on_replay() {
                 })
                 .collect(),
         };
-        assert_eq!(complete(first), expected);
-        let again = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
-        assert_eq!(complete(again), expected);
-        file.finish().unwrap();
+        assert_eq!(complete(&mut rules, 0), expected);
+        assert!(matches!(rules.end, FileEnd::Finished(_)));
         request.finish();
     }
 }
