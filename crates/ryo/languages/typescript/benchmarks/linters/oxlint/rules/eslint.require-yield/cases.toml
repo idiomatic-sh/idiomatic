@@ -64,6 +64,16 @@ files = { "case.ts" = "function* gen() { if (a) { yield; } }\n" }
 expected = []
 
 [[cases]]
+name = "disable-inside-finding"
+files = { "case.ts" = "const g = function* () {\n  /* eslint-disable require-yield */\n  f();\n};\n" }
+expected = []
+
+[[cases]]
+name = "disable-after-finding"
+files = { "case.ts" = "const g = function* () {\n  f();\n};\n/* eslint-disable require-yield */\n" }
+expected = [{ file = "case.ts", start = 10, end = 33 }]
+
+[[cases]]
 name = "directive"
 files = { "case.ts" = "// eslint-disable-next-line require-yield\nfunction* gen() { f(); }\n" }
 expected = []
