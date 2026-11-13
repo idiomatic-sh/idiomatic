@@ -5,6 +5,7 @@ use ryo::languages::{KindName, Sample, SampleText, Why};
 
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
+use crate::domain::syntax::types::PatternNode;
 use crate::domain::syntax::constants::UNREAD_GRAMMAR;
 use crate::domain::syntax::service::{kind_bits, kinds};
 use crate::domain::syntax::types::Kind;
@@ -201,6 +202,28 @@ pub(crate) const fn sample(kind: Kind) -> Sample {
         | Kind::Extra(Extra::Whitespace | Extra::Hashbang | Extra::Error) => {
             Sample::Unread(Why(UNREAD_GRAMMAR))
         }
+        Kind::Pattern(
+            PatternNode::Pattern
+            | PatternNode::Disjunction
+            | PatternNode::Alternative
+            | PatternNode::BoundaryAssertion
+            | PatternNode::LookAroundAssertion
+            | PatternNode::Quantifier
+            | PatternNode::Character
+            | PatternNode::Dot
+            | PatternNode::CharacterClassEscape
+            | PatternNode::UnicodePropertyEscape
+            | PatternNode::CharacterClass
+            | PatternNode::CharacterClassRange
+            | PatternNode::ClassStringDisjunction
+            | PatternNode::ClassString
+            | PatternNode::CapturingGroup
+            | PatternNode::IgnoreGroup
+            | PatternNode::IndexedReference
+            | PatternNode::NamedReference,
+        ) => Sample::Node(SampleText(include_str!(
+            "../../tests/fixtures/relations/pattern_syntax/input.ts"
+        ))),
         Kind::Node(Node::ArrowFunctionExpression) => Sample::Node(SampleText(include_str!(
             "../../tests/fixtures/suite/valid/TSTypeParameter-arrow-const-modifier.ts"
         ))),

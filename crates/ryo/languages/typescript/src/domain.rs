@@ -12,6 +12,7 @@ pub(crate) mod language;
 pub(crate) mod links;
 pub(crate) mod model;
 pub(crate) mod nodes;
+pub(crate) mod patterns;
 pub(crate) mod prologues;
 pub(crate) mod relations;
 pub(crate) mod resolutions;

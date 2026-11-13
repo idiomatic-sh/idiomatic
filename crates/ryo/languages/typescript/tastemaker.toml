@@ -3,7 +3,7 @@ closed = false
 # The parser crates typescript reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { domain-libraries = [], libraries = ["oxc_parser::*", "oxc_allocator::*", "oxc_ast::*", "oxc_ast_visit::*", "oxc_span::*", "oxc_semantic::*", "serde::*", "serde_json::*", "jsonc_parser::*", "yaml_serde::*", "globset::*", "postcard::*"] }
+variables = { domain-libraries = [], libraries = ["oxc_parser::*", "oxc_allocator::*", "oxc_ast::*", "oxc_ast_visit::*", "oxc_span::*", "oxc_semantic::*", "oxc_regular_expression::*", "serde::*", "serde_json::*", "jsonc_parser::*", "yaml_serde::*", "globset::*", "postcard::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },

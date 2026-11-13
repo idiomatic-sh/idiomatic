@@ -1,0 +1,49 @@
+[[cases]]
+name = "empty"
+files = { "case.ts" = "const a = /[]/;\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "negated-empty"
+files = { "case.ts" = "const a = /[^]/;\n" }
+expected = []
+
+[[cases]]
+name = "inside-pattern"
+files = { "case.ts" = "const a = /a[]b/u;\n" }
+expected = [{ file = "case.ts", start = 12, end = 14 }]
+
+[[cases]]
+name = "two-empty"
+files = { "case.ts" = "const a = /[][]/;\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }, { file = "case.ts", start = 13, end = 15 }]
+
+[[cases]]
+name = "nested-set"
+files = { "case.ts" = "const a = /[[]]/v;\n" }
+expected = [{ file = "case.ts", start = 12, end = 14 }]
+
+[[cases]]
+name = "escaped-bracket"
+files = { "case.ts" = "const a = /\\[]/;\n" }
+expected = []
+
+[[cases]]
+name = "escaped-close"
+files = { "case.ts" = "const a = /[\\]]/;\n" }
+expected = []
+
+[[cases]]
+name = "constructor-string"
+files = { "case.ts" = "const a = new RegExp(\"[]\");\n" }
+expected = []
+
+[[cases]]
+name = "non-empty"
+files = { "case.ts" = "const a = /[a]/;\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-empty-character-class\nconst a = /[]/;\n" }
+expected = []

@@ -215,6 +215,15 @@ pub use ryo::languages::Parse
 pub use ryo::languages::ParseConfigurationIdentity
 pub use ryo::languages::ParseError
 pub use ryo::languages::ParseRequest
+pub use ryo::languages::PatternChild
+pub use ryo::languages::PatternChildColumn
+pub use ryo::languages::PatternChildRow
+pub use ryo::languages::PatternParse
+pub use ryo::languages::PatternParseColumn
+pub use ryo::languages::PatternParseRow
+pub use ryo::languages::PatternSyntax
+pub use ryo::languages::PatternSyntaxColumn
+pub use ryo::languages::PatternSyntaxRow
 pub use ryo::languages::Position
 pub use ryo::languages::PrimaryFileRole
 pub use ryo::languages::Project
@@ -507,6 +516,9 @@ pub use ryo::languages::contract::OracleRows
 pub use ryo::languages::contract::PackageDependencyExpectedRow
 pub use ryo::languages::contract::ParameterExpectedRow
 pub use ryo::languages::contract::ParseEngine
+pub use ryo::languages::contract::PatternChildExpectedRow
+pub use ryo::languages::contract::PatternParseExpectedRow
+pub use ryo::languages::contract::PatternSyntaxExpectedRow
 pub use ryo::languages::contract::Point
 pub use ryo::languages::contract::ProjectEngine
 pub use ryo::languages::contract::ProjectNamespaceMembershipExpectedRow

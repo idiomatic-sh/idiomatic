@@ -62,7 +62,7 @@ pub(crate) fn function_form(tree: &Tree<'_>, at: Position) -> Declaredness {
                 Kind::Node(Node::Property) => {
                     token(tree, holder, Spelling(PROPERTY_SEPARATOR)).is_none()
                 }
-                Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => false,
+                Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) | Kind::Pattern(_) => false,
             };
             if !method {
                 return Declaredness::Expression;
@@ -76,7 +76,7 @@ pub(crate) fn function_form(tree: &Tree<'_>, at: Position) -> Declaredness {
             });
             Declaredness::Method(key)
         }
-        Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => Declaredness::Expression,
+        Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) | Kind::Pattern(_) => Declaredness::Expression,
     }
 }
 /// An explicit callable name: a declaration's own, or a method's key; anonymous functions and arrows remain unknown.

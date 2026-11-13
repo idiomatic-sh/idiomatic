@@ -1,6 +1,7 @@
 //! Read TypeScript with Oxc and project its typed AST into TypeScript-ESTree nodes.
 
 use super::constants::{IMPORT_META, IMPORT_OPTIONS_KEY, NEW_TARGET, NOT_UTF8};
+use super::patterns::service::{carried, constructed, written_patterns};
 use super::projection::service::{
     annotate, attach, expression_body, gap, insert, jsx_names, leaf, meta_words, normalized,
     node_properties, parameter, source_type_of, write,
@@ -31,7 +32,7 @@ use ryo::languages::{self, Offset};
 #[derive(Debug)]
 pub(crate) struct SyntaxOxcParserAdapter;
 
-impl<'a> Visit<'a> for VisitorStack {
+impl<'a> Visit<'a> for VisitorStack<'a> {
     fn enter_node(&mut self, kind: AstKind<'a>) {
         if let Some(value) = kind.identifier_name() {
             let import_options = value == IMPORT_OPTIONS_KEY
@@ -64,6 +65,8 @@ impl<'a> Visit<'a> for VisitorStack {
                 token_kind: Token::String,
             });
         }
+        constructed(self, kind);
+        let carries = carried(self, kind);
         self.open.push(Piece {
             kind: node_kind(kind).map_or(Kind::Extra(Extra::Error), Kind::Node),
             span: kind.span(),
@@ -71,6 +74,7 @@ impl<'a> Visit<'a> for VisitorStack {
             text: Text::Source,
             cursor: ChildCursor(0),
             properties: node_properties(&self.scoping, kind),
+            carries,
         });
     }
 
@@ -298,7 +302,14 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
                 leaf(Kind::Extra(Extra::Error), Span::new(readable, length)),
             );
         }
-        write(&mut root, builder);
+        write(&mut root, &mut projection.carriers, builder);
+        written_patterns(
+            &allocator,
+            languages::NameText(source),
+            &projection.carriers,
+            &projection.scoping,
+            builder,
+        );
         for diagnostic in parsed.diagnostics.iter().chain(semantic.diagnostics.iter()) {
             let span = diagnostic
                 .labels

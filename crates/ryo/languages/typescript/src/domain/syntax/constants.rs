@@ -40,6 +40,13 @@ pub(crate) const REFERENCE_DECLARATION: ryo::languages::PropertyId = ryo::langua
 /// The node property that holds, in decimal, where a binding identifier that declares a name again first declared it: the start of
 /// the first declaration's binding identifier. A name's first declaration has none.
 pub(crate) const REDECLARATION_OF: ryo::languages::PropertyId = ryo::languages::PropertyId(5);
+/// The property a carrier of a regular-expression pattern holds: the flags the pattern was read with, as the source states them, empty
+/// when it states none and `unknown` when it states them in a way the source does not settle.
+pub(crate) const PATTERN_FLAGS: ryo::languages::PropertyId = ryo::languages::PropertyId(6);
+/// The property a carrier holds when the library refused its pattern: the library's message.
+pub(crate) const PATTERN_ERROR: ryo::languages::PropertyId = ryo::languages::PropertyId(7);
+/// The property a pattern element holds when it stands for a number: a character's code point, a reference's group index.
+pub(crate) const PATTERN_VALUE: ryo::languages::PropertyId = ryo::languages::PropertyId(8);
 
 /// An expression whose children could not all be read has no class a query could compare.
 pub(crate) const SHAPES_INCOMPLETE: &str = "expression shapes require a complete syntax tree";

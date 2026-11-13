@@ -235,12 +235,15 @@ pub(super) fn judge_kinds(
             fields: FieldRequest::Unwanted,
         };
         let (mut table, mut symbols) = (Elements::default(), Symbols::default());
+        // A kind may hold only elements of a tree the language parsed under one of its own (a pattern under its carrier).
         let held = build(parse, request, &mut table, &mut symbols).is_ok()
-            && positions(&table).any(|at| {
-                kind_at(&table, at) == each.bits
-                    && (crate::domain::elements::service::flags_at(&table, at).0 & TOKEN.0 != 0)
-                        == token
-            });
+            && positions(&table)
+                .chain(crate::domain::elements::service::expanded_positions(&table))
+                .any(|at| {
+                    kind_at(&table, at) == each.bits
+                        && (crate::domain::elements::service::flags_at(&table, at).0 & TOKEN.0 != 0)
+                            == token
+                });
         if let Some(outside) = positions(&table)
             .map(|at| kind_at(&table, at).0)
             .find(|number| !declared.contains(number))

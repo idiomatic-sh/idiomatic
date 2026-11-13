@@ -13,8 +13,10 @@ use crate::domain::relations::collections::relations::{
     decorates::item::DecoratesItem, defines::item::DefinesItem, directive::item::DirectiveItem,
     expression_shape::item::ExpressionShapeItem, function::item::FunctionItem,
     inherits::item::InheritsItem, numeric_literal::item::NumericLiteralItem,
-    parameter::item::ParameterItem, reference::item::ReferenceItem, resolves::item::ResolvesItem,
-    scope::item::ScopeItem, static_call::item::StaticCallItem,
+    parameter::item::ParameterItem, pattern_child::item::PatternChildItem,
+    pattern_parse::item::PatternParseItem, pattern_syntax::item::PatternSyntaxItem,
+    reference::item::ReferenceItem, resolves::item::ResolvesItem, scope::item::ScopeItem,
+    static_call::item::StaticCallItem,
     static_import::item::StaticImportItem, string_literal::item::StringLiteralItem,
     syntax_child::item::SyntaxChildItem, syntax_error::item::SyntaxErrorItem,
     syntax_tree::item::SyntaxTreeItem, visibility::item::VisibilityItem,
@@ -408,5 +410,17 @@ impl languages::Semantics<ReadIndexes> for ParseContract {
     ) -> Support<Reader<languages::StandardLibraryImport, ReadIndexes>> {
         // TypeScript module imports exist; a versioned host-library catalog is not read.
         languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_parse(&self) -> Support<Reader<languages::PatternParse, ReadIndexes>> {
+        languages::reads::<PatternParseItem>()
+    }
+
+    fn pattern_syntax(&self) -> Support<Reader<languages::PatternSyntax, ReadIndexes>> {
+        languages::reads::<PatternSyntaxItem>()
+    }
+
+    fn pattern_child(&self) -> Support<Reader<languages::PatternChild, ReadIndexes>> {
+        languages::reads::<PatternChildItem>()
     }
 }

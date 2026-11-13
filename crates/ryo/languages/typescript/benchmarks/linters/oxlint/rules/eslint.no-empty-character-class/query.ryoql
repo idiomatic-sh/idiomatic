@@ -1,0 +1,6 @@
+import directives from "typescript/oxlint/eslint-directives";
+let regex_tokens = select id from "semantic-syntax" where kind = "regular-expression";
+let literals = select l.parent as carrier from "semantic-child" as l join regex_tokens as r on l.child = r.id;
+let empty = select l.id as id, l.file as file, l.span as span from "pattern-syntax" as l join literals as r on l.carrier = r.carrier where l.kind = "character-class" and l.text = "[]";
+let violations = directives(candidates=empty, names="(?:^|,)(?:[^,]*/)?no-empty-character-class(?:,|$)");
+emit violations subject file key(id, span);

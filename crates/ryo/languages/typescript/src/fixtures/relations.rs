@@ -107,6 +107,18 @@ mod source_location {
 mod visibility {
     include!("../../tests/fixtures/relations/visibility/expected.rs");
 }
+/// The rows the `pattern-parse` relation must give for its fixture.
+mod pattern_parse {
+    include!("../../tests/fixtures/relations/pattern_parse/expected.rs");
+}
+/// The rows the `pattern-syntax` relation must give for its fixture.
+mod pattern_syntax {
+    include!("../../tests/fixtures/relations/pattern_syntax/expected.rs");
+}
+/// The rows the `pattern-child` relation must give for its fixture.
+mod pattern_child {
+    include!("../../tests/fixtures/relations/pattern_child/expected.rs");
+}
 /// The expected rows of every relation the language reads from trees, one entry for each.
 pub(super) fn expected() -> Vec<Expected> {
     vec![
@@ -137,6 +149,9 @@ pub(super) fn expected() -> Vec<Expected> {
         syntax_child::expected(),
         semantic_child::expected(),
         syntax_error::expected(),
+        pattern_parse::expected(),
+        pattern_syntax::expected(),
+        pattern_child::expected(),
     ]
 }
 

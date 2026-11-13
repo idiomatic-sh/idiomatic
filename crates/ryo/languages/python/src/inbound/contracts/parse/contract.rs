@@ -397,4 +397,16 @@ impl languages::Semantics<Declarations> for ParseContract {
     ) -> Support<Reader<languages::StandardLibraryImport, Declarations>> {
         languages::reads::<StandardLibraryImportItem>()
     }
+
+    fn pattern_parse(&self) -> Support<Reader<languages::PatternParse, Declarations>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_syntax(&self) -> Support<Reader<languages::PatternSyntax, Declarations>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_child(&self) -> Support<Reader<languages::PatternChild, Declarations>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }

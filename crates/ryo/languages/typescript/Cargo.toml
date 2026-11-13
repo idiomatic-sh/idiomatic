@@ -31,6 +31,7 @@ oxc_ast_visit = "=0.142.0"
 oxc_parser = "=0.142.0"
 oxc_span = "=0.142.0"
 oxc_semantic = "=0.142.0"
+oxc_regular_expression = "=0.142.0"
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.4" }
 
 [dev-dependencies]
