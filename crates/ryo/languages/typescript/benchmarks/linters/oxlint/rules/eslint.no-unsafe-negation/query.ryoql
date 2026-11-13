@@ -1,0 +1,8 @@
+import directives from "typescript/oxlint/eslint-directives";
+let relations = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "operator" and (r.text = "in" or r.text = "instanceof");
+let negations = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "operator" and r.text = "!";
+let lefts = select c.child as id from relations as l join "semantic-child" as c on l.id = c.parent where c.field = "left";
+let negated = select l.id as id from lefts as l join negations as r on l.id = r.id;
+let found = select r.id as id, r.file as file, r.span as span from negated as l join "semantic-syntax" as r on l.id = r.id where r.kind = "unary-expression";
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-unsafe-negation(?:,|$)");
+emit violations subject file key(id);

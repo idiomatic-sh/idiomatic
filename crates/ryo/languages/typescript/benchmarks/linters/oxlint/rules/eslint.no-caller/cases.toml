@@ -1,0 +1,34 @@
+[[cases]]
+name = "callee"
+files = { "case.ts" = "function f() { return arguments.callee; }\n" }
+expected = [{ file = "case.ts", start = 32, end = 38 }]
+
+[[cases]]
+name = "caller"
+files = { "case.ts" = "function f() { return arguments.caller; }\n" }
+expected = [{ file = "case.ts", start = 32, end = 38 }]
+
+[[cases]]
+name = "called"
+files = { "case.ts" = "function f() { arguments.callee(); }\n" }
+expected = [{ file = "case.ts", start = 25, end = 31 }]
+
+[[cases]]
+name = "other-object"
+files = { "case.ts" = "x.callee;\n" }
+expected = []
+
+[[cases]]
+name = "computed"
+files = { "case.ts" = "function f() { return arguments[\"callee\"]; }\n" }
+expected = []
+
+[[cases]]
+name = "length"
+files = { "case.ts" = "function f() { return arguments.length; }\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "function f() {\n  // eslint-disable-next-line no-caller\n  return arguments.callee;\n}\n" }
+expected = []

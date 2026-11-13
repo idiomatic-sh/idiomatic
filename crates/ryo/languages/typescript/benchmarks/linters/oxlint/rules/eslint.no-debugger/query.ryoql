@@ -1,0 +1,4 @@
+import directives from "typescript/oxlint/eslint-directives";
+let statements = select id, file, span from "semantic-syntax" where kind = "debugger-statement";
+let violations = directives(candidates=statements, names="(?:^|,)(?:[^,]*/)?no-debugger(?:,|$)");
+emit violations subject file key(id);

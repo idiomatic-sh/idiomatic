@@ -1,0 +1,59 @@
+[[cases]]
+name = "return"
+files = { "case.ts" = "function g() { try { return 1; } finally { return 2; } }\n" }
+expected = [{ file = "case.ts", start = 43, end = 52 }]
+
+[[cases]]
+name = "throw"
+files = { "case.ts" = "function g() { try {} finally { throw e; } }\n" }
+expected = [{ file = "case.ts", start = 32, end = 40 }]
+
+[[cases]]
+name = "break"
+files = { "case.ts" = "for (;;) { try {} finally { break; } }\n" }
+expected = [{ file = "case.ts", start = 28, end = 34 }]
+
+[[cases]]
+name = "continue"
+files = { "case.ts" = "for (;;) { try {} finally { continue; } }\n" }
+expected = [{ file = "case.ts", start = 28, end = 37 }]
+
+[[cases]]
+name = "labeled-break"
+files = { "case.ts" = "a: { try {} finally { break a; } }\n" }
+expected = [{ file = "case.ts", start = 22, end = 30 }]
+
+[[cases]]
+name = "nested-function"
+files = { "case.ts" = "function g() { try {} finally { function h() { return 1; } } }\n" }
+expected = []
+
+[[cases]]
+name = "nested-arrow"
+files = { "case.ts" = "function g() { try {} finally { const h = () => { return 1; }; } }\n" }
+expected = []
+
+[[cases]]
+name = "nested-loop"
+files = { "case.ts" = "function g() { try {} finally { for (;;) { break; } } }\n" }
+expected = []
+
+[[cases]]
+name = "nested-switch"
+files = { "case.ts" = "function g() { try {} finally { switch (x) { case 1: break; } } }\n" }
+expected = []
+
+[[cases]]
+name = "inner-label"
+files = { "case.ts" = "function g() { try {} finally { b: { break b; } } }\n" }
+expected = []
+
+[[cases]]
+name = "in-try"
+files = { "case.ts" = "function g() { try { return 1; } finally { f(); } }\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "function g() {\n  try {} finally {\n    // eslint-disable-next-line no-unsafe-finally\n    return 2;\n  }\n}\n" }
+expected = []

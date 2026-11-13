@@ -1,0 +1,54 @@
+[[cases]]
+name = "misspelled"
+files = { "case.ts" = "if (typeof y === \"strnig\") {}\n" }
+expected = [{ file = "case.ts", start = 17, end = 25 }]
+
+[[cases]]
+name = "misspelled-left"
+files = { "case.ts" = "if (\"nunber\" == typeof y) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 12 }]
+
+[[cases]]
+name = "capitalized"
+files = { "case.ts" = "if (typeof y === 'Object') {}\n" }
+expected = [{ file = "case.ts", start = 17, end = 25 }]
+
+[[cases]]
+name = "template"
+files = { "case.ts" = "if (typeof y === `bigin`) {}\n" }
+expected = [{ file = "case.ts", start = 17, end = 24 }]
+
+[[cases]]
+name = "undefined-identifier"
+files = { "case.ts" = "if (typeof y === undefined) {}\n" }
+expected = [{ file = "case.ts", start = 17, end = 26 }]
+
+[[cases]]
+name = "valid"
+files = { "case.ts" = "if (typeof y === \"string\") {}\n" }
+expected = []
+
+[[cases]]
+name = "valid-undefined"
+files = { "case.ts" = "if (typeof y !== 'undefined') {}\n" }
+expected = []
+
+[[cases]]
+name = "valid-template"
+files = { "case.ts" = "if (typeof y === `bigint`) {}\n" }
+expected = []
+
+[[cases]]
+name = "variable"
+files = { "case.ts" = "if (typeof y === kind) {}\n" }
+expected = []
+
+[[cases]]
+name = "not-typeof"
+files = { "case.ts" = "if (y === \"strnig\") {}\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line valid-typeof\nif (typeof y === \"strnig\") {}\n" }
+expected = []
