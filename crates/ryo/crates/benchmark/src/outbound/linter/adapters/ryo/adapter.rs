@@ -15,6 +15,7 @@ use ryo_benchmark_contracts::domain::requests::types::{
     ApplicabilityPolicy, CohortSelection, ContextSeal, InputDeclaration, ParserSelection,
     RuleLabel, WorkerRequest,
 };
+use ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
 use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 use std::path::PathBuf;
 #[derive(Debug)]
@@ -89,8 +90,8 @@ impl LinterPort for LinterRyoAdapter {
         std::fs::create_dir_all(&request.state)?;
         std::fs::write(&request_path, request_json.0)?;
         let mut arguments = vec![
-            super::constants::WORKER.into(),
-            super::constants::REQUEST_FILE.into(),
+            ryo_benchmark_contracts::domain::requests::constants::RUN_RYO.into(),
+            ryo_benchmark_contracts::domain::requests::constants::REQUEST_FILE.into(),
             request_path.into_os_string(),
         ];
         if let ParserSelection::Named(configuration) = &self.parser_configuration {
@@ -164,5 +165,8 @@ impl LinterPort for LinterRyoAdapter {
     }
     fn rule_context_text(&self, prepared: &PreparedRuleContext) -> CanonicalText {
         CanonicalText::from(prepared)
+    }
+    fn version_line(&self, tool: &Tool) -> VersionLine {
+        VersionLine::from(tool)
     }
 }

@@ -1,0 +1,44 @@
+[[cases]]
+name = "hole"
+files = { "case.ts" = "const a = [1, , 2];\n" }
+expected = [{ file = "case.ts", start = 14, end = 14 }]
+
+[[cases]]
+name = "leading-hole"
+files = { "case.ts" = "const a = [,];\n" }
+expected = [{ file = "case.ts", start = 11, end = 11 }]
+
+[[cases]]
+name = "trailing-hole"
+files = { "case.ts" = "const a = [1,,];\n" }
+expected = [{ file = "case.ts", start = 13, end = 13 }]
+
+[[cases]]
+name = "two-holes-one-finding"
+files = { "case.ts" = "const a = [,,];\n" }
+expected = [{ file = "case.ts", start = 11, end = 11 }]
+
+[[cases]]
+name = "trailing-comma"
+files = { "case.ts" = "const a = [1, 2,];\n" }
+expected = []
+
+[[cases]]
+name = "pattern-hole"
+files = { "case.ts" = "let [, x] = y;\n" }
+expected = []
+
+[[cases]]
+name = "string-commas"
+files = { "case.ts" = "const a = [\",,\", \"[,\"];\n" }
+expected = []
+
+[[cases]]
+name = "nested"
+files = { "case.ts" = "const a = [[1, , 2]];\n" }
+expected = [{ file = "case.ts", start = 15, end = 15 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-sparse-arrays\nconst a = [1, , 2];\n" }
+expected = []

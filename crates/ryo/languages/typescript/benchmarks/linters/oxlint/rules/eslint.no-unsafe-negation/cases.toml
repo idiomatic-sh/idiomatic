@@ -1,0 +1,24 @@
+[[cases]]
+name = "in"
+files = { "case.ts" = "if (!key in object) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 8 }]
+
+[[cases]]
+name = "instanceof"
+files = { "case.ts" = "if (!value instanceof Error) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 10 }]
+
+[[cases]]
+name = "grouped"
+files = { "case.ts" = "if (!(key in object)) {}\n" }
+expected = []
+
+[[cases]]
+name = "relational"
+files = { "case.ts" = "if (!a < b) {}\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-unsafe-negation\nif (!key in object) {}\n" }
+expected = []

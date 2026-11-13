@@ -156,20 +156,6 @@ pub(crate) const ALWAYS: &str = "always";
 pub(crate) const PYTHON_TARGET_3_10: &str = "python-target=3.10";
 /// Text `python`.
 pub(crate) const PYTHON: &str = "python";
-/// Text `run-ryo`.
-pub(crate) const RUN_RYO: &str = "run-ryo";
-/// Text `profile-ryo`.
-pub(crate) const PROFILE_RYO: &str = "profile-ryo";
-/// Text `diagnostic-ryo`.
-pub(crate) const DIAGNOSTIC_RYO: &str = "diagnostic-ryo";
-/// Text `diagnostic-unknown`.
-pub(crate) const DIAGNOSTIC_UNKNOWN: &str = "diagnostic-unknown";
-/// Text `request.json`.
-pub(crate) const REQUEST_JSON: &str = "request.json";
-/// Text `{"root":"/tmp/project","files":["a.py"]}`.
-pub(crate) const ROOT_TMP_PROJECT_FILES_A_PY: &str = r#"{"root":"/tmp/project","files":["a.py"]}"#;
-/// Text `--request-file`.
-pub(crate) const REQUEST_FILE: &str = "--request-file";
 /// Text `python-target=3.11`.
 pub(crate) const PYTHON_TARGET_3_11: &str = "python-target=3.11";
 /// Text `python-target=3.9`.

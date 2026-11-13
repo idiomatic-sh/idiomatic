@@ -6,6 +6,7 @@ use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
 use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 
 /// Bind one linter invocation to its canonical result decoding.
@@ -39,4 +40,6 @@ pub trait LinterPort {
     ) -> Result<CanonicalText, Error>;
     /// The canonical text of a materialized rule configuration, as receipts compare it.
     fn rule_context_text(&self, prepared: &PreparedRuleContext) -> CanonicalText;
+    /// The line this tool's `--version` prints for the pinned profile.
+    fn version_line(&self, tool: &Tool) -> VersionLine;
 }

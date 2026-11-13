@@ -205,6 +205,31 @@ def test_an_archive_s_executable_is_its_member_of_that_name_or_the_whole_of_a_gz
         install.unpacked(packed.getvalue(), "linux_x64.tar.gz", "other")
 
 
+def test_an_archive_tool_installs_the_member_it_names_for_the_machine(tmp_path, monkeypatch) -> None:
+    import hashlib
+    import io
+    import tarfile
+
+    packed = io.BytesIO()
+    with tarfile.open(fileobj=packed, mode="w:gz") as archive:
+        for member, body in (("oxlint", b"another"), ("oxlint-aarch64-unknown-linux-gnu", b"linter")):
+            info = tarfile.TarInfo(member)
+            info.size = len(body)
+            archive.addfile(info, io.BytesIO(body))
+    data = packed.getvalue()
+    tool = {
+        "version": "1.0.0",
+        "url": "https://example.invalid/{version}/oxlint-{asset}",
+        "member": "oxlint-{target}",
+        "assets": {"aarch64-unknown-linux-gnu": ("aarch64-unknown-linux-gnu.tar.gz", hashlib.sha256(data).hexdigest())},
+    }
+    monkeypatch.setitem(install.ARCHIVES, "oxlint", tool)
+    monkeypatch.setattr(install.urllib.request, "urlopen", lambda url: io.BytesIO(data))
+    monkeypatch.setattr(install.os, "name", "posix")
+    assert install.install_archive("oxlint", "aarch64-unknown-linux-gnu", tmp_path) == "prebuilt archive"
+    assert (tmp_path / "oxlint").read_bytes() == b"linter"
+
+
 def test_an_own_tool_is_kept_only_when_it_is_the_command_of_the_release_archive_its_sha256sums_names(tmp_path, monkeypatch) -> None:
     import hashlib
     import io

@@ -3,10 +3,11 @@
 use super::commands;
 use super::constants;
 use super::locations::{default_scratch, directory};
-use super::request_input::BenchmarkArgument;
+use ryo_benchmark::domain::command_line::types::BenchmarkArgument;
 use ryo_benchmark::inbound::use_cases::compare_corpus::{
     interface::CompareCorpusUseCase as _, types::CorpusParity, use_case::CompareCorpusUseCaseImpl,
 };
+use ryo_benchmark::outbound::linter::interface::LinterPort as _;
 use ryo_benchmark::outbound::suite::{
     interface::SuitePort,
     types::{ArtifactPath, ArtifactText},
@@ -45,7 +46,8 @@ pub(super) fn parity(
         accepted.canonicalize()?,
     );
     let tool = suite_source.profile(ArtifactPath(&directory()))?;
-    suite_source.verify_tool(ArtifactPath(&ruff), &tool)?;
+    let expected = commands::reference(ruff.clone(), tool.clone())?.version_line(&tool);
+    suite_source.verify_tool(ArtifactPath(&ruff), &tool, &expected)?;
     let configured = tool.defaults.clone();
     let staged_request = ryo_benchmark::outbound::worker::factory::json(
         WorkerSource::Stored(staged),

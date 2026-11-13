@@ -1,0 +1,16 @@
+import directives from "typescript/oxlint/eslint-directives";
+let tokens = select file, span, text from "semantic-syntax" where kind = "identifier-token";
+let identifiers = select id, file, span from "semantic-syntax" where kind = "identifier";
+let names = select l.id as id, r.text as name from identifiers as l join tokens as r on l.file = r.file and l.span = r.span;
+let params = select l.parent as clause, l.child as id, r.name as name from "semantic-child" as l join names as r on l.child = r.id where l.field = "param";
+let bodies = select l.parent as clause, l.child as body from "semantic-child" as l join "semantic-syntax" as r on l.parent = r.id where l.field = "body" and r.kind = "catch-clause";
+let statements = select l.clause as clause, c.child as statement from bodies as l join "semantic-child" as c on l.body = c.parent where c.field = "body";
+let counts = group-count(from=statements, keys=["clause"], count="statements");
+let single = select l.clause as clause, l.statement as statement from statements as l join counts as r on l.clause = r.clause where r.statements = 1;
+let throws = select l.parent as statement, r.name as name from "semantic-child" as l join names as r on l.child = r.id where l.field = "argument";
+let throw_statements = select l.statement as statement, l.name as name from throws as l join "semantic-syntax" as r on l.statement = r.id where r.kind = "throw-statement";
+let rethrowing = select l.clause as clause, r.name as name from single as l join throw_statements as r on l.statement = r.statement;
+let useless = select l.id as id from params as l join rethrowing as r on l.clause = r.clause and l.name = r.name;
+let found = select r.id as id, r.file as file, r.span as span from useless as l join "semantic-syntax" as r on l.id = r.id;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-useless-catch(?:,|$)");
+emit violations subject file key(id);

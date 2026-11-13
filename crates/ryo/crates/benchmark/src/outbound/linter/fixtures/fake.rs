@@ -8,6 +8,7 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
 use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 use std::path::PathBuf;
 #[derive(Debug, Default)]
@@ -85,6 +86,9 @@ impl LinterPort for LinterFake {
     }
     fn rule_context_text(&self, prepared: &PreparedRuleContext) -> CanonicalText {
         CanonicalText(format!("{prepared:?}"))
+    }
+    fn version_line(&self, tool: &Tool) -> VersionLine {
+        VersionLine::from(tool)
     }
 }
 #[cfg(test)]

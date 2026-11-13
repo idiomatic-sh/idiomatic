@@ -1,0 +1,17 @@
+import directives from "typescript/oxlint/eslint-directives";
+let patterns = select id, file from "semantic-syntax" where kind = "object-pattern" or kind = "array-pattern";
+let filled = select parent from "semantic-child" where field = "properties" or field = "elements";
+let commas = select id from "semantic-syntax" where kind = "punctuator" and text = ",";
+let holed = select l.parent as parent from "semantic-child" as l join commas as r on l.child = r.id;
+let unfilled = antijoin(left=patterns, right=filled, left-on=["id"], right-on=["parent"]);
+let empty = antijoin(left=unfilled, right=holed, left-on=["id"], right-on=["parent"]);
+let openers = select id, span from "semantic-syntax" where kind = "punctuator" and (text = "{" or text = "[");
+let closers = select id, span from "semantic-syntax" where kind = "punctuator" and (text = "}" or text = "]");
+let opener_children = select l.parent as id, r.span as open from "semantic-child" as l join openers as r on l.child = r.id;
+let opened = select l.id as id, l.file as file, r.open as open from empty as l join opener_children as r on l.id = r.id;
+let closer_children = select l.parent as id, r.span as close from "semantic-child" as l join closers as r on l.child = r.id;
+let closed = select l.id as id, l.file as file, l.open as open, r.close as close from opened as l join closer_children as r on l.id = r.id;
+let bracketed = span-between(from=closed, start="open", end="close", output="span");
+let found = select id, file, span from bracketed;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-empty-pattern(?:,|$)");
+emit violations subject file key(id);

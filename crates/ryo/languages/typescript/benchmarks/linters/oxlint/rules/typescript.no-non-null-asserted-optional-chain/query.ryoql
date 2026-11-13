@@ -1,0 +1,17 @@
+import directives from "typescript/oxlint/eslint-directives";
+let assertions = select id from "semantic-syntax" where kind = "ts-non-null-expression";
+let bangs = select l.parent as id, r.id as bang, r.file as file, r.span as span from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "punctuator" and r.text = "!";
+let continued = select child as id from "semantic-child" where field = "object" or field = "callee";
+let chain_ends = antijoin(left=assertions, right=continued, left-on=["id"], right-on=["id"]);
+let asserted = select l.parent as id, l.child as target from "semantic-child" as l join chain_ends as r on l.parent = r.id where l.field = "expression";
+let chains = select l.parent as chain, l.child as inner from "semantic-child" as l join "semantic-syntax" as r on l.parent = r.id where l.field = "expression" and r.kind = "chain-expression";
+let unwrapped = select l.id as id, r.inner as target from asserted as l join chains as r on l.target = r.chain;
+let targets = union(left=asserted, right=unwrapped);
+let optional_links = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "punctuator" and r.text = "?.";
+let callees = select parent as call, child as callee from "semantic-child" where field = "callee";
+let optional_calls = select l.call as id from callees as l join optional_links as r on l.callee = r.id;
+let optional = union(left=optional_links, right=optional_calls);
+let hits = select l.id as id from targets as l join optional as r on l.target = r.id;
+let found = select r.bang as id, r.file as file, r.span as span from hits as l join bangs as r on l.id = r.id;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-non-null-asserted-optional-chain(?:,|$)");
+emit violations subject file key(id);

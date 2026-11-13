@@ -1,6 +1,7 @@
 //! Benchmark values independent of any particular linter.
 pub mod candidate_rules;
 pub(crate) mod canonical_text;
+pub mod command_line;
 pub(crate) mod corpus_discrepancy;
 pub mod diagnostics;
 pub(crate) mod discrepancy;

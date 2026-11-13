@@ -109,6 +109,25 @@ pub fn compare(reference: &RunReport, candidate: &RunReport) -> Result<(), Diffe
     compare_with_contract(reference, candidate, ComparisonContract::CompleteReport).map(|_| ())
 }
 
+/// Require one tool's reports of the same sources under two cache conditions to agree: exact diagnostics and files, and
+/// complete, equal execution metadata unless the tool's format reports none in either run.
+///
+/// # Errors
+/// Refuses what `compare` refuses; for two reports whose execution metadata is unavailable, only a diagnostic or file difference.
+pub fn compare_conditions(first: &RunReport, second: &RunReport) -> Result<(), Difference> {
+    let unavailable = |report: &RunReport| {
+        matches!(
+            report.execution_metadata,
+            ExecutionMetadata::Unavailable { .. }
+        )
+    };
+    if unavailable(first) && unavailable(second) {
+        compare_diagnostics(first, second)
+    } else {
+        compare(first, second)
+    }
+}
+
 /// Validate decoded coverage without treating a rejected report as a process failure.
 ///
 /// # Errors
