@@ -19,16 +19,16 @@ pub(crate) mod constants;
 mod locations;
 mod measure;
 mod parity;
+pub(crate) mod profile;
 mod request_input;
 mod targets;
 /// Dispatch benchmark commands and retain the complete certification-to-observation timeline.
 pub(crate) fn run(
+    arguments: Vec<BenchmarkArgument>,
     output: &mut dyn std::io::Write,
     observations: &mut dyn std::io::Write,
 ) -> Result<(), Error> {
-    let mut args = std::env::args()
-        .skip(1)
-        .filter(|argument| argument != self::constants::CARGO_BENCH_ARGUMENT);
+    let mut args = arguments.into_iter().map(|argument| argument.0);
     let suite_source: Arc<dyn ryo_benchmark::outbound::suite::interface::SuitePort> =
         Arc::new(ryo_benchmark::outbound::suite::factory::local());
     let command = args.next();

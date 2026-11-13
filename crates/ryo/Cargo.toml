@@ -293,6 +293,10 @@ cargo-public-api = { version = "0.52.0", locked = true, unavailable = { x86_64-u
 lto = "fat"
 codegen-units = 1
 
+# A bench's heap and CPU profiles name source lines; line tables add no code.
+[profile.bench]
+debug = "line-tables-only"
+
 [profile.dist]
 inherits = "release"
 
