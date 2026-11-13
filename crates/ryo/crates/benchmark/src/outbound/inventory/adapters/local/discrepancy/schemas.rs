@@ -221,15 +221,17 @@ impl From<DiscrepancySchema> for DiscrepancyRecord {
             identity: DiscrepancyIdentity {
                 tool: ReasonText(identity.tool),
                 version: ReasonText(identity.version),
-                observed_executable_sha256: sha(identity.observed_executable_sha256)
-                    .map_or(ObservedExecutable::NotObserved, ObservedExecutable::Observed),
+                observed_executable_sha256: sha(identity.observed_executable_sha256).map_or(
+                    ObservedExecutable::NotObserved,
+                    ObservedExecutable::Observed,
+                ),
                 profile: Sha256Text(identity.profile_sha256),
                 settings: Sha256Text(identity.settings_sha256),
                 source: Sha256Text(identity.source_sha256),
                 reference_output: Sha256Text(identity.reference_output_sha256),
                 intended_output: Sha256Text(identity.intended_output_sha256),
                 file_metadata: sha(identity.file_metadata_sha256)
-                    .map_or(ryo_benchmark_contracts::domain::documents::types::text::value::FileMetadataDigest::Undeclared, ryo_benchmark_contracts::domain::documents::types::text::value::FileMetadataDigest::Declared),
+                    .map_or(FileMetadataDigest::Undeclared, FileMetadataDigest::Declared),
             },
             approved_executable_sha256: wire
                 .approved_executable_sha256
@@ -244,8 +246,8 @@ impl From<DiscrepancySchema> for DiscrepancyRecord {
             intended_expected: findings(wire.intended_expected),
             reason: ReasonText(wire.reason),
             process: match wire.process.0 {
-                Some(process) => ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::ProcessExpectation::Failure(process.into()),
-                None => ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::ProcessExpectation::Absent,
+                Some(process) => ProcessExpectation::Failure(process.into()),
+                None => ProcessExpectation::Absent,
             },
         }
     }

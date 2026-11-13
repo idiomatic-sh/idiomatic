@@ -1,6 +1,5 @@
 //! A registered rule's source identity, with the effective settings its staged profile runs with.
-use super::super::authored::schemas::document;
-use super::super::case::schemas::Canonical;
+use super::super::canonical::schemas::{Canonical, document};
 use super::super::constants;
 use crate::outbound::inventory::types::RuleInstanceRecord;
 use ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson;

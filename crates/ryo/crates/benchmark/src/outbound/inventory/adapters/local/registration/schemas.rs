@@ -190,7 +190,7 @@ fn rule_value(rule: &RegisteredRule) -> Result<serde_json::Value, Error> {
         "cases": rule
             .cases
             .iter()
-            .map(crate::outbound::inventory::adapters::local::case::schemas::case_value)
+            .map(crate::outbound::inventory::adapters::local::case_wire::schemas::case_value)
             .collect::<Result<Vec<_>, _>>()?,
         "instance": match &rule.instance {
             RuleInstance::Declared(text) => parsed(text)?,
