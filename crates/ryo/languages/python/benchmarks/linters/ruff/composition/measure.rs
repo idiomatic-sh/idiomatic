@@ -107,6 +107,8 @@ pub(super) fn measure(
         workload: frozen_workload,
     } = stage(suite_source, &cache, audit.authored())?;
     let selected_rules = selected_profile.join(super::constants::RULES_DIRECTORY);
+    tool.rule_applicability
+        .retain(|rule, _| selected_rules.join(&rule.0).is_dir());
     let candidate_executable = selected_scratch.join(constants::CANDIDATE_EXECUTABLE);
     suite_source.copy_file(
         ArtifactPath(&std::env::current_exe()?),
