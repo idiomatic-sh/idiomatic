@@ -115,7 +115,6 @@ pub(crate) fn ran_file(
 pub(crate) fn shown(
     rules: ryo_execution::inbound::use_cases::execution::interface::FileRules,
 ) -> (Vec<Ran>, String) {
-    use ryo_execution::inbound::use_cases::execution::interface::{EmittedRoot, RuleAfter};
     let ran = rules
         .rules
         .into_iter()

@@ -43,7 +43,7 @@ pub enum RelationNotes {
 
 /// The capability enum, generated from the relations the catalog declares `optional`.
 macro_rules! capability_enum {
-    ( $( $variant:ident )* ) => {
+    ( $( $group:ident { $( $variant:ident $module:ident $row:ident $column:ident ; )* } )* ) => {
         /// Opt-in semantic promises beyond the required language relation baseline: one for each relation the catalog declares
         /// `optional`, named as the relation is.
         ///
@@ -59,10 +59,10 @@ macro_rules! capability_enum {
         /// ```
         #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub enum OptionalCapability {
-            $(
+            $( $(
                 /// The promise to answer the relation of the same name.
                 $variant,
-            )*
+            )* )*
         }
     };
 }

@@ -143,8 +143,9 @@ pub struct KindNames(pub Vec<ryo_relations::domain::terms::types::NameText<'stat
 /// What the engine asks of a language: the same reading as `ParseUseCase`, behind an interface alone and with what the language works
 /// out of each file kept inside the call, so that languages of different models are held side by side. Every `ParseUseCase` is one.
 pub trait ParseEngine: Send + Sync {
-    /// Explicit optional promises, preserved across the erased provider boundary.
-    fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability];
+    /// Every optional promise of the language, preserved across the erased provider boundary: those of its files' trees, read from what
+    /// its `Semantics` answers other than `NotYetRead`, then those it lists in `ParseUseCase::capabilities`.
+    fn capabilities(&self) -> Vec<ryo_relations::domain::catalog::types::OptionalCapability>;
 
     /// Canonical parser settings included in persisted-result cache identity.
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_>;
@@ -288,25 +289,32 @@ macro_rules! reader_slots {
 }
 ryo_relations::each_relation!(reader_slots);
 
+/// What a language answers for the relation of `$module`: through `ParseUseCase` when the catalog declares it `baseline`, and through
+/// its `Semantics` when `optional`, which a language that implements none answers with nothing.
+macro_rules! support_of {
+    (baseline $language:ident $module:ident) => {
+        Some($language.$module())
+    };
+    (optional $language:ident $module:ident) => {
+        $language.semantics().map(|semantics| semantics.$module())
+    };
+}
+
 /// What the reading of a file is made of: a slot for each syntax relation holding its reader, and the
 /// functions over a slot. Generated from the catalog's one list.
 macro_rules! syntax_slots {
     (
-        syntax { $( $variant:ident $module:ident $row:ident $column:ident ; )* }
-        manifest { $( $manifest_variant:ident $manifest_module:ident $manifest_row:ident $manifest_column:ident ; )* }
-        engine { $( $engine_variant:ident $engine_module:ident $engine_row:ident $engine_column:ident ; )* }
+        syntax { $( $variant:ident $module:ident $row:ident $column:ident $capability:ident ; )* }
+        manifest { $( $manifest_variant:ident $manifest_module:ident $manifest_row:ident $manifest_column:ident $manifest_capability:ident ; )* }
+        engine { $( $engine_variant:ident $engine_module:ident $engine_row:ident $engine_column:ident $engine_capability:ident ; )* }
     ) => {
         /// What the language answers for `relation`: its reader when it reads it from a tree.
         pub(super) fn slot_of<L>(language: &L, relation: Relation) -> Option<Slot<L::FileModel>> where L: super::interface::ParseUseCase + ?Sized {
-            if ryo_relations::domain::relations::service::optional_capability(relation)
-                .is_some_and(|capability| !language.capabilities().contains(&capability)) {
-                return None;
-            }
             match relation {
-                $( Relation::$variant => match language.$module().as_ref() {
+                $( Relation::$variant => support_of!($capability language $module).and_then(|support| match support.as_ref() {
                     crate::domain::answers::types::Answer::Reads(reader) => Some(Slot::$variant(*reader)),
                     crate::domain::answers::types::Answer::NotInThisLanguage(_) => None,
-                }, )*
+                }), )*
                 $( Relation::$manifest_variant => None, )*
                 $( Relation::$engine_variant => None, )*
             }
@@ -325,14 +333,13 @@ macro_rules! syntax_slots {
         /// relation is not one of the trees'.
         #[must_use]
         pub(crate) fn absence_in<L>(language: &L, relation: Relation) -> Option<AbsenceCause> where L: super::interface::ParseUseCase + ?Sized {
-            if ryo_relations::domain::relations::service::optional_capability(relation)
-                .is_some_and(|capability| !language.capabilities().contains(&capability)) {
-                return Some(AbsenceCause::NotYetRead);
-            }
             match relation {
-                $( Relation::$variant => match language.$module().as_ref() {
-                    crate::domain::answers::types::Answer::Reads(_) => None,
-                    crate::domain::answers::types::Answer::NotInThisLanguage(why) => Some(*why),
+                $( Relation::$variant => match support_of!($capability language $module) {
+                    None => Some(AbsenceCause::NotYetRead),
+                    Some(support) => match support.as_ref() {
+                        crate::domain::answers::types::Answer::Reads(_) => None,
+                        crate::domain::answers::types::Answer::NotInThisLanguage(why) => Some(*why),
+                    },
                 }, )*
                 $( Relation::$manifest_variant => None, )*
                 $( Relation::$engine_variant => None, )*
@@ -340,4 +347,4 @@ macro_rules! syntax_slots {
         }
     };
 }
-ryo_relations::each_relation!(syntax_slots);
+ryo_relations::each_relation!(@declared syntax_slots);
