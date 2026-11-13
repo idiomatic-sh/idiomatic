@@ -367,6 +367,22 @@ ARCHIVES = {
             "aarch64-pc-windows-msvc": ("windows_arm64.zip", "b95f5e4f5c425cedca7ee203d9afd29597e692c4924a12ed42f970537c72cc0f"),
         },
     },
+    # The TypeScript benchmark's reference linter (crates/ryo/languages/typescript/benchmarks/linters/oxlint). Its release ships the
+    # standalone executable in a tar.gz (a zip on Windows) as `oxlint-<target>`, the `member`; each SHA-256 is the one GitHub records for
+    # the asset. The npm package of the same version is a Node script, so it is not the one installed.
+    "oxlint": {
+        "version": "1.76.0",
+        "url": "https://github.com/oxc-project/oxc/releases/download/apps_v{version}/oxlint-{asset}",
+        "member": "oxlint-{target}",
+        "assets": {
+            "x86_64-unknown-linux-gnu": ("x86_64-unknown-linux-gnu.tar.gz", "5a01b07e26311b749266794b02dc3f757498fb799e66b117d10c49ec842b59f0"),
+            "aarch64-unknown-linux-gnu": ("aarch64-unknown-linux-gnu.tar.gz", "657f88fc484f0ba61bce1cb0c6ce247686d8e3e8e0b62cbc5020131b3852230e"),
+            "aarch64-apple-darwin": ("aarch64-apple-darwin.tar.gz", "71071f11d95e3ffc3185f46f29ebc69e099fb141016c2109e1f3580553646d61"),
+            "x86_64-apple-darwin": ("x86_64-apple-darwin.tar.gz", "8ce24ce5ab9d2ba8177f33d69a21931cc42b6fcae3658abce9b89cbe3f35c449"),
+            "x86_64-pc-windows-msvc": ("x86_64-pc-windows-msvc.zip", "d5d694934a8410f5afca813dfdab5ead910ecb0ed0fac53c01f228c59e7dfed3"),
+            "aarch64-pc-windows-msvc": ("aarch64-pc-windows-msvc.zip", "142ffc86915bb5248240ae89a2ef9b1b48c98a927af7667cc047378bef5626fb"),
+        },
+    },
 }
 
 
@@ -397,7 +413,8 @@ def unpacked(data: bytes, asset: str, name: str) -> bytes:
 
 
 def install_archive(command: str, host: str, bin_dir: Path) -> str:
-    """Puts `command`'s release executable for `host` in `bin_dir` unless the one there answers its version."""
+    """Puts `command`'s release executable for `host` in `bin_dir` unless the one there answers its version: the archive's `member`
+    (`{target}` is `host`), or the member named `command` where the tool names none."""
     tool = ARCHIVES[command]
     name = command + (".exe" if os.name == "nt" else "")
     found = shutil.which(name, path=str(bin_dir))
@@ -406,7 +423,8 @@ def install_archive(command: str, host: str, bin_dir: Path) -> str:
     if host not in tool["assets"]:
         sys.exit(f"{command} {tool['version']} has no archive recorded for {host}")
     asset, sha256 = tool["assets"][host]
-    data = unpacked(fetched(tool["url"].format(version=tool["version"], asset=asset), sha256), asset, name)
+    member = tool.get("member", command).format(target=host) + (".exe" if os.name == "nt" else "")
+    data = unpacked(fetched(tool["url"].format(version=tool["version"], asset=asset), sha256), asset, member)
     bin_dir.mkdir(parents=True, exist_ok=True)
     (bin_dir / name).write_bytes(data)
     (bin_dir / name).chmod(0o755)

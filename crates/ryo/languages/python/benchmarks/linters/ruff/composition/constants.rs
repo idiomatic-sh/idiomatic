@@ -13,12 +13,6 @@ pub(crate) const EXPECTED_RUFF: &str = "expected Ruff executable";
 pub(crate) const PROFILE_DIRECTORY: &str = "profile";
 /// Stable command, artifact or observation identity for cases directory.
 pub(crate) const CASES_DIRECTORY: &str = "cases";
-/// Accounted full-input measurement command.
-pub(crate) const MEASURE: &str = "measure";
-/// Interim subset measurement command.
-pub(crate) const MEASURE_SCOPED: &str = "diagnostic-measure";
-/// Interim subset command with explicitly audited invalid-source exclusions.
-pub(crate) const MEASURE_VALID: &str = "diagnostic-measure-valid";
 /// Required argument or refusal for release required.
 pub(crate) const RELEASE_REQUIRED: &str =
     "measurement requires a release-profile benchmark executable";
@@ -40,8 +34,6 @@ pub(crate) const EXPECTED_COLLECTOR: &str = "expected resource collector executa
 pub(crate) const LANGUAGE_DIRECTORY: &str = "../..";
 /// Language identity required by this composition.
 pub(crate) const PYTHON: &str = "python";
-/// Required argument or refusal for project count error.
-pub(crate) const PROJECT_COUNT_ERROR: &str = "Python suite requires 2–3 projects";
 /// Stable command, artifact or observation identity for projects directory.
 pub(crate) const PROJECTS_DIRECTORY: &str = "projects";
 /// Stable command, artifact or observation identity for invalid syntax.
@@ -67,14 +59,8 @@ pub(crate) const PARITY_SCRATCH: &str = "parity-";
 pub(crate) const EXPECTED_EXECUTABLE: &str = "expected executable path";
 /// CLI usage shown when command dispatch fails.
 pub(crate) const USAGE: &str = "usage: ruff benchmark: audit | verify-tool <executable> | verify-cases <ruff> [profile] | verify-reference-cases <ruff> [profile] | measure <ruff> <fresh-cache> | parity <ruff> <ryo-worker> <staged-request> <accepted-differences> <per-rule-output> | run-ryo (<json>|--request-file <path>) <python-target=3.MINOR> | diagnostic-ryo (<json>|--request-file <path>) <python-target=3.MINOR> <events.jsonl> (MINOR:7..15)";
-/// Accounted measurement command with explicitly audited invalid-source exclusions.
-pub(crate) const MEASURE_ACCOUNTED_VALID: &str = "measure-valid";
 /// This benchmark package's root, where its rules, fragments and profiles are.
 pub(crate) const MANIFEST_DIRECTORY: &str = env!("CARGO_MANIFEST_DIR");
-/// Accounted-profile coverage label.
-pub(crate) const ACCOUNTED: &str = "Accounted";
-/// Explicit interim-profile coverage label.
-pub(crate) const INTERIM: &str = "Interim";
 /// Text `unsupported worker command`.
 pub(crate) const UNSUPPORTED_WORKER_COMMAND: &str = "unsupported worker command";
 /// Text `--case-inventory=`.

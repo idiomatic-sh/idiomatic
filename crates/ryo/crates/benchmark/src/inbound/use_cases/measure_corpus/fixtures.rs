@@ -6,11 +6,12 @@
 
 use super::{
     types::{
-        CorpusLanguage, CorpusMeasurement, LanguageTitle, ProfileLabel, SampleLabel, SourceProfile,
-        SourceSuffix, ToolTitle,
+        CorpusLanguage, CorpusMeasurement, ProfileLabel, SampleLabel, SourceProfile, SourceSuffix,
+        ToolTitle,
     },
     use_case::MeasureCorpusUseCaseImpl,
 };
+use crate::domain::measurements::types::LanguageTitle;
 use crate::domain::suite::types::{audit::value::Audit, certificate::value::Certificate};
 use crate::outbound::{
     context::fixtures::fake::ContextFake, discovery::fixtures::fake::DiscoveryFake,

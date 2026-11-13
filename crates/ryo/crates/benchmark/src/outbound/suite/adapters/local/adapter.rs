@@ -13,6 +13,7 @@ use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDi
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::Cases;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
+use ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
 use sha2::{Digest as _, Sha256};
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -28,8 +29,8 @@ fn digest(path: &Path) -> Result<ArtifactDigest, Error> {
     )))
 }
 
-/// Verify executable bytes before checking the exact version response.
-fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
+/// Verify executable bytes before checking that the version command prints exactly `expected`.
+fn verify_executable(path: &Path, tool: &Tool, expected: &VersionLine) -> Result<(), Error> {
     let actual = digest(path)?;
     if !tool.sha256.iter().any(|expected| expected.0 == actual.0) {
         return Err(Error::Invalid(constants::TOOL_HASH_MISMATCH.into()));
@@ -38,8 +39,7 @@ fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
         .arg(constants::VERSION_ARGUMENT)
         .output()?;
     if !output.status.success()
-        || String::from_utf8_lossy(&output.stdout).trim()
-            != format!("{} {}", tool.tool, tool.version)
+        || String::from_utf8_lossy(&output.stdout).trim() != expected.0.as_ref()
     {
         return Err(Error::Invalid(constants::TOOL_VERSION_MISMATCH.into()));
     }
@@ -279,8 +279,9 @@ impl SuitePort for SuiteLocalAdapter {
         &self,
         ArtifactPath(executable): ArtifactPath<'_>,
         tool: &Tool,
+        expected: &VersionLine,
     ) -> Result<(), Error> {
-        verify_executable(executable, tool)
+        verify_executable(executable, tool, expected)
     }
 }
 

@@ -1,0 +1,13 @@
+language = "typescript"
+
+[[projects]]
+name = "hono"
+repository = "https://github.com/honojs/hono.git"
+revision = "7c050b2840bd94baa2a71d8ed0786c7d07bcc1b9"
+patch = "patches/hono.patch"
+
+[[projects]]
+name = "vite"
+repository = "https://github.com/vitejs/vite.git"
+revision = "b39e6e63dcbfc3cf4be871acf3554efbd6d0e268"
+patch = "patches/vite.patch"

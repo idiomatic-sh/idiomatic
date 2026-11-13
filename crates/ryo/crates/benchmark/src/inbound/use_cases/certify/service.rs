@@ -57,6 +57,7 @@ pub(super) fn certify(
     suite.verify_tool(
         crate::outbound::suite::types::ArtifactPath(reference_executable),
         &tool,
+        &reference.version_line(&tool),
     )?;
     let audit = crate::application::suite_auditing::service::audit(suite, directory, &tool)?;
     if scope == ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted {

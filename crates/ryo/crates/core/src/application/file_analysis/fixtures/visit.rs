@@ -224,6 +224,8 @@ pub(crate) fn visited_inputs_with_rule_demands(
                 answering,
                 keeping,
             },
+            #[cfg(feature = "fused-evaluation")]
+            fused: None,
         },
     };
     let mut worker = Worker {

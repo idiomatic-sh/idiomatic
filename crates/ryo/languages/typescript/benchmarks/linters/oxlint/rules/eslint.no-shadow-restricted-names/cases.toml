@@ -1,0 +1,64 @@
+[[cases]]
+name = "let-undefined"
+files = { "case.ts" = "let undefined = 1;\n" }
+expected = [{ file = "case.ts", start = 4, end = 13 }]
+
+[[cases]]
+name = "function"
+files = { "case.ts" = "function NaN() {}\n" }
+expected = [{ file = "case.ts", start = 9, end = 12 }]
+
+[[cases]]
+name = "parameter"
+files = { "case.ts" = "function f(Infinity) {}\n" }
+expected = [{ file = "case.ts", start = 11, end = 19 }]
+
+[[cases]]
+name = "catch"
+files = { "case.ts" = "try {} catch (eval) {}\n" }
+expected = [{ file = "case.ts", start = 14, end = 18 }]
+
+[[cases]]
+name = "const-arguments"
+files = { "case.ts" = "const arguments = 1;\n" }
+expected = [{ file = "case.ts", start = 6, end = 15 }]
+
+[[cases]]
+name = "class"
+files = { "case.ts" = "class Infinity {}\n" }
+expected = [{ file = "case.ts", start = 6, end = 14 }]
+
+[[cases]]
+name = "import"
+files = { "case.ts" = "import NaN from \"m\";\n" }
+expected = [{ file = "case.ts", start = 7, end = 10 }]
+
+[[cases]]
+name = "destructured"
+files = { "case.ts" = "const { NaN } = o;\n" }
+expected = [{ file = "case.ts", start = 8, end = 11 }]
+
+[[cases]]
+name = "rest-parameter"
+files = { "case.ts" = "function f(...undefined) {}\n" }
+expected = [{ file = "case.ts", start = 14, end = 23 }]
+
+[[cases]]
+name = "bare-undefined"
+files = { "case.ts" = "let undefined;\n" }
+expected = []
+
+[[cases]]
+name = "global-assignment"
+files = { "case.ts" = "globalThis = 1;\n" }
+expected = []
+
+[[cases]]
+name = "property"
+files = { "case.ts" = "const o = { NaN: 1 };\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-shadow-restricted-names\nlet undefined = 1;\n" }
+expected = []

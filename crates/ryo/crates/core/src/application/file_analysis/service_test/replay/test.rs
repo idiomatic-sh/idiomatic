@@ -196,6 +196,8 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops()
                 keeping: Keeping::Keeps,
                 unknown: &[],
             },
+            #[cfg(feature = "fused-evaluation")]
+            fused: None,
         },
     };
     let mut replay = new_worker();

@@ -120,6 +120,8 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket()
                 keeping: Keeping::Keeps,
                 unknown: &[],
             },
+            #[cfg(feature = "fused-evaluation")]
+            fused: None,
         },
     };
     let digest = Arc::new(DigestCounting::default());

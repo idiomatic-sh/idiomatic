@@ -1,0 +1,14 @@
+import directives from "typescript/oxlint/eslint-directives";
+let thises = select id from "semantic-syntax" where kind = "this-expression";
+let identifiers = select id, file, span from "semantic-syntax" where kind = "identifier";
+let this_inits = select l.parent as declarator from "semantic-child" as l join thises as r on l.child = r.id where l.field = "init";
+let declared = select l.child as id from "semantic-child" as l join this_inits as r on l.parent = r.declarator where l.field = "id";
+let declared_hits = select r.id as id, r.file as file, r.span as span from declared as l join identifiers as r on l.id = r.id;
+let plain_assignments = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "operator" and r.text = "=";
+let this_rights = select l.parent as assignment from "semantic-child" as l join thises as r on l.child = r.id where l.field = "right";
+let this_assignments = select l.assignment as assignment from this_rights as l join plain_assignments as r on l.assignment = r.id;
+let assigned = select l.child as id from "semantic-child" as l join this_assignments as r on l.parent = r.assignment where l.field = "left";
+let assigned_hits = select r.id as id, r.file as file, r.span as span from assigned as l join identifiers as r on l.id = r.id;
+let found = union(left=declared_hits, right=assigned_hits);
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-this-alias(?:,|$)");
+emit violations subject file key(id);

@@ -7,6 +7,7 @@ use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDi
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::Suite;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
+use ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
 /// A directory the adapter made and removes, with everything beneath it, when this handle drops.
 pub trait ScopedDirectory: Send + Sync {
     /// Where the directory lives while the handle is held.
@@ -57,12 +58,17 @@ pub trait SuitePort {
     ///
     /// Returns an error for unreadable or malformed project manifests.
     fn projects(&self, directory: ArtifactPath<'_>) -> Result<Suite, Error>;
-    /// Check the executable's exact bytes and reported version against its profile.
+    /// Check the executable's exact bytes against its profile and the line its version command prints against `expected`.
     ///
     /// # Errors
     ///
     /// Returns an error for unreadable bytes, a digest mismatch, launch failure, or a version mismatch.
-    fn verify_tool(&self, executable: ArtifactPath<'_>, tool: &Tool) -> Result<(), Error>;
+    fn verify_tool(
+        &self,
+        executable: ArtifactPath<'_>,
+        tool: &Tool,
+        expected: &VersionLine,
+    ) -> Result<(), Error>;
     /// Hash exact regular-file bytes and names, recursively for artifact directories.
     ///
     /// # Errors

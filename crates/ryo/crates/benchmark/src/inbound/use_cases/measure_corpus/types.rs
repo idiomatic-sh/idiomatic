@@ -1,4 +1,5 @@
 //! What a corpus is measured with, and what its language tells the measurement.
+use crate::domain::measurements::types::LanguageTitle;
 use crate::domain::suite::types::certificate::value::Certificate;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::measurements::types::MeasurementMode;
@@ -16,10 +17,6 @@ pub enum SourceProfile {
     /// Every discovered source of the language.
     Full,
 }
-
-/// The language as observations name it.
-#[derive(Clone, Copy, Debug)]
-pub struct LanguageTitle<'a>(pub &'a str);
 
 /// The pinned reference tool as observations name it.
 #[derive(Clone, Copy, Debug)]

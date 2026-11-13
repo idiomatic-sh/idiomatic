@@ -1,0 +1,7 @@
+diff --git a/packages/vite/src/node/utils.ts b/packages/vite/src/node/utils.ts
+--- a/packages/vite/src/node/utils.ts
++++ b/packages/vite/src/node/utils.ts
+@@ -234,2 +234,3 @@
+ export function normalizePath(id: string): string {
++  debugger
+   return path.posix.normalize(isWindows ? slash(id) : id)

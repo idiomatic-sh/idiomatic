@@ -1,0 +1,99 @@
+[[cases]]
+name = "statement"
+files = { "case.ts" = "debugger;\n" }
+expected = [{ file = "case.ts", start = 0, end = 9 }]
+
+[[cases]]
+name = "in-function"
+files = { "case.ts" = "function f() {\n  debugger\n}\n" }
+expected = [{ file = "case.ts", start = 17, end = 25 }]
+
+[[cases]]
+name = "unicode-before"
+files = { "case.ts" = "const label = \"é\";\ndebugger;\n" }
+expected = [{ file = "case.ts", start = 20, end = 29 }]
+
+[[cases]]
+name = "no-statement"
+files = { "case.ts" = "const debuggerValue = 1;\n" }
+expected = []
+
+[[cases]]
+name = "next-line-directive"
+files = { "case.ts" = "// eslint-disable-next-line no-debugger\ndebugger;\n" }
+expected = []
+
+[[cases]]
+name = "next-line-directive-with-description"
+files = { "case.ts" = "// eslint-disable-next-line no-debugger -- reason\ndebugger;\n" }
+expected = []
+
+[[cases]]
+name = "next-line-directive-other-rule"
+files = { "case.ts" = "// eslint-disable-next-line no-console\ndebugger;\n" }
+expected = [{ file = "case.ts", start = 39, end = 48 }]
+
+[[cases]]
+name = "next-line-directive-in-list"
+files = { "case.ts" = "// eslint-disable-next-line no-console, no-debugger\ndebugger;\n" }
+expected = []
+
+[[cases]]
+name = "next-line-directive-plugin-prefix"
+files = { "case.ts" = "// eslint-disable-next-line eslint/no-debugger\ndebugger;\n" }
+expected = []
+
+[[cases]]
+name = "next-line-directive-skips-blank-line"
+files = { "case.ts" = "// eslint-disable-next-line\n\ndebugger;\n" }
+expected = [{ file = "case.ts", start = 29, end = 38 }]
+
+[[cases]]
+name = "next-line-directive-block-comment"
+files = { "case.ts" = "/* eslint-disable-next-line\n   no-debugger */\ndebugger;\n" }
+expected = []
+
+[[cases]]
+name = "doc-comment-is-not-a-directive"
+files = { "case.ts" = "/** eslint-disable-next-line no-debugger */\ndebugger;\n" }
+expected = [{ file = "case.ts", start = 44, end = 53 }]
+
+[[cases]]
+name = "oxlint-next-line-directive"
+files = { "case.ts" = "// oxlint-disable-next-line no-debugger\ndebugger;\n" }
+expected = []
+
+[[cases]]
+name = "same-line-directive"
+files = { "case.ts" = "debugger; // eslint-disable-line no-debugger\n" }
+expected = []
+
+[[cases]]
+name = "same-line-directive-on-next-line"
+files = { "case.ts" = "// eslint-disable-line no-debugger\ndebugger;\n" }
+expected = [{ file = "case.ts", start = 35, end = 44 }]
+
+[[cases]]
+name = "block-disable-enable"
+files = { "case.ts" = "/* eslint-disable */\ndebugger;\n/* eslint-enable */\ndebugger;\n" }
+expected = [{ file = "case.ts", start = 51, end = 60 }]
+
+[[cases]]
+name = "named-disable-not-ended-by-blanket-enable"
+files = { "case.ts" = "/* eslint-disable no-debugger */\ndebugger;\n/* eslint-enable */\ndebugger;\n" }
+expected = []
+
+[[cases]]
+name = "named-disable-named-enable"
+files = { "case.ts" = "/* eslint-disable no-debugger */\ndebugger;\n/* eslint-enable no-debugger */\ndebugger;\n" }
+expected = [{ file = "case.ts", start = 75, end = 84 }]
+
+[[cases]]
+name = "disable-after-finding"
+files = { "case.ts" = "debugger;\n/* eslint-disable */\n" }
+expected = [{ file = "case.ts", start = 0, end = 9 }]
+
+[[cases]]
+name = "directive-name-is-case-sensitive"
+files = { "case.ts" = "// eslint-disable-next-line NO-DEBUGGER\ndebugger;\n" }
+expected = [{ file = "case.ts", start = 40, end = 49 }]

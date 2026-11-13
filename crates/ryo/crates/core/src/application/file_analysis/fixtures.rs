@@ -228,6 +228,8 @@ pub(crate) fn replay_under_capture(
                 keeping: Keeping::Keeps,
                 unknown: &[],
             },
+            #[cfg(feature = "fused-evaluation")]
+            fused: None,
         },
     };
     let mut worker = Worker {

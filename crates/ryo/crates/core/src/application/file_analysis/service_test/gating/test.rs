@@ -105,6 +105,8 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason()
             keeping: crate::domain::visit::types::Keeping::Discards,
             unknown: &[],
         },
+        #[cfg(feature = "fused-evaluation")]
+        fused: None,
     };
     for acceptance in [SyntaxAcceptance::Rejected, SyntaxAcceptance::Undetermined] {
         seen.push(gated_acceptance(&setting, acceptance));

@@ -12,6 +12,7 @@ pub(super) fn directory() -> PathBuf {
     PathBuf::from(constants::MANIFEST_DIRECTORY)
 }
 
+// Composition is not DRY: this port wiring repeats in each linter's composition by the owner's rule; only pure values are shared.
 /// Make a scratch directory under the suite boundary's default location, removed when the value drops.
 pub(super) fn default_scratch(
     suite: &dyn SuitePort,

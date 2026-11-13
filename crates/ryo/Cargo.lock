@@ -1785,6 +1785,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "idiomatic-sh-ryo-typescript-oxlint-benchmark"
+version = "0.1.4"
+dependencies = [
+ "idiomatic-sh-ryo-benchmark",
+ "idiomatic-sh-ryo-benchmark-contracts",
+ "idiomatic-sh-ryo-sdk",
+ "idiomatic-sh-ryo-typescript",
+ "mimalloc",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tikv-jemallocator",
+]
+
+[[package]]
 name = "idiomatic-sh-ryo-values"
 version = "0.1.4"
 dependencies = [
