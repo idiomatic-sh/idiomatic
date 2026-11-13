@@ -4,7 +4,8 @@ use super::super::constants::{
     COMMONJS_EXTENSION, JSX_EXTENSION, MODULE_EXTENSION, PLAIN_EXTENSION,
 };
 use super::super::types::{
-    ChildCursor, Decoded, DecodedText, Piece, Text, VisitDepth, VisitorStack,
+    Carrier, Carries, ChildCursor, Decoded, DecodedText, Hosting, Piece, Text, VisitDepth,
+    VisitorStack,
 };
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
@@ -36,9 +37,9 @@ pub(in super::super) fn annotate(piece: &mut Piece) {
 
 /// Normalize parser wrappers whose children belong to a standard node.
 /// Finish a node only after its typed visitor has normalized the native form.
-pub(in super::super) fn normalized(
-    projection: &mut VisitorStack,
-    visit: impl FnOnce(&mut VisitorStack),
+pub(in super::super) fn normalized<'a>(
+    projection: &mut VisitorStack<'a>,
+    visit: impl FnOnce(&mut VisitorStack<'a>),
     normalize: impl FnOnce(&mut Piece),
 ) {
     let previous = projection
@@ -53,7 +54,7 @@ pub(in super::super) fn normalized(
 }
 
 /// Preserve source ordering while attaching a completed standard node or transparent wrapper.
-pub(in super::super) fn attach(projection: &mut VisitorStack, mut piece: Piece) {
+pub(in super::super) fn attach(projection: &mut VisitorStack<'_>, mut piece: Piece) {
     piece
         .children
         .sort_by_key(|child| (child.span.start, std::cmp::Reverse(child.span.end)));
@@ -180,16 +181,25 @@ pub(in super::super) fn insert(node: &mut Piece, mut token: Piece) {
     node.children.push(token);
 }
 
-/// Emit the standard tree, preserving AST parentage and source order.
-pub(in super::super) fn write(node: &mut Piece, builder: &mut languages::TableBuilder<'_>) {
+/// Emit the standard tree, preserving AST parentage and source order, and note where each carrier of a pattern was written.
+pub(in super::super) fn write(
+    node: &mut Piece,
+    carriers: &mut [Carrier<'_>],
+    builder: &mut languages::TableBuilder<'_>,
+) {
     node.children
         .sort_by_key(|child| (child.span.start, std::cmp::Reverse(child.span.end)));
     let (start, end) = (Offset(node.span.start), Offset(node.span.end));
     match node.kind {
         Kind::Node(_) => {
+            if let Carries::Pattern(index) = node.carries
+                && let Some(carrier) = carriers.get_mut(index.0)
+            {
+                carrier.host = Hosting::At(languages::builder_position(builder));
+            }
             languages::enter_node(builder, kind_bits(node.kind), start);
             for child in &mut node.children {
-                write(child, builder);
+                write(child, carriers, builder);
             }
             languages::leave_node(builder, end);
         }
@@ -209,7 +219,7 @@ pub(in super::super) fn write(node: &mut Piece, builder: &mut languages::TableBu
 /// The meta and the property of a meta property at `span` (`import.meta`, `new.target`): the identifiers TypeScript-ESTree gives it,
 /// the first word at its start and the second at its end, each decoded as the parser does an identifier. Oxc keeps neither as a node.
 pub(in super::super) fn meta_words(
-    projection: &mut VisitorStack,
+    projection: &mut VisitorStack<'_>,
     span: Span,
     words: [languages::NameText<'static>; 2],
 ) -> [Piece; 2] {
@@ -238,6 +248,7 @@ pub(in super::super) fn leaf(kind: Kind, span: Span) -> Piece {
         children: Vec::new(),
         text: Text::Source,
         cursor: ChildCursor(0),
+        carries: Carries::Nothing,
     }
 }
 

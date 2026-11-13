@@ -24,3 +24,10 @@ pub(super) const JSX_EXTENSION: &str = "tsx";
 pub(super) const MODULE_EXTENSION: &str = "mts";
 /// The extension Oxc reads TypeScript that is always `CommonJS` by.
 pub(super) const COMMONJS_EXTENSION: &str = "cts";
+
+/// The name of ECMAScript's global regular-expression constructor: a string its call takes first is a pattern.
+pub(super) const PATTERN_CONSTRUCTOR: &str = "RegExp";
+/// The flags of a pattern whose call passes them as an argument the source does not settle.
+pub(super) const UNKNOWN_FLAGS: &str = "unknown";
+/// The flags of a pattern whose call passes no second argument: it states none.
+pub(super) const NO_FLAGS: &str = "";
