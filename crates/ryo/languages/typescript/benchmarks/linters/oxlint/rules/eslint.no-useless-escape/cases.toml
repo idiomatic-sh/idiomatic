@@ -1,0 +1,229 @@
+[[cases]]
+name = "regex-letter"
+files = { "case.ts" = "const a = /\\a/;\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "regex-dot"
+files = { "case.ts" = "const a = /\\./;\n" }
+expected = []
+
+[[cases]]
+name = "regex-dash"
+files = { "case.ts" = "const a = /\\-/;\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "regex-slash"
+files = { "case.ts" = "const a = /\\//;\n" }
+expected = []
+
+[[cases]]
+name = "regex-hash"
+files = { "case.ts" = "const a = /\\#/;\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "regex-space"
+files = { "case.ts" = "const a = /\\ /;\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "regex-k"
+files = { "case.ts" = "const a = /\\k/;\n" }
+expected = []
+
+[[cases]]
+name = "class-dot"
+files = { "case.ts" = "const a = /[\\.]/;\n" }
+expected = [{ file = "case.ts", start = 12, end = 14 }]
+
+[[cases]]
+name = "class-slash"
+files = { "case.ts" = "const a = /[\\/]/;\n" }
+expected = [{ file = "case.ts", start = 12, end = 14 }]
+
+[[cases]]
+name = "class-close"
+files = { "case.ts" = "const a = /[\\]]/;\n" }
+expected = []
+
+[[cases]]
+name = "class-paren"
+files = { "case.ts" = "const a = /[\\(]/;\n" }
+expected = [{ file = "case.ts", start = 12, end = 14 }]
+
+[[cases]]
+name = "class-dollar"
+files = { "case.ts" = "const a = /[\\$]/;\n" }
+expected = [{ file = "case.ts", start = 12, end = 14 }]
+
+[[cases]]
+name = "class-dash-alone"
+files = { "case.ts" = "const a = /[\\-]/;\n" }
+expected = [{ file = "case.ts", start = 12, end = 14 }]
+
+[[cases]]
+name = "class-dash-first"
+files = { "case.ts" = "const a = /[\\-a]/;\n" }
+expected = [{ file = "case.ts", start = 12, end = 14 }]
+
+[[cases]]
+name = "class-dash-middle"
+files = { "case.ts" = "const a = /[a\\-b]/;\n" }
+expected = []
+
+[[cases]]
+name = "class-dash-last"
+files = { "case.ts" = "const a = /[a\\-]/;\n" }
+expected = [{ file = "case.ts", start = 13, end = 15 }]
+
+[[cases]]
+name = "negated-dash-first"
+files = { "case.ts" = "const a = /[^\\-b]/;\n" }
+expected = []
+
+[[cases]]
+name = "negated-dash-last"
+files = { "case.ts" = "const a = /[^a\\-]/;\n" }
+expected = [{ file = "case.ts", start = 14, end = 16 }]
+
+[[cases]]
+name = "class-caret-first"
+files = { "case.ts" = "const a = /[\\^]/;\n" }
+expected = []
+
+[[cases]]
+name = "class-caret-later"
+files = { "case.ts" = "const a = /[a\\^]/;\n" }
+expected = [{ file = "case.ts", start = 13, end = 15 }]
+
+[[cases]]
+name = "negated-caret"
+files = { "case.ts" = "const a = /[^\\^]/;\n" }
+expected = [{ file = "case.ts", start = 13, end = 15 }]
+
+[[cases]]
+name = "class-k"
+files = { "case.ts" = "const a = /[\\k]/;\n" }
+expected = [{ file = "case.ts", start = 12, end = 14 }]
+
+[[cases]]
+name = "class-backspace"
+files = { "case.ts" = "const a = /[\\b]/;\n" }
+expected = []
+
+[[cases]]
+name = "range-low"
+files = { "case.ts" = "const a = /[\\a-z]/;\n" }
+expected = [{ file = "case.ts", start = 12, end = 14 }]
+
+[[cases]]
+name = "range-high"
+files = { "case.ts" = "const a = /[a-\\z]/;\n" }
+expected = [{ file = "case.ts", start = 14, end = 16 }]
+
+[[cases]]
+name = "constructor-string"
+files = { "case.ts" = "const a = new RegExp(\"\\\\a\");\n" }
+expected = []
+
+[[cases]]
+name = "double-quoted"
+files = { "case.ts" = "const a = \"\\a\";\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "double-quoted-single"
+files = { "case.ts" = "const a = \"\\'\";\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "double-quoted-double"
+files = { "case.ts" = "const a = \"\\\"\";\n" }
+expected = []
+
+[[cases]]
+name = "single-quoted-double"
+files = { "case.ts" = "const a = '\\\"';\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "single-quoted-single"
+files = { "case.ts" = "const a = '\\'';\n" }
+expected = []
+
+[[cases]]
+name = "valid-string-escapes"
+files = { "case.ts" = "const a = \"\\n\\t\\x41\\u0041\\\\\\0\";\n" }
+expected = []
+
+[[cases]]
+name = "non-ascii"
+files = { "case.ts" = "const a = \"\\é\";\n" }
+expected = [{ file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "line-continuation"
+files = { "case.ts" = "const a = \"a\\\nb\";\n" }
+expected = []
+
+[[cases]]
+name = "escaped-backslash-then-letter"
+files = { "case.ts" = "const a = \"\\\\a\";\n" }
+expected = []
+
+[[cases]]
+name = "template"
+files = { "case.ts" = "const a = `\\a`;\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "template-valid"
+files = { "case.ts" = "const a = `\\` \\$ $\\{ \\n`;\n" }
+expected = [{ file = "case.ts", start = 14, end = 16 }]
+
+[[cases]]
+name = "template-brace"
+files = { "case.ts" = "const a = `\\{`;\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "template-after-expression"
+files = { "case.ts" = "const a = `${x}\\a${y}\\b`;\n" }
+expected = [{ file = "case.ts", start = 15, end = 17 }]
+
+[[cases]]
+name = "tagged-template"
+files = { "case.ts" = "const a = tag`\\a`;\n" }
+expected = []
+
+[[cases]]
+name = "string-raw"
+files = { "case.ts" = "const a = String.raw`\\a`;\n" }
+expected = []
+
+[[cases]]
+name = "template-dollar-letter"
+files = { "case.ts" = "const a = `\\$a`;\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "template-dollar-end"
+files = { "case.ts" = "const a = `${x}\\$`;\n" }
+expected = []
+
+[[cases]]
+name = "template-dollar-brace"
+files = { "case.ts" = "const a = `\\${x}`;\n" }
+expected = []
+
+[[cases]]
+name = "template-dollar-then-brace"
+files = { "case.ts" = "const a = `\\$\\{`;\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-useless-escape\nconst a = /\\a/;\n" }
+expected = []

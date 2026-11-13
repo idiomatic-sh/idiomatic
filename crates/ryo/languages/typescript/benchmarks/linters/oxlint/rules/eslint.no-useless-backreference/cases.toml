@@ -1,0 +1,84 @@
+[[cases]]
+name = "before"
+files = { "case.ts" = "const a = /(a)\\1/;\n" }
+expected = []
+
+[[cases]]
+name = "forward"
+files = { "case.ts" = "const a = /\\1(a)/;\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "nested"
+files = { "case.ts" = "const a = /(a\\1)/;\n" }
+expected = [{ file = "case.ts", start = 13, end = 15 }]
+
+[[cases]]
+name = "other-alternative"
+files = { "case.ts" = "const a = /(a)|\\1b/;\n" }
+expected = [{ file = "case.ts", start = 15, end = 17 }]
+
+[[cases]]
+name = "named-before"
+files = { "case.ts" = "const a = /(?<n>a)\\k<n>/;\n" }
+expected = []
+
+[[cases]]
+name = "named-forward"
+files = { "case.ts" = "const a = /\\k<n>(?<n>a)/;\n" }
+expected = [{ file = "case.ts", start = 11, end = 16 }]
+
+[[cases]]
+name = "negative-lookahead"
+files = { "case.ts" = "const a = /(?!(a))\\1/;\n" }
+expected = [{ file = "case.ts", start = 18, end = 20 }]
+
+[[cases]]
+name = "lookbehind-group-first"
+files = { "case.ts" = "const a = /(?<=(a)\\1)b/;\n" }
+expected = [{ file = "case.ts", start = 18, end = 20 }]
+
+[[cases]]
+name = "lookbehind-reference-first"
+files = { "case.ts" = "const a = /(?<=\\1(a))b/;\n" }
+expected = []
+
+[[cases]]
+name = "constructor"
+files = { "case.ts" = "const a = new RegExp(\"\\\\1(a)\");\n" }
+expected = [{ file = "case.ts", start = 22, end = 25 }]
+
+[[cases]]
+name = "two-groups"
+files = { "case.ts" = "const a = /(a)(b)\\2\\1/;\n" }
+expected = []
+
+[[cases]]
+name = "optional-group"
+files = { "case.ts" = "const a = /(?:(a)|b)\\1/;\n" }
+expected = []
+
+[[cases]]
+name = "reference-twice"
+files = { "case.ts" = "const a = /\\1(a)\\1/;\n" }
+expected = [{ file = "case.ts", start = 11, end = 13 }]
+
+[[cases]]
+name = "same-alternative-in-group"
+files = { "case.ts" = "const a = /(?:(a)\\1|b)/;\n" }
+expected = []
+
+[[cases]]
+name = "positive-lookahead"
+files = { "case.ts" = "const a = /(?=(a))\\1/;\n" }
+expected = []
+
+[[cases]]
+name = "negative-lookahead-both"
+files = { "case.ts" = "const a = /(?!(a)\\1)b/;\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-useless-backreference\nconst a = /\\1(a)/;\n" }
+expected = []

@@ -1,0 +1,114 @@
+[[cases]]
+name = "hex"
+files = { "case.ts" = "const a = /\\x1f/;\n" }
+expected = [{ file = "case.ts", start = 11, end = 15 }]
+
+[[cases]]
+name = "two-controls"
+files = { "case.ts" = "const a = /\\x1f\\x01/;\n" }
+expected = [{ file = "case.ts", start = 11, end = 15 }]
+
+[[cases]]
+name = "newline-hex"
+files = { "case.ts" = "const a = /\\x0a/;\n" }
+expected = [{ file = "case.ts", start = 11, end = 15 }]
+
+[[cases]]
+name = "tab-escape"
+files = { "case.ts" = "const a = /\\t/;\n" }
+expected = []
+
+[[cases]]
+name = "control-letter"
+files = { "case.ts" = "const a = /\\c_/;\n" }
+expected = []
+
+[[cases]]
+name = "null"
+files = { "case.ts" = "const a = /a\\0/;\n" }
+expected = [{ file = "case.ts", start = 12, end = 14 }]
+
+[[cases]]
+name = "octal-one-digit"
+files = { "case.ts" = "const a = /a\\2/;\n" }
+expected = [{ file = "case.ts", start = 12, end = 14 }]
+
+[[cases]]
+name = "octal-two-digits"
+files = { "case.ts" = "const a = /a\\01/;\n" }
+expected = []
+
+[[cases]]
+name = "octal-zeros"
+files = { "case.ts" = "const a = /a\\000/;\n" }
+expected = [{ file = "case.ts", start = 12, end = 16 }]
+
+[[cases]]
+name = "unicode-escape"
+files = { "case.ts" = "const a = /\\u001f/;\n" }
+expected = [{ file = "case.ts", start = 11, end = 17 }]
+
+[[cases]]
+name = "unicode-braces"
+files = { "case.ts" = "const a = /\\u{1f}/u;\n" }
+expected = [{ file = "case.ts", start = 11, end = 17 }]
+
+[[cases]]
+name = "range"
+files = { "case.ts" = "const a = /[\\x00-\\x1f]/u;\n" }
+expected = [{ file = "case.ts", start = 12, end = 16 }]
+
+[[cases]]
+name = "printable"
+files = { "case.ts" = "const a = /\\x20/;\n" }
+expected = []
+
+[[cases]]
+name = "raw-control"
+files = { "case.ts" = "const a = /a\u001fb/;\n" }
+expected = []
+
+[[cases]]
+name = "escaped-backslash"
+files = { "case.ts" = "const a = /\\\\x1f/;\n" }
+expected = []
+
+[[cases]]
+name = "constructor-string-escape"
+files = { "case.ts" = "const a = new RegExp(\"\\x1f\");\n" }
+expected = [{ file = "case.ts", start = 22, end = 26 }]
+
+[[cases]]
+name = "constructor-pattern-escape"
+files = { "case.ts" = "const a = RegExp(\"\\\\x1f\");\n" }
+expected = [{ file = "case.ts", start = 18, end = 23 }]
+
+[[cases]]
+name = "constructor-unicode"
+files = { "case.ts" = "const a = new RegExp(\"\\\\u001f\");\n" }
+expected = [{ file = "case.ts", start = 22, end = 29 }]
+
+[[cases]]
+name = "constructor-tab"
+files = { "case.ts" = "const a = new RegExp(\"\\t\");\n" }
+expected = []
+
+[[cases]]
+name = "constructor-flags"
+files = { "case.ts" = "const a = new RegExp(\"\\x1f\", \"u\");\n" }
+expected = [{ file = "case.ts", start = 22, end = 26 }]
+
+[[cases]]
+name = "shadowed-constructor"
+files = { "case.ts" = "function f(RegExp: any) { new RegExp(\"\\\\x1f\"); }\n" }
+expected = []
+
+[[cases]]
+name = "concatenation"
+files = { "case.ts" = "const a = new RegExp(\"a\" + \"\\x1f\");\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-control-regex\nconst a = /\\x1f/;\n" }
+expected = []

@@ -1,0 +1,109 @@
+[[cases]]
+name = "surrogate-pair"
+files = { "case.ts" = "const a = /[👍]/;\n" }
+expected = [{ file = "case.ts", start = 12, end = 16 }]
+
+[[cases]]
+name = "surrogate-pair-unicode"
+files = { "case.ts" = "const a = /[👍]/u;\n" }
+expected = []
+
+[[cases]]
+name = "two-surrogate-pairs"
+files = { "case.ts" = "const a = /[👍👎]/;\n" }
+expected = [{ file = "case.ts", start = 12, end = 16 }, { file = "case.ts", start = 16, end = 20 }]
+
+[[cases]]
+name = "escaped-surrogate-pair"
+files = { "case.ts" = "const a = /[\\uD83D\\uDC4D]/;\n" }
+expected = [{ file = "case.ts", start = 12, end = 24 }]
+
+[[cases]]
+name = "escaped-surrogate-pair-unicode"
+files = { "case.ts" = "const a = /[\\uD83D\\uDC4D]/u;\n" }
+expected = []
+
+[[cases]]
+name = "combining"
+files = { "case.ts" = "const a = /[Á]/u;\n" }
+expected = [{ file = "case.ts", start = 12, end = 15 }]
+
+[[cases]]
+name = "combining-twice"
+files = { "case.ts" = "const a = /[Á̂]/u;\n" }
+expected = [{ file = "case.ts", start = 12, end = 15 }]
+
+[[cases]]
+name = "combining-without-flag"
+files = { "case.ts" = "const a = /[á]/;\n" }
+expected = [{ file = "case.ts", start = 12, end = 15 }]
+
+[[cases]]
+name = "escaped-combining"
+files = { "case.ts" = "const a = /[\\x41\\u0301]/u;\n" }
+expected = [{ file = "case.ts", start = 12, end = 22 }]
+
+[[cases]]
+name = "lone-mark"
+files = { "case.ts" = "const a = /[́]/u;\n" }
+expected = []
+
+[[cases]]
+name = "modifier"
+files = { "case.ts" = "const a = /[👶🏻]/u;\n" }
+expected = [{ file = "case.ts", start = 12, end = 20 }]
+
+[[cases]]
+name = "regional"
+files = { "case.ts" = "const a = /[🇯🇵]/u;\n" }
+expected = [{ file = "case.ts", start = 12, end = 20 }]
+
+[[cases]]
+name = "regional-escaped"
+files = { "case.ts" = "const a = /[\\u{1F1EF}\\u{1F1F5}]/u;\n" }
+expected = [{ file = "case.ts", start = 12, end = 30 }]
+
+[[cases]]
+name = "regional-run"
+files = { "case.ts" = "const a = /[🇯🇵🇯]/u;\n" }
+expected = [{ file = "case.ts", start = 12, end = 20 }, { file = "case.ts", start = 16, end = 24 }]
+
+[[cases]]
+name = "joined"
+files = { "case.ts" = "const a = /[👨‍👩]/u;\n" }
+expected = [{ file = "case.ts", start = 12, end = 23 }]
+
+[[cases]]
+name = "joined-twice"
+files = { "case.ts" = "const a = /[👨‍👩‍👧]/u;\n" }
+expected = [{ file = "case.ts", start = 12, end = 23 }, { file = "case.ts", start = 19, end = 30 }]
+
+[[cases]]
+name = "constructor"
+files = { "case.ts" = "const a = new RegExp(\"[👍]\");\n" }
+expected = [{ file = "case.ts", start = 23, end = 27 }]
+
+[[cases]]
+name = "constructor-unicode"
+files = { "case.ts" = "const a = new RegExp(\"[👍]\", \"u\");\n" }
+expected = []
+
+[[cases]]
+name = "outside-class"
+files = { "case.ts" = "const a = /Á/u;\n" }
+expected = []
+
+[[cases]]
+name = "range"
+files = { "case.ts" = "const a = /[A-́]/u;\n" }
+expected = []
+
+[[cases]]
+name = "plain"
+files = { "case.ts" = "const a = /[abc]/u;\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-misleading-character-class\nconst a = /[👍]/;\n" }
+expected = []

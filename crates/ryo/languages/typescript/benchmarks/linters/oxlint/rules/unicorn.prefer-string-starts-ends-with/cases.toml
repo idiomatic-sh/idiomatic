@@ -1,0 +1,134 @@
+[[cases]]
+name = "starts"
+files = { "case.ts" = "const a = /^foo/.test(s);\n" }
+expected = [{ file = "case.ts", start = 10, end = 21 }]
+
+[[cases]]
+name = "ends"
+files = { "case.ts" = "const a = /foo$/.test(s);\n" }
+expected = [{ file = "case.ts", start = 10, end = 21 }]
+
+[[cases]]
+name = "both"
+files = { "case.ts" = "const a = /^foo$/.test(s);\n" }
+expected = []
+
+[[cases]]
+name = "ignore-case"
+files = { "case.ts" = "const a = /^foo/i.test(s);\n" }
+expected = []
+
+[[cases]]
+name = "multiline"
+files = { "case.ts" = "const a = /foo$/m.test(s);\n" }
+expected = []
+
+[[cases]]
+name = "global"
+files = { "case.ts" = "const a = /^foo/g.test(s);\n" }
+expected = [{ file = "case.ts", start = 10, end = 22 }]
+
+[[cases]]
+name = "sticky"
+files = { "case.ts" = "const a = /foo$/y.test(s);\n" }
+expected = [{ file = "case.ts", start = 10, end = 22 }]
+
+[[cases]]
+name = "escaped-dollar"
+files = { "case.ts" = "const a = /^\\$/.test(s);\n" }
+expected = [{ file = "case.ts", start = 10, end = 20 }]
+
+[[cases]]
+name = "dot"
+files = { "case.ts" = "const a = /^a.b/.test(s);\n" }
+expected = []
+
+[[cases]]
+name = "class-escape"
+files = { "case.ts" = "const a = /^\\d/.test(s);\n" }
+expected = []
+
+[[cases]]
+name = "class"
+files = { "case.ts" = "const a = /^[a]/.test(s);\n" }
+expected = []
+
+[[cases]]
+name = "group"
+files = { "case.ts" = "const a = /^(?:foo)/.test(s);\n" }
+expected = []
+
+[[cases]]
+name = "alternatives"
+files = { "case.ts" = "const a = /^a|b/.test(s);\n" }
+expected = []
+
+[[cases]]
+name = "quantified"
+files = { "case.ts" = "const a = /^f{2}/.test(s);\n" }
+expected = []
+
+[[cases]]
+name = "boundary"
+files = { "case.ts" = "const a = /^a\\b/.test(s);\n" }
+expected = []
+
+[[cases]]
+name = "caret-only"
+files = { "case.ts" = "const a = /^/.test(s);\n" }
+expected = [{ file = "case.ts", start = 10, end = 18 }]
+
+[[cases]]
+name = "dollar-only"
+files = { "case.ts" = "const a = /$/.test(s);\n" }
+expected = [{ file = "case.ts", start = 10, end = 18 }]
+
+[[cases]]
+name = "escaped-dollar-end"
+files = { "case.ts" = "const a = /\\$$/.test(s);\n" }
+expected = [{ file = "case.ts", start = 10, end = 20 }]
+
+[[cases]]
+name = "parenthesized"
+files = { "case.ts" = "const a = (/^foo/).test(s);\n" }
+expected = [{ file = "case.ts", start = 10, end = 23 }]
+
+[[cases]]
+name = "optional-call"
+files = { "case.ts" = "const a = /^foo/?.test(s);\n" }
+expected = [{ file = "case.ts", start = 10, end = 22 }]
+
+[[cases]]
+name = "computed"
+files = { "case.ts" = "const a = /^foo/[\"test\"](s);\n" }
+expected = []
+
+[[cases]]
+name = "exec"
+files = { "case.ts" = "const a = /^foo/.exec(s);\n" }
+expected = []
+
+[[cases]]
+name = "not-called"
+files = { "case.ts" = "const a = /^foo/.test;\n" }
+expected = []
+
+[[cases]]
+name = "match"
+files = { "case.ts" = "const a = s.match(/^foo/);\n" }
+expected = []
+
+[[cases]]
+name = "constructor"
+files = { "case.ts" = "const a = new RegExp(\"^foo\").test(s);\n" }
+expected = []
+
+[[cases]]
+name = "astral"
+files = { "case.ts" = "const a = /^👍/.test(s);\n" }
+expected = [{ file = "case.ts", start = 10, end = 22 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line unicorn/prefer-string-starts-ends-with\nconst a = /^foo/.test(s);\n" }
+expected = []

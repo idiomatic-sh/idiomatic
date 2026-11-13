@@ -125,7 +125,7 @@ defaults = [
 "typescript/oxlint/constness" = "fragments/constness.ryoql"
 
 # Defaults deferred, each under the limitation that blocks it: the TypeScript provider answers the binding relations,
-# `numeric_literal` and `expression_shape` absent and has no regular expression or control flow relation; oxlint reports
+# `numeric_literal` and `expression_shape` absent and has no control flow relation; oxlint reports
 # the `typescript_silent` rules on no TypeScript file.
 [deferred]
 # Rules that resolve a name to its binding: writes to a const, class, function, import or catch parameter, builtins,
@@ -168,14 +168,10 @@ expression_shape = [
   "eslint.no-duplicate-case",
   "oxc.double-comparisons",
 ]
+# oxlint reports a malformed `RegExp` pattern where the parser's message points (inside the string, or an empty span in the flags);
+# `pattern-parse` holds the message and not that place.
 regular_expressions = [
-  "eslint.no-control-regex",
-  "eslint.no-empty-character-class",
   "eslint.no-invalid-regexp",
-  "eslint.no-misleading-character-class",
-  "eslint.no-useless-backreference",
-  "eslint.no-useless-escape",
-  "unicorn.prefer-string-starts-ends-with",
 ]
 control_flow = [
   "eslint.constructor-super",
