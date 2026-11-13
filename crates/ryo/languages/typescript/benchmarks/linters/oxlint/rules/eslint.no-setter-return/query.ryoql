@@ -1,0 +1,13 @@
+import directives from "typescript/oxlint/eslint-directives";
+let returns = select id, file, span from "semantic-syntax" where kind = "return-statement";
+let arguments = select parent as id from "semantic-child" where field = "argument";
+let valued = select l.id as id, l.file as file, l.span as span from returns as l join arguments as r on l.id = r.id;
+let scopes = select id from "semantic-syntax" where kind = "function-declaration" or kind = "function-expression" or kind = "arrow-function-expression";
+let owners = axis(from=valued, relation="semantic-child", direction=nearest-ancestor, domain=scopes);
+let set_tokens = select l.parent as owner from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "identifier-token" and r.text = "set";
+let accessors = select l.parent as owner from "semantic-child" as l join "semantic-syntax" as r on l.parent = r.id where l.field = "key" and (r.kind = "method-definition" or r.kind = "property");
+let set_accessors = select l.owner as owner from set_tokens as l join accessors as r on l.owner = r.owner;
+let setter_values = select l.child as id from "semantic-child" as l join set_accessors as r on l.parent = r.owner where l.field = "value";
+let found = select l.id as id, l.file as file, l.span as span from owners as l join setter_values as r on l.related = r.id;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-setter-return(?:,|$)");
+emit violations subject file key(id);

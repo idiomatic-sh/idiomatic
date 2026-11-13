@@ -1,0 +1,89 @@
+[[cases]]
+name = "long-string"
+files = { "case.ts" = "if (s.charAt(0) === \"ab\") {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 15 }]
+
+[[cases]]
+name = "left-string"
+files = { "case.ts" = "if (\"ab\" == s.charAt(0)) {}\n" }
+expected = [{ file = "case.ts", start = 12, end = 23 }]
+
+[[cases]]
+name = "inequality"
+files = { "case.ts" = "if (s.charAt(0) !== \"ab\") {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 15 }]
+
+[[cases]]
+name = "single-char"
+files = { "case.ts" = "if (s.charAt(0) === \"a\") {}\n" }
+expected = []
+
+[[cases]]
+name = "empty-string"
+files = { "case.ts" = "if (s.charAt(0) === \"\") {}\n" }
+expected = []
+
+[[cases]]
+name = "multibyte-char"
+files = { "case.ts" = "if (s.charAt(0) === \"é\") {}\n" }
+expected = []
+
+[[cases]]
+name = "emoji"
+files = { "case.ts" = "if (s.charAt(0) === \"😀\") {}\n" }
+expected = []
+
+[[cases]]
+name = "two-arguments"
+files = { "case.ts" = "if (s.charAt(0, 1) === \"ab\") {}\n" }
+expected = []
+
+[[cases]]
+name = "no-argument"
+files = { "case.ts" = "if (s.charAt() === \"ab\") {}\n" }
+expected = []
+
+[[cases]]
+name = "computed"
+files = { "case.ts" = "if (s[\"charAt\"](0) === \"ab\") {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 18 }]
+
+[[cases]]
+name = "optional"
+files = { "case.ts" = "if (s?.charAt(0) === \"ab\") {}\n" }
+expected = []
+
+[[cases]]
+name = "template"
+files = { "case.ts" = "if (s.charAt(0) === `ab`) {}\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-call"
+files = { "case.ts" = "if ((s.charAt(0)) === \"ab\") {}\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-string"
+files = { "case.ts" = "if (s.charAt(0) === (\"ab\")) {}\n" }
+expected = []
+
+[[cases]]
+name = "relational"
+files = { "case.ts" = "if (s.charAt(0) < \"ab\") {}\n" }
+expected = []
+
+[[cases]]
+name = "other-method"
+files = { "case.ts" = "if (s.at(0) === \"ab\") {}\n" }
+expected = []
+
+[[cases]]
+name = "escaped"
+files = { "case.ts" = "if (s.charAt(0) === \"\\u0061b\") {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 15 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line bad-char-at-comparison\nif (s.charAt(0) === \"ab\") {}\n" }
+expected = []

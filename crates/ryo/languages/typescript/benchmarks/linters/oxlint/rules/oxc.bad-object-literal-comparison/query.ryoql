@@ -1,0 +1,14 @@
+import directives from "typescript/oxlint/eslint-directives";
+import parenthesized from "typescript/oxlint/parenthesized";
+let operators = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "operator" and (r.text = "==" or r.text = "===" or r.text = "!=" or r.text = "!==");
+let comparisons = select l.id as id, r.file as file, r.span as span from operators as l join "semantic-syntax" as r on l.id = r.id where r.kind = "binary-expression";
+let side_edges = select l.id as comparison, c.child as id from comparisons as l join "semantic-child" as c on l.id = c.parent where c.field = "left" or c.field = "right";
+let literals = select l.comparison as comparison, r.id as id, r.file as file, r.span as span from side_edges as l join "semantic-syntax" as r on l.id = r.id where r.kind = "object-expression" or r.kind = "array-expression";
+let members = select parent as id from "semantic-child" where field = "properties" or field = "elements";
+let empty = antijoin(left=literals, right=members, left-on=["id"], right-on=["id"]);
+let empty_rows = select id, file, span from empty;
+let wrapped = parenthesized(candidates=empty_rows);
+let bare = antijoin(left=empty, right=wrapped, left-on=["id"], right-on=["id"]);
+let found = select r.id as id, r.file as file, r.span as span from bare as l join comparisons as r on l.comparison = r.id;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?bad-object-literal-comparison(?:,|$)");
+emit violations subject file key(id);

@@ -1,0 +1,54 @@
+[[cases]]
+name = "class-setter"
+files = { "case.ts" = "class A { set a(v) { return 1; } }\n" }
+expected = [{ file = "case.ts", start = 21, end = 30 }]
+
+[[cases]]
+name = "object-setter"
+files = { "case.ts" = "const o = { set a(v) { return v; } };\n" }
+expected = [{ file = "case.ts", start = 23, end = 32 }]
+
+[[cases]]
+name = "bare-return"
+files = { "case.ts" = "class A { set a(v) { return; } }\n" }
+expected = []
+
+[[cases]]
+name = "nested-block"
+files = { "case.ts" = "class A { set a(v) { if (v) { return 1; } } }\n" }
+expected = [{ file = "case.ts", start = 30, end = 39 }]
+
+[[cases]]
+name = "nested-function"
+files = { "case.ts" = "class A { set a(v) { function f() { return 1; } } }\n" }
+expected = []
+
+[[cases]]
+name = "nested-arrow"
+files = { "case.ts" = "class A { set a(v) { const f = () => { return 1; }; } }\n" }
+expected = []
+
+[[cases]]
+name = "getter"
+files = { "case.ts" = "class A { get a() { return 1; } }\n" }
+expected = []
+
+[[cases]]
+name = "static-setter"
+files = { "case.ts" = "class A { static set a(v) { return 1; } }\n" }
+expected = [{ file = "case.ts", start = 28, end = 37 }]
+
+[[cases]]
+name = "define-property"
+files = { "case.ts" = "Object.defineProperty(o, \"a\", { set(v) { return 1; } });\n" }
+expected = []
+
+[[cases]]
+name = "method"
+files = { "case.ts" = "class A { a(v) { return 1; } }\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "class A {\n  set a(v) {\n    // eslint-disable-next-line no-setter-return\n    return 1;\n  }\n}\n" }
+expected = []

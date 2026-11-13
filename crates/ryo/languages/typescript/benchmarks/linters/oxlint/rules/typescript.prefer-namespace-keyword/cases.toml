@@ -1,0 +1,59 @@
+[[cases]]
+name = "module"
+files = { "case.ts" = "module foo {}\n" }
+expected = [{ file = "case.ts", start = 0, end = 13 }]
+
+[[cases]]
+name = "dotted"
+files = { "case.ts" = "module A.B {}\n" }
+expected = [{ file = "case.ts", start = 0, end = 13 }]
+
+[[cases]]
+name = "declare"
+files = { "case.ts" = "declare module foo {}\n" }
+expected = [{ file = "case.ts", start = 0, end = 21 }]
+
+[[cases]]
+name = "nested"
+files = { "case.ts" = "declare module foo {\n  module bar {}\n}\n" }
+expected = [{ file = "case.ts", start = 0, end = 38 }, { file = "case.ts", start = 23, end = 36 }]
+
+[[cases]]
+name = "in-global"
+files = { "case.ts" = "declare global {\n  module foo {}\n}\n" }
+expected = [{ file = "case.ts", start = 19, end = 32 }]
+
+[[cases]]
+name = "string-name"
+files = { "case.ts" = "declare module \"foo\" {}\n" }
+expected = []
+
+[[cases]]
+name = "string-name-no-body"
+files = { "case.ts" = "declare module \"foo\";\n" }
+expected = []
+
+[[cases]]
+name = "namespace"
+files = { "case.ts" = "namespace foo {}\n" }
+expected = []
+
+[[cases]]
+name = "declare-namespace"
+files = { "case.ts" = "declare namespace foo {}\n" }
+expected = []
+
+[[cases]]
+name = "global"
+files = { "case.ts" = "declare global {}\n" }
+expected = []
+
+[[cases]]
+name = "exported"
+files = { "case.ts" = "export module foo {}\n" }
+expected = [{ file = "case.ts", start = 7, end = 20 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line prefer-namespace-keyword\nmodule foo {}\n" }
+expected = []

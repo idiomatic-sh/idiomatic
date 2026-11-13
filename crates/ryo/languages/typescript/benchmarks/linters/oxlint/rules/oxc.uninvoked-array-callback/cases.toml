@@ -1,0 +1,79 @@
+[[cases]]
+name = "map-arrow"
+files = { "case.ts" = "const a = new Array(5).map(() => 1);\n" }
+expected = [{ file = "case.ts", start = 23, end = 26 }]
+
+[[cases]]
+name = "map-function"
+files = { "case.ts" = "const a = new Array(5).map(function () { return 1; });\n" }
+expected = [{ file = "case.ts", start = 23, end = 26 }]
+
+[[cases]]
+name = "computed"
+files = { "case.ts" = "const a = new Array(5)[\"map\"](() => 1);\n" }
+expected = [{ file = "case.ts", start = 23, end = 28 }]
+
+[[cases]]
+name = "optional"
+files = { "case.ts" = "const a = new Array(5)?.map(() => 1);\n" }
+expected = [{ file = "case.ts", start = 24, end = 27 }]
+
+[[cases]]
+name = "fill-first"
+files = { "case.ts" = "const a = new Array(5).fill(0).map(() => 1);\n" }
+expected = []
+
+[[cases]]
+name = "from"
+files = { "case.ts" = "const a = Array.from({ length: 5 }, () => 1);\n" }
+expected = []
+
+[[cases]]
+name = "two-arguments"
+files = { "case.ts" = "const a = new Array(5, 6).map(() => 1);\n" }
+expected = []
+
+[[cases]]
+name = "identifier-length"
+files = { "case.ts" = "const a = new Array(n).map(() => 1);\n" }
+expected = []
+
+[[cases]]
+name = "bigint"
+files = { "case.ts" = "const a = new Array(5n).map(() => 1);\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-new"
+files = { "case.ts" = "const a = (new Array(5)).map(() => 1);\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-callback"
+files = { "case.ts" = "const a = new Array(5).map((() => 1));\n" }
+expected = []
+
+[[cases]]
+name = "named-callback"
+files = { "case.ts" = "const a = new Array(5).map(f);\n" }
+expected = []
+
+[[cases]]
+name = "second-argument-callback"
+files = { "case.ts" = "const a = new Array(5).map(f, () => 1);\n" }
+expected = []
+
+[[cases]]
+name = "as-callee"
+files = { "case.ts" = "const a = new (Array as any)(5).map(() => 1);\n" }
+expected = [{ file = "case.ts", start = 32, end = 35 }]
+
+[[cases]]
+name = "not-called"
+files = { "case.ts" = "const m = new Array(5).map;\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line uninvoked-array-callback\nconst a = new Array(5).map(() => 1);\n" }
+expected = []

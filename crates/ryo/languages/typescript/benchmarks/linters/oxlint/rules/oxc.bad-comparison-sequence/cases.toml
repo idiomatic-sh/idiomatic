@@ -1,0 +1,74 @@
+[[cases]]
+name = "equality"
+files = { "case.ts" = "if (a == b == c) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 10 }]
+
+[[cases]]
+name = "strict"
+files = { "case.ts" = "if (a === b !== c) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 11 }]
+
+[[cases]]
+name = "relational"
+files = { "case.ts" = "if (a < b < c) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 9 }]
+
+[[cases]]
+name = "mixed-relational"
+files = { "case.ts" = "if (a <= b > c) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 10 }]
+
+[[cases]]
+name = "mixed-kinds"
+files = { "case.ts" = "if (a == b < c) {}\n" }
+expected = []
+
+[[cases]]
+name = "relational-then-equality"
+files = { "case.ts" = "if (a < b == c) {}\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-left"
+files = { "case.ts" = "if ((a == b) == c) {}\n" }
+expected = []
+
+[[cases]]
+name = "right-nested"
+files = { "case.ts" = "if (a == (b == c)) {}\n" }
+expected = []
+
+[[cases]]
+name = "four"
+files = { "case.ts" = "if (a === b === c === d) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 17 }]
+
+[[cases]]
+name = "parenthesized-inner"
+files = { "case.ts" = "if ((a == b == c) == d) {}\n" }
+expected = [{ file = "case.ts", start = 5, end = 11 }]
+
+[[cases]]
+name = "in-call"
+files = { "case.ts" = "f(a == b == c);\n" }
+expected = [{ file = "case.ts", start = 2, end = 8 }]
+
+[[cases]]
+name = "in-call-of-sequence"
+files = { "case.ts" = "if (f(a == b == c) == d == e) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 23 }]
+
+[[cases]]
+name = "in-arrow-body"
+files = { "case.ts" = "g(() => { a == b == c; }) == d == e;\n" }
+expected = [{ file = "case.ts", start = 0, end = 30 }, { file = "case.ts", start = 10, end = 16 }]
+
+[[cases]]
+name = "logical"
+files = { "case.ts" = "if (a == b && c == d) {}\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line bad-comparison-sequence\nif (a == b == c) {}\n" }
+expected = []

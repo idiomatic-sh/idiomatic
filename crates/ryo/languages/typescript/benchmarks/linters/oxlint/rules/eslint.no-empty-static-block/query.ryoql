@@ -1,0 +1,6 @@
+import directives from "typescript/oxlint/eslint-directives";
+let blocks = select id, file, span from "semantic-syntax" where kind = "static-block";
+let filled = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "body" or r.kind = "line" or r.kind = "block";
+let empty = antijoin(left=blocks, right=filled, left-on=["id"], right-on=["id"]);
+let violations = directives(candidates=empty, names="(?:^|,)(?:[^,]*/)?no-empty-static-block(?:,|$)");
+emit violations subject file key(id);

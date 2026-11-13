@@ -121,9 +121,10 @@ defaults = [
 
 [query-modules]
 "typescript/oxlint/eslint-directives" = "fragments/eslint-directives.ryoql"
+"typescript/oxlint/parenthesized" = "fragments/parenthesized.ryoql"
 
-# Defaults deferred: those blocked by a documented limitation (the TypeScript provider answers the binding relations,
-# `numeric_literal` and no regular expression relation absent, and its ESTree kinds keep no parentheses), and the unauthored.
+# Defaults deferred: those blocked by a documented limitation (the TypeScript provider answers the binding relations and
+# `numeric_literal` absent, and no regular expression relation), and the unauthored.
 [deferred]
 binding_relations = [
   "eslint.no-unused-vars",
@@ -144,61 +145,41 @@ regular_expressions = [
   "eslint.no-empty-character-class",
   "eslint.no-invalid-regexp",
 ]
-parenthesized_expression = [
-  "eslint.no-cond-assign",
-]
 # Defaults no relation blocks, not yet authored; deferred rather than pending so that verify-cases runs the authored subset.
 unauthored = [
   "eslint.constructor-super",
   "eslint.getter-return",
-  "eslint.no-async-promise-executor",
   "eslint.no-constant-binary-expression",
   "eslint.no-constant-condition",
-  "eslint.no-delete-var",
   "eslint.no-dupe-class-members",
   "eslint.no-dupe-else-if",
   "eslint.no-dupe-keys",
   "eslint.no-duplicate-case",
-  "eslint.no-empty-static-block",
-  "eslint.no-eval",
   "eslint.no-extra-boolean-cast",
   "eslint.no-irregular-whitespace",
-  "eslint.no-iterator",
   "eslint.no-loss-of-precision",
   "eslint.no-misleading-character-class",
-  "eslint.no-setter-return",
   "eslint.no-this-before-super",
   "eslint.no-unassigned-vars",
   "eslint.no-unreachable",
   "eslint.no-unsafe-optional-chaining",
   "eslint.no-unused-expressions",
-  "eslint.no-unused-labels",
   "eslint.no-unused-private-class-members",
   "eslint.no-useless-backreference",
   "eslint.no-useless-escape",
   "eslint.no-with",
-  "eslint.require-yield",
-  "oxc.bad-array-method-on-arguments",
-  "oxc.bad-char-at-comparison",
-  "oxc.bad-comparison-sequence",
   "oxc.bad-match-all-arg",
   "oxc.bad-min-max-func",
-  "oxc.bad-object-literal-comparison",
   "oxc.bad-replace-all-arg",
   "oxc.const-comparisons",
   "oxc.double-comparisons",
   "oxc.erasing-op",
-  "oxc.missing-throw",
   "oxc.number-arg-out-of-range",
   "oxc.only-used-in-recursion",
-  "oxc.uninvoked-array-callback",
   "typescript.no-duplicate-enum-values",
   "typescript.no-unnecessary-parameter-property-assignment",
-  "typescript.no-unsafe-declaration-merging",
-  "typescript.no-useless-empty-export",
   "typescript.no-wrapper-object-types",
   "typescript.prefer-as-const",
-  "typescript.prefer-namespace-keyword",
   "typescript.triple-slash-reference",
   "unicorn.no-await-in-promise-methods",
   "unicorn.no-empty-file",

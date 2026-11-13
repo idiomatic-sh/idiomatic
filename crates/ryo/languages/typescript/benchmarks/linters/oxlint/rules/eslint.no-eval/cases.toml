@@ -1,0 +1,84 @@
+[[cases]]
+name = "call"
+files = { "case.ts" = "eval(\"x\");\n" }
+expected = [{ file = "case.ts", start = 0, end = 4 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.ts" = "function f(eval: any) { eval(\"x\"); }\n" }
+expected = [{ file = "case.ts", start = 24, end = 28 }]
+
+[[cases]]
+name = "nested"
+files = { "case.ts" = "f(eval(\"x\"));\n" }
+expected = [{ file = "case.ts", start = 2, end = 6 }]
+
+[[cases]]
+name = "parenthesized-callee"
+files = { "case.ts" = "(eval)(\"x\");\n" }
+expected = [{ file = "case.ts", start = 0, end = 6 }]
+
+[[cases]]
+name = "optional-call"
+files = { "case.ts" = "eval?.(\"x\");\n" }
+expected = []
+
+[[cases]]
+name = "sequence-callee"
+files = { "case.ts" = "(0, eval)(\"x\");\n" }
+expected = []
+
+[[cases]]
+name = "global-this"
+files = { "case.ts" = "globalThis.eval(\"x\");\n" }
+expected = []
+
+[[cases]]
+name = "window"
+files = { "case.ts" = "window.eval(\"x\");\n" }
+expected = []
+
+[[cases]]
+name = "this-member"
+files = { "case.ts" = "this.eval(\"x\");\n" }
+expected = []
+
+[[cases]]
+name = "reference"
+files = { "case.ts" = "const e = eval;\n" }
+expected = []
+
+[[cases]]
+name = "new"
+files = { "case.ts" = "new eval(\"x\");\n" }
+expected = []
+
+[[cases]]
+name = "other-call"
+files = { "case.ts" = "evaluate(\"x\");\n" }
+expected = []
+
+[[cases]]
+name = "generic-call"
+files = { "case.ts" = "eval<string>(\"x\");\n" }
+expected = [{ file = "case.ts", start = 0, end = 4 }]
+
+[[cases]]
+name = "as-callee"
+files = { "case.ts" = "(eval as any)(\"x\");\n" }
+expected = [{ file = "case.ts", start = 0, end = 13 }]
+
+[[cases]]
+name = "non-null-callee"
+files = { "case.ts" = "eval!(\"x\");\n" }
+expected = [{ file = "case.ts", start = 0, end = 5 }]
+
+[[cases]]
+name = "parenthesized-as-callee"
+files = { "case.ts" = "((eval) as any)(\"x\");\n" }
+expected = [{ file = "case.ts", start = 0, end = 15 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-eval\neval(\"x\");\n" }
+expected = []

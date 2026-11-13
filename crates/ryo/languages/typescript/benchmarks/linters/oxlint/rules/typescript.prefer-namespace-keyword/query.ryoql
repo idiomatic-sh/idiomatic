@@ -1,0 +1,8 @@
+import directives from "typescript/oxlint/eslint-directives";
+let modules = select id, file, span from "semantic-syntax" where kind = "ts-module-declaration";
+let module_keywords = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "identifier-token" and r.text = "module";
+let keyword_modules = select l.id as id, l.file as file, l.span as span from modules as l join module_keywords as r on l.id = r.id;
+let named = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "id" and r.kind = "identifier";
+let found = select l.id as id, l.file as file, l.span as span from keyword_modules as l join named as r on l.id = r.id;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?prefer-namespace-keyword(?:,|$)");
+emit violations subject file key(id);
