@@ -1,35 +1,28 @@
 //! Two declared roots of one population read the provider once.
-use crate::boundary_fixture::fixtures::{corpus, demand, engine, source};
+use crate::boundary_fixture::fixtures::{FileRun, corpus, engine, ran, run_file, source};
 use crate::project_phase::fixtures::*;
-use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
+use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileInput;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
-use ryo_execution::inbound::use_cases::execution::interface::RowEmission;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
-use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
+use ryo_execution::inbound::use_cases::execution::interface::{EmittedRoot, FileEnd, RuleAfter};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::CapturedFacts;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::ProjectFacts;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value};
-use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_values::domain::{plan_parts::types::InputNumber, stored_facts::types::Bucket};
 use ryo_values::domain::{plan_parts::types::StepScope, rows::types::RowCount};
-use std::cell::Cell;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[test]
@@ -44,104 +37,33 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
         let table = source();
-        let file_reads = Cell::new(0);
-        let read = |actual| {
-            assert_eq!(
-                actual,
-                Relation::Function,
-                "project facts must never be read by the file owner"
-            );
-            file_reads.set(file_reads.get() + 1);
-            Ok(SourceRows::Computed(&table))
-        };
+        // Project facts must never be read by the file owner: the facts hold Function alone and refuse any other read.
+        let file_facts = TableFacts::new(&[(Relation::Function, &table)]);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let mut symbols = Symbols::default();
-        let mut file = request
-            .open_file(
-                FileInput {
-                    language: SourceLanguage::Recognized,
-                    resident_stability: ResidentStability::Stable,
-                    file: FileId(0),
-                    evaluation: &[],
-                    publication: &[],
-                    intents: &[FileRuleIntent::Run {
-                        diagnostic: DiagnosticDelivery::Forwarded,
-                        observations: ObservationDemand::NotRequired,
-                        capture: CaptureIntent::DiagnosticAndObservations,
-                    }],
-                    source: ryo_values::domain::files::types::SourceView(b"abc"),
-                    elements: &elements,
-                    read: &read,
-                    semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                    kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-                },
-                &mut symbols,
-            )
-            .expect("open actual file owner");
-        let mut emitted = vec![];
+        let mut rules = run_file(
+            &request,
+            FileRun::of(
+                &[FileRuleIntent::Run {
+                    diagnostic: DiagnosticDelivery::Collected,
+                    observations: ObservationDemand::NotRequired,
+                    capture: CaptureIntent::DiagnosticAndObservations,
+                }],
+                &elements,
+            ),
+            &mut symbols,
+            &file_facts,
+        );
+        let rule = ran(&mut rules, 0);
         assert!(matches!(
-            file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
-                emitted.extend_from_slice(row);
-                Ok(())
+            rule.emit,
+            EmittedRoot::Delivered(RootOutcome::Deferred {
+                phase: StepScope::CrossFile
             })
-            .unwrap(),
-            RowEmission::Deferred {
-                phase: StepScope::CrossFile
-            }
         ));
-        assert!(emitted.is_empty());
-        assert_eq!(file_reads.get(), 0);
-        file.finish()
-            .expect("finish separately declared deferred forward root");
-        let mut file = request
-            .open_file(
-                FileInput {
-                    language: SourceLanguage::Recognized,
-                    resident_stability: ResidentStability::Stable,
-                    file: FileId(0),
-                    evaluation: &[],
-                    publication: &[],
-                    intents: &[FileRuleIntent::Run {
-                        diagnostic: DiagnosticDelivery::Collected,
-                        observations: ObservationDemand::NotRequired,
-                        capture: CaptureIntent::DiagnosticAndObservations,
-                    }],
-                    source: ryo_values::domain::files::types::SourceView(b"abc"),
-                    elements: &elements,
-                    read: &read,
-                    semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                    kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-                },
-                &mut symbols,
-            )
-            .expect("open actual file owner");
-        assert!(matches!(
-            file.rule(RuleIndex(0), demand(), &mut symbols)
-                .unwrap()
-                .emit,
-            RootOutcome::Deferred {
-                phase: StepScope::CrossFile
-            }
-        ));
-        assert_eq!(file_reads.get(), 0);
-        let mut arena = vec![];
-        let mut places = vec![];
-        let mut words = Words::default();
-        let mut captures = file
-            .capture_frontiers(
-                RuleIndex(0),
-                Bucket(0),
-                &mut symbols,
-                CaptureContext {
-                    worker: WorkerNumber(0),
-                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
-                        &mut arena,
-                    ),
-                    places: &mut places,
-                    words: &mut words,
-                },
-            )
-            .expect("file frontier still executes");
+        let RuleAfter::Ran { mut captures } = rule.after else {
+            panic!("file frontier still executes")
+        };
         assert_eq!(
             captures.len(),
             1,
@@ -155,14 +77,11 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             .expect("actual file frontier");
         // Admission may borrow a resident view more than once. The production
         // guarantee is one source traversal and no source access during finish.
-        let resolved = file_reads.get();
+        let resolved = file_facts.reads();
         assert!(resolved > 0);
-        file.finish()
-            .expect("file owner finishes without demanding project sources");
-        assert_eq!(
-            file_reads.get(),
-            resolved,
-            "finish cannot demand the source again"
+        assert!(
+            matches!(rules.end, FileEnd::Finished(_)),
+            "file owner finishes without demanding project sources"
         );
         let stored = CapturedFacts {
             captures: vec![(FileId(0), capture)],
@@ -243,7 +162,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         );
         request.finish();
         assert_eq!(
-            file_reads.get(),
+            file_facts.reads(),
             resolved,
             "project work cannot reread the file facts after their captured frontier"
         );
@@ -271,7 +190,7 @@ fn an_observed_population_is_a_separate_acquisition_with_the_same_answer() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let table = source();
-    let read = |_| Ok(SourceRows::Computed(&table));
+    let read = TableFacts::new(&[(Relation::Function, &table)]);
     let mut symbols = Symbols::default();
     let stored = CapturedFacts {
         captures: captured_in_file_0_of(&request, &read, &mut symbols),

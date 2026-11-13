@@ -1,13 +1,11 @@
 //! The support of the `publication` cases and of the groups nested in it.
 use super::super::*;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
 pub(crate) fn program(engine: &PrepareUseCaseImpl) -> PreparedExecutionProgram {
     let mut input = authored_request(1);
-    crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![PlanStep {
+    boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::FitsRendered {
             from: Input::Relation(Relation::Function),
@@ -18,9 +16,7 @@ pub(crate) fn program(engine: &PrepareUseCaseImpl) -> PreparedExecutionProgram {
             tab_width: ryo_values::domain::query_operators::types::TabWidth(4),
         },
     }];
-    crate::boundary_fixture::fixtures::plans(&mut input)[0]
-        .emit
-        .step = StepId(0);
+    boundary_fixture::fixtures::plans(&mut input)[0].emit.step = StepId(0);
     engine.prepare(input).expect("actual FitsRendered program")
 }
 
@@ -42,34 +38,7 @@ pub(crate) fn rows(second: (u32, u32)) -> Table {
     table
 }
 
-/// A read of the function relation that answers `table`.
-pub(crate) fn function_rows<'t>(
-    table: &'t Table,
-) -> impl Fn(Relation) -> Result<SourceRows<'t>, OperatingError> {
-    move |relation| {
-        assert_eq!(relation, Relation::Function);
-        Ok(SourceRows::Computed(table))
-    }
-}
-
-/// Recognized file 0 of the source `abc`, opened with `intents` and reading through `read`.
-pub(crate) fn abc_file<'a, 'facts>(
-    intents: &'a [FileRuleIntent],
-    elements: &'a ryo_language::domain::elements::types::Elements,
-    read: &'a dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
-) -> FileInput<'a, 'facts> {
-    FileInput {
-        language: SourceLanguage::Recognized,
-        resident_stability:
-            ryo_execution_runtime::outbound::facts::types::ResidentStability::Stable,
-        file: FileId(0),
-        evaluation: &[],
-        publication: &[],
-        intents,
-        source: ryo_values::domain::files::types::SourceView(b"abc"),
-        elements,
-        read,
-        semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-        kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-    }
+/// Facts holding `table` as the function relation's rows, and no other relation.
+pub(crate) fn function_rows(table: &Table) -> TableFacts {
+    TableFacts::new(&[(Relation::Function, table)])
 }

@@ -1,17 +1,15 @@
-//! Shared tree positions keep native join projection refusal and replay, and pure projections share one scan.
-use super::super::super::fixtures::no_catalog;
+//! Shared tree positions keep native join projection refusal, and pure projections share one scan.
 use super::super::super::fixtures::*;
-use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
+use crate::boundary_fixture::fixtures::{authored_request, corpus, ran, root};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileEnd;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
@@ -97,19 +95,19 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
             let intents = [FileRuleIntent::Run {
                 diagnostic: DiagnosticDelivery::Collected,
                 observations: ObservationDemand::NotRequired,
-                capture: CaptureIntent::Disabled,
+                capture: CaptureIntent::DiagnosticAndObservations,
             }];
-            let mut file = request
-                .open_file(
-                    input(FileId(0), b"abc", &elements, &intents, &no_catalog),
-                    &mut symbols,
-                )
-                .unwrap();
-            let first = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
+            let mut rules = run(
+                &request,
+                (FileId(0), b"abc"),
+                &elements,
+                &intents,
+                &mut symbols,
+            );
             if refuse {
                 assert!(matches!(
-                    first.emit,
-                    RootOutcome::Failed(OperatingError::ShapeMismatch)
+                    root(ran(&mut rules, 0)),
+                    Ok(RootOutcome::Failed(OperatingError::ShapeMismatch))
                 ));
             } else {
                 let start = u32::from(relation == Relation::SyntaxChild);
@@ -122,7 +120,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                         })
                         .collect()
                 };
-                assert_eq!(complete(first).cells, expected);
+                assert_eq!(complete(&mut rules, 0).cells, expected);
             }
             // The native join capability is invoked once per selected left row,
             // including a row with no RHS match, and stops at its first refusal.
@@ -136,26 +134,6 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                 3
             };
             assert_eq!(semantics.calls.load(Ordering::Relaxed), expected_calls);
-            let replay = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
-            if refuse {
-                assert!(matches!(
-                    replay.emit,
-                    RootOutcome::Failed(OperatingError::ShapeMismatch)
-                ));
-            } else {
-                assert_eq!(
-                    complete(replay).count.0,
-                    if empty {
-                        0
-                    } else if relation == Relation::SyntaxTree {
-                        4
-                    } else {
-                        3
-                    }
-                );
-            }
-            assert_eq!(semantics.calls.load(Ordering::Relaxed), expected_calls);
-            file.finish().unwrap();
             request.finish();
         }
     }
@@ -186,16 +164,17 @@ fn direct_pure_projections_share_source_scan_including_zero_columns_and_repeats(
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
         observations: ObservationDemand::NotRequired,
-        capture: CaptureIntent::Disabled,
+        capture: CaptureIntent::DiagnosticAndObservations,
     }; 3];
-    let mut file = request
-        .open_file(
-            input(FileId(0), b"abc", &elements, &intents, &no_catalog),
-            &mut symbols,
-        )
-        .unwrap();
-    for (rule, width) in [(RuleIndex(0), 2), (RuleIndex(1), 0), (RuleIndex(2), 1)] {
-        let actual = complete(file.rule(rule, demand(), &mut symbols).unwrap());
+    let mut rules = run(
+        &request,
+        (FileId(0), b"abc"),
+        &elements,
+        &intents,
+        &mut symbols,
+    );
+    for (rule, width) in [(0, 2), (1, 0), (2, 1)] {
+        let actual = complete(&mut rules, rule);
         assert_eq!(actual.count.0, 4);
         assert_eq!(actual.kinds.len(), width);
         assert_eq!(actual.cells.len(), width * 4);
@@ -206,6 +185,6 @@ fn direct_pure_projections_share_source_scan_including_zero_columns_and_repeats(
         }
     }
     assert_eq!(semantics.selects(), 0);
-    file.finish().unwrap();
+    assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }

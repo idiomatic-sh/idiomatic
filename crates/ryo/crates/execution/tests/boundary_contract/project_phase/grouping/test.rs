@@ -1,27 +1,25 @@
 //! Project grouping reads only the function names actually captured.
-use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine};
+use crate::boundary_fixture::fixtures::{FileRun, ran, run_file_into};
+use crate::boundary_fixture::fixtures::{authored_request, corpus, engine};
+use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileInput;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
-use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
+use ryo_execution::inbound::use_cases::execution::interface::{EmittedRoot, FileEnd, RuleAfter};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::CapturedFacts;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::ProjectFacts;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value};
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
@@ -103,60 +101,47 @@ fn project_grouping_reads_only_actual_captured_function_names() {
             ));
             row[2] = Value::File(file_id);
         }
-        let read = |relation| {
-            assert_eq!(relation, Relation::Function);
-            Ok(SourceRows::Computed(&table))
-        };
+        let facts = TableFacts::new(&[(Relation::Function, &table)]);
         let elements = ryo_language::domain::elements::types::Elements::default();
-        let mut file = request
-            .open_file(
-                FileInput {
-                    language: SourceLanguage::Recognized,
-                    resident_stability: ResidentStability::Stable,
-                    file: file_id,
-                    evaluation: &[],
-                    publication: &[],
-                    intents: &[FileRuleIntent::Run {
+        let mut rules = run_file_into(
+            &request,
+            FileRun {
+                file: file_id,
+                source: b"mainother",
+                ..FileRun::of(
+                    &[FileRuleIntent::Run {
                         diagnostic: DiagnosticDelivery::Collected,
                         observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::DiagnosticAndObservations,
                     }],
-                    source: ryo_values::domain::files::types::SourceView(b"mainother"),
-                    elements: &elements,
-                    read: &read,
-                    semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                    kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-                },
-                &mut symbols,
-            )
-            .expect("open actual file");
+                    &elements,
+                )
+            },
+            &mut symbols,
+            CaptureContext {
+                worker: WorkerNumber(0),
+                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                places: &mut places,
+                words: &mut words,
+            },
+            &facts,
+        );
+        let rule = ran(&mut rules, 0);
         assert!(matches!(
-            file.rule(RuleIndex(0), demand(), &mut symbols)
-                .unwrap()
-                .emit,
-            RootOutcome::Deferred {
+            rule.emit,
+            EmittedRoot::Delivered(RootOutcome::Deferred {
                 phase: StepScope::CrossFile
-            }
+            })
         ));
-
-        let mut captures = file
-            .capture_frontiers(
-                RuleIndex(0),
-                Bucket(0),
-                &mut symbols,
-                CaptureContext {
-                    worker: WorkerNumber(0),
-                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
-                        &mut arena,
-                    ),
-                    places: &mut places,
-                    words: &mut words,
-                },
-            )
-            .expect("capture actual names");
+        let RuleAfter::Ran { mut captures } = rule.after else {
+            panic!("capture actual names")
+        };
         assert_eq!(captures.len(), 1);
         let capture = captures.pop().unwrap().outcome.expect("complete capture");
-        file.finish().expect("release file owner");
+        assert!(
+            matches!(rules.end, FileEnd::Finished(_)),
+            "release file owner"
+        );
         captured_files.push((file_id, capture));
     }
     let stored = CapturedFacts {

@@ -1,21 +1,19 @@
 //! A grouped dependency and the original source join in both input positions.
-use super::super::super::fixtures::{complete, input};
-use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine};
+use super::super::super::fixtures::complete;
+use crate::boundary_fixture::fixtures::{FileRun, authored_request, corpus, engine, run_file};
+use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileEnd;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
-use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort as _;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort as _;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::fixtures::{kinds, to_bits};
+use ryo_relations::domain::relations::fixtures::kinds;
 use ryo_relations::domain::relations::types::*;
 use ryo_values::domain::plan_parts::types::*;
 use ryo_values::domain::plans::types::*;
@@ -91,43 +89,38 @@ fn grouped_dependency_and_original_source_join_in_both_input_positions() {
         let program = engine.prepare(authored).unwrap();
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
-        let columns = [
-            FactColumn(vec![to_bits(Value::File(FileId(0))).0; 2]),
-            FactColumn(vec![
-                to_bits(Value::Number(Integer(3))).0,
-                to_bits(Value::Number(Integer(5))).0,
-            ]),
-            FactColumn(vec![
-                to_bits(Value::Number(Integer(7))).0,
-                to_bits(Value::Number(Integer(9))).0,
-            ]),
-        ];
-        let read = |relation| {
-            if relation == Relation::LanguageTarget {
-                Ok(SourceRows::Stored(ColumnsView {
-                    kinds: kinds(relation),
-                    columns: &columns,
-                }))
-            } else {
-                Err(OperatingError::NotRead)
-            }
+        let target = Table {
+            kinds: kinds(Relation::LanguageTarget).to_vec(),
+            count: RowCount(2),
+            cells: vec![
+                Value::File(FileId(0)),
+                Value::Number(Integer(3)),
+                Value::Number(Integer(7)),
+                Value::File(FileId(0)),
+                Value::Number(Integer(5)),
+                Value::Number(Integer(9)),
+            ],
         };
+        let read = TableFacts::new(&[(Relation::LanguageTarget, &target)]);
         let elements = Elements::default();
         let mut symbols = Symbols::default();
         let intents = [FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
             observations: ObservationDemand::NotRequired,
-            capture: CaptureIntent::Disabled,
+            capture: CaptureIntent::DiagnosticAndObservations,
         }];
-        let mut file = request
-            .open_file(
-                input(FileId(0), b"", &elements, &intents, &read),
-                &mut symbols,
-            )
-            .unwrap();
-        let outcome = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
+        let mut rules = run_file(
+            &request,
+            FileRun {
+                file: FileId(0),
+                source: b"",
+                ..FileRun::of(&intents, &elements)
+            },
+            &mut symbols,
+            &read,
+        );
         assert_eq!(
-            complete(outcome),
+            complete(&mut rules, 0),
             Table {
                 kinds: vec![CellKind::Number, CellKind::Number],
                 count: RowCount(2),
@@ -139,7 +132,7 @@ fn grouped_dependency_and_original_source_join_in_both_input_positions() {
                 ],
             }
         );
-        file.finish().unwrap();
+        assert!(matches!(rules.end, FileEnd::Finished(_)));
         request.finish();
     }
 }

@@ -1,28 +1,25 @@
 //! The files, the function rows of each and the run through the owner that the rewrite proofs compare plans by.
-use crate::boundary_fixture::fixtures::{authored_request, demand, engine};
+use crate::boundary_fixture::fixtures::{FileRun, ran, run_file_into};
+use crate::boundary_fixture::fixtures::{authored_request, engine};
+use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileInput;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
-use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
-use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
+use ryo_execution::inbound::use_cases::execution::interface::{EmittedRoot, RuleAfter};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_rewrites::CapturedBuckets;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::ProjectFacts;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::domain::symbols::{fixtures::intern, types::ByteSlice};
 use ryo_relations::domain::relations::fixtures::node_id;
@@ -165,81 +162,50 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
         observations: ObservationDemand::NotRequired,
-        capture: if crossing {
-            CaptureIntent::DiagnosticAndObservations
-        } else {
-            CaptureIntent::Disabled
-        },
+        capture: CaptureIntent::DiagnosticAndObservations,
     }];
     for (place, each) in files.iter().enumerate() {
         let file_id = FileId(u32::try_from(place).unwrap());
         let mut symbols = Symbols::default();
         let table = functions(file_id, each, &mut symbols);
-        // The fake serves the function relation alone; a read of any other is refused, and the rule with it.
-        let read = |relation| {
-            if relation == Relation::Function {
-                Ok(SourceRows::Computed(&table))
-            } else {
-                Err(OperatingError::NotRead)
-            }
-        };
+        // The facts hold the function relation alone; a read of any other is refused, and the rule with it.
+        let facts = TableFacts::new(&[(Relation::Function, &table)]);
         let elements = ryo_language::domain::elements::types::Elements::default();
-        let mut file = request
-            .open_file(
-                FileInput {
-                    language: SourceLanguage::Recognized,
-                    resident_stability: ResidentStability::Stable,
-                    file: file_id,
-                    evaluation: &[],
-                    publication: &[],
-                    intents: &intents,
-                    source: ryo_values::domain::files::types::SourceView(SOURCE),
-                    elements: &elements,
-                    read: &read,
-                    semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                    kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-                },
-                &mut symbols,
-            )
-            .expect("open the file");
-        match file
-            .rule(RuleIndex(0), demand(), &mut symbols)
-            .expect("run the file")
-            .emit
-        {
-            RootOutcome::Complete(table) => answered.extend(written(&table)),
-            RootOutcome::Deferred {
-                phase: StepScope::CrossFile,
-            } => {
-                for capture in file
-                    .capture_frontiers(
-                        RuleIndex(0),
-                        Bucket(0),
-                        &mut symbols,
-                        CaptureContext {
-                            worker: WorkerNumber(0),
-                            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
-                                &mut arena,
-                            ),
-                            places: &mut places,
-                            words: &mut words,
-                        },
-                    )
-                    .expect("capture the file's frontiers")
-                {
+        let mut rules = run_file_into(
+            &request,
+            FileRun {
+                file: file_id,
+                source: SOURCE,
+                ..FileRun::of(&intents, &elements)
+            },
+            &mut symbols,
+            CaptureContext {
+                worker: WorkerNumber(0),
+                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                places: &mut places,
+                words: &mut words,
+            },
+            &facts,
+        );
+        let rule = ran(&mut rules, 0);
+        match (rule.emit, rule.after) {
+            (EmittedRoot::Delivered(RootOutcome::Complete(table)), _) => {
+                answered.extend(written(&table));
+            }
+            (
+                EmittedRoot::Delivered(RootOutcome::Deferred {
+                    phase: StepScope::CrossFile,
+                }),
+                RuleAfter::Ran { captures: captured },
+            ) => {
+                for capture in captured {
                     captures.push((file_id, capture.outcome.expect("a complete capture")));
                 }
             }
-            RootOutcome::Partial { .. }
-            | RootOutcome::Skipped(_)
-            | RootOutcome::Unknown(_)
-            | RootOutcome::Failed(_)
-            | RootOutcome::NoQuery
-            | RootOutcome::Deferred { .. } => {
+            (EmittedRoot::Delivered(_) | EmittedRoot::Withheld, _) => {
                 panic!("a file answers its rows or defers them to after the files")
             }
         }
-        let _finished = file.finish().expect("release the file");
     }
     if crossing {
         let facts = CapturedBuckets { captures };

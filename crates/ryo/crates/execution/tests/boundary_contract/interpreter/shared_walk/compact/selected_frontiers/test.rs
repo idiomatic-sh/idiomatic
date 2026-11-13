@@ -1,7 +1,7 @@
 //! A selected join shares work, keeps counts and exports owned frontiers.
 use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine};
+use crate::interpreter::shared_walk::fixtures::{complete, input};
 use crate::shared_walk::compact::selected_frontiers::fixtures::{functions, selected_join};
-use crate::shared_walk::fixtures::{complete, input};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;

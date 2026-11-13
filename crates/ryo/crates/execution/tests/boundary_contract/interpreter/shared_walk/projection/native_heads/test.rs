@@ -1,7 +1,8 @@
 //! Native heads keep their projected columns and source row order, and unused intents evaluate nothing.
 use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
+use crate::interpreter::shared_walk::fixtures::no_catalog;
 use crate::interpreter::shared_walk::fixtures::walked;
-use crate::shared_walk::fixtures::no_catalog;
+use crate::interpreter::shared_walk::fixtures::{complete, input};
 use crate::shared_walk::fixtures::*;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;

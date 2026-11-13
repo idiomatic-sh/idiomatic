@@ -99,7 +99,6 @@ impl OperatorsPort for ContinuesAfterDriverRefusal {
     > {
         use ryo_operators::domain::evaluation::types::EvaluationInput;
         use ryo_operators::domain::set_rows::errors::SetRowsError;
-        use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
         use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
         use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
         match call {
@@ -139,7 +138,6 @@ fn engine_driver_preserves_first_refusal_and_denies_later_semantic_callbacks()
         SOURCE,
         &mut case.symbols,
         None,
-        None,
         port.clone(),
     )?;
     Ok(Observed::Driver {
@@ -159,7 +157,6 @@ fn every_registered_class_runs_real_collect_and_stream_with_independent_expectat
             &case.bindings,
             SOURCE,
             &mut case.symbols,
-            None,
             if *kind == OperationKind::RenderSyntax {
                 Some(&semantic)
             } else {
@@ -214,7 +211,6 @@ fn unsupported_semantic_batch_publishes_no_prefix() -> Result<Value, Failure> {
         &case.bindings,
         SOURCE,
         &mut case.symbols,
-        None,
         Some(&PartialSyntax),
     )?;
     Ok(Observed::One(Delivered::of(&observed)))
@@ -253,7 +249,6 @@ fn a_semantic_batch_of_another_length_is_refused() -> Result<Value, Failure> {
             &case.bindings,
             SOURCE,
             &mut case.symbols,
-            None,
             Some(lookup),
         )
         .map(|observed| Delivered::of(&observed))
@@ -347,7 +342,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || engine_driver_preserves_first_refusal_and_denies_later_semantic_callbacks,
         expect: Expect::Value(Observed::Driver {
             delivered: refused(Settlement::Failed, "WrongBinding"),
-            sessions: 2,
+            sessions: 1,
         }),
     },
     Case {

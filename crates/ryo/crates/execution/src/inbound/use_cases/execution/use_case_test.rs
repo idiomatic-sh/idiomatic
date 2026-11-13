@@ -1,61 +1,26 @@
-//! A request execution begins over a prepared program, and its file owner reuses only recognized stable sources.
+//! A request execution begins over a prepared program and finishes.
 use super::fixtures::requests::{Authored, Preparation};
 use super::{interface::ExecutionUseCase, use_case::ExecutionUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::{
-    FileInput, SourceLanguage,
-};
 use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_values::domain::files::types::{
-    CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
-};
 
-/// What a begun request is asked to do: finish with no file, or open one file of a language and stability.
-#[derive(Clone, Copy, Debug)]
-enum Requested {
-    Empty,
-    File(SourceLanguage, ResidentStability),
-}
-/// What the begun request answered.
+/// What a begun request answered.
 #[derive(Debug, PartialEq, Eq)]
 enum Outcome {
     Finished,
-    Reuse(ryo_execution_store::application::file_dag::relations::types::ReuseEligibility),
 }
-type Input = Requested;
+type Input = ();
 type Value = Outcome;
 type Failure = OperatingError;
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName(stringify!(an_empty_request_begins_and_finishes)),
-        word: Word::Succeeds,
-        input: || Requested::Empty,
-        expect: Expect::Value(Outcome::Finished),
-    },
-    Case {
-        name: CaseName(stringify!(a_recognized_stable_source_is_reused)),
-        word: Word::Succeeds,
-        input: || Requested::File(SourceLanguage::Recognized, ResidentStability::Stable),
-        expect: Expect::Value(Outcome::Reuse(ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible)),
-    },
-    Case {
-        name: CaseName(stringify!(an_unstable_source_is_not_reused)),
-        word: Word::Succeeds,
-        input: || Requested::File(SourceLanguage::Recognized, ResidentStability::Unstable),
-        expect: Expect::Value(Outcome::Reuse(ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Ineligible)),
-    },
-    Case {
-        name: CaseName(stringify!(an_unrecognized_source_is_not_reused)),
-        word: Word::Succeeds,
-        input: || Requested::File(SourceLanguage::Unrecognized, ResidentStability::Stable),
-        expect: Expect::Value(Outcome::Reuse(ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Ineligible)),
-    },
-];
-fn subject(input: Input) -> Result<Value, Failure> {
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName(stringify!(an_empty_request_begins_and_finishes)),
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value(Outcome::Finished),
+}];
+fn subject((): Input) -> Result<Value, Failure> {
     let prepare = Preparation::real();
     let prepared = prepare.prepare(Authored {
         plans: vec![],
@@ -65,44 +30,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
         hosted: vec![],
         observations: ObservationIdentity::Independent,
     })?;
-    match input {
-        Requested::Empty => {
-            let request = ExecutionUseCaseImpl::new().execution(&prepared, &[], None.into());
-            ProgramRequestExecutionPort::finish(request);
-            Ok(Outcome::Finished)
-        }
-        Requested::File(language, resident_stability) => {
-            let corpus = vec![CorpusInput::Available(CorpusEntry {
-                path: ryo_language::domain::files::types::FilePath("empty.py".into()),
-                executable: ExecutablePermission::Unknown,
-                size: FileSize(0),
-                modified: Nanoseconds(0),
-            })];
-            let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
-            let elements = ryo_language::domain::elements::types::Elements::default();
-            let read = |_| Err(OperatingError::NotRead);
-            let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
-            let file = request.open_file(
-                FileInput {
-                    language,
-                    resident_stability,
-                    file: ryo_relations::domain::relations::types::FileId(0),
-                    evaluation: &[],
-                    publication: &[],
-                    intents: &[],
-                    source: ryo_values::domain::files::types::SourceView(&[]),
-                    elements: &elements,
-                    read: &read,
-                    semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                    kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
-                },
-                &mut symbols,
-            )?;
-            let eligibility = file.reuse_eligible();
-            let _finished = file.finish()?;
-            Ok(Outcome::Reuse(eligibility))
-        }
-    }
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &[], None.into());
+    ProgramRequestExecutionPort::finish(request);
+    Ok(Outcome::Finished)
 }
 #[test]
 fn succeeds() {

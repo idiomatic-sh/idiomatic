@@ -2,12 +2,10 @@
 use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FactsWorker;
-use ryo_execution::inbound::use_cases::execution::interface::FileFinished;
 use ryo_execution::inbound::use_cases::execution::interface::FileInput;
 use ryo_execution::inbound::use_cases::execution::interface::FileRules;
 use ryo_execution::inbound::use_cases::execution::interface::FileRunInput;
 use ryo_execution::inbound::use_cases::execution::interface::FileSession;
-use ryo_execution::inbound::use_cases::execution::interface::FrontierCapture;
 use ryo_execution::inbound::use_cases::execution::interface::Install;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationBatches;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationStage;
@@ -18,7 +16,6 @@ use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramObservationStagePort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
@@ -27,19 +24,13 @@ use ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcom
 use ryo_execution::inbound::use_cases::execution::interface::ProjectPhase;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
-use ryo_execution::inbound::use_cases::execution::interface::RowEmission;
-use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::interface::RuleOutcome;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::WorkerNumber;
-use ryo_values::domain::{
-    files::types::CorpusInput,
-    plan_parts::types::InputNumber,
-    stored_facts::types::{ArenaBytes, Bucket},
-};
+use ryo_values::domain::{files::types::CorpusInput, stored_facts::types::ArenaBytes};
 
 /// One variant per method of every entry trait, generated with its inventory so a variant cannot
 /// be missing from `ALL`. `witness` below maps each trait method here, and the exhaustive `match`
@@ -56,17 +47,11 @@ methods!(
     UseCaseExecution,
     RequestObservations,
     RequestFinish,
-    RequestOpenFile,
     RequestRunFile,
     RequestProjectPhase,
     RootsEvaluateRules,
     StageFinish,
     ObservedRunBatches,
-    FileEmitRows,
-    FileFinish,
-    FileRule,
-    FileCaptureFrontiers,
-    FileCommitFrontier,
 );
 /// Its methods never run: implementing every method of each entry trait is what the compiler checks.
 pub(in super::super) struct Witness;
@@ -75,7 +60,6 @@ pub(in super::super) fn implements_every_entry_trait<
     W: ExecutionUseCase
         + PrepareUseCase
         + ProgramRequestExecutionPort
-        + ProgramFileSessionPort
         + ProjectRootExecution
         + ProgramProjectPhasePort
         + ProgramObservationStagePort,
@@ -120,7 +104,7 @@ impl ProgramRequestExecutionPort for Witness {
         _: FileInput<'a, 'facts>,
         _: &mut Symbols,
     ) -> Result<FileSession<'a, 'facts>, OperatingError> {
-        witness(Method::RequestOpenFile)
+        unreachable!("the session route is not an entry: a file runs through run_file")
     }
     fn run_file(
         &self,
@@ -180,45 +164,6 @@ impl ProgramObservationStagePort for Witness {
         _: impl FnMut(OccurrenceNumber, Result<T, PhaseStop<E>>) -> Result<Option<Install>, E>,
     ) -> Result<(), E> {
         witness(Method::ObservedRunBatches)
-    }
-}
-
-impl ProgramFileSessionPort for Witness {
-    fn emit_rows(
-        &mut self,
-        _: RuleIndex,
-        _: &mut Symbols,
-        _: &mut dyn FnMut(
-            &[ryo_relations::domain::relations::types::Value],
-        ) -> Result<(), OperatingError>,
-    ) -> Result<RowEmission, OperatingError> {
-        witness(Method::FileEmitRows)
-    }
-    fn finish(self) -> Result<FileFinished, OperatingError> {
-        witness(Method::FileFinish)
-    }
-    fn rule(
-        &mut self,
-        _: RuleIndex,
-        _: RuleDemand,
-        _: &mut Symbols,
-    ) -> Result<RuleOutcome, OperatingError> {
-        witness(Method::FileRule)
-    }
-    fn capture_frontiers(
-        &mut self,
-        _: RuleIndex,
-        _: Bucket,
-        _: &mut Symbols,
-        _: CaptureContext<'_>,
-    ) -> Result<
-        ryo_execution::inbound::use_cases::execution::interface::FrontierCaptures,
-        OperatingError,
-    > {
-        witness(Method::FileCaptureFrontiers)
-    }
-    fn commit_frontier(&mut self, _: RuleIndex, _: InputNumber) -> Result<(), OperatingError> {
-        witness(Method::FileCommitFrontier)
     }
 }
 

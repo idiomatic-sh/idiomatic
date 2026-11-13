@@ -1,14 +1,13 @@
 //! Dormant declarations cannot allocate cohort scratch or retained result slots.
-use super::super::{fixtures::no_catalog, fixtures::*};
-use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
+use super::super::fixtures::*;
+use crate::boundary_fixture::fixtures::{authored_request, corpus};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileEnd;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_relations::domain::relations::types::{FileId, Integer, Relation};
@@ -56,23 +55,24 @@ fn only_admitted_classes_allocate_scratch_and_result_slots() {
         intents[0] = FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
             observations: ObservationDemand::NotRequired,
-            capture: CaptureIntent::Disabled,
+            capture: CaptureIntent::DiagnosticAndObservations,
         };
         // Reuse the immutable request across fresh file generations.
         for _generation in 0..2 {
             let (elements, mut symbols) = tree(FileId(0), b"abc");
-            let mut file = request
-                .open_file(
-                    input(FileId(0), b"abc", &elements, &intents, &no_catalog),
-                    &mut symbols,
-                )
-                .unwrap();
-            let result = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
-            assert_eq!(complete(result), expected(FileId(0), &elements, &[1, 3]));
+            let mut rules = run(
+                &request,
+                (FileId(0), b"abc"),
+                &elements,
+                &intents,
+                &mut symbols,
+            );
+            assert_eq!(
+                complete(&mut rules, 0),
+                expected(FileId(0), &elements, &[1, 3])
+            );
             assert_eq!(semantics.selects(), 0);
-            let replay = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
-            assert_eq!(complete(replay), expected(FileId(0), &elements, &[1, 3]));
-            file.finish().unwrap();
+            assert!(matches!(rules.end, FileEnd::Finished(_)));
         }
         request.finish();
     }
@@ -117,22 +117,17 @@ fn a_failed_dependency_does_not_prepare_a_later_class_of_the_same_rule() {
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
         observations: ObservationDemand::NotRequired,
-        capture: CaptureIntent::Disabled,
+        capture: CaptureIntent::DiagnosticAndObservations,
     }];
-    let mut file = request
-        .open_file(
-            input(FileId(0), b"[bc", &elements, &intents, &no_catalog),
-            &mut symbols,
-        )
-        .unwrap();
-    for _delivery in 0..2 {
-        assert_eq!(
-            failed(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
-            Some(regex_error("["))
-        );
-    }
+    let mut rules = run(
+        &request,
+        (FileId(0), b"[bc"),
+        &elements,
+        &intents,
+        &mut symbols,
+    );
+    assert_eq!(failed(&mut rules, 0), Some(regex_error("[")));
     assert_eq!(semantics.selects(), 0);
-    file.finish().unwrap();
     request.finish();
 }
 
@@ -175,20 +170,23 @@ fn later_cohorts_add_only_the_new_class_and_aliases_replay_both_results() {
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
         observations: ObservationDemand::NotRequired,
-        capture: CaptureIntent::Disabled,
+        capture: CaptureIntent::DiagnosticAndObservations,
     }; 2];
-    let mut file = request
-        .open_file(
-            input(FileId(0), b"abc", &elements, &intents, &no_catalog),
-            &mut symbols,
-        )
-        .unwrap();
-    for rule in [RuleIndex(1), RuleIndex(0), RuleIndex(1)] {
-        let result = file.rule(rule, demand(), &mut symbols).unwrap();
-        assert_eq!(complete(result), expected(FileId(0), &elements, &[1, 3, 2]));
+    let mut rules = run(
+        &request,
+        (FileId(0), b"abc"),
+        &elements,
+        &intents,
+        &mut symbols,
+    );
+    for rule in [1, 0] {
+        assert_eq!(
+            complete(&mut rules, rule),
+            expected(FileId(0), &elements, &[1, 3, 2])
+        );
     }
     assert_eq!(semantics.selects(), 0);
-    file.finish().unwrap();
+    assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
 
@@ -220,25 +218,24 @@ fn full_rule_count_shares_source_decoding_and_ordered_predicate_prefixes() {
         FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
             observations: ObservationDemand::NotRequired,
-            capture: CaptureIntent::Disabled,
+            capture: CaptureIntent::DiagnosticAndObservations,
         };
         RULES
     ];
-    let mut file = request
-        .open_file(
-            input(FileId(0), b"abc", &elements, &intents, &no_catalog),
-            &mut symbols,
-        )
-        .unwrap();
+    let mut rules = run(
+        &request,
+        (FileId(0), b"abc"),
+        &elements,
+        &intents,
+        &mut symbols,
+    );
     for index in (0..RULES).rev() {
-        let actual = complete(file.rule(RuleIndex(index), demand(), &mut symbols).unwrap());
+        let actual = complete(&mut rules, index);
         assert_eq!(actual.count.0, 2);
         assert_eq!(actual.kinds.len(), 1);
     }
     assert_eq!(semantics.selects(), 0);
-    let replay = complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap());
-    assert_eq!(replay.count.0, 2);
-    file.finish().unwrap();
+    assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
 
@@ -258,7 +255,7 @@ fn shared_prefixes_preserve_distinct_parameter_bindings_and_first_errors() {
         });
         bindings[index] = vec![ParameterBinding::Text(
             ryo_values::domain::plan_parts::types::LiteralText(
-                if index == 0 { "[" } else { "a" }.into(),
+                if index == 2 { "[" } else { "a" }.into(),
             ),
         )];
         let mut comparisons = selection(Selector::Kind("word"));
@@ -270,7 +267,7 @@ fn shared_prefixes_preserve_distinct_parameter_bindings_and_first_errors() {
         comparisons.push(compared(
             Test::NotEqual,
             2,
-            text(if index == 2 { "different" } else { "absent" }),
+            text(if index == 0 { "different" } else { "absent" }),
         ));
         plan.steps[0].operation = Operation::Select {
             from: Input::Relation(Relation::SyntaxTree),
@@ -285,26 +282,24 @@ fn shared_prefixes_preserve_distinct_parameter_bindings_and_first_errors() {
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
         observations: ObservationDemand::NotRequired,
-        capture: CaptureIntent::Disabled,
+        capture: CaptureIntent::DiagnosticAndObservations,
     }; 3];
-    let mut file = request
-        .open_file(
-            input(FileId(0), b"abc", &elements, &intents, &no_catalog),
-            &mut symbols,
-        )
-        .unwrap();
-    assert_eq!(
-        failed(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
-        Some(regex_error("["))
+    let mut rules = run(
+        &request,
+        (FileId(0), b"abc"),
+        &elements,
+        &intents,
+        &mut symbols,
     );
-    for rule in [RuleIndex(2), RuleIndex(1)] {
+    for rule in [0, 1] {
         assert_eq!(
-            complete(file.rule(rule, demand(), &mut symbols).unwrap()),
+            complete(&mut rules, rule),
             expected(FileId(0), &elements, &[1])
         );
     }
+    // The rule whose bound regex is invalid answers its own first error; the file stops at it.
+    assert_eq!(failed(&mut rules, 2), Some(regex_error("[")));
     // Kind tests share across all classes, while only the two equal bound regexes share.
     assert_eq!(semantics.selects(), 0);
-    file.finish().unwrap();
     request.finish();
 }

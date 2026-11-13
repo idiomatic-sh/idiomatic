@@ -1,36 +1,24 @@
 //! The support of the `project_phase` cases and of the groups nested in it.
-use crate::boundary_fixture::fixtures::authored_request;
-use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
+use crate::boundary_fixture::fixtures::{FileRun, authored_request, ran, run_file};
+use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
-use ryo_execution::inbound::use_cases::execution::interface::FileInput;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
-use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
-use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
+use ryo_execution::inbound::use_cases::execution::interface::RuleAfter;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_relations::domain::relations::{
     fixtures::kinds,
     types::{CellKind, FileId, Relation},
 };
+use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
     plans::types::{Operation, PlanStep},
-};
-use ryo_values::domain::{
-    plan_parts::types::{JoinColumn, Side},
-    stored_facts::types::Bucket,
 };
 
 pub(crate) fn mixed_program(
@@ -49,49 +37,7 @@ pub(crate) fn mixed_program_with(
     let named = matches!(observations, ObservationIdentity::Named(_));
     let mut input = authored_request(if named { 2 } else { 1 });
     input.observations = observations;
-    let file_column = kinds(Relation::Function)
-        .iter()
-        .position(|kind| *kind == CellKind::File)
-        .unwrap();
-    crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
-        PlanStep {
-            scope: StepScope::PerFile,
-            operation: Operation::Select {
-                from: Input::Relation(Relation::Function),
-                comparisons: vec![],
-                kept: vec![ColumnIndex(u32::try_from(file_column).unwrap())],
-            },
-        },
-        PlanStep {
-            scope: StepScope::CrossFile,
-            operation: Operation::Select {
-                from: Input::Relation(relation),
-                comparisons: vec![],
-                kept: vec![ColumnIndex(0)],
-            },
-        },
-        PlanStep {
-            scope: StepScope::CrossFile,
-            operation: Operation::Join {
-                left: Input::Step(StepId(0)),
-                right: Input::Step(StepId(1)),
-                left_on: vec![ColumnIndex(0)],
-                right_on: vec![ColumnIndex(0)],
-                output: vec![JoinColumn {
-                    side: Side::Left,
-                    column: ColumnIndex(0),
-                }],
-                filter: vec![],
-                view: vec![],
-                reach: None,
-            },
-        },
-    ];
-    crate::boundary_fixture::fixtures::plans(&mut input)[0].frontier =
-        vec![Input::Step(StepId(0)), Input::Relation(relation)];
-    crate::boundary_fixture::fixtures::plans(&mut input)[0]
-        .emit
-        .step = StepId(2);
+    crate::boundary_fixture::fixtures::plans(&mut input)[0] = mixed_plan(relation);
     if named {
         use ryo_values::domain::observations::types::{
             BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
@@ -141,65 +87,88 @@ pub(crate) fn mixed_program_with(
         .expect("compile actual mixed-phase request")
 }
 
-/// The kept frontier of rule 0 in file 0, captured as [`captured_in_file_0`] captures it, over `read`, keyed by its file, every
+/// A plan whose file step selects Function's file, whose project step selects `relation`'s first column, and whose emitted root
+/// joins the two after the files; both inputs are its frontier.
+pub(crate) fn mixed_plan(relation: Relation) -> ryo_values::domain::plans::types::Plan {
+    let mut input = authored_request(1);
+    let file_column = kinds(Relation::Function)
+        .iter()
+        .position(|kind| *kind == CellKind::File)
+        .unwrap();
+    crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
+        PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Select {
+                from: Input::Relation(Relation::Function),
+                comparisons: vec![],
+                kept: vec![ColumnIndex(u32::try_from(file_column).unwrap())],
+            },
+        },
+        PlanStep {
+            scope: StepScope::CrossFile,
+            operation: Operation::Select {
+                from: Input::Relation(relation),
+                comparisons: vec![],
+                kept: vec![ColumnIndex(0)],
+            },
+        },
+        PlanStep {
+            scope: StepScope::CrossFile,
+            operation: Operation::Join {
+                left: Input::Step(StepId(0)),
+                right: Input::Step(StepId(1)),
+                left_on: vec![ColumnIndex(0)],
+                right_on: vec![ColumnIndex(0)],
+                output: vec![JoinColumn {
+                    side: Side::Left,
+                    column: ColumnIndex(0),
+                }],
+                filter: vec![],
+                view: vec![],
+                reach: None,
+            },
+        },
+    ];
+    crate::boundary_fixture::fixtures::plans(&mut input)[0].frontier =
+        vec![Input::Step(StepId(0)), Input::Relation(relation)];
+    crate::boundary_fixture::fixtures::plans(&mut input)[0]
+        .emit
+        .step = StepId(2);
+    crate::boundary_fixture::fixtures::plans(&mut input).remove(0)
+}
+
+/// The kept frontier of rule 0 in file 0, captured as [`captured_in_file_0`] captures it, over `facts`, keyed by its file, every
 /// other rule undemanded.
-pub(crate) fn captured_in_file_0_of<'facts>(
+pub(crate) fn captured_in_file_0_of(
     request: &ryo_execution::inbound::use_cases::execution::interface::RequestExecution,
-    read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
+    facts: &TableFacts,
     symbols: &mut Symbols,
 ) -> Vec<(
     FileId,
     ryo_execution::inbound::use_cases::execution::interface::CapturedFrontier,
 )> {
     let elements = ryo_language::domain::elements::types::Elements::default();
-    let mut file = request
-        .open_file(
-            FileInput {
-                language: SourceLanguage::Recognized,
-                resident_stability: ResidentStability::Stable,
-                file: FileId(0),
-                evaluation: &[],
-                publication: &[],
-                intents: &[
-                    FileRuleIntent::Run {
-                        diagnostic: DiagnosticDelivery::Forwarded,
-                        observations: ObservationDemand::NotRequired,
-                        capture: CaptureIntent::DiagnosticAndObservations,
-                    },
-                    FileRuleIntent::Undemanded,
-                ],
-                source: ryo_values::domain::files::types::SourceView(b"abc"),
-                elements: &elements,
-                read,
-                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-            },
-            symbols,
-        )
-        .expect("open file 0");
-    let (mut arena, mut places, mut words) = (vec![], vec![], Words::default());
-    let captures = file
-        .capture_frontiers(
-            RuleIndex(0),
-            Bucket(0),
-            symbols,
-            CaptureContext {
-                worker: WorkerNumber(0),
-                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
-                places: &mut places,
-                words: &mut words,
-            },
-        )
-        .expect("capture the frontiers of rule 0");
-    let _finished = file.finish();
-    captures
-        .into_iter()
-        .filter_map(|capture| capture.outcome.ok().map(|kept| (FileId(0), kept)))
-        .collect()
+    let intents = [
+        FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::DiagnosticAndObservations,
+        },
+        FileRuleIntent::Undemanded,
+    ];
+    captures_of_rule_0(run_file(
+        request,
+        FileRun::of(&intents, &elements),
+        symbols,
+        facts,
+    ))
+    .into_iter()
+    .filter_map(|capture| capture.outcome.ok().map(|kept| (FileId(0), kept)))
+    .collect()
 }
 
-/// The kept frontier of each input of rule 0, captured in file 0 opened with its diagnostic collected and its frontiers captured,
-/// whose `read` gives each relation its table in `rows`, with `publication` read in part.
+/// The kept frontier of each input of rule 0, captured in file 0 run with its diagnostic collected and its frontiers captured,
+/// over facts that hold each relation's table in `rows`, with `publication` read in part.
 pub(crate) fn captured_in_file_0(
     request: &ryo_execution::inbound::use_cases::execution::interface::RequestExecution,
     rows: &[(Relation, ryo_values::domain::rows::types::Table)],
@@ -207,79 +176,53 @@ pub(crate) fn captured_in_file_0(
     symbols: &mut Symbols,
 ) -> Vec<ryo_execution::inbound::use_cases::execution::interface::CapturedFrontier> {
     let elements = ryo_language::domain::elements::types::Elements::default();
-    let read = |relation| {
-        rows.iter()
-            .find(|(each, _)| *each == relation)
-            .map(|(_, table)| SourceRows::Computed(table))
-            .ok_or(OperatingError::NotRead)
-    };
-    let mut file = request
-        .open_file(
-            FileInput {
-                language: SourceLanguage::Recognized,
-                resident_stability: ResidentStability::Stable,
-                file: FileId(0),
-                evaluation: &[],
-                publication,
-                intents: &[FileRuleIntent::Run {
-                    diagnostic: DiagnosticDelivery::Collected,
-                    observations: ObservationDemand::NotRequired,
-                    capture: CaptureIntent::DiagnosticAndObservations,
-                }],
-                source: ryo_values::domain::files::types::SourceView(b"abc"),
-                elements: &elements,
-                read: &read,
-                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-            },
-            symbols,
-        )
-        .expect("open file 0");
-    let (mut arena, mut places, mut words) = (vec![], vec![], Words::default());
-    let captures = file
-        .capture_frontiers(
-            RuleIndex(0),
-            Bucket(0),
-            symbols,
-            CaptureContext {
-                worker: WorkerNumber(0),
-                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
-                places: &mut places,
-                words: &mut words,
-            },
-        )
-        .expect("capture the frontiers of rule 0");
-    let _finished = file.finish();
-    captures
-        .into_iter()
-        .map(|capture| capture.outcome.expect("a kept frontier"))
-        .collect()
+    let facts = TableFacts::new(
+        &rows
+            .iter()
+            .map(|(relation, table)| (*relation, table))
+            .collect::<Vec<_>>(),
+    );
+    let intents = [FileRuleIntent::Run {
+        diagnostic: DiagnosticDelivery::Collected,
+        observations: ObservationDemand::NotRequired,
+        capture: CaptureIntent::DiagnosticAndObservations,
+    }];
+    captures_of_rule_0(run_file(
+        request,
+        FileRun {
+            publication,
+            ..FileRun::of(&intents, &elements)
+        },
+        symbols,
+        &facts,
+    ))
+    .into_iter()
+    .map(|capture| capture.outcome.expect("a kept frontier"))
+    .collect()
 }
 
-/// Recognized file 0 whose syntax was rejected: its one rule is skipped, and it reads no semantic rows.
-pub(crate) fn rejected_syntax<'a, 'facts>(
-    elements: &'a ryo_language::domain::elements::types::Elements,
-) -> FileInput<'a, 'facts> {
-    FileInput {
-        language: SourceLanguage::Recognized,
-        resident_stability: ResidentStability::Stable,
-        file: ryo_relations::domain::relations::types::FileId(0),
-        evaluation: &[],
-        publication: &[],
-        intents: &[FileRuleIntent::Skipped(
-            ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason::SyntaxRejected,
-        )],
-        source: ryo_values::domain::files::types::SourceView(b"def broken(:"),
-        elements,
-        read: &no_semantic_rows,
-        semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-        kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
+/// The frontiers rule 0 of `rules` captured.
+fn captures_of_rule_0(
+    mut rules: ryo_execution::inbound::use_cases::execution::interface::FileRules,
+) -> Vec<ryo_execution::inbound::use_cases::execution::interface::FrontierCapture> {
+    match ran(&mut rules, 0).after {
+        RuleAfter::Ran { captures } => captures,
+        RuleAfter::Unreached => panic!("rule 0's root failed before its frontiers"),
+        RuleAfter::Stopped(stop) => panic!("rule 0 stopped before its frontiers: {stop:?}"),
     }
 }
 
-/// The read of a file whose syntax was rejected: it has no semantic rows to read.
-fn no_semantic_rows<'facts>(
-    _: ryo_relations::domain::relations::types::Relation,
-) -> Result<SourceRows<'facts>, OperatingError> {
-    panic!("rejected syntax has no semantic rows")
+/// Recognized file 0 whose syntax was rejected: its one rule is skipped, and it reads no semantic rows.
+pub(crate) fn rejected_syntax(
+    elements: &ryo_language::domain::elements::types::Elements,
+) -> FileRun<'_> {
+    FileRun {
+        source: b"def broken(:",
+        ..FileRun::of(
+            &[FileRuleIntent::Skipped(
+                ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason::SyntaxRejected,
+            )],
+            elements,
+        )
+    }
 }

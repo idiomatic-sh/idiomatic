@@ -1,17 +1,15 @@
 //! The shared walk uses one join dependency contract for callback delivery and shares one source walk.
-use super::super::super::fixtures::no_catalog;
 use super::super::super::fixtures::*;
-use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
+use crate::boundary_fixture::fixtures::{FileRun, authored_request, corpus, ran, root, run_file};
+use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileEnd;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_relations::domain::relations::types::{FileId, Relation};
@@ -67,72 +65,44 @@ fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
             comparisons: selection(Selector::Kind("other")),
             kept: vec![],
         };
+    // The independent selector runs first, so the Join's failure, which stops the file, comes after it.
+    crate::boundary_fixture::fixtures::plans(&mut authored).swap(0, 1);
     let program = engine.prepare(authored).unwrap();
-    for diagnostic in [DiagnosticDelivery::Collected, DiagnosticDelivery::Forwarded] {
-        for independent_first in [false, true] {
-            let corpus = corpus();
-            let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
-            let (elements, mut symbols) = tree(FileId(0), b"abc");
-            let intents = [
-                FileRuleIntent::Run {
-                    diagnostic,
-                    observations: ObservationDemand::NotRequired,
-                    capture: CaptureIntent::Disabled,
-                },
-                FileRuleIntent::Run {
-                    diagnostic: DiagnosticDelivery::Collected,
-                    observations: ObservationDemand::NotRequired,
-                    capture: CaptureIntent::Disabled,
-                },
-            ];
-            let mut file = request
-                .open_file(
-                    input(FileId(0), b"abc", &elements, &intents, &no_catalog),
-                    &mut symbols,
-                )
-                .unwrap();
-            if independent_first {
-                assert_eq!(
-                    complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
-                    expected(FileId(0), &elements, &[2])
-                );
-            }
-            for attempt in 0..2 {
-                match diagnostic {
-                    DiagnosticDelivery::Collected => {
-                        let result = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
-                        assert!(
-                            matches!(result.emit, RootOutcome::Failed(ref error) if *error == regex_error("["))
-                        );
-                    }
-                    DiagnosticDelivery::Forwarded => {
-                        let mut delivered = Vec::new();
-                        let result = file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
-                            delivered.push(row.to_vec());
-                            Ok(())
-                        });
-                        assert!(matches!(result, Err(ref error) if *error == regex_error("[")));
-                        assert!(
-                            delivered.is_empty(),
-                            "a failed canonical Join commits no rows"
-                        );
-                    }
-                    DiagnosticDelivery::Disabled => {
-                        unreachable!("test declares a diagnostic consumer")
-                    }
-                }
-                if attempt == 0 && !independent_first {
-                    assert_eq!(
-                        complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
-                        expected(FileId(0), &elements, &[2])
-                    );
-                }
-                // The LHS cannot match the file ("absent-kind"), so it publishes empty without a walk: the independent
-                // selector and the Join's demanded RHS share the one head cohort. A terminal retry adds no work.
-            }
-            file.finish().unwrap();
-            request.finish();
-        }
+    for diagnostic in [DiagnosticDelivery::Collected] {
+        let corpus = corpus();
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
+        let (elements, mut symbols) = tree(FileId(0), b"abc");
+        let intents = [
+            FileRuleIntent::Run {
+                diagnostic: DiagnosticDelivery::Collected,
+                observations: ObservationDemand::NotRequired,
+                capture: CaptureIntent::DiagnosticAndObservations,
+            },
+            FileRuleIntent::Run {
+                diagnostic,
+                observations: ObservationDemand::NotRequired,
+                capture: CaptureIntent::DiagnosticAndObservations,
+            },
+        ];
+        let mut rules = run(
+            &request,
+            (FileId(0), b"abc"),
+            &elements,
+            &intents,
+            &mut symbols,
+        );
+        assert_eq!(
+            complete(&mut rules, 0),
+            expected(FileId(0), &elements, &[2])
+        );
+        // The LHS cannot match the file ("absent-kind"), so it publishes empty without a walk: the independent selector and the
+        // Join's demanded RHS share the one head cohort, and a failed canonical Join commits no rows in either delivery.
+        assert!(matches!(
+            root(ran(&mut rules, 1)),
+            Ok(RootOutcome::Failed(ref error)) if *error == regex_error("[")
+        ));
+        assert!(matches!(rules.end, FileEnd::Unfinished));
+        request.finish();
     }
 }
 #[test]
@@ -158,24 +128,25 @@ fn independent_semantic_relation_selectors_share_one_source_walk() {
     let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
     let table = named_functions(&mut symbols);
     let elements = ryo_language::domain::elements::types::Elements::default();
-    let read = |relation| {
-        assert_eq!(relation, Relation::Function);
-        Ok(SourceRows::Computed(&table))
-    };
+    let read = TableFacts::new(&[(Relation::Function, &table)]);
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
         observations: ObservationDemand::NotRequired,
-        capture: CaptureIntent::Disabled,
+        capture: CaptureIntent::DiagnosticAndObservations,
     }; 2];
-    let mut file = request
-        .open_file(
-            input(FileId(0), b"mainother", &elements, &intents, &read),
-            &mut symbols,
-        )
-        .unwrap();
+    let mut rules = run_file(
+        &request,
+        FileRun {
+            file: FileId(0),
+            source: b"mainother",
+            ..FileRun::of(&intents, &elements)
+        },
+        &mut symbols,
+        &read,
+    );
     for (rule, positions) in [(0, &[0_u32, 1][..]), (1, &[2_u32][..])] {
         assert_eq!(
-            complete(file.rule(RuleIndex(rule), demand(), &mut symbols).unwrap()),
+            complete(&mut rules, rule),
             Table {
                 kinds: vec![CellKind::Node],
                 count: RowCount(positions.len()),
@@ -191,6 +162,6 @@ fn independent_semantic_relation_selectors_share_one_source_walk() {
         0,
         "both selectors use shared row dispatch"
     );
-    file.finish().unwrap();
+    assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }

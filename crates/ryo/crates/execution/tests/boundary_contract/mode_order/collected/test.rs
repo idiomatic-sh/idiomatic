@@ -1,7 +1,6 @@
 //! Collected-mode preflight and explicit empty gates.
 use crate::mode_order::fixtures::*;
 use crate::*;
-use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostRow},
     plan_parts::types::HostedNumber,
@@ -12,7 +11,7 @@ fn collected_reductions_validate_the_resource_operand_before_the_output_keys() {
     for digest in [false, true] {
         let mut input = authored_request(1);
         let from = Input::Step(StepId(0));
-        crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
+        boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
             step(Operation::Hosted {
                 relation: HostedNumber(0),
             }),
@@ -30,11 +29,9 @@ fn collected_reductions_validate_the_resource_operand_before_the_output_keys() {
                 }
             }),
         ];
-        crate::boundary_fixture::fixtures::plans(&mut input)[0]
-            .emit
-            .step = StepId(1);
+        boundary_fixture::fixtures::plans(&mut input)[0].emit.step = StepId(1);
         input.hosted = vec![hosted(&[1])];
-        let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
+        let read = TableFacts::new(&[]);
         assert_eq!(failed_column(evaluate(input, &read)), Some(99));
     }
 }
@@ -42,27 +39,20 @@ fn collected_reductions_validate_the_resource_operand_before_the_output_keys() {
 #[test]
 fn collected_schema_first_follows_actual_source_admission() {
     let mut input = authored_request(1);
-    crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![step(Operation::Select {
+    boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![step(Operation::Select {
         from: Input::Relation(Relation::Function),
         comparisons: vec![],
         kept: vec![ColumnIndex(99)],
     })];
-    let reads = Cell::new(0);
-    let read = |_| {
-        reads.set(reads.get() + 1);
-        Err::<SourceRows<'_>, _>(OperatingError::NotRead)
-    };
-    assert!(matches!(
-        evaluate(input, &read),
-        RootOutcome::Failed(OperatingError::NotRead)
-    ));
-    assert_eq!(reads.get(), 1);
+    let read = TableFacts::new(&[]);
+    assert!(matches!(evaluate(input, &read), Err(FileStop::Facts(_))));
+    assert_eq!(read.reads(), 1);
 }
 
 #[test]
 fn collected_antijoin_empty_left_precedes_unused_right_key_validation() {
     let mut input = authored_request(1);
-    crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
+    boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
         step(Operation::Hosted {
             relation: HostedNumber(0),
         }),
@@ -76,12 +66,10 @@ fn collected_antijoin_empty_left_precedes_unused_right_key_validation() {
             right_on: vec![ColumnIndex(99)],
         }),
     ];
-    crate::boundary_fixture::fixtures::plans(&mut input)[0]
-        .emit
-        .step = StepId(2);
+    boundary_fixture::fixtures::plans(&mut input)[0].emit.step = StepId(2);
     input.hosted = vec![hosted(&[]), hosted(&[1])];
-    let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
-    let RootOutcome::Complete(table) = evaluate(input, &read) else {
+    let read = TableFacts::new(&[]);
+    let Ok(RootOutcome::Complete(table)) = evaluate(input, &read) else {
         panic!("typed empty antijoin")
     };
     assert_eq!(table.kinds, [CellKind::Number]);
@@ -91,9 +79,11 @@ fn collected_antijoin_empty_left_precedes_unused_right_key_validation() {
 
 #[test]
 fn collected_axis_empty_domain_gate_is_specific_to_computed_representation() {
-    for computed in [true, false] {
+    // A fact relation reaches the run as the worker's stored columns: the computed form of a fact relation has no route through
+    // `run_file`, so only the stored domain is run.
+    {
         let mut input = authored_request(1);
-        crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
+        boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
             step(select(Relation::Function)),
             step(axis(
                 Input::Step(StepId(0)),
@@ -101,9 +91,7 @@ fn collected_axis_empty_domain_gate_is_specific_to_computed_representation() {
                 98,
             )),
         ];
-        crate::boundary_fixture::fixtures::plans(&mut input)[0]
-            .emit
-            .step = StepId(1);
+        boundary_fixture::fixtures::plans(&mut input)[0].emit.step = StepId(1);
         let roots = source();
         let edges = Table {
             kinds: kinds(Relation::SemanticChild).to_vec(),
@@ -115,34 +103,13 @@ fn collected_axis_empty_domain_gate_is_specific_to_computed_representation() {
             count: RowCount(0),
             cells: vec![],
         };
-        let columns = kinds(Relation::Defines)
-            .iter()
-            .map(|_| FactColumn(vec![]))
-            .collect::<Vec<_>>();
-        #[expect(
-            clippy::wildcard_enum_match_arm,
-            reason = "the fake serves the axis's roots, edges and domain; every other relation is not read"
-        )]
-        let read = |relation| match relation {
-            Relation::Function => Ok(SourceRows::Computed(&roots)),
-            Relation::SemanticChild => Ok(SourceRows::Computed(&edges)),
-            Relation::Defines if computed => Ok(SourceRows::Computed(&domain)),
-            Relation::Defines => Ok(SourceRows::Stored(ColumnsView {
-                kinds: kinds(Relation::Defines),
-                columns: &columns,
-            })),
-            _ => Err(OperatingError::NotRead),
-        };
+        let read = TableFacts::new(&[
+            (Relation::Function, &roots),
+            (Relation::SemanticChild, &edges),
+            (Relation::Defines, &domain),
+        ]);
         let outcome = evaluate(input, &read);
-        if computed {
-            let RootOutcome::Complete(table) = outcome else {
-                panic!("computed empty domain precedes unused edge validation")
-            };
-            assert_eq!(table.kinds, [CellKind::Node, CellKind::Node]);
-            assert_eq!(table.count, RowCount(0));
-        } else {
-            assert_eq!(failed_column(outcome), Some(98));
-        }
+        assert_eq!(failed_column(outcome), Some(98));
     }
 }
 
@@ -159,7 +126,7 @@ fn empty_axis_and_antijoin_carry_the_final_fused_projection_layout() {
         if let Operation::Axis { domain_id, .. } = &mut walk {
             *domain_id = ColumnIndex(0);
         }
-        crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
+        boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
             step(select(Relation::Function)),
             step(walk),
             step(Operation::Project {
@@ -168,9 +135,7 @@ fn empty_axis_and_antijoin_carry_the_final_fused_projection_layout() {
                 distinct: RepeatedRows::Kept,
             }),
         ];
-        crate::boundary_fixture::fixtures::plans(&mut input)[0]
-            .emit
-            .step = StepId(2);
+        boundary_fixture::fixtures::plans(&mut input)[0].emit.step = StepId(2);
         let mut roots = source();
         if !populated {
             roots.count = RowCount(0);
@@ -204,17 +169,12 @@ fn empty_axis_and_antijoin_carry_the_final_fused_projection_layout() {
                 CellKind::Symbol => Value::Symbol(ryo_relations::domain::terms::types::Symbol(0)),
             })
             .collect();
-        #[expect(
-            clippy::wildcard_enum_match_arm,
-            reason = "the fake serves the axis's roots, edges and domain; every other relation is not read"
-        )]
-        let read = |relation| match relation {
-            Relation::Function => Ok(SourceRows::Computed(&roots)),
-            Relation::SemanticChild => Ok(SourceRows::Computed(&edges)),
-            Relation::Defines => Ok(SourceRows::Computed(&domain)),
-            _ => Err(OperatingError::NotRead),
-        };
-        let RootOutcome::Complete(table) = evaluate(input, &read) else {
+        let read = TableFacts::new(&[
+            (Relation::Function, &roots),
+            (Relation::SemanticChild, &edges),
+            (Relation::Defines, &domain),
+        ]);
+        let Ok(RootOutcome::Complete(table)) = evaluate(input, &read) else {
             panic!("complete projected axis")
         };
         assert_eq!(table.kinds, [CellKind::Node]);
@@ -241,7 +201,7 @@ fn empty_axis_and_antijoin_carry_the_final_fused_projection_layout() {
             ]));
         }
         input.hosted = vec![left, hosted(&[1])];
-        crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
+        boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
             step(Operation::Hosted {
                 relation: HostedNumber(0),
             }),
@@ -260,11 +220,9 @@ fn empty_axis_and_antijoin_carry_the_final_fused_projection_layout() {
                 distinct: RepeatedRows::Kept,
             }),
         ];
-        crate::boundary_fixture::fixtures::plans(&mut input)[0]
-            .emit
-            .step = StepId(3);
-        let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
-        let RootOutcome::Complete(table) = evaluate(input, &read) else {
+        boundary_fixture::fixtures::plans(&mut input)[0].emit.step = StepId(3);
+        let read = TableFacts::new(&[]);
+        let Ok(RootOutcome::Complete(table)) = evaluate(input, &read) else {
             panic!("complete projected antijoin")
         };
         assert_eq!(table.kinds, [CellKind::Number]);
@@ -293,7 +251,7 @@ fn an_empty_gate_schema_error_is_not_erased_by_a_valid_zero_column_continuation(
         *id = ColumnIndex(99);
         *domain_id = ColumnIndex(0);
     }
-    crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
+    boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
         step(select(Relation::Function)),
         step(walk),
         step(Operation::Project {
@@ -302,9 +260,7 @@ fn an_empty_gate_schema_error_is_not_erased_by_a_valid_zero_column_continuation(
             distinct: RepeatedRows::Kept,
         }),
     ];
-    crate::boundary_fixture::fixtures::plans(&mut input)[0]
-        .emit
-        .step = StepId(2);
+    boundary_fixture::fixtures::plans(&mut input)[0].emit.step = StepId(2);
     let roots = Table {
         kinds: kinds(Relation::Function).to_vec(),
         count: RowCount(0),
@@ -320,15 +276,10 @@ fn an_empty_gate_schema_error_is_not_erased_by_a_valid_zero_column_continuation(
         count: RowCount(0),
         cells: vec![],
     };
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "the fake serves the axis's roots, edges and domain; every other relation is not read"
-    )]
-    let read = |relation| match relation {
-        Relation::Function => Ok(SourceRows::Computed(&roots)),
-        Relation::SemanticChild => Ok(SourceRows::Computed(&edges)),
-        Relation::Defines => Ok(SourceRows::Computed(&domain)),
-        _ => Err(OperatingError::NotRead),
-    };
+    let read = TableFacts::new(&[
+        (Relation::Function, &roots),
+        (Relation::SemanticChild, &edges),
+        (Relation::Defines, &domain),
+    ]);
     assert_eq!(failed_column(evaluate(input, &read)), Some(99));
 }

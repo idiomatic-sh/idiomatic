@@ -3,40 +3,35 @@
 use super::fixtures::Mode;
 use super::fixtures::authored;
 use crate::boundary_fixture::fixtures::Observed as _;
+use crate::boundary_fixture::fixtures::{FileRun, ran, run_file};
 use crate::boundary_fixture::fixtures::{corpus, engine, source};
+use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
-use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileInput;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::Partial;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectObservation;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
-use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
 use ryo_execution::inbound::use_cases::execution::interface::{
     BatchNumber, BatchOccurrence, ObservationBatches, OccurrenceNumber, PhasePartials,
 };
+use ryo_execution::inbound::use_cases::execution::interface::{FileEnd, RuleAfter};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::CapturedFacts;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::ProjectFacts;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::{FileId, Relation, Value};
-use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::records::types::ProducerReadiness;
 use ryo_values::domain::rows::types::RowCount;
@@ -74,7 +69,7 @@ pub(super) fn exercise_with(
         table.cells.clear();
         table.count = RowCount(0);
     }
-    let read = |_| Ok(SourceRows::Computed(&table));
+    let facts = TableFacts::new(&[(Relation::Function, &table)]);
     let mut captures = vec![];
     let mut readiness = vec![];
     for file_id in [FileId(0), FileId(1)] {
@@ -92,53 +87,31 @@ pub(super) fn exercise_with(
             FileRuleIntent::Undemanded,
             FileRuleIntent::Undemanded,
         ];
-        let mut file = request
-            .open_file(
-                FileInput {
-                    language: SourceLanguage::Recognized,
-                    resident_stability: ResidentStability::Stable,
-                    file: file_id,
-                    evaluation: &[],
-                    publication: &[],
-                    intents: &intents,
-                    source: ryo_values::domain::files::types::SourceView(b"abc"),
-                    elements: &elements,
-                    read: &read,
-                    semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                    kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-                },
-                &mut symbols,
-            )
-            .unwrap();
+        let mut rules = run_file(
+            &request,
+            FileRun {
+                file: file_id,
+                ..FileRun::of(&intents, &elements)
+            },
+            &mut symbols,
+            &facts,
+        );
         if file_id == FileId(0) {
-            let (mut arena, mut places, mut words) = (vec![], vec![], Words::default());
-            let capture = file
-                .capture_frontiers(
-                    RuleIndex(0),
-                    Bucket(0),
-                    &mut symbols,
-                    CaptureContext {
-                        worker: WorkerNumber(0),
-                        arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
-                            &mut arena,
-                        ),
-                        places: &mut places,
-                        words: &mut words,
-                    },
-                )
-                .unwrap()
-                .pop()
-                .unwrap();
-            file.commit_frontier(RuleIndex(0), capture.input).unwrap();
+            let RuleAfter::Ran {
+                captures: mut produced,
+            } = ran(&mut rules, 0).after
+            else {
+                panic!("the producer runs and captures")
+            };
+            let capture = produced.pop().unwrap();
             captures.push((file_id, capture.outcome.unwrap()));
         }
+        let FileEnd::Finished(root) = rules.end else {
+            panic!("the file finishes")
+        };
         readiness.push(FileObservationReadiness {
             file: file_id,
-            root: file
-                .finish()
-                .unwrap()
-                .readiness
-                .observed("the finished file observed its readiness"),
+            root: root.observed("the finished file observed its readiness"),
         });
     }
     if stale_complete {

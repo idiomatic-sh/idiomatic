@@ -1,31 +1,29 @@
-//! Sink refusal retries terminal delivery, while a new owner must admit a new population.
-use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine, source};
+//! A file's second run reads its own facts and never a cached row, and an undemanded rule is never scheduled.
+use crate::boundary_fixture::fixtures::{
+    FileRun, authored_request, corpus, engine, ran, root, run_file, source,
+};
+use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileInput;
+use ryo_execution::inbound::use_cases::execution::interface::FileEnd;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::FileStop;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
-use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort as _;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
-use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::*;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
     plans::types::{Operation, PlanStep},
 };
-use std::cell::Cell;
 
 #[test]
-fn sink_refusal_replays_delivery_without_restarting_the_shared_dependency_graph() {
+fn a_second_run_of_a_file_reads_its_own_facts_and_never_a_cached_row() {
     let engine = engine();
     let mut authored = authored_request(2);
     for plan in crate::boundary_fixture::fixtures::plans(&mut authored) {
@@ -42,90 +40,45 @@ fn sink_refusal_replays_delivery_without_restarting_the_shared_dependency_graph(
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
-    let reads = Cell::new(0);
-    let refuse = Cell::new(false);
-    let read = |relation| {
-        assert_eq!(relation, Relation::Function);
-        reads.set(reads.get() + 1);
-        if refuse.get() {
-            Err(OperatingError::NotRead)
-        } else {
-            Ok(SourceRows::Computed(&table))
-        }
-    };
     let elements = Elements::default();
     let intents = [FileRuleIntent::Run {
-        diagnostic: DiagnosticDelivery::Forwarded,
+        diagnostic: DiagnosticDelivery::Collected,
         observations: ObservationDemand::NotRequired,
-        capture: CaptureIntent::Disabled,
+        capture: CaptureIntent::DiagnosticAndObservations,
     }; 2];
     let mut symbols = Symbols::default();
-    // An engine-issued generation cannot be reused by opening the same FileId again.
-    for generation in 0..2 {
-        let mut file = request
-            .open_file(
-                FileInput {
-                    language: SourceLanguage::Recognized,
-                    resident_stability: ResidentStability::Stable,
-                    file: FileId(0),
-                    evaluation: &[],
-                    publication: &[],
-                    intents: &intents,
-                    source: ryo_values::domain::files::types::SourceView(b"abc"),
-                    elements: &elements,
-                    read: &read,
-                    semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                    kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-                },
-                &mut symbols,
-            )
-            .unwrap();
-        if generation == 0 {
-            let callbacks = Cell::new(0);
-            assert!(matches!(
-                file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| {
-                    callbacks.set(callbacks.get() + 1);
-                    Err(OperatingError::WrongBinding)
-                }),
-                Err(OperatingError::WrongBinding)
-            ));
-            assert_eq!(callbacks.get(), 1);
-            let admitted = reads.get();
-            assert!(admitted > 0);
-            refuse.set(true);
-            for index in [0, 1, 0] {
-                let mut rows = vec![];
-                file.emit_rows(RuleIndex(index), &mut symbols, &mut |row| {
-                    rows.push(row.to_vec());
-                    Ok(())
-                })
-                .expect("retry terminal publication through the public owner");
-                assert_eq!(rows, [vec![table.cells[0]]]);
-                assert_eq!(reads.get(), admitted);
-            }
-        } else {
-            let before = reads.get();
-            assert!(matches!(
-                file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| {
-                    panic!("a retired generation must not supply a cached row")
-                }),
-                Err(OperatingError::NotRead)
-            ));
-            assert!(
-                reads.get() > before,
-                "the fresh generation admitted the current provider"
-            );
-            let after = reads.get();
-            assert!(matches!(
-                file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| {
-                    panic!("failed publication must remain unavailable")
-                }),
-                Err(OperatingError::NotRead)
-            ));
-            assert_eq!(reads.get(), after);
-        }
-        file.finish().unwrap();
+    // The first run reads the provider once for both rules' shared dependency; the second run of the same file reads the facts
+    // of its own run, which refuse, and no rule delivers a row of the first.
+    let first = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut rules = run_file(
+        &request,
+        FileRun::of(&intents, &elements),
+        &mut symbols,
+        &first,
+    );
+    for index in [0, 1] {
+        let Ok(RootOutcome::Complete(rows)) = root(ran(&mut rules, index)) else {
+            panic!("rule {index} delivers its terminal publication")
+        };
+        assert_eq!(rows.cells, [table.cells[0]]);
     }
+    assert!(first.reads() > 0);
+    let second = TableFacts::new(&[]);
+    let mut rules = run_file(
+        &request,
+        FileRun::of(&intents, &elements),
+        &mut symbols,
+        &second,
+    );
+    assert!(
+        matches!(root(ran(&mut rules, 0)), Err(FileStop::Facts(_))),
+        "a retired run must not supply a cached row"
+    );
+    assert!(
+        second.reads() > 0,
+        "the fresh run admitted the current provider"
+    );
+    assert!(matches!(rules.end, FileEnd::Unfinished));
     request.finish();
 }
 
@@ -142,56 +95,35 @@ fn an_unbound_rule_cannot_schedule_an_independent_provider_after_a_failed_siblin
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
-    let reads = Cell::new(0);
-    let read = |relation| {
-        assert_eq!(
-            relation,
-            Relation::Function,
-            "undeclared sibling cannot be prepared"
-        );
-        reads.set(reads.get() + 1);
-        Err::<SourceRows<'_>, _>(OperatingError::NotRead)
-    };
+    // No relation is held: rule 0's read of Function is refused. The undemanded sibling's Identifier is never read.
+    let facts = TableFacts::new(&[]);
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     let intents = [
         FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
             observations: ObservationDemand::NotRequired,
-            capture: CaptureIntent::Disabled,
+            capture: CaptureIntent::DiagnosticAndObservations,
         },
         FileRuleIntent::Undemanded,
     ];
-    let mut file = request
-        .open_file(
-            FileInput {
-                language: SourceLanguage::Recognized,
-                resident_stability: ResidentStability::Stable,
-                file: FileId(0),
-                evaluation: &[],
-                publication: &[],
-                intents: &intents,
-                source: ryo_values::domain::files::types::SourceView(b"abc"),
-                elements: &elements,
-                read: &read,
-                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-            },
-            &mut symbols,
-        )
-        .unwrap();
-    assert!(matches!(
-        file.rule(RuleIndex(0), demand(), &mut symbols)
-            .unwrap()
-            .emit,
-        RootOutcome::Failed(OperatingError::NotRead)
-    ));
-    let after = reads.get();
-    assert!(matches!(
-        file.rule(RuleIndex(1), demand(), &mut symbols),
-        Err(OperatingError::NotRun)
-    ));
-    assert_eq!(reads.get(), after);
-    file.finish().unwrap();
+    let mut rules = run_file(
+        &request,
+        FileRun::of(&intents, &elements),
+        &mut symbols,
+        &facts,
+    );
+    assert!(matches!(root(ran(&mut rules, 0)), Err(FileStop::Facts(_))));
+    assert!(
+        rules.rules.iter().all(|each| each.rule != RuleIndex(1)),
+        "the undemanded sibling is not scheduled"
+    );
+    assert!(
+        facts
+            .history()
+            .iter()
+            .all(|relation| *relation == Relation::Function),
+        "undeclared sibling cannot be prepared"
+    );
     request.finish();
 }

@@ -25,7 +25,7 @@ fn collected_empty_rank_and_span_bounds_keep_layout_without_demanding_row_errors
                     vec![]
                 },
             }];
-            crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
+            boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
                 step(Operation::Hosted {
                     relation: HostedNumber(0),
                 }),
@@ -42,21 +42,19 @@ fn collected_empty_rank_and_span_bounds_keep_layout_without_demanding_row_errors
                     }
                 }),
             ];
-            crate::boundary_fixture::fixtures::plans(&mut input)[0]
-                .emit
-                .step = StepId(1);
-            let outcome = evaluate(input, &unread);
+            boundary_fixture::fixtures::plans(&mut input)[0].emit.step = StepId(1);
+            let outcome = evaluate(input, &TableFacts::new(&[]));
             if populated {
                 if rank {
                     assert!(matches!(
                         outcome,
-                        RootOutcome::Failed(OperatingError::Unbound)
+                        Ok(RootOutcome::Failed(OperatingError::Unbound))
                     ));
                 } else {
                     assert_eq!(failed_column(outcome), Some(99));
                 }
             } else {
-                let RootOutcome::Complete(table) = outcome else {
+                let Ok(RootOutcome::Complete(table)) = outcome else {
                     panic!("row errors stay unobserved on empty input")
                 };
                 assert_eq!(

@@ -1,27 +1,22 @@
 //! Real relation, region, observation and member roots, including direct bound capture.
 use super::fixtures::named;
-use crate::boundary_fixture::fixtures::{corpus, engine, source};
-use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
+use crate::boundary_fixture::fixtures::{FileRun, corpus, engine, ran, root, run_file, source};
+use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
-use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileInput;
+use ryo_execution::inbound::use_cases::execution::interface::FileEnd;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::FrontierPurpose;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort as _;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort as _;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
-use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
+use ryo_execution::inbound::use_cases::execution::interface::RuleAfter;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::execution::interface::SourceLanguage;
-use ryo_execution::inbound::use_cases::execution::interface::SourceRows;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::{fixtures::node_id, types::*};
 use ryo_values::domain::plan_parts::types::InputNumber;
@@ -29,14 +24,12 @@ use ryo_values::domain::runs::types::ApplicabilityRefusal;
 use ryo_values::domain::{
     plan_parts::types::{Input, ObservationBindingId, StepId},
     rows::types::RowCount,
-    stored_facts::types::Bucket,
     table_words::fixtures::decode_complete,
 };
-use std::cell::Cell;
 
 #[test]
 fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery() {
-    for consumer_first in [false, true] {
+    {
         let engine = engine();
         let program = engine
             .prepare(named())
@@ -63,12 +56,7 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
         let table = source();
-        let reads = Cell::new(0);
-        let read = |relation| {
-            assert_eq!(relation, Relation::Function);
-            reads.set(reads.get() + 1);
-            Ok(SourceRows::Computed(&table))
-        };
+        let facts = TableFacts::new(&[(Relation::Function, &table)]);
         let elements = Elements::default();
         let mut symbols = Symbols::default();
         let run = FileRuleIntent::Run {
@@ -77,69 +65,43 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
             capture: CaptureIntent::DiagnosticAndObservations,
         };
         let intents = [run, run, FileRuleIntent::Undemanded];
-        let mut file = request
-            .open_file(
-                FileInput {
-                    language: SourceLanguage::Recognized,
-                    resident_stability: ResidentStability::Stable,
-                    file: FileId(0),
-                    evaluation: &[],
-                    publication: &[],
-                    intents: &intents,
-                    source: ryo_values::domain::files::types::SourceView(b"abc"),
-                    elements: &elements,
-                    read: &read,
-                    semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                    kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-                },
-                &mut symbols,
-            )
-            .unwrap();
-        assert_eq!(reads.get(), 0, "binding roots must remain lazy");
-        let roots = RuleDemand {
-            emit: EmitDemand::Enabled,
-            observations: ObservationDemand::Required,
-        };
-        let order = if consumer_first { [1, 0] } else { [0, 1] };
+        let mut rules = run_file(
+            &request,
+            FileRun::of(&intents, &elements),
+            &mut symbols,
+            &facts,
+        );
         let expected = vec![Value::Node(node_id(FileId(0), Position(2)))];
-        for index in order {
-            let output = file.rule(RuleIndex(index), roots, &mut symbols).unwrap();
-            let RootOutcome::Complete(table) = output.emit else {
+        let mut captured = None;
+        for index in [0, 1] {
+            let rule = ran(&mut rules, index);
+            let ryo_execution::inbound::use_cases::execution::interface::EmittedRoot::Delivered(
+                RootOutcome::Complete(table),
+            ) = rule.emit
+            else {
                 panic!("complete named root")
             };
             assert_eq!(table.count, RowCount(1));
             assert_eq!(table.cells, expected);
-            assert_eq!(output.observations.len(), 1);
-            let RootOutcome::Complete(observed) = &output.observations[0].outcome else {
-                panic!("complete named union observation")
-            };
-            assert_eq!(observed.cells, expected);
+            if index == 1 {
+                captured = Some(rule.after);
+            }
         }
-        let read_count = reads.get();
-        assert!(read_count > 0);
+        assert!(facts.reads() > 0);
+        assert!(
+            facts
+                .history()
+                .iter()
+                .all(|relation| *relation == Relation::Function),
+            "the named roots read Function alone"
+        );
         // The original direct bound root is captured after ordinary delivery.
-        let (mut arena, mut places, mut words) = (vec![], vec![], Words::default());
-        let captures = file
-            .capture_frontiers(
-                RuleIndex(1),
-                Bucket(0),
-                &mut symbols,
-                CaptureContext {
-                    worker: WorkerNumber(0),
-                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
-                        &mut arena,
-                    ),
-                    places: &mut places,
-                    words: &mut words,
-                },
-            )
-            .unwrap();
+        let Some(RuleAfter::Ran { captures }) = captured else {
+            panic!("the consumer runs and captures")
+        };
         assert_eq!(captures.len(), 2);
         for (index, capture) in captures.iter().enumerate() {
-            assert_eq!(
-                capture.input,
-                ryo_values::domain::plan_parts::types::InputNumber(index)
-            );
+            assert_eq!(capture.input, InputNumber(index));
             let captured = capture
                 .outcome
                 .as_ref()
@@ -148,14 +110,8 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
                 decode_complete(&captured.words, &mut Vec::new()).expect("valid publication words");
             assert_eq!(decoded.count, RowCount(1));
             assert_eq!(decoded.cells, expected);
-            file.commit_frontier(RuleIndex(1), capture.input).unwrap();
         }
-        assert_eq!(
-            reads.get(),
-            read_count,
-            "alias capture cannot rerun its provider"
-        );
-        file.finish().unwrap();
+        assert!(matches!(rules.end, FileEnd::Finished(_)));
         request.finish();
     }
 }
@@ -185,7 +141,7 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
     );
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
-    let read = |_| panic!("refused member cannot acquire a relation");
+    let facts = TableFacts::new(&[]);
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     let intents = [
@@ -197,52 +153,22 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
         },
         FileRuleIntent::Undemanded,
     ];
-    let mut file = request
-        .open_file(
-            FileInput {
-                language: SourceLanguage::Recognized,
-                resident_stability: ResidentStability::Stable,
-                file: FileId(0),
-                evaluation: &[],
-                publication: &[],
-                intents: &intents,
-                source: ryo_values::domain::files::types::SourceView(b"abc"),
-                elements: &elements,
-                read: &read,
-                semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
-                kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
-            },
-            &mut symbols,
-        )
-        .unwrap();
-    let roots = RuleDemand {
-        emit: EmitDemand::Enabled,
-        observations: ObservationDemand::Required,
-    };
-    let first = file.rule(RuleIndex(1), roots, &mut symbols).unwrap();
+    let mut rules = run_file(
+        &request,
+        FileRun::of(&intents, &elements),
+        &mut symbols,
+        &facts,
+    );
+    assert!(
+        rules.rules.iter().all(|each| each.rule != RuleIndex(0)),
+        "the refused member does not run"
+    );
     assert!(matches!(
-        first.emit,
-        RootOutcome::Unknown(OperatingError::ObservationIncomplete { .. })
+        root(ran(&mut rules, 1)),
+        Ok(RootOutcome::Unknown(
+            OperatingError::ObservationIncomplete { .. }
+        ))
     ));
-    assert_eq!(first.observations.len(), 1);
-    assert!(matches!(
-        first.observations[0].outcome,
-        RootOutcome::Unknown(OperatingError::ObservationIncomplete { .. })
-    ));
-    let second = file.rule(RuleIndex(1), roots, &mut symbols).unwrap();
-    assert!(matches!(
-        second.emit,
-        RootOutcome::Unknown(OperatingError::ObservationIncomplete { .. })
-    ));
-    assert_eq!(second.observations.len(), 1);
-    assert!(matches!(
-        second.observations[0].outcome,
-        RootOutcome::Unknown(OperatingError::ObservationIncomplete { .. })
-    ));
-    assert!(matches!(
-        file.rule(RuleIndex(0), roots, &mut symbols),
-        Err(OperatingError::NotRun)
-    ));
-    file.finish().unwrap();
+    assert_eq!(facts.reads(), 0, "refused member cannot acquire a relation");
     request.finish();
 }

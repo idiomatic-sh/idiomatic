@@ -10,17 +10,23 @@ use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecutio
 use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
 use ryo_execution::inbound::use_cases::execution::interface::RuleOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::{
+    CaptureContext, FactsWorker, FileRuleIntent, FileRules, FileStop, KindSupport, Partial,
+    RanRule, RequestExecution, RootOutcome, SemanticSupport, SourceLanguage,
+};
+use ryo_execution::inbound::use_cases::execution::interface::{
     PhasePartials, PhaseRules, PhaseStop,
 };
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_language::domain::elements::types::Elements;
 use ryo_language::{domain::files::types::FilePath, domain::symbols::types::Symbols};
 use ryo_relations::domain::relations::{
     fixtures::{kinds, node_id},
     types::{CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value},
 };
+use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
@@ -218,9 +224,7 @@ pub(crate) fn project_root<R: ProjectRootExecution>(
 }
 
 /// The authored plans of a request a control builds, for the control to edit before it prepares.
-pub(crate) fn plans(
-    request: &mut PrepareRequest,
-) -> &mut Vec<ryo_values::domain::plans::types::Plan> {
+pub(crate) fn plans(request: &mut PrepareRequest) -> &mut Vec<Plan> {
     match &mut request.plans {
         PlanSource::Authored { plans, .. } => plans,
         PlanSource::Compiled(_) => panic!("a control edits only the plans it authored"),
@@ -238,7 +242,7 @@ pub(crate) fn bindings(
 }
 
 /// The authored plans of a request a control reads.
-pub(crate) fn plans_of(request: &PrepareRequest) -> &[ryo_values::domain::plans::types::Plan] {
+pub(crate) fn plans_of(request: &PrepareRequest) -> &[Plan] {
     match &request.plans {
         PlanSource::Authored { plans, .. } => plans,
         PlanSource::Compiled(_) => panic!("a control reads only the plans it authored"),
@@ -248,17 +252,11 @@ pub(crate) fn plans_of(request: &PrepareRequest) -> &[ryo_values::domain::plans:
 /// The readiness a finished file observed, which a control that captures requires.
 pub(crate) trait Observed {
     /// The observed readiness; a file that observed none fails the control with `reason`.
-    fn observed(
-        self,
-        reason: &str,
-    ) -> std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>;
+    fn observed(self, reason: &str) -> Arc<ryo_values::domain::records::types::FrontierReadiness>;
 }
 
 impl Observed for ryo_execution::inbound::use_cases::execution::interface::FinishedReadiness {
-    fn observed(
-        self,
-        reason: &str,
-    ) -> std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness> {
+    fn observed(self, reason: &str) -> Arc<ryo_values::domain::records::types::FrontierReadiness> {
         match self {
             Self::Observed(readiness) => readiness,
             Self::Unobserved => panic!("{reason}"),
@@ -270,11 +268,126 @@ impl Observed for ryo_execution::inbound::use_cases::execution::interface::Finis
 pub(crate) fn authored_parts(
     request: &mut PrepareRequest,
 ) -> (
-    &mut Vec<ryo_values::domain::plans::types::Plan>,
+    &mut Vec<Plan>,
     &mut Vec<Vec<ryo_values::domain::query_bindings::types::ParameterBinding>>,
 ) {
     match &mut request.plans {
         PlanSource::Authored { plans, bindings } => (plans, bindings),
         PlanSource::Compiled(_) => panic!("a control edits only the request it authored"),
     }
+}
+
+/// What one file is run with through the one per-file route, `run_file`: file 0, recognized, over the source `abc`, read in
+/// full, with no semantic lookup and no prepared kinds, unless a control says otherwise.
+pub(crate) struct FileRun<'a> {
+    pub(crate) language: SourceLanguage,
+    pub(crate) file: FileId,
+    pub(crate) evaluation: &'a [Partial],
+    pub(crate) publication: &'a [Partial],
+    pub(crate) intents: &'a [FileRuleIntent],
+    pub(crate) source: &'a [u8],
+    pub(crate) elements: &'a Elements,
+    pub(crate) semantic: SemanticSupport<'a>,
+    pub(crate) kinds: KindSupport,
+    /// The first frontier bucket of each rule; every rule's is bucket 0 when empty.
+    pub(crate) first: &'a [Bucket],
+}
+
+impl<'a> FileRun<'a> {
+    /// File 0 run with `intents` over the tree `elements`.
+    pub(crate) fn of(intents: &'a [FileRuleIntent], elements: &'a Elements) -> Self {
+        Self {
+            language: SourceLanguage::Recognized,
+            file: FileId(0),
+            evaluation: &[],
+            publication: &[],
+            intents,
+            source: b"abc",
+            elements,
+            semantic: SemanticSupport::Absent,
+            kinds: KindSupport::Absent,
+            first: &[],
+        }
+    }
+}
+
+/// `run` through `request`'s one per-file route over `facts`, its finished rows written to a fresh capture context of worker 0.
+pub(crate) fn run_file(
+    request: &RequestExecution,
+    run: FileRun<'_>,
+    symbols: &mut Symbols,
+    facts: &dyn FactsWorker,
+) -> FileRules {
+    use ryo_execution::inbound::use_cases::execution::interface::Arena;
+    use ryo_relations::domain::relations::types::{Words, WorkerNumber};
+    let (mut arena, mut places, mut words) = (Vec::new(), Vec::new(), Words::default());
+    run_file_into(
+        request,
+        run,
+        symbols,
+        CaptureContext {
+            worker: WorkerNumber(0),
+            arena: Arena(&mut arena),
+            places: &mut places,
+            words: &mut words,
+        },
+        facts,
+    )
+}
+
+/// `run` through `request`'s one per-file route over `facts`, its finished rows written to `capture`.
+pub(crate) fn run_file_into(
+    request: &RequestExecution,
+    run: FileRun<'_>,
+    symbols: &mut Symbols,
+    capture: CaptureContext<'_>,
+    facts: &dyn FactsWorker,
+) -> FileRules {
+    use ryo_execution::inbound::use_cases::execution::interface::{
+        FileRunInput, ProgramRequestExecutionPort as _,
+    };
+    let first = if run.first.is_empty() {
+        vec![Bucket(0); run.intents.len()]
+    } else {
+        run.first.to_vec()
+    };
+    request.run_file(
+        FileRunInput {
+            language: run.language,
+            file: run.file,
+            evaluation: run.evaluation,
+            publication: run.publication,
+            intents: run.intents,
+            source: ryo_values::domain::files::types::SourceView(run.source),
+            elements: run.elements,
+            semantic: run.semantic,
+            kinds: run.kinds,
+            first: &first,
+        },
+        symbols,
+        capture,
+        facts,
+    )
+}
+
+/// What a rule's run came to at its emitted root: the root it delivered, or what stopped it.
+pub(crate) fn root(ran: RanRule) -> Result<RootOutcome, FileStop> {
+    use ryo_execution::inbound::use_cases::execution::interface::{EmittedRoot, RuleAfter};
+    match (ran.emit, ran.after) {
+        (EmittedRoot::Delivered(outcome), _) => Ok(outcome),
+        (EmittedRoot::Withheld, RuleAfter::Stopped(stop)) => Err(stop),
+        (EmittedRoot::Withheld, RuleAfter::Ran { .. } | RuleAfter::Unreached) => {
+            Err(FileStop::Operating(OperatingError::NotRun))
+        }
+    }
+}
+
+/// The rule `rule` of `rules`, which ran.
+pub(crate) fn ran(rules: &mut FileRules, rule: usize) -> RanRule {
+    let at = rules
+        .rules
+        .iter()
+        .position(|each| each.rule.0 == rule)
+        .unwrap_or_else(|| panic!("rule {rule} ran"));
+    rules.rules.remove(at)
 }

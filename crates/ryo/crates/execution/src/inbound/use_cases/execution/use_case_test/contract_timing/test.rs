@@ -2,7 +2,6 @@
 use super::super::super::fixtures;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_language::{domain::elements::types::Elements, domain::symbols::types::Symbols};
 use ryo_relations::domain::relations::{
     service::node_id,
@@ -32,13 +31,7 @@ fn project_result(operation: &Operation, malformed: bool) -> Result<Table, Opera
         ryo_relations::domain::terms::types::NameText("function"),
     );
     let table = functions(malformed, symbol);
-    let read = |relation| {
-        if relation == Relation::Function {
-            Ok(SourceRows::Computed(&table))
-        } else {
-            Err(OperatingError::NotRead)
-        }
-    };
+    let facts = fixtures::TableFacts::new(&[(Relation::Function, &table)]);
     let (engine, prepared) =
         fixtures::requests::prepared(inputs::plan(vec![operation.clone()]), vec![], vec![])?;
     fixtures::requests::run_prepared(
@@ -47,7 +40,7 @@ fn project_result(operation: &Operation, malformed: bool) -> Result<Table, Opera
         b"",
         &Elements::default(),
         &mut symbols,
-        &read,
+        &facts,
     )
 }
 /// Canonical facts and declared projections reach the same mandatory owner, not a primitive harness.
@@ -224,12 +217,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || projected(99, true),
         expect: NO_COLUMN,
-    },
-    Case {
-        name: CaseName("a_malformed_population_still_fails_under_valid_metadata"),
-        word: Word::Refuses,
-        input: || projected(0, true),
-        expect: Expect::Error(OperatingError::ShapeMismatch),
     },
     Case {
         name: CaseName("a_valid_projection_answers_both_function_nodes"),

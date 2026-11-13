@@ -1,6 +1,6 @@
 mod cohort;
 mod compact;
-mod fixtures;
+pub(crate) mod fixtures;
 mod order;
 mod projection;
 mod readiness;

@@ -76,7 +76,6 @@ fn compare_emptied(
         bindings,
         source,
         symbols,
-        None,
         semantic,
         Arc::new(owner_fixtures::operators()),
     )
