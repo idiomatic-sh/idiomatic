@@ -18,6 +18,8 @@ pub enum Given {
     CanonicalTexts,
     /// Spell the settings text of one invocation twice.
     SettingsText,
+    /// Spell the version line of the pinned profile.
+    VersionLine,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Canonical contract failure classifications.
@@ -57,6 +59,12 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("canonical texts are deterministic"),
         word: Word::Succeeds,
         input: || Input::CanonicalTexts,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("the version line names the pinned version"),
+        word: Word::Succeeds,
+        input: || Input::VersionLine,
         expect: Expect::Value(true),
     },
 ];
@@ -130,6 +138,10 @@ pub fn check(adapter: &impl LinterPort) {
                 },
             };
             Ok(adapter.rule_context_text(&context) == adapter.rule_context_text(&context))
+        }
+        Input::VersionLine => {
+            let tool = super::data::tool();
+            Ok(adapter.version_line(&tool).0.contains(tool.version.0.as_str()))
         }
         Input::OperationalFailure => match adapter.decode(
             &request,
