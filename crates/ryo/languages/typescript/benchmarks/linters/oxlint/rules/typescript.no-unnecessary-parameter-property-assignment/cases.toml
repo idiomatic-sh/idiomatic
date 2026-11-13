@@ -1,0 +1,79 @@
+[[cases]]
+name = "assigned"
+files = { "case.ts" = "class A {\n  constructor(private x: number) {\n    this.x = x;\n  }\n}\n" }
+expected = [{ file = "case.ts", start = 49, end = 59 }]
+
+[[cases]]
+name = "each-assignment"
+files = { "case.ts" = "class A {\n  constructor(public x: number, readonly y: string) {\n    this.x = x;\n    this.y = y;\n    this.x = x;\n  }\n}\n" }
+expected = [{ file = "case.ts", start = 68, end = 78 }, { file = "case.ts", start = 84, end = 94 }, { file = "case.ts", start = 100, end = 110 }]
+
+[[cases]]
+name = "logical-operators"
+files = { "case.ts" = "class A {\n  constructor(public a: number, public b: number, public c: number) {\n    this.a ||= a;\n    this.b &&= b;\n    this.c ??= c;\n  }\n}\n" }
+expected = [{ file = "case.ts", start = 84, end = 96 }, { file = "case.ts", start = 102, end = 114 }, { file = "case.ts", start = 120, end = 132 }]
+
+[[cases]]
+name = "computed-string"
+files = { "case.ts" = "class A {\n  constructor(readonly x: number) {\n    this[\"x\"] = x;\n    this[\"x\"] ||= (x as number);\n  }\n}\n" }
+expected = [{ file = "case.ts", start = 50, end = 63 }, { file = "case.ts", start = 69, end = 96 }]
+
+[[cases]]
+name = "arrow"
+files = { "case.ts" = "class A {\n  constructor(readonly x: number) {\n    const f = () => {\n      this.x = x;\n    };\n  }\n}\n" }
+expected = [{ file = "case.ts", start = 74, end = 84 }]
+
+[[cases]]
+name = "nested-function"
+files = { "case.ts" = "class A {\n  constructor(readonly x: number) {\n    function g() {\n      this.x = x;\n    }\n  }\n}\n" }
+expected = []
+
+[[cases]]
+name = "compound-first"
+files = { "case.ts" = "class A {\n  constructor(public x: number) {\n    this.x += 1;\n    this.x = x;\n  }\n}\n" }
+expected = []
+
+[[cases]]
+name = "compound-after"
+files = { "case.ts" = "class A {\n  constructor(public x: number) {\n    this.x = x;\n    this.x += 1;\n  }\n}\n" }
+expected = [{ file = "case.ts", start = 48, end = 58 }]
+
+[[cases]]
+name = "assigned-by-field"
+files = { "case.ts" = "class A {\n  y = this.x = 1;\n  constructor(public x: number) {\n    this.x = x;\n  }\n}\n" }
+expected = []
+
+[[cases]]
+name = "not-a-property"
+files = { "case.ts" = "class A {\n  constructor(x: number) {\n    this.x = x;\n  }\n}\n" }
+expected = []
+
+[[cases]]
+name = "other-value"
+files = { "case.ts" = "class A {\n  constructor(public x: number, y: number) {\n    this.y = y;\n    this.x = x + 1;\n    this.x = \"x\";\n  }\n}\n" }
+expected = []
+
+[[cases]]
+name = "shadowed"
+files = { "case.ts" = "class A {\n  constructor(public x: number) {\n    {\n      const x = 1;\n      this.x = x;\n    }\n  }\n}\n" }
+expected = []
+
+[[cases]]
+name = "other-name"
+files = { "case.ts" = "class A {\n  constructor(public x: number) {\n    this.other = x;\n  }\n}\n" }
+expected = []
+
+[[cases]]
+name = "nested-assignment"
+files = { "case.ts" = "class A {\n  constructor(public x: number) {\n    y = this.x = x;\n    this.x = this.x = x;\n  }\n}\n" }
+expected = []
+
+[[cases]]
+name = "other-object"
+files = { "case.ts" = "class A {\n  constructor(public x: number) {\n    that.x = x;\n    this[x] = x;\n  }\n}\n" }
+expected = []
+
+[[cases]]
+name = "disabled"
+files = { "case.ts" = "class A {\n  constructor(public x: number, public y: number) {\n    // eslint-disable-next-line no-unnecessary-parameter-property-assignment\n    this.x = x;\n    this.y = y; // oxlint-disable-line typescript/no-unnecessary-parameter-property-assignment\n    this.x = x;\n  }\n}\n" }
+expected = [{ file = "case.ts", start = 254, end = 264 }]

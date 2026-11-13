@@ -131,13 +131,6 @@ defaults = [
 # `numeric_literal` and `expression_shape` absent and has no regular expression or control flow relation; oxlint reports
 # the `typescript_silent` rules on no TypeScript file.
 [deferred]
-# Rules that read the uses of a binding, not yet written: whether a binding is read, assigned, or used only by itself.
-binding_relations = [
-  "eslint.no-unassigned-vars",
-  "eslint.no-unused-vars",
-  "oxc.only-used-in-recursion",
-  "typescript.no-unnecessary-parameter-property-assignment",
-]
 # Rules that compare numbers by value: `1`, `1.0` and `0x1` are one number (typescript.prefer-as-const compares
 # `let x: 1 = 1.0` so).
 numeric_literal = [

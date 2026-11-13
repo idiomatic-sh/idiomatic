@@ -1,0 +1,109 @@
+[[cases]]
+name = "read-let"
+files = { "case.ts" = "let status;\nif (status === \"ready\") {\n  log(status);\n}\n" }
+expected = [{ file = "case.ts", start = 4, end = 10 }]
+
+[[cases]]
+name = "read-var"
+files = { "case.ts" = "var v;\nlog(v);\n" }
+expected = [{ file = "case.ts", start = 4, end = 5 }]
+
+[[cases]]
+name = "annotated"
+files = { "case.ts" = "let x: number | undefined;\nlog(x);\n" }
+expected = [{ file = "case.ts", start = 4, end = 5 }]
+
+[[cases]]
+name = "read-in-closure"
+files = { "case.ts" = "let config;\nexport function init() {\n  return config?.enabled;\n}\n" }
+expected = [{ file = "case.ts", start = 4, end = 10 }]
+
+[[cases]]
+name = "each-declarator"
+files = { "case.ts" = "let a, b = 1, c;\nlog(a, b, c);\n" }
+expected = [{ file = "case.ts", start = 4, end = 5 }, { file = "case.ts", start = 14, end = 15 }]
+
+[[cases]]
+name = "assigned-later"
+files = { "case.ts" = "let user;\nuser = load();\nlog(user);\n" }
+expected = []
+
+[[cases]]
+name = "assigned-in-closure"
+files = { "case.ts" = "let one;\nexport const f = (two) => {\n  if (one !== two) one = two;\n};\n" }
+expected = []
+
+[[cases]]
+name = "updated"
+files = { "case.ts" = "let n;\nn++;\nlog(n);\n" }
+expected = []
+
+[[cases]]
+name = "destructuring-assignment"
+files = { "case.ts" = "let s;\n[s] = [1];\nlet w;\n({ w } = o);\nlog(s, w);\n" }
+expected = []
+
+[[cases]]
+name = "for-of-target"
+files = { "case.ts" = "let q;\nfor (q of qs) {}\nlog(q);\n" }
+expected = []
+
+[[cases]]
+name = "never-read"
+files = { "case.ts" = "let x;\nvar y;\n" }
+expected = []
+
+[[cases]]
+name = "type-query-only"
+files = { "case.ts" = "let t;\nexport let u: typeof t;\n" }
+expected = []
+
+[[cases]]
+name = "initialized"
+files = { "case.ts" = "let y = undefined;\nlog(y);\n" }
+expected = []
+
+[[cases]]
+name = "const"
+files = { "case.ts" = "const x = undefined;\nlog(x);\n" }
+expected = []
+
+[[cases]]
+name = "pattern"
+files = { "case.ts" = "let { a } = o;\nlog(a);\n" }
+expected = []
+
+[[cases]]
+name = "loop-head"
+files = { "case.ts" = "for (let c; ; ) {\n  log(c);\n}\nfor (let k in o) {\n  log(k);\n}\n" }
+expected = []
+
+[[cases]]
+name = "declared"
+files = { "case.ts" = "declare let d: string | undefined;\nlog(d);\n" }
+expected = []
+
+[[cases]]
+name = "in-namespace"
+files = { "case.ts" = "namespace N {\n  let n;\n  log(n);\n}\ndeclare module \"m\" {\n  let x: string;\n  export = x;\n}\n" }
+expected = []
+
+[[cases]]
+name = "exported"
+files = { "case.ts" = "export let e;\nlog(e);\n" }
+expected = [{ file = "case.ts", start = 11, end = 12 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.ts" = "let x;\nfunction f(x) {\n  return x;\n}\nf(1);\n" }
+expected = []
+
+[[cases]]
+name = "redeclared"
+files = { "case.ts" = "var v;\nlog(v);\nvar v = 1;\n" }
+expected = [{ file = "case.ts", start = 4, end = 5 }]
+
+[[cases]]
+name = "disabled"
+files = { "case.ts" = "let x;\n// eslint-disable-next-line no-unassigned-vars\nlog(x);\nlet y; // oxlint-disable-line no-unassigned-vars\nlog(y);\n" }
+expected = [{ file = "case.ts", start = 4, end = 5 }]

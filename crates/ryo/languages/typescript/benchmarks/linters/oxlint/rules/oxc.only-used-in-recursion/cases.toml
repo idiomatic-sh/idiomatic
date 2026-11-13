@@ -1,0 +1,89 @@
+[[cases]]
+name = "declaration"
+files = { "case.ts" = "function f(a: number, b: number): number {\n  if (b > 0) return f(a, b - 1);\n  return b;\n}\n" }
+expected = [{ file = "case.ts", start = 11, end = 12 }]
+
+[[cases]]
+name = "arrow"
+files = { "case.ts" = "const g = (n, acc) => (n ? g(n - 1, acc) : 0);\n" }
+expected = [{ file = "case.ts", start = 14, end = 17 }]
+
+[[cases]]
+name = "function-expression"
+files = { "case.ts" = "const h = function (n, m) {\n  return m ? h(n, m - 1) : 0;\n};\n" }
+expected = [{ file = "case.ts", start = 20, end = 21 }]
+
+[[cases]]
+name = "named-expression"
+files = { "case.ts" = "export const run = function inner(n, m) {\n  return m ? inner(n, m - 1) : 0;\n};\n" }
+expected = []
+
+[[cases]]
+name = "exported"
+files = { "case.ts" = "export function r(a, b) {\n  return b ? r(a, b - 1) : 0;\n}\n" }
+expected = [{ file = "case.ts", start = 18, end = 19 }]
+
+[[cases]]
+name = "each-call"
+files = { "case.ts" = "function f(a, b) {\n  if (b) return f(a, b - 1);\n  return f(a, 0);\n}\n" }
+expected = [{ file = "case.ts", start = 11, end = 12 }]
+
+[[cases]]
+name = "used-elsewhere"
+files = { "case.ts" = "function k(n) {\n  return k(n) + n;\n}\n" }
+expected = []
+
+[[cases]]
+name = "swapped"
+files = { "case.ts" = "function p(a, b) {\n  return p(b, a);\n}\n" }
+expected = []
+
+[[cases]]
+name = "other-position"
+files = { "case.ts" = "function q(a) {\n  return q(a - 1, a);\n}\n" }
+expected = []
+
+[[cases]]
+name = "spread"
+files = { "case.ts" = "function u(a) {\n  return u(...a);\n}\n" }
+expected = []
+
+[[cases]]
+name = "unused"
+files = { "case.ts" = "function v(a) {}\n" }
+expected = []
+
+[[cases]]
+name = "reassigned"
+files = { "case.ts" = "function m(n) {\n  return m(n);\n}\nm = null;\n" }
+expected = []
+
+[[cases]]
+name = "method"
+files = { "case.ts" = "class C {\n  s(a) {\n    return this.s(a);\n  }\n}\n" }
+expected = []
+
+[[cases]]
+name = "anonymous-arrow"
+files = { "case.ts" = "run((n) => n);\n" }
+expected = []
+
+[[cases]]
+name = "other-callee"
+files = { "case.ts" = "function w(a) {\n  return other(a);\n}\n" }
+expected = []
+
+[[cases]]
+name = "default-value"
+files = { "case.ts" = "function d(a = 1, b) {\n  return b ? d(a, b - 1) : 0;\n}\n" }
+expected = [{ file = "case.ts", start = 11, end = 12 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.ts" = "function s(a) {\n  const inner = (a) => a;\n  return s(a);\n}\n" }
+expected = [{ file = "case.ts", start = 11, end = 12 }]
+
+[[cases]]
+name = "disabled"
+files = { "case.ts" = "// eslint-disable-next-line only-used-in-recursion\nfunction f(a, b) {\n  return b ? f(a, b - 1) : 0;\n}\nfunction g(a, b) { // oxlint-disable-line oxc/only-used-in-recursion\n  return b ? g(a, b - 1) : 0;\n}\nfunction h(a, b) {\n  return b ? h(a, b - 1) : 0;\n}\n" }
+expected = [{ file = "case.ts", start = 214, end = 215 }]
