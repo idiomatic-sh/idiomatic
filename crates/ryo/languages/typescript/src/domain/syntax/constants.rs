@@ -23,6 +23,14 @@ pub(crate) const UNSPECIFIED_CODE: &str = "unspecified";
 /// The configuration identity of a parse that takes no configuration.
 pub(crate) const NO_CONFIGURATION: &str = "";
 
+/// The numeric kind the parser gives a numeric literal: [`FLOAT_NUMBER`] for a Number, [`INTEGER_NUMBER`] for a BigInt.
+pub(crate) const NUMERIC_KIND: ryo::languages::PropertyId = ryo::languages::PropertyId(1);
+/// The value the parser decoded for a numeric literal: a Number's one binary64 spelling, a BigInt's base-10 digits.
+pub(crate) const NUMERIC_VALUE: ryo::languages::PropertyId = ryo::languages::PropertyId(2);
+/// The numeric kind of a Number literal, a binary64 value.
+pub(crate) const FLOAT_NUMBER: &str = "float";
+/// The numeric kind of a BigInt literal, an integer of any size.
+pub(crate) const INTEGER_NUMBER: &str = "integer";
 /// The node property that holds how an identifier reference uses its name, as the catalog's context word (`value`, `type`, `write`
 /// or `read-write`), from the parser's semantic pass.
 pub(crate) const REFERENCE_FLAGS: ryo::languages::PropertyId = ryo::languages::PropertyId(3);
@@ -32,3 +40,6 @@ pub(crate) const REFERENCE_DECLARATION: ryo::languages::PropertyId = ryo::langua
 /// The node property that holds, in decimal, where a binding identifier that declares a name again first declared it: the start of
 /// the first declaration's binding identifier. A name's first declaration has none.
 pub(crate) const REDECLARATION_OF: ryo::languages::PropertyId = ryo::languages::PropertyId(5);
+
+/// An expression whose children could not all be read has no class a query could compare.
+pub(crate) const SHAPES_INCOMPLETE: &str = "expression shapes require a complete syntax tree";

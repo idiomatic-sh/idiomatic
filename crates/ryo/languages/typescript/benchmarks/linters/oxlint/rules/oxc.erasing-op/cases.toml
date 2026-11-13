@@ -1,0 +1,79 @@
+[[cases]]
+name = "multiplication"
+files = { "case.ts" = "x * 0;\n" }
+expected = [{ file = "case.ts", start = 0, end = 5 }]
+
+[[cases]]
+name = "multiplied-zero"
+files = { "case.ts" = "0 * x;\n" }
+expected = [{ file = "case.ts", start = 0, end = 5 }]
+
+[[cases]]
+name = "bitwise-and"
+files = { "case.ts" = "x & 0;\n0 & x;\n" }
+expected = [{ file = "case.ts", start = 0, end = 5 }, { file = "case.ts", start = 7, end = 12 }]
+
+[[cases]]
+name = "divided-zero"
+files = { "case.ts" = "0 / x;\n" }
+expected = [{ file = "case.ts", start = 0, end = 5 }]
+
+[[cases]]
+name = "division-by-zero"
+files = { "case.ts" = "x / 0;\n" }
+expected = []
+
+[[cases]]
+name = "float-zero"
+files = { "case.ts" = "x * 0.0;\n" }
+expected = [{ file = "case.ts", start = 0, end = 7 }]
+
+[[cases]]
+name = "hexadecimal-zero"
+files = { "case.ts" = "x * 0x0;\n" }
+expected = [{ file = "case.ts", start = 0, end = 7 }]
+
+[[cases]]
+name = "exponent-zero"
+files = { "case.ts" = "x * 0e1;\n" }
+expected = [{ file = "case.ts", start = 0, end = 7 }]
+
+[[cases]]
+name = "parenthesized"
+files = { "case.ts" = "x * (0);\n(x) * 0;\n" }
+expected = [{ file = "case.ts", start = 0, end = 7 }, { file = "case.ts", start = 9, end = 16 }]
+
+[[cases]]
+name = "both-zero"
+files = { "case.ts" = "0 * 0;\n" }
+expected = [{ file = "case.ts", start = 0, end = 5 }, { file = "case.ts", start = 0, end = 5 }]
+
+[[cases]]
+name = "bigint-zero"
+files = { "case.ts" = "x * 0n;\n" }
+expected = []
+
+[[cases]]
+name = "negative-zero"
+files = { "case.ts" = "x * -0;\n" }
+expected = []
+
+[[cases]]
+name = "compound-assignment"
+files = { "case.ts" = "x *= 0;\n" }
+expected = []
+
+[[cases]]
+name = "other-operators"
+files = { "case.ts" = "x % 0;\nx | 0;\nx + 0;\n" }
+expected = []
+
+[[cases]]
+name = "nonzero"
+files = { "case.ts" = "x * 1;\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line erasing-op\nx * 0;\n" }
+expected = []

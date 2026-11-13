@@ -19,6 +19,10 @@ pub(crate) mod comment;
 
 pub(crate) mod string_literal;
 
+pub(crate) mod numeric_literal;
+
+pub(crate) mod expression_shape;
+
 pub(crate) mod function;
 
 pub(crate) mod scope;

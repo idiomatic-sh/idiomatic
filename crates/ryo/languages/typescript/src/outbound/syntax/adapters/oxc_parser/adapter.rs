@@ -3,7 +3,7 @@
 use super::constants::{IMPORT_META, IMPORT_OPTIONS_KEY, NEW_TARGET, NOT_UTF8};
 use super::projection::service::{
     annotate, attach, expression_body, gap, insert, jsx_names, leaf, meta_words, normalized,
-    parameter, semantic_properties, source_type_of, write,
+    node_properties, parameter, source_type_of, write,
 };
 use super::schemas::{node_kind, token_kind};
 use super::types::{ChildCursor, Decoded, DecodedText, Piece, Text, VisitorStack};
@@ -70,7 +70,7 @@ impl<'a> Visit<'a> for VisitorStack {
             children: Vec::new(),
             text: Text::Source,
             cursor: ChildCursor(0),
-            properties: semantic_properties(&self.scoping, kind),
+            properties: node_properties(&self.scoping, kind),
         });
     }
 

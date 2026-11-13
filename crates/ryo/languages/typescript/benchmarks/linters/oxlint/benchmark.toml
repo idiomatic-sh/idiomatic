@@ -127,28 +127,13 @@ defaults = [
 "typescript/oxlint/constant-values" = "fragments/constant-values.ryoql"
 "typescript/oxlint/regexp-without-global" = "fragments/regexp-without-global.ryoql"
 
-# Defaults deferred, each under the limitation that blocks it: the TypeScript provider answers the binding relations,
-# `numeric_literal` and `expression_shape` absent and has no regular expression or control flow relation; oxlint reports
-# the `typescript_silent` rules on no TypeScript file.
+# Defaults deferred, each under the limitation that blocks it: `numeric_literal` has no column saying whether a literal's
+# digits survive binary64, and there is no regular expression or control flow relation; oxlint reports the
+# `typescript_silent` rules on no TypeScript file.
 [deferred]
-# Rules that compare numbers by value: `1`, `1.0` and `0x1` are one number (typescript.prefer-as-const compares
-# `let x: 1 = 1.0` so).
+# Rules that ask whether a number literal's written digits survive binary64 (`9007199254740993` does not).
 numeric_literal = [
-  "eslint.no-compare-neg-zero",
-  "eslint.no-dupe-keys",
   "eslint.no-loss-of-precision",
-  "oxc.bad-min-max-func",
-  "oxc.const-comparisons",
-  "oxc.erasing-op",
-  "oxc.number-arg-out-of-range",
-  "typescript.no-duplicate-enum-values",
-  "typescript.prefer-as-const",
-]
-# Rules that compare two expressions by structure (oxc.double-comparisons treats `a.x` and `a.x` as one operand).
-expression_shape = [
-  "eslint.no-dupe-else-if",
-  "eslint.no-duplicate-case",
-  "oxc.double-comparisons",
 ]
 regular_expressions = [
   "eslint.no-control-regex",

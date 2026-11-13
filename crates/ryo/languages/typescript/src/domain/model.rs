@@ -1,4 +1,5 @@
-//! The typescript domain's `model` concept: what the language works out of a file once, on a reader's first lookup, for its readers.
+//! The typescript domain's `model` concept: the indexes its readers build over a file the first time one asks, their capacity
+//! kept from file to file.
 
 pub(crate) mod service;
 pub(crate) mod types;

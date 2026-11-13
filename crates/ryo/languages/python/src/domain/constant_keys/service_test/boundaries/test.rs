@@ -2,7 +2,6 @@
 
 use super::fixtures::{
     float_boundaries_and_huge_integer_structural_keys_are_retained,
-    full_keys_disambiguate_hash_collisions,
     invalidation_clears_occurrences_but_keeps_the_reader_reusable,
     supported_numeric_keys_normalize_and_unsupported_expressions_are_absent,
     underflow_subnormal_infinity_complex_and_unary_values_follow_typed_payloads,
@@ -20,8 +19,6 @@ enum Given {
     UnderflowSubnormalInfinityComplexAndUnaryValuesFollowTypedPayloads,
     /// The `invalidation_clears_occurrences_but_keeps_the_reader_reusable` scenario.
     InvalidationClearsOccurrencesButKeepsTheReaderReusable,
-    /// The `full_keys_disambiguate_hash_collisions` scenario.
-    FullKeysDisambiguateHashCollisions,
 }
 /// What a row is given.
 type Input = Given;
@@ -62,12 +59,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Given::InvalidationClearsOccurrencesButKeepsTheReaderReusable,
         expect: Expect::Value("true|true|true|true"),
     },
-    Case {
-        name: CaseName("full_keys_disambiguate_hash_collisions"),
-        word: Word::Succeeds,
-        input: || Given::FullKeysDisambiguateHashCollisions,
-        expect: Expect::Value("Some(Position(2))|Some(Position(5))|true|2"),
-    },
 ];
 
 /// Runs the scenario the row names.
@@ -85,7 +76,6 @@ fn subject(given: Input) -> Result<Value, Failure> {
         Given::InvalidationClearsOccurrencesButKeepsTheReaderReusable => {
             invalidation_clears_occurrences_but_keeps_the_reader_reusable()
         }
-        Given::FullKeysDisambiguateHashCollisions => full_keys_disambiguate_hash_collisions(),
     };
     Ok(Box::leak(observed.into_boxed_str()))
 }

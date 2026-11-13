@@ -1,0 +1,84 @@
+[[cases]]
+name = "annotated-variable"
+files = { "case.ts" = "let a: 2 = 2;\n" }
+expected = [{ file = "case.ts", start = 7, end = 8 }]
+
+[[cases]]
+name = "as-number"
+files = { "case.ts" = "let b = 2 as 2;\n" }
+expected = [{ file = "case.ts", start = 13, end = 14 }]
+
+[[cases]]
+name = "as-string"
+files = { "case.ts" = "let d = \"a\" as \"a\";\n" }
+expected = [{ file = "case.ts", start = 15, end = 18 }]
+
+[[cases]]
+name = "annotated-string"
+files = { "case.ts" = "let e: \"a\" = \"a\";\n" }
+expected = [{ file = "case.ts", start = 7, end = 10 }]
+
+[[cases]]
+name = "values-not-spellings"
+files = { "case.ts" = "let g: 2 = 2.0;\nlet h: 1 = 0x1;\n" }
+expected = [{ file = "case.ts", start = 7, end = 8 }, { file = "case.ts", start = 23, end = 24 }]
+
+[[cases]]
+name = "decoded-string"
+files = { "case.ts" = "let s: \"a\" = \"\\x61\";\n" }
+expected = [{ file = "case.ts", start = 7, end = 10 }]
+
+[[cases]]
+name = "class-property"
+files = { "case.ts" = "class X { p: 2 = 2; }\n" }
+expected = [{ file = "case.ts", start = 13, end = 14 }]
+
+[[cases]]
+name = "nested-as"
+files = { "case.ts" = "let q = { r: 2 as 2 };\n" }
+expected = [{ file = "case.ts", start = 18, end = 19 }]
+
+[[cases]]
+name = "different-value"
+files = { "case.ts" = "let f = 2 as 3;\nlet i = \"a\" as \"b\";\n" }
+expected = []
+
+[[cases]]
+name = "type-assertion"
+files = { "case.ts" = "let c = <2>2;\n" }
+expected = []
+
+[[cases]]
+name = "bigint"
+files = { "case.ts" = "let j = 1n as 1n;\nlet k: 1n = 1n;\n" }
+expected = []
+
+[[cases]]
+name = "template"
+files = { "case.ts" = "let l = `a` as `a`;\n" }
+expected = []
+
+[[cases]]
+name = "already-const"
+files = { "case.ts" = "let m = \"a\" as const;\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized"
+files = { "case.ts" = "let n = 2 as (2);\nlet o = (2) as 2;\n" }
+expected = []
+
+[[cases]]
+name = "boolean"
+files = { "case.ts" = "let u = true as true;\n" }
+expected = []
+
+[[cases]]
+name = "number-and-string"
+files = { "case.ts" = "let v: 1 = \"1\";\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line @typescript-eslint/prefer-as-const\nlet a: 2 = 2;\n" }
+expected = []

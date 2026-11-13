@@ -9,7 +9,9 @@ use super::super::types::{
 use crate::domain::bindings::constants::{READ_WRITE, TYPE, VALUE, WRITE};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::constants::{REDECLARATION_OF, REFERENCE_DECLARATION, REFERENCE_FLAGS};
+use crate::domain::syntax::constants::{
+    FLOAT_NUMBER, INTEGER_NUMBER, NUMERIC_KIND, NUMERIC_VALUE, REDECLARATION_OF, REFERENCE_DECLARATION, REFERENCE_FLAGS,
+};
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::{Dialect, Kind};
 use crate::domain::tokens::types::Token;
@@ -253,9 +255,17 @@ pub(in super::super) fn leaf(kind: Kind, span: Span) -> Piece {
     }
 }
 
+/// The scalar properties the parser gives the node `kind`: what its semantic pass says of a name, and a numeric literal's kind and
+/// value.
+pub(in super::super) fn node_properties(scoping: &Scoping, kind: AstKind<'_>) -> Vec<NodeProperty> {
+    let mut properties = semantic_properties(scoping, kind);
+    properties.extend(numeric_properties(kind));
+    properties
+}
+
 /// What the semantic pass says of the node `kind`, as the properties the domain reads: how an identifier reference uses its name and
 /// where the name it resolves to is first declared, and, for a binding identifier that declares a name again, where it was first.
-pub(in super::super) fn semantic_properties(
+fn semantic_properties(
     scoping: &Scoping,
     kind: AstKind<'_>,
 ) -> Vec<NodeProperty> {
@@ -342,4 +352,28 @@ pub(in super::super) fn source_type_of(dialect: Dialect) -> SourceType {
     SourceType::from_extension(extension)
         .unwrap_or_else(|_| SourceType::ts())
         .with_typescript_definition(declarations)
+}
+
+/// The numeric kind and value the parser decoded for a numeric literal, as the node's properties; none for another node.
+fn numeric_properties(kind: AstKind<'_>) -> Vec<NodeProperty> {
+    let (numeric, value) = if let AstKind::NumericLiteral(literal) = kind {
+        let mut buffer = languages::FloatBuffer([0; languages::FLOAT_TEXT_BYTES]);
+        let text =
+            languages::binary64_text(languages::FloatBits(literal.value.to_bits()), &mut buffer);
+        (FLOAT_NUMBER, text.0.to_owned())
+    } else if let AstKind::BigIntLiteral(literal) = kind {
+        (INTEGER_NUMBER, literal.value.to_string())
+    } else {
+        return Vec::new();
+    };
+    vec![
+        NodeProperty {
+            id: NUMERIC_KIND,
+            value: DecodedText(numeric.to_owned()),
+        },
+        NodeProperty {
+            id: NUMERIC_VALUE,
+            value: DecodedText(value),
+        },
+    ]
 }

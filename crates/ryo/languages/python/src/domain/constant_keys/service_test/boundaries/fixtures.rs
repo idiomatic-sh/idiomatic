@@ -1,8 +1,6 @@
 //! The scenarios of the group: each runs its subject and records what it observed.
-use super::super::super::service::{clear, intern_with_hash, key_of, prepare};
-use crate::domain::constant_keys::types::{KeyClass, RetainedKeyIndex};
+use super::super::super::service::{key_of, prepare};
 use crate::domain::{
-    constant_keys::types::{KeyHash, KeyState, KeyWord, LiteralKind},
     model::types::Declarations,
     semantic_syntax::{
         service::{positions, visibility},
@@ -220,7 +218,7 @@ pub(super) fn invalidation_clears_occurrences_but_keeps_the_reader_reusable() ->
     observed.push(format!("{}", !first_index.records.is_empty()));
     drop(first_index);
 
-    clear(model.constant_keys.get_mut());
+    languages::clear_keys(model.constant_keys.get_mut());
     let second = parsed(b"2\n").expect("replacement source parses");
     let second_tree = Tree {
         elements: &second.elements,
@@ -237,27 +235,5 @@ pub(super) fn invalidation_clears_occurrences_but_keeps_the_reader_reusable() ->
     );
     observed.push(format!("{}", !second_index.records.is_empty()));
     observed.push(format!("{}", second_index.words != first_words));
-    observed.join("|")
-}
-
-pub(super) fn full_keys_disambiguate_hash_collisions() -> String {
-    let mut observed: Vec<String> = Vec::new();
-    let mut index = RetainedKeyIndex::<KeyClass, KeyWord, KeyHash, KeyState>::default();
-    index.scratch.push(KeyWord::Literal(
-        LiteralKind::Integer,
-        Some(languages::Symbol(10)),
-    ));
-    let first = intern_with_hash(&mut index, languages::Position(2), KeyHash(0));
-    index.scratch.clear();
-    index.scratch.push(KeyWord::Literal(
-        LiteralKind::Integer,
-        Some(languages::Symbol(11)),
-    ));
-    // Test the collision chain directly by using the same bucket hash in the service's intern path.
-    let second = intern_with_hash(&mut index, languages::Position(5), KeyHash(0));
-    observed.push(format!("{first:?}"));
-    observed.push(format!("{second:?}"));
-    observed.push(format!("{}", first != second));
-    observed.push(format!("{:?}", index.records.len()));
     observed.join("|")
 }

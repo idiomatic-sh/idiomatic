@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - one impl of the generated parse trait, one method for each relation of the catalog: the impl is one block and the catalog is its list, so no placed role splits it
 //! The `parse` contract: the language's implementation of `ryo::Parse`. It says which files are the language's, builds the file's
 //! tree in the worker's element table through the syntax port, notes the modules the file imports when the run asks for its notes,
 //! and answers, for every syntax relation of ryo's catalog, how the language reads it or that it is not in the language yet.
@@ -10,12 +11,13 @@ use crate::domain::relations::collections::relations::{
     binding_read::item::BindingReadItem, binding_use::item::BindingUseItem,
     call_argument::item::CallArgumentItem, comment::item::CommentItem,
     decorates::item::DecoratesItem, defines::item::DefinesItem, directive::item::DirectiveItem,
-    function::item::FunctionItem, inherits::item::InheritsItem, parameter::item::ParameterItem,
-    reference::item::ReferenceItem, resolves::item::ResolvesItem, scope::item::ScopeItem,
-    static_call::item::StaticCallItem, static_import::item::StaticImportItem,
-    string_literal::item::StringLiteralItem, syntax_child::item::SyntaxChildItem,
-    syntax_error::item::SyntaxErrorItem, syntax_tree::item::SyntaxTreeItem,
-    visibility::item::VisibilityItem,
+    expression_shape::item::ExpressionShapeItem, function::item::FunctionItem,
+    inherits::item::InheritsItem, numeric_literal::item::NumericLiteralItem,
+    parameter::item::ParameterItem, reference::item::ReferenceItem, resolves::item::ResolvesItem,
+    scope::item::ScopeItem, static_call::item::StaticCallItem,
+    static_import::item::StaticImportItem, string_literal::item::StringLiteralItem,
+    syntax_child::item::SyntaxChildItem, syntax_error::item::SyntaxErrorItem,
+    syntax_tree::item::SyntaxTreeItem, visibility::item::VisibilityItem,
 };
 use std::sync::Arc;
 
@@ -27,6 +29,7 @@ use ryo::languages::{
 };
 
 use crate::domain::language::service::{reading_of, reads, recognized};
+use crate::domain::model::{service::clear, types::ReadIndexes};
 use crate::domain::syntax::constants::NO_CONFIGURATION;
 use crate::domain::syntax::service::{kind_name, kinds};
 use crate::domain::syntax::types::{Scripting, Stretch, Written};
@@ -293,7 +296,7 @@ impl languages::Semantics<ReadIndexes> for ParseContract {
     }
 
     fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, ReadIndexes>> {
-        languages::absent(AbsenceCause::NotYetRead)
+        languages::reads::<ExpressionShapeItem>()
     }
 
     fn constant_key(&self) -> Support<Reader<languages::ConstantKey, ReadIndexes>> {
@@ -359,7 +362,7 @@ impl languages::Semantics<ReadIndexes> for ParseContract {
     }
 
     fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, ReadIndexes>> {
-        languages::absent(AbsenceCause::NotYetRead)
+        languages::reads::<NumericLiteralItem>()
     }
 
     fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, ReadIndexes>> {

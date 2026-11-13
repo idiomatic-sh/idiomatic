@@ -1,18 +1,11 @@
 //! Independent AST identity examples; no reference linter supplies these expected classes.
-use super::service::clear;
-use super::service::intern;
 use super::service::prepare;
-use super::service::shape_of;
 use crate::cases::Case;
 use crate::cases::CaseName;
 use crate::cases::Expect;
 use crate::cases::Word;
 use crate::cases::run;
-use crate::domain::constant_keys::types::RetainedKeyIndex;
 use crate::domain::model::types::Declarations;
-use crate::domain::model::types::ShapeHash;
-use crate::domain::model::types::ShapeState;
-use crate::domain::model::types::ShapeWord;
 use crate::domain::nodes::types::Category;
 use crate::domain::syntax::service::category;
 use crate::domain::syntax::service::written;
@@ -20,8 +13,10 @@ use crate::fixtures::reading::initialize_model;
 use crate::fixtures::reading::parsed;
 use ryo::languages;
 use ryo::languages::ByteSlice;
-use ryo::languages::Position;
+use ryo::languages::KeyState;
 use ryo::languages::Tree;
+use ryo::languages::clear_keys;
+use ryo::languages::key_class_at;
 type Input = (&'static str, &'static str, &'static str);
 type Value = bool;
 type Failure = ();
@@ -91,26 +86,6 @@ fn subject((source, left, right): Input) -> Result<Value, Failure> {
     if source == "embedding witness" {
         return Ok(embedded_shapes());
     }
-    if source == "collision witness" {
-        let mut index = RetainedKeyIndex::<Position, ShapeWord, ShapeHash, ShapeState>::default();
-        index
-            .scratch
-            .push(ShapeWord::Identifier(languages::Symbol(1)));
-        let left_class = intern(&mut index, languages::Position(2), ShapeHash(0));
-        index.scratch.clear();
-        index
-            .scratch
-            .push(ShapeWord::Identifier(languages::Symbol(2)));
-        let right_class = intern(&mut index, languages::Position(6), ShapeHash(0));
-        index.scratch.clear();
-        index
-            .scratch
-            .push(ShapeWord::Identifier(languages::Symbol(1)));
-        let repeated_class = intern(&mut index, languages::Position(9), ShapeHash(0));
-        return Ok(left_class != right_class
-            && left_class == repeated_class
-            && index.records.len() == 2);
-    }
     if source == "reparse witness" {
         let mut model = Declarations::default();
         for (fixture_source, complete) in [
@@ -119,7 +94,7 @@ fn subject((source, left, right): Input) -> Result<Value, Failure> {
             ("", true),
             ("y\nx\n", true),
         ] {
-            clear(model.expression_shapes.get_mut());
+            clear_keys(model.expression_shapes.get_mut());
             let file = parsed(fixture_source.as_bytes()).expect("parser retains diagnostics");
             let tree = Tree {
                 elements: &file.elements,
@@ -131,7 +106,7 @@ fn subject((source, left, right): Input) -> Result<Value, Failure> {
             assert_eq!(prepare(&tree, &model, &mut symbols).is_some(), complete);
             if !complete {
                 assert!(model.expression_shapes.borrow().classes.is_empty());
-                assert_eq!(model.expression_shapes.borrow().state, ShapeState::Partial);
+                assert_eq!(model.expression_shapes.borrow().state, KeyState::Partial);
             }
         }
         return Ok(true);
@@ -160,19 +135,19 @@ fn subject((source, left, right): Input) -> Result<Value, Failure> {
     let index = prepare(&tree, &model, &mut symbols).unwrap_or_else(|| {
         panic!("complete source has shapes: {source:?}; left={left:?}; right={right:?}")
     });
-    let left_shape = shape_of(&index, first).expect("left shape");
-    let right_shape = shape_of(&index, last).expect("right shape");
+    let left_shape = key_class_at(&index, first).expect("left shape");
+    let right_shape = key_class_at(&index, last).expect("right shape");
     let reentrant = prepare(&tree, &model, &mut symbols).expect("immutable read can reenter");
-    assert_eq!(Some(left_shape), shape_of(&reentrant, first));
+    assert_eq!(Some(left_shape), key_class_at(&reentrant, first));
     drop(reentrant);
     drop(index);
     let repeated = prepare(&tree, &model, &mut symbols).expect("repeat read is complete");
-    assert_eq!(Some(left_shape), shape_of(&repeated, first));
+    assert_eq!(Some(left_shape), key_class_at(&repeated, first));
     drop(repeated);
-    clear(&mut model.expression_shapes.borrow_mut());
+    clear_keys(&mut model.expression_shapes.borrow_mut());
     assert!(model.expression_shapes.borrow().classes.is_empty());
     let reparsed = prepare(&tree, &model, &mut symbols).expect("cleared index rebuilds");
-    assert_eq!(Some(left_shape), shape_of(&reparsed, first));
+    assert_eq!(Some(left_shape), key_class_at(&reparsed, first));
     Ok(left_shape == right_shape)
 }
 
@@ -216,7 +191,7 @@ fn embedded_shapes() -> Value {
                 languages::property_at(tree.elements, *at, SCALAR_VALUE)
                     .expect("boolean payload")
                     .0,
-                shape_of(&first, *at).expect("visible boolean shape"),
+                key_class_at(&first, *at).expect("visible boolean shape"),
             ))
         })
         .collect();
@@ -236,7 +211,7 @@ fn embedded_shapes() -> Value {
     assert_ne!(truths.first(), falsehoods.first());
     for (at, visible) in &expected {
         if *visible == Visibility::Hidden {
-            assert!(shape_of(&first, *at).is_none());
+            assert!(key_class_at(&first, *at).is_none());
         }
     }
     let classes = first.classes.clone();
