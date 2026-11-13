@@ -89,13 +89,22 @@ fn holds(
     if comparisons.is_empty() {
         return Ok(true);
     }
-    let kinds: Vec<CellKind> = row.iter().copied().map(kind_of).collect();
+    let mut kinds = [CellKind::Node; 64];
+    let shape = match kinds.get_mut(..row.len()) {
+        Some(shape) => {
+            for (kind, value) in shape.iter_mut().zip(row) {
+                *kind = kind_of(*value);
+            }
+            &*shape
+        }
+        None => return Err(OperatingError::NotRun),
+    };
     let mut memo: Vec<Memo> = Vec::new();
     holds_bound(
         comparisons,
         row,
         RowShape {
-            kinds: &kinds,
+            kinds: shape,
             names: NameCount(0),
         },
         texts,
