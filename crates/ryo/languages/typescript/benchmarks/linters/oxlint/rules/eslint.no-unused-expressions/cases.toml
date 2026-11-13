@@ -1,0 +1,219 @@
+[[cases]]
+name = "identifier"
+files = { "case.ts" = "a;\n" }
+expected = [{ file = "case.ts", start = 0, end = 2 }]
+
+[[cases]]
+name = "member"
+files = { "case.ts" = "a.b;\n" }
+expected = [{ file = "case.ts", start = 0, end = 4 }]
+
+[[cases]]
+name = "computed"
+files = { "case.ts" = "a[0];\n" }
+expected = [{ file = "case.ts", start = 0, end = 5 }]
+
+[[cases]]
+name = "number"
+files = { "case.ts" = "0;\n" }
+expected = [{ file = "case.ts", start = 0, end = 2 }]
+
+[[cases]]
+name = "string-after-statement"
+files = { "case.ts" = "f();\n\"x\";\n" }
+expected = [{ file = "case.ts", start = 5, end = 9 }]
+
+[[cases]]
+name = "binary"
+files = { "case.ts" = "a + b;\n" }
+expected = [{ file = "case.ts", start = 0, end = 6 }]
+
+[[cases]]
+name = "logical"
+files = { "case.ts" = "a && b();\n" }
+expected = [{ file = "case.ts", start = 0, end = 9 }]
+
+[[cases]]
+name = "ternary"
+files = { "case.ts" = "a ? b() : c();\n" }
+expected = [{ file = "case.ts", start = 0, end = 14 }]
+
+[[cases]]
+name = "sequence"
+files = { "case.ts" = "(a, b);\n" }
+expected = [{ file = "case.ts", start = 0, end = 7 }]
+
+[[cases]]
+name = "object"
+files = { "case.ts" = "({});\n" }
+expected = [{ file = "case.ts", start = 0, end = 5 }]
+
+[[cases]]
+name = "array"
+files = { "case.ts" = "[];\n" }
+expected = [{ file = "case.ts", start = 0, end = 3 }]
+
+[[cases]]
+name = "this"
+files = { "case.ts" = "this;\n" }
+expected = [{ file = "case.ts", start = 0, end = 5 }]
+
+[[cases]]
+name = "template"
+files = { "case.ts" = "`x`;\n" }
+expected = [{ file = "case.ts", start = 0, end = 4 }]
+
+[[cases]]
+name = "tagged"
+files = { "case.ts" = "tag`x`;\n" }
+expected = [{ file = "case.ts", start = 0, end = 7 }]
+
+[[cases]]
+name = "arrow"
+files = { "case.ts" = "() => {};\n" }
+expected = [{ file = "case.ts", start = 0, end = 9 }]
+
+[[cases]]
+name = "function-expression"
+files = { "case.ts" = "(function () {});\n" }
+expected = [{ file = "case.ts", start = 0, end = 17 }]
+
+[[cases]]
+name = "class-expression"
+files = { "case.ts" = "(class {});\n" }
+expected = [{ file = "case.ts", start = 0, end = 11 }]
+
+[[cases]]
+name = "unary"
+files = { "case.ts" = "!a;\n" }
+expected = [{ file = "case.ts", start = 0, end = 3 }]
+
+[[cases]]
+name = "typeof"
+files = { "case.ts" = "typeof a;\n" }
+expected = [{ file = "case.ts", start = 0, end = 9 }]
+
+[[cases]]
+name = "void"
+files = { "case.ts" = "void a;\n" }
+expected = []
+
+[[cases]]
+name = "delete"
+files = { "case.ts" = "delete a.b;\n" }
+expected = []
+
+[[cases]]
+name = "call"
+files = { "case.ts" = "f();\n" }
+expected = []
+
+[[cases]]
+name = "optional-call"
+files = { "case.ts" = "a?.b();\n" }
+expected = []
+
+[[cases]]
+name = "optional-member"
+files = { "case.ts" = "a?.b;\n" }
+expected = [{ file = "case.ts", start = 0, end = 5 }]
+
+[[cases]]
+name = "optional-non-null"
+files = { "case.ts" = "a?.b!;\n" }
+expected = [{ file = "case.ts", start = 0, end = 6 }]
+
+[[cases]]
+name = "new"
+files = { "case.ts" = "new A();\n" }
+expected = []
+
+[[cases]]
+name = "assignment"
+files = { "case.ts" = "a = 1;\n" }
+expected = []
+
+[[cases]]
+name = "update"
+files = { "case.ts" = "a++;\n" }
+expected = []
+
+[[cases]]
+name = "await"
+files = { "case.ts" = "async function f() { await a; }\n" }
+expected = []
+
+[[cases]]
+name = "yield"
+files = { "case.ts" = "function* g() { yield a; }\n" }
+expected = []
+
+[[cases]]
+name = "import-call"
+files = { "case.ts" = "import(\"m\");\n" }
+expected = []
+
+[[cases]]
+name = "import-meta"
+files = { "case.ts" = "import.meta;\n" }
+expected = [{ file = "case.ts", start = 0, end = 12 }]
+
+[[cases]]
+name = "as"
+files = { "case.ts" = "a as any;\n" }
+expected = [{ file = "case.ts", start = 0, end = 9 }]
+
+[[cases]]
+name = "as-call"
+files = { "case.ts" = "f() as any;\n" }
+expected = []
+
+[[cases]]
+name = "non-null"
+files = { "case.ts" = "a!;\n" }
+expected = [{ file = "case.ts", start = 0, end = 3 }]
+
+[[cases]]
+name = "satisfies"
+files = { "case.ts" = "a satisfies any;\n" }
+expected = []
+
+[[cases]]
+name = "instantiation"
+files = { "case.ts" = "f<string>;\n" }
+expected = [{ file = "case.ts", start = 0, end = 10 }]
+
+[[cases]]
+name = "parenthesized-call"
+files = { "case.ts" = "(f());\n" }
+expected = []
+
+[[cases]]
+name = "use-strict"
+files = { "case.ts" = "\"use strict\";\n" }
+expected = []
+
+[[cases]]
+name = "function-directive"
+files = { "case.ts" = "function f() {\n  \"use strict\";\n  return 1;\n}\n" }
+expected = []
+
+[[cases]]
+name = "late-string"
+files = { "case.ts" = "function f() {\n  g();\n  \"use strict\";\n}\n" }
+expected = [{ file = "case.ts", start = 24, end = 37 }]
+
+[[cases]]
+name = "parenthesized-directive"
+files = { "case.ts" = "(\"use strict\");\n" }
+expected = [{ file = "case.ts", start = 0, end = 15 }]
+
+[[cases]]
+name = "arrow-body"
+files = { "case.ts" = "const f = () => a;\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-unused-expressions\na;\n" }
+expected = []

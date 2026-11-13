@@ -1,0 +1,194 @@
+[[cases]]
+name = "unused-property"
+files = { "case.ts" = "class A { #x = 1; }\n" }
+expected = [{ file = "case.ts", start = 10, end = 12 }]
+
+[[cases]]
+name = "read-property"
+files = { "case.ts" = "class A { #x = 1; f() { return this.#x; } }\n" }
+expected = []
+
+[[cases]]
+name = "write-only"
+files = { "case.ts" = "class A { #x = 1; f() { this.#x = 2; } }\n" }
+expected = [{ file = "case.ts", start = 10, end = 12 }]
+
+[[cases]]
+name = "compound-statement"
+files = { "case.ts" = "class A { #x = 1; f() { this.#x += 2; } }\n" }
+expected = [{ file = "case.ts", start = 10, end = 12 }]
+
+[[cases]]
+name = "compound-used"
+files = { "case.ts" = "class A { #x = 1; f() { return this.#x += 2; } }\n" }
+expected = []
+
+[[cases]]
+name = "update-statement"
+files = { "case.ts" = "class A { #x = 1; f() { this.#x++; } }\n" }
+expected = [{ file = "case.ts", start = 10, end = 12 }]
+
+[[cases]]
+name = "update-used"
+files = { "case.ts" = "class A { #x = 1; f() { g(this.#x++); } }\n" }
+expected = []
+
+[[cases]]
+name = "statement-read"
+files = { "case.ts" = "class A { #x = 1; f() { this.#x; } }\n" }
+expected = [{ file = "case.ts", start = 10, end = 12 }]
+
+[[cases]]
+name = "logical-left"
+files = { "case.ts" = "class A { #x = 1; f() { this.#x && g(); } }\n" }
+expected = []
+
+[[cases]]
+name = "logical-right"
+files = { "case.ts" = "class A { #x = 1; f() { g() && this.#x; } }\n" }
+expected = [{ file = "case.ts", start = 10, end = 12 }]
+
+[[cases]]
+name = "conditional-test"
+files = { "case.ts" = "class A { #x = 1; f() { this.#x ? g() : h(); } }\n" }
+expected = []
+
+[[cases]]
+name = "conditional-branch"
+files = { "case.ts" = "class A { #x = 1; f() { a ? this.#x : h(); } }\n" }
+expected = [{ file = "case.ts", start = 10, end = 12 }]
+
+[[cases]]
+name = "conditional-used"
+files = { "case.ts" = "class A { #x = 1; f() { return a ? this.#x : h(); } }\n" }
+expected = []
+
+[[cases]]
+name = "member-object"
+files = { "case.ts" = "class A { #x = 1; f() { this.#x.y = 1; } }\n" }
+expected = []
+
+[[cases]]
+name = "call"
+files = { "case.ts" = "class A { #x = 1; f() { this.#x(); } }\n" }
+expected = []
+
+[[cases]]
+name = "argument"
+files = { "case.ts" = "class A { #x = 1; f() { g(this.#x); } }\n" }
+expected = []
+
+[[cases]]
+name = "as-read"
+files = { "case.ts" = "class A { #x = 1; f() { return this.#x as any; } }\n" }
+expected = []
+
+[[cases]]
+name = "as-statement"
+files = { "case.ts" = "class A { #x = 1; f() { this.#x as any; } }\n" }
+expected = [{ file = "case.ts", start = 10, end = 12 }]
+
+[[cases]]
+name = "optional"
+files = { "case.ts" = "class A { #x = 1; f() { return this?.#x; } }\n" }
+expected = []
+
+[[cases]]
+name = "for-of"
+files = { "case.ts" = "class A { #x = []; f() { for (const v of this.#x) {} } }\n" }
+expected = []
+
+[[cases]]
+name = "template"
+files = { "case.ts" = "class A { #x = 1; f() { return `${this.#x}`; } }\n" }
+expected = []
+
+[[cases]]
+name = "arrow-body"
+files = { "case.ts" = "class A { #x = 1; f = () => this.#x; }\n" }
+expected = []
+
+[[cases]]
+name = "destructuring-target"
+files = { "case.ts" = "class A { #x = 1; f() { [this.#x] = [1]; } }\n" }
+expected = [{ file = "case.ts", start = 10, end = 12 }]
+
+[[cases]]
+name = "object-value"
+files = { "case.ts" = "class A { #x = 1; f() { return { a: this.#x }; } }\n" }
+expected = []
+
+[[cases]]
+name = "in-check"
+files = { "case.ts" = "class A { #x = 1; f(o) { return #x in o; } }\n" }
+expected = [{ file = "case.ts", start = 10, end = 12 }]
+
+[[cases]]
+name = "unused-method"
+files = { "case.ts" = "class A { #m() {} }\n" }
+expected = [{ file = "case.ts", start = 10, end = 12 }]
+
+[[cases]]
+name = "used-method"
+files = { "case.ts" = "class A { #m() {} f() { this.#m(); } }\n" }
+expected = []
+
+[[cases]]
+name = "method-written"
+files = { "case.ts" = "class A { #m() {} f() { this.#m = 1; } }\n" }
+expected = []
+
+[[cases]]
+name = "method-in-check"
+files = { "case.ts" = "class A { #m() {} f(o) { return #m in o; } }\n" }
+expected = []
+
+[[cases]]
+name = "unused-getter"
+files = { "case.ts" = "class A { get #g() { return 1; } }\n" }
+expected = [{ file = "case.ts", start = 14, end = 16 }]
+
+[[cases]]
+name = "used-getter"
+files = { "case.ts" = "class A { get #g() { return 1; } f() { return this.#g; } }\n" }
+expected = []
+
+[[cases]]
+name = "setter-written"
+files = { "case.ts" = "class A { set #s(v) {} f() { this.#s = 1; } }\n" }
+expected = []
+
+[[cases]]
+name = "static"
+files = { "case.ts" = "class A { static #x = 1; static f() { return A.#x; } }\n" }
+expected = []
+
+[[cases]]
+name = "accessor"
+files = { "case.ts" = "class A { accessor #x = 1; }\n" }
+expected = []
+
+[[cases]]
+name = "public"
+files = { "case.ts" = "class A { x = 1; }\n" }
+expected = []
+
+[[cases]]
+name = "nested-class"
+files = { "case.ts" = "class A { #x = 1; f() { return class { g(a) { return a.#x; } }; } }\n" }
+expected = [{ file = "case.ts", start = 10, end = 12 }]
+
+[[cases]]
+name = "nested-shadow"
+files = { "case.ts" = "class A { #x = 1; f() { return class { #x = 2; g() { return this.#x; } }; } }\n" }
+expected = [{ file = "case.ts", start = 10, end = 12 }]
+
+[[cases]]
+name = "other-object"
+files = { "case.ts" = "class A { #x = 1; static f(o: A) { return o.#x; } }\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "class A {\n  // eslint-disable-next-line no-unused-private-class-members\n  #x = 1;\n}\n" }
+expected = []

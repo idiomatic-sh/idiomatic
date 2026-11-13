@@ -1,0 +1,154 @@
+[[cases]]
+name = "number"
+files = { "case.ts" = "let value: Number;\n" }
+expected = [{ file = "case.ts", start = 11, end = 17 }]
+
+[[cases]]
+name = "string"
+files = { "case.ts" = "let value: String;\n" }
+expected = [{ file = "case.ts", start = 11, end = 17 }]
+
+[[cases]]
+name = "boolean"
+files = { "case.ts" = "let value: Boolean;\n" }
+expected = [{ file = "case.ts", start = 11, end = 18 }]
+
+[[cases]]
+name = "bigint"
+files = { "case.ts" = "let value: BigInt;\n" }
+expected = [{ file = "case.ts", start = 11, end = 17 }]
+
+[[cases]]
+name = "object"
+files = { "case.ts" = "let value: Object;\n" }
+expected = [{ file = "case.ts", start = 11, end = 17 }]
+
+[[cases]]
+name = "symbol"
+files = { "case.ts" = "let value: Symbol;\n" }
+expected = [{ file = "case.ts", start = 11, end = 17 }]
+
+[[cases]]
+name = "union"
+files = { "case.ts" = "let value: Number | Symbol;\n" }
+expected = [{ file = "case.ts", start = 11, end = 17 }, { file = "case.ts", start = 20, end = 26 }]
+
+[[cases]]
+name = "property"
+files = { "case.ts" = "let value: { property: Number };\n" }
+expected = [{ file = "case.ts", start = 23, end = 29 }]
+
+[[cases]]
+name = "as"
+files = { "case.ts" = "0 as Number;\n" }
+expected = [{ file = "case.ts", start = 5, end = 11 }]
+
+[[cases]]
+name = "alias"
+files = { "case.ts" = "type MyType = Number;\n" }
+expected = [{ file = "case.ts", start = 14, end = 20 }]
+
+[[cases]]
+name = "tuple"
+files = { "case.ts" = "type MyType = [Number];\n" }
+expected = [{ file = "case.ts", start = 15, end = 21 }]
+
+[[cases]]
+name = "implements"
+files = { "case.ts" = "class MyClass implements Number {}\n" }
+expected = [{ file = "case.ts", start = 25, end = 31 }]
+
+[[cases]]
+name = "extends-interface"
+files = { "case.ts" = "interface MyInterface extends Number {}\n" }
+expected = [{ file = "case.ts", start = 30, end = 36 }]
+
+[[cases]]
+name = "extends-class"
+files = { "case.ts" = "class MyClass extends Number {}\n" }
+expected = []
+
+[[cases]]
+name = "generic-argument"
+files = { "case.ts" = "let value: Array<String>;\n" }
+expected = [{ file = "case.ts", start = 17, end = 23 }]
+
+[[cases]]
+name = "local-alias"
+files = { "case.ts" = "type Number = 0 | 1;\nlet value: Number;\n" }
+expected = []
+
+[[cases]]
+name = "local-interface"
+files = { "case.ts" = "interface String {}\nlet value: String;\n" }
+expected = []
+
+[[cases]]
+name = "local-class"
+files = { "case.ts" = "class Boolean {}\nlet value: Boolean;\n" }
+expected = []
+
+[[cases]]
+name = "type-parameter"
+files = { "case.ts" = "type T<Symbol> = Symbol;\n" }
+expected = []
+
+[[cases]]
+name = "local-value"
+files = { "case.ts" = "let Number = 1;\nlet value: Number;\n" }
+expected = [{ file = "case.ts", start = 27, end = 33 }]
+
+[[cases]]
+name = "imported"
+files = { "case.ts" = "import { Number } from \"m\";\nlet value: Number;\n" }
+expected = []
+
+[[cases]]
+name = "imported-type"
+files = { "case.ts" = "import type { Object } from \"m\";\nlet value: Object;\n" }
+expected = []
+
+[[cases]]
+name = "qualified"
+files = { "case.ts" = "let value: globalThis.Number;\n" }
+expected = []
+
+[[cases]]
+name = "lowercase"
+files = { "case.ts" = "let value: number;\n" }
+expected = []
+
+[[cases]]
+name = "nested-scope"
+files = { "case.ts" = "function f() {\n  type String = string;\n  let value: String;\n}\nlet other: String;\n" }
+expected = [{ file = "case.ts", start = 73, end = 79 }]
+
+[[cases]]
+name = "infer"
+files = { "case.ts" = "type U<X> = X extends Array<infer Object> ? Object : never;\n" }
+expected = []
+
+[[cases]]
+name = "local-interface-implements"
+files = { "case.ts" = "interface Number {}\nclass MyClass implements Number {}\n" }
+expected = []
+
+[[cases]]
+name = "local-interface-extends"
+files = { "case.ts" = "interface String {}\ninterface MyInterface extends String {}\n" }
+expected = []
+
+[[cases]]
+name = "infer-extends-type"
+files = { "case.ts" = "type U<X> = X extends infer Symbol ? Symbol : never;\n" }
+expected = []
+
+[[cases]]
+name = "infer-false-branch"
+files = { "case.ts" = "type U<X> = X extends Array<infer Object> ? never : Object;\n" }
+expected = [{ file = "case.ts", start = 52, end = 58 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-wrapper-object-types\nlet value: Number;\n" }
+expected = []
