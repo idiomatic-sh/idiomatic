@@ -17,6 +17,7 @@ pub use ryo_execution_runtime::application::file_dag::program::file_session::typ
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FinishedReadiness;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FrontierCaptures;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport;
+pub use ryo_execution_runtime::application::file_dag::program::file_session::types::Partiality;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::RanRule;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::RuleAfter;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport;

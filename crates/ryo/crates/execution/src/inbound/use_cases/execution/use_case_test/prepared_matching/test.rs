@@ -369,11 +369,11 @@ fn run_probe(probe: Probe) -> Result<Probed, Failure> {
             matchers.glob(test, TextView(text), matcher).is_some()
         }
     });
-    let read = fixtures::TableFacts::new(&[]);
+    let mut read = fixtures::TableFacts::new(&[]);
     let elements = Elements::default();
     let mut answers = Vec::new();
     for _file in 0..probe.files {
-        let answer = run_prepared(&engine, &program, b"", &elements, &mut symbols, &read);
+        let answer = run_prepared(&engine, &program, b"", &elements, &mut symbols, &mut read);
         answers.push(match answer {
             Ok(table) => Answer::Rows(Cow::Owned(
                 table

@@ -169,7 +169,7 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
         let mut symbols = Symbols::default();
         let table = functions(file_id, each, &mut symbols);
         // The facts hold the function relation alone; a read of any other is refused, and the rule with it.
-        let facts = TableFacts::new(&[(Relation::Function, &table)]);
+        let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let mut rules = run_file_into(
             &request,
@@ -185,7 +185,7 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
                 places: &mut places,
                 words: &mut words,
             },
-            &facts,
+            &mut facts,
         );
         let rule = ran(&mut rules, 0);
         match (rule.emit, rule.after) {

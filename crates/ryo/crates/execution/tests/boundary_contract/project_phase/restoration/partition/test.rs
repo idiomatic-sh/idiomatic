@@ -69,7 +69,7 @@ pub(super) fn exercise_with(
         table.cells.clear();
         table.count = RowCount(0);
     }
-    let facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
     let mut captures = vec![];
     let mut readiness = vec![];
     for file_id in [FileId(0), FileId(1)] {
@@ -94,7 +94,7 @@ pub(super) fn exercise_with(
                 ..FileRun::of(&intents, &elements)
             },
             &mut symbols,
-            &facts,
+            &mut facts,
         );
         if file_id == FileId(0) {
             let RuleAfter::Ran {

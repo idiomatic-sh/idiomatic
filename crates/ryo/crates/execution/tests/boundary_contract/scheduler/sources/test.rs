@@ -56,7 +56,7 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
         let table = source();
-        let facts = TableFacts::new(&[(Relation::Function, &table)]);
+        let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
         let elements = Elements::default();
         let mut symbols = Symbols::default();
         let run = FileRuleIntent::Run {
@@ -69,7 +69,7 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
             &request,
             FileRun::of(&intents, &elements),
             &mut symbols,
-            &facts,
+            &mut facts,
         );
         let expected = vec![Value::Node(node_id(FileId(0), Position(2)))];
         let mut captured = None;
@@ -141,7 +141,7 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
     );
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
-    let facts = TableFacts::new(&[]);
+    let mut facts = TableFacts::new(&[]);
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     let intents = [
@@ -157,7 +157,7 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
         &request,
         FileRun::of(&intents, &elements),
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     assert!(
         rules.rules.iter().all(|each| each.rule != RuleIndex(0)),

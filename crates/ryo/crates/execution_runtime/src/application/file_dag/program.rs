@@ -1,6 +1,7 @@
 //! One executable-program invocation owner; kernels never receive its inputs port.
 pub mod admission;
 pub(crate) mod facade_runtime;
+pub(crate) mod fact_lookup;
 pub mod file_session;
 pub(super) mod kernel_session;
 pub mod observation_stage;

@@ -38,7 +38,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
         let table = source();
         // Project facts must never be read by the file owner: the facts hold Function alone and refuse any other read.
-        let file_facts = TableFacts::new(&[(Relation::Function, &table)]);
+        let mut file_facts = TableFacts::new(&[(Relation::Function, &table)]);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let mut symbols = Symbols::default();
         let mut rules = run_file(
@@ -52,7 +52,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
                 &elements,
             ),
             &mut symbols,
-            &file_facts,
+            &mut file_facts,
         );
         let rule = ran(&mut rules, 0);
         assert!(matches!(
@@ -190,10 +190,10 @@ fn an_observed_population_is_a_separate_acquisition_with_the_same_answer() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let table = source();
-    let read = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut read = TableFacts::new(&[(Relation::Function, &table)]);
     let mut symbols = Symbols::default();
     let stored = CapturedFacts {
-        captures: captured_in_file_0_of(&request, &read, &mut symbols),
+        captures: captured_in_file_0_of(&request, &mut read, &mut symbols),
         reads: AtomicUsize::new(0),
     };
     let project = ProjectFacts::new(relation);

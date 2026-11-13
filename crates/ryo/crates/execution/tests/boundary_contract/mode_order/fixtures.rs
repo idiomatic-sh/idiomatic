@@ -9,7 +9,7 @@ use ryo_values::domain::{
 
 /// The root rule 0 of `input` delivered in file 0 run through `run_file` with its diagnostic collected over `facts`, or what
 /// stopped it.
-pub(super) fn evaluate(input: PrepareRequest, facts: &TableFacts) -> Result<RootOutcome, FileStop> {
+pub(super) fn evaluate(input: PrepareRequest, facts: &mut TableFacts) -> Result<RootOutcome, FileStop> {
     let engine = engine();
     let prepared = engine
         .prepare(input)

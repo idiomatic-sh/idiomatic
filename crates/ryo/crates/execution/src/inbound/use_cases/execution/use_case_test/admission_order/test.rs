@@ -160,7 +160,7 @@ pub(crate) fn execute(
         }
         _ => Err(fixtures::facts::not_held()),
     };
-    let facts = fixtures::facts::ReadFacts::new(read);
+    let mut facts = fixtures::facts::ReadFacts::new(read);
     let (engine, prepared) = fixtures::requests::prepared(plan, vec![], vec![])
         .expect("static faults stay deferred in a structurally valid request");
     let result = fixtures::requests::run_prepared(
@@ -169,7 +169,7 @@ pub(crate) fn execute(
         b"",
         &Elements::default(),
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     let [left, right] = counts.map(AtomicUsize::into_inner);
     (result, [left, right])

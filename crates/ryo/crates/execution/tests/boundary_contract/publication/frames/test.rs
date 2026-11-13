@@ -84,7 +84,7 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
             table.cells.extend(second);
             table.count = RowCount(2);
         }
-        let facts = TableFacts::new(&[(Relation::Function, &table)]);
+        let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let initial_arena = match representation {
             "inherited" | "other_worker" => b"abc".to_vec(),
@@ -117,7 +117,7 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
                 places: &mut places,
                 words: &mut words,
             },
-            &facts,
+            &mut facts,
         );
         let RuleAfter::Ran { captures } = ran(&mut rules, 0).after else {
             panic!("the rule runs and captures its frontier")

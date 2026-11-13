@@ -40,7 +40,7 @@ fn shared_node_with_a_skipped_and_a_failed_rule() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
-    let facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let intents = [
         FileRuleIntent::Skipped(ApplicabilityReason::DiagnosticNotApplicable),
@@ -51,7 +51,7 @@ fn shared_node_with_a_skipped_and_a_failed_rule() {
         &request,
         FileRun::of(&intents, &elements),
         &mut Symbols::default(),
-        &facts,
+        &mut facts,
     );
     request.finish();
     assert_eq!(
@@ -101,7 +101,7 @@ fn partial_read_with_an_antijoin_and_an_absence() {
         count: RowCount(0),
         cells: vec![],
     };
-    let facts = TableFacts::new(&[
+    let mut facts = TableFacts::new(&[
         (Relation::Function, &functions),
         (Relation::Comment, &comments),
     ]);
@@ -115,7 +115,7 @@ fn partial_read_with_an_antijoin_and_an_absence() {
             ..FileRun::of(&[COLLECTED, COLLECTED], &elements)
         },
         &mut Symbols::default(),
-        &facts,
+        &mut facts,
     );
     request.finish();
     assert_eq!(
@@ -133,7 +133,7 @@ fn observation_only_demand_beside_a_running_rule() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
-    let facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let intents = [
         FileRuleIntent::Run {
@@ -147,7 +147,7 @@ fn observation_only_demand_beside_a_running_rule() {
         &request,
         FileRun::of(&intents, &elements),
         &mut Symbols::default(),
-        &facts,
+        &mut facts,
     );
     request.finish();
     assert_eq!(
@@ -170,13 +170,13 @@ fn capture_storage_failure_after_a_shared_node() {
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     // The facts serve the shared node's rows and refuse to keep any captured frontier.
     let table = source();
-    let facts = TableFacts::new(&[(Relation::Function, &table)]).refusing_keep();
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]).refusing_keep();
     let elements = ryo_language::domain::elements::types::Elements::default();
     let rules = run_file(
         &request,
         FileRun::of(&[COLLECTED, COLLECTED], &elements),
         &mut Symbols::default(),
-        &facts,
+        &mut facts,
     );
     request.finish();
     assert_eq!(
@@ -223,7 +223,7 @@ fn failing_pipeline_stage_with_an_earlier_failing_stage_on_a_later_row() {
             ..FileRun::of(&[COLLECTED], &elements)
         },
         &mut symbols,
-        &TableFacts::new(&[]),
+        &mut TableFacts::new(&[]),
     );
     request.finish();
     assert_eq!(
@@ -256,7 +256,7 @@ fn project_root_shared_by_two_consumers_with_one_failing() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
-    let facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     let mut file = run_file(
@@ -266,7 +266,7 @@ fn project_root_shared_by_two_consumers_with_one_failing() {
             ..FileRun::of(&[COLLECTED, COLLECTED], &elements)
         },
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     let mut text = String::new();
     let mut stored = Vec::new();

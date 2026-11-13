@@ -64,7 +64,7 @@ fn stored_prefix(bad_layout: bool) -> Result<Value, Failure> {
             columns: &columns,
         })
     };
-    let facts = fixtures::facts::ReadFacts::new(read);
+    let mut facts = fixtures::facts::ReadFacts::new(read);
     let (engine, prepared) = fixtures::requests::prepared(
         inputs::plan(vec![operation(OperationKind::Project, bad_layout)]),
         vec![],
@@ -77,7 +77,7 @@ fn stored_prefix(bad_layout: bool) -> Result<Value, Failure> {
         b"",
         &Elements::default(),
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     observed(
         result,

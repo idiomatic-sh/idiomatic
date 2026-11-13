@@ -145,7 +145,7 @@ pub(crate) fn run(
             ..FileRun::of(intents, elements)
         },
         symbols,
-        &TableFacts::new(&[]),
+        &mut TableFacts::new(&[]),
     )
 }
 /// A rule's diagnostic collected, with no observation and no capture.

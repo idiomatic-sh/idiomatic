@@ -111,7 +111,7 @@ impl ProgramRequestExecutionPort for Witness {
         _: FileRunInput<'_>,
         _: &mut Symbols,
         _: CaptureContext<'_>,
-        _: &dyn FactsWorker,
+        _: &mut dyn FactsWorker,
     ) -> FileRules {
         witness(Method::RequestRunFile)
     }

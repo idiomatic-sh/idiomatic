@@ -4,7 +4,10 @@ use crate::application::file_dag::frontiers::service::PreparationPolicy;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::facade_runtime;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
-use crate::application::file_dag::program::file_session::interface::ProgramFileSessionPort;
+use crate::application::file_dag::program::fact_lookup::service::opened;
+use crate::application::file_dag::program::fact_lookup::types::FileWants;
+use crate::application::file_dag::program::file_session::interface::ProgramFileSessionPort as _;
+use crate::application::file_dag::program::file_session::service::{rest_of_rule, stopped};
 use crate::application::file_dag::program::file_session::types::CaptureContext;
 use crate::application::file_dag::program::file_session::types::EmittedRoot;
 use crate::application::file_dag::program::file_session::types::FileEnd;
@@ -14,6 +17,7 @@ use crate::application::file_dag::program::file_session::types::FileRunInput;
 use crate::application::file_dag::program::file_session::types::FileSession;
 use crate::application::file_dag::program::file_session::types::FileStop;
 use crate::application::file_dag::program::file_session::types::KindSupport;
+use crate::application::file_dag::program::file_session::types::Partiality;
 use crate::application::file_dag::program::file_session::types::RanRule;
 use crate::application::file_dag::program::file_session::types::RuleAfter;
 use crate::application::file_dag::program::file_session::types::RuleFile;
@@ -30,10 +34,8 @@ use crate::application::file_dag::program::project_phase::types::ProjectPhase;
 use crate::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
-use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsWorker;
 use crate::outbound::facts::types::ResidentStability;
-use crate::outbound::facts::types::WordsToKeep;
 use ryo_execution_domain::domain::finish::types::Arena;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::{
@@ -83,7 +85,7 @@ impl ProgramRequestExecutionPort for RequestExecution {
         input: FileRunInput<'_>,
         symbols: &mut Symbols,
         capture: CaptureContext<'_>,
-        facts: &dyn FactsWorker,
+        facts: &mut dyn FactsWorker,
     ) -> FileRules {
         run_file(self, input, symbols, capture, facts)
     }
@@ -208,23 +210,36 @@ fn run_file(
     input: FileRunInput<'_>,
     symbols: &mut Symbols,
     capture: CaptureContext<'_>,
-    facts: &dyn FactsWorker,
+    facts: &mut dyn FactsWorker,
 ) -> FileRules {
-    let FileRunInput {
-        language,
-        file,
-        evaluation,
-        publication,
-        intents,
-        source,
-        elements,
-        semantic,
-        kinds,
-        first,
-    } = input;
+    let (file, intents, first) = (input.file, input.intents, input.first);
+    let resident_stability = facts.resident_stability();
+    let wants = FileWants {
+        wanted: input.wanted,
+        active: input.active,
+        said: input.said,
+        recovery: input.recovery,
+    };
+    let lookup = match opened(input.sources, facts, wants, symbols) {
+        Ok(lookup) => lookup,
+        Err(stop) => {
+            let (rules, end) = (Vec::new(), FileEnd::Refused(stop));
+            return FileRules {
+                rules,
+                end,
+                partials: Vec::new(),
+            };
+        }
+    };
+    let partials = lookup.partials().to_vec();
+    let lookup = &lookup;
+    let evaluation = match input.answering {
+        Partiality::Physical => partials.as_slice(),
+        Partiality::Relaxed => &[][..],
+    };
     let refused = RefCell::new(None);
     let read = |relation| {
-        facts
+        lookup
             .rows(relation)
             .map(SourceRows::Stored)
             .map_err(|error| {
@@ -232,6 +247,7 @@ fn run_file(
                 OperatingError::NotRead
             })
     };
+    let facts = lookup.worker();
     let CaptureContext {
         worker,
         arena: Arena(arena),
@@ -241,17 +257,17 @@ fn run_file(
     let mut rules = Vec::new();
     let opened = request.open_session(
         FileInput {
-            language,
-            resident_stability: facts.resident_stability(),
+            language: input.language,
+            resident_stability,
             file,
             evaluation,
-            publication,
+            publication: &partials,
             intents,
-            source,
-            elements,
+            source: input.source,
+            elements: lookup.tree(),
             read: &read,
-            semantic,
-            kinds,
+            semantic: input.semantic,
+            kinds: input.kinds,
         },
         symbols,
     );
@@ -261,6 +277,7 @@ fn run_file(
             return FileRules {
                 rules,
                 end: FileEnd::Refused(FileStop::Operating(error)),
+                partials,
             };
         }
     };
@@ -322,6 +339,7 @@ fn run_file(
             return FileRules {
                 rules,
                 end: FileEnd::Unfinished,
+                partials,
             };
         }
     }
@@ -329,52 +347,11 @@ fn run_file(
         Ok(finished) => FileEnd::Finished(finished.readiness),
         Err(error) => FileEnd::Refused(FileStop::Operating(error)),
     };
-    FileRules { rules, end }
-}
-
-/// The stop of a rule: the facts' own refusal when a read of them was refused, else the engine's `error`.
-fn stopped(error: OperatingError, refused: &RefCell<Option<FactsError>>) -> RuleAfter {
-    RuleAfter::Stopped(
-        refused
-            .take()
-            .map_or(FileStop::Operating(error), FileStop::Facts),
-    )
-}
-
-/// What a rule does after its emitted root: its frontiers captured, each one captured kept in `facts` and committed, and its steps
-/// reported to the observer, if any. A capture the engine could not make is answered as it is, for the caller to note.
-fn rest_of_rule(
-    session: &mut FileSession<'_, '_>,
-    at: RuleFile<'_>,
-    symbols: &mut Symbols,
-    capture: CaptureContext<'_>,
-    facts: &dyn FactsWorker,
-    refused: &RefCell<Option<FactsError>>,
-) -> Result<RuleAfter, OperatingError> {
-    let first = *at.first.get(at.rule.0).ok_or(OperatingError::NotRun)?;
-    let captured = session.capture_frontiers(at.rule, first, symbols, capture)?;
-    if let Some(error) = refused.take() {
-        return Ok(RuleAfter::Stopped(FileStop::Facts(error)));
+    FileRules {
+        rules,
+        end,
+        partials,
     }
-    let mut captures = Vec::with_capacity(captured.len());
-    for each in captured.0 {
-        if let Ok(kept) = &each.outcome {
-            if let Err(error) = facts.keep(
-                kept.bucket,
-                WordsToKeep {
-                    words: &kept.words,
-                    file: at.file,
-                    proof: &kept.proof,
-                },
-            ) {
-                return Ok(RuleAfter::Stopped(FileStop::Facts(error)));
-            }
-            session.commit_frontier(at.rule, kept.input)?;
-        }
-        captures.push(each);
-    }
-    session.observe(at.rule)?;
-    Ok(RuleAfter::Ran { captures })
 }
 
 /// A request begins over the prepared program's kernels and shared services.

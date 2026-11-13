@@ -152,7 +152,7 @@ fn exercise(case: Case) {
         reads: AtomicUsize::new(0),
     };
     if matches!(case, Case::RejectedSyntax) {
-        let forbidden = TableFacts::new(&[]);
+        let mut forbidden = TableFacts::new(&[]);
         let rejected = run_file(
             &request,
             FileRun {
@@ -164,7 +164,7 @@ fn exercise(case: Case) {
                 )
             },
             &mut symbols,
-            &forbidden,
+            &mut forbidden,
         );
         assert!(rejected.rules.is_empty(), "the skipped rule does not run");
         assert_eq!(forbidden.reads(), 0, "skipped file must not read facts");

@@ -88,7 +88,7 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
         let mut symbols = Symbols::default();
         let table = crate::boundary_fixture::fixtures::named_functions(&mut symbols);
-        let facts = if absent {
+        let mut facts = if absent {
             TableFacts::new(&[])
         } else {
             TableFacts::new(&[(Relation::Function, &table)])
@@ -106,7 +106,7 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
                 ..FileRun::of(&[collected, collected], &elements)
             },
             &mut symbols,
-            &facts,
+            &mut facts,
         );
         let outcome = root(ran(&mut rules, 0));
         if absent {

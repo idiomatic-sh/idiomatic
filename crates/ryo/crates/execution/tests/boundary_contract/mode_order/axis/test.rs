@@ -23,8 +23,8 @@ fn empty_axis_has_identical_admission_for_both_delivery_apis() {
         count: RowCount(0),
         cells: vec![],
     };
-    let collected_facts = TableFacts::new(&[(Relation::Function, &empty)]);
-    let collected = evaluate(authored(), &collected_facts);
+    let mut collected_facts = TableFacts::new(&[(Relation::Function, &empty)]);
+    let collected = evaluate(authored(), &mut collected_facts);
     let collected_reads = collected_facts.history();
     assert!(matches!(collected, Err(FileStop::Facts(_))));
     assert!(
@@ -58,8 +58,8 @@ fn axis_error_order_is_identical_for_both_delivery_apis_and_source_shapes() {
             input
         };
         // No relation is held: the first read, of Function, is refused and stops the rule.
-        let collected_facts = TableFacts::new(&[]);
-        let Err(error) = evaluate(authored(), &collected_facts) else {
+        let mut collected_facts = TableFacts::new(&[]);
+        let Err(error) = evaluate(authored(), &mut collected_facts) else {
             panic!("the unavailable source must fail evaluation");
         };
         assert!(matches!(error, FileStop::Facts(_)));

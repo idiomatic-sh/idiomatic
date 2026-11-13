@@ -128,7 +128,7 @@ fn independent_semantic_relation_selectors_share_one_source_walk() {
     let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
     let table = named_functions(&mut symbols);
     let elements = ryo_language::domain::elements::types::Elements::default();
-    let read = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut read = TableFacts::new(&[(Relation::Function, &table)]);
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
         observations: ObservationDemand::NotRequired,
@@ -142,7 +142,7 @@ fn independent_semantic_relation_selectors_share_one_source_walk() {
             ..FileRun::of(&intents, &elements)
         },
         &mut symbols,
-        &read,
+        &mut read,
     );
     for (rule, positions) in [(0, &[0_u32, 1][..]), (1, &[2_u32][..])] {
         assert_eq!(

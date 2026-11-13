@@ -140,7 +140,7 @@ pub(super) fn rows(
     for place in 0..files {
         let file_id = FileId(u32::try_from(place).unwrap());
         let (elements, mut symbols) = native_tree(file_id);
-        let facts = TableFacts::new(&[]);
+        let mut facts = TableFacts::new(&[]);
         let mut rules = run_file_into(
             &request,
             FileRun {
@@ -155,7 +155,7 @@ pub(super) fn rows(
                 places: &mut places,
                 words: &mut words,
             },
-            &facts,
+            &mut facts,
         );
         let rule = ran(&mut rules, 0);
         match (rule.emit, rule.after) {

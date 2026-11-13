@@ -71,7 +71,7 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                     | Value::Flag(_) => {}
                 }
             }
-            let facts = TableFacts::new(&[(Relation::Function, &table)]);
+            let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
             let mut symbols = Symbols::default();
             // The consumer's own file frontier is kept in its own bucket.
             let mut rules = run_file(
@@ -96,7 +96,7 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                     )
                 },
                 &mut symbols,
-                &facts,
+                &mut facts,
             );
             let RuleAfter::Ran {
                 captures: mut produced,

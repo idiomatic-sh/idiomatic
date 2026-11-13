@@ -1,11 +1,15 @@
 //! A file session: the delegation to the file run and the rows the run reads.
 use super::types::FileSession;
+use super::types::{FileStop, RuleAfter, RuleFile};
 use crate::application::file_dag::program::file_session::interface::ProgramFileSessionPort;
 use crate::application::file_dag::program::file_session::types::CaptureContext;
 use crate::application::file_dag::program::file_session::types::FileFinished;
 use crate::application::file_dag::program::file_session::types::FinishedReadiness;
 use crate::application::file_dag::program::file_session::types::SourceRows;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
+use crate::outbound::facts::errors::FactsError;
+use crate::outbound::facts::interface::FactsWorker;
+use crate::outbound::facts::types::WordsToKeep;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::frontier_capture::types::FrontierCapture;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -15,6 +19,7 @@ use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::stored_facts::types::Bucket;
+use std::cell::RefCell;
 impl ProgramFileSessionPort for FileSession<'_, '_> {
     fn emit_rows(
         &mut self,
@@ -217,4 +222,49 @@ impl FileSession<'_, '_> {
     pub(crate) fn observe(&self, rule: RuleIndex) -> Result<(), OperatingError> {
         self.parts.inner.observe(rule)
     }
+}
+
+/// The stop of a rule: the facts' own refusal when a read of them was refused, else the engine's `error`.
+pub(crate) fn stopped(error: OperatingError, refused: &RefCell<Option<FactsError>>) -> RuleAfter {
+    RuleAfter::Stopped(
+        refused
+            .take()
+            .map_or(FileStop::Operating(error), FileStop::Facts),
+    )
+}
+
+/// What a rule does after its emitted root: its frontiers captured, each one captured kept in `facts` and committed, and its steps
+/// reported to the observer, if any. A capture the engine could not make is answered as it is, for the caller to note.
+pub(crate) fn rest_of_rule(
+    session: &mut FileSession<'_, '_>,
+    at: RuleFile<'_>,
+    symbols: &mut Symbols,
+    capture: CaptureContext<'_>,
+    facts: &dyn FactsWorker,
+    refused: &RefCell<Option<FactsError>>,
+) -> Result<RuleAfter, OperatingError> {
+    let first = *at.first.get(at.rule.0).ok_or(OperatingError::NotRun)?;
+    let captured = session.capture_frontiers(at.rule, first, symbols, capture)?;
+    if let Some(error) = refused.take() {
+        return Ok(RuleAfter::Stopped(FileStop::Facts(error)));
+    }
+    let mut captures = Vec::with_capacity(captured.len());
+    for each in captured.0 {
+        if let Ok(kept) = &each.outcome {
+            if let Err(error) = facts.keep(
+                kept.bucket,
+                WordsToKeep {
+                    words: &kept.words,
+                    file: at.file,
+                    proof: &kept.proof,
+                },
+            ) {
+                return Ok(RuleAfter::Stopped(FileStop::Facts(error)));
+            }
+            session.commit_frontier(at.rule, kept.input)?;
+        }
+        captures.push(each);
+    }
+    session.observe(at.rule)?;
+    Ok(RuleAfter::Ran { captures })
 }

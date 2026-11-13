@@ -48,7 +48,7 @@ pub(crate) fn answered_rule(
 ) -> (Result<RootOutcome, FileStop>, usize) {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(program, &corpus, None.into());
-    let facts = TableFacts::new(
+    let mut facts = TableFacts::new(
         &rows
             .iter()
             .map(|(relation, table)| (*relation, table))
@@ -64,7 +64,7 @@ pub(crate) fn answered_rule(
             ..FileRun::of(intents, &elements)
         },
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     let outcome = match rules.rules.iter().any(|each| each.rule == rule) {
         true => root(ran(&mut rules, rule.0)),
@@ -98,7 +98,7 @@ pub(crate) fn ran_file(
         &ryo_language::domain::elements::types::Elements,
         &mut Symbols,
     ),
-    worker: &dyn ryo_execution::inbound::use_cases::execution::interface::FactsWorker,
+    worker: &mut dyn ryo_execution::inbound::use_cases::execution::interface::FactsWorker,
 ) -> (Vec<Ran>, String) {
     shown(run_file(
         request,

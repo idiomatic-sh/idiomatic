@@ -118,7 +118,8 @@ pub(crate) fn operating(
 ) -> crate::inbound::use_cases::execution::interface::OperatingError {
     match stop {
         crate::inbound::use_cases::execution::interface::FileStop::Operating(error) => error,
-        crate::inbound::use_cases::execution::interface::FileStop::Facts(_) => {
+        crate::inbound::use_cases::execution::interface::FileStop::Facts(_)
+        | crate::inbound::use_cases::execution::interface::FileStop::Reader => {
             crate::inbound::use_cases::execution::interface::OperatingError::NotRead
         }
     }

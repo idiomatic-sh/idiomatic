@@ -9,7 +9,7 @@ fn every_prepared_rule_requires_exactly_one_file_start_intent() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let elements = ryo_language::domain::elements::types::Elements::default();
-    let facts = TableFacts::new(&[]);
+    let mut facts = TableFacts::new(&[]);
     let mut symbols = Symbols::default();
     for intents in [
         &[][..],
@@ -20,7 +20,7 @@ fn every_prepared_rule_requires_exactly_one_file_start_intent() {
             &request,
             FileRun::of(intents, &elements),
             &mut symbols,
-            &facts,
+            &mut facts,
         );
         assert!(rules.rules.is_empty());
         assert!(matches!(
@@ -43,7 +43,7 @@ fn absent_skipped_and_refused_rules_cannot_acquire_any_root() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let elements = ryo_language::domain::elements::types::Elements::default();
-    let facts = TableFacts::new(&[]);
+    let mut facts = TableFacts::new(&[]);
     for intent in [
         FileRuleIntent::Undemanded,
         FileRuleIntent::Skipped(ApplicabilityReason::SyntaxRejected),
@@ -56,7 +56,7 @@ fn absent_skipped_and_refused_rules_cannot_acquire_any_root() {
             &request,
             FileRun::of(&intents, &elements),
             &mut symbols,
-            &facts,
+            &mut facts,
         );
         assert!(rules.rules.is_empty(), "an undeclared root does not run");
         assert!(matches!(rules.end, FileEnd::Finished(_)));
@@ -73,7 +73,7 @@ fn rule_demand_is_immutable_and_capture_cannot_be_added_after_open() {
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let elements = ryo_language::domain::elements::types::Elements::default();
     let table = source();
-    let facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
         observations: ObservationDemand::NotRequired,
@@ -84,7 +84,7 @@ fn rule_demand_is_immutable_and_capture_cannot_be_added_after_open() {
         &request,
         FileRun::of(&intents, &elements),
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     let ran = ran(&mut rules, 0);
     assert!(matches!(

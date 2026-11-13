@@ -66,7 +66,7 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
-    let facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     let mut rules = run_file(
@@ -80,7 +80,7 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
             &elements,
         ),
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     let Ok(RootOutcome::Complete(table)) = root(ran(&mut rules, 0)) else {
         panic!("complete count")

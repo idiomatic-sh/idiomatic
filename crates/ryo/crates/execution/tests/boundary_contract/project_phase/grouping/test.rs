@@ -101,7 +101,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
             ));
             row[2] = Value::File(file_id);
         }
-        let facts = TableFacts::new(&[(Relation::Function, &table)]);
+        let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let mut rules = run_file_into(
             &request,
@@ -124,7 +124,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
                 places: &mut places,
                 words: &mut words,
             },
-            &facts,
+            &mut facts,
         );
         let rule = ran(&mut rules, 0);
         assert!(matches!(

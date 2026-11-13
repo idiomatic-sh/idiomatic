@@ -37,7 +37,7 @@ fn three_rules_over_three_files_answer_the_recorded_file_rules() {
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let mut answered = String::new();
     for (file, ids) in [(0, vec![1, 2]), (1, vec![]), (2, vec![7, 8, 9])] {
-        let worker = super::super::fixtures::function_rows(&facts, FileId(file), &ids);
+        let mut worker = super::super::fixtures::function_rows(&facts, FileId(file), &ids);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let mut symbols = Symbols::default();
         let run = FileRuleIntent::Run {
@@ -50,7 +50,7 @@ fn three_rules_over_three_files_answer_the_recorded_file_rules() {
             FileId(file),
             &[run, run, run],
             (&elements, &mut symbols),
-            worker.as_ref(),
+            worker.as_mut(),
         );
         for (rule, ran) in ran.iter().enumerate() {
             writeln!(

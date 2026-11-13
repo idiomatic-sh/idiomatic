@@ -2,14 +2,10 @@
 use super::super::errors::FileAnalysisError;
 use super::super::semantic::service::SemanticState;
 use super::super::service::FileAnalysis;
-use super::super::types::{FileCompleteness, FileVisit, Worker};
+use super::super::types::{FileCompleteness, FileRead, FileVisit, Worker};
 use crate::application::file_analysis::constants::EXECUTION_DIAGNOSTIC;
 use crate::application::file_analysis::constants::INPUT_EDGE_DID_NOT_SUPPLY_EXECUTABLE;
 use crate::application::file_analysis::constants::PROVIDER_PARSE;
-use crate::domain::admission::errors::AdmissionError;
-use crate::domain::admission::service::admit_columns;
-use crate::domain::admission::service::admit_elements;
-use crate::domain::admission::service::limits_of;
 use crate::domain::reading::service::begin;
 use crate::domain::reading::service::engine_asked;
 use crate::domain::reading::service::failure_partials;
@@ -52,7 +48,6 @@ use ryo_values::domain::files::types::ExecutablePermission;
 use ryo_values::domain::records::types::FileOutcome;
 use ryo_values::domain::records::types::Unread;
 use ryo_values::domain::records::types::Unreadable;
-use ryo_values::domain::stored_facts::types::LanguageNumber;
 use ryo_values::domain::stored_facts::types::PartialAt;
 use ryo_values::domain::stored_facts::types::PartialCause;
 use ryo_values::domain::stored_facts::types::PartialScope;
@@ -61,33 +56,6 @@ use ryo_values::domain::stored_facts::types::ReadInPart;
 use std::time::Instant;
 
 impl FileAnalysis {
-    /// Admits what the language `provider` wrote for the file `number`, against the file's length, its table and its number.
-    pub(in crate::application::file_analysis) fn admit(
-        &self,
-        worker: &Worker,
-        wanted: &[Relation],
-        number: FileId,
-        provider: LanguageNumber,
-    ) -> Result<(), FileAnalysisError> {
-        let refused = |code: AdmissionError| FileAnalysisError::Provider {
-            provider: self
-                .language
-                .linked()
-                .0
-                .get(provider.0)
-                .map(|name| name.0.to_string())
-                .unwrap_or_default(),
-            code,
-        };
-        let tables = &worker.tables;
-        let limits = limits_of(&tables.elements, &tables.bytes, number);
-        admit_elements(&tables.elements, &limits).map_err(refused)?;
-        for relation in wanted {
-            admit_columns(&worker.facts.rows(*relation)?, &limits).map_err(refused)?;
-        }
-        Ok(())
-    }
-
     /// Executes demanded engine facts for a primary input failure without constructing source or syntax.
     pub(in crate::application::file_analysis) fn read_failed(
         &self,
@@ -144,29 +112,45 @@ impl FileAnalysis {
                 },
             });
         }
-        start_partials(
-            &MetadataUseCaseImpl,
-            &mut worker.tables,
-            &said,
-            Recovery::Whole,
-            setting.wanted,
-        );
         worker.tables.unread.push(Unread {
             path: path.clone(),
             reason: Unreadable::Failed(ReadFailure(detail.0.into())),
         });
         let acceptance = syntax_acceptance(&worker.tables.elements);
         if asked.any == EngineRows::Asked {
+            // The file runs, so its partiality is the run's.
             index_kinds(&mut worker.tables.elements);
             let semantic = SemanticState::new(number, &worker.tables.elements, None);
-            Self::read_file(worker, visit, number, &semantic)?;
-        } else if Self::may_gate_rules(setting, acceptance) == Gating::MayGate {
-            drop(Self::gate_rules(
-                &mut worker.tables,
-                setting,
+            Self::read_file(
+                worker,
+                visit,
                 number,
-                acceptance,
-            ));
+                &semantic,
+                FileRead {
+                    language: &*self.language,
+                    path,
+                    said: &said,
+                    recovery: Recovery::Whole,
+                    active: setting.wanted,
+                },
+            )?;
+        } else {
+            // No rule runs on the file: its partiality is core's to note.
+            start_partials(
+                &MetadataUseCaseImpl,
+                &mut worker.tables,
+                &said,
+                Recovery::Whole,
+                setting.wanted,
+            );
+            if Self::may_gate_rules(setting, acceptance) == Gating::MayGate {
+                drop(Self::gate_rules(
+                    &mut worker.tables,
+                    setting,
+                    number,
+                    acceptance,
+                ));
+            }
         }
         cover(
             &MetadataUseCaseImpl,
@@ -183,8 +167,8 @@ impl FileAnalysis {
         Ok(())
     }
 
-    /// The read of a file the run has not kept: the language parses it, what it wrote is admitted, and the per-file steps run on
-    /// its rows. Answers what the store keeps of it.
+    /// The read of a file the run has not kept: the language parses it, and the per-file steps run on its rows, which the run's
+    /// fact sources write and admit. Answers what the store keeps of it.
     pub(in crate::application::file_analysis) fn parse_file(
         &self,
         worker: &mut Worker,
@@ -205,14 +189,12 @@ impl FileAnalysis {
             notes: setting.noted.into(),
             roles: setting.roled.into(),
         };
-        let mut writer = worker.facts.columns_mut()?;
         let parse_started = tracing::enabled!(target: EXECUTION_DIAGNOSTIC, tracing::Level::TRACE)
             .then(Instant::now);
         let reading = self.language.parse(
             source,
             &mut worker.tables.elements,
             &mut worker.tables.symbols,
-            &mut writer,
         );
         // A parse longer than u64 nanoseconds (five centuries) is not traced: it has no elapsed_ns to give.
         if let Some(started) = parse_started
@@ -220,7 +202,8 @@ impl FileAnalysis {
         {
             tracing::trace!(target: EXECUTION_DIAGNOSTIC, phase = PROVIDER_PARSE, file = number.0, elapsed_ns);
         }
-        let mut said: Vec<ReadInPart> = std::mem::take(&mut writer.partials);
+        // What the readers say is read in part is the run's: they walk the file inside it. Core says only of its own rows.
+        let mut said: Vec<ReadInPart> = Vec::new();
         let acceptance = syntax_acceptance(&worker.tables.elements);
         let active_wanted = Self::active_wanted(&worker.tables, setting, acceptance);
         // The language that read the file is kept with what it noted of it.
@@ -232,21 +215,10 @@ impl FileAnalysis {
         if !matches!(reading, FileReading::Read(_)) {
             worker.facts.release()?;
         }
-        // What the language wrote is admitted before the store keeps anything or a rule reads it.
-        if let FileReading::Read(provider) = &reading {
-            self.admit(worker, active_wanted.as_ref(), number, *provider)?;
-        }
         let asked = engine_asked(active_wanted.as_ref());
         Self::write_engine_rows(worker, asked, number, file.executable, &mut said)?;
         // The relations this file is read in part: those a reader said so of, and all of code if what was read is a recovery.
         let everything = recovery_of(&reading, &worker.tables.elements);
-        start_partials(
-            &MetadataUseCaseImpl,
-            &mut worker.tables,
-            &said,
-            everything,
-            active_wanted.as_ref(),
-        );
         let semantic_needed = setting.program.semantic_needed();
         let session = if semantic_needed == SemanticNeed::Required {
             worker.tables.language.and_then(|language| {
@@ -269,10 +241,17 @@ impl FileAnalysis {
             None
         };
         let semantic = SemanticState::new(number, &worker.tables.elements, session);
+        let read = FileRead {
+            language: &*self.language,
+            path: &file.path,
+            said: &said,
+            recovery: everything,
+            active: active_wanted.as_ref(),
+        };
         Ok(match reading {
             FileReading::Read(_) | FileReading::Manifest => {
                 index_kinds(&mut worker.tables.elements);
-                Self::read_file(worker, visit, number, &semantic)?;
+                Self::read_file(worker, visit, number, &semantic, read)?;
                 if semantic.completeness() == FileCompleteness::Incomplete {
                     None
                 } else {
@@ -295,8 +274,16 @@ impl FileAnalysis {
                 if asked.any == EngineRows::Asked {
                     clear_symbols(&mut worker.tables.symbols);
                     index_kinds(&mut worker.tables.elements);
-                    Self::read_file(worker, visit, number, &semantic)?;
+                    Self::read_file(worker, visit, number, &semantic, read)?;
                 } else {
+                    // No rule runs on the file: its partiality is core's to note.
+                    start_partials(
+                        &MetadataUseCaseImpl,
+                        &mut worker.tables,
+                        &said,
+                        everything,
+                        active_wanted.as_ref(),
+                    );
                     let unavailable_acceptance = syntax_acceptance(&worker.tables.elements);
                     if Self::may_gate_rules(setting, unavailable_acceptance) == Gating::MayGate {
                         drop(Self::gate_rules(

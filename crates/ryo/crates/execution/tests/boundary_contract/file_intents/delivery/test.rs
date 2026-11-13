@@ -28,7 +28,7 @@ fn diagnostic_disabled_observation_producer_runs_and_captures_only_named_frontie
     let elements = ryo_language::domain::elements::types::Elements::default();
     let table = source();
     // Disabled diagnostic frontiers cannot read Identifier: the facts hold Function alone, and refuse any other read.
-    let facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
     let intents = [
         FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Disabled,
@@ -46,7 +46,7 @@ fn diagnostic_disabled_observation_producer_runs_and_captures_only_named_frontie
         &request,
         FileRun::of(&intents, &elements),
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     let produced = ran(&mut rules, 0);
     assert!(
@@ -88,7 +88,7 @@ fn file_start_refusal_preserves_unknown_readiness_without_a_skip_proof() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let elements = ryo_language::domain::elements::types::Elements::default();
-    let facts = TableFacts::new(&[]);
+    let mut facts = TableFacts::new(&[]);
     for reason in [
         ApplicabilityRefusal::SyntaxUndetermined,
         ApplicabilityRefusal::MetadataUnavailable,
@@ -99,7 +99,7 @@ fn file_start_refusal_preserves_unknown_readiness_without_a_skip_proof() {
             &request,
             FileRun::of(&intents, &elements),
             &mut symbols,
-            &facts,
+            &mut facts,
         );
         let FileEnd::Finished(readiness) = rules.end else {
             panic!("the file finishes")
@@ -133,7 +133,7 @@ fn diagnostic_delivery_is_bound_before_admission_and_cannot_switch_after_publica
     let elements = ryo_language::domain::elements::types::Elements::default();
     let table = source();
     for diagnostic in [DiagnosticDelivery::Collected, DiagnosticDelivery::Forwarded] {
-        let facts = TableFacts::new(&[(Relation::Function, &table)]);
+        let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
         let intents = [FileRuleIntent::Run {
             diagnostic,
             observations: ObservationDemand::NotRequired,
@@ -144,7 +144,7 @@ fn diagnostic_delivery_is_bound_before_admission_and_cannot_switch_after_publica
             &request,
             FileRun::of(&intents, &elements),
             &mut symbols,
-            &facts,
+            &mut facts,
         );
         let expected = Table {
             kinds: vec![CellKind::Node],

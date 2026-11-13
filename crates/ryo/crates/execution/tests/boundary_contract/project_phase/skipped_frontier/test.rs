@@ -51,8 +51,8 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let mut symbols = Symbols::default();
     let elements = ryo_language::domain::elements::types::Elements::default();
-    let facts = TableFacts::new(&[]);
-    let rules = run_file(&request, rejected_syntax(&elements), &mut symbols, &facts);
+    let mut facts = TableFacts::new(&[]);
+    let rules = run_file(&request, rejected_syntax(&elements), &mut symbols, &mut facts);
     assert!(rules.rules.is_empty(), "the skipped rule does not run");
     assert_eq!(facts.reads(), 0, "rejected syntax has no semantic rows");
     assert!(matches!(rules.end, FileEnd::Finished(_)));

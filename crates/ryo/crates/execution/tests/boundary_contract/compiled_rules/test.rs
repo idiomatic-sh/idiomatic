@@ -65,7 +65,7 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
-    let facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     let collected = FileRuleIntent::Run {
@@ -77,7 +77,7 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
         &request,
         FileRun::of(&[collected, collected], &elements),
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     for rule in [0, 1] {
         let Ok(RootOutcome::Complete(table)) = root(ran(&mut rules, rule)) else {
@@ -169,7 +169,7 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
         let elements = ryo_language::domain::elements::types::Elements::default();
-        let facts = TableFacts::new(&[]);
+        let mut facts = TableFacts::new(&[]);
         for delivery in [DiagnosticDelivery::Collected] {
             let mut symbols = Symbols::default();
             let intents = [FileRuleIntent::Run {
@@ -181,7 +181,7 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
                 &request,
                 FileRun::of(&intents, &elements),
                 &mut symbols,
-                &facts,
+                &mut facts,
             );
             let Ok(RootOutcome::Complete(table)) = root(ran(&mut rules, 0)) else {
                 panic!("complete closure required")

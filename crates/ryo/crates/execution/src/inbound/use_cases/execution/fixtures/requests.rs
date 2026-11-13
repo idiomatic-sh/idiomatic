@@ -56,10 +56,10 @@ pub(crate) fn published_file(
     elements: &Elements,
     symbols: &mut Symbols,
 ) -> Result<Table, OperatingError> {
-    let facts = TableFacts::new(&[]);
+    let mut facts = TableFacts::new(&[]);
     // Request-only and tree fixtures have no catalog provider: a run that demanded one answers the read's refusal,
     // even when it went on to publish.
-    let result = published_from(plan, bindings, hosted, source, elements, symbols, &facts);
+    let result = published_from(plan, bindings, hosted, source, elements, symbols, &mut facts);
     if facts.reads() > 0 {
         return Err(result.err().unwrap_or(OperatingError::NotRead));
     }
@@ -72,7 +72,7 @@ pub(crate) fn published_from(
     source: &[u8],
     elements: &Elements,
     symbols: &mut Symbols,
-    facts: &dyn FactsWorker,
+    facts: &mut dyn FactsWorker,
 ) -> Result<Table, OperatingError> {
     let (engine, prepared) = prepared(plan, bindings, hosted)?;
     run_prepared(&engine, &prepared, source, elements, symbols, facts)
@@ -193,7 +193,7 @@ pub(crate) fn run_prepared(
     source: &[u8],
     elements: &Elements,
     symbols: &mut Symbols,
-    facts: &dyn FactsWorker,
+    facts: &mut dyn FactsWorker,
 ) -> Result<Table, OperatingError> {
     run_prepared_context(_engine, prepared, source, elements, symbols, facts, None)
 }
@@ -205,7 +205,7 @@ pub(crate) fn run_prepared_context(
     source: &[u8],
     elements: &Elements,
     symbols: &mut Symbols,
-    facts: &dyn FactsWorker,
+    facts: &mut dyn FactsWorker,
     semantic: Option<&dyn crate::inbound::use_cases::execution::interface::SemanticLookup>,
 ) -> Result<Table, OperatingError> {
     let corpus = [CorpusInput::Available(CorpusEntry {
@@ -231,7 +231,7 @@ pub(crate) fn run_prepared_context(
         facts,
     );
     request.finish();
-    let FileRules { rules, end } = rules;
+    let FileRules { rules, end, .. } = rules;
     if let FileEnd::Refused(stop) = end {
         return Err(super::facts::operating(stop));
     }
@@ -262,7 +262,7 @@ pub(crate) fn run_file(
     request: &RequestExecution,
     file: RunFile<'_>,
     symbols: &mut Symbols,
-    facts: &dyn FactsWorker,
+    facts: &mut dyn FactsWorker,
 ) -> FileRules {
     let first = vec![Bucket(0); file.intents.len()];
     let (mut arena, mut places, mut words) = (Vec::new(), Vec::new(), Words::default());
@@ -270,11 +270,16 @@ pub(crate) fn run_file(
         FileRunInput {
             language: SourceLanguage::Recognized,
             file: FileId(0),
-            evaluation: &[],
-            publication: &[],
             intents: file.intents,
             source: ryo_values::domain::files::types::SourceView(file.source),
-            elements: file.elements,
+            sources: ryo_execution_runtime::outbound::facts::types::fact_sources::value::FactSources::unread(
+                file.elements,
+            ),
+            wanted: &[],
+            active: &[],
+            said: &[],
+            recovery: crate::inbound::use_cases::metadata::interface::Recovery::Whole,
+            answering: crate::inbound::use_cases::execution::interface::Partiality::Physical,
             semantic: match file.semantic {
                 Some(lookup) => SemanticSupport::Supplied(lookup),
                 None => SemanticSupport::Absent,
@@ -375,7 +380,7 @@ pub(crate) fn table_request_context(
     semantic: Option<&dyn crate::inbound::use_cases::execution::interface::SemanticLookup>,
 ) -> Result<Table, OperatingError> {
     let authored = table_inputs(operation, inputs, &bindings, symbols);
-    let facts = TableFacts::new(
+    let mut facts = TableFacts::new(
         &authored
             .facts
             .iter()
@@ -389,7 +394,7 @@ pub(crate) fn table_request_context(
         source,
         &Elements::default(),
         symbols,
-        &facts,
+        &mut facts,
         semantic,
     )
 }

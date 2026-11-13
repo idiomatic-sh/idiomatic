@@ -101,7 +101,7 @@ fn grouped_dependency_and_original_source_join_in_both_input_positions() {
                 Value::Number(Integer(9)),
             ],
         };
-        let read = TableFacts::new(&[(Relation::LanguageTarget, &target)]);
+        let mut read = TableFacts::new(&[(Relation::LanguageTarget, &target)]);
         let elements = Elements::default();
         let mut symbols = Symbols::default();
         let intents = [FileRuleIntent::Run {
@@ -117,7 +117,7 @@ fn grouped_dependency_and_original_source_join_in_both_input_positions() {
                 ..FileRun::of(&intents, &elements)
             },
             &mut symbols,
-            &read,
+            &mut read,
         );
         assert_eq!(
             complete(&mut rules, 0),

@@ -1,6 +1,8 @@
 //! The types of the `facts` port: plain data, public fields and derives, with no constructor and
 //! no inherent impl.
 
+pub mod fact_sources;
+
 use ryo_relations::domain::relations::types::{FileId, Relation, Rows};
 
 use ryo_relations::domain::relations::types::FactColumn;

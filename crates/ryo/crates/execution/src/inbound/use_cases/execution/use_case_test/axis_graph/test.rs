@@ -166,7 +166,7 @@ fn execute(stored: bool, projected: bool) -> Result<Run, OperatingError> {
             columns: &columns,
         })
     };
-    let facts = fixtures::facts::ReadFacts::new(read);
+    let mut facts = fixtures::facts::ReadFacts::new(read);
     let corpus = [CorpusInput::Available(CorpusEntry {
         path: ryo_language::domain::files::types::FilePath("axis.py".into()),
         executable: ExecutablePermission::Unknown,
@@ -193,7 +193,7 @@ fn execute(stored: bool, projected: bool) -> Result<Run, OperatingError> {
             semantic: None,
         },
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     request.finish();
     let answers = rules

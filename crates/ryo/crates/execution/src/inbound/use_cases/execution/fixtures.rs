@@ -265,3 +265,49 @@ impl ryo_execution_runtime::outbound::facts::interface::FactsWorker for TableFac
         self.kept.finished()
     }
 }
+
+/// What a file's run is given so that its partiality is `publication`, and its evaluation sees `evaluation`: the parts core says
+/// are read in part, and how evaluation answers. Evaluation sees the physical partiality or none of it.
+///
+/// # Panics
+///
+/// When `evaluation` is neither empty nor `publication`.
+#[must_use]
+pub fn partiality(
+    evaluation: &[crate::inbound::use_cases::execution::interface::Partial],
+    publication: &[crate::inbound::use_cases::execution::interface::Partial],
+) -> (
+    Vec<ryo_values::domain::stored_facts::types::ReadInPart>,
+    crate::inbound::use_cases::execution::interface::Partiality,
+) {
+    use crate::inbound::use_cases::execution::interface::Partiality;
+    use crate::inbound::use_cases::metadata::interface::{Lacking, PartialPlace};
+    use ryo_relations::domain::relations::types::{Missing, RowKind};
+    use ryo_values::domain::stored_facts::types::{PartialAt, PartialScope, ReadInPart};
+    assert!(
+        evaluation.is_empty() || evaluation == publication,
+        "evaluation sees the physical partiality or none of it"
+    );
+    let said = publication
+        .iter()
+        .map(|partial| ReadInPart {
+            relation: partial.relation,
+            cause: partial.cause.clone(),
+            lacking: match &partial.lacking {
+                Lacking::Any => Missing::Any,
+                // A kind named once per case: the leak lasts as long as the test.
+                Lacking::Kind(kind) => Missing::Kind(RowKind(Box::leak(kind.0.clone()))),
+            },
+            at: match partial.at {
+                PartialPlace::File(file) => PartialScope::OneFile(PartialAt(file.0)),
+                PartialPlace::Repository => PartialScope::Repository,
+            },
+        })
+        .collect();
+    let answering = if evaluation.is_empty() {
+        Partiality::Relaxed
+    } else {
+        Partiality::Physical
+    };
+    (said, answering)
+}

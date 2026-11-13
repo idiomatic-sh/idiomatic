@@ -38,16 +38,22 @@ pub trait LanguagePort: Send + Sync {
     /// Whether a linked language reads the file at `path` as a manifest: the names are the languages' own.
     fn reads_manifest(&self, path: &FilePath) -> ManifestReading;
 
-    /// Reads one file with the language that reads it: the tree goes into `table`, the worker's own, and the rows into `out`. A file no language
-    /// reads is `Unsupported`; a file a language fails on is `Failed`, not an error: the run goes
-    /// on and lists it as unread.
-    fn parse(
+    /// Reads one file with the language that reads it: the tree goes into `table`, the worker's own, completed for what the readers
+    /// of `file.wanted` look at; no row is written, `walk` writes them. A file no language reads is `Unsupported`; a file a language
+    /// fails on is `Failed`, not an error: the run goes on and lists it as unread.
+    fn parse(&self, file: FileToRead<'_>, table: &mut Elements, symbols: &mut Symbols)
+    -> FileReading;
+
+    /// Writes the rows of `file.wanted` into `out` for a file the language numbered `language` already parsed into `table`. A
+    /// language past the ones linked writes none.
+    fn walk(
         &self,
+        language: LanguageNumber,
         file: FileToRead<'_>,
         table: &mut Elements,
         symbols: &mut Symbols,
         out: &mut dyn RowWriter,
-    ) -> FileReading;
+    );
 
     /// Begin the provider's owned semantic session for a successfully parsed file, from what its read kept in the table.
     /// Providers without this capability leave semantic demand explicitly unsupported.

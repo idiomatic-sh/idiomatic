@@ -166,14 +166,14 @@ pub(super) fn a_file_with_no_names_teaches_nothing_about_kinds() -> Result<Obser
     };
     let (engine, prepared) =
         fixtures::requests::prepared(inputs::plan(vec![operation]), vec![], vec![])?;
-    let never = fixtures::TableFacts::new(&[]);
+    let mut never = fixtures::TableFacts::new(&[]);
     let empty = fixtures::requests::run_prepared(
         &engine,
         &prepared,
         b"",
         &Elements::default(),
         &mut Symbols::default(),
-        &never,
+        &mut never,
     )?;
     let (elements, mut symbols) = tree_of(&[(1, "file"), (2, "word")], 2);
     let later = fixtures::requests::run_prepared(
@@ -182,7 +182,7 @@ pub(super) fn a_file_with_no_names_teaches_nothing_about_kinds() -> Result<Obser
         b"abcd",
         &elements,
         &mut symbols,
-        &never,
+        &mut never,
     )?;
     Ok(Observed::Counts([empty.count.0, later.count.0]))
 }
@@ -224,14 +224,14 @@ pub(super) fn another_language_does_not_inherit_the_sets_of_the_first()
         fixtures::requests::prepared(inputs::plan(vec![operation]), vec![], vec![])?;
     let found = |names: &[(u16, &str)], token_kind: u16| -> Result<Vec<Cell>, OperatingError> {
         let (elements, mut symbols) = tree_of(names, token_kind);
-        let never = fixtures::TableFacts::new(&[]);
+        let mut never = fixtures::TableFacts::new(&[]);
         Ok(fixtures::requests::run_prepared(
             &engine,
             &prepared,
             b"abcd",
             &elements,
             &mut symbols,
-            &never,
+            &mut never,
         )?
         .cells)
     };

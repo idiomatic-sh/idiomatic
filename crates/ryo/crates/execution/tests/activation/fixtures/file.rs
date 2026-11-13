@@ -31,7 +31,7 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> (Sample, Window) {
         };
     }
     // No relation is held: the activation reads no provider, and a demanded rule's read of one is refused, which stops the file.
-    let facts = TableFacts::new(&[]);
+    let mut facts = TableFacts::new(&[]);
     let elements = Elements::default();
     let observed = Activation::default();
     let dispatch = tracing::Dispatch::new(observed.clone());
@@ -46,11 +46,14 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> (Sample, Window) {
                 FileRunInput {
                     language: SourceLanguage::Recognized,
                     file: FileId(0),
-                    evaluation: &[],
-                    publication: &[],
                     intents: &intents,
                     source: ryo_values::domain::files::types::SourceView(b""),
-                    elements: &elements,
+                    sources: ryo_execution_runtime::outbound::facts::types::fact_sources::value::FactSources::unread(&elements),
+                    wanted: &[],
+                    active: &[],
+                    said: &[],
+                    recovery: ryo_execution::inbound::use_cases::metadata::interface::Recovery::Whole,
+                    answering: ryo_execution::inbound::use_cases::execution::interface::Partiality::Physical,
                     semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
                     kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
                     first: &first,
@@ -62,7 +65,7 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> (Sample, Window) {
                     places: &mut places,
                     words: &mut words,
                 },
-                &facts,
+                &mut facts,
             );
         });
     }

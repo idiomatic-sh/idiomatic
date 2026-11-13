@@ -15,14 +15,14 @@ fn public_file_run_publishes_once_and_finishes() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
-    let facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     let mut rules = run_file(
         &request,
         FileRun::of(&[COLLECTED], &elements),
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     let Ok(RootOutcome::Complete(first)) = root(ran(&mut rules, 0)) else {
         panic!("complete publication required")
@@ -46,7 +46,7 @@ fn public_open_refuses_file_outside_request() {
     let program = prepared(&engine);
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
-    let facts = TableFacts::new(&[]);
+    let mut facts = TableFacts::new(&[]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     let rules = run_file(
@@ -56,7 +56,7 @@ fn public_open_refuses_file_outside_request() {
             ..FileRun::of(&[COLLECTED], &elements)
         },
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     assert!(rules.rules.is_empty());
     assert!(matches!(
@@ -73,7 +73,7 @@ fn public_file_start_skipped_rule_cannot_be_executed() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
-    let facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     let rules = run_file(
@@ -85,7 +85,7 @@ fn public_file_start_skipped_rule_cannot_be_executed() {
             &elements,
         ),
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     assert!(rules.rules.is_empty(), "a skipped rule does not run");
     assert_eq!(facts.reads(), 0);
@@ -105,7 +105,7 @@ fn public_skip_of_one_shared_rule_preserves_the_other_rules_reader() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
-    let facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     let mut rules = run_file(
@@ -118,7 +118,7 @@ fn public_skip_of_one_shared_rule_preserves_the_other_rules_reader() {
             &elements,
         ),
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     assert!(
         rules.rules.iter().all(|each| each.rule != RuleIndex(0)),

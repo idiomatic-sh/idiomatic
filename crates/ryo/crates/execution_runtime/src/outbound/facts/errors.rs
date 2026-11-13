@@ -15,4 +15,13 @@ pub enum FactsError {
         /// What the system said.
         reason: String,
     },
+    /// A source of the file's rows refused them; the reason stays with the source, which reports it as it is.
+    #[error("a source of the file's rows refused them")]
+    Refused,
+    /// Two sources of one file serve the same relation, so its rows would have two producers.
+    #[error("two sources of the file serve the relation {relation:?}")]
+    Overlap {
+        /// The first relation, in catalog order, that both serve.
+        relation: ryo_relations::domain::relations::types::Relation,
+    },
 }

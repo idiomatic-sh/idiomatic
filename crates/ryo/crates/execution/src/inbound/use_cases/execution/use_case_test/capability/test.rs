@@ -181,7 +181,7 @@ fn subject(refusal: Input) -> Result<Observed, Failure> {
     let request = fixtures::requests::execution().execution(&prepared, &corpus, None.into());
     let elements = Elements::default();
     let mut symbols = Symbols::default();
-    let no_provider = fixtures::TableFacts::new(&[]);
+    let mut no_provider = fixtures::TableFacts::new(&[]);
     let ran = fixtures::requests::run_file(
         &request,
         fixtures::requests::RunFile {
@@ -195,7 +195,7 @@ fn subject(refusal: Input) -> Result<Observed, Failure> {
             semantic: None,
         },
         &mut symbols,
-        &no_provider,
+        &mut no_provider,
     )
     .rules
     .into_iter()

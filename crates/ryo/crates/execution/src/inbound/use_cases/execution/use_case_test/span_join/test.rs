@@ -96,7 +96,7 @@ fn subject(stretch_first: Input) -> Result<Value, Failure> {
             columns: &columns,
         })
     };
-    let facts = fixtures::facts::ReadFacts::new(read);
+    let mut facts = fixtures::facts::ReadFacts::new(read);
     let out = fixtures::requests::published_from(
         plan,
         vec![],
@@ -104,7 +104,7 @@ fn subject(stretch_first: Input) -> Result<Value, Failure> {
         b"abcd",
         &elements,
         &mut symbols,
-        &facts,
+        &mut facts,
     )?;
     Ok(Joined {
         rows: out.count.0,

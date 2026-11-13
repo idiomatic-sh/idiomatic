@@ -43,7 +43,7 @@ fn collected_empty_rank_and_span_bounds_keep_layout_without_demanding_row_errors
                 }),
             ];
             boundary_fixture::fixtures::plans(&mut input)[0].emit.step = StepId(1);
-            let outcome = evaluate(input, &TableFacts::new(&[]));
+            let outcome = evaluate(input, &mut TableFacts::new(&[]));
             if populated {
                 if rank {
                     assert!(matches!(

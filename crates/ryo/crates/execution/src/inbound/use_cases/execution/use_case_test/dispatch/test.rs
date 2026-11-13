@@ -74,7 +74,7 @@ fn subject(_: Input) -> Result<Value, Failure> {
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     // Hosted File data never invokes a catalog provider: were it called, the run would fail with the read refusal.
-    let facts = fixtures::TableFacts::new(&[]);
+    let mut facts = fixtures::TableFacts::new(&[]);
     let ran = fixtures::requests::run_file(
         &request,
         fixtures::requests::RunFile {
@@ -88,7 +88,7 @@ fn subject(_: Input) -> Result<Value, Failure> {
             semantic: None,
         },
         &mut symbols,
-        &facts,
+        &mut facts,
     )
     .rules
     .into_iter()

@@ -35,17 +35,20 @@ pub(in super::super) fn run_file_route() -> Vec<Probe> {
         let mut arena = Vec::new();
         let mut places = Vec::new();
         let mut words = ryo_relations::domain::relations::types::Words::default();
-        let worker = facts.open_worker().expect("a fake worker");
+        let mut worker = facts.open_worker().expect("a fake worker");
         request
             .run_file(
                 FileRunInput {
                     language: SourceLanguage::Recognized,
                     file: FileId(0),
-                    evaluation: &[],
-                    publication: &[],
                     intents,
                     source: ryo_values::domain::files::types::SourceView(b"abc"),
-                    elements: &elements,
+                    sources: ryo_execution_runtime::outbound::facts::types::fact_sources::value::FactSources::unread(&elements),
+                    wanted: &[],
+                    active: &[],
+                    said: &[],
+                    recovery: ryo_execution::inbound::use_cases::metadata::interface::Recovery::Whole,
+                    answering: ryo_execution::inbound::use_cases::execution::interface::Partiality::Physical,
                     semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
                     kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
                     first: &[],
@@ -57,7 +60,7 @@ pub(in super::super) fn run_file_route() -> Vec<Probe> {
                     places: &mut places,
                     words: &mut words,
                 },
-                worker.as_ref(),
+                worker.as_mut(),
             )
             .end
     };

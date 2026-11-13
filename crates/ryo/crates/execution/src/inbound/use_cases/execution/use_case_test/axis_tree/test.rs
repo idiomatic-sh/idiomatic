@@ -154,7 +154,7 @@ pub(crate) fn over_the_tree(
     if let Some(domain) = domain_rows.as_ref() {
         held.push((Relation::Identifier, domain));
     }
-    let facts = fixtures::TableFacts::new(&held);
+    let mut facts = fixtures::TableFacts::new(&held);
     fixtures::requests::published_from(
         inputs::plan(operations),
         vec![],
@@ -162,7 +162,7 @@ pub(crate) fn over_the_tree(
         b"abcd",
         &elements,
         &mut symbols,
-        &facts,
+        &mut facts,
     )
 }
 /// The entities found walking `direction` from the node at `start` in the tree, among all the nodes of the file.

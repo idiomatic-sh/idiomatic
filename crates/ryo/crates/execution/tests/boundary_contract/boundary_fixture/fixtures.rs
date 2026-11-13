@@ -316,7 +316,7 @@ pub(crate) fn run_file(
     request: &RequestExecution,
     run: FileRun<'_>,
     symbols: &mut Symbols,
-    facts: &dyn FactsWorker,
+    facts: &mut dyn FactsWorker,
 ) -> FileRules {
     use ryo_execution::inbound::use_cases::execution::interface::Arena;
     use ryo_relations::domain::relations::types::{Words, WorkerNumber};
@@ -341,25 +341,32 @@ pub(crate) fn run_file_into(
     run: FileRun<'_>,
     symbols: &mut Symbols,
     capture: CaptureContext<'_>,
-    facts: &dyn FactsWorker,
+    facts: &mut dyn FactsWorker,
 ) -> FileRules {
+    use ryo_execution::inbound::use_cases::execution::fixtures::partiality;
     use ryo_execution::inbound::use_cases::execution::interface::{
         FileRunInput, ProgramRequestExecutionPort as _,
     };
+    use ryo_execution_runtime::outbound::facts::types::fact_sources::value::FactSources;
     let first = if run.first.is_empty() {
         vec![Bucket(0); run.intents.len()]
     } else {
         run.first.to_vec()
     };
+    // The file's partiality is the run's own: the partial reads given are what core said of the file.
+    let (said, answering) = partiality(run.evaluation, run.publication);
     request.run_file(
         FileRunInput {
             language: run.language,
             file: run.file,
-            evaluation: run.evaluation,
-            publication: run.publication,
             intents: run.intents,
             source: ryo_values::domain::files::types::SourceView(run.source),
-            elements: run.elements,
+            sources: FactSources::unread(run.elements),
+            wanted: &[],
+            active: &[],
+            said: &said,
+            recovery: ryo_execution::inbound::use_cases::metadata::interface::Recovery::Whole,
+            answering,
             semantic: run.semantic,
             kinds: run.kinds,
             first: &first,

@@ -45,14 +45,15 @@ pub trait ProgramRequestExecutionPort {
         input: FileInput<'a, 'facts>,
         symbols: &mut Symbols,
     ) -> Result<FileSession<'a, 'facts>, OperatingError>;
-    /// Runs every rule of one file in rule order in one session: each rule's emitted root, its frontiers captured, kept in
-    /// `facts` and committed, its counts, then the session finished. The rows the rules read are the worker's `facts`.
+    /// Runs every rule of one file in rule order in one session: first the file's sources write its rows into `facts` and are
+    /// admitted, which settles the file's partiality; then each rule's emitted root, its frontiers captured, kept in `facts` and
+    /// committed, its counts, then the session finished.
     fn run_file(
         &self,
         input: FileRunInput<'_>,
         symbols: &mut Symbols,
         capture: CaptureContext<'_>,
-        facts: &dyn FactsWorker,
+        facts: &mut dyn FactsWorker,
     ) -> FileRules;
     /// One mandatory owner for all ordinary project rules in this request phase.
     ///

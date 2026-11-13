@@ -234,6 +234,44 @@ fn read_failure_demand_is_limited_to_governing_rules() -> Result<String, FileAna
     Ok(seen.join("|"))
 }
 
+/// The relations a failed file is read in part, run with engine rows asked: what the run settled, which the visit keeps.
+fn a_running_failed_file_s_partiality_is_the_run_s() -> Result<String, FileAnalysisError> {
+    let corpus = Arc::new(ChangingRead {
+        reads: AtomicUsize::new(0),
+        fail_at: 0,
+        dirty_starts: AtomicUsize::new(0),
+    });
+    let entry = CorpusEntry {
+        executable: Default::default(),
+        path: FilePath("failed.rs".into()),
+        size: FileSize(12),
+        modified: Nanoseconds(42),
+    };
+    let (worker, _) = visited_inputs(
+        corpus,
+        &[CorpusInput::Available(entry)],
+        &[
+            Relation::FilesystemReadFailure,
+            Relation::FilesystemLineCount,
+            Relation::Function,
+        ],
+        LanguageFake::default(),
+        &Answering::Findings,
+        Keeping::Keeps,
+        Arc::new(DigestFake),
+        FactsFake::default().worker().unwrap(),
+        None,
+        1,
+    )?;
+    Ok(worker
+        .tables
+        .partials
+        .iter()
+        .map(|partial| format!("{:?} {}", partial.relation, partial.cause.0))
+        .collect::<Vec<_>>()
+        .join("|"))
+}
+
 /// Which scenario a row runs.
 #[derive(Clone, Copy, Debug)]
 enum Given {
@@ -241,6 +279,8 @@ enum Given {
     ReadFailureDemandRetriesUnchangedMetadataAndClearsReusedWorkerBytes,
     /// The `read_failure_demand_is_limited_to_governing_rules` scenario.
     ReadFailureDemandIsLimitedToGoverningRules,
+    /// The `a_running_failed_file_s_partiality_is_the_run_s` scenario.
+    ARunningFailedFileSPartialityIsTheRunS,
 }
 /// What a row is given.
 type Input = Given;
@@ -267,6 +307,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Given::ReadFailureDemandIsLimitedToGoverningRules,
         expect: Expect::Value("true|true|true"),
     },
+    Case {
+        name: CaseName("a_running_failed_file_s_partiality_is_the_run_s"),
+        word: Word::Succeeds,
+        input: || Given::ARunningFailedFileSPartialityIsTheRunS,
+        expect: Expect::Value(
+            "Function cannot read `failed.rs`: read denied|FilesystemLineCount cannot read `failed.rs`: read denied",
+        ),
+    },
 ];
 
 /// Runs the scenario the row names.
@@ -277,6 +325,9 @@ fn subject(given: Input) -> Result<Value, Failure> {
         }
         Given::ReadFailureDemandIsLimitedToGoverningRules => {
             read_failure_demand_is_limited_to_governing_rules()?
+        }
+        Given::ARunningFailedFileSPartialityIsTheRunS => {
+            a_running_failed_file_s_partiality_is_the_run_s()?
         }
     };
     Ok(Box::leak(observed.into_boxed_str()))

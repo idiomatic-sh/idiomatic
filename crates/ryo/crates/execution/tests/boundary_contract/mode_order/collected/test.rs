@@ -31,8 +31,8 @@ fn collected_reductions_validate_the_resource_operand_before_the_output_keys() {
         ];
         boundary_fixture::fixtures::plans(&mut input)[0].emit.step = StepId(1);
         input.hosted = vec![hosted(&[1])];
-        let read = TableFacts::new(&[]);
-        assert_eq!(failed_column(evaluate(input, &read)), Some(99));
+        let mut read = TableFacts::new(&[]);
+        assert_eq!(failed_column(evaluate(input, &mut read)), Some(99));
     }
 }
 
@@ -44,8 +44,8 @@ fn collected_schema_first_follows_actual_source_admission() {
         comparisons: vec![],
         kept: vec![ColumnIndex(99)],
     })];
-    let read = TableFacts::new(&[]);
-    assert!(matches!(evaluate(input, &read), Err(FileStop::Facts(_))));
+    let mut read = TableFacts::new(&[]);
+    assert!(matches!(evaluate(input, &mut read), Err(FileStop::Facts(_))));
     assert_eq!(read.reads(), 1);
 }
 
@@ -68,8 +68,8 @@ fn collected_antijoin_empty_left_precedes_unused_right_key_validation() {
     ];
     boundary_fixture::fixtures::plans(&mut input)[0].emit.step = StepId(2);
     input.hosted = vec![hosted(&[]), hosted(&[1])];
-    let read = TableFacts::new(&[]);
-    let Ok(RootOutcome::Complete(table)) = evaluate(input, &read) else {
+    let mut read = TableFacts::new(&[]);
+    let Ok(RootOutcome::Complete(table)) = evaluate(input, &mut read) else {
         panic!("typed empty antijoin")
     };
     assert_eq!(table.kinds, [CellKind::Number]);
@@ -103,12 +103,12 @@ fn collected_axis_empty_domain_gate_is_specific_to_computed_representation() {
             count: RowCount(0),
             cells: vec![],
         };
-        let read = TableFacts::new(&[
+        let mut read = TableFacts::new(&[
             (Relation::Function, &roots),
             (Relation::SemanticChild, &edges),
             (Relation::Defines, &domain),
         ]);
-        let outcome = evaluate(input, &read);
+        let outcome = evaluate(input, &mut read);
         assert_eq!(failed_column(outcome), Some(98));
     }
 }
@@ -169,12 +169,12 @@ fn empty_axis_and_antijoin_carry_the_final_fused_projection_layout() {
                 CellKind::Symbol => Value::Symbol(ryo_relations::domain::terms::types::Symbol(0)),
             })
             .collect();
-        let read = TableFacts::new(&[
+        let mut read = TableFacts::new(&[
             (Relation::Function, &roots),
             (Relation::SemanticChild, &edges),
             (Relation::Defines, &domain),
         ]);
-        let Ok(RootOutcome::Complete(table)) = evaluate(input, &read) else {
+        let Ok(RootOutcome::Complete(table)) = evaluate(input, &mut read) else {
             panic!("complete projected axis")
         };
         assert_eq!(table.kinds, [CellKind::Node]);
@@ -221,8 +221,8 @@ fn empty_axis_and_antijoin_carry_the_final_fused_projection_layout() {
             }),
         ];
         boundary_fixture::fixtures::plans(&mut input)[0].emit.step = StepId(3);
-        let read = TableFacts::new(&[]);
-        let Ok(RootOutcome::Complete(table)) = evaluate(input, &read) else {
+        let mut read = TableFacts::new(&[]);
+        let Ok(RootOutcome::Complete(table)) = evaluate(input, &mut read) else {
             panic!("complete projected antijoin")
         };
         assert_eq!(table.kinds, [CellKind::Number]);
@@ -276,10 +276,10 @@ fn an_empty_gate_schema_error_is_not_erased_by_a_valid_zero_column_continuation(
         count: RowCount(0),
         cells: vec![],
     };
-    let read = TableFacts::new(&[
+    let mut read = TableFacts::new(&[
         (Relation::Function, &roots),
         (Relation::SemanticChild, &edges),
         (Relation::Defines, &domain),
     ]);
-    assert_eq!(failed_column(evaluate(input, &read)), Some(99));
+    assert_eq!(failed_column(evaluate(input, &mut read)), Some(99));
 }

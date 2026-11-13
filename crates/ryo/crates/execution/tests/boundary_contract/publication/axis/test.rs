@@ -87,7 +87,7 @@ x
         let (elements, mut symbols, root, children) = native_tree(bytes);
         let mut roots = source();
         roots.cells[0] = Value::Node(node_id(FileId(0), root));
-        let facts = TableFacts::new(&[(Relation::Function, &roots)]);
+        let mut facts = TableFacts::new(&[(Relation::Function, &roots)]);
         let mut rules = run_file(
             &request,
             FileRun {
@@ -102,7 +102,7 @@ x
                 )
             },
             &mut symbols,
-            &facts,
+            &mut facts,
         );
         let result = boundary_fixture::fixtures::root(ran(&mut rules, 0));
         if fails {
@@ -163,7 +163,7 @@ fn ordinary_select_does_not_publish_a_prefix_before_late_predicate_failure() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let (elements, mut symbols, _root, _children) = native_tree(bytes);
-    let facts = TableFacts::new(&[]);
+    let mut facts = TableFacts::new(&[]);
     let mut rules = run_file(
         &request,
         FileRun {
@@ -178,7 +178,7 @@ fn ordinary_select_does_not_publish_a_prefix_before_late_predicate_failure() {
             )
         },
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     assert!(
         matches!(

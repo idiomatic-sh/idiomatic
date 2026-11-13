@@ -64,12 +64,22 @@ impl language::interface::LanguagePort for Counting {
         file: language::types::FileToRead<'_>,
         table: &mut ryo_language::domain::elements::types::Elements,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
-        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
     ) -> language::types::FileReading {
         let _before = self
             .reads
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        self.language.parse(file, table, symbols, out)
+        self.language.parse(file, table, symbols)
+    }
+
+    fn walk(
+        &self,
+        language: ryo_values::domain::stored_facts::types::LanguageNumber,
+        file: language::types::FileToRead<'_>,
+        table: &mut ryo_language::domain::elements::types::Elements,
+        symbols: &mut ryo_language::domain::symbols::types::Symbols,
+        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
+    ) {
+        self.language.walk(language, file, table, symbols, out);
     }
 
     fn project_entries(

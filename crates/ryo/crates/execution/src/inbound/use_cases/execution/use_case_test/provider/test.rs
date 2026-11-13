@@ -92,7 +92,7 @@ fn subject((operator, missing): Input) -> Result<Value, Failure> {
             _ => Err(fixtures::facts::not_held()),
         }
     };
-    let facts = fixtures::facts::ReadFacts::new(read);
+    let mut facts = fixtures::facts::ReadFacts::new(read);
     let left = PlanInput::Step(StepId(0));
     let right = PlanInput::Step(StepId(1));
     let operation = match operator {
@@ -126,7 +126,7 @@ fn subject((operator, missing): Input) -> Result<Value, Failure> {
         b"abcd",
         &elements,
         &mut symbols,
-        &facts,
+        &mut facts,
     )
     .map(|_| ());
     let delivered = Delivered {
