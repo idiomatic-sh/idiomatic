@@ -10,7 +10,7 @@ use crate::domain::observation::types::ObservationKind;
 use crate::resources::linter::lint::entry::lint_with;
 use crate::resources::linter::lint::errors::LintError;
 use crate::resources::linter::lint::types::Cache;
-use ryo_relations::domain::capabilities::types::OptionalCapability;
+use ryo_relations::domain::catalog::types::OptionalCapability;
 use std::collections::BTreeMap;
 
 /// A producer whose population is refused and one whose rows are truly empty stay distinct on a cold and a retained replay.

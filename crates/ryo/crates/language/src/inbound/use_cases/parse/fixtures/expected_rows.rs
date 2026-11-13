@@ -51,7 +51,7 @@ macro_rules! cell {
 macro_rules! expected_row {
     (
         item $item:ident, row { $( #[$row_doc:meta] )* $row:ident }, column { $( #[$column_doc:meta] )* $column:ident },
-        expected { $( #[$expected_doc:meta] )* $expected:ident }, class $class:ident,
+        expected { $( #[$expected_doc:meta] )* $expected:ident }, class $class:ident, scope $scope:ident, notes $notes:ident,
         columns { $( $( #[$doc:meta] )* $field:ident $variant:ident : $ty:ty => $kind:ident $( ( $convert:path ) )? ; )* }
     ) => {
         $( #[$expected_doc] )*

@@ -27,6 +27,8 @@ macro_rules! function_terminal {
                 FunctionTerminalExpectedRow
             },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// Function or async-function syntax node.
                 id Id: NodeId => Node;

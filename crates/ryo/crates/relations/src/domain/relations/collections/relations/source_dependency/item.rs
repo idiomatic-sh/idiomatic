@@ -31,6 +31,8 @@ macro_rules! source_dependency {
                 SourceDependencyExpectedRow
             },
             class Manifest,
+            scope Project,
+            notes Needed,
             columns {
                 /// The file the path is written in.
                 source Source: FileId => File;

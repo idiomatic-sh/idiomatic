@@ -6,6 +6,8 @@ use crate::domain::{
     coverage::types::RuleIndex, operating::errors::OperatingError,
     source_partitions::types::PartitionRequirement,
 };
+use ryo_relations::domain::catalog::service::scope_of;
+use ryo_relations::domain::catalog::types::RowScope;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::relations::{
     service::{ALL, provenance_of},
@@ -20,6 +22,8 @@ use ryo_values::selects;
 enum Asked {
     /// The partition of every relation of the catalog.
     Catalog,
+    /// How many relations of the catalog have the partition of the scope their item declares.
+    Declared,
     /// A world's table and one query of it.
     Of(World, Query),
 }
@@ -36,6 +40,7 @@ struct Catalog {
 #[derive(Debug, PartialEq)]
 enum Answer {
     Catalog(Catalog),
+    Count(usize),
     Requirement(PartitionRequirement),
 }
 
@@ -60,6 +65,17 @@ fn subject(asked: Input) -> Result<Value, Failure> {
                 })
                 .count(),
         })),
+        Asked::Declared => Ok(Answer::Count(
+            ALL.iter()
+                .filter(|&&relation| {
+                    relation_partition(relation)
+                        == match scope_of(relation) {
+                            RowScope::File => PartitionRequirement::CurrentFile,
+                            RowScope::Project => PartitionRequirement::Project,
+                        }
+                })
+                .count(),
+        )),
         Asked::Of(world, query) => ask(world, query).map(Answer::Requirement),
     }
 }
@@ -119,6 +135,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             relations: 69,
             as_their_origin: 69,
         })),
+    },
+    Case {
+        name: CaseName("partition_follows_the_declared_scope"),
+        word: Word::Succeeds,
+        input: || Asked::Declared,
+        expect: Expect::Value(Answer::Count(69)),
     },
     Case {
         name: CaseName("snapshots_are_invariant_but_file_sources_keep_their_requirement"),

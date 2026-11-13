@@ -182,38 +182,3 @@ pub const IMPLIED: Flags = Flags(2);
 
 /// The displayed value of a location explicitly absent from the parser tree.
 pub const UNLOCATED: &str = "unlocated";
-
-/// The closed set of optional semantic promises; every other relation is baseline.
-pub(crate) const OPTIONAL_CAPABILITIES:
-    &[crate::domain::capabilities::types::OptionalCapability] = &[
-    crate::domain::capabilities::types::OptionalCapability::ModuleIdentity,
-    crate::domain::capabilities::types::OptionalCapability::ProjectNamespaceMembership,
-    crate::domain::capabilities::types::OptionalCapability::Identifier,
-    crate::domain::capabilities::types::OptionalCapability::QualifiedName,
-    crate::domain::capabilities::types::OptionalCapability::EmbeddedExpression,
-    crate::domain::capabilities::types::OptionalCapability::ExpressionShape,
-    crate::domain::capabilities::types::OptionalCapability::BindingEvent,
-    crate::domain::capabilities::types::OptionalCapability::BindingRead,
-    crate::domain::capabilities::types::OptionalCapability::BindingUse,
-    crate::domain::capabilities::types::OptionalCapability::BindingShadow,
-    crate::domain::capabilities::types::OptionalCapability::ImplicitSymbol,
-    crate::domain::capabilities::types::OptionalCapability::LiteralProperties,
-    crate::domain::capabilities::types::OptionalCapability::NumericLiteral,
-    crate::domain::capabilities::types::OptionalCapability::TokenLink,
-    crate::domain::capabilities::types::OptionalCapability::InterpolatedStringLiteral,
-    crate::domain::capabilities::types::OptionalCapability::BytesLiteral,
-    crate::domain::capabilities::types::OptionalCapability::FormatSpecification,
-    crate::domain::capabilities::types::OptionalCapability::LanguageTarget,
-    crate::domain::capabilities::types::OptionalCapability::StandardLibraryImport,
-    crate::domain::capabilities::types::OptionalCapability::CompilerFeature,
-    crate::domain::capabilities::types::OptionalCapability::ConstantKey,
-    crate::domain::capabilities::types::OptionalCapability::FormatParse,
-    crate::domain::capabilities::types::OptionalCapability::FormatField,
-    crate::domain::capabilities::types::OptionalCapability::BraceFormatParse,
-    crate::domain::capabilities::types::OptionalCapability::BraceFormatField,
-    crate::domain::capabilities::types::OptionalCapability::FunctionTerminal,
-    crate::domain::capabilities::types::OptionalCapability::ExpressionType,
-    crate::domain::capabilities::types::OptionalCapability::RawFormatSegment,
-    crate::domain::capabilities::types::OptionalCapability::RawFormatField,
-    crate::domain::capabilities::types::OptionalCapability::LiteralExpressionParse,
-];

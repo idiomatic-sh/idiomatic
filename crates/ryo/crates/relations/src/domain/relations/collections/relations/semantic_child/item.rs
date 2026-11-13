@@ -30,6 +30,8 @@ macro_rules! semantic_child {
                 SemanticChildExpectedRow
             },
             class Structure,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The parent node: its file and where it starts.
                 parent Parent: NodeId => Node;

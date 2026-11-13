@@ -6,6 +6,8 @@ use crate::domain::{
     operating::errors::OperatingError,
     source_partitions::types::{PartitionRequirement, ProducerPartitions},
 };
+use ryo_relations::domain::catalog::service::scope_of;
+use ryo_relations::domain::catalog::types::RowScope;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::{
     hosted::types::HostRelation,
@@ -220,81 +222,11 @@ fn observation_partition(
         StepScope::CrossFile => PartitionRequirement::Project,
     })
 }
-/// Exhaustive over the owned catalog: adding a relation requires choosing its producer.
-/// Tree and engine populations are read for one file; manifest populations are read
-/// once for the project. A file-valued cell does not alter either declaration.
+/// The partition a step that reads `relation` follows: the scope the relation's item declares, one file or the project.
 pub(super) fn relation_partition(relation: Relation) -> PartitionRequirement {
-    use PartitionRequirement::{CurrentFile, Project};
-    match relation {
-        Relation::Function
-        | Relation::Annotates
-        | Relation::Assigns
-        | Relation::Comment
-        | Relation::Directive
-        | Relation::Decorates
-        | Relation::Defines
-        | Relation::Visibility
-        | Relation::Inherits
-        | Relation::Parameter
-        | Relation::Reference
-        | Relation::Mention
-        | Relation::Scope
-        | Relation::StaticCall
-        | Relation::CallArgument
-        | Relation::Resolves
-        | Relation::BindingEvent
-        | Relation::BindingRead
-        | Relation::BindingUse
-        | Relation::BindingShadow
-        | Relation::ImplicitSymbol
-        | Relation::QualifiedName
-        | Relation::Identifier
-        | Relation::ExpressionShape
-        | Relation::LiteralProperties
-        | Relation::FunctionTerminal
-        | Relation::ExpressionType
-        | Relation::InterpolatedStringLiteral
-        | Relation::LanguageTarget
-        | Relation::CompilerFeature
-        | Relation::ConstantKey
-        | Relation::FormatParse
-        | Relation::FormatField
-        | Relation::BraceFormatParse
-        | Relation::BraceFormatField
-        | Relation::RawFormatSegment
-        | Relation::RawFormatField
-        | Relation::LiteralExpressionParse
-        | Relation::StaticImport
-        | Relation::StandardLibraryImport
-        | Relation::StringLiteral
-        | Relation::BytesLiteral
-        | Relation::FormatSpecification
-        | Relation::SyntaxChild
-        | Relation::SyntaxError
-        | Relation::SyntaxTree
-        | Relation::SemanticSyntax
-        | Relation::SemanticChild
-        | Relation::EmbeddedExpression
-        | Relation::SourceLocation
-        | Relation::IndentRegion
-        | Relation::Mapping
-        | Relation::Entry
-        | Relation::SequenceElement
-        | Relation::Prose
-        | Relation::NumericLiteral
-        | Relation::TokenLink
-        | Relation::FilesystemFile
-        | Relation::FilesystemLineCount
-        | Relation::FilesystemExecutable
-        | Relation::FilesystemReadFailure => CurrentFile,
-        Relation::PackageDependency
-        | Relation::WorkspaceMember
-        | Relation::SourceDependency
-        | Relation::AnalyzedSource
-        | Relation::FilePackage
-        | Relation::ModuleIdentity
-        | Relation::ProjectNamespaceMembership
-        | Relation::ManifestDiagnostic => Project,
+    match scope_of(relation) {
+        RowScope::File => PartitionRequirement::CurrentFile,
+        RowScope::Project => PartitionRequirement::Project,
     }
 }
 

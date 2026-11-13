@@ -30,6 +30,8 @@ macro_rules! file_package {
                 FilePackageExpectedRow
             },
             class Manifest,
+            scope Project,
+            notes Unneeded,
             columns {
                 /// The file.
                 path Path: FileId => File;

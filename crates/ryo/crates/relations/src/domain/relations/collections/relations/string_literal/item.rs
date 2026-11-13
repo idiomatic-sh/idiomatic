@@ -30,6 +30,8 @@ macro_rules! string_literal {
                 StringLiteralExpectedRow
             },
             class Literal,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The literal: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

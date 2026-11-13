@@ -30,6 +30,8 @@ macro_rules! syntax_tree {
                 SyntaxTreeExpectedRow
             },
             class Structure,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The element: its file and where it starts.
                 id Id: NodeId => Node;

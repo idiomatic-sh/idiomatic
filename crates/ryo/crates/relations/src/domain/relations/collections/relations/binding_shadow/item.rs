@@ -20,6 +20,8 @@ macro_rules! binding_shadow {
         expected { /// Independently specified observation.
         BindingShadowExpectedRow },
         class Code,
+        scope File,
+        notes Unneeded,
         columns {
         /// Current actual defines.id.
         binding Binding: NodeId => Node;

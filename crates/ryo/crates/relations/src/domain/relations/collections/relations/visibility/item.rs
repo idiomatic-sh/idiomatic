@@ -31,6 +31,8 @@ macro_rules! visibility {
                 VisibilityExpectedRow
             },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The visibility: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

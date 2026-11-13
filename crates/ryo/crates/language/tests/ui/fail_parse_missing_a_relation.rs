@@ -62,7 +62,7 @@ impl ParseUseCase for Missing {
 
     fn capabilities(
         &self,
-    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability] {
+    ) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
         &[]
     }
 

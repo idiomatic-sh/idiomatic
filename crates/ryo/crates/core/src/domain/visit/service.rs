@@ -237,10 +237,10 @@ pub(crate) fn wants(plans: &[Plan], catalog: &[Relation]) -> Result<Wants, Visit
     let refs: Vec<&Plan> = plans.iter().collect();
     let wanted = wanted(&refs, catalog)?;
     let walked = walked(&wanted);
-    let noted = if wanted.contains(&Relation::SourceDependency)
-        || wanted.contains(&Relation::AnalyzedSource)
-        || wanted.contains(&Relation::ProjectNamespaceMembership)
-    {
+    let noted = if wanted.iter().any(|relation| {
+        ryo_relations::domain::catalog::service::needs_notes(*relation)
+            == ryo_relations::domain::catalog::types::RelationNotes::Needed
+    }) {
         Noting::Wanted
     } else {
         Noting::Unwanted

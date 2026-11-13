@@ -22,6 +22,8 @@ macro_rules! raw_format_field {
             expected { /// One independently expected raw format fact.
                 RawFormatFieldExpectedRow },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// Enclosing original visible string expression.
                 id Id: NodeId => Node;

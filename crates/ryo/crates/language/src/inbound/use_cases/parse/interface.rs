@@ -33,9 +33,7 @@ macro_rules! syntax_methods {
 /// What a language offers for its files.
 pub trait ParseUseCase: Send + Sync {
     /// Optional semantic capabilities this provider promises to answer, including proven language absence.
-    fn capabilities(
-        &self,
-    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability];
+    fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability];
 
     /// Canonical immutable parser settings that can change the tree or diagnostics.
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_>;

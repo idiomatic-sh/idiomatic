@@ -20,6 +20,8 @@ macro_rules! embedded_expression {
             expected { /// Independently specified embedded provenance.
                 EmbeddedExpressionExpectedRow },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The parsed expression's root occurrence.
                 root Root: NodeId => Node;

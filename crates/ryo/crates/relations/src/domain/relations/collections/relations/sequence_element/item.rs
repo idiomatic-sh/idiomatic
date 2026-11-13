@@ -32,6 +32,8 @@ macro_rules! sequence_element {
                 SequenceElementExpectedRow
             },
             class Keyed,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The value decoded when it is text, otherwise empty. Free text: a decoded string is whatever the file says.
                 decoded Decoded: Symbol => Symbol;

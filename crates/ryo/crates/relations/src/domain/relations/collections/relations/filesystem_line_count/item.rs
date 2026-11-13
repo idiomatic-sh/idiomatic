@@ -29,6 +29,8 @@ macro_rules! filesystem_line_count {
                 FilesystemLineCountExpectedRow
             },
             class Engine,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The file.
                 path Path: FileId => File;

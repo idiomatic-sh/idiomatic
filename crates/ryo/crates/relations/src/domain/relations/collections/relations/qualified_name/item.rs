@@ -20,6 +20,8 @@ macro_rules! qualified_name {
             expected { /// Independently stated lexical provenance.
                 QualifiedNameExpectedRow },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The load expression, including nested attribute prefixes.
                 id Id: NodeId => Node;

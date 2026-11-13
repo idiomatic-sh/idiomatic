@@ -22,6 +22,8 @@ macro_rules! format_field {
             expected { /// One expected row of `format-field`.
                 FormatFieldExpectedRow },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The original format-string occurrence, joining this row to `format-parse`.
                 id Id: NodeId => Node;
