@@ -29,6 +29,10 @@ tikv-jemallocator.workspace = true
 [target.'cfg(target_os = "windows")'.dev-dependencies]
 mimalloc.workspace = true
 
+[features]
+# Branch-only spike, never merged: the worker runs each file's rules in the fused evaluator.
+fused-evaluation = ["ryo/fused-evaluation"]
+
 [lints]
 workspace = true
 

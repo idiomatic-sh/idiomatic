@@ -42,6 +42,8 @@ harness = false
 
 [features]
 diagnostic-row-progress = ["ryo_core/diagnostic-row-progress"]
+# Branch-only spike, never merged: the core's fused evaluator, so one package's build can switch it on.
+fused-evaluation = ["ryo_core/fused-evaluation"]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = ["dep:libtest-mimic", "ryo_core/fixtures", "ryo_language/fixtures", "ryo_values/fixtures"]
 
