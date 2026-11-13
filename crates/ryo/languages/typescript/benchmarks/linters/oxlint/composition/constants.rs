@@ -120,13 +120,3 @@ pub(crate) const DIAGNOSTIC_RYO: &str = "diagnostic-ryo";
 pub(crate) const MISSING_WORKER_REQUEST: &str = "missing worker request";
 /// Child argument that carries a request from an owned JSON file.
 pub(crate) const REQUEST_FILE: &str = "--request-file";
-/// Ask oxlint to print the files it would lint, then exit.
-const DEBUG_FILES: &str = "--debug=files";
-/// Discovery root relative to the explicit working directory.
-const CURRENT_DIRECTORY: &str = ".";
-/// The arguments that make the pinned reference list the files it selects by default, one path per line.
-pub(crate) const DISCOVERY_ARGUMENTS: [&str; 3] = [
-    DEBUG_FILES,
-    crate::constants::NO_NESTED_CONFIG,
-    CURRENT_DIRECTORY,
-];

@@ -32,6 +32,8 @@ enum Call {
     Prepare(&'static [&'static str]),
     /// Prepare one file, then read the file the invocation names after `-c`.
     Configuration,
+    /// The listing command's arguments with a scratch directory spelled `scratch`, then the file named after `-c`.
+    Discovery,
     /// Prepare one file, then decode what a run of it printed with this exit status.
     Decode(i32, &'static str),
 }
@@ -77,6 +79,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Call::Configuration,
         expect: Expect::Value(Cow::Borrowed("{}")),
+    },
+    Case {
+        name: CaseName(
+            "discovery lists the files oxlint selects reading the same empty configuration, never the project's own",
+        ),
+        word: Word::Succeeds,
+        input: || Call::Discovery,
+        expect: Expect::Value(Cow::Borrowed(
+            "-c scratch/oxlint.json --debug=files --disable-nested-config . => {}",
+        )),
     },
     Case {
         name: CaseName("exit_one_with_findings_decodes"),
@@ -199,6 +211,28 @@ fn subject(input: Input) -> Result<Value, Failure> {
             Ok(std::fs::read_to_string(configuration)
                 .map_err(|_error| Refusal::Unexpected)?
                 .into())
+        }
+        Call::Discovery => {
+            let temporary = tempfile::tempdir().map_err(|_error| Refusal::Unexpected)?;
+            let arguments = LinterOxlintAdapter::discovery_arguments(temporary.path())
+                .map_err(|error| refusal(&error))?;
+            let configuration = arguments
+                .iter()
+                .skip_while(|argument| *argument != "-c")
+                .nth(1)
+                .ok_or(Refusal::Unexpected)?;
+            let content =
+                std::fs::read_to_string(configuration).map_err(|_error| Refusal::Unexpected)?;
+            Ok(format!(
+                "{} => {content}",
+                arguments
+                    .iter()
+                    .map(|argument| argument.to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join(" ")
+                    .replace(&*temporary.path().to_string_lossy(), "scratch")
+            )
+            .into())
         }
         Call::Decode(status, stdout) => {
             let temporary = tempfile::tempdir().map_err(|_error| Refusal::Unexpected)?;

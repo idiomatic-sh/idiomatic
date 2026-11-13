@@ -9,8 +9,9 @@ with its cases; the others are `deferred`, blocked by a relation the TypeScript 
 
 The reference runs `oxlint -c <state>/oxlint.json -A all -D <plugin>/<rule>… --format json --threads 1 --disable-nested-config --
 <files>` in the corpus root over TypeScript files only (`.ts`, `.mts`, `.cts`, `.tsx`); the worker links `ryo_typescript` alone. The
-adapter writes `{}` to `oxlint.json` in the run's state before each run, so a project's own configuration is never read: vite's
-`oxlint.config.ts` needs a JavaScript runtime this standalone executable does not have.
+adapter writes `{}` to `oxlint.json` in the run's state before each run, and discovery (`oxlint -c <scratch>/oxlint.json
+--debug=files --disable-nested-config .`) reads the same, so a project's own configuration is never read: vite's `oxlint.config.ts`
+needs a JavaScript runtime this standalone executable does not have.
 
 From `crates/ryo`, with the pinned executable on the path:
 

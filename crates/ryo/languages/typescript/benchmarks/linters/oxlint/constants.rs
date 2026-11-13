@@ -7,6 +7,10 @@ pub(crate) const CONFIG: &str = "-c";
 pub(crate) const CONFIG_NAME: &str = "oxlint.json";
 /// The configuration that file holds: nothing, so only the command line's rules run.
 pub(crate) const EMPTY_CONFIG: &str = "{}";
+/// Ask oxlint to print the files it would lint, then exit.
+pub(crate) const DEBUG_FILES: &str = "--debug=files";
+/// Discovery root relative to the explicit working directory.
+pub(crate) const CURRENT_DIRECTORY: &str = ".";
 /// Allow the rules or category named next: with `all`, every rule starts off.
 pub(crate) const ALLOW: &str = "-A";
 /// Every category, so that only the denied rules run.

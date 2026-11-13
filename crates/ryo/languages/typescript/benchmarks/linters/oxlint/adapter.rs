@@ -14,6 +14,8 @@ use ryo_benchmark_contracts::domain::requests::types::{
 use ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
 use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 use std::collections::BTreeSet;
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 /// Executes the pinned oxlint protocol against an explicit source set.
@@ -34,12 +36,9 @@ impl LinterPort for LinterOxlintAdapter {
         if matches!(request.rule_context, RuleContextPreparation::Prepared(_)) {
             return Err(Error::Invalid(constants::UNSUPPORTED_RULE_CONTEXT.into()));
         }
-        std::fs::create_dir_all(&request.state)?;
-        let configuration = request.state.join(constants::CONFIG_NAME);
-        std::fs::write(&configuration, constants::EMPTY_CONFIG)?;
         let mut arguments = vec![
             constants::CONFIG.into(),
-            configuration.into_os_string(),
+            empty_configuration(&request.state)?.into_os_string(),
             constants::ALLOW.into(),
             constants::ALL.into(),
         ];
@@ -60,7 +59,7 @@ impl LinterPort for LinterOxlintAdapter {
         );
         let mut seen = BTreeSet::new();
         for file in &request.files {
-            let _relative = RelativeArtifactPath::try_from(std::path::Path::new(file.0.as_ref()))?;
+            let _relative = RelativeArtifactPath::try_from(Path::new(file.0.as_ref()))?;
             if !seen.insert(file) {
                 return Err(Error::Invalid(constants::DUPLICATE_INPUT.into()));
             }
@@ -102,6 +101,20 @@ impl LinterOxlintAdapter {
     pub(crate) fn new(settings: LinterOxlintSettings) -> Self {
         Self { settings }
     }
+    /// The arguments that make the pinned executable list the files it selects by default, one path per line.
+    ///
+    /// # Errors
+    /// Fails when the empty configuration cannot be written under `scratch`.
+    pub(crate) fn discovery_arguments(scratch: &Path) -> Result<Vec<OsString>, Error> {
+        Ok([
+            constants::CONFIG.into(),
+            empty_configuration(scratch)?.into_os_string(),
+            constants::DEBUG_FILES.into(),
+            constants::NO_NESTED_CONFIG.into(),
+            constants::CURRENT_DIRECTORY.into(),
+        ]
+        .into())
+    }
     /// The rules one request runs: the pinned defaults, or the ones it names.
     fn selected(&self, request: &RunRequest) -> BTreeSet<RuleId> {
         match &request.selected_rules {
@@ -109,4 +122,12 @@ impl LinterOxlintAdapter {
             CohortSelection::Explicit(rules) => rules.iter().cloned().collect(),
         }
     }
+}
+
+/// Write the empty configuration into `directory` and name it, so that oxlint reads no project configuration.
+fn empty_configuration(directory: &Path) -> Result<PathBuf, Error> {
+    std::fs::create_dir_all(directory)?;
+    let configuration = directory.join(constants::CONFIG_NAME);
+    std::fs::write(&configuration, constants::EMPTY_CONFIG)?;
+    Ok(configuration)
 }

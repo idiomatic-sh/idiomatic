@@ -111,10 +111,7 @@ pub(super) fn measure(
     let discovery: Arc<dyn DiscoveryPort> =
         Arc::new(ryo_benchmark::outbound::discovery::factory::listing(
             executable.clone(),
-            constants::DISCOVERY_ARGUMENTS
-                .into_iter()
-                .map(std::ffi::OsString::from)
-                .collect(),
+            crate::adapter::LinterOxlintAdapter::discovery_arguments(&selected_scratch)?,
         ));
     let reference = Arc::new(commands::reference(executable.clone(), tool));
     let collector_settings =
