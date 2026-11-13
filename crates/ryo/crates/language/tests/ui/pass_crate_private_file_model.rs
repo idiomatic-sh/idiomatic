@@ -2,13 +2,13 @@
 
 use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, Support};
 use ryo_language::domain::elements::types::{Completion, TableBuilder, Tree};
-use ryo_language::domain::files::types::ManifestName;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
 use ryo_language::inbound::use_cases::parse::interface::ParseUseCase;
 use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 use ryo_language::inbound::use_cases::project::errors::ProjectError;
 use ryo_language::inbound::use_cases::project::interface::ProjectUseCase;
+use ryo_language::domain::files::types::ManifestName;
 use ryo_language::inbound::use_cases::project::types::ProjectRequest;
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::collections::relations::function::item::{
@@ -117,9 +117,7 @@ impl ParseUseCase for Language {
     ) {
     }
 
-    fn completion_requirement(
-        &self,
-    ) -> ryo_language::domain::elements::types::CompletionRequirement {
+    fn completion_requirement(&self) -> ryo_language::domain::elements::types::CompletionRequirement {
         ryo_language::domain::elements::types::CompletionRequirement::Independent
     }
 
@@ -138,7 +136,9 @@ impl ParseUseCase for Language {
         ryo_language::inbound::use_cases::parse::types::Recognition::Declines
     }
 
-    fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
+    fn capabilities(
+        &self,
+    ) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
         &[]
     }
 
