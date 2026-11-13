@@ -1406,12 +1406,23 @@ dependencies = [
 name = "idiomatic-sh-ryo-evaluation"
 version = "0.1.4"
 dependencies = [
+ "hashbrown 0.17.1",
+ "idiomatic-sh-ryo-evaluation",
  "idiomatic-sh-ryo-execution",
+ "idiomatic-sh-ryo-execution-domain",
  "idiomatic-sh-ryo-execution-runtime",
+ "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-query_language",
+ "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-sdk",
  "idiomatic-sh-ryo-values",
+ "rustc-hash 2.1.3",
+ "serde",
+ "thiserror 2.0.20",
+ "toml 1.1.4+spec-1.1.0",
 ]
 
 [[package]]

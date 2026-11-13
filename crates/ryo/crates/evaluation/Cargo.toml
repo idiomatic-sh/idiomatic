@@ -15,14 +15,27 @@ autotests = false
 name = "ryo_evaluation"
 
 [dependencies]
+ryo_execution = { package = "idiomatic-sh-ryo-execution", path = "../execution", version = "0.1.4" }
+ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../execution_domain", version = "0.1.4" }
+ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../execution_runtime", version = "0.1.4" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.4" }
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.4" }
+ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.1.4" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.4" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.4" }
+hashbrown.workspace = true
+rustc-hash.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
+idiomatic-sh-ryo-evaluation = { path = ".", features = ["fixtures"] }
 ryo_execution = { package = "idiomatic-sh-ryo-execution", path = "../execution", features = ["fixtures"] }
 ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../execution_runtime", features = ["fixtures"] }
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values" }
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language" }
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", features = ["fixtures"] }
 ryo_python = { package = "idiomatic-sh-ryo-python", path = "../../languages/python", features = ["fixtures"] }
+toml.workspace = true
+serde.workspace = true
 
 [[test]]
 name = "parity"
