@@ -1,5 +1,6 @@
 //! The shape every relation of the catalog implements: its row, its columns and the numbers a row is stored as.
 
+use crate::domain::catalog::types::{RelationNotes, RowScope};
 use crate::domain::relations::types::{Bits, CellKind, Class, Relation};
 
 /// Seals [`RelationsItem`]: only the catalog's own relations implement it, because a language defines no shape of its own.
@@ -28,6 +29,14 @@ pub trait RelationsItem: sealed::Sealed + 'static {
     /// What the relation is about, which the checks of a language's answers are made by: a language that says it is not code reads no
     /// relation of code. A relation added to the catalog says its class, or it does not compile.
     const CLASS: Class;
+
+    /// Which files the relation's rows are about, which the partition of a step that reads it follows. A relation added to the
+    /// catalog says its scope, or it does not compile.
+    const SCOPE: RowScope;
+
+    /// Whether the relation's rows are made from the notes the languages write of the files. A relation added to the catalog says it,
+    /// or it does not compile.
+    const NOTES: RelationNotes;
 
     /// Which relation this is.
     fn relation() -> Relation;

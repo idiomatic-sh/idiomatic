@@ -29,6 +29,8 @@ macro_rules! constant_key {
                 ConstantKeyExpectedRow
             },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// An original supported constant-expression occurrence.
                 id Id: NodeId => Node;

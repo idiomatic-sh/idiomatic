@@ -23,6 +23,8 @@ macro_rules! source_location {
             expected { /// An expected source location.
                 SourceLocationExpectedRow },
             class Structure,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The node or token.
                 id Id: NodeId => Node;

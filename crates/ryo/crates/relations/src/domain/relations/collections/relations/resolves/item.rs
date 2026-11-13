@@ -30,6 +30,8 @@ macro_rules! resolves {
                 ResolvesExpectedRow
             },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The name occurrence: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

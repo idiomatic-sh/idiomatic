@@ -19,6 +19,8 @@ macro_rules! expression_shape {
          expected { /// Independently specified structural identity.
           ExpressionShapeExpectedRow },
          class Code,
+         scope File,
+         notes Unneeded,
          columns {
           /// The original expression occurrence.
           id Id: NodeId=>Node;

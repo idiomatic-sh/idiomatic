@@ -23,6 +23,8 @@ macro_rules! standard_library_import {
             expected { /// Independently expected membership.
                 StandardLibraryImportExpectedRow },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The imported alias in the parser's actual syntax tree.
                 occurrence Occurrence: NodeId => Node;

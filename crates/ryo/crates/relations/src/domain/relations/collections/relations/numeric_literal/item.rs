@@ -30,6 +30,8 @@ macro_rules! numeric_literal {
                 NumericLiteralExpectedRow
             },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// Original numeric literal occurrence; unary operators remain separate syntax.
                 id Id: NodeId => Node;

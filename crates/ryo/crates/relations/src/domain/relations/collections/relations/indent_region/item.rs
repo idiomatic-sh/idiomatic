@@ -20,6 +20,8 @@ macro_rules! indent_region {
         expected { /// An independently stated indentation region.
         IndentRegionExpectedRow },
         class Lexical,
+        scope File,
+        notes Unneeded,
         columns {
         /// The module node for the root, otherwise the actual INDENT token.
         id Id: NodeId => Node;

@@ -49,9 +49,7 @@ impl ParseUseCase for SelectedParser {
     ) -> crate::inbound::use_cases::parse::types::Recognition {
         crate::inbound::use_cases::parse::types::Recognition::Declines
     }
-    fn capabilities(
-        &self,
-    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability] {
+    fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
         &[]
     }
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> {

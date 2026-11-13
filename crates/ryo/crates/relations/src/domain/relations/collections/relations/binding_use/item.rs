@@ -20,6 +20,8 @@ macro_rules! binding_use {
         expected { /// Independently specified observation.
         BindingUseExpectedRow },
         class Code,
+        scope File,
+        notes Unneeded,
         columns {
         /// Real semantic read or deletion occurrence.
         reference Reference: NodeId => Node;

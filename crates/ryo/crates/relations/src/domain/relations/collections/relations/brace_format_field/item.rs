@@ -22,6 +22,8 @@ macro_rules! brace_format_field {
             expected { /// One expected row of `brace-format-field`.
                 BraceFormatFieldExpectedRow },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// Original string occurrence, joining to `brace-format-parse.id`.
                 id Id: NodeId => Node;

@@ -1,7 +1,6 @@
 //! Portable relation identity, schema and absence vocabulary.
 
 pub mod answers;
-pub mod capabilities;
 pub mod catalog;
 pub mod declaration_kind;
 pub mod dependency_kind;

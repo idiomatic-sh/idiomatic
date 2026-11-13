@@ -30,6 +30,8 @@ macro_rules! syntax_child {
                 SyntaxChildExpectedRow
             },
             class Structure,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The parent node: its file and where it starts.
                 parent Parent: NodeId => Node;

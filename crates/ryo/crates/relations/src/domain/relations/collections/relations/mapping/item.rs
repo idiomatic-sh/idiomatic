@@ -31,6 +31,8 @@ macro_rules! mapping {
                 MappingExpectedRow
             },
             class Keyed,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The mapping: its file and where it starts.
                 id Id: NodeId => Node;

@@ -1,6 +1,8 @@
 //! The `catalog` service's cases: the one list names every relation of the catalog once.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::catalog::service::{needs_notes, scope_of};
+use crate::domain::catalog::types::{RelationNotes, RowScope};
 use crate::domain::relations::service::all;
 
 /// How many relations the one list of the catalog names, counted by the macro that every crate of the engine calls.
@@ -21,6 +23,22 @@ macro_rules! listed_relations {
 
 crate::each_relation!(listed_relations);
 
+/// How many relations of the catalog declare that their rows are the project's.
+fn every_catalog_relation_declares_its_scope() -> usize {
+    all()
+        .iter()
+        .filter(|relation| scope_of(**relation) == RowScope::Project)
+        .count()
+}
+
+/// How many relations of the catalog declare that they are made from the languages' notes.
+fn every_catalog_relation_declares_whether_it_needs_notes() -> usize {
+    all()
+        .iter()
+        .filter(|relation| needs_notes(**relation) == RelationNotes::Needed)
+        .count()
+}
+
 /// A scenario: what a row asks of the catalog's list.
 type Input = fn() -> usize;
 /// What a scenario answers: a count.
@@ -28,12 +46,26 @@ type Value = usize;
 type Failure = ();
 
 /// The rows of this part's cases.
-const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("the_list_names_as_many_relations_as_the_catalog_has"),
-    word: Word::Succeeds,
-    input: || the_list_names_as_many_relations_as_the_catalog_has,
-    expect: Expect::Value(1),
-}];
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("the_list_names_as_many_relations_as_the_catalog_has"),
+        word: Word::Succeeds,
+        input: || the_list_names_as_many_relations_as_the_catalog_has,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("every_catalog_relation_declares_its_scope"),
+        word: Word::Succeeds,
+        input: || every_catalog_relation_declares_its_scope,
+        expect: Expect::Value(8),
+    },
+    Case {
+        name: CaseName("every_catalog_relation_declares_whether_it_needs_notes"),
+        word: Word::Succeeds,
+        input: || every_catalog_relation_declares_whether_it_needs_notes,
+        expect: Expect::Value(3),
+    },
+];
 
 /// Runs one scenario; the author states it.
 fn subject(scenario: Input) -> Result<Value, Failure> {

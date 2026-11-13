@@ -20,6 +20,8 @@ macro_rules! project_namespace_membership {
             expected { /// One independently expected membership row.
                 ProjectNamespaceMembershipExpectedRow },
             class Manifest,
+            scope Project,
+            notes Needed,
             columns {
                 /// The file that imports the root.
                 file File: FileId => File;

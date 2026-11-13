@@ -20,6 +20,8 @@ macro_rules! format_specification {
             expected { /// One independently expected format-specification observation.
                 FormatSpecificationExpectedRow },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                     /// Original enclosing string occurrence.
                     id Id: NodeId => Node;

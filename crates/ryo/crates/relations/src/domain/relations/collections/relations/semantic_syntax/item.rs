@@ -30,6 +30,8 @@ macro_rules! semantic_syntax {
                 SemanticSyntaxExpectedRow
             },
             class Structure,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The element: its file and where it starts.
                 id Id: NodeId => Node;

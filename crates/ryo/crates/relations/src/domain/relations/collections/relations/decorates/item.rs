@@ -30,6 +30,8 @@ macro_rules! decorates {
                 DecoratesExpectedRow
             },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// The attribute: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

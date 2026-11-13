@@ -75,9 +75,7 @@ impl ParseUseCase for Ordered {
     ) -> crate::inbound::use_cases::parse::types::Recognition {
         crate::inbound::use_cases::parse::types::Recognition::Declines
     }
-    fn capabilities(
-        &self,
-    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability] {
+    fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
         Small.capabilities()
     }
     fn configuration_identity(

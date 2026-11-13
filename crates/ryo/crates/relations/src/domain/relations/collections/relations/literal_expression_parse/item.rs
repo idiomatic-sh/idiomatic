@@ -22,6 +22,8 @@ macro_rules! literal_expression_parse {
             expected { /// One independently expected expression parse outcome.
                 LiteralExpressionParseExpectedRow },
             class Code,
+            scope File,
+            notes Unneeded,
             columns {
                 /// Existing original string-expression identity.
                 id Id: NodeId => Node;
