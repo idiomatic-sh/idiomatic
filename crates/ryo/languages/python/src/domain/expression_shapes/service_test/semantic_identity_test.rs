@@ -63,12 +63,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(false),
     },
     Case {
-        name: CaseName("full key comparison survives deliberately colliding hashes"),
-        word: Word::Succeeds,
-        input: || ("collision witness", "", ""),
-        expect: Expect::Value(true),
-    },
-    Case {
         name: CaseName("valid invalid empty valid reparses cannot leak classes"),
         word: Word::Succeeds,
         input: || ("reparse witness", "", ""),

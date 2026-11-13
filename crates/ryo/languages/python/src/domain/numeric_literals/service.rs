@@ -1,8 +1,6 @@
 //! Normalize existing parser-owned payloads; never parse Python source spelling again.
 
-use super::constants;
-use super::constants::FLOAT_TEXT_BYTES;
-use super::types::{FloatBits, FloatBuffer, NumericClassification, NumericLiteral, NumericValue};
+use super::types::{NumericClassification, NumericLiteral, NumericValue};
 use crate::domain::{
     nodes::types::Node,
     syntax::{
@@ -11,7 +9,10 @@ use crate::domain::{
         types::{Kind, Literal},
     },
 };
-use ryo::languages::{self, ByteSlice, Flag, NameText, Position, Symbol, Symbols, Tree};
+use ryo::languages::{
+    self, ByteSlice, FLOAT_TEXT_BYTES, Flag, FloatBits, FloatBuffer, NameText, Position, Symbol,
+    Symbols, Tree,
+};
 
 /// Intern an occurrence without allocating temporary decimal text on each file read.
 pub(crate) fn intern_value(
@@ -23,38 +24,10 @@ pub(crate) fn intern_value(
         NumericValue::Integer(text) => languages::intern_derived(symbols, source, text),
         NumericValue::Float(bits) => {
             let mut buffer = FloatBuffer([0; FLOAT_TEXT_BYTES]);
-            let text = write_float(bits, &mut buffer);
+            let text = languages::binary64_text(bits, &mut buffer);
             languages::intern_derived(symbols, source, text)
         }
     }
-}
-
-/// Write a round-trip binary64 spelling into bounded stack storage and borrow its text.
-#[expect(
-    clippy::expect_used,
-    reason = "f64's Display and the `.0` suffix write only ASCII, so the written bytes are always UTF-8"
-)]
-pub(super) fn write_float(bits: FloatBits, buffer: &mut FloatBuffer) -> NameText<'_> {
-    let value = f64::from_bits(bits.0);
-    let mut rest: &mut [u8] = &mut buffer.0[..];
-    assert!(
-        std::io::Write::write_fmt(&mut rest, format_args!("{value}")).is_ok(),
-        "binary64 text fits the fixed buffer"
-    );
-    let mut written = FLOAT_TEXT_BYTES - rest.len();
-    if value.is_finite()
-        && !buffer.0[..written]
-            .iter()
-            .any(|byte| matches!(byte, b'.' | b'e' | b'E'))
-    {
-        let mut rest: &mut [u8] = &mut buffer.0[written..];
-        assert!(
-            std::io::Write::write_all(&mut rest, constants::FLOAT_SUFFIX).is_ok(),
-            "binary64 suffix fits the fixed buffer"
-        );
-        written = FLOAT_TEXT_BYTES - rest.len();
-    }
-    NameText(std::str::from_utf8(&buffer.0[..written]).expect(constants::ASCII_ONLY))
 }
 
 /// Validate a parser-normalized integer payload, without imposing a machine-width bound.

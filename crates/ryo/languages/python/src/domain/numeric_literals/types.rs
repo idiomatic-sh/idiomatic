@@ -1,6 +1,5 @@
 //! Parser-derived numeric data without row storage or source-language evaluation.
-use super::constants::FLOAT_TEXT_BYTES;
-use ryo::languages::NameText;
+use ryo::languages::{FloatBits, NameText};
 
 /// One numeric literal's complete normalized payload.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -28,10 +27,3 @@ pub(crate) enum NumericClassification<'a> {
     /// A numeric occurrence cannot be read completely.
     MissingPayload,
 }
-
-/// The bits of a parsed binary64 float.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct FloatBits(pub u64);
-
-/// Bounded stack storage for the spelling of one binary64 float.
-pub(crate) struct FloatBuffer(pub [u8; FLOAT_TEXT_BYTES]);

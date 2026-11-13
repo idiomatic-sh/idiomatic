@@ -2,9 +2,13 @@
 //! and read an occurrence's class, with no IO and no ports. Which words make a key is the language's: these functions never
 //! read a tree.
 
-use super::types::RetainedKeyIndex;
+use super::types::{
+    BucketLink, KeyDigest, KeyRecord, KeyRecordIndex, KeyState, KeyWordIndex, RetainedKeyIndex,
+    WordRange,
+};
 use ryo_relations::domain::relations::types::Position;
-use std::hash::Hash;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher as _};
 
 /// Empties the index for the next source while keeping every allocation, and marks it fresh.
 ///
@@ -19,8 +23,12 @@ use std::hash::Hash;
 /// assert_eq!(index.state, KeyState::Fresh);
 /// ```
 pub fn clear_keys<Class, Word>(index: &mut RetainedKeyIndex<Class, Word>) {
-    let _ = (index);
-    unimplemented!("the move of the key index lands with the next commit")
+    index.classes.clear();
+    index.words.clear();
+    index.records.clear();
+    index.buckets.clear();
+    index.scratch.clear();
+    index.state = KeyState::Fresh;
 }
 
 /// The class of the occurrence at `at`, when it has one.
@@ -43,8 +51,10 @@ pub fn key_class_at<Class, Word>(
 where
     Class: Copy,
 {
-    let _ = (index, at);
-    unimplemented!("the move of the key index lands with the next commit")
+    let Ok(slot) = usize::try_from(at.0) else {
+        return None;
+    };
+    index.classes.get(slot).copied().flatten()
 }
 
 /// Appends one word to the key being built; when its buffer cannot grow, marks the index partial and answers `None`.
@@ -63,8 +73,12 @@ pub fn push_key_word<Class, Word>(
     index: &mut RetainedKeyIndex<Class, Word>,
     word: Word,
 ) -> Option<()> {
-    let _ = (index, word);
-    unimplemented!("the move of the key index lands with the next commit")
+    if index.scratch.try_reserve(1).is_err() {
+        index.state = KeyState::Partial;
+        return None;
+    }
+    index.scratch.push(word);
+    Some(())
 }
 
 /// Interns the key built in `scratch` for the occurrence at `at`, and answers its class: the first occurrence whose complete
@@ -86,6 +100,46 @@ pub fn intern_key<Class, Word>(index: &mut RetainedKeyIndex<Class, Word>, at: Po
 where
     Word: Hash + Eq + Clone,
 {
-    let _ = (index, at);
-    unimplemented!("the move of the key index lands with the next commit")
+    let mut hasher = DefaultHasher::new();
+    index.scratch.hash(&mut hasher);
+    let digest = KeyDigest(hasher.finish());
+    let mut candidate = index.buckets.get(&digest).copied();
+    while let Some(place) = candidate {
+        let Some(record) = index.records.get(place.0) else {
+            break;
+        };
+        if index.words.get(record.words.start.0..record.words.end.0)
+            == Some(index.scratch.as_slice())
+        {
+            return record.representative;
+        }
+        candidate = match record.previous {
+            BucketLink::Previous(previous) => Some(previous),
+            BucketLink::First => None,
+        };
+    }
+    if index.words.try_reserve(index.scratch.len()).is_err()
+        || index.records.try_reserve(1).is_err()
+        || index.buckets.try_reserve(1).is_err()
+    {
+        index.state = KeyState::Partial;
+        return at;
+    }
+    let start = index.words.len();
+    index.words.extend_from_slice(&index.scratch);
+    let place = KeyRecordIndex(index.records.len());
+    index.records.push(KeyRecord {
+        words: WordRange {
+            start: KeyWordIndex(start),
+            end: KeyWordIndex(index.words.len()),
+        },
+        representative: at,
+        previous: index
+            .buckets
+            .get(&digest)
+            .copied()
+            .map_or(BucketLink::First, BucketLink::Previous),
+    });
+    let _previous_bucket_head = index.buckets.insert(digest, place);
+    at
 }

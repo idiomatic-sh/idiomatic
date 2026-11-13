@@ -1,6 +1,7 @@
 //! The `decoded` service: free functions named by verb that read the text the language's library decoded for an element, with no IO
 //! and no ports.
 
+use super::constants::{ASCII_ONLY, FLOAT_SUFFIX, FLOAT_TEXT_BYTES};
 use super::types::{FloatBits, FloatBuffer};
 use crate::domain::elements::service::engine;
 use crate::domain::elements::types::Elements;
@@ -49,7 +50,7 @@ pub fn property_at(
 /// so `1e300` is its 301 digits; infinities are `inf` and `-inf`, and not-a-number is `NaN`.
 ///
 /// # Panics
-/// Never: the longest finite spelling and its suffix fit [`super::constants::FLOAT_TEXT_BYTES`], and `Display` writes only ASCII.
+/// Never: the longest finite spelling and its suffix fit [`FLOAT_TEXT_BYTES`], and `Display` writes only ASCII.
 ///
 /// # Examples
 /// ```
@@ -59,7 +60,29 @@ pub fn property_at(
 /// let mut buffer = FloatBuffer([0; FLOAT_TEXT_BYTES]);
 /// assert_eq!(binary64_text(FloatBits(1.0_f64.to_bits()), &mut buffer).0, "1.0");
 /// ```
+#[expect(
+    clippy::expect_used,
+    reason = "f64's Display and the `.0` suffix write only ASCII, so the written bytes are always UTF-8"
+)]
 pub fn binary64_text(bits: FloatBits, buffer: &mut FloatBuffer) -> NameText<'_> {
-    let _ = (bits, buffer);
-    unimplemented!("the move of the spelling lands with the next commit")
+    let value = f64::from_bits(bits.0);
+    let mut rest: &mut [u8] = &mut buffer.0[..];
+    assert!(
+        std::io::Write::write_fmt(&mut rest, format_args!("{value}")).is_ok(),
+        "binary64 text fits the fixed buffer"
+    );
+    let mut written = FLOAT_TEXT_BYTES - rest.len();
+    if value.is_finite()
+        && !buffer.0[..written]
+            .iter()
+            .any(|byte| matches!(byte, b'.' | b'e' | b'E'))
+    {
+        let mut rest: &mut [u8] = &mut buffer.0[written..];
+        assert!(
+            std::io::Write::write_all(&mut rest, FLOAT_SUFFIX).is_ok(),
+            "binary64 suffix fits the fixed buffer"
+        );
+        written = FLOAT_TEXT_BYTES - rest.len();
+    }
+    NameText(std::str::from_utf8(&buffer.0[..written]).expect(ASCII_ONLY))
 }

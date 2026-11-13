@@ -1,24 +1,23 @@
 //! Lazily intern bottom-up parsed expression keys; source formatting and runtime value equality are separate.
-use crate::domain::constant_keys::types::{KeyRecord, KeyRecordIndex, RetainedKeyIndex};
-use crate::domain::model::types::{ShapeHash, ShapeState, ShapeWord};
 use crate::domain::{
     extras::types::Extra,
     fields::service::field_of,
-    labels::types::Field,
+    labels::{service::field_bits, types::Field},
     nodes::types::Node,
     syntax::{
         constants::{
             BYTES_SCALAR, INTERPOLATION_CONVERSION, INTERPOLATION_DEBUG, SCALAR_IMAGINARY,
             SCALAR_KIND, SCALAR_VALUE,
         },
-        service::{below, identifier_text, interpolation, is_token, kind, literal},
+        service::{below, identifier_text, interpolation, is_token, kind, kind_bits, literal},
         types::{Kind, Leaf, Literal},
     },
     tokens::types::Token,
 };
-use ryo::languages::{self, NameText, Position, Symbols, Tree};
+use ryo::languages::{
+    self, KeyState, NameText, Position, RetainedKeyIndex, ShapeWord, Symbols, Tree, intern_key,
+};
 use std::cell::Ref;
-use std::hash::{Hash as _, Hasher as _};
 
 /// Concatenate only parser-decoded string token payloads; source spelling is never a fallback.
 fn decoded_string_value(
@@ -39,63 +38,10 @@ fn decoded_string_value(
     }
     found.then(|| languages::end_name(symbols, tree.source, from))
 }
-/// Invalidate source-dependent classes while retaining all backing capacity.
-pub(crate) fn clear(index: &mut RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>) {
-    index.classes.clear();
-    index.words.clear();
-    index.records.clear();
-    index.buckets.clear();
-    index.scratch.clear();
-    index.state = ShapeState::Fresh;
-}
-/// The existing canonical representative of one occurrence.
-#[must_use]
-pub(crate) fn shape_of(
-    index: &RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>,
-    at: Position,
-) -> Option<Position> {
-    let Ok(slot) = usize::try_from(at.0) else {
-        return None;
-    };
-    index.classes.get(slot).copied().flatten()
-}
-/// Intern a full key. Hash collisions share a bucket, never an expression identity.
-pub(super) fn intern(
-    index: &mut RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>,
-    at: Position,
-    hash: ShapeHash,
-) -> Position {
-    let mut candidate = index.buckets.get(&hash).copied();
-    while let Some(place) = candidate {
-        let Some(record) = index.records.get(place.0) else {
-            break;
-        };
-        if index.words.get(record.words.start.0..record.words.end.0)
-            == Some(index.scratch.as_slice())
-        {
-            return record.representative;
-        }
-        candidate = record.previous;
-    }
-    let start = index.words.len();
-    index.words.extend_from_slice(&index.scratch);
-    let record = KeyRecord {
-        words: crate::domain::constant_keys::types::WordRange {
-            start: crate::domain::constant_keys::types::KeyWordIndex(start),
-            end: crate::domain::constant_keys::types::KeyWordIndex(index.words.len()),
-        },
-        representative: at,
-        previous: index.buckets.get(&hash).copied(),
-    };
-    let place = KeyRecordIndex(index.records.len());
-    index.records.push(record);
-    let _previous_bucket_head = index.buckets.insert(hash, place);
-    at
-}
 /// Append one normalized child class and its semantic field.
 fn child(words: &mut Vec<ShapeWord>, classes: &[Option<Position>], field: Field, at: Position) {
     if let Some(Some(class)) = classes.get(usize::try_from(at.0).unwrap_or(usize::MAX)) {
-        words.push(ShapeWord::Child(field, *class));
+        words.push(ShapeWord::Child(field_bits(field), *class));
     }
 }
 /// Operators are meaningful; separators, redundant parentheses and lexical trivia are not.
@@ -234,7 +180,7 @@ fn key(
 ) -> Option<()> {
     words.clear();
     let node = kind(tree, at);
-    words.push(ShapeWord::Kind(node));
+    words.push(ShapeWord::Kind(kind_bits(node)));
     for property in [
         SCALAR_KIND,
         SCALAR_VALUE,
@@ -285,7 +231,7 @@ fn key(
             && significant(token).is_some()
         {
             words.push(ShapeWord::Token(
-                kind(tree, each),
+                kind_bits(kind(tree, each)),
                 languages::text_at(tree.elements, each),
             ));
         } else {
@@ -299,14 +245,14 @@ pub(crate) fn prepare<'a>(
     tree: &Tree<'_>,
     model: &'a crate::domain::model::types::Declarations,
     symbols: &mut Symbols,
-) -> Option<Ref<'a, RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>>> {
+) -> Option<Ref<'a, RetainedKeyIndex<Position, ShapeWord>>> {
     let held = &model.expression_shapes;
-    if held.borrow().state == ShapeState::Fresh {
+    if held.borrow().state == KeyState::Fresh {
         let mut index = held.borrow_mut();
         if languages::has_incomplete_syntax(tree.elements)
             == languages::SyntaxCompleteness::Incomplete
         {
-            index.state = ShapeState::Partial;
+            index.state = KeyState::Partial;
             return None;
         }
         let Ok(count) = usize::try_from(languages::end_of(tree.elements).0) else {
@@ -325,7 +271,7 @@ pub(crate) fn prepare<'a>(
                 continue;
             }
             if kind(tree, at) == Kind::Extra(Extra::IpyEscapeCommand) {
-                index.state = ShapeState::Partial;
+                index.state = KeyState::Partial;
                 continue;
             }
             let RetainedKeyIndex {
@@ -337,24 +283,22 @@ pub(crate) fn prepare<'a>(
                         .get(usize::try_from(child.0).unwrap_or(usize::MAX))
                         .is_none_or(Option::is_none)
             }) {
-                index.state = ShapeState::Partial;
+                index.state = KeyState::Partial;
                 continue;
             }
             if key(tree, at, symbols, classes, scratch).is_none() {
-                index.state = ShapeState::Partial;
+                index.state = KeyState::Partial;
                 continue;
             }
-            let mut hasher = std::collections::hash_map::DefaultHasher::new();
-            index.scratch.hash(&mut hasher);
-            let class = intern(&mut index, at, ShapeHash(hasher.finish()));
+            let class = intern_key(&mut index, at);
             if let Some(slot) = index.classes.get_mut(raw) {
                 *slot = Some(class);
             }
         }
-        if index.state == ShapeState::Fresh {
-            index.state = ShapeState::Complete;
+        if index.state == KeyState::Fresh {
+            index.state = KeyState::Complete;
         }
     }
     let index = held.borrow();
-    (index.state == ShapeState::Complete).then_some(index)
+    (index.state == KeyState::Complete).then_some(index)
 }

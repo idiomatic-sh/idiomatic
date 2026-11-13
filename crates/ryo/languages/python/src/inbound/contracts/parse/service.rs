@@ -27,8 +27,8 @@ pub(super) fn source_kind(path: languages::SourcePath<'_>) -> PythonSourceKind {
 /// Prepares the model of one file: the language target and every cache cleared, the declarations and the binding index among them.
 pub(super) fn prepare_model(settings: &PythonParserSettings, model: &mut Declarations) {
     model.language_target = settings.target_version().components();
-    crate::domain::expression_shapes::service::clear(model.expression_shapes.get_mut());
-    crate::domain::constant_keys::service::clear(model.constant_keys.get_mut());
+    languages::clear_keys(model.expression_shapes.get_mut());
+    languages::clear_keys(model.constant_keys.get_mut());
     crate::domain::format_parsing::service::clear(model.format_parsing.get_mut());
     crate::domain::raw_format::service::clear(model.raw_format.get_mut());
     crate::domain::literal_expression_parsing::service::clear(
