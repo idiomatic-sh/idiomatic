@@ -63,9 +63,21 @@ impl From<RoleRead> for RoleWriting {
     }
 }
 
+/// Branch-only (spike ryo-5cnx): the fused evaluator of the request and the language it walks on demand.
+#[cfg(feature = "fused-evaluation")]
+pub(crate) struct FusedRun {
+    /// The request's rules, fused.
+    pub evaluate: ryo_evaluation::inbound::use_cases::evaluate::use_case::EvaluateUseCaseImpl,
+    /// The one linked language.
+    pub engine: Arc<dyn ryo_language::inbound::use_cases::parse::types::ParseEngine>,
+}
+
 /// What a visit reads that the domain reads, with the request's provider, program and execution capabilities.
 #[derive(Clone)]
 pub(crate) struct RequestVisitSetting<'a> {
+    /// Branch-only (spike ryo-5cnx): the fused evaluator each file's rules run in, in place of `run_file`.
+    #[cfg(feature = "fused-evaluation")]
+    pub fused: Option<&'a FusedRun>,
     /// Explicit request provider; none preserves ordinary path recognition.
     pub source_language: Option<&'a ryo_values::domain::descriptions::types::LanguageName>,
     /// One prepared executable program shared by all scopes in this request.

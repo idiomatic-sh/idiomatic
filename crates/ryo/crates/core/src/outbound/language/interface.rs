@@ -49,6 +49,14 @@ pub trait LanguagePort: Send + Sync {
         out: &mut dyn RowWriter,
     ) -> FileReading;
 
+    /// The parse engine of the one linked language, which the fused evaluator walks on demand; none when more than one is linked.
+    #[cfg(feature = "fused-evaluation")]
+    fn sole_engine(
+        &self,
+    ) -> Option<std::sync::Arc<dyn ryo_language::inbound::use_cases::parse::types::ParseEngine>> {
+        None
+    }
+
     /// Begin the provider's owned semantic session for a successfully parsed file, from what its read kept in the table.
     /// Providers without this capability leave semantic demand explicitly unsupported.
     fn begin_semantics(

@@ -33,6 +33,8 @@ ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version 
 ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.1.4" }
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.4" }
 dhat = { workspace = true, optional = true }
+# Branch-only (spike ryo-5cnx): the fused evaluator behind `fused-evaluation`; never merged.
+ryo_evaluation = { package = "idiomatic-sh-ryo-evaluation", path = "../evaluation", optional = true }
 postcard.workspace = true
 tempfile.workspace = true
 
@@ -61,6 +63,9 @@ harness = false
 
 [features]
 diagnostic-row-progress = []
+# Branch-only (spike ryo-5cnx): each file's rules run in the fused evaluator in place of `run_file`, and the parse step builds the
+# tree only. Never merged: the one-execution-path rule keeps a single interpreter on main.
+fused-evaluation = ["dep:ryo_evaluation"]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = ["dep:dhat", "ryo_execution/fixtures", "ryo_execution_runtime/fixtures", "ryo_language/fixtures", "ryo_values/fixtures"]
 

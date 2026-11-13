@@ -1354,6 +1354,7 @@ dependencies = [
  "dhat",
  "divan",
  "idiomatic-sh-ryo-core",
+ "idiomatic-sh-ryo-evaluation",
  "idiomatic-sh-ryo-execution",
  "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-language",

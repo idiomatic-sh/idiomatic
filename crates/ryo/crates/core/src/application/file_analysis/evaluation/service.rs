@@ -54,32 +54,58 @@ impl FileAnalysis {
             physical.as_slice()
         };
         let intents = intents_of(tables, visit, &skipped, acceptance);
-        let ran = visit.setting.services.run_file(
-            FileRunInput {
+        // Branch-only (spike ryo-5cnx): the fused evaluator answers in place of `run_file` when the request built one.
+        #[cfg(feature = "fused-evaluation")]
+        let fused_ran = visit.setting.fused.map(|fused| {
+            use ryo_evaluation::inbound::use_cases::evaluate::interface::EvaluateUseCase as _;
+            let facts = ryo_evaluation::outbound::facts::factory::file(
+                &*fused.engine,
+                &mut tables.elements,
+                &tables.bytes.0,
                 file,
-                evaluation,
-                publication: &physical,
-                intents: &intents,
-                source: SourceView(&tables.bytes.0),
-                elements: &tables.elements,
-                language: if tables.language.is_some() {
-                    SourceLanguage::Recognized
-                } else {
-                    SourceLanguage::Unrecognized
+            );
+            fused.evaluate.evaluate(
+                ryo_evaluation::inbound::use_cases::evaluate::types::EvaluateInput {
+                    file,
+                    source: &tables.bytes.0,
+                    intents: &intents,
                 },
-                semantic: SemanticSupport::Supplied(semantic),
-                kinds: KindSupport::Absent,
-                first: visit.setting.first_bucket,
-            },
-            &mut tables.symbols,
-            CaptureContext {
-                worker: tables.number,
-                arena: Arena(&mut tables.arena.0),
-                places: &mut tables.places,
-                words: &mut tables.words,
-            },
-            worker.facts.as_ref(),
-        );
+                &mut tables.symbols,
+                &facts,
+            )
+        });
+        #[cfg(not(feature = "fused-evaluation"))]
+        let fused_ran = None;
+        let ran = if let Some(ran) = fused_ran {
+            ran
+        } else {
+            visit.setting.services.run_file(
+                FileRunInput {
+                    file,
+                    evaluation,
+                    publication: &physical,
+                    intents: &intents,
+                    source: SourceView(&tables.bytes.0),
+                    elements: &tables.elements,
+                    language: if tables.language.is_some() {
+                        SourceLanguage::Recognized
+                    } else {
+                        SourceLanguage::Unrecognized
+                    },
+                    semantic: SemanticSupport::Supplied(semantic),
+                    kinds: KindSupport::Absent,
+                    first: visit.setting.first_bucket,
+                },
+                &mut tables.symbols,
+                CaptureContext {
+                    worker: tables.number,
+                    arena: Arena(&mut tables.arena.0),
+                    places: &mut tables.places,
+                    words: &mut tables.words,
+                },
+                worker.facts.as_ref(),
+            )
+        };
         for RanRule { rule, emit, after } in ran.rules {
             if let EmittedRoot::Delivered(outcome) = emit {
                 Self::delivered(tables, visit, file, semantic, rule, outcome)?;

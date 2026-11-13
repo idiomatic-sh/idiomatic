@@ -188,6 +188,9 @@ impl LintUseCase for LintUseCaseImpl {
             vocabularies: &self.language.kind_vocabularies(),
         })?;
         let plans = compiled.plans();
+        // Branch-only (spike ryo-5cnx): the plans the fused evaluator is built from, kept before the compilation moves on.
+        #[cfg(feature = "fused-evaluation")]
+        let fused_plans = plans.to_vec();
         let ids = ids_of(&rules);
         let Wanting { placed, wants } = wanting(
             self.matching.as_ref(),
@@ -266,18 +269,48 @@ impl LintUseCase for LintUseCaseImpl {
                 .map_err(|error| request_failed(&error))?,
         );
         let metadata = program.metadata();
+        // Branch-only (spike ryo-5cnx): the request's rules fused, over the one linked language; a rule it cannot take fails the run.
+        #[cfg(feature = "fused-evaluation")]
+        let fused_run = {
+            use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort as _;
+            let vocabularies = self.language.kind_vocabularies();
+            let names: Vec<&str> = match vocabularies.0.as_slice() {
+                [one] => one.kinds.iter().map(|kind| &*kind.0).collect(),
+                _ => Vec::new(),
+            };
+            let engine = self
+                .language
+                .sole_engine()
+                .ok_or_else(|| request_failed(&"the fused evaluator needs exactly one linked language"))?;
+            crate::application::file_analysis::types::FusedRun {
+                evaluate: ryo_evaluation::inbound::use_cases::evaluate::use_case::EvaluateUseCaseImpl::new(
+                    &fused_plans,
+                    program.rule_order().collect(),
+                    &names,
+                )
+                .map_err(|error| request_failed(&error))?,
+                engine,
+            }
+        };
+        // The parse step builds the tree only: the fused evaluator asks for every relation it reads.
+        #[cfg(feature = "fused-evaluation")]
+        let walked: &[ryo_relations::domain::relations::types::Relation] = &[];
+        #[cfg(not(feature = "fused-evaluation"))]
+        let walked = &wants.walked;
         let services = execution.begin(&program, &listing.files, observer.clone());
         // The files read alone before the run are not the run's work: a counting run reads them over services nobody observes.
         let unobserved = observer
             .as_ref()
             .map(|_| execution.begin(&program, &listing.files, None));
         let mut setting = RequestVisitSetting {
+            #[cfg(feature = "fused-evaluation")]
+            fused: Some(&fused_run),
             program: Arc::clone(&program),
             source_language: named_provider(&request.source_language),
             services: &services,
             domain: crate::domain::workers::types::VisitSetting {
                 metadata,
-                wanted: &wants.walked,
+                wanted: walked,
                 paths: &paths,
                 first_bucket: &first_bucket,
                 ids: &ids,

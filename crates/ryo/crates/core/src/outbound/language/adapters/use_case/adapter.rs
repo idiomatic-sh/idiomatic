@@ -106,6 +106,16 @@ fn parse_request(file: FileToRead<'_>) -> ParseRequest<'_> {
 }
 
 impl LanguagePort for LanguageUseCaseAdapter {
+    #[cfg(feature = "fused-evaluation")]
+    fn sole_engine(
+        &self,
+    ) -> Option<std::sync::Arc<dyn ryo_language::inbound::use_cases::parse::types::ParseEngine>> {
+        match self.languages.as_slice() {
+            [one] => Some(std::sync::Arc::clone(&one.parse)),
+            _ => None,
+        }
+    }
+
     fn relations(&self) -> Result<RelationList, LanguageError> {
         Ok(RelationList(all().to_vec()))
     }
