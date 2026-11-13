@@ -21,7 +21,8 @@ let other_containers = select id from "semantic-syntax" where kind = "program" o
 let containers = union(left=function_bodies, right=other_containers);
 let contained = select l.parent as container, l.child as id, l.ordinal as ordinal from "semantic-child" as l join containers as r on l.parent = r.id where l.field = "body";
 let string_tokens = select file, span from "semantic-syntax" where kind = "string";
-let string_literals = select r.id as id, r.file as file, r.span as span from string_tokens as l join "semantic-syntax" as r on l.file = r.file and l.span = r.span where r.kind = "literal";
+let string_nodes = select r.id as id, r.file as file, r.span as span from string_tokens as l join "semantic-syntax" as r on l.file = r.file and l.span = r.span where r.kind = "literal";
+let string_literals = select l.id as id, l.file as file, l.span as span from string_nodes as l join expressions as r on l.id = r.expression;
 let wrapped_strings = parenthesized(candidates=string_literals);
 let bare_strings = antijoin(left=string_literals, right=wrapped_strings, left-on=["id"], right-on=["id"]);
 let string_statements = select l.statement as id from expressions as l join bare_strings as r on l.expression = r.id;

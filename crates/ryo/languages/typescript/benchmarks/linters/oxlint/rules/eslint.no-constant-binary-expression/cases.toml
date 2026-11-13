@@ -1,0 +1,289 @@
+[[cases]]
+name = "or-object"
+files = { "case.ts" = "const x = {} || a;\n" }
+expected = [{ file = "case.ts", start = 10, end = 17 }]
+
+[[cases]]
+name = "and-literal"
+files = { "case.ts" = "const x = 1 && a;\n" }
+expected = [{ file = "case.ts", start = 10, end = 16 }]
+
+[[cases]]
+name = "or-identifier"
+files = { "case.ts" = "const x = a || b;\n" }
+expected = []
+
+[[cases]]
+name = "or-not"
+files = { "case.ts" = "const x = !a || b;\n" }
+expected = []
+
+[[cases]]
+name = "or-not-constant"
+files = { "case.ts" = "const x = !1 || b;\n" }
+expected = [{ file = "case.ts", start = 10, end = 17 }]
+
+[[cases]]
+name = "coalesce-object"
+files = { "case.ts" = "const x = {} ?? a;\n" }
+expected = [{ file = "case.ts", start = 10, end = 17 }]
+
+[[cases]]
+name = "coalesce-identifier"
+files = { "case.ts" = "const x = a ?? b;\n" }
+expected = []
+
+[[cases]]
+name = "coalesce-null"
+files = { "case.ts" = "const x = null ?? a;\n" }
+expected = [{ file = "case.ts", start = 10, end = 19 }]
+
+[[cases]]
+name = "coalesce-undefined"
+files = { "case.ts" = "const x = undefined ?? a;\n" }
+expected = [{ file = "case.ts", start = 10, end = 24 }]
+
+[[cases]]
+name = "coalesce-binary"
+files = { "case.ts" = "const x = (a + b) ?? c;\n" }
+expected = [{ file = "case.ts", start = 10, end = 22 }]
+
+[[cases]]
+name = "coalesce-call"
+files = { "case.ts" = "const x = f() ?? c;\n" }
+expected = []
+
+[[cases]]
+name = "coalesce-string-call"
+files = { "case.ts" = "const x = String(a) ?? c;\n" }
+expected = [{ file = "case.ts", start = 10, end = 24 }]
+
+[[cases]]
+name = "coalesce-nested"
+files = { "case.ts" = "const x = (a ?? {}) ?? c;\n" }
+expected = [{ file = "case.ts", start = 10, end = 24 }]
+
+[[cases]]
+name = "coalesce-nested-null"
+files = { "case.ts" = "const x = (a ?? null) ?? c;\n" }
+expected = []
+
+[[cases]]
+name = "coalesce-assignment"
+files = { "case.ts" = "const x = (a = {}) ?? c;\n" }
+expected = [{ file = "case.ts", start = 10, end = 23 }]
+
+[[cases]]
+name = "coalesce-or-assignment"
+files = { "case.ts" = "const x = (a ||= {}) ?? c;\n" }
+expected = []
+
+[[cases]]
+name = "coalesce-plus-assignment"
+files = { "case.ts" = "const x = (a += 1) ?? c;\n" }
+expected = [{ file = "case.ts", start = 10, end = 23 }]
+
+[[cases]]
+name = "coalesce-sequence"
+files = { "case.ts" = "const x = (a, {}) ?? c;\n" }
+expected = [{ file = "case.ts", start = 10, end = 22 }]
+
+[[cases]]
+name = "coalesce-as"
+files = { "case.ts" = "const x = ({} as any) ?? c;\n" }
+expected = [{ file = "case.ts", start = 10, end = 26 }]
+
+[[cases]]
+name = "coalesce-void"
+files = { "case.ts" = "const x = void a ?? c;\n" }
+expected = [{ file = "case.ts", start = 10, end = 21 }]
+
+[[cases]]
+name = "null-loose-object"
+files = { "case.ts" = "const x = null == {};\n" }
+expected = [{ file = "case.ts", start = 10, end = 20 }]
+
+[[cases]]
+name = "object-loose-null"
+files = { "case.ts" = "const x = {} != null;\n" }
+expected = [{ file = "case.ts", start = 10, end = 20 }]
+
+[[cases]]
+name = "undefined-strict-array"
+files = { "case.ts" = "const x = undefined === [];\n" }
+expected = [{ file = "case.ts", start = 10, end = 26 }]
+
+[[cases]]
+name = "null-variable"
+files = { "case.ts" = "const x = null == a;\n" }
+expected = []
+
+[[cases]]
+name = "boolean-loose-object"
+files = { "case.ts" = "const x = true == {};\n" }
+expected = [{ file = "case.ts", start = 10, end = 20 }]
+
+[[cases]]
+name = "boolean-loose-array-empty"
+files = { "case.ts" = "const x = true == [];\n" }
+expected = [{ file = "case.ts", start = 10, end = 20 }]
+
+[[cases]]
+name = "boolean-loose-array-one"
+files = { "case.ts" = "const x = true == [a];\n" }
+expected = []
+
+[[cases]]
+name = "boolean-loose-array-two"
+files = { "case.ts" = "const x = true == [a, b];\n" }
+expected = [{ file = "case.ts", start = 10, end = 24 }]
+
+[[cases]]
+name = "boolean-loose-template"
+files = { "case.ts" = "const x = true == `a`;\n" }
+expected = [{ file = "case.ts", start = 10, end = 21 }]
+
+[[cases]]
+name = "boolean-loose-template-expression"
+files = { "case.ts" = "const x = true == `${a}`;\n" }
+expected = []
+
+[[cases]]
+name = "boolean-loose-typeof"
+files = { "case.ts" = "const x = true == typeof a;\n" }
+expected = [{ file = "case.ts", start = 10, end = 26 }]
+
+[[cases]]
+name = "boolean-loose-negation"
+files = { "case.ts" = "const x = true == -a;\n" }
+expected = []
+
+[[cases]]
+name = "boolean-loose-variable"
+files = { "case.ts" = "const x = true == a;\n" }
+expected = []
+
+[[cases]]
+name = "boolean-strict-binary"
+files = { "case.ts" = "const x = true === a + b;\n" }
+expected = [{ file = "case.ts", start = 10, end = 24 }]
+
+[[cases]]
+name = "boolean-strict-comparison"
+files = { "case.ts" = "const x = true === a < b;\n" }
+expected = []
+
+[[cases]]
+name = "boolean-strict-negation"
+files = { "case.ts" = "const x = false !== -a;\n" }
+expected = [{ file = "case.ts", start = 10, end = 22 }]
+
+[[cases]]
+name = "boolean-strict-delete"
+files = { "case.ts" = "const x = true === delete a.b;\n" }
+expected = []
+
+[[cases]]
+name = "boolean-strict-class"
+files = { "case.ts" = "const x = true === class {};\n" }
+expected = [{ file = "case.ts", start = 10, end = 27 }]
+
+[[cases]]
+name = "boolean-strict-number-call"
+files = { "case.ts" = "const x = true === Number(a);\n" }
+expected = [{ file = "case.ts", start = 10, end = 28 }]
+
+[[cases]]
+name = "boolean-strict-boolean-call"
+files = { "case.ts" = "const x = true === Boolean(a);\n" }
+expected = []
+
+[[cases]]
+name = "not-boolean-strict"
+files = { "case.ts" = "const x = !1 === a + b;\n" }
+expected = [{ file = "case.ts", start = 10, end = 22 }]
+
+[[cases]]
+name = "boolean-call-strict"
+files = { "case.ts" = "const x = Boolean(1) === [];\n" }
+expected = [{ file = "case.ts", start = 10, end = 27 }]
+
+[[cases]]
+name = "always-new-strict"
+files = { "case.ts" = "const x = a === {};\n" }
+expected = [{ file = "case.ts", start = 10, end = 18 }]
+
+[[cases]]
+name = "always-new-loose"
+files = { "case.ts" = "const x = a == {};\n" }
+expected = []
+
+[[cases]]
+name = "always-new-both-loose"
+files = { "case.ts" = "const x = {} == [];\n" }
+expected = [{ file = "case.ts", start = 10, end = 18 }]
+
+[[cases]]
+name = "always-new-regex"
+files = { "case.ts" = "const x = a === /a/;\n" }
+expected = [{ file = "case.ts", start = 10, end = 19 }]
+
+[[cases]]
+name = "always-new-new"
+files = { "case.ts" = "const x = a === new Map();\n" }
+expected = [{ file = "case.ts", start = 10, end = 25 }]
+
+[[cases]]
+name = "always-new-new-local"
+files = { "case.ts" = "class Thing {}\nconst x = a === new Thing();\n" }
+expected = []
+
+[[cases]]
+name = "always-new-conditional"
+files = { "case.ts" = "const x = a === (b ? {} : []);\n" }
+expected = [{ file = "case.ts", start = 10, end = 29 }]
+
+[[cases]]
+name = "always-new-conditional-mixed"
+files = { "case.ts" = "const x = a === (b ? {} : c);\n" }
+expected = []
+
+[[cases]]
+name = "relational-literals"
+files = { "case.ts" = "const x = 1 < 2;\n" }
+expected = [{ file = "case.ts", start = 10, end = 15 }]
+
+[[cases]]
+name = "relational-negative"
+files = { "case.ts" = "const x = -1 >= +2;\n" }
+expected = [{ file = "case.ts", start = 10, end = 18 }]
+
+[[cases]]
+name = "relational-template"
+files = { "case.ts" = "const x = `a` > \"b\";\n" }
+expected = [{ file = "case.ts", start = 10, end = 19 }]
+
+[[cases]]
+name = "relational-undefined"
+files = { "case.ts" = "const x = undefined < 1;\n" }
+expected = [{ file = "case.ts", start = 10, end = 23 }]
+
+[[cases]]
+name = "relational-variable"
+files = { "case.ts" = "const x = a < 1;\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-null"
+files = { "case.ts" = "const x = (null) == {};\n" }
+expected = []
+
+[[cases]]
+name = "as-object"
+files = { "case.ts" = "const x = a === ({} as any);\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-constant-binary-expression\nconst x = {} || a;\n" }
+expected = []

@@ -1,0 +1,10 @@
+import directives from "typescript/oxlint/eslint-directives";
+let gaps = select id, file, span from "semantic-syntax" where kind = "whitespace" or kind = "error";
+let characters = source-matches(from=gaps, span="span", pattern="[\x0B\x0C\x{85}\x{A0}\x{FEFF}\x{1680}\x{2000}-\x{200B}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}]", output="character");
+let marks = source-matches(from=gaps, span="span", pattern="\A\x{FEFF}", output="character");
+let mark_bounds = span-bounds(from=marks, span="character", start-output="begin", end-output="finish");
+let byte_order_marks = select id, file, character from mark_bounds where begin = 0;
+let irregular = antijoin(left=characters, right=byte_order_marks, left-on=["id", "character"], right-on=["id", "character"]);
+let found = select id, file, character as span from irregular;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-irregular-whitespace(?:,|$)");
+emit violations subject file key(id, span);
