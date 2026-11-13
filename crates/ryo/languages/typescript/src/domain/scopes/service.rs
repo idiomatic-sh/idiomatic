@@ -76,7 +76,9 @@ pub(crate) fn function_form(tree: &Tree<'_>, at: Position) -> Declaredness {
             });
             Declaredness::Method(key)
         }
-        Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) | Kind::Pattern(_) => Declaredness::Expression,
+        Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) | Kind::Pattern(_) => {
+            Declaredness::Expression
+        }
     }
 }
 /// An explicit callable name: a declaration's own, or a method's key; anonymous functions and arrows remain unknown.

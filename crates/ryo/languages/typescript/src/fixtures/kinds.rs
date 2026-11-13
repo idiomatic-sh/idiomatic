@@ -5,10 +5,10 @@ use ryo::languages::{KindName, Sample, SampleText, Why};
 
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::types::PatternNode;
 use crate::domain::syntax::constants::UNREAD_GRAMMAR;
 use crate::domain::syntax::service::{kind_bits, kinds};
 use crate::domain::syntax::types::Kind;
+use crate::domain::syntax::types::PatternNode;
 use crate::domain::tokens::types::Token;
 
 /// Every kind, in the order of their numbers, with how the language shows it.

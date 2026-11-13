@@ -22,7 +22,6 @@ pub(crate) mod tokens;
 pub(crate) mod visibilities;
 
 pub(crate) mod manifests;
-pub(crate) mod model;
 pub(crate) mod names;
 pub(crate) mod packages;
 pub(crate) mod scopes;

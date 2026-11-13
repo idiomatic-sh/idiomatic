@@ -1,11 +1,11 @@
 //! TypeScript `pattern_syntax` rows: every element of the regular-expression patterns the file carries.
+use crate::domain::model::types::ReadIndexes;
 use crate::domain::patterns::service as patterns;
 use crate::domain::syntax::types::PatternNode;
 use crate::domain::syntax::{
     service::{kind_bits, kind_symbol},
     types::Kind,
 };
-use crate::domain::model::types::ReadIndexes;
 use ryo::languages;
 
 /// Reads the `pattern-syntax` rows of one TypeScript file from its syntax tree.

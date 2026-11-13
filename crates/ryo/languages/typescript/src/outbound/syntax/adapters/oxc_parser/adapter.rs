@@ -3,8 +3,8 @@
 use super::constants::{IMPORT_META, IMPORT_OPTIONS_KEY, NEW_TARGET, NOT_UTF8};
 use super::patterns::service::{carried, constructed, written_patterns};
 use super::projection::service::{
-    annotate, attach, expression_body, gap, insert, jsx_names, leaf, meta_words, normalized,
-    node_properties, parameter, source_type_of, write,
+    annotate, attach, expression_body, gap, insert, jsx_names, leaf, meta_words, node_properties,
+    normalized, parameter, source_type_of, write,
 };
 use super::schemas::{node_kind, token_kind};
 use super::types::{ChildCursor, Decoded, DecodedText, Piece, Text, VisitorStack};

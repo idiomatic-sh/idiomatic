@@ -23,7 +23,10 @@ fn token_word(
     numeric: Option<languages::NameText<'_>>,
 ) -> Option<ShapeWord> {
     match kind(tree, at) {
-        Kind::Token(Token::Line | Token::Block) | Kind::Extra(_) | Kind::Node(_) => None,
+        Kind::Token(Token::Line | Token::Block)
+        | Kind::Extra(_)
+        | Kind::Node(_)
+        | Kind::Pattern(_) => None,
         Kind::Token(Token::Numeric) if numeric.is_some() => None,
         Kind::Token(Token::Punctuator)
             if PARENTHESES
@@ -95,6 +98,14 @@ pub(crate) fn prepare<'a>(
         let Ok(count) = usize::try_from(languages::end_of(tree.elements).0) else {
             return None;
         };
+        if index
+            .classes
+            .try_reserve(count.saturating_sub(index.classes.len()))
+            .is_err()
+        {
+            index.state = KeyState::Partial;
+            return None;
+        }
         index.classes.resize(count, None);
         for raw in (0..count).rev() {
             let Ok(position) = u32::try_from(raw) else {

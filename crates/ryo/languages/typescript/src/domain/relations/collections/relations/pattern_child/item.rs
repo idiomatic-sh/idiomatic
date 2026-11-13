@@ -1,11 +1,11 @@
 //! TypeScript `pattern_child` rows: the edges of the regular-expression patterns the file carries, in pattern order.
+use crate::domain::model::types::ReadIndexes;
 use crate::domain::patterns::service as patterns;
 use crate::domain::syntax::types::PatternNode;
 use crate::domain::syntax::{
     service::{kind_bits, parent},
     types::Kind,
 };
-use crate::domain::model::types::ReadIndexes;
 use ryo::languages;
 
 /// Reads the `pattern-child` rows of one TypeScript file from its syntax tree.

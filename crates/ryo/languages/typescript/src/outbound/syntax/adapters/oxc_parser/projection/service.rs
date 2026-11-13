@@ -11,7 +11,8 @@ use crate::domain::bindings::constants::{READ_WRITE, TYPE, VALUE, WRITE};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::{
-    FLOAT_NUMBER, INTEGER_NUMBER, NUMERIC_KIND, NUMERIC_VALUE, REDECLARATION_OF, REFERENCE_DECLARATION, REFERENCE_FLAGS,
+    FLOAT_NUMBER, INTEGER_NUMBER, NUMERIC_KIND, NUMERIC_VALUE, REDECLARATION_OF,
+    REFERENCE_DECLARATION, REFERENCE_FLAGS,
 };
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::{Dialect, Kind};
@@ -277,19 +278,16 @@ pub(in super::super) fn node_properties(scoping: &Scoping, kind: AstKind<'_>) ->
 
 /// Where the name the reference `id` resolves to is first declared, the [`REFERENCE_DECLARATION`] of its identifier: the start of
 /// that declaration's binding identifier, or nothing for a name no declaration of the file binds.
-pub(in super::super) fn declaration_start(scoping: &Scoping, id: ReferenceId) -> Option<u32> {
+pub(in super::super) fn declaration_start(scoping: &Scoping, id: ReferenceId) -> Option<Offset> {
     scoping
         .get_reference(id)
         .symbol_id()
-        .map(|symbol| scoping.symbol_span(symbol).start)
+        .map(|symbol| Offset(scoping.symbol_span(symbol).start))
 }
 
 /// What the semantic pass says of the node `kind`, as the properties the domain reads: how an identifier reference uses its name and
 /// where the name it resolves to is first declared, and, for a binding identifier that declares a name again, where it was first.
-fn semantic_properties(
-    scoping: &Scoping,
-    kind: AstKind<'_>,
-) -> Vec<NodeProperty> {
+fn semantic_properties(scoping: &Scoping, kind: AstKind<'_>) -> Vec<NodeProperty> {
     let mut properties = Vec::new();
     if let AstKind::IdentifierReference(reference) = kind
         && let Some(id) = reference.reference_id.get()
@@ -308,7 +306,7 @@ fn semantic_properties(
         if let Some(declared) = declaration_start(scoping, id) {
             properties.push(NodeProperty {
                 id: REFERENCE_DECLARATION,
-                value: DecodedText(declared.to_string()),
+                value: DecodedText(declared.0.to_string()),
             });
         }
     }

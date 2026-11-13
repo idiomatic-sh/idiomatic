@@ -81,8 +81,7 @@ fn subject((index, source): Input) -> Result<Value, Failure> {
             clear(&mut indexes);
             let cleared = indexes.shapes.borrow().classes.len();
             let after = indexes.shapes.borrow().state;
-            let rebuilt =
-                prepare(&tree, &indexes, &mut symbols).map(|shapes| shapes.classes.len());
+            let rebuilt = prepare(&tree, &indexes, &mut symbols).map(|shapes| shapes.classes.len());
             format!("{built:?}|{state:?}|{cleared}|{after:?}|{rebuilt:?}")
         }
     };

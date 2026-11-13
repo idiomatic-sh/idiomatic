@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - one impl of the generated parse trait, one method for each relation of the catalog: the impl is one block and the catalog is its list, so no placed role splits it
+// ignore: idiomatic.arch/file-length - the parse contract implements the generated Parse and Semantics traits, one method for each relation of the catalog; the contract spec places them in one contract.rs and a trait impl is one block
 //! The `parse` contract: the language's implementation of `ryo::Parse`. It says which files are the language's, builds the file's
 //! tree in the worker's element table through the syntax port, notes the modules the file imports when the run asks for its notes,
 //! and answers, for every syntax relation of ryo's catalog, how the language reads it or that it is not in the language yet.
@@ -16,10 +16,10 @@ use crate::domain::relations::collections::relations::{
     parameter::item::ParameterItem, pattern_child::item::PatternChildItem,
     pattern_parse::item::PatternParseItem, pattern_syntax::item::PatternSyntaxItem,
     reference::item::ReferenceItem, resolves::item::ResolvesItem, scope::item::ScopeItem,
-    static_call::item::StaticCallItem,
-    static_import::item::StaticImportItem, string_literal::item::StringLiteralItem,
-    syntax_child::item::SyntaxChildItem, syntax_error::item::SyntaxErrorItem,
-    syntax_tree::item::SyntaxTreeItem, visibility::item::VisibilityItem,
+    static_call::item::StaticCallItem, static_import::item::StaticImportItem,
+    string_literal::item::StringLiteralItem, syntax_child::item::SyntaxChildItem,
+    syntax_error::item::SyntaxErrorItem, syntax_tree::item::SyntaxTreeItem,
+    visibility::item::VisibilityItem,
 };
 use std::sync::Arc;
 
@@ -31,7 +31,6 @@ use ryo::languages::{
 };
 
 use crate::domain::language::service::{reading_of, reads, recognized};
-use crate::domain::model::{service::clear, types::ReadIndexes};
 use crate::domain::syntax::constants::NO_CONFIGURATION;
 use crate::domain::syntax::service::{kind_name, kinds};
 use crate::domain::syntax::types::{Scripting, Stretch, Written};
@@ -313,7 +312,9 @@ impl languages::Semantics<ReadIndexes> for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, ReadIndexes>> {
+    fn literal_expression_parse(
+        &self,
+    ) -> Support<Reader<languages::LiteralExpressionParse, ReadIndexes>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 

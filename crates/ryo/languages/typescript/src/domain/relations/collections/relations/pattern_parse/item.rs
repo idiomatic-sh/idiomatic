@@ -1,8 +1,8 @@
 //! TypeScript `pattern_parse` rows: the outcome of each regular-expression pattern the file carries, as the language's library read it.
+use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::patterns::service as patterns;
 use crate::domain::syntax::{service::kind_bits, types::Kind};
-use crate::domain::model::types::ReadIndexes;
 use ryo::languages;
 
 /// Reads the `pattern-parse` rows of one TypeScript file from its syntax tree.
