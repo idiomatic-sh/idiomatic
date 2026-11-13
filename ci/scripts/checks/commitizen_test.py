@@ -1,37 +1,32 @@
-"""The root `commitizen` tool checks the commits since its pinned baseline, in a full-history clone of the pushed branch as CI checks
-it out; the history before the baseline is not checked again. Each case stands its own scratch baseline in for the pinned one."""
+"""The root `commitizen` tool checks the commits a pushed branch holds beyond origin/main, in a clone of it as CI checks it out,
+and, run for a pull request on GitHub Actions, the pull request's title, which a squash merge makes the commit main keeps. The
+history main already holds is not checked again."""
 
 from __future__ import annotations
 
-import re
+import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
 
-import pytest
 import tomllib
 
 ROOT = Path(__file__).resolve().parents[3]
 
 
-BASELINE = re.compile(r"\b([0-9a-f]{40})\b")
-
-
-def run_tool(baseline: str) -> list[str]:
+def run_tool() -> list[str]:
     tools = tomllib.loads((ROOT / "asymptote.toml").read_text())["tools"]
     (argv,) = [tool["run"] for tool in tools if tool["id"] == "commitizen"]
-    pinned = BASELINE.search(argv[-1])
-    assert pinned, "the commitizen tool names its baseline"
-    return [*argv[:-1], argv[-1].replace(pinned[1], baseline)]
+    return argv
 
 
 def git(path: Path, *arguments: str) -> None:
     subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *arguments], cwd=path, check=True, capture_output=True)
 
 
-def pushed_branch(tmp_path: Path, messages: list[str], *clone_options: str) -> tuple[Path, str]:
-    """A whole-history clone of a branch pushed with `messages`, and its baseline: main's one commit, which is no conventional
-    commit."""
+def pushed_branch(tmp_path: Path, messages: list[str]) -> Path:
+    """A clone of a branch pushed with `messages` over main, whose one commit is no conventional commit."""
     origin, work, clone = tmp_path / "origin", tmp_path / "work", tmp_path / "clone"
     git(tmp_path, "init", "-q", "--bare", "-b", "main", str(origin))
     git(tmp_path, "clone", "-q", str(origin), str(work))
@@ -43,24 +38,40 @@ def pushed_branch(tmp_path: Path, messages: list[str], *clone_options: str) -> t
     for message in messages:
         git(work, "commit", "-q", "--allow-empty", "-m", message)
     git(work, "push", "-q", "origin", "claude/plant")
-    git(tmp_path, "clone", "-q", *clone_options, "--branch", "claude/plant", f"file://{origin}", str(clone))
-    baseline = subprocess.run(["git", "rev-parse", "main"], cwd=work, check=True, capture_output=True, text=True).stdout.strip()
-    return clone, baseline
+    git(tmp_path, "clone", "-q", "--branch", "claude/plant", f"file://{origin}", str(clone))
+    return clone
 
 
-def exit_of(cloned: tuple[Path, str]) -> int:
-    path, baseline = cloned
-    return subprocess.run(run_tool(baseline), cwd=path, capture_output=True, check=False).returncode
+def exit_of(clone: Path, event: dict | None = None) -> int:
+    environment = {key: value for key, value in os.environ.items() if key != "GITHUB_EVENT_PATH"}
+    if event is not None:
+        path = clone.parent / "event.json"
+        path.write_text(json.dumps(event))
+        environment["GITHUB_EVENT_PATH"] = str(path)
+    return subprocess.run(run_tool(), cwd=clone, env=environment, capture_output=True, check=False).returncode
 
 
-def test_a_pushed_branch_with_a_bad_message_fails_in_a_full_history_clone(tmp_path) -> None:
+def test_a_pushed_branch_with_a_bad_message_fails(tmp_path) -> None:
     assert exit_of(pushed_branch(tmp_path, ["fix: good", "not a conventional message"])) != 0
 
 
-def test_a_pushed_branch_of_conventional_commits_passes_though_the_history_before_the_baseline_holds_an_old_message(tmp_path) -> None:
+def test_a_pushed_branch_of_conventional_commits_passes_though_main_holds_an_old_message(tmp_path) -> None:
     assert exit_of(pushed_branch(tmp_path, ["fix: good", "feat: also good"])) == 0
 
 
-@pytest.mark.parametrize("options", [("--depth", "1"), ("--single-branch", "--depth", "1")], ids=["depth-1", "single-branch-depth-1"])
-def test_a_clone_that_cannot_resolve_the_range_stops_the_tool(tmp_path, options) -> None:
-    assert exit_of(pushed_branch(tmp_path, ["not a conventional message"], *options)) != 0
+def test_a_branch_with_no_commit_ahead_of_main_has_none_to_check(tmp_path) -> None:
+    assert exit_of(pushed_branch(tmp_path, [])) == 0
+
+
+def test_a_pull_request_whose_title_is_no_conventional_commit_fails(tmp_path) -> None:
+    event = {"pull_request": {"title": "not a conventional title"}}
+    assert exit_of(pushed_branch(tmp_path, ["fix: good"]), event) != 0
+
+
+def test_a_pull_request_with_a_conventional_title_passes(tmp_path) -> None:
+    event = {"pull_request": {"title": "fix: a conventional title"}}
+    assert exit_of(pushed_branch(tmp_path, ["fix: good"]), event) == 0
+
+
+def test_an_event_that_is_no_pull_request_checks_no_title(tmp_path) -> None:
+    assert exit_of(pushed_branch(tmp_path, ["fix: good"]), {"ref": "refs/heads/main"}) == 0

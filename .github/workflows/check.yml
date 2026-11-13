@@ -358,7 +358,7 @@ jobs:
           CARGO_BUILD_JOBS=6 cargo bench --no-run --locked -p idiomatic-sh-ryo-python-ruff-benchmark --bench ruff --message-format=json \
             > ../../target/checks/ruff-all-defaults/worker-build.jsonl \
             2> ../../target/checks/ruff-all-defaults/worker-build.stderr
-          python3 ../../.github/scripts/seal_cargo_artifact.py \
+          python3 ../../ci/scripts/checks/seal_cargo_artifact.py \
             ../../target/checks/ruff-all-defaults/worker-build.jsonl \
             ruff bench /languages/python/benchmarks/linters/ruff/bench.rs true \
             ../../target/checks/ruff-all-defaults/worker
@@ -369,8 +369,8 @@ jobs:
             --bin ryo-benchmark-collector --message-format=json \
             > ../../target/checks/ruff-all-defaults/inventory-build.jsonl \
             2> ../../target/checks/ruff-all-defaults/inventory-build.stderr
-          python3 -m unittest discover -s ../../.github/scripts -p 'test_seal_cargo_artifact.py'
-          python3 ../../.github/scripts/seal_cargo_artifact.py \
+          python3 -m unittest discover -s ../../ci/scripts/checks -p 'seal_cargo_artifact_test.py'
+          python3 ../../ci/scripts/checks/seal_cargo_artifact.py \
             ../../target/checks/ruff-all-defaults/inventory-build.jsonl \
             ryo-benchmark-collector bin /crates/benchmark/src/main.rs false \
             ../../target/checks/ruff-all-defaults/inventory-runner

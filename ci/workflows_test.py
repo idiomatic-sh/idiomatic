@@ -30,9 +30,10 @@ COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
 HANDED = {"CARGO_REGISTRY_TOKEN", "GH_TOKEN"}
 # What may start a workflow: a hand run alone (no paid CI: no pull request, no schedule). The release workflow, by name, may start
 # on a push to main too, which only the owner's merged release pull request makes; `pull_request_target`, which runs a fork's code
-# with the repository's secrets, never.
+# with the repository's secrets, never. A schedule starts only the workflows `SCHEDULED` names: none.
 ALLOWED = {"workflow_dispatch"}
 PUSHED = {"release.yml"}
+SCHEDULED: set[str] = set()
 # What may follow a job's check: uploading what its tools left (a bench's documents) as the run's artifact.
 UPLOAD = "actions/upload-artifact@"
 # The GitHub Release is the one step beside the job command that is not a command of its own: `gh` calls and the checksums they upload.
@@ -49,8 +50,8 @@ SETUP = {"rustup toolchain install", "uv run --script tools/install.py"}
 # approved scripts are sealed whole: a removed build, narrowed rule set, masked
 # exit, or extra shell command must require an explicit review of this contract.
 FULL_INVENTORY_SCRIPTS = {
-    "Build one Ruff worker and seal its artifact": "7462f50f7fc6036730dddbc3928fe2f41437e398d0cfc86ababb57f33dd2e981",
-    "Build shared benchmark inventory runner": "5d8998c6e9bdfbdec286c4606f51bebb5785784a27a8afa118f7205d7e8c0f1f",
+    "Build one Ruff worker and seal its artifact": "57544e37fd6205c73fae4e4c7641c59839a9767a3e363d37741cb3f83ff07bab",
+    "Build shared benchmark inventory runner": "19189ffafd2dc445d18cfab8aeeb876999972f22ffe28410945f75818308851c",
     "Verify all 413 pinned Ruff defaults": "c3aaa07327b3c8134fcd36a4cf760fbed37cd6cb3bd9be6f0836462468879adf",
 }
 # Each digest binds the entire pinned action step: its `uses`, inputs, id,
@@ -161,11 +162,12 @@ def environment(job: dict) -> str | None:
 
 
 def trigger_problems(name: str, workflow: dict) -> list[str]:
-    """What starts the workflow that may not: a trigger outside `ALLOWED`, a push for any workflow `PUSHED` does not name, and a
-    push to a branch other than main for one it does."""
+    """What starts the workflow that may not: a trigger outside `ALLOWED` (a schedule outside `SCHEDULED`), a push for any
+    workflow `PUSHED` does not name, and a push to a branch other than main for one it does."""
     started = triggers(workflow)
     pushed = name in PUSHED
-    found = [f"{name} starts on {each}" for each in sorted(started - ALLOWED - ({"push"} if pushed else set()))]
+    allowed = ALLOWED | ({"schedule"} if name in SCHEDULED else set())
+    found = [f"{name} starts on {each}" for each in sorted(started - allowed - ({"push"} if pushed else set()))]
     on = workflow["on" if "on" in workflow else True]
     if pushed and "push" in started and (on.get("push") if isinstance(on, dict) else None) != {"branches": ["main"]}:
         found.append(f"{name} starts on a push to more than main")
@@ -554,7 +556,7 @@ def test_a_trigger_other_than_dispatch_is_told_apart() -> None:
     assert triggers(dispatched) == {"workflow_dispatch"}
 
 
-def test_a_schedule_starts_no_workflow() -> None:
+def test_a_schedule_starts_only_the_scheduled_workflows() -> None:
     scheduled = yaml.safe_load("on:\n  schedule:\n    - cron: '0 3 * * 0'\n  workflow_dispatch:\njobs: {}\n")
     assert trigger_problems("check.yml", scheduled) == ["check.yml starts on schedule"]
     assert trigger_problems("benchmarks.yml", scheduled) == ["benchmarks.yml starts on schedule"]
@@ -571,7 +573,7 @@ def test_a_pull_request_target_is_refused() -> None:
     assert trigger_problems("check.yml", target) == ["check.yml starts on pull_request_target"]
 
 
-def test_a_push_starts_no_workflow_that_does_not_publish() -> None:
+def test_a_push_starts_a_workflow_only_on_main() -> None:
     main = yaml.safe_load("on:\n  push:\n    branches: [main]\njobs: {}\n")
     assert trigger_problems("check.yml", main) == ["check.yml starts on push"]
 
