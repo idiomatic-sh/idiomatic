@@ -5,8 +5,8 @@ use ryo_benchmark_contracts::domain::documents::types::observation_document::val
 use ryo_benchmark_contracts::domain::documents::types::text::value::{
     CanonicalJson, PathText, ReasonText, RuleName, Sha256Text,
 };
-use ryo_benchmark_contracts::domain::requests::types::ParserSelection;
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use ryo_benchmark_contracts::domain::requests::types::ParserSelection;
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::{
     collections::{BTreeMap, BTreeSet},

@@ -14,7 +14,8 @@ pub(super) const MISSING_IMPLEMENTATION: &str = "missing implementation";
 /// The prefix of the reason of a rule that could not be staged.
 pub(super) const RULE_REGISTRATION: &str = "rule registration";
 /// The refusal of a case file without cases or with a repeated name.
-pub(super) const CASES_EMPTY_OR_DUPLICATE: &str = "canonical case registration is empty or has duplicate names";
+pub(super) const CASES_EMPTY_OR_DUPLICATE: &str =
+    "canonical case registration is empty or has duplicate names";
 /// The refusal of a settings profile pinned to another tool.
 pub(super) const PINS_DIFFER: &str = "per-rule profile does not retain the pinned tool identity";
 /// The refusal of a settings profile that does not select the rule.

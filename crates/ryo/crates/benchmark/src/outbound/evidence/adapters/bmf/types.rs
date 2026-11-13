@@ -16,4 +16,3 @@ pub(crate) struct ParityCounts {
     /// Differences no accepted-differences entry accepts.
     pub unaccepted: ParityCount,
 }
-

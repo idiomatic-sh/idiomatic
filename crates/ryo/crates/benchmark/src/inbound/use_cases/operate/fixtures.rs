@@ -66,7 +66,10 @@ pub fn use_case(executables: Arc<ExecutablesFake>) -> OperateUseCaseImpl {
 
 /// Run one scenario through the use case `build` makes, observing its answer, output and requests.
 #[must_use]
-pub fn observe(scenario: Scenario, build: impl Fn(Arc<ExecutablesFake>) -> OperateUseCaseImpl) -> Observed {
+pub fn observe(
+    scenario: Scenario,
+    build: impl Fn(Arc<ExecutablesFake>) -> OperateUseCaseImpl,
+) -> Observed {
     let root = tempfile::tempdir().expect("fixture root");
     let root_path = root.path().canonicalize().expect("canonical root");
     let bench = root_path.join(BENCH);
@@ -99,8 +102,14 @@ pub fn observe(scenario: Scenario, build: impl Fn(Arc<ExecutablesFake>) -> Opera
             &mut stdout,
         )
         .map(|report| report.verdict)
-        .map_err(|error| error.to_string().replace(&root_path.display().to_string(), "<root>"));
-    let relative = |path: &PathBuf| PathBuf::from("<root>").join(path.strip_prefix(&root_path).unwrap_or(path));
+        .map_err(|error| {
+            error
+                .to_string()
+                .replace(&root_path.display().to_string(), "<root>")
+        });
+    let relative = |path: &PathBuf| {
+        PathBuf::from("<root>").join(path.strip_prefix(&root_path).unwrap_or(path))
+    };
     let calls = executables
         .history
         .lock()

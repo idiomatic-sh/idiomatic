@@ -44,6 +44,52 @@ RELEASE_LINE = re.compile(
 # The steps that put the declared tools on a machine; a job command runs beside them and installs nothing itself.
 SETUP = {"rustup toolchain install", "uv run --script tools/install.py"}
 
+# The bench-correctness job verifies every default of every linter bench on one Linux runner. Its guards keep a failure
+# from turning into a pass: no skip, no masked step, exactly its one check, its environment, and receipts uploaded even
+# after failure.
+BENCH_CORRECTNESS_CHECK = "asymptote check --root crates/ryo --groups bench-correctness"
+BENCH_CORRECTNESS_ENV = {"RAYON_NUM_THREADS": "1", "CARGO_BUILD_JOBS": "6"}
+BENCH_CORRECTNESS_UPLOAD = {
+    "name": "bench-correctness-${{ github.run_attempt }}",
+    "path": "target/benchmark/",
+    "include-hidden-files": True,
+    "if-no-files-found": "error",
+    "retention-days": 7,
+}
+
+
+def bench_correctness_problems(job: dict) -> list[str]:
+    """What lets the bench-correctness job pass without verifying every default."""
+    found = []
+    steps = job.get("steps", [])
+    if job.get("runs-on") != "ubuntu-26.04" or "strategy" in job or "container" in job:
+        found.append("bench-correctness must run once, on the one Linux runner, outside a container")
+    if not isinstance(job.get("timeout-minutes"), int) or job["timeout-minutes"] <= 360:
+        found.append("bench-correctness needs headroom over its tool's 360-minute timeout")
+    if "if" in job or "continue-on-error" in job:
+        found.append("bench-correctness may not be skipped or masked")
+    if job.get("env") != BENCH_CORRECTNESS_ENV:
+        found.append("bench-correctness changed its pinned environment")
+    runs = [step.get("run") for step in steps if "run" in step]
+    if runs.count(BENCH_CORRECTNESS_CHECK) != 1:
+        found.append("bench-correctness does not run exactly its one check")
+    if any("continue-on-error" in step or "shell" in step for step in steps):
+        found.append("bench-correctness steps may not mask failures or override their shell")
+    if any(
+        "if" in step and (step.get("name"), step["if"])
+        not in {
+            ("Save installed tools", "steps.cargo_bin_cache.outputs.cache-hit != 'true'"),
+            ("Bench correctness summaries and per-rule receipts", "always()"),
+        }
+        for step in steps
+    ):
+        found.append("bench-correctness has an unreviewed step condition")
+    upload = steps[-1] if steps else {}
+    if not upload.get("uses", "").startswith(UPLOAD) or upload.get("if") != "always()" or upload.get("with") != BENCH_CORRECTNESS_UPLOAD:
+        found.append("bench-correctness must upload its complete receipts even after failure")
+    return found
+
+
 def triggers(workflow: dict) -> set[str]:
     """What starts the workflow. YAML 1.1, which PyYAML reads, takes the key `on` for true."""
     return set(workflow["on" if "on" in workflow else True])
@@ -119,6 +165,8 @@ def problems(workflow: dict) -> list[str]:
         if name == "ownership-contracts":
             found.extend(ownership_contract_problems(workflow))
             continue
+        if name == "bench-correctness":
+            found.extend(bench_correctness_problems(job))
         positions = checks(job)
         if len(positions) > 1:
             found.append(f"{name} calls asymptote check {len(positions)} times")
@@ -715,3 +763,41 @@ def test_real_ownership_contract_suites_are_required() -> None:
         changed = deepcopy(workflow)
         mutate(changed)
         assert ownership_contract_problems(changed)
+
+
+def test_the_bench_correctness_job_is_an_independent_complete_gate() -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    assert bench_correctness_problems(workflow["jobs"]["bench-correctness"]) == []
+    assert problems(workflow) == []
+
+
+def _altered_bench_correctness(change) -> dict:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    altered = deepcopy(workflow)
+    change(altered["jobs"]["bench-correctness"])
+    return altered
+
+
+def _check_step(job: dict) -> dict:
+    return next(step for step in job["steps"] if step.get("run") == BENCH_CORRECTNESS_CHECK)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        pytest.param(lambda job: job.__setitem__("if", False), id="job-if-false"),
+        pytest.param(lambda job: job.__setitem__("continue-on-error", True), id="job-continue-on-error"),
+        pytest.param(lambda job: _check_step(job).__setitem__("if", False), id="step-if-false"),
+        pytest.param(lambda job: _check_step(job).__setitem__("continue-on-error", True), id="step-continue-on-error"),
+        pytest.param(lambda job: _check_step(job).__setitem__("run", BENCH_CORRECTNESS_CHECK + " || true"), id="masked-exit"),
+        pytest.param(lambda job: _check_step(job).__setitem__("run", "asymptote check --root crates/ryo --groups lint"), id="other-group"),
+        pytest.param(lambda job: _check_step(job).__setitem__("shell", "bash +e {0}"), id="shell-override"),
+        pytest.param(lambda job: job.__setitem__("timeout-minutes", 360), id="no-headroom"),
+        pytest.param(lambda job: job["env"].pop("RAYON_NUM_THREADS"), id="lost-environment"),
+        pytest.param(lambda job: job["steps"][-1].pop("if"), id="upload-skipped-on-failure"),
+        pytest.param(lambda job: job["steps"][-1]["with"].__setitem__("if-no-files-found", "warn"), id="receipts-optional"),
+        pytest.param(lambda job: job.__setitem__("container", "example.invalid/custom:latest"), id="container"),
+    ],
+)
+def test_bench_correctness_refuses_skips_masks_and_dropped_receipts(change) -> None:
+    assert problems(_altered_bench_correctness(change))

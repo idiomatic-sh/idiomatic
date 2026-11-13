@@ -27,7 +27,10 @@ fn absent(world: &mut crate::Behavior) {
         verdict: OperationVerdict::Passed,
     });
     assert!(
-        observed.answer.as_ref().is_err_and(|error| error.contains("lint")),
+        observed
+            .answer
+            .as_ref()
+            .is_err_and(|error| error.contains("lint")),
         "{:?}",
         observed.answer
     );

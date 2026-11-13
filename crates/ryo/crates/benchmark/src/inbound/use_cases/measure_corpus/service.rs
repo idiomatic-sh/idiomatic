@@ -10,10 +10,10 @@ use super::types::{
 };
 use crate::application::certified_measurement::service::{admit, conclude, pair, require_covered};
 use crate::application::measurement::service::run as execute;
+use crate::application::project_request::types::ProjectCorpus;
 use crate::domain::measurements::types::{pair::value::Pair, sample::value::BenchmarkSample};
 use crate::outbound::linter::interface::LinterPort;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet, ArtifactText};
-use crate::application::project_request::types::ProjectCorpus;
 use ryo_benchmark_contracts::domain::measurements::types::{
     Measurement, ResourceObservation, RunOrder, SampleName,
 };

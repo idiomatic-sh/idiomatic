@@ -85,7 +85,12 @@ impl Drop for EvidenceBmfAdapter {
             Ok(_) | Err(_) => return,
         };
         if let (Ok(document), Ok(mut output)) = (document, self.connection.output.lock()) {
-            drop(output.write_all(&document).and_then(|()| output.write_all(constants::NEWLINE)).and_then(|()| output.flush()));
+            drop(
+                output
+                    .write_all(&document)
+                    .and_then(|()| output.write_all(constants::NEWLINE))
+                    .and_then(|()| output.flush()),
+            );
         }
     }
 }

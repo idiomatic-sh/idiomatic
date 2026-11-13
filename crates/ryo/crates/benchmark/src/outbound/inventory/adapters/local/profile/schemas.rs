@@ -11,10 +11,18 @@ fn texts<'a>(items: impl Iterator<Item = &'a String>) -> toml::Value {
 }
 
 /// The profile `source` holds, projected; `None` when the projection leaves it unchanged, so its bytes are staged.
-pub(in super::super) fn projected(source: &str, projection: &ProfileProjection) -> Result<Option<String>, Error> {
+pub(in super::super) fn projected(
+    source: &str,
+    projection: &ProfileProjection,
+) -> Result<Option<String>, Error> {
     let original: toml::Table = toml::from_str(source)?;
     let mut profile = original.clone();
-    for key in [constants::DEFERRED_KEY, constants::PENDING_KEY, constants::QUERY_MODULES, constants::APPLICABILITY_KEY] {
+    for key in [
+        constants::DEFERRED_KEY,
+        constants::PENDING_KEY,
+        constants::QUERY_MODULES,
+        constants::APPLICABILITY_KEY,
+    ] {
         let _dropped = profile.remove(key);
     }
     let _defaults = profile.insert(
@@ -31,7 +39,10 @@ pub(in super::super) fn projected(source: &str, projection: &ProfileProjection) 
     }
     match &projection.parser_configuration {
         ParserSelection::Named(name) => {
-            let _configuration = profile.insert(constants::PARSER_CONFIGURATION.into(), toml::Value::String(name.0.clone()));
+            let _configuration = profile.insert(
+                constants::PARSER_CONFIGURATION.into(),
+                toml::Value::String(name.0.clone()),
+            );
         }
         ParserSelection::Unspecified => {}
     }
@@ -42,7 +53,12 @@ pub(in super::super) fn projected(source: &str, projection: &ProfileProjection) 
                 projection
                     .query_modules
                     .iter()
-                    .map(|(name, path)| (name.0.clone(), toml::Value::String(path.to_string_lossy().into_owned())))
+                    .map(|(name, path)| {
+                        (
+                            name.0.clone(),
+                            toml::Value::String(path.to_string_lossy().into_owned()),
+                        )
+                    })
                     .collect(),
             ),
         );
@@ -54,7 +70,9 @@ pub(in super::super) fn projected(source: &str, projection: &ProfileProjection) 
                 projection
                     .rule_applicability
                     .iter()
-                    .map(|(rule, applicability)| (rule.0.clone(), toml::Value::String(applicability.0.clone())))
+                    .map(|(rule, applicability)| {
+                        (rule.0.clone(), toml::Value::String(applicability.0.clone()))
+                    })
                     .collect(),
             ),
         );

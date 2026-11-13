@@ -6,13 +6,15 @@ use crate::outbound::inventory::types::{
     ProfileProjection, ProviderName, ReceiptFile, Registration, RegistrationAuthority,
     RuleInstanceRecord,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{PathText, RuleName, Sha256Text};
-use ryo_benchmark_contracts::domain::requests::types::ParserSelection;
-use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
-use std::collections::BTreeMap;
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    PathText, RuleName, Sha256Text,
+};
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::ParserSelection;
+use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use std::collections::BTreeMap;
 
 /// The independently specified observations an inventory adapter answers.
 #[derive(Clone, Copy, Debug)]
@@ -203,13 +205,16 @@ fn observe(adapter: &impl InventoryPort, operation: Operation) -> Result<(), Err
             .map(|_| ())
             .map_err(|error| Error::Io(std::io::Error::other(error.to_string()))),
         Operation::StoreWithoutDirectoryIsRefused => adapter
-            .store(&scratch.path().join("absent/registration.json"), &Registration {
-                authority: RegistrationAuthority::ReceiptOnly,
-                provider: ProviderName(String::new()),
-                defaults: Vec::new(),
-                rules: Vec::new(),
-                identity: BTreeMap::new(),
-            })
+            .store(
+                &scratch.path().join("absent/registration.json"),
+                &Registration {
+                    authority: RegistrationAuthority::ReceiptOnly,
+                    provider: ProviderName(String::new()),
+                    defaults: Vec::new(),
+                    rules: Vec::new(),
+                    identity: BTreeMap::new(),
+                },
+            )
             .map_err(|error| Error::Io(std::io::Error::other(error.to_string()))),
         Operation::MissingSettingsProfileIsRefused => adapter
             .stage_profile(

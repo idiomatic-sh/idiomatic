@@ -14,7 +14,8 @@ pub(super) const OPERATIONS_RUN_ON_UNIX: &str = "bench operations run on Unix on
 /// The refusal of a failed build.
 pub(super) const BUILD_FAILED: &str = "the bench worker build failed";
 /// The refusal of a build that names no bench executable or several.
-pub(super) const ONE_BENCH_EXECUTABLE: &str = "expected exactly one bench executable of the bench's package";
+pub(super) const ONE_BENCH_EXECUTABLE: &str =
+    "expected exactly one bench executable of the bench's package";
 /// The refusal of a reference tool the search path does not hold.
 pub(super) const TOOL_NOT_FOUND: &str = "reference tool not found on the search path";
 /// The refusal of a child whose output was not captured.

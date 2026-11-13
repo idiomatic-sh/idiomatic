@@ -23,8 +23,8 @@ use ryo_benchmark_contracts::domain::documents::types::text::value::{
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
 use ryo_benchmark_contracts::domain::workloads::types::{CaseComparison, FileObservation};
-use sha2::{Digest as _, Sha256};
 use serde::Deserialize;
+use sha2::{Digest as _, Sha256};
 use std::collections::BTreeMap;
 
 /// The digest of an optional wire text.
@@ -334,28 +334,48 @@ impl Canonical {
     pub(in super::super) fn as_text(&self) -> Option<&str> {
         match self {
             Self::Text(text) => Some(text),
-            Self::Null | Self::Flag(_) | Self::Integer(_) | Self::Float(_) | Self::List(_) | Self::Table(_) => None,
+            Self::Null
+            | Self::Flag(_)
+            | Self::Integer(_)
+            | Self::Float(_)
+            | Self::List(_)
+            | Self::Table(_) => None,
         }
     }
     /// The table, when the value is one.
     pub(in super::super) fn as_table(&self) -> Option<&BTreeMap<String, Self>> {
         match self {
             Self::Table(table) => Some(table),
-            Self::Null | Self::Flag(_) | Self::Integer(_) | Self::Float(_) | Self::Text(_) | Self::List(_) => None,
+            Self::Null
+            | Self::Flag(_)
+            | Self::Integer(_)
+            | Self::Float(_)
+            | Self::Text(_)
+            | Self::List(_) => None,
         }
     }
     /// The list, when the value is one.
     pub(in super::super) fn as_list(&self) -> Option<&[Self]> {
         match self {
             Self::List(items) => Some(items),
-            Self::Null | Self::Flag(_) | Self::Integer(_) | Self::Float(_) | Self::Text(_) | Self::Table(_) => None,
+            Self::Null
+            | Self::Flag(_)
+            | Self::Integer(_)
+            | Self::Float(_)
+            | Self::Text(_)
+            | Self::Table(_) => None,
         }
     }
     /// The whole number, when the value is one.
     pub(in super::super) fn as_integer(&self) -> Option<i64> {
         match self {
             Self::Integer(number) => Some(*number),
-            Self::Null | Self::Flag(_) | Self::Float(_) | Self::Text(_) | Self::List(_) | Self::Table(_) => None,
+            Self::Null
+            | Self::Flag(_)
+            | Self::Float(_)
+            | Self::Text(_)
+            | Self::List(_)
+            | Self::Table(_) => None,
         }
     }
 }
@@ -368,7 +388,11 @@ impl TryFrom<toml::Value> for Canonical {
             toml::Value::Integer(number) => Self::Integer(number),
             toml::Value::Float(number) => Self::Float(number),
             toml::Value::Boolean(flag) => Self::Flag(flag),
-            toml::Value::Datetime(_) => return Err(Error::Invalid(super::super::constants::UNSUPPORTED_DOCUMENT_VALUE.into())),
+            toml::Value::Datetime(_) => {
+                return Err(Error::Invalid(
+                    super::super::constants::UNSUPPORTED_DOCUMENT_VALUE.into(),
+                ));
+            }
             toml::Value::Array(items) => Self::List(
                 items
                     .into_iter()
@@ -445,7 +469,9 @@ fn mode(mode: ContextMode) -> &'static str {
 
 /// The findings of a case, as the authoring writes them.
 fn findings(rows: &[RecordedFinding]) -> Canonical {
-    raw_value(crate::outbound::inventory::adapters::local::discrepancy::schemas::findings_value(rows))
+    raw_value(
+        crate::outbound::inventory::adapters::local::discrepancy::schemas::findings_value(rows),
+    )
 }
 
 /// A JSON value as a canonical value.
@@ -463,7 +489,8 @@ impl TryFrom<&CaseDocument> for CaseWire {
 
     fn try_from(case: &CaseDocument) -> Result<Self, Error> {
         let declared_scope = !matches!(case.project_search_roots, DeclaredScope::Undeclared);
-        let declared_inventory = !matches!(case.given_project_inventory, ProjectInventory::Undeclared);
+        let declared_inventory =
+            !matches!(case.given_project_inventory, ProjectInventory::Undeclared);
         Ok(Self {
             rule: case.rule.0.clone(),
             name: text(&case.name.0),

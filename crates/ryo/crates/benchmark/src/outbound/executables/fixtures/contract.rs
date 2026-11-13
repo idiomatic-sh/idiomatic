@@ -87,26 +87,40 @@ pub fn check(adapter: &impl ExecutablesPort) {
     let refused = |_error| Outcome::Refused;
     let subject = |request: Input| -> Result<Value, Failure> {
         match request {
-            Request::Target => adapter.target().map(|_target| Outcome::Answered).map_err(refused),
+            Request::Target => adapter
+                .target()
+                .map(|_target| Outcome::Answered)
+                .map_err(refused),
             Request::SealCurrent => {
-                let sealed = adapter.seal_current(&root.path().join("collector")).map_err(refused)?;
+                let sealed = adapter
+                    .seal_current(&root.path().join("collector"))
+                    .map_err(refused)?;
                 let bytes = std::fs::read(&sealed.path).expect("sealed bytes");
-                Ok(if format!("{:x}", Sha256::digest(&bytes)) == sealed.sha256.0 {
-                    Outcome::DigestMatches
-                } else {
-                    Outcome::Refused
-                })
+                Ok(
+                    if format!("{:x}", Sha256::digest(&bytes)) == sealed.sha256.0 {
+                        Outcome::DigestMatches
+                    } else {
+                        Outcome::Refused
+                    },
+                )
             }
             Request::AbsentReference => adapter
                 .reference(&ToolName::from("ryo-absent-reference-tool"))
                 .map(|_path| Outcome::Answered)
                 .map_err(refused),
             Request::AbsentBench => adapter
-                .seal_worker(&BenchPackage(root.path().join("absent-bench")), &root.path().join("out/worker"))
+                .seal_worker(
+                    &BenchPackage(root.path().join("absent-bench")),
+                    &root.path().join("out/worker"),
+                )
                 .map(|_sealed| Outcome::Answered)
                 .map_err(refused),
             Request::AbsentExecutable => adapter
-                .run_sealed(&root.path().join("absent-executable"), &RunArguments(Vec::new()), &mut Vec::new())
+                .run_sealed(
+                    &root.path().join("absent-executable"),
+                    &RunArguments(Vec::new()),
+                    &mut Vec::new(),
+                )
                 .map(|_verdict| Outcome::Answered)
                 .map_err(refused),
         }

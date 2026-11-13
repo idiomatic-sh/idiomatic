@@ -6,10 +6,10 @@ use crate::outbound::inventory::types::{
     CaseDocuments, ContextFiles, ProfileProjection, RawArtifacts, ReceiptFile, Registration, Row,
     RuleInstanceRecord, Summary,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
 use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
 use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::ArtifactPointer;
+use ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::receipts::constants::{
     CASES_JSONL, INVOCATION_JSON, STDERR_BIN, STDOUT_BIN,
@@ -276,7 +276,8 @@ impl InventoryPort for InventoryLocalAdapter {
         projection: &ProfileProjection,
     ) -> Result<(), Error> {
         let bytes = std::fs::read(source)?;
-        let text = std::str::from_utf8(&bytes).map_err(|error| Error::Invalid(error.to_string()))?;
+        let text =
+            std::str::from_utf8(&bytes).map_err(|error| Error::Invalid(error.to_string()))?;
         match super::profile::schemas::projected(text, projection)? {
             Some(projected) => std::fs::write(destination, projected)?,
             None => std::fs::write(destination, &bytes)?,

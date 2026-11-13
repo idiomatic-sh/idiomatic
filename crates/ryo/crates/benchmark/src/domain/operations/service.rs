@@ -12,9 +12,13 @@ use std::path::{Component, Path};
 /// The operation a collector verb names.
 #[must_use]
 pub fn operation(verb: OperationVerb<'_>) -> Option<BenchOperation> {
-    [BenchOperation::Correctness, BenchOperation::Measure, BenchOperation::Parity]
-        .into_iter()
-        .find(|operation| verb_of(*operation).0 == verb.0)
+    [
+        BenchOperation::Correctness,
+        BenchOperation::Measure,
+        BenchOperation::Parity,
+    ]
+    .into_iter()
+    .find(|operation| verb_of(*operation).0 == verb.0)
 }
 
 /// The collector verb of an operation.
@@ -40,21 +44,28 @@ pub fn layout(
         .components()
         .map(|component| match component {
             Component::Normal(name) => name.to_str(),
-            Component::Prefix(_) | Component::RootDir | Component::CurDir | Component::ParentDir => {
-                None
-            }
+            Component::Prefix(_)
+            | Component::RootDir
+            | Component::CurDir
+            | Component::ParentDir => None,
         })
         .collect::<Vec<_>>();
     match names.get(names.len().saturating_sub(BENCH_COMPONENTS)..) {
-        Some([Some(LANGUAGES), Some(language), Some(BENCHMARKS), Some(LINTERS), Some(linter)]) => {
-            Ok(OperationLayout {
-                root: target
-                    .join(BENCHMARK)
-                    .join(language)
-                    .join(linter)
-                    .join(verb_of(operation).0),
-            })
-        }
+        Some(
+            [
+                Some(LANGUAGES),
+                Some(language),
+                Some(BENCHMARKS),
+                Some(LINTERS),
+                Some(linter),
+            ],
+        ) => Ok(OperationLayout {
+            root: target
+                .join(BENCHMARK)
+                .join(language)
+                .join(linter)
+                .join(verb_of(operation).0),
+        }),
         Some(_) | None => Err(ReportsError::Invalid(NOT_A_BENCH_DIRECTORY.into())),
     }
 }

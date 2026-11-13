@@ -1,5 +1,6 @@
 //! Only this boundary knows the BMF field and metric names.
 use super::constants;
+use super::types::{ParityCount, ParityCounts, ReportName};
 use crate::outbound::evidence::types::measured_publication::value::MeasuredPublication;
 use ryo_benchmark_contracts::domain::measurements::types::PublicationSample;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -10,7 +11,6 @@ use ryo_benchmark_contracts::domain::reports::types::{
     EndPair, FindingPosition, LocatedFinding, ParityReport, RuleComparison,
 };
 use serde::Serialize;
-use super::types::{ParityCount, ParityCounts, ReportName};
 use std::collections::BTreeMap;
 
 /// Median and observed extrema for one BMF metric.
@@ -248,7 +248,10 @@ pub(super) fn parity_document(
             name.0.as_str(),
             BTreeMap::from([
                 (constants::DIFFERING_RULES, count(counts.differing.0)?),
-                (constants::UNACCEPTED_DIFFERENCES, count(counts.unaccepted.0)?),
+                (
+                    constants::UNACCEPTED_DIFFERENCES,
+                    count(counts.unaccepted.0)?,
+                ),
             ]),
         );
     }

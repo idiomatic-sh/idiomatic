@@ -78,11 +78,7 @@ impl CompareCorpusUseCase for CompareCorpusUseCaseImpl {
         parity: &CorpusParity<'_>,
         observations: &mut dyn std::io::Write,
     ) -> Result<(), Error> {
-        super::service::compare_corpus(
-            &self.boundaries(),
-            parity,
-            observations,
-        )
+        super::service::compare_corpus(&self.boundaries(), parity, observations)
     }
 }
 

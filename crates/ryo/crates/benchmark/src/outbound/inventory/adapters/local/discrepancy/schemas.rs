@@ -325,9 +325,10 @@ pub(in super::super) fn discrepancy_value(record: &DiscrepancyRecord) -> serde_j
         "reference-output-sha256": identity.reference_output.0,
         "intended-output-sha256": identity.intended_output.0,
     });
-    if let (ObservedExecutable::Observed(digest), Some(fields)) =
-        (&identity.observed_executable_sha256, written.as_object_mut())
-    {
+    if let (ObservedExecutable::Observed(digest), Some(fields)) = (
+        &identity.observed_executable_sha256,
+        written.as_object_mut(),
+    ) {
         let _previous = fields.insert("observed-executable-sha256".into(), digest.0.clone().into());
     }
     if let (FileMetadataDigest::Declared(digest), Some(fields)) =

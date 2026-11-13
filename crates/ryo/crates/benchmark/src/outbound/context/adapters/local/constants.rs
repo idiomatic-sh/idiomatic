@@ -1,8 +1,6 @@
 //! The text this part uses.
 /// Text of the absolute context dependency in this part.
 pub(super) const ABSOLUTE_CONTEXT_DEPENDENCY: &str = "absolute context dependency";
-/// The domain-separation tag every listed-disk context digest starts with.
-pub(super) const LISTED_DISK_CONTEXT_DIGEST_TAG: &str = "listed-disk-context";
 /// Text of the context logical and physical roots disagree in this part.
 pub(super) const CONTEXT_LOGICAL_AND_PHYSICAL_ROOTS_DISAGREE: &str =
     "context logical and physical roots disagree";

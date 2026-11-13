@@ -62,16 +62,21 @@ impl OperateUseCase for OperateUseCaseImpl {
         request: &OperationRequest,
         output: &mut dyn std::io::Write,
     ) -> Result<OperationReport, Error> {
-        let layout = layout(&self.executables.target()?, &request.bench, request.operation)?;
+        let layout = layout(
+            &self.executables.target()?,
+            &request.bench,
+            request.operation,
+        )?;
         let profile = self.suite.profile(ArtifactPath(&request.bench.0))?;
         let tool = self.executables.reference(&profile.tool)?;
         let reference = Sealed {
             sha256: Sha256Text(self.suite.digest(ArtifactPath(&tool))?.0),
             path: tool,
         };
-        let worker = self
-            .executables
-            .seal_worker(&BenchPackage(request.bench.0.clone()), &layout.root.join(WORKER))?;
+        let worker = self.executables.seal_worker(
+            &BenchPackage(request.bench.0.clone()),
+            &layout.root.join(WORKER),
+        )?;
         let answer = match request.operation {
             BenchOperation::Correctness => {
                 let registration = register(
@@ -96,7 +101,9 @@ impl OperateUseCase for OperateUseCaseImpl {
                 }
             }
             BenchOperation::Measure => {
-                let _collector = self.executables.seal_current(&layout.root.join(COLLECTOR))?;
+                let _collector = self
+                    .executables
+                    .seal_current(&layout.root.join(COLLECTOR))?;
                 let _registration = register(
                     self.suite.as_ref(),
                     self.inventory.as_ref(),
@@ -107,13 +114,21 @@ impl OperateUseCase for OperateUseCaseImpl {
                 )?;
                 OperationVerdict::from(self.executables.run_sealed(
                     &worker.path,
-                    &RunArguments(worker_arguments(BenchOperation::Measure, &layout, &reference.path)),
+                    &RunArguments(worker_arguments(
+                        BenchOperation::Measure,
+                        &layout,
+                        &reference.path,
+                    )),
                     output,
                 )?)
             }
             BenchOperation::Parity => OperationVerdict::from(self.executables.run_sealed(
                 &worker.path,
-                &RunArguments(worker_arguments(BenchOperation::Parity, &layout, &reference.path)),
+                &RunArguments(worker_arguments(
+                    BenchOperation::Parity,
+                    &layout,
+                    &reference.path,
+                )),
                 output,
             )?),
         };

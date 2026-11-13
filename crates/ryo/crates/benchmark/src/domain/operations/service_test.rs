@@ -15,7 +15,9 @@ type Failure = Cow<'static, str>;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("measure places its output under the target and certifies against its registration"),
+        name: CaseName(
+            "measure places its output under the target and certifies against its registration",
+        ),
         word: Word::Succeeds,
         input: || ("measure-valid", "languages/python/benchmarks/linters/ruff"),
         expect: Expect::Value(Cow::Borrowed(
@@ -25,7 +27,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an absolute bench directory places parity by its tail"),
         word: Word::Succeeds,
-        input: || ("parity", "/repository/crates/ryo/languages/typescript/benchmarks/linters/oxlint"),
+        input: || {
+            (
+                "parity",
+                "/repository/crates/ryo/languages/typescript/benchmarks/linters/oxlint",
+            )
+        },
         expect: Expect::Value(Cow::Borrowed(
             "/target/benchmark/typescript/oxlint/parity: parity /bin/tool /target/benchmark/typescript/oxlint/parity",
         )),
@@ -33,8 +40,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("correctness runs no worker"),
         word: Word::Succeeds,
-        input: || ("verify-inventory", "languages/python/benchmarks/linters/ruff"),
-        expect: Expect::Value(Cow::Borrowed("/target/benchmark/python/ruff/verify-inventory: ")),
+        input: || {
+            (
+                "verify-inventory",
+                "languages/python/benchmarks/linters/ruff",
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(
+            "/target/benchmark/python/ruff/verify-inventory: ",
+        )),
     },
     Case {
         name: CaseName("a verb that names no operation is refused"),
@@ -63,13 +77,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject((verb, bench): Input) -> Result<Value, Failure> {
     let chosen = operation(OperationVerb(verb)).ok_or(Cow::Borrowed(verb))?;
     assert_eq!(verb_of(chosen), OperationVerb(verb), "the verb round-trips");
-    let placed = layout(Path::new("/target"), &BenchDirectory(PathBuf::from(bench)), chosen)
-        .map_err(|error| Cow::Owned(error.to_string()))?;
+    let placed = layout(
+        Path::new("/target"),
+        &BenchDirectory(PathBuf::from(bench)),
+        chosen,
+    )
+    .map_err(|error| Cow::Owned(error.to_string()))?;
     let arguments = worker_arguments(chosen, &placed, Path::new("/bin/tool"))
         .iter()
         .map(|argument| argument.to_string_lossy().into_owned())
         .collect::<Vec<_>>();
-    Ok(Cow::Owned(format!("{}: {}", placed.root.display(), arguments.join(" "))))
+    Ok(Cow::Owned(format!(
+        "{}: {}",
+        placed.root.display(),
+        arguments.join(" ")
+    )))
 }
 
 #[test]

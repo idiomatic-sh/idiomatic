@@ -54,7 +54,11 @@ pub(super) fn parity(
     )?;
     let compare = CompareCorpusUseCaseImpl::new(
         Arc::new(commands::reference(ruff.clone(), tool.clone())?),
-        candidate_linter(&tool, candidate_executable, profile.join(constants::RULES_DIRECTORY)),
+        candidate_linter(
+            &tool,
+            candidate_executable,
+            profile.join(constants::RULES_DIRECTORY),
+        ),
         Arc::new(ryo_benchmark::outbound::execution::factory::process()),
         Arc::new(ryo_benchmark::outbound::context::factory::local()),
         Arc::clone(suite_source),

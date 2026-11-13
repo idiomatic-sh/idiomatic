@@ -28,14 +28,28 @@ pub(super) fn compare_corpus(
 ) -> Result<(), Error> {
     let projects = match parity.corpus {
         Corpus::Request { request, accepted } => {
-            return compare_request(boundaries, parity, request, accepted, parity.reference, observations);
+            return compare_request(
+                boundaries,
+                parity,
+                request,
+                accepted,
+                parity.reference,
+                observations,
+            );
         }
         Corpus::Projects(projects) => projects,
     };
     let mut failures = Vec::new();
     for project in projects.projects {
         let name = [project.name.0.as_str(), parity.reference.0].join(PROJECT_SEPARATOR);
-        let result = compare_project(boundaries, parity, &projects, project, ContestantName(&name), observations);
+        let result = compare_project(
+            boundaries,
+            parity,
+            &projects,
+            project,
+            ContestantName(&name),
+            observations,
+        );
         if let Err(error) = result {
             writeln!(observations, "{}: {PROJECT_FAILED}: {error}", project.name)?;
             failures.push(project.name.0.clone());
@@ -63,10 +77,18 @@ fn compare_project(
         .discovery
         .files(workspace.root())?
         .into_iter()
-        .filter(|file| projects.suffixes.iter().any(|suffix| file.0.ends_with(suffix.0)))
+        .filter(|file| {
+            projects
+                .suffixes
+                .iter()
+                .any(|suffix| file.0.ends_with(suffix.0))
+        })
         .collect::<Vec<_>>();
     let tracked = boundaries.workspace.tracked_files(&workspace)?.0;
-    if files.iter().any(|file| !tracked.iter().any(|path| path.as_str() == file.0.as_ref())) {
+    if files
+        .iter()
+        .any(|file| !tracked.iter().any(|path| path.as_str() == file.0.as_ref()))
+    {
         return Err(Error::Invalid(UNTRACKED_SOURCE.into()));
     }
     let request = crate::application::project_request::service::request(
@@ -79,7 +101,10 @@ fn compare_project(
         },
         workspace.root(),
         &files,
-        &tracked.iter().map(std::path::PathBuf::from).collect::<Vec<_>>(),
+        &tracked
+            .iter()
+            .map(std::path::PathBuf::from)
+            .collect::<Vec<_>>(),
         projects.state.join(&project.name.0),
     )?;
     let mut file_name = project.name.0.clone();
@@ -87,7 +112,9 @@ fn compare_project(
     let accepted_file = projects.accepted.join(file_name);
     let accepted = match boundaries.suite.digest(ArtifactPath(&accepted_file)) {
         Ok(_digest) => AcceptedDifferencesFile::Declared(&accepted_file),
-        Err(Error::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => AcceptedDifferencesFile::Absent,
+        Err(Error::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {
+            AcceptedDifferencesFile::Absent
+        }
         Err(error) => return Err(error),
     };
     compare_request(boundaries, parity, &request, accepted, name, observations)

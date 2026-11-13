@@ -37,14 +37,20 @@ pub(in super::super) fn stage_evidence(
             .collect::<Vec<_>>();
         if let ClaimedProcess::Failure(failure) = &claim.discrepancy.process {
             for observation in &failure.observations {
-                for item in [&observation.invocation, &observation.stdout, &observation.stderr] {
+                for item in [
+                    &observation.invocation,
+                    &observation.stdout,
+                    &observation.stderr,
+                ] {
                     artifacts.push((item.path.clone(), item.sha256.clone()));
                 }
             }
         }
         for (path, sha256) in artifacts {
             if declared.get(&path).is_some_and(|prior| prior != &sha256) {
-                return Err(Error::Invalid(super::super::constants::CONFLICTING_EVIDENCE.into()));
+                return Err(Error::Invalid(
+                    super::super::constants::CONFLICTING_EVIDENCE.into(),
+                ));
             }
             let _previous = declared.insert(path, sha256);
         }
@@ -59,21 +65,31 @@ pub(in super::super) fn stage_evidence(
         .collect::<Vec<_>>();
     let root = [settings, bench]
         .into_iter()
-        .find(|root| suite.read_discrepancy_artifacts(ArtifactPath(root), &artifacts).is_ok())
+        .find(|root| {
+            suite
+                .read_discrepancy_artifacts(ArtifactPath(root), &artifacts)
+                .is_ok()
+        })
         .unwrap_or(settings);
     let _validated = suite
         .read_discrepancy_artifacts(ArtifactPath(root), &artifacts)
-        .map_err(|error| Error::Invalid(format!("{}: {error}", super::super::constants::EVIDENCE_REFUSED)))?;
+        .map_err(|error| {
+            Error::Invalid(format!(
+                "{}: {error}",
+                super::super::constants::EVIDENCE_REFUSED
+            ))
+        })?;
     for path in declared.keys() {
         let target = stage.join(path);
         if suite.digest(ArtifactPath(&target)).is_ok() {
-            return Err(Error::Invalid(super::super::constants::EVIDENCE_COLLIDES.into()));
+            return Err(Error::Invalid(
+                super::super::constants::EVIDENCE_COLLIDES.into(),
+            ));
         }
         copy(suite, &root.join(path), &target)?;
     }
     Ok(root.to_owned())
 }
-
 
 /// Copy one file, making its directory first.
 pub(in super::super) fn copy(suite: &dyn SuitePort, from: &Path, to: &Path) -> Result<(), Error> {

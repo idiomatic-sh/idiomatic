@@ -92,7 +92,10 @@ impl ExecutablesPort for ExecutablesFake {
         output: &mut dyn std::io::Write,
     ) -> Result<RunVerdict, Error> {
         let _executable = std::fs::metadata(executable)?;
-        self.record(ExecutablesCall::Run(executable.to_owned(), arguments.0.clone()));
+        self.record(ExecutablesCall::Run(
+            executable.to_owned(),
+            arguments.0.clone(),
+        ));
         output.write_all(&self.stdout)?;
         Ok(self.verdict)
     }

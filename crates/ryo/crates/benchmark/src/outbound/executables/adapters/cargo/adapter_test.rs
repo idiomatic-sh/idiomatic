@@ -41,7 +41,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a tool no directory holds is refused by name"),
         word: Word::Refuses,
         input: || Request::Absent,
-        expect: Expect::Error(Cow::Borrowed("reference tool not found on the search path: absent-tool")),
+        expect: Expect::Error(Cow::Borrowed(
+            "reference tool not found on the search path: absent-tool",
+        )),
     },
     Case {
         name: CaseName("a nested build is refused off Unix"),
@@ -60,22 +62,40 @@ fn subject(request: Input) -> Result<Value, Failure> {
         std::fs::create_dir_all(directory).expect("search directory");
         std::fs::write(directory.join("fixture-tool"), "tool").expect("tool");
     }
-    let search = std::env::join_paths([&root.path().join("empty"), &first, &second]).expect("search path");
+    let search =
+        std::env::join_paths([&root.path().join("empty"), &first, &second]).expect("search path");
     let canonical = root.path().canonicalize().expect("root");
-    let refused = |error: ryo_benchmark_contracts::domain::reports::errors::ReportsError| Cow::Owned(error.to_string());
+    let refused = |error: ryo_benchmark_contracts::domain::reports::errors::ReportsError| {
+        Cow::Owned(error.to_string())
+    };
     match request {
         Request::Shadowed | Request::Absent => {
-            let name = if matches!(request, Request::Shadowed) { "fixture-tool" } else { "absent-tool" };
+            let name = if matches!(request, Request::Shadowed) {
+                "fixture-tool"
+            } else {
+                "absent-tool"
+            };
             find(&search, &ToolName::from(name))
-                .map(|path| Cow::Owned(path.strip_prefix(&canonical).expect("inside the fixture").display().to_string()))
+                .map(|path| {
+                    Cow::Owned(
+                        path.strip_prefix(&canonical)
+                            .expect("inside the fixture")
+                            .display()
+                            .to_string(),
+                    )
+                })
                 .map_err(refused)
         }
-        Request::NestedOffUnix => refusal(BuildPlatform::Other).map(|()| Cow::Borrowed("built")).map_err(refused),
+        Request::NestedOffUnix => refusal(BuildPlatform::Other)
+            .map(|()| Cow::Borrowed("built"))
+            .map_err(refused),
         Request::Contract => {
-            crate::outbound::executables::fixtures::contract::check(&ExecutablesCargoAdapter::new(ExecutablesCargoSettings {
-                cargo: "cargo".into(),
-                search_path: std::ffi::OsString::new(),
-            }));
+            crate::outbound::executables::fixtures::contract::check(&ExecutablesCargoAdapter::new(
+                ExecutablesCargoSettings {
+                    cargo: "cargo".into(),
+                    search_path: std::ffi::OsString::new(),
+                },
+            ));
             Ok(Cow::Borrowed("kept"))
         }
     }

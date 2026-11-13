@@ -2,8 +2,8 @@
 //! registration it stages; correctness verifies in process and runs no worker; a failed worker fails the operation, and an
 //! absent reference tool is refused by name before anything is sealed.
 use super::fixtures::{Scenario, observe};
-use super::use_case::OperateUseCaseImpl;
 use super::types::OperationVerdict;
+use super::use_case::OperateUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operations::types::BenchOperation;
 use std::borrow::Cow;
@@ -23,7 +23,9 @@ const PARITY_CALLS: &str = "[SealWorker(\"<root>/target/benchmark/fixture/lint/p
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("parity seals the worker and runs it on the reference and its output directory"),
+        name: CaseName(
+            "parity seals the worker and runs it on the reference and its output directory",
+        ),
         word: Word::Succeeds,
         input: || Scenario {
             operation: BenchOperation::Parity,
@@ -51,7 +53,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
-        name: CaseName("measure seals the worker and the collector, registers, and certifies against the registration"),
+        name: CaseName(
+            "measure seals the worker and the collector, registers, and certifies against the registration",
+        ),
         word: Word::Succeeds,
         input: || Scenario {
             operation: BenchOperation::Measure,
@@ -61,7 +65,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((
             OperationVerdict::Passed,
             Cow::Borrowed(METRICS),
-            Cow::Borrowed("[SealWorker(\"<root>/target/benchmark/fixture/lint/measure-valid/worker\"), SealCurrent(\"<root>/target/benchmark/fixture/lint/measure-valid/collector\"), Run(\"<root>/target/benchmark/fixture/lint/measure-valid/worker\", [\"measure-valid\", \"<root>/lint\", \"<root>/target/benchmark/fixture/lint/measure-valid/state\", \"<root>/target/benchmark/fixture/lint/measure-valid/collector\", \"--case-inventory=<root>/target/benchmark/fixture/lint/measure-valid/registration.json\"])]"),
+            Cow::Borrowed(
+                "[SealWorker(\"<root>/target/benchmark/fixture/lint/measure-valid/worker\"), SealCurrent(\"<root>/target/benchmark/fixture/lint/measure-valid/collector\"), Run(\"<root>/target/benchmark/fixture/lint/measure-valid/worker\", [\"measure-valid\", \"<root>/lint\", \"<root>/target/benchmark/fixture/lint/measure-valid/state\", \"<root>/target/benchmark/fixture/lint/measure-valid/collector\", \"--case-inventory=<root>/target/benchmark/fixture/lint/measure-valid/registration.json\"])]",
+            ),
         )),
     },
     Case {
@@ -75,7 +81,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((
             OperationVerdict::Failed,
             Cow::Borrowed(""),
-            Cow::Borrowed("[SealWorker(\"<root>/target/benchmark/fixture/lint/verify-inventory/worker\")]"),
+            Cow::Borrowed(
+                "[SealWorker(\"<root>/target/benchmark/fixture/lint/verify-inventory/worker\")]",
+            ),
         )),
     },
     Case {

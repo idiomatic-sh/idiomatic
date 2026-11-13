@@ -32,12 +32,19 @@ const ONE_BENCH: &str = "expected exactly one bench executable of the bench's pa
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("the one bench test build of the package is chosen among its library and other packages"),
+        name: CaseName(
+            "the one bench test build of the package is chosen among its library and other packages",
+        ),
         word: Word::Succeeds,
         input: || {
             vec![
                 artifact(MANIFEST, "lib", false, "/target/release/libfixture.rlib"),
-                artifact("/repository/crates/other/Cargo.toml", "bench", true, "/target/release/deps/other-1"),
+                artifact(
+                    "/repository/crates/other/Cargo.toml",
+                    "bench",
+                    true,
+                    "/target/release/deps/other-1",
+                ),
                 artifact(MANIFEST, "bench", true, "/target/release/deps/ruff-1"),
                 serde_json::json!({"reason": "build-finished", "success": true}).to_string(),
             ]
@@ -47,7 +54,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a build without a bench executable of the package is refused"),
         word: Word::Refuses,
-        input: || vec![artifact(MANIFEST, "lib", false, "/target/release/libfixture.rlib")],
+        input: || {
+            vec![artifact(
+                MANIFEST,
+                "lib",
+                false,
+                "/target/release/libfixture.rlib",
+            )]
+        },
         expect: Expect::Error(ONE_BENCH),
     },
     Case {
@@ -64,15 +78,31 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a bench target not built as a test harness is refused"),
         word: Word::Refuses,
-        input: || vec![artifact(MANIFEST, "bench", false, "/target/release/deps/ruff-1")],
+        input: || {
+            vec![artifact(
+                MANIFEST,
+                "bench",
+                false,
+                "/target/release/deps/ruff-1",
+            )]
+        },
         expect: Expect::Error(ONE_BENCH),
     },
 ];
 
 fn subject(messages: Input) -> Result<Value, Failure> {
-    bench_executable(messages.join("\n").as_bytes(), Path::new(MANIFEST).parent().expect("the package directory"))
-        .map(|path| Cow::Owned(path.display().to_string()))
-        .map_err(|error| if error.to_string() == ONE_BENCH { ONE_BENCH } else { "another refusal" })
+    bench_executable(
+        messages.join("\n").as_bytes(),
+        Path::new(MANIFEST).parent().expect("the package directory"),
+    )
+    .map(|path| Cow::Owned(path.display().to_string()))
+    .map_err(|error| {
+        if error.to_string() == ONE_BENCH {
+            ONE_BENCH
+        } else {
+            "another refusal"
+        }
+    })
 }
 
 #[test]

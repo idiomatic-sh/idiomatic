@@ -38,7 +38,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an isolated profile refuses a context-authored case"),
         word: Word::Refuses,
         input: || Scenario::ContextUnderIsolated,
-        expect: Expect::Error(Cow::Borrowed("isolated profile cannot admit a context-authored case")),
+        expect: Expect::Error(Cow::Borrowed(
+            "isolated profile cannot admit a context-authored case",
+        )),
     },
 ];
 
@@ -48,7 +50,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     std::fs::write(stage.path().join("benchmark.toml"), "defaults = [\"A1\"]\n").expect("profile");
     let cases = match scenario {
         Scenario::Isolated => AUTHORED.to_owned(),
-        Scenario::ContextUnderIsolated => format!("{AUTHORED}context = {{ logical-root = \".\" }}\n"),
+        Scenario::ContextUnderIsolated => {
+            format!("{AUTHORED}context = {{ logical-root = \".\" }}\n")
+        }
     };
     std::fs::write(stage.path().join("rules/A1/cases.toml"), cases).expect("cases");
     let documents = case_inventory(stage.path()).map_err(|error| Cow::Owned(error.to_string()))?;

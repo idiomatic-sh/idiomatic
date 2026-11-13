@@ -239,7 +239,7 @@ group = "bench-correctness"
 # runner runs this group (the bench-correctness job), never the check matrix.
 run = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "verify-inventory", "languages/{lang}/benchmarks/linters/{linter}"]
 timeout-seconds = 21600
-inputs = ["languages/{lang}", "Cargo.toml", "Cargo.lock", "crates", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", "Cargo.toml", "Cargo.lock", "crates", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "bench-measure"
@@ -249,7 +249,7 @@ group = "perf"
 run = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "measure-valid", "languages/{lang}/benchmarks/linters/{linter}"]
 output = "bmf"
 timeout-seconds = 14400
-inputs = ["languages/{lang}", "Cargo.toml", "Cargo.lock", "crates", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", "Cargo.toml", "Cargo.lock", "crates", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "bench-parity"
@@ -259,4 +259,4 @@ group = "perf"
 run = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "parity", "languages/{lang}/benchmarks/linters/{linter}"]
 output = "bmf"
 timeout-seconds = 7200
-inputs = ["languages/{lang}", "Cargo.toml", "Cargo.lock", "crates", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", "Cargo.toml", "Cargo.lock", "crates", "../../rust-toolchain.toml", "../../.cargo"]

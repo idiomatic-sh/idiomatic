@@ -28,15 +28,15 @@ use ryo_benchmark::{
             constants as collect_constants, interface::CollectUseCase as _,
             use_case::CollectUseCaseImpl,
         },
-        validate_case_receipts::{
-            constants as validate_constants, interface::ValidateCaseReceiptsUseCase as _,
-            use_case::ValidateCaseReceiptsUseCaseImpl,
-        },
         operate::{
             constants as operate_constants,
             interface::OperateUseCase as _,
             types::{OperationRequest, OperationVerdict},
             use_case::OperateUseCaseImpl,
+        },
+        validate_case_receipts::{
+            constants as validate_constants, interface::ValidateCaseReceiptsUseCase as _,
+            use_case::ValidateCaseReceiptsUseCaseImpl,
         },
     },
     outbound::{

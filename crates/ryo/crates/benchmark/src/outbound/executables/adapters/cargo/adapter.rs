@@ -17,7 +17,11 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 /// The platform this build runs on.
-const PLATFORM: BuildPlatform = if cfg!(unix) { BuildPlatform::Unix } else { BuildPlatform::Other };
+const PLATFORM: BuildPlatform = if cfg!(unix) {
+    BuildPlatform::Unix
+} else {
+    BuildPlatform::Other
+};
 
 /// Refuse a platform where the outer build waits on its child and keeps the lock a nested build needs.
 pub(super) fn refusal(platform: BuildPlatform) -> Result<(), Error> {
@@ -56,7 +60,10 @@ fn fresh(sealed: &Path) -> Result<(), Error> {
 #[cfg(unix)]
 fn executable(sealed: &Path) -> std::io::Result<()> {
     use std::os::unix::fs::PermissionsExt as _;
-    std::fs::set_permissions(sealed, std::fs::Permissions::from_mode(super::constants::EXECUTABLE_MODE))
+    std::fs::set_permissions(
+        sealed,
+        std::fs::Permissions::from_mode(super::constants::EXECUTABLE_MODE),
+    )
 }
 
 /// Off Unix a copied file keeps whatever lets it run.
@@ -116,7 +123,10 @@ impl ExecutablesPort for ExecutablesCargoAdapter {
         if !build.status.success() {
             return Err(Error::Invalid(BUILD_FAILED.into()));
         }
-        seal(&super::schemas::bench_executable(&build.stdout, &package)?, sealed)
+        seal(
+            &super::schemas::bench_executable(&build.stdout, &package)?,
+            sealed,
+        )
     }
 
     fn seal_current(&self, sealed: &Path) -> Result<Sealed, Error> {

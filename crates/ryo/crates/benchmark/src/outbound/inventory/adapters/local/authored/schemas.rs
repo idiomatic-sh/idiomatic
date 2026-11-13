@@ -1,10 +1,13 @@
 // ignore: idiomatic.arch/file-length - one authored-case document read top to bottom: the case identity, its context identity, its project inputs and the documented difference it carries share the raw case table, and no placed role splits them
 //! The cases a staged profile authors, as the registered case documents the inventory verification checks: each case's
 //! identity is the digest of its authored table, and a documented difference is validated against the staged evidence.
+use super::super::case::schemas::{Canonical, CaseWire, InputsWire};
 use super::super::constants;
 use super::super::types::CaseText;
-use super::super::case::schemas::{CaseWire, Canonical, InputsWire};
 use crate::outbound::inventory::types::CaseDocuments;
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
+use ryo_benchmark_contracts::domain::context::types::ContextManifest;
 use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use sha2::{Digest as _, Sha256};
@@ -57,7 +60,9 @@ fn safe_relative(value: &str) -> bool {
         && Path::new(value)
             .components()
             .all(|component| matches!(component, Component::Normal(_)))
-        && value.split('/').all(|part| !part.is_empty() && part != "." && part != "..")
+        && value
+            .split('/')
+            .all(|part| !part.is_empty() && part != "." && part != "..")
 }
 
 /// A lowercase SHA-256 digest.
@@ -68,19 +73,35 @@ fn lower_digest(value: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
-/// The framed SHA-256 of a case's declared file metadata.
+/// The framed SHA-256 of a case's declared file metadata, as the benchmark contracts frame it.
 fn file_metadata_digest(values: &BTreeMap<String, Canonical>) -> Result<String, Error> {
-    let mut digest = Sha256::new();
-    digest.update(constants::FILE_METADATA_HEADER);
-    for (path, executable) in values {
-        let Canonical::Flag(executable) = executable else {
-            return Err(invalid(constants::FILE_METADATA_FLAGS));
-        };
-        digest.update(u64::try_from(path.len()).map_err(|_| invalid(constants::FILE_METADATA_FLAGS))?.to_le_bytes());
-        digest.update(path.as_bytes());
-        digest.update([u8::from(*executable)]);
-    }
-    Ok(format!("{:x}", digest.finalize()))
+    let entries = values
+        .iter()
+        .map(|(path, executable)| match executable {
+            Canonical::Flag(executable) => {
+                Ok((ryo::linter::RelativePath(path.as_str().into()), *executable))
+            }
+            Canonical::Null
+            | Canonical::Integer(_)
+            | Canonical::Float(_)
+            | Canonical::Text(_)
+            | Canonical::List(_)
+            | Canonical::Table(_) => Err(invalid(constants::FILE_METADATA_FLAGS)),
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    ArtifactDigest::file_metadata(Some(entries.iter().map(|(path, executable)| {
+        FileMetadataEntry {
+            path,
+            executable: if *executable {
+                FileExecutable::Set
+            } else {
+                FileExecutable::Unset
+            },
+        }
+    })))
+    .map_err(|error| Error::Invalid(error.to_string()))?
+    .map(|digest| digest.0)
+    .ok_or_else(|| invalid(constants::FILE_METADATA_FLAGS))
 }
 
 /// The SHA-256 of a case's sources: each name, a zero byte and its text, in name order.
@@ -89,7 +110,12 @@ fn source_digest(files: &BTreeMap<String, Canonical>) -> Result<String, Error> {
     for (file, source) in files {
         digest.update(file.as_bytes());
         digest.update([0]);
-        digest.update(source.as_text().ok_or_else(|| invalid(constants::CASE_FILES))?.as_bytes());
+        digest.update(
+            source
+                .as_text()
+                .ok_or_else(|| invalid(constants::CASE_FILES))?
+                .as_bytes(),
+        );
     }
     Ok(format!("{:x}", digest.finalize()))
 }
@@ -107,24 +133,40 @@ fn context_identity(case: &BTreeMap<String, Canonical>, mode: &str) -> Result<Ca
     let context = context
         .and_then(Canonical::as_table)
         .filter(|context| {
-            context
-                .keys()
-                .all(|key| [constants::LOGICAL_ROOT, constants::AUXILIARY_FILES, constants::MISSING].contains(&key.as_str()))
+            context.keys().all(|key| {
+                [
+                    constants::LOGICAL_ROOT,
+                    constants::AUXILIARY_FILES,
+                    constants::MISSING,
+                ]
+                .contains(&key.as_str())
+            })
         })
         .ok_or_else(|| invalid(constants::LISTED_CONTEXT))?;
     let logical = context
         .get(constants::LOGICAL_ROOT)
         .and_then(Canonical::as_text)
-        .filter(|root| !root.is_empty() && !Path::new(root).is_absolute() && !Path::new(root).components().any(|part| part == Component::ParentDir))
+        .filter(|root| {
+            !root.is_empty()
+                && !Path::new(root).is_absolute()
+                && !Path::new(root)
+                    .components()
+                    .any(|part| part == Component::ParentDir)
+        })
         .ok_or_else(|| invalid(constants::UNSAFE_CONTEXT))?;
     let relative = |name: &str| -> Result<String, Error> {
         let path = Path::new(name);
-        if name.is_empty() || path.is_absolute() || path.components().any(|part| part == Component::ParentDir) {
+        if name.is_empty()
+            || path.is_absolute()
+            || path.components().any(|part| part == Component::ParentDir)
+        {
             return Err(invalid(constants::UNSAFE_CONTEXT));
         }
         Ok(posix(name))
     };
-    let digests = |files: Option<&Canonical>, root: Option<&str>| -> Result<BTreeMap<String, String>, Error> {
+    let digests = |files: Option<&Canonical>,
+                   root: Option<&str>|
+     -> Result<BTreeMap<String, String>, Error> {
         let mut found = BTreeMap::new();
         for (name, value) in files.and_then(Canonical::as_table).into_iter().flatten() {
             let named = relative(name)?;
@@ -132,7 +174,9 @@ fn context_identity(case: &BTreeMap<String, Canonical>, mode: &str) -> Result<Ca
                 Some(root) => posix(&format!("{root}/{named}")),
                 None => named,
             };
-            let source = value.as_text().ok_or_else(|| invalid(constants::CASE_FILES))?;
+            let source = value
+                .as_text()
+                .ok_or_else(|| invalid(constants::CASE_FILES))?;
             let _previous = found.insert(named, format!("{:x}", Sha256::digest(source.as_bytes())));
         }
         Ok(found)
@@ -144,7 +188,12 @@ fn context_identity(case: &BTreeMap<String, Canonical>, mode: &str) -> Result<Ca
         .and_then(Canonical::as_list)
         .unwrap_or_default()
         .iter()
-        .map(|name| relative(name.as_text().ok_or_else(|| invalid(constants::UNSAFE_CONTEXT))?))
+        .map(|name| {
+            relative(
+                name.as_text()
+                    .ok_or_else(|| invalid(constants::UNSAFE_CONTEXT))?,
+            )
+        })
         .collect::<Result<Vec<_>, _>>()?;
     missing.sort();
     let present: BTreeSet<_> = sources.keys().chain(auxiliary.keys()).cloned().collect();
@@ -154,30 +203,36 @@ fn context_identity(case: &BTreeMap<String, Canonical>, mode: &str) -> Result<Ca
     {
         return Err(invalid(constants::CONTEXT_ROLES_OVERLAP));
     }
-    let mut digest = Sha256::new();
-    let mut frame = |value: &[u8]| {
-        digest.update(u64::try_from(value.len()).unwrap_or(u64::MAX).to_le_bytes());
-        digest.update(value);
+    let path_digests = |files: &BTreeMap<String, String>| {
+        files
+            .iter()
+            .map(|(name, digest)| {
+                (
+                    std::path::PathBuf::from(name),
+                    ArtifactDigest(digest.clone()),
+                )
+            })
+            .collect()
     };
-    frame(constants::LISTED_DISK_CONTEXT.as_bytes());
-    frame(logical.as_bytes());
-    for (role, files) in [(constants::SOURCE_ROLE, &sources), (constants::AUXILIARY_ROLE, &auxiliary)] {
-        frame(role.as_bytes());
-        for (name, value) in files {
-            frame(name.as_bytes());
-            frame(value.as_bytes());
-        }
-    }
-    for name in &missing {
-        frame(constants::MISSING_ROLE.as_bytes());
-        frame(name.as_bytes());
-    }
+    let seal = ryo_benchmark_contracts::domain::context::service::fingerprint(&ContextManifest {
+        boundary: std::path::PathBuf::new(),
+        logical_root: std::path::PathBuf::from(logical),
+        auxiliary_files: path_digests(&auxiliary),
+        source_files: path_digests(&sources),
+        missing: missing.iter().map(std::path::PathBuf::from).collect(),
+    });
     Ok(table([
         (constants::MODE, text(mode)),
         (constants::LOGICAL_ROOT_KEY, text(logical)),
-        (constants::MANIFEST_HASH, text(&format!("{:x}", digest.finalize()))),
-        (constants::PRESENT_PATHS, Canonical::List(present.iter().map(|name| text(name)).collect())),
-        (constants::MISSING_PATHS, Canonical::List(missing.iter().map(|name| text(name)).collect())),
+        (constants::MANIFEST_HASH, text(&seal.0)),
+        (
+            constants::PRESENT_PATHS,
+            Canonical::List(present.iter().map(|name| text(name)).collect()),
+        ),
+        (
+            constants::MISSING_PATHS,
+            Canonical::List(missing.iter().map(|name| text(name)).collect()),
+        ),
     ]))
 }
 
@@ -187,7 +242,10 @@ fn posix(path: &str) -> String {
         .components()
         .filter_map(|component| match component {
             Component::Normal(part) => part.to_str(),
-            Component::Prefix(_) | Component::RootDir | Component::CurDir | Component::ParentDir => None,
+            Component::Prefix(_)
+            | Component::RootDir
+            | Component::CurDir
+            | Component::ParentDir => None,
         })
         .collect::<Vec<_>>();
     if parts.is_empty() {
@@ -217,8 +275,13 @@ fn project_inputs(
     if let Some(roots) = &roots {
         let valid = roots.as_list().is_some_and(|roots| {
             roots.iter().all(|root| {
-                root.as_text()
-                    .is_some_and(|root| root.is_empty() || (!Path::new(root).is_absolute() && Path::new(root).components().all(|part| matches!(part, Component::Normal(_)))))
+                root.as_text().is_some_and(|root| {
+                    root.is_empty()
+                        || (!Path::new(root).is_absolute()
+                            && Path::new(root)
+                                .components()
+                                .all(|part| matches!(part, Component::Normal(_))))
+                })
             })
         });
         if !valid {
@@ -227,25 +290,44 @@ fn project_inputs(
     }
     let shape = inventory.as_table().filter(|fields| {
         fields.len() == 2
-            && fields.get(constants::COMPLETENESS).and_then(Canonical::as_text).is_some_and(|completeness| {
-                [constants::PARTIAL, constants::COMPLETE_SCOPE].contains(&completeness)
-            })
-            && fields.get(constants::ENTRIES).and_then(Canonical::as_list).is_some()
+            && fields
+                .get(constants::COMPLETENESS)
+                .and_then(Canonical::as_text)
+                .is_some_and(|completeness| {
+                    [constants::PARTIAL, constants::COMPLETE_SCOPE].contains(&completeness)
+                })
+            && fields
+                .get(constants::ENTRIES)
+                .and_then(Canonical::as_list)
+                .is_some()
     });
     let Some(fields) = shape else {
         return Err(invalid(constants::GIVEN_INVENTORY_SHAPE));
     };
-    for entry in fields.get(constants::ENTRIES).and_then(Canonical::as_list).unwrap_or_default() {
+    for entry in fields
+        .get(constants::ENTRIES)
+        .and_then(Canonical::as_list)
+        .unwrap_or_default()
+    {
         let valid = entry.as_table().is_some_and(|entry| {
             entry.len() == 2
-                && entry.get(constants::PATH).and_then(Canonical::as_text).is_some_and(safe_relative)
-                && entry.get(constants::STATE).and_then(Canonical::as_text).is_some_and(|state| constants::ENTRY_STATES.contains(&state))
+                && entry
+                    .get(constants::PATH)
+                    .and_then(Canonical::as_text)
+                    .is_some_and(safe_relative)
+                && entry
+                    .get(constants::STATE)
+                    .and_then(Canonical::as_text)
+                    .is_some_and(|state| constants::ENTRY_STATES.contains(&state))
         });
         if !valid {
             return Err(invalid(constants::GIVEN_ENTRY));
         }
     }
-    let complete = fields.get(constants::COMPLETENESS).and_then(Canonical::as_text) == Some(constants::COMPLETE_SCOPE);
+    let complete = fields
+        .get(constants::COMPLETENESS)
+        .and_then(Canonical::as_text)
+        == Some(constants::COMPLETE_SCOPE);
     match roots {
         None if complete => Err(invalid(constants::COMPLETE_NEEDS_ROOTS)),
         None if inventory == default_inventory => Ok(None),
@@ -258,10 +340,21 @@ fn project_inputs(
 
 /// One expected finding as the authoring normalizes it, with its rule defaulting to the case's owner.
 fn finding(row: &Canonical, owner: &str) -> Result<Canonical, Error> {
-    let row = row.as_table().ok_or_else(|| invalid(constants::EXPECTED_ROW))?;
-    let field = |key: &str| row.get(key).cloned().ok_or_else(|| invalid(constants::EXPECTED_ROW));
+    let row = row
+        .as_table()
+        .ok_or_else(|| invalid(constants::EXPECTED_ROW))?;
+    let field = |key: &str| {
+        row.get(key)
+            .cloned()
+            .ok_or_else(|| invalid(constants::EXPECTED_ROW))
+    };
     Ok(table([
-        (constants::RULE, row.get(constants::RULE).cloned().unwrap_or_else(|| text(owner))),
+        (
+            constants::RULE,
+            row.get(constants::RULE)
+                .cloned()
+                .unwrap_or_else(|| text(owner)),
+        ),
         (constants::FILE, field(constants::FILE)?),
         (constants::START, field(constants::START)?),
         (constants::END, field(constants::END)?),
@@ -272,10 +365,20 @@ fn finding(row: &Canonical, owner: &str) -> Result<Canonical, Error> {
 fn finding_key(row: &Canonical) -> (String, String, i64, i64) {
     let field = |key| row.as_table().and_then(|row| row.get(key));
     (
-        field(constants::RULE).and_then(Canonical::as_text).unwrap_or_default().to_owned(),
-        field(constants::FILE).and_then(Canonical::as_text).unwrap_or_default().to_owned(),
-        field(constants::START).and_then(Canonical::as_integer).unwrap_or_default(),
-        field(constants::END).and_then(Canonical::as_integer).unwrap_or_default(),
+        field(constants::RULE)
+            .and_then(Canonical::as_text)
+            .unwrap_or_default()
+            .to_owned(),
+        field(constants::FILE)
+            .and_then(Canonical::as_text)
+            .unwrap_or_default()
+            .to_owned(),
+        field(constants::START)
+            .and_then(Canonical::as_integer)
+            .unwrap_or_default(),
+        field(constants::END)
+            .and_then(Canonical::as_integer)
+            .unwrap_or_default(),
     )
 }
 
@@ -287,13 +390,21 @@ fn sorted_findings(mut rows: Vec<Canonical>) -> Canonical {
 
 /// The files a case lints, excluding staged context sources, sorted.
 fn selected_files(case: &BTreeMap<String, Canonical>) -> Result<Vec<String>, Error> {
-    let supplied = case.get(constants::FILES).and_then(Canonical::as_table).ok_or_else(|| invalid(constants::SELECTED_FILES))?;
+    let supplied = case
+        .get(constants::FILES)
+        .and_then(Canonical::as_table)
+        .ok_or_else(|| invalid(constants::SELECTED_FILES))?;
     let mut selected = match case.get(constants::REQUESTED_FILES) {
         Some(requested) => requested
             .as_list()
             .ok_or_else(|| invalid(constants::SELECTED_FILES))?
             .iter()
-            .map(|file| file.as_text().filter(|file| supplied.contains_key(*file)).map(str::to_owned).ok_or_else(|| invalid(constants::SELECTED_FILES)))
+            .map(|file| {
+                file.as_text()
+                    .filter(|file| supplied.contains_key(*file))
+                    .map(str::to_owned)
+                    .ok_or_else(|| invalid(constants::SELECTED_FILES))
+            })
             .collect::<Result<Vec<_>, _>>()?,
         None => supplied.keys().cloned().collect(),
     };
@@ -305,30 +416,64 @@ fn selected_files(case: &BTreeMap<String, Canonical>) -> Result<Vec<String>, Err
 }
 
 /// The rows of a full discrepancy expectation: explicit identities inside the selected sources, on character boundaries.
-fn expectation_rows(rows: &Canonical, case: &BTreeMap<String, Canonical>, files: &[String]) -> Result<Vec<Canonical>, Error> {
-    let sources = case.get(constants::FILES).and_then(Canonical::as_table).ok_or_else(|| invalid(constants::CASE_FILES))?;
+fn expectation_rows(
+    rows: &Canonical,
+    case: &BTreeMap<String, Canonical>,
+    files: &[String],
+) -> Result<Vec<Canonical>, Error> {
+    let sources = case
+        .get(constants::FILES)
+        .and_then(Canonical::as_table)
+        .ok_or_else(|| invalid(constants::CASE_FILES))?;
     let mut normalized = Vec::new();
-    for row in rows.as_list().ok_or_else(|| invalid(constants::DISCREPANCY_ROWS))? {
+    for row in rows
+        .as_list()
+        .ok_or_else(|| invalid(constants::DISCREPANCY_ROWS))?
+    {
         let fields = row.as_table().filter(|fields| {
-            fields.len() == 4 && [constants::RULE, constants::FILE, constants::START, constants::END].iter().all(|key| fields.contains_key(*key))
+            fields.len() == 4
+                && [
+                    constants::RULE,
+                    constants::FILE,
+                    constants::START,
+                    constants::END,
+                ]
+                .iter()
+                .all(|key| fields.contains_key(*key))
         });
         let Some(fields) = fields else {
             return Err(invalid(constants::DISCREPANCY_ROWS));
         };
-        let file = fields.get(constants::FILE).and_then(Canonical::as_text).filter(|file| files.iter().any(|selected| selected == file));
-        let rule = fields.get(constants::RULE).and_then(Canonical::as_text).filter(|rule| !rule.is_empty());
+        let file = fields
+            .get(constants::FILE)
+            .and_then(Canonical::as_text)
+            .filter(|file| files.iter().any(|selected| selected == file));
+        let rule = fields
+            .get(constants::RULE)
+            .and_then(Canonical::as_text)
+            .filter(|rule| !rule.is_empty());
         let (Some(file), Some(_rule)) = (file, rule) else {
             return Err(invalid(constants::DISCREPANCY_OUTSIDE));
         };
-        let source = sources.get(file).and_then(Canonical::as_text).unwrap_or_default();
-        let bounds = (fields.get(constants::START).and_then(Canonical::as_integer), fields.get(constants::END).and_then(Canonical::as_integer));
+        let source = sources
+            .get(file)
+            .and_then(Canonical::as_text)
+            .unwrap_or_default();
+        let bounds = (
+            fields.get(constants::START).and_then(Canonical::as_integer),
+            fields.get(constants::END).and_then(Canonical::as_integer),
+        );
         let (Some(start), Some(end)) = bounds else {
             return Err(invalid(constants::DISCREPANCY_RANGE));
         };
         let (Ok(start), Ok(end)) = (usize::try_from(start), usize::try_from(end)) else {
             return Err(invalid(constants::DISCREPANCY_RANGE));
         };
-        if start > end || end > source.len() || !source.is_char_boundary(start) || !source.is_char_boundary(end) {
+        if start > end
+            || end > source.len()
+            || !source.is_char_boundary(start)
+            || !source.is_char_boundary(end)
+        {
             return Err(invalid(constants::DISCREPANCY_RANGE));
         }
         normalized.push(row.clone());
@@ -339,7 +484,10 @@ fn expectation_rows(rows: &Canonical, case: &BTreeMap<String, Canonical>, files:
 /// The output a discrepancy binds: the selected files, every finding in order, and no skip.
 fn discrepancy_output(files: &[String], rows: Vec<Canonical>) -> Canonical {
     table([
-        (constants::FILES_KEY, Canonical::List(files.iter().map(|file| text(file)).collect())),
+        (
+            constants::FILES_KEY,
+            Canonical::List(files.iter().map(|file| text(file)).collect()),
+        ),
         (constants::DIAGNOSTICS_KEY, sorted_findings(rows)),
         (constants::SKIPPED_KEY, Canonical::List(Vec::new())),
     ])
@@ -359,60 +507,135 @@ fn reference_discrepancy(
         (Some(annotation), None) => (constants::LANGUAGE_DEFECT, annotation),
         (None, Some(annotation)) => (constants::TOOL_CONTRACT, annotation),
     };
-    let fields = annotation.as_table().ok_or_else(|| invalid(constants::DISCREPANCY_SCHEMA))?;
-    let approved = profile.get(constants::SHA256_KEY).cloned().unwrap_or(Canonical::Null);
+    let fields = annotation
+        .as_table()
+        .ok_or_else(|| invalid(constants::DISCREPANCY_SCHEMA))?;
+    let approved = profile
+        .get(constants::SHA256_KEY)
+        .cloned()
+        .unwrap_or(Canonical::Null);
     if basis == constants::LANGUAGE_DEFECT && fields.contains_key(constants::PROCESS) {
         return process_discrepancy(case, fields, approved);
     }
     let keys: BTreeSet<_> = fields.keys().map(String::as_str).collect();
-    if keys != BTreeSet::from([constants::EXPECTED_KEY, constants::IDENTITY, constants::EVIDENCE, constants::REASON]) {
+    if keys
+        != BTreeSet::from([
+            constants::EXPECTED_KEY,
+            constants::IDENTITY,
+            constants::EVIDENCE,
+            constants::REASON,
+        ])
+    {
         return Err(invalid(constants::DISCREPANCY_SCHEMA));
     }
-    let reason = fields.get(constants::REASON).and_then(Canonical::as_text).unwrap_or_default();
-    if case.get(constants::COMPARISON).and_then(Canonical::as_text).unwrap_or(constants::RULE) != constants::FULL || reason.trim().is_empty() {
+    let reason = fields
+        .get(constants::REASON)
+        .and_then(Canonical::as_text)
+        .unwrap_or_default();
+    if case
+        .get(constants::COMPARISON)
+        .and_then(Canonical::as_text)
+        .unwrap_or(constants::RULE)
+        != constants::FULL
+        || reason.trim().is_empty()
+    {
         return Err(invalid(constants::DISCREPANCY_FULL));
     }
-    let identity = fields.get(constants::IDENTITY).and_then(Canonical::as_table).ok_or_else(|| invalid(constants::DISCREPANCY_IDENTITY))?;
+    let identity = fields
+        .get(constants::IDENTITY)
+        .and_then(Canonical::as_table)
+        .ok_or_else(|| invalid(constants::DISCREPANCY_IDENTITY))?;
     let names: BTreeSet<_> = identity.keys().map(String::as_str).collect();
     let required: BTreeSet<_> = constants::IDENTITY_FIELDS.into_iter().collect();
-    if !required.is_subset(&names) || names.iter().any(|name| !required.contains(name) && *name != constants::FILE_METADATA_SHA256_KEY) {
+    if !required.is_subset(&names)
+        || names
+            .iter()
+            .any(|name| !required.contains(name) && *name != constants::FILE_METADATA_SHA256_KEY)
+    {
         return Err(invalid(constants::DISCREPANCY_IDENTITY));
     }
     let metadata = match case.get(constants::FILE_METADATA) {
-        Some(values) => Some(file_metadata_digest(values.as_table().ok_or_else(|| invalid(constants::FILE_METADATA_FLAGS))?)?),
+        Some(values) => Some(file_metadata_digest(
+            values
+                .as_table()
+                .ok_or_else(|| invalid(constants::FILE_METADATA_FLAGS))?,
+        )?),
         None => None,
     };
-    if identity.get(constants::FILE_METADATA_SHA256_KEY).and_then(Canonical::as_text) != metadata.as_deref() {
+    if identity
+        .get(constants::FILE_METADATA_SHA256_KEY)
+        .and_then(Canonical::as_text)
+        != metadata.as_deref()
+    {
         return Err(invalid(constants::STALE_METADATA));
     }
-    let digest = |key: &str| identity.get(key).and_then(Canonical::as_text).unwrap_or_default();
-    if names.iter().filter(|name| **name != constants::TOOL && **name != constants::VERSION).any(|name| !lower_digest(digest(name))) {
+    let digest = |key: &str| {
+        identity
+            .get(key)
+            .and_then(Canonical::as_text)
+            .unwrap_or_default()
+    };
+    if names
+        .iter()
+        .filter(|name| **name != constants::TOOL && **name != constants::VERSION)
+        .any(|name| !lower_digest(digest(name)))
+    {
         return Err(invalid(constants::DISCREPANCY_DIGESTS));
     }
     let staged = stage.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
     let pinned = approved.as_list().unwrap_or_default();
     if identity.get(constants::TOOL) != profile.get(constants::TOOL)
         || identity.get(constants::VERSION) != profile.get(constants::VERSION)
-        || !pinned.iter().any(|pin| pin.as_text() == Some(digest(constants::OBSERVED_EXECUTABLE)))
+        || !pinned
+            .iter()
+            .any(|pin| pin.as_text() == Some(digest(constants::OBSERVED_EXECUTABLE)))
         || digest(constants::PROFILE_SHA256) != file_digest(&staged)?
     {
         return Err(invalid(constants::STALE_TOOL_PROFILE));
     }
-    let sources = case.get(constants::FILES).and_then(Canonical::as_table).ok_or_else(|| invalid(constants::CASE_FILES))?;
+    let sources = case
+        .get(constants::FILES)
+        .and_then(Canonical::as_table)
+        .ok_or_else(|| invalid(constants::CASE_FILES))?;
     if source_digest(sources)? != digest(constants::SOURCE_SHA256) {
         return Err(invalid(constants::STALE_SOURCE));
     }
     let files = selected_files(case)?;
-    let intended = discrepancy_output(&files, expectation_rows(case.get(constants::EXPECTED_KEY).unwrap_or(&Canonical::Null), case, &files)?);
-    let reference = discrepancy_output(&files, expectation_rows(fields.get(constants::EXPECTED_KEY).unwrap_or(&Canonical::Null), case, &files)?);
+    let intended = discrepancy_output(
+        &files,
+        expectation_rows(
+            case.get(constants::EXPECTED_KEY)
+                .unwrap_or(&Canonical::Null),
+            case,
+            &files,
+        )?,
+    );
+    let reference = discrepancy_output(
+        &files,
+        expectation_rows(
+            fields
+                .get(constants::EXPECTED_KEY)
+                .unwrap_or(&Canonical::Null),
+            case,
+            &files,
+        )?,
+    );
     if intended == reference {
         return Err(invalid(constants::IDENTICAL_EXPECTATIONS));
     }
-    if intended.digest()? != digest(constants::INTENDED_OUTPUT) || reference.digest()? != digest(constants::REFERENCE_OUTPUT) {
+    if intended.digest()? != digest(constants::INTENDED_OUTPUT)
+        || reference.digest()? != digest(constants::REFERENCE_OUTPUT)
+    {
         return Err(invalid(constants::STALE_EXPECTATIONS));
     }
     evidence(stage, profile, basis, fields.get(constants::EVIDENCE))?;
-    let diagnostics = |output: Canonical| output.as_table().and_then(|output| output.get(constants::DIAGNOSTICS_KEY)).cloned().unwrap_or(Canonical::Null);
+    let diagnostics = |output: Canonical| {
+        output
+            .as_table()
+            .and_then(|output| output.get(constants::DIAGNOSTICS_KEY))
+            .cloned()
+            .unwrap_or(Canonical::Null)
+    };
     Ok(table([
         (constants::BASIS, text(basis)),
         (constants::IDENTITY, Canonical::Table(identity.clone())),
@@ -424,17 +647,33 @@ fn reference_discrepancy(
 }
 
 /// Every evidence row of a documented difference matches its authority and its staged bytes.
-fn evidence(stage: &Path, profile: &BTreeMap<String, Canonical>, basis: &str, rows: Option<&Canonical>) -> Result<(), Error> {
-    let rows = rows.and_then(Canonical::as_list).filter(|rows| !rows.is_empty()).ok_or_else(|| invalid(constants::EVIDENCE_REQUIRED))?;
+fn evidence(
+    stage: &Path,
+    profile: &BTreeMap<String, Canonical>,
+    basis: &str,
+    rows: Option<&Canonical>,
+) -> Result<(), Error> {
+    let rows = rows
+        .and_then(Canonical::as_list)
+        .filter(|rows| !rows.is_empty())
+        .ok_or_else(|| invalid(constants::EVIDENCE_REQUIRED))?;
     let mut kinds = Vec::new();
     for row in rows {
-        let row = row.as_table().ok_or_else(|| invalid(constants::EVIDENCE_INCOMPLETE))?;
+        let row = row
+            .as_table()
+            .ok_or_else(|| invalid(constants::EVIDENCE_INCOMPLETE))?;
         let keys: BTreeSet<_> = row.keys().map(String::as_str).collect();
-        let field = |key: &str| row.get(key).and_then(Canonical::as_text).unwrap_or_default();
+        let field = |key: &str| {
+            row.get(key)
+                .and_then(Canonical::as_text)
+                .unwrap_or_default()
+        };
         let kind = field(constants::KIND);
         kinds.push(kind.to_owned());
         let expected: BTreeSet<_> = match (basis, kind) {
-            (constants::LANGUAGE_DEFECT, constants::LANGUAGE_SPEC | constants::INDEPENDENT_RUN) => constants::LANGUAGE_FIELDS.into_iter().collect(),
+            (constants::LANGUAGE_DEFECT, constants::LANGUAGE_SPEC | constants::INDEPENDENT_RUN) => {
+                constants::LANGUAGE_FIELDS.into_iter().collect()
+            }
             (constants::LANGUAGE_DEFECT, _) => return Err(invalid(constants::EVIDENCE_CONTRACT)),
             (_, constants::PUBLIC_CONTRACT) => constants::CONTRACT_FIELDS.into_iter().collect(),
             (_, constants::PRIOR_WORKER) => constants::PRIOR_FIELDS.into_iter().collect(),
@@ -447,16 +686,21 @@ fn evidence(stage: &Path, profile: &BTreeMap<String, Canonical>, basis: &str, ro
             constants::LANGUAGE_SPEC | constants::INDEPENDENT_RUN => {
                 !field(constants::LANGUAGE_VERSION).trim().is_empty()
                     && !field(constants::VERSION_RATIONALE).trim().is_empty()
-                    && row.get(constants::TARGET_CONFIGURATION) == profile.get(constants::PARSER_CONFIGURATION)
+                    && row.get(constants::TARGET_CONFIGURATION)
+                        == profile.get(constants::PARSER_CONFIGURATION)
             }
             constants::PUBLIC_CONTRACT => {
                 field(constants::SOURCE_REVISION).len() == constants::REVISION_HEX_LENGTH
-                    && field(constants::SOURCE_REVISION).bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+                    && field(constants::SOURCE_REVISION)
+                        .bytes()
+                        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
                     && !field(constants::SOURCE_PATH).trim().is_empty()
                     && !field(constants::RATIONALE).trim().is_empty()
             }
             _ => {
-                constants::PRIOR_DIGESTS.iter().all(|key| lower_digest(field(key)))
+                constants::PRIOR_DIGESTS
+                    .iter()
+                    .all(|key| lower_digest(field(key)))
                     && !field(constants::WITNESS_CASE).trim().is_empty()
                     && !field(constants::RATIONALE).trim().is_empty()
             }
@@ -465,47 +709,103 @@ fn evidence(stage: &Path, profile: &BTreeMap<String, Canonical>, basis: &str, ro
             return Err(invalid(constants::EVIDENCE_CONTRACT));
         }
         let path = field(constants::PATH);
-        if !Path::new(path).components().all(|component| matches!(component, Component::Normal(_))) || path.is_empty() {
+        if !Path::new(path)
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
+            || path.is_empty()
+        {
             return Err(invalid(constants::UNSAFE_EVIDENCE));
         }
         let root = stage.canonicalize()?;
-        let resolved = root.join(path).canonicalize().map_err(|_| invalid(constants::STALE_EVIDENCE))?;
-        if !resolved.starts_with(&root) || !resolved.is_file() || file_digest(&resolved)? != field(constants::SHA256_KEY) {
+        let resolved = root
+            .join(path)
+            .canonicalize()
+            .map_err(|_| invalid(constants::STALE_EVIDENCE))?;
+        if !resolved.starts_with(&root)
+            || !resolved.is_file()
+            || file_digest(&resolved)? != field(constants::SHA256_KEY)
+        {
             return Err(invalid(constants::STALE_EVIDENCE));
         }
     }
     kinds.sort();
-    if basis == constants::TOOL_CONTRACT && kinds != [constants::PRIOR_WORKER, constants::PUBLIC_CONTRACT] {
+    if basis == constants::TOOL_CONTRACT
+        && kinds != [constants::PRIOR_WORKER, constants::PUBLIC_CONTRACT]
+    {
         return Err(invalid(constants::CONTRACT_EVIDENCE_PAIR));
     }
     Ok(())
 }
 
 /// A documented process failure, as registered: its identity, approved executables, intended findings and the failure.
-fn process_discrepancy(case: &BTreeMap<String, Canonical>, fields: &BTreeMap<String, Canonical>, approved: Canonical) -> Result<Canonical, Error> {
+fn process_discrepancy(
+    case: &BTreeMap<String, Canonical>,
+    fields: &BTreeMap<String, Canonical>,
+    approved: Canonical,
+) -> Result<Canonical, Error> {
     let keys: BTreeSet<_> = fields.keys().map(String::as_str).collect();
-    if keys != BTreeSet::from([constants::PROCESS, constants::IDENTITY, constants::EVIDENCE, constants::REASON])
+    if keys
+        != BTreeSet::from([
+            constants::PROCESS,
+            constants::IDENTITY,
+            constants::EVIDENCE,
+            constants::REASON,
+        ])
         || case.get(constants::COMPARISON).and_then(Canonical::as_text) != Some(constants::FULL)
     {
         return Err(invalid(constants::PROCESS_CONTRACT));
     }
-    let process = fields.get(constants::PROCESS).cloned().unwrap_or(Canonical::Null);
-    if process.as_table().and_then(|process| process.get(constants::KIND)).and_then(Canonical::as_text) != Some(constants::PROCESS_FAILURE_KIND) {
+    let process = fields
+        .get(constants::PROCESS)
+        .cloned()
+        .unwrap_or(Canonical::Null);
+    if process
+        .as_table()
+        .and_then(|process| process.get(constants::KIND))
+        .and_then(Canonical::as_text)
+        != Some(constants::PROCESS_FAILURE_KIND)
+    {
         return Err(invalid(constants::PROCESS_VARIANT));
     }
     let mut intended = Vec::new();
-    for row in case.get(constants::EXPECTED_KEY).and_then(Canonical::as_list).unwrap_or_default() {
-        if row.as_table().is_none_or(|row| row.len() != 4 || ![constants::RULE, constants::FILE, constants::START, constants::END].iter().all(|key| row.contains_key(*key))) {
+    for row in case
+        .get(constants::EXPECTED_KEY)
+        .and_then(Canonical::as_list)
+        .unwrap_or_default()
+    {
+        if row.as_table().is_none_or(|row| {
+            row.len() != 4
+                || ![
+                    constants::RULE,
+                    constants::FILE,
+                    constants::START,
+                    constants::END,
+                ]
+                .iter()
+                .all(|key| row.contains_key(*key))
+        }) {
             return Err(invalid(constants::PROCESS_FINDINGS));
         }
         intended.push(row.clone());
     }
     Ok(table([
-        (constants::IDENTITY, fields.get(constants::IDENTITY).cloned().unwrap_or(Canonical::Null)),
+        (
+            constants::IDENTITY,
+            fields
+                .get(constants::IDENTITY)
+                .cloned()
+                .unwrap_or(Canonical::Null),
+        ),
         (constants::APPROVED, approved),
         (constants::REFERENCE_EXPECTED, Canonical::Null),
         (constants::INTENDED_EXPECTED, sorted_findings(intended)),
-        (constants::REASON, fields.get(constants::REASON).cloned().unwrap_or(Canonical::Null)),
+        (
+            constants::REASON,
+            fields
+                .get(constants::REASON)
+                .cloned()
+                .unwrap_or(Canonical::Null),
+        ),
         (constants::PROCESS, process),
     ]))
 }
@@ -518,8 +818,14 @@ fn case_document(
     owner: &str,
     case: &BTreeMap<String, Canonical>,
 ) -> Result<CaseWire, Error> {
-    let name = case.get(constants::NAME_KEY).cloned().ok_or_else(|| invalid(constants::CASE_NAME))?;
-    let sources = case.get(constants::FILES).and_then(Canonical::as_table).ok_or_else(|| invalid(constants::CASE_FILES))?;
+    let name = case
+        .get(constants::NAME_KEY)
+        .cloned()
+        .ok_or_else(|| invalid(constants::CASE_NAME))?;
+    let sources = case
+        .get(constants::FILES)
+        .and_then(Canonical::as_table)
+        .ok_or_else(|| invalid(constants::CASE_FILES))?;
     let expected = case
         .get(constants::EXPECTED_KEY)
         .and_then(Canonical::as_list)
@@ -536,22 +842,46 @@ fn case_document(
         Some(declaration) => {
             let declaration = declaration
                 .as_table()
-                .filter(|declaration| declaration.len() == 2 && declaration.contains_key(constants::TABLES) && declaration.contains_key(constants::DEFAULTS_KEY))
+                .filter(|declaration| {
+                    declaration.len() == 2
+                        && declaration.contains_key(constants::TABLES)
+                        && declaration.contains_key(constants::DEFAULTS_KEY)
+                })
                 .ok_or_else(|| invalid(constants::RULE_CONTEXT_DECLARATION))?;
             Some(table([
-                (constants::TABLES, declaration.get(constants::TABLES).cloned().unwrap_or(Canonical::Null)),
-                (constants::CONFIGURATION, configuration.or_else(|| declaration.get(constants::DEFAULTS_KEY)).cloned().unwrap_or(Canonical::Null)),
+                (
+                    constants::TABLES,
+                    declaration
+                        .get(constants::TABLES)
+                        .cloned()
+                        .unwrap_or(Canonical::Null),
+                ),
+                (
+                    constants::CONFIGURATION,
+                    configuration
+                        .or_else(|| declaration.get(constants::DEFAULTS_KEY))
+                        .cloned()
+                        .unwrap_or(Canonical::Null),
+                ),
             ]))
         }
         None => None,
     };
-    let selected = case
-        .get(constants::SELECTED_RULES)
-        .cloned()
-        .or_else(|| prepared.as_ref().map(|_| profile.get(constants::DEFAULTS_KEY).cloned().unwrap_or(Canonical::Null)));
+    let selected = case.get(constants::SELECTED_RULES).cloned().or_else(|| {
+        prepared.as_ref().map(|_| {
+            profile
+                .get(constants::DEFAULTS_KEY)
+                .cloned()
+                .unwrap_or(Canonical::Null)
+        })
+    });
     let metadata = case.get(constants::FILE_METADATA).cloned();
     let metadata_digest = match &metadata {
-        Some(values) => Some(file_metadata_digest(values.as_table().ok_or_else(|| invalid(constants::FILE_METADATA_FLAGS))?)?),
+        Some(values) => Some(file_metadata_digest(
+            values
+                .as_table()
+                .ok_or_else(|| invalid(constants::FILE_METADATA_FLAGS))?,
+        )?),
         None => None,
     };
     let inputs = project_inputs(case, profile)?;
@@ -565,7 +895,10 @@ fn case_document(
         .transpose()?;
     let files = match case.get(constants::REQUESTED_FILES) {
         Some(requested) => {
-            let mut files = requested.as_list().ok_or_else(|| invalid(constants::SELECTED_FILES))?.to_vec();
+            let mut files = requested
+                .as_list()
+                .ok_or_else(|| invalid(constants::SELECTED_FILES))?
+                .to_vec();
             files.sort_by(|left, right| left.as_text().cmp(&right.as_text()));
             files
         }
@@ -577,7 +910,10 @@ fn case_document(
         case_sha256: Canonical::Table(case.clone()).digest()?,
         source_sha256: source_digest(sources)?,
         files,
-        comparison: case.get(constants::COMPARISON).cloned().unwrap_or_else(|| text(constants::RULE)),
+        comparison: case
+            .get(constants::COMPARISON)
+            .cloned()
+            .unwrap_or_else(|| text(constants::RULE)),
         expected: sorted_findings(expected),
         project_context_mode: mode.to_owned(),
         context_identity: context_identity(case, mode)?,
@@ -596,9 +932,18 @@ fn case_document(
 
 /// Every case the staged profile at `stage` authors, as registered case documents in rule and name order.
 pub(in super::super) fn case_inventory(stage: &Path) -> Result<CaseDocuments, Error> {
-    let profile_path = stage.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
-    let profile = if profile_path.is_file() { document(&profile_path)? } else { BTreeMap::new() };
-    let mode = profile.get(constants::PROJECT_CONTEXT_MODE).and_then(Canonical::as_text).unwrap_or(constants::ISOLATED).to_owned();
+    let profile_path =
+        stage.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
+    let profile = if profile_path.is_file() {
+        document(&profile_path)?
+    } else {
+        BTreeMap::new()
+    };
+    let mode = profile
+        .get(constants::PROJECT_CONTEXT_MODE)
+        .and_then(Canonical::as_text)
+        .unwrap_or(constants::ISOLATED)
+        .to_owned();
     if mode != constants::ISOLATED && mode != constants::LISTED_DISK {
         return Err(invalid(constants::CONTEXT_MODE));
     }
@@ -612,22 +957,45 @@ pub(in super::super) fn case_inventory(stage: &Path) -> Result<CaseDocuments, Er
         if !cases.is_file() {
             continue;
         }
-        let name = owner.file_name().and_then(|name| name.to_str()).ok_or_else(|| invalid(constants::CASE_NAME))?.to_owned();
+        let name = owner
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| invalid(constants::CASE_NAME))?
+            .to_owned();
         let authored = document(&cases)?;
-        for case in authored.get(constants::CASES).and_then(Canonical::as_list).unwrap_or_default() {
-            let case = case.as_table().ok_or_else(|| invalid(constants::CASE_NAME))?;
+        for case in authored
+            .get(constants::CASES)
+            .and_then(Canonical::as_list)
+            .unwrap_or_default()
+        {
+            let case = case
+                .as_table()
+                .ok_or_else(|| invalid(constants::CASE_NAME))?;
             documents.push(case_document(stage, &profile, &mode, &name, case)?);
         }
     }
-    let identity = |document: &CaseWire| (document.rule.clone(), document.name.as_text().unwrap_or_default().to_owned());
+    let identity = |document: &CaseWire| {
+        (
+            document.rule.clone(),
+            document.name.as_text().unwrap_or_default().to_owned(),
+        )
+    };
     documents.sort_by_key(identity);
-    if documents.is_empty() || documents.iter().map(identity).collect::<BTreeSet<_>>().len() != documents.len() {
+    if documents.is_empty()
+        || documents
+            .iter()
+            .map(identity)
+            .collect::<BTreeSet<_>>()
+            .len()
+            != documents.len()
+    {
         return Err(invalid(constants::CASE_IDENTITIES));
     }
     documents
         .into_iter()
         .map(|document| {
-            let text = serde_json::to_string(&document).map_err(|error| Error::Json(Box::new(error)))?;
+            let text =
+                serde_json::to_string(&document).map_err(|error| Error::Json(Box::new(error)))?;
             CaseDocument::try_from(CaseText(&text))
         })
         .collect::<Result<Vec<_>, _>>()
