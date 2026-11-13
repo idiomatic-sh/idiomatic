@@ -1,429 +1,49 @@
-description = "One contract's body: the struct `<Part>Contract` implementing the engine's trait, imported by its path."
-why = "Holds a language's fulfilment of one trait the engine declares in a directory of its own, so the contract is found by its directory's name, its struct carries that name and its code sits beside its proof. The trait is the engine's (`ryo::languages::Parse`), never redeclared here, so the compiler lists every method the language leaves out. The template asks for the import, the struct and the `impl`; the fields and methods are the language's."
-content = '''
-{% if trait == "ryo::languages::Parse" -%}
-//! The `{{ part }}` contract: the language's implementation of `{{ trait }}`. It says which files are the language's, builds the file's
-//! tree in the worker's element table through the syntax port, and answers, for every syntax relation of ryo's catalog, how the
-//! language reads it or that it is not in the language yet.
-
-use std::sync::Arc;
-
-use ryo::languages::{self, Parse, Reader, AbsenceCause, Support, UnknownName};
-
-use crate::domain::language::service::reads;
-use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeItem;
-use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
-use crate::outbound::syntax::interface::SyntaxPort;
-use crate::outbound::syntax::types::SourceText;
-
-/// `{{ part }}`, implementing `{{ trait }}`.
-pub(crate) struct {{ part | pascal }}Contract {
-    syntax: Arc<dyn SyntaxPort>,
-}
-
-impl {{ part | pascal }}Contract {
-    /// `{{ part }}` over the ports it calls, which the edge injects.
-    #[must_use]
-    pub(crate) fn new(syntax: Arc<dyn SyntaxPort>) -> Self {
-        Self { syntax }
-    }
-}
-
-impl Parse for {{ part | pascal }}Contract {
-    type FileModel = ();
-
-    fn begin_semantics(
-        &self,
-        _request: &languages::ParseRequest<'_>,
-        _tree: &languages::Elements,
-        _slot: &mut languages::SemanticSlot,
-    ) {
-    }
-
-    fn semantics(&self) -> Option<&dyn languages::Semantics> {
-        None
-    }
-
-    fn completion_requirement(&self) -> languages::CompletionRequirement {
-        languages::CompletionRequirement::Independent
-    }
-
-    fn extend_file_model(
-        &self,
-        _tree: &languages::Tree<'_>,
-        _from: languages::Position,
-        _model: &mut (),
-    ) {
-    }
-
-    fn recognizes_explicit(
-        &self,
-        _request: &languages::ParseRequest<'_>,
-    ) -> languages::Recognition {
-        languages::Recognition::Declines
-    }
-
-    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
-        languages::ParseConfigurationIdentity("")
-    }
-
-    fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
-
-    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
-        &[]
-    }
-
-    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
-        languages::native_semantic_syntax()
-    }
-
-    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
-        languages::native_semantic_child()
-    }
-
-    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
-        languages::source_locations()
-    }
-
-    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-
-    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn unknown_reasons(&self) -> &'static [UnknownName] {
-        &[]
-    }
-
-    fn recognizes(&self, request: &languages::ParseRequest<'_>) -> languages::Recognition {
-        reads(request.path)
-    }
-
-    fn skips(&self) -> &'static [languages::SkippedDirectory] {
-        crate::domain::language::constants::SKIPS
-    }
-
-    fn kind_count(&self) -> languages::Count {
-        languages::Count(kinds().count())
-    }
-
-    fn kind_names(&self) -> languages::KindNames {
-        languages::KindNames(kinds().map(kind_name).collect())
-    }
-
-    fn read_tree(
-        &self,
-        request: &languages::ParseRequest<'_>,
-        builder: &mut languages::TableBuilder<'_>,
-    ) -> Result<(), languages::ParseError> {
-        self.syntax.read(SourceText(request.bytes.0), builder);
-        Ok(())
-    }
-
-    fn complete(
-        &self,
-        _request: &languages::ParseRequest<'_>,
-        completion: &mut languages::Completion<'_>,
-    ) {
-        for kind in kinds() {
-            languages::name_kind(completion, kind_bits(kind), kind_name(kind));
-        }
-    }
-
-    fn syntax_tree(&self) -> Support<Reader<languages::SyntaxTree, ()>> {
-        languages::reads::<SyntaxTreeItem>()
-    }
-
-    fn comment(&self) -> Support<Reader<languages::Comment, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn directive(&self) -> Support<Reader<languages::Directive, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn visibility(&self) -> Support<Reader<languages::Visibility, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn string_literal(&self) -> Support<Reader<languages::StringLiteral, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn prose(&self) -> Support<Reader<languages::Prose, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn syntax_child(&self) -> Support<Reader<languages::SyntaxChild, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn syntax_error(&self) -> Support<Reader<languages::SyntaxError, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn mapping(&self) -> Support<Reader<languages::Mapping, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn entry(&self) -> Support<Reader<languages::Entry, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn sequence_element(&self) -> Support<Reader<languages::SequenceElement, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn function(&self) -> Support<Reader<languages::Function, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn annotates(&self) -> Support<Reader<languages::Annotates, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn assigns(&self) -> Support<Reader<languages::Assigns, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn decorates(&self) -> Support<Reader<languages::Decorates, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn defines(&self) -> Support<Reader<languages::Defines, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn inherits(&self) -> Support<Reader<languages::Inherits, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn mention(&self) -> Support<Reader<languages::Mention, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn parameter(&self) -> Support<Reader<languages::Parameter, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn reference(&self) -> Support<Reader<languages::Reference, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn scope(&self) -> Support<Reader<languages::Scope, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn static_call(&self) -> Support<Reader<languages::StaticCall, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn call_argument(&self) -> Support<Reader<languages::CallArgument, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn resolves(&self) -> Support<Reader<languages::Resolves, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-}
-{%- else -%}
-//! The `{{ part }}` contract: the language's implementation of `{{ trait }}`. It names no manifest and reads nothing, and answers
-//! every manifest relation of ryo's catalog as not in the language. A language with manifests lists their names in `manifests`, reads
-//! them in `resolve` and answers the relations its readers write with `languages::reads`.
-
-use ryo::languages::{
-    self, ManifestName, ManifestReader, Project, ProjectError, ProjectRequest, AbsenceCause, Resolved,
-    Support,
-};
-
-/// `{{ part }}`, implementing `{{ trait }}`.
-pub(crate) struct {{ part | pascal }}Contract;
-
-impl {{ part | pascal }}Contract {
-    /// `{{ part }}`, which calls no port.
-    #[must_use]
-    pub(crate) fn new() -> Self {
-        Self
-    }
-}
-
-impl Project for {{ part | pascal }}Contract {
-    type Derived = ();
-
-    fn manifests(&self) -> &'static [ManifestName] {
-        &[]
-    }
-
-    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
-        languages::primary_role_from_manifests(
-            path,
-            self.manifests().iter().copied(),
-        )
-    }
-
-    fn project_entries(
-        &self,
-        _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
-    ) {
-    }
-
-    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
-        Ok(Resolved {
-            observed_entries: request.observed_entries.0.to_vec(),
-            refused: Vec::new(),
-            unlisted: Vec::new(),
-            consulted: Vec::new(),
-            derived: (),
-        })
-    }
-    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn project_namespace_membership(
-        &self,
-    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-{% for relation in ["package_dependency", "workspace_member", "source_dependency", "file_package", "analyzed_source"] %}
-    fn {{ relation }}(&self) -> Support<ManifestReader<languages::{{ relation | pascal }}, ()>> {
-        languages::absent(AbsenceCause::NoManifests)
-    }
-{% endfor -%}
-}
-{%- endif %}
-'''
+description = "One contract a language fulfils: the struct implementing a trait the engine declares, and its test."
+why = "Ryo owns the concepts and the language fulfils them. `parse` and `project` are not use cases: they have no method named for them, no interface of their own and no fakes, only a trait of the engine (`ryo::languages::Parse`, `Project`) that the language implements. A contract part is that and nothing else: `contract.rs` imports the engine's trait and implements it for one struct, and `contract_test.rs` is the language's own cases beside the engine's conformance. A language whose contract file does not implement its trait is a finding (`contract-implements`), and a contract part declares no trait of its own, so the engine's trait is the one definition."
+templates = [
+  { template = "contract", file = "contract.rs", params = { trait = { param = "trait" } }, description = "The contract's body: the struct that implements the engine's trait, imported by its path." },
+  { template = "contract-test", file = "contract_test.rs", description = "The language's own cases of the contract, beside the engine's conformance, in the one test shape." },
+  { template = "idiomatic.arch/constants@0.1.0", alias = "contract-constants", file = "constants.rs", count = { min = 0 }, description = "The words the contract's code uses: no literal sits in code." },
+  { template = "idiomatic.arch/service@0.1.0", alias = "contract-service", file = "service.rs", count = { min = 0 }, params = { concept = "contract" }, description = "The contract's pure operations: free functions the contract calls." },
+  { template = "reader-list", file = "readers.rs", count = { min = 0 }, description = "The list of the contract's reader concepts, one module each, when it has readers." },
+  { template = "reader-module", file = "readers/{concept}.rs", count = { min = 0 }, description = "One reader concept's module file." },
+  { template = "reader-composition", file = "readers/{concept}/composition.rs", count = { min = 0 }, description = "The concept's readers bound to the grammar adapters that serve them: the home of a parse reader." },
+  { template = "idiomatic.arch/service@0.1.0", alias = "reader-service", file = "readers/{concept}/service.rs", count = { min = 0 }, description = "The concept's pure helpers the readers call: free functions." },
+  { template = "idiomatic.arch/types@0.1.0", alias = "reader-types", file = "readers/{concept}/types.rs", count = { min = 0 }, params = { kind = "concept" }, description = "The concept's plain types." },
+  { template = "idiomatic.arch/constants@0.1.0", alias = "reader-constants", file = "readers/{concept}/constants.rs", count = { min = 0 }, description = "The words of the concept's readers." },
+  { template = "idiomatic.arch/unit-test@0.1.0", alias = "reader-test", file = "readers/{concept}/composition_test.rs", count = { min = 0 }, params = { kind = "item" }, description = "The proof of the concept's readers, in the one test shape." },
+  { template = "idiomatic.arch/unit-test@0.1.0", alias = "reader-test-group", file = "readers/{concept}/composition_test/{group}_test.rs", count = { min = 0 }, params = { kind = "item" }, description = "A declared group of the proof's cases." },
+  { template = "idiomatic.arch/unit-test@0.1.0", alias = "reader-service-test", file = "readers/{concept}/service_test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "The proof of the concept's helpers, on values alone." },
+  { template = "contract-fixtures", file = "fixtures.rs", count = { min = 0 }, description = "The part's own test support, declared under the test gate, when its proof is grouped." },
+  { template = "contract-fixture", file = "fixtures/{group}.rs", count = { min = 0 }, description = "One group of the part's own cases: its table and the bodies it runs." },
+  { template = "reader-fixtures", file = "readers/{concept}/fixtures.rs", count = { min = 0 }, description = "The concept's test support, declared under the fixtures gate." },
+  { template = "reader-fixture", file = "readers/{concept}/fixtures/{fixture}.rs", count = { min = 0 }, description = "One file of the concept's test support." },
+]
+rules = [
+  { rule = "contract-implements", include = ["contract.rs"], params = { trait = { param = "trait" } }, description = "The contract file imports the trait its `trait` param names and implements it in an `impl <Trait> for`." },
+  { rule = "contract-fills-buffers", include = ["contract.rs"], description = "A method of the contract that takes a file never returns an owned heap value: the engine owns the per-file buffers and the language fills them." },
+  { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder." },
+  { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["*.rs"], exclude = ["schemas.rs", "*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs." },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["*.rs"], exclude = ["*_test.rs", "fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module." },
+  { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["*.rs"], exclude = ["composition.rs", "fixtures.rs", "*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter." },
+  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["*_test.rs"], description = "Every test of a part is one of the four runners over a `CASES` table." },
+  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
+  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs"], description = "A row of a part's table expects a value or an error variant, never any success." },
+  { rule = "idiomatic.arch/no-vacuous-tests@0.1.0", include = ["*_test.rs"], description = "Proofs execute a real subject over nonempty cases." },
+  { rule = "idiomatic.arch/unit-cases@0.2.0", include = ["*.rs", "*_test/**/*.rs"], description = "A part's test has a `succeeds` row, and a `refuses` row where its errors.rs has a variant of its own." },
+]
 
 [params]
-part = { type = "identifier", from = "directory-name", description = "The contract's directory name: the stem of its struct." }
-trait = { type = "string", description = "The path of the engine's trait the contract implements (`ryo::languages::Parse`)." }
+trait = { type = "string", description = "The path of the engine's trait the contract implements (`ryo::languages::Parse`): the file imports it by that path and implements it. Passed by the language spec, which names the two contracts." }
+
+[given]
+at = 'src/inbound/contracts/{contract}'
+params = { trait = 'ryo::languages::Parse' }
 
 [[scenarios]]
-id = 'rendered-template-passes'
-scenario = 'The rendered template passes.'
-given.file = 'contract.rs'
-given.params = { part = 'parse', trait = 'ryo::languages::Parse' }
-given.files.'contract.rs' = '''
+id = 'complete-contract'
+scenario = 'A complete contract: its body implementing the engine trait and its test.'
+given.files.'src/inbound/contracts/parse/contract.rs' = '''
 //! The `parse` contract: the language's implementation of `ryo::languages::Parse`. It says which files are the language's, builds the file's
 //! tree in the worker's element table through the syntax port, and answers, for every syntax relation of ryo's catalog, how the
 //! language reads it or that it is not in the language yet.
@@ -485,42 +105,14 @@ impl Parse for ParseContract {
         languages::Recognition::Declines
     }
 
-    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
-        languages::ParseConfigurationIdentity("")
-    }
-
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
         &[]
     }
 
-    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
-        languages::native_semantic_syntax()
-    }
-
-    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
-        languages::native_semantic_child()
-    }
-
-    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
-        languages::source_locations()
-    }
-
-    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
     }
 
     fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
@@ -552,6 +144,34 @@ impl Parse for ParseContract {
     }
 
     fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
+    }
+
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
+        languages::source_locations()
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -762,15 +382,115 @@ impl Parse for ParseContract {
     fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn pattern_parse(&self) -> Support<Reader<languages::PatternParse, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_syntax(&self) -> Support<Reader<languages::PatternSyntax, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_child(&self) -> Support<Reader<languages::PatternChild, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+}
+'''
+given.files.'src/inbound/contracts/parse/contract_test.rs' = '''
+//! The `parse` contract's own cases, beside the engine's conformance: the engine's refusals run through it over the syntax port's fake, and a file it does not recognize is refused.
+
+use std::sync::Arc;
+
+use ryo::languages::{self, contract};
+
+use super::contract::ParseContract;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::syntax::fixtures::fake::SyntaxFake;
+
+/// What a row does: reads a file at a path, or runs the engine's refusals.
+#[derive(Clone, Copy)]
+enum Given {
+    Read(&'static str),
+    Contract,
+}
+
+type Input = Given;
+/// How many elements the file's table has.
+type Value = usize;
+type Failure = languages::ParseError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("passes_the_engines_refusals"),
+        word: Word::Succeeds,
+        input: || Given::Contract,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("a_file_the_language_does_not_recognize_is_unsupported"),
+        word: Word::Refuses,
+        input: || Given::Read("source"),
+        expect: Expect::Error(languages::ParseError::Unsupported),
+    },
+];
+
+/// Reads one file, or runs the engine's refusals, through the contract over the fake of the syntax port.
+fn subject(given: Input) -> Result<Value, Failure> {
+    let language = ParseContract::new(Arc::new(SyntaxFake));
+    let Given::Read(path) = given else {
+        contract::parse(&language);
+        return Ok(0);
+    };
+    let (mut table, mut symbols) = (
+        languages::Elements::default(),
+        languages::Symbols::default(),
+    );
+    contract::read(
+        &language,
+        languages::ParseRequest {
+            path: languages::SourcePath(path),
+            file: languages::FileId(0),
+            bytes: languages::ByteSlice(b"source"),
+            notes: languages::NoteRequest::Unwanted,
+            fields: languages::FieldRequest::Unwanted,
+        },
+        &mut table,
+        &mut symbols,
+        &[],
+        &mut contract::Collect::default(),
+    )?;
+    Ok(contract::element_count(&table).0)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }
 '''
 
 [[scenarios]]
-id = 'extra-content'
-scenario = 'A file may carry more than its template: a method.'
-given.file = 'contract.rs'
-given.params = { part = 'parse', trait = 'ryo::languages::Parse' }
-given.files.'contract.rs' = '''
+id = 'contract-with-readers'
+scenario = 'A contract part with a reader concept: its list, its module file and its composition.'
+given.files.'src/inbound/contracts/parse/readers.rs' = '''
+//! The readers of the contract, one concept each.
+
+pub(crate) mod format;
+'''
+given.files.'src/inbound/contracts/parse/readers/format.rs' = '''
+//! The `format` readers of the contract.
+
+pub(crate) mod composition;
+'''
+given.files.'src/inbound/contracts/parse/readers/format/composition.rs' = '''
+//! The `format` readers, bound to their grammar adapters: the one place that names them.
+'''
+given.files.'src/inbound/contracts/parse/contract.rs' = '''
 //! The `parse` contract: the language's implementation of `ryo::languages::Parse`. It says which files are the language's, builds the file's
 //! tree in the worker's element table through the syntax port, and answers, for every syntax relation of ryo's catalog, how the
 //! language reads it or that it is not in the language yet.
@@ -832,42 +552,14 @@ impl Parse for ParseContract {
         languages::Recognition::Declines
     }
 
-    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
-        languages::ParseConfigurationIdentity("")
-    }
-
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
         &[]
     }
 
-    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
-        languages::native_semantic_syntax()
-    }
-
-    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
-        languages::native_semantic_child()
-    }
-
-    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
-        languages::source_locations()
-    }
-
-    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
     }
 
     fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
@@ -899,6 +591,34 @@ impl Parse for ParseContract {
     }
 
     fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
+    }
+
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
+        languages::source_locations()
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -1001,8 +721,6 @@ impl Parse for ParseContract {
             languages::name_kind(completion, kind_bits(kind), kind_name(kind));
         }
     }
-
-    fn extra(&self) {}
 
     fn syntax_tree(&self) -> Support<Reader<languages::SyntaxTree, ()>> {
         languages::reads::<SyntaxTreeItem>()
@@ -1111,24 +829,118 @@ impl Parse for ParseContract {
     fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn pattern_parse(&self) -> Support<Reader<languages::PatternParse, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_syntax(&self) -> Support<Reader<languages::PatternSyntax, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_child(&self) -> Support<Reader<languages::PatternChild, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+}
+'''
+given.files.'src/inbound/contracts/parse/contract_test.rs' = '''
+//! The `parse` contract's own cases, beside the engine's conformance: the engine's refusals run through it over the syntax port's fake, and a file it does not recognize is refused.
+
+use std::sync::Arc;
+
+use ryo::languages::{self, contract};
+
+use super::contract::ParseContract;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::syntax::fixtures::fake::SyntaxFake;
+
+/// What a row does: reads a file at a path, or runs the engine's refusals.
+#[derive(Clone, Copy)]
+enum Given {
+    Read(&'static str),
+    Contract,
+}
+
+type Input = Given;
+/// How many elements the file's table has.
+type Value = usize;
+type Failure = languages::ParseError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("passes_the_engines_refusals"),
+        word: Word::Succeeds,
+        input: || Given::Contract,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("a_file_the_language_does_not_recognize_is_unsupported"),
+        word: Word::Refuses,
+        input: || Given::Read("source"),
+        expect: Expect::Error(languages::ParseError::Unsupported),
+    },
+];
+
+/// Reads one file, or runs the engine's refusals, through the contract over the fake of the syntax port.
+fn subject(given: Input) -> Result<Value, Failure> {
+    let language = ParseContract::new(Arc::new(SyntaxFake));
+    let Given::Read(path) = given else {
+        contract::parse(&language);
+        return Ok(0);
+    };
+    let (mut table, mut symbols) = (
+        languages::Elements::default(),
+        languages::Symbols::default(),
+    );
+    contract::read(
+        &language,
+        languages::ParseRequest {
+            path: languages::SourcePath(path),
+            file: languages::FileId(0),
+            bytes: languages::ByteSlice(b"source"),
+            notes: languages::NoteRequest::Unwanted,
+            fields: languages::FieldRequest::Unwanted,
+        },
+        &mut table,
+        &mut symbols,
+        &[],
+        &mut contract::Collect::default(),
+    )?;
+    Ok(contract::element_count(&table).0)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }
 '''
 
 [[scenarios]]
-id = 'file-missing'
-scenario = 'The file is missing.'
-given.file = 'contract.rs'
-given.params = { part = 'parse', trait = 'ryo::languages::Parse' }
-then.findings = [
-  { rule = 'contract#count', path = '.' },
-]
+id = 'reader-concept-with-a-stray-file'
+scenario = 'A reader concept with a file no template places.'
+given.files.'src/inbound/contracts/parse/readers.rs' = '''
+//! The readers of the contract, one concept each.
 
-[[scenarios]]
-id = 'contract-s-struct-named-contract'
-scenario = "The contract's struct is not named for the contract."
-given.file = 'contract.rs'
-given.params = { part = 'parse', trait = 'ryo::languages::Parse' }
-given.files.'contract.rs' = '''
+pub(crate) mod format;
+'''
+given.files.'src/inbound/contracts/parse/readers/format.rs' = '''
+//! The `format` readers of the contract.
+
+pub(crate) mod composition;
+'''
+given.files.'src/inbound/contracts/parse/readers/format/composition.rs' = '''
+//! The `format` readers, bound to their grammar adapters: the one place that names them.
+'''
+given.files.'src/inbound/contracts/parse/readers/format/helpers.rs' = '''
+//! A file no template places.
+'''
+given.files.'src/inbound/contracts/parse/contract.rs' = '''
 //! The `parse` contract: the language's implementation of `ryo::languages::Parse`. It says which files are the language's, builds the file's
 //! tree in the worker's element table through the syntax port, and answers, for every syntax relation of ryo's catalog, how the
 //! language reads it or that it is not in the language yet.
@@ -1144,11 +956,11 @@ use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
 
 /// `parse`, implementing `ryo::languages::Parse`.
-pub(crate) struct OtherContract {
+pub(crate) struct ParseContract {
     syntax: Arc<dyn SyntaxPort>,
 }
 
-impl OtherContract {
+impl ParseContract {
     /// `parse` over the ports it calls, which the edge injects.
     #[must_use]
     pub(crate) fn new(syntax: Arc<dyn SyntaxPort>) -> Self {
@@ -1156,7 +968,7 @@ impl OtherContract {
     }
 }
 
-impl Parse for OtherContract {
+impl Parse for ParseContract {
     type FileModel = ();
 
     fn begin_semantics(
@@ -1190,42 +1002,14 @@ impl Parse for OtherContract {
         languages::Recognition::Declines
     }
 
-    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
-        languages::ParseConfigurationIdentity("")
-    }
-
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
         &[]
     }
 
-    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
-        languages::native_semantic_syntax()
-    }
-
-    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
-        languages::native_semantic_child()
-    }
-
-    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
-        languages::source_locations()
-    }
-
-    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
     }
 
     fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
@@ -1257,6 +1041,34 @@ impl Parse for OtherContract {
     }
 
     fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
+    }
+
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
+        languages::source_locations()
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -1467,101 +1279,112 @@ impl Parse for OtherContract {
     fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn pattern_parse(&self) -> Support<Reader<languages::PatternParse, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_syntax(&self) -> Support<Reader<languages::PatternSyntax, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_child(&self) -> Support<Reader<languages::PatternChild, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }
 '''
-# The Parse template now requires numeric_literal; this deliberate negative mutation rejects that member too.
+given.files.'src/inbound/contracts/parse/contract_test.rs' = '''
+//! The `parse` contract's own cases, beside the engine's conformance: the engine's refusals run through it over the syntax port's fake, and a file it does not recognize is refused.
+
+use std::sync::Arc;
+
+use ryo::languages::{self, contract};
+
+use super::contract::ParseContract;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::syntax::fixtures::fake::SyntaxFake;
+
+/// What a row does: reads a file at a path, or runs the engine's refusals.
+#[derive(Clone, Copy)]
+enum Given {
+    Read(&'static str),
+    Contract,
+}
+
+type Input = Given;
+/// How many elements the file's table has.
+type Value = usize;
+type Failure = languages::ParseError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("passes_the_engines_refusals"),
+        word: Word::Succeeds,
+        input: || Given::Contract,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("a_file_the_language_does_not_recognize_is_unsupported"),
+        word: Word::Refuses,
+        input: || Given::Read("source"),
+        expect: Expect::Error(languages::ParseError::Unsupported),
+    },
+];
+
+/// Reads one file, or runs the engine's refusals, through the contract over the fake of the syntax port.
+fn subject(given: Input) -> Result<Value, Failure> {
+    let language = ParseContract::new(Arc::new(SyntaxFake));
+    let Given::Read(path) = given else {
+        contract::parse(&language);
+        return Ok(0);
+    };
+    let (mut table, mut symbols) = (
+        languages::Elements::default(),
+        languages::Symbols::default(),
+    );
+    contract::read(
+        &language,
+        languages::ParseRequest {
+            path: languages::SourcePath(path),
+            file: languages::FileId(0),
+            bytes: languages::ByteSlice(b"source"),
+            notes: languages::NoteRequest::Unwanted,
+            fields: languages::FieldRequest::Unwanted,
+        },
+        &mut table,
+        &mut symbols,
+        &[],
+        &mut contract::Collect::default(),
+    )?;
+    Ok(contract::element_count(&table).0)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
 then.findings = [
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'idiomatic.ryo/contract#closed', path = 'src/inbound/contracts/parse/readers/format/helpers.rs' },
 ]
+
 [[scenarios]]
-id = 'wrong-trait'
-scenario = "The contract implements another trait than the engine's."
-given.file = 'contract.rs'
-given.params = { part = 'parse', trait = 'ryo::languages::Parse' }
-given.files.'contract.rs' = '''
+id = 'contract-without-test'
+scenario = 'A contract with no test.'
+given.files.'src/inbound/contracts/parse/contract.rs' = '''
 //! The `parse` contract: the language's implementation of `ryo::languages::Parse`. It says which files are the language's, builds the file's
 //! tree in the worker's element table through the syntax port, and answers, for every syntax relation of ryo's catalog, how the
 //! language reads it or that it is not in the language yet.
 
 use std::sync::Arc;
 
-use ryo::languages::{self, Parse as Different, Reader, AbsenceCause, Support, UnknownName};
+use ryo::languages::{self, Parse, Reader, AbsenceCause, Support, UnknownName};
 
 use crate::domain::language::service::reads;
 use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeItem;
@@ -1582,7 +1405,7 @@ impl ParseContract {
     }
 }
 
-impl Different for ParseContract {
+impl Parse for ParseContract {
     type FileModel = ();
 
     fn begin_semantics(
@@ -1616,42 +1439,14 @@ impl Different for ParseContract {
         languages::Recognition::Declines
     }
 
-    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
-        languages::ParseConfigurationIdentity("")
-    }
-
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
         &[]
     }
 
-    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
-        languages::native_semantic_syntax()
-    }
-
-    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
-        languages::native_semantic_child()
-    }
-
-    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
-        languages::source_locations()
-    }
-
-    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
     }
 
     fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
@@ -1683,6 +1478,34 @@ impl Different for ParseContract {
     }
 
     fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
+    }
+
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
+        languages::source_locations()
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -1893,645 +1716,287 @@ impl Different for ParseContract {
     fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn pattern_parse(&self) -> Support<Reader<languages::PatternParse, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_syntax(&self) -> Support<Reader<languages::PatternSyntax, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_child(&self) -> Support<Reader<languages::PatternChild, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }
 '''
-# The Parse template now requires numeric_literal; this deliberate negative mutation rejects that member too.
 then.findings = [
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract-test#count', path = 'src/inbound/contracts/parse' },
 ]
+
 [[scenarios]]
-id = 'no-impl'
-scenario = "The contract does not implement the engine's trait."
-given.file = 'contract.rs'
-given.params = { part = 'parse', trait = 'ryo::languages::Parse' }
-given.files.'contract.rs' = '''
-//! The `parse` contract: the language's implementation of `ryo::languages::Parse`. It says which files are the language's, builds the file's
-//! tree in the worker's element table through the syntax port, and answers, for every syntax relation of ryo's catalog, how the
-//! language reads it or that it is not in the language yet.
+id = 'contract-without-contract'
+scenario = 'A contract part with no contract file.'
+given.files.'src/inbound/contracts/parse/contract_test.rs' = '''
+//! The `parse` contract's own cases, beside the engine's conformance: the engine's refusals run through it over the syntax port's fake, and a file it does not recognize is refused.
 
 use std::sync::Arc;
 
-use ryo::languages::{self, Parse, Reader, AbsenceCause, Support, UnknownName};
+use ryo::languages::{self, contract};
 
-use crate::domain::language::service::reads;
-use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeItem;
-use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
-use crate::outbound::syntax::interface::SyntaxPort;
-use crate::outbound::syntax::types::SourceText;
+use super::contract::ParseContract;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::syntax::fixtures::fake::SyntaxFake;
 
-/// `parse`, implementing `ryo::languages::Parse`.
-pub(crate) struct ParseContract {
-    syntax: Arc<dyn SyntaxPort>,
+/// What a row does: reads a file at a path, or runs the engine's refusals.
+#[derive(Clone, Copy)]
+enum Given {
+    Read(&'static str),
+    Contract,
 }
 
-impl ParseContract {
-    /// `parse` over the ports it calls, which the edge injects.
-    #[must_use]
-    pub(crate) fn new(syntax: Arc<dyn SyntaxPort>) -> Self {
-        Self { syntax }
-    }
+type Input = Given;
+/// How many elements the file's table has.
+type Value = usize;
+type Failure = languages::ParseError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("passes_the_engines_refusals"),
+        word: Word::Succeeds,
+        input: || Given::Contract,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("a_file_the_language_does_not_recognize_is_unsupported"),
+        word: Word::Refuses,
+        input: || Given::Read("source"),
+        expect: Expect::Error(languages::ParseError::Unsupported),
+    },
+];
+
+/// Reads one file, or runs the engine's refusals, through the contract over the fake of the syntax port.
+fn subject(given: Input) -> Result<Value, Failure> {
+    let language = ParseContract::new(Arc::new(SyntaxFake));
+    let Given::Read(path) = given else {
+        contract::parse(&language);
+        return Ok(0);
+    };
+    let (mut table, mut symbols) = (
+        languages::Elements::default(),
+        languages::Symbols::default(),
+    );
+    contract::read(
+        &language,
+        languages::ParseRequest {
+            path: languages::SourcePath(path),
+            file: languages::FileId(0),
+            bytes: languages::ByteSlice(b"source"),
+            notes: languages::NoteRequest::Unwanted,
+            fields: languages::FieldRequest::Unwanted,
+        },
+        &mut table,
+        &mut symbols,
+        &[],
+        &mut contract::Collect::default(),
+    )?;
+    Ok(contract::element_count(&table).0)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }
 '''
-# The Parse template now requires numeric_literal; this deliberate negative mutation rejects that member too.
 then.findings = [
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
-  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#count', path = 'src/inbound/contracts/parse' },
 ]
-[[scenarios]]
-id = 'example-project'
-scenario = 'The rendered template passes for the project contract.'
-given.file = 'contract.rs'
-given.params = { part = 'project', trait = 'ryo::languages::Project' }
-given.files.'contract.rs' = '''
-//! The `project` contract: the language's implementation of `ryo::languages::Project`. It names no manifest and reads nothing, and answers
-//! every manifest relation of ryo's catalog as not in the language. A language with manifests lists their names in `manifests`, reads
-//! them in `resolve` and answers the relations its readers write with `languages::reads`.
-
-use ryo::languages::{
-    self, ManifestName, ManifestReader, Project, ProjectError, ProjectRequest, AbsenceCause, Resolved,
-    Support,
-};
-
-/// `project`, implementing `ryo::languages::Project`.
-pub(crate) struct ProjectContract;
-
-impl ProjectContract {
-    /// `project`, which calls no port.
-    #[must_use]
-    pub(crate) fn new() -> Self {
-        Self
-    }
-}
-
-impl Project for ProjectContract {
-    type Derived = ();
-
-    fn manifests(&self) -> &'static [ManifestName] {
-        &[]
-    }
-
-    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
-        languages::primary_role_from_manifests(
-            path,
-            self.manifests().iter().copied(),
-        )
-    }
-
-    fn project_entries(
-        &self,
-        _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
-    ) {
-    }
-
-    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
-        Ok(Resolved {
-            observed_entries: request.observed_entries.0.to_vec(),
-            refused: Vec::new(),
-            unlisted: Vec::new(),
-            consulted: Vec::new(),
-            derived: (),
-        })
-    }
-
-    fn package_dependency(&self) -> Support<ManifestReader<languages::PackageDependency, ()>> {
-        languages::absent(AbsenceCause::NoManifests)
-    }
-
-    fn workspace_member(&self) -> Support<ManifestReader<languages::WorkspaceMember, ()>> {
-        languages::absent(AbsenceCause::NoManifests)
-    }
-
-    fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
-        languages::absent(AbsenceCause::NoManifests)
-    }
-
-    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn project_namespace_membership(
-        &self,
-    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
-        languages::absent(AbsenceCause::NoManifests)
-    }
-
-    fn analyzed_source(&self) -> Support<ManifestReader<languages::AnalyzedSource, ()>> {
-        languages::absent(AbsenceCause::NoManifests)
-    }
-
-}
-'''
 
 [[scenarios]]
-id = 'public-struct'
-scenario = "The contract's struct is public."
-given.file = 'contract.rs'
-given.params = { part = 'parse', trait = 'ryo::languages::Parse' }
-given.files.'contract.rs' = '''
-//! The `parse` contract: the language's implementation of `ryo::languages::Parse`. It says which files are the language's, builds the file's
-//! tree in the worker's element table through the syntax port, and answers, for every syntax relation of ryo's catalog, how the
-//! language reads it or that it is not in the language yet.
+id = 'contract-not-implementing'
+scenario = 'A contract file that does not implement the engine trait.'
+given.files.'src/inbound/contracts/parse/contract.rs' = '''
+//! The `parse` contract: the language's implementation of `ryo::languages::Parse`.
 
-use std::sync::Arc;
-
-use ryo::languages::{self, Parse, Reader, AbsenceCause, Support, UnknownName};
-
-use crate::domain::language::service::reads;
-use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeItem;
-use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
-use crate::outbound::syntax::interface::SyntaxPort;
-use crate::outbound::syntax::types::SourceText;
+use ryo::languages::Parse;
 
 /// `parse`, implementing `ryo::languages::Parse`.
 pub struct ParseContract {
-    syntax: Arc<dyn SyntaxPort>,
-}
-
-impl ParseContract {
-    /// `parse` over the ports it calls, which the edge injects.
-    #[must_use]
-    pub(crate) fn new(syntax: Arc<dyn SyntaxPort>) -> Self {
-        Self { syntax }
-    }
-}
-
-impl Parse for ParseContract {
-    type FileModel = ();
-
-    fn begin_semantics(
-        &self,
-        _request: &languages::ParseRequest<'_>,
-        _tree: &languages::Elements,
-        _slot: &mut languages::SemanticSlot,
-    ) {
-    }
-
-    fn semantics(&self) -> Option<&dyn languages::Semantics> {
-        None
-    }
-
-    fn completion_requirement(&self) -> languages::CompletionRequirement {
-        languages::CompletionRequirement::Independent
-    }
-
-    fn extend_file_model(
-        &self,
-        _tree: &languages::Tree<'_>,
-        _from: languages::Position,
-        _model: &mut (),
-    ) {
-    }
-
-    fn recognizes_explicit(
-        &self,
-        _request: &languages::ParseRequest<'_>,
-    ) -> languages::Recognition {
-        languages::Recognition::Declines
-    }
-
-    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
-        languages::ParseConfigurationIdentity("")
-    }
-
-    fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
-
-    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
-        &[]
-    }
-
-    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
-        languages::native_semantic_syntax()
-    }
-
-    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
-        languages::native_semantic_child()
-    }
-
-    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
-        languages::source_locations()
-    }
-
-    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-
-    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn unknown_reasons(&self) -> &'static [UnknownName] {
-        &[]
-    }
-
-    fn recognizes(&self, request: &languages::ParseRequest<'_>) -> languages::Recognition {
-        reads(request.path)
-    }
-
-    fn skips(&self) -> &'static [languages::SkippedDirectory] {
-        crate::domain::language::constants::SKIPS
-    }
-
-    fn kind_count(&self) -> languages::Count {
-        languages::Count(kinds().count())
-    }
-
-    fn kind_names(&self) -> languages::KindNames {
-        languages::KindNames(kinds().map(kind_name).collect())
-    }
-
-    fn read_tree(
-        &self,
-        request: &languages::ParseRequest<'_>,
-        builder: &mut languages::TableBuilder<'_>,
-    ) -> Result<(), languages::ParseError> {
-        self.syntax.read(SourceText(request.bytes.0), builder);
-        Ok(())
-    }
-
-    fn complete(
-        &self,
-        _request: &languages::ParseRequest<'_>,
-        completion: &mut languages::Completion<'_>,
-    ) {
-        for kind in kinds() {
-            languages::name_kind(completion, kind_bits(kind), kind_name(kind));
-        }
-    }
-
-    fn syntax_tree(&self) -> Support<Reader<languages::SyntaxTree, ()>> {
-        languages::reads::<SyntaxTreeItem>()
-    }
-
-    fn comment(&self) -> Support<Reader<languages::Comment, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn directive(&self) -> Support<Reader<languages::Directive, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn visibility(&self) -> Support<Reader<languages::Visibility, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn string_literal(&self) -> Support<Reader<languages::StringLiteral, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn prose(&self) -> Support<Reader<languages::Prose, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn syntax_child(&self) -> Support<Reader<languages::SyntaxChild, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn syntax_error(&self) -> Support<Reader<languages::SyntaxError, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn mapping(&self) -> Support<Reader<languages::Mapping, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn entry(&self) -> Support<Reader<languages::Entry, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn sequence_element(&self) -> Support<Reader<languages::SequenceElement, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn function(&self) -> Support<Reader<languages::Function, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn annotates(&self) -> Support<Reader<languages::Annotates, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn assigns(&self) -> Support<Reader<languages::Assigns, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn decorates(&self) -> Support<Reader<languages::Decorates, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn defines(&self) -> Support<Reader<languages::Defines, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn inherits(&self) -> Support<Reader<languages::Inherits, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn mention(&self) -> Support<Reader<languages::Mention, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn parameter(&self) -> Support<Reader<languages::Parameter, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn reference(&self) -> Support<Reader<languages::Reference, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn scope(&self) -> Support<Reader<languages::Scope, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn static_call(&self) -> Support<Reader<languages::StaticCall, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn call_argument(&self) -> Support<Reader<languages::CallArgument, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn resolves(&self) -> Support<Reader<languages::Resolves, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
+    pub extension: &'static str,
 }
 '''
+given.files.'src/inbound/contracts/parse/contract_test.rs' = '''
+//! The `parse` contract's own cases, beside the engine's conformance: the engine's refusals run through it over the syntax port's fake, and a file it does not recognize is refused.
+
+use std::sync::Arc;
+
+use ryo::languages::{self, contract};
+
+use super::contract::ParseContract;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::syntax::fixtures::fake::SyntaxFake;
+
+/// What a row does: reads a file at a path, or runs the engine's refusals.
+#[derive(Clone, Copy)]
+enum Given {
+    Read(&'static str),
+    Contract,
+}
+
+type Input = Given;
+/// How many elements the file's table has.
+type Value = usize;
+type Failure = languages::ParseError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("passes_the_engines_refusals"),
+        word: Word::Succeeds,
+        input: || Given::Contract,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("a_file_the_language_does_not_recognize_is_unsupported"),
+        word: Word::Refuses,
+        input: || Given::Read("source"),
+        expect: Expect::Error(languages::ParseError::Unsupported),
+    },
+];
+
+/// Reads one file, or runs the engine's refusals, through the contract over the fake of the syntax port.
+fn subject(given: Input) -> Result<Value, Failure> {
+    let language = ParseContract::new(Arc::new(SyntaxFake));
+    let Given::Read(path) = given else {
+        contract::parse(&language);
+        return Ok(0);
+    };
+    let (mut table, mut symbols) = (
+        languages::Elements::default(),
+        languages::Symbols::default(),
+    );
+    contract::read(
+        &language,
+        languages::ParseRequest {
+            path: languages::SourcePath(path),
+            file: languages::FileId(0),
+            bytes: languages::ByteSlice(b"source"),
+            notes: languages::NoteRequest::Unwanted,
+            fields: languages::FieldRequest::Unwanted,
+        },
+        &mut table,
+        &mut symbols,
+        &[],
+        &mut contract::Collect::default(),
+    )?;
+    Ok(contract::element_count(&table).0)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+# The Parse template now requires numeric_literal; this deliberate negative mutation rejects that member too.
 then.findings = [
-  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract-implements', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
 ]
 
 [[scenarios]]
-id = 'compiler-feature-method-is-required'
-scenario = 'Omitting the optional compiler-feature method leaves the Parse contract unanswered; it cannot default to a false feature row.'
-given.file = 'contract.rs'
-given.params = { part = 'parse', trait = 'ryo::languages::Parse' }
-given.files.'contract.rs' = '''
+id = 'test-with-rejects-row-without-runner'
+scenario = 'A contract test with a row of a case word that has no runner.'
+given.files.'src/inbound/contracts/parse/contract.rs' = '''
 //! The `parse` contract: the language's implementation of `ryo::languages::Parse`. It says which files are the language's, builds the file's
 //! tree in the worker's element table through the syntax port, and answers, for every syntax relation of ryo's catalog, how the
 //! language reads it or that it is not in the language yet.
@@ -2593,14 +2058,46 @@ impl Parse for ParseContract {
         languages::Recognition::Declines
     }
 
-    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
-        languages::ParseConfigurationIdentity("")
-    }
-
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
         &[]
+    }
+
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
+    }
+
+    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
@@ -2628,34 +2125,6 @@ impl Parse for ParseContract {
     }
 
     fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -2866,8 +2335,528 @@ impl Parse for ParseContract {
     fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn pattern_parse(&self) -> Support<Reader<languages::PatternParse, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_syntax(&self) -> Support<Reader<languages::PatternSyntax, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_child(&self) -> Support<Reader<languages::PatternChild, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+}
+'''
+given.files.'src/inbound/contracts/parse/contract_test.rs' = '''
+//! The `parse` contract's own cases, beside the engine's conformance: the engine's refusals run through it over the syntax port's fake, and a file it does not recognize is refused.
+
+use std::sync::Arc;
+
+use ryo::languages::{self, contract};
+
+use super::contract::ParseContract;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::syntax::fixtures::fake::SyntaxFake;
+
+/// What a row does: reads a file at a path, or runs the engine's refusals.
+#[derive(Clone, Copy)]
+enum Given {
+    Read(&'static str),
+    Contract,
+}
+
+type Input = Given;
+/// How many elements the file's table has.
+type Value = usize;
+type Failure = languages::ParseError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("passes_the_engines_refusals"),
+        word: Word::Succeeds,
+        input: || Given::Contract,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("a_file_the_language_does_not_recognize_is_unsupported"),
+        word: Word::Refuses,
+        input: || Given::Read("source"),
+        expect: Expect::Error(languages::ParseError::Unsupported),
+    },
+    Case {
+        name: CaseName("a_weaker_implementation_is_rejected"),
+        word: Word::Rejects,
+        input: || Given::Read("source"),
+        expect: Expect::Error(languages::ParseError::Unsupported),
+    },
+];
+
+/// Reads one file, or runs the engine's refusals, through the contract over the fake of the syntax port.
+fn subject(given: Input) -> Result<Value, Failure> {
+    let language = ParseContract::new(Arc::new(SyntaxFake));
+    let Given::Read(path) = given else {
+        contract::parse(&language);
+        return Ok(0);
+    };
+    let (mut table, mut symbols) = (
+        languages::Elements::default(),
+        languages::Symbols::default(),
+    );
+    contract::read(
+        &language,
+        languages::ParseRequest {
+            path: languages::SourcePath(path),
+            file: languages::FileId(0),
+            bytes: languages::ByteSlice(b"source"),
+            notes: languages::NoteRequest::Unwanted,
+            fields: languages::FieldRequest::Unwanted,
+        },
+        &mut table,
+        &mut symbols,
+        &[],
+        &mut contract::Collect::default(),
+    )?;
+    Ok(contract::element_count(&table).0)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }
 '''
 then.findings = [
-  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'idiomatic.arch/test-runners-match-rows', path = 'src/inbound/contracts/parse/contract_test.rs', line = 39 },
+]
+
+[[scenarios]]
+id = 'test-with-empty-cases'
+scenario = 'A contract test runs an empty table of cases.'
+given.files.'src/inbound/contracts/parse/contract.rs' = '''
+//! The `parse` contract: the language's implementation of `ryo::languages::Parse`. It says which files are the language's, builds the file's
+//! tree in the worker's element table through the syntax port, and answers, for every syntax relation of ryo's catalog, how the
+//! language reads it or that it is not in the language yet.
+
+use std::sync::Arc;
+
+use ryo::languages::{self, Parse, Reader, AbsenceCause, Support, UnknownName};
+
+use crate::domain::language::service::reads;
+use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeItem;
+use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
+use crate::outbound::syntax::interface::SyntaxPort;
+use crate::outbound::syntax::types::SourceText;
+
+/// `parse`, implementing `ryo::languages::Parse`.
+pub(crate) struct ParseContract {
+    syntax: Arc<dyn SyntaxPort>,
+}
+
+impl ParseContract {
+    /// `parse` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub(crate) fn new(syntax: Arc<dyn SyntaxPort>) -> Self {
+        Self { syntax }
+    }
+}
+
+impl Parse for ParseContract {
+    type FileModel = ();
+
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn semantics(&self) -> Option<&dyn languages::Semantics> {
+        None
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
+
+    fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
+
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
+    }
+
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
+    }
+
+    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn directive(&self) -> Support<Reader<languages::Directive, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn visibility(&self) -> Support<Reader<languages::Visibility, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
+    }
+
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
+        languages::source_locations()
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn unknown_reasons(&self) -> &'static [UnknownName] {
+        &[]
+    }
+
+    fn recognizes(&self, request: &languages::ParseRequest<'_>) -> languages::Recognition {
+        reads(request.path)
+    }
+
+    fn skips(&self) -> &'static [languages::SkippedDirectory] {
+        crate::domain::language::constants::SKIPS
+    }
+
+    fn kind_count(&self) -> languages::Count {
+        languages::Count(kinds().count())
+    }
+
+    fn kind_names(&self) -> languages::KindNames {
+        languages::KindNames(kinds().map(kind_name).collect())
+    }
+
+    fn read_tree(
+        &self,
+        request: &languages::ParseRequest<'_>,
+        builder: &mut languages::TableBuilder<'_>,
+    ) -> Result<(), languages::ParseError> {
+        self.syntax.read(SourceText(request.bytes.0), builder);
+        Ok(())
+    }
+
+    fn complete(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        completion: &mut languages::Completion<'_>,
+    ) {
+        for kind in kinds() {
+            languages::name_kind(completion, kind_bits(kind), kind_name(kind));
+        }
+    }
+
+    fn syntax_tree(&self) -> Support<Reader<languages::SyntaxTree, ()>> {
+        languages::reads::<SyntaxTreeItem>()
+    }
+
+    fn comment(&self) -> Support<Reader<languages::Comment, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn string_literal(&self) -> Support<Reader<languages::StringLiteral, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn prose(&self) -> Support<Reader<languages::Prose, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn syntax_child(&self) -> Support<Reader<languages::SyntaxChild, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn syntax_error(&self) -> Support<Reader<languages::SyntaxError, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn mapping(&self) -> Support<Reader<languages::Mapping, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn entry(&self) -> Support<Reader<languages::Entry, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn sequence_element(&self) -> Support<Reader<languages::SequenceElement, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn function(&self) -> Support<Reader<languages::Function, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn annotates(&self) -> Support<Reader<languages::Annotates, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn assigns(&self) -> Support<Reader<languages::Assigns, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn decorates(&self) -> Support<Reader<languages::Decorates, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn defines(&self) -> Support<Reader<languages::Defines, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn inherits(&self) -> Support<Reader<languages::Inherits, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn mention(&self) -> Support<Reader<languages::Mention, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn parameter(&self) -> Support<Reader<languages::Parameter, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn reference(&self) -> Support<Reader<languages::Reference, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn scope(&self) -> Support<Reader<languages::Scope, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn static_call(&self) -> Support<Reader<languages::StaticCall, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn call_argument(&self) -> Support<Reader<languages::CallArgument, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn resolves(&self) -> Support<Reader<languages::Resolves, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_parse(&self) -> Support<Reader<languages::PatternParse, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_syntax(&self) -> Support<Reader<languages::PatternSyntax, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_child(&self) -> Support<Reader<languages::PatternChild, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+}
+'''
+given.files.'src/inbound/contracts/parse/contract_test.rs' = '''
+//! The `parse` contract's own cases, beside the engine's conformance: the engine's refusals run through it over the syntax port's fake, and a file it does not recognize is refused.
+
+use std::sync::Arc;
+
+use ryo::languages::{self, contract};
+
+use super::contract::ParseContract;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::syntax::fixtures::fake::SyntaxFake;
+
+/// What a row does: reads a file at a path, or runs the engine's refusals.
+#[derive(Clone, Copy)]
+enum Given {
+    Read(&'static str),
+    Contract,
+}
+
+type Input = Given;
+/// How many elements the file's table has.
+type Value = usize;
+type Failure = languages::ParseError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Reads one file, or runs the engine's refusals, through the contract over the fake of the syntax port.
+fn subject(given: Input) -> Result<Value, Failure> {
+    let language = ParseContract::new(Arc::new(SyntaxFake));
+    let Given::Read(path) = given else {
+        contract::parse(&language);
+        return Ok(0);
+    };
+    let (mut table, mut symbols) = (
+        languages::Elements::default(),
+        languages::Symbols::default(),
+    );
+    contract::read(
+        &language,
+        languages::ParseRequest {
+            path: languages::SourcePath(path),
+            file: languages::FileId(0),
+            bytes: languages::ByteSlice(b"source"),
+            notes: languages::NoteRequest::Unwanted,
+            fields: languages::FieldRequest::Unwanted,
+        },
+        &mut table,
+        &mut symbols,
+        &[],
+        &mut contract::Collect::default(),
+    )?;
+    Ok(contract::element_count(&table).0)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.only = ['idiomatic.arch/no-vacuous-tests']
+then.findings = [
+  { rule = 'idiomatic.arch/no-vacuous-tests', path = 'src/inbound/contracts/parse/contract_test.rs', line = 24 },
 ]

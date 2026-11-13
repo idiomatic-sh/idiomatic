@@ -1,3 +1,7 @@
+# language 0.4.7
+
+Places `contract` 0.4.1, whose `parse` contract answers `pattern_parse`, `pattern_syntax` and `pattern_child` as `NotYetRead`. The language fixtures' parse contracts carry them. Everything else is as in 0.4.6.
+
 # language 0.4.6
 
 Places `contract` 0.4.0, whose `parse` contract answers the required `semantics` method with `None`. The language fixtures' parse contracts carry it. Everything else is as in 0.4.5.

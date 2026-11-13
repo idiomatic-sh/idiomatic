@@ -1,5 +1,9 @@
 # contract
 
+## 0.4.1
+
+`Parse` renders the catalog's three optional relations `pattern_parse`, `pattern_syntax` and `pattern_child` as `NotYetRead`: a scaffolded contract compiles against the engine's trait as it is. The rendered fixtures carry them, and the scenarios that mutate a rendering expect one more finding for each member it lacks. Everything else is as in 0.4.0.
+
 ## 0.4.0
 
 `Parse` renders the required `ParseUseCase` method `semantics`, answering `None`: a language that implements no `Semantics` says so once, and a scaffolded contract compiles against the engine's trait as it is. The rendered fixtures carry it, and the scenarios that mutate a rendering expect one more finding for each member it lacks. Everything else is as in 0.3.0.
