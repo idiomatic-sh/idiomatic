@@ -14,4 +14,3 @@ note: required by a bound in `ManifestItem`
    |
    | pub trait ManifestItem: crate::domain::answers::types::declared::Manifest {
    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ManifestItem`
-   = note: `ManifestItem` is a "sealed trait", because to implement it you also need to implement `ryo::languages::declared::Manifest`, which is not accessible; this is usually done to force you to use one of the provided types that already implement it

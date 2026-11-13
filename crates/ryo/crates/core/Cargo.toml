@@ -15,10 +15,10 @@ autobenches = false
 name = "ryo_core"
 
 [dependencies]
-ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.3" }
-ryo_execution = { package = "idiomatic-sh-ryo-execution", path = "../execution", version = "0.1.3" }
-ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../execution_runtime", version = "0.1.3" }
-ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.3" }
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.4" }
+ryo_execution = { package = "idiomatic-sh-ryo-execution", path = "../execution", version = "0.1.4" }
+ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../execution_runtime", version = "0.1.4" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.4" }
 thiserror.workspace = true
 ignore.workspace = true
 rayon.workspace = true
@@ -28,10 +28,10 @@ blake3.workspace = true
 rustc-hash.workspace = true
 sysinfo.workspace = true
 tracing.workspace = true
-ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.3" }
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.3" }
-ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.1.3" }
-ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.3" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.4" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.4" }
+ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.1.4" }
+ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.4" }
 dhat = { workspace = true, optional = true }
 postcard.workspace = true
 tempfile.workspace = true

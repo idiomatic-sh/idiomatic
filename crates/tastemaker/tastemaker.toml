@@ -2,7 +2,7 @@
 # Tastemaker is placed by the specs ryo is placed by (tastemaker): two crates, the command line and
 # its core, the core a nu-hex. A crate exists only when something outside calls it.
 # Distribution policy inputs deliberately include findings and ignore directives; their scenario expectations validate them.
-tastemaker = "0.1.2"
+tastemaker = "0.1.3"
 workspace = { name = "tastemaker", dependencies = [{ package = "idiomatic.arch", path = "../../tastemaker" }] }
 rules = [
   { rule = "idiomatic.arch/no-language-names", params = { languages = ["css", "html", "javascript", "python", "rust", "typescript"], written = ["go", "Go", "Go[!A-Za-z0-9]*", "*[!A-Za-z0-9]Go", "*[!A-Za-z0-9]Go[!A-Za-z0-9]*", "*golang*", "*JavaScript*", "*TypeScript*"] }, include = ["crates/core/src/**", "cli/src/**", "cli/Cargo.toml"], exclude = ["**/*_test.rs", "**/fixtures/**", "**/fixtures.rs", "**/acceptance.rs"], description = "The core names no language and dispatches on no file extension: a language decides its files, and the query names the relations." },
@@ -12,7 +12,7 @@ templates = [
   { template = "idiomatic.arch/unchecked", file = "crates/core/LICENSE", description = "A link to the repository's LICENSE, the license text the crate ships: a path, never followed." },
   { template = "idiomatic.arch/unchecked", file = "distribution/registries/pypi/LICENSE", description = "A link to the repository's LICENSE, the license text the PyPI package ships: a path, never followed." },
   { template = "idiomatic.arch/clippy-config", file = "clippy.toml", description = "The product's clippy configuration: the in-tests allowances that go with the restriction lints at deny." },
-  { template = "idiomatic.arch/cargo-workspace", file = "Cargo.toml", params = { version = "0.1.2" }, description = "The product's Cargo workspace: its two crates as members, the shared dependencies and the lints every crate inherits." },
+  { template = "idiomatic.arch/cargo-workspace", file = "Cargo.toml", params = { version = "0.1.3" }, description = "The product's Cargo workspace: its two crates as members, the shared dependencies and the lints every crate inherits." },
   { template = "idiomatic.arch/cargo-lock", file = "Cargo.lock", description = "The product's Cargo.lock, committed so every build resolves the same dependencies." },
   { template = "idiomatic.arch/unchecked", file = "release-plz.toml", description = "The release pull request's configuration: release-plz opens it, every crate at the workspace's new version and the changelog, and nothing else." },
   { template = "idiomatic.arch/unchecked", file = "CHANGELOG.md", count = { min = 0 }, description = "The product's changelog, which each release pull request writes: absent until the first." },

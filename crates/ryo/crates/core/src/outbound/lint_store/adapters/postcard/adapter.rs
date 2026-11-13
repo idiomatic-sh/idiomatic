@@ -35,11 +35,15 @@ use super::types::WriterNumber;
 use crate::outbound::lint_store::adapters::postcard::constants::FRONTIER_PAYLOAD_LACKS_ITS_EXACT_SOURCE;
 use crate::outbound::lint_store::adapters::postcard::constants::FRONTIER_PROOFS_HAVE_DUPLICATE_OR_UNORDERED;
 use crate::outbound::lint_store::adapters::postcard::constants::NO_STAGING_SESSION_WAS_READ;
+#[cfg(unix)]
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_BUCKET_END_OVERFLOWS;
+#[cfg(unix)]
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_BUCKET_LOGICAL_POSITION_OVERFLOWS;
+#[cfg(unix)]
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_BUCKET_POSITION_OVERFLOWS;
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_BUCKET_SEEK_EXCEEDS_ITS_SECTION;
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_ROW_BELONGS_TO_ANOTHER_STORE;
+#[cfg(unix)]
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_ROW_BUCKET_IS_ABSENT;
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_ROW_BUCKET_OR_SPAN_IS;
 use crate::outbound::lint_store::adapters::postcard::constants::STORE_SNAPSHOT_IDENTITIES_EXHAUSTED;

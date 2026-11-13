@@ -15,13 +15,13 @@ autobenches = false
 name = "ryo_benchmark_contracts"
 
 [dependencies]
-ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.1.3" }
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.1.4" }
 thiserror.workspace = true
 sha2.workspace = true
 toml.workspace = true
 
 [dev-dependencies]
-ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.1.3", features = ["fixtures"] }
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.1.4", features = ["fixtures"] }
 serde_json.workspace = true
 
 [features]

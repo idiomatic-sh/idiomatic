@@ -10,5 +10,5 @@ error[E0053]: method `visit` has an incompatible type for trait
 20 | |     ) {
    | |_____^ expected trait `Rows`, found trait `RowWriter`
    |
-   = note: expected signature `fn(&Mine, &Tree<'_>, &(), &mut Symbols, ryo_relations::domain::relations::types::Position, &mut dyn Rows<FunctionRow>)`
-              found signature `fn(&Mine, &Tree<'_>, &(), &mut Symbols, ryo_relations::domain::relations::types::Position, &mut dyn RowWriter)`
+   = note: expected signature `fn(&Mine, &Tree<'_>, &(), &mut Symbols, Position, &mut dyn Rows<FunctionRow>)`
+              found signature `fn(&Mine, &Tree<'_>, &(), &mut Symbols, Position, &mut dyn RowWriter)`
