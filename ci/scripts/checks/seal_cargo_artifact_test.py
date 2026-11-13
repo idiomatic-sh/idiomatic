@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 from pathlib import Path
 import unittest
 
-from seal_cargo_artifact import select_artifact
+SPEC = importlib.util.spec_from_file_location("seal_cargo_artifact", Path(__file__).with_name("seal_cargo_artifact.py"))
+seal = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(seal)
+select_artifact = seal.select_artifact
 
 
 CAPTURE = Path(__file__).parent / "fixtures" / "collector-artifact.jsonl"

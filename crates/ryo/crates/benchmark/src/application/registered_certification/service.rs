@@ -8,10 +8,13 @@ use crate::outbound::{
     suite::{interface::SuitePort, types::ArtifactPath},
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
 use std::path::{Path, PathBuf};
 
 /// Require the registration to bind exactly the measured profile, rules and contestants.
+///
+/// A selected coverage binds its rules to the measured defaults and its source to the registered profile.
 ///
 /// # Errors
 /// Refuses defaults, authority, rule root or executable identities that differ from what is measured.
@@ -24,15 +27,33 @@ pub fn admit(
     rules: &Path,
     reference: &Path,
     candidate: &Path,
+    coverage: &RegisteredCoverage,
 ) -> Result<Vec<PathBuf>, Error> {
     let expected: std::collections::BTreeSet<_> =
         tool.defaults.iter().map(ToString::to_string).collect();
     let actual: std::collections::BTreeSet<_> =
         loaded.defaults.iter().map(|rule| rule.0.clone()).collect();
-    if expected != actual || loaded.defaults.len() != expected.len() {
-        return Err(Error::Invalid(
-            constants::CASE_INVENTORY_DIFFERS_FROM_MEASURED.into(),
-        ));
+    match coverage {
+        RegisteredCoverage::Full => {
+            if expected != actual || loaded.defaults.len() != expected.len() {
+                return Err(Error::Invalid(
+                    constants::CASE_INVENTORY_DIFFERS_FROM_MEASURED.into(),
+                ));
+            }
+        }
+        RegisteredCoverage::Selected { rules: chosen, .. } => {
+            let selected: std::collections::BTreeSet<_> =
+                chosen.iter().map(ToString::to_string).collect();
+            if selected.is_empty()
+                || selected.len() != chosen.len()
+                || selected != expected
+                || !selected.is_subset(&actual)
+            {
+                return Err(Error::Invalid(
+                    constants::SELECTED_RULES_DIFFER_FROM_MEASURED.into(),
+                ));
+            }
+        }
     }
     let RegistrationAuthority::Execution {
         profile,
@@ -45,16 +66,35 @@ pub fn admit(
             constants::REGISTERED_CERTIFICATION_REQUIRES_ACTUAL_EXE.into(),
         ));
     };
-    if suite
-        .digest(ArtifactPath(&measured_profile.join(
-            ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST,
-        )))?
-        .0
-        != profile_sha256.0
-    {
-        return Err(Error::Invalid(
-            constants::REGISTERED_AUTHORITY_DIFFERS_FROM_MEASURED_C.into(),
-        ));
+    match coverage {
+        RegisteredCoverage::Full => {
+            if suite
+                .digest(ArtifactPath(&measured_profile.join(
+                    ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST,
+                )))?
+                .0
+                != profile_sha256.0
+            {
+                return Err(Error::Invalid(
+                    constants::REGISTERED_AUTHORITY_DIFFERS_FROM_MEASURED_C.into(),
+                ));
+            }
+        }
+        // The narrowed measured manifest is staged from `source` in this process; its own bytes are sealed by the certificate.
+        RegisteredCoverage::Selected { source, .. } => {
+            if source != profile
+                || suite
+                    .digest(ArtifactPath(&source.join(
+                        ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST,
+                    )))?
+                    .0
+                    != profile_sha256.0
+            {
+                return Err(Error::Invalid(
+                    constants::SELECTED_SOURCE_DIFFERS_FROM_AUTHORITY.into(),
+                ));
+            }
+        }
     }
     if rules
         != measured_profile

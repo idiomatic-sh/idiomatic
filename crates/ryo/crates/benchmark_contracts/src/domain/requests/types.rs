@@ -137,6 +137,22 @@ pub enum CertificationCases {
     Registered {
         registration: PathBuf,
         output: PathBuf,
+        /// Which registered rules the certification proves.
+        coverage: RegisteredCoverage,
+    },
+}
+
+/// Which registered rules a certification proves: the whole registration, or a diagnostic subset.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RegisteredCoverage {
+    /// Every registered default, measured from the registered profile itself.
+    Full,
+    /// Only these rules, measured from a profile staged from `source`, the registered profile.
+    Selected {
+        /// The selected rules, exactly the measured profile's defaults.
+        rules: Vec<RuleId>,
+        /// The profile the measured suite was staged from.
+        source: PathBuf,
     },
 }
 

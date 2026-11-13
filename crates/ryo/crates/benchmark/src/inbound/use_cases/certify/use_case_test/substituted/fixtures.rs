@@ -121,6 +121,7 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn identical(
                 &foreign.join("rules"),
                 &f.reference_executable,
                 &f.worker_executable,
+                &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
             )
             .map(|context| context.paths.len())
         }

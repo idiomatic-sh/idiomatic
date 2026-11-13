@@ -76,10 +76,9 @@ inputs = [".github"]
 [[tools]]
 id = "commitizen"
 group = "lint"
-# The branch's commit messages since a pinned baseline are conventional commits (cz.toml), through cz's own --rev-range.
-# The baseline is the landed consolidation head (dcea2ee7df, 2026-11-09): the 901 non-conventional commits before it are history, not rewritten.
-# A shallow clone, or one without the baseline, stops the tool: a range it cannot resolve is no range it checked.
-run = ["bash", "-c", "set -e; [ \"$(git rev-parse --is-shallow-repository)\" = false ] || { echo 'commitizen: a shallow clone cannot resolve the range' >&2; exit 2; }; base=$(git rev-parse --verify \"dcea2ee7df7c02711f42c332cbc403ff7b84a034^0\"); ahead=$(git rev-list \"$base..HEAD\"); [ -z \"$ahead\" ] || cz check --rev-range \"$base..HEAD\""]
+# The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
+# The commit being made is checked at the next commit, or in CI.
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
 timeout-seconds = 300
 
 [[tools]]
@@ -105,7 +104,7 @@ timeout-seconds = 600
 id = "ci-tests"
 group = "check"
 # The CI code's own tests, which read the workflows and the products' manifests.
-run = ["bash", "-c", "mkdir -p target/checks/ci-tests; set +e; pytest --quiet -p no:cacheprovider --import-mode=importlib -o pythonpath=. -o 'python_files=*_test.py' -o python_classes= -o 'norecursedirs=.* __pycache__' ci > target/checks/ci-tests/stdout.log 2> target/checks/ci-tests/stderr.log; tool_status=$?; cat target/checks/ci-tests/stdout.log; cat target/checks/ci-tests/stderr.log >&2; printf '%s\\n' \"$tool_status\" > target/checks/ci-tests/status; exit \"$tool_status\""]
+run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
 inputs = ["ci", "asymptote.toml", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/release-plz.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
 

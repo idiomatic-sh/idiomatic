@@ -70,15 +70,21 @@ pub(super) fn measure(
     )
     .audit(&directory(), &tool)?;
     let authored_total = audit.authored_count();
-    let selection_or_inventory = args.next().map(|argument| argument.0);
+    let inventory = args.next().map(|argument| argument.0);
     let scope = command.scope();
+    let selection = if scope == BenchmarkCoverage::Interim {
+        args.next().map(|argument| argument.0)
+    } else {
+        None
+    };
     let Certifying {
         audit,
         cases: case_source,
     } = cases_for(
         scope,
         audit,
-        selection_or_inventory.as_deref().map(Selection),
+        inventory.as_deref().map(Selection),
+        selection.as_deref().map(Selection),
         &cache,
         suite_source,
     )?;

@@ -1,6 +1,7 @@
 //! Enumerate every registered default, invoke the existing verifier, and retain every result.
 use super::authority::service::{refused, require_authority, verify_context};
 use super::constants;
+use crate::domain::suite::service::covered;
 use crate::domain::suite::types::inventory::value::{
     FailureReason, Inventory, InventoryVerdict, PassedRule, RuleEvidence,
 };
@@ -26,7 +27,7 @@ use ryo_benchmark_contracts::domain::receipts::constants::{
     CASE_RECEIPTS_ARGUMENT, CASES_JSONL, VERIFY_CASES,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::RuleLabel;
+use ryo_benchmark_contracts::domain::requests::types::{RegisteredCoverage, RuleLabel};
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -97,7 +98,7 @@ fn summary(registration: &Registration, inventory: &Inventory, state: RunState) 
     }
 }
 
-/// Run every pinned rule; one failed or missing implementation never removes another row.
+/// Run every pinned rule the coverage names; one failed or missing implementation never removes another row.
 ///
 /// # Errors
 /// Refuses invalid registrations and propagates artifact persistence failures.
@@ -108,12 +109,11 @@ pub fn verify(
     receipts: &dyn ReceiptsPort,
     execution: &dyn ExecutionPort,
     store: &dyn InventoryPort,
+    coverage: &RegisteredCoverage,
 ) -> Result<InventoryVerdict, Error> {
     require_authority(registration, suite, store)?;
     let mut inventory = Inventory::new(
-        &registration
-            .defaults
-            .iter()
+        &covered(coverage, &registration.defaults, |rule| rule)
             .map(|rule| RuleLabel(rule.0.clone()))
             .collect::<Vec<_>>(),
     )?;
@@ -268,14 +268,25 @@ pub fn certify_registered(
     receipts: &dyn ReceiptsPort,
     execution: &dyn ExecutionPort,
     store: &dyn InventoryPort,
+    coverage: &RegisteredCoverage,
 ) -> Result<CaseCount, Error> {
-    if verify(registration, output, suite, receipts, execution, store)? != InventoryVerdict::Passed
+    if verify(
+        registration,
+        output,
+        suite,
+        receipts,
+        execution,
+        store,
+        coverage,
+    )? != InventoryVerdict::Passed
     {
         return Err(Error::Invalid(
             constants::REGISTERED_INDEPENDENT_CASE_CERTIFICATION_FA.into(),
         ));
     }
     Ok(CaseCount(
-        registration.rules.iter().map(|rule| rule.cases.len()).sum(),
+        covered(coverage, &registration.rules, |rule| &rule.rule_id)
+            .map(|rule| rule.cases.len())
+            .sum(),
     ))
 }
