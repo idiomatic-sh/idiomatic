@@ -88,7 +88,7 @@ impl LinterPort for LinterFake {
         CanonicalText(format!("{prepared:?}"))
     }
     fn version_line(&self, tool: &Tool) -> VersionLine {
-        VersionLine(format!("{} {}", tool.tool, tool.version).into())
+        VersionLine::from(tool)
     }
 }
 #[cfg(test)]
