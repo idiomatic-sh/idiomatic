@@ -1,0 +1,284 @@
+[[cases]]
+name = "array-in-array"
+files = { "case.ts" = "const array = [...[a]];\n" }
+expected = [{ file = "case.ts", start = 15, end = 18 }]
+
+[[cases]]
+name = "object-in-object"
+files = { "case.ts" = "const object = { ...{ a } };\n" }
+expected = [{ file = "case.ts", start = 17, end = 20 }]
+
+[[cases]]
+name = "array-in-call"
+files = { "case.ts" = "foo(...[a]);\n" }
+expected = [{ file = "case.ts", start = 4, end = 7 }]
+
+[[cases]]
+name = "array-in-new"
+files = { "case.ts" = "new Foo(...[a]);\n" }
+expected = [{ file = "case.ts", start = 8, end = 11 }]
+
+[[cases]]
+name = "parenthesized-array"
+files = { "case.ts" = "const array = [...(( [a] ))];\n" }
+expected = [{ file = "case.ts", start = 15, end = 18 }]
+
+[[cases]]
+name = "empty-array"
+files = { "case.ts" = "const array = [...[]];\n" }
+expected = [{ file = "case.ts", start = 15, end = 18 }]
+
+[[cases]]
+name = "middle-spread"
+files = { "case.ts" = "const array = [a, ...[a, b], b];\n" }
+expected = [{ file = "case.ts", start = 18, end = 21 }]
+
+[[cases]]
+name = "object-overrides"
+files = { "case.ts" = "const object = { a: 1, ...{ a: 2 } };\n" }
+expected = [{ file = "case.ts", start = 23, end = 26 }]
+
+[[cases]]
+name = "object-in-array"
+files = { "case.ts" = "const array = [...{ a }];\n" }
+expected = []
+
+[[cases]]
+name = "array-in-object"
+files = { "case.ts" = "const object = { ...[a] };\n" }
+expected = []
+
+[[cases]]
+name = "as-array"
+files = { "case.ts" = "const array = [...([a] as any)];\n" }
+expected = []
+
+[[cases]]
+name = "map"
+files = { "case.ts" = "const map = new Map([...iterable]);\n" }
+expected = [{ file = "case.ts", start = 21, end = 24 }]
+
+[[cases]]
+name = "set"
+files = { "case.ts" = "const set = new Set([...iterable]);\n" }
+expected = [{ file = "case.ts", start = 21, end = 24 }]
+
+[[cases]]
+name = "typed-array"
+files = { "case.ts" = "const typed = new Uint8Array([...iterable], 1, 2);\n" }
+expected = [{ file = "case.ts", start = 30, end = 33 }]
+
+[[cases]]
+name = "map-two-arguments"
+files = { "case.ts" = "const map = new Map([...iterable], extra);\n" }
+expected = []
+
+[[cases]]
+name = "map-hole"
+files = { "case.ts" = "const map = new Map([, ...iterable]);\n" }
+expected = []
+
+[[cases]]
+name = "map-extra-element"
+files = { "case.ts" = "const map = new Map([...iterable, x]);\n" }
+expected = []
+
+[[cases]]
+name = "member-map"
+files = { "case.ts" = "const map = new foo.Map([...iterable]);\n" }
+expected = []
+
+[[cases]]
+name = "promise-all"
+files = { "case.ts" = "const p = Promise.all([...iterable]);\n" }
+expected = [{ file = "case.ts", start = 23, end = 26 }]
+
+[[cases]]
+name = "promise-race"
+files = { "case.ts" = "const p = Promise.race([...iterable]);\n" }
+expected = [{ file = "case.ts", start = 24, end = 27 }]
+
+[[cases]]
+name = "array-from"
+files = { "case.ts" = "const a = Array.from([...iterable]);\n" }
+expected = [{ file = "case.ts", start = 22, end = 25 }]
+
+[[cases]]
+name = "typed-from"
+files = { "case.ts" = "const a = Uint8Array.from([...iterable]);\n" }
+expected = [{ file = "case.ts", start = 27, end = 30 }]
+
+[[cases]]
+name = "from-entries"
+files = { "case.ts" = "const o = Object.fromEntries([...iterable]);\n" }
+expected = [{ file = "case.ts", start = 30, end = 33 }]
+
+[[cases]]
+name = "for-of"
+files = { "case.ts" = "for (const x of [...iterable]);\n" }
+expected = [{ file = "case.ts", start = 17, end = 20 }]
+
+[[cases]]
+name = "for-in"
+files = { "case.ts" = "for (const x in [...iterable]);\n" }
+expected = []
+
+[[cases]]
+name = "yield-star"
+files = { "case.ts" = "function* g() { yield* [...iterable]; }\n" }
+expected = [{ file = "case.ts", start = 24, end = 27 }]
+
+[[cases]]
+name = "yield"
+files = { "case.ts" = "function* g() { yield [...iterable]; }\n" }
+expected = []
+
+[[cases]]
+name = "clone-map"
+files = { "case.ts" = "const a = [...list.map(f)];\n" }
+expected = [{ file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "clone-filter"
+files = { "case.ts" = "const a = [...list.filter(f)];\n" }
+expected = [{ file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "clone-split"
+files = { "case.ts" = "const a = [...text.split(\",\")];\n" }
+expected = [{ file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "clone-keys"
+files = { "case.ts" = "const a = [...Object.keys(o)];\n" }
+expected = [{ file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "clone-array-of"
+files = { "case.ts" = "const a = [...Array.of(1, 2)];\n" }
+expected = [{ file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "clone-new-array"
+files = { "case.ts" = "const a = [...new Array(3)];\n" }
+expected = [{ file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "clone-new-array-two"
+files = { "case.ts" = "const a = [...new Array(1, 2)];\n" }
+expected = [{ file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "clone-await-all"
+files = { "case.ts" = "async function f() { const a = [...await Promise.all(ps)]; }\n" }
+expected = [{ file = "case.ts", start = 32, end = 35 }]
+
+[[cases]]
+name = "clone-promise-all"
+files = { "case.ts" = "const a = [...Promise.all(ps)];\n" }
+expected = []
+
+[[cases]]
+name = "clone-conditional"
+files = { "case.ts" = "const a = [...(c ? x.map(f) : y.filter(g))];\n" }
+expected = [{ file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "clone-mixed-conditional"
+files = { "case.ts" = "const a = [...(c ? new Set() : [])];\n" }
+expected = []
+
+[[cases]]
+name = "clone-reduce"
+files = { "case.ts" = "const a = [...list.reduce((acc, x) => acc, [])];\n" }
+expected = [{ file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "clone-reduce-set"
+files = { "case.ts" = "const a = [...list.reduce((acc, x) => acc, new Set())];\n" }
+expected = []
+
+[[cases]]
+name = "clone-sequence"
+files = { "case.ts" = "const a = [...(f(), list.map(g))];\n" }
+expected = [{ file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "clone-object-from-entries"
+files = { "case.ts" = "const o = { ...Object.fromEntries(pairs) };\n" }
+expected = [{ file = "case.ts", start = 12, end = 15 }]
+
+[[cases]]
+name = "clone-object-create"
+files = { "case.ts" = "const o = { ...Object.create(null) };\n" }
+expected = [{ file = "case.ts", start = 12, end = 15 }]
+
+[[cases]]
+name = "clone-new-object"
+files = { "case.ts" = "const o = { ...new Object() };\n" }
+expected = [{ file = "case.ts", start = 12, end = 15 }]
+
+[[cases]]
+name = "clone-object-conditional"
+files = { "case.ts" = "const o = { ...(c ? { a: 1 } : { b: 2 }) };\n" }
+expected = [{ file = "case.ts", start = 12, end = 15 }]
+
+[[cases]]
+name = "clone-set"
+files = { "case.ts" = "const a = [...new Set(iter)];\n" }
+expected = []
+
+[[cases]]
+name = "clone-identifier"
+files = { "case.ts" = "const a = [...list];\n" }
+expected = []
+
+[[cases]]
+name = "clone-unknown-call"
+files = { "case.ts" = "const a = [...list.unknown()];\n" }
+expected = []
+
+[[cases]]
+name = "clone-optional-call"
+files = { "case.ts" = "const a = [...list?.map(f)];\n" }
+expected = []
+
+[[cases]]
+name = "clone-as"
+files = { "case.ts" = "const a = [...(list.map(f) as number[])];\n" }
+expected = [{ file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "clone-two-elements"
+files = { "case.ts" = "const a = [...list.map(f), 1];\n" }
+expected = []
+
+[[cases]]
+name = "clone-trailing-comma"
+files = { "case.ts" = "const a = [...list.map(f),];\n" }
+expected = [{ file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "clone-await-conditional-promises"
+files = { "case.ts" = "async function f() { const a = [...await (c ? Promise.all(x) : Promise.all(y))]; }\n" }
+expected = []
+
+[[cases]]
+name = "clone-conditional-awaited"
+files = { "case.ts" = "async function f() { const a = [...(c ? await Promise.all(x) : y.map(f))]; }\n" }
+expected = [{ file = "case.ts", start = 32, end = 35 }]
+
+[[cases]]
+name = "nested-spreads"
+files = { "case.ts" = "const array = [...[...list.map(f)]];\n" }
+expected = [{ file = "case.ts", start = 15, end = 18 }]
+
+[[cases]]
+name = "pattern"
+files = { "case.ts" = "const [first, ...rest] = list;\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-useless-spread\nconst array = [...[a]];\n" }
+expected = []
