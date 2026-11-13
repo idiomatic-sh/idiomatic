@@ -128,15 +128,9 @@ defaults = [
 # `numeric_literal` and `expression_shape` absent and has no regular expression or control flow relation; oxlint reports
 # the `typescript_silent` rules on no TypeScript file.
 [deferred]
-# Rules that resolve a name to its binding: writes to a const, class, function, import or catch parameter, builtins,
-# shadowing, and the value a `const` initializer gives (unicorn.no-thenable follows `const k = "then"` into `o[k]`).
+# Rules that resolve a name to its binding, not yet written: calls of builtins, shadowing, the uses of a binding, and the
+# value a `const` initializer gives (unicorn.no-thenable follows `const k = "then"` into `o[k]`).
 binding_relations = [
-  "eslint.no-class-assign",
-  "eslint.no-const-assign",
-  "eslint.no-ex-assign",
-  "eslint.no-func-assign",
-  "eslint.no-global-assign",
-  "eslint.no-import-assign",
   "eslint.no-new-native-nonconstructor",
   "eslint.no-obj-calls",
   "eslint.no-unassigned-vars",

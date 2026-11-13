@@ -1,0 +1,64 @@
+[[cases]]
+name = "builtin-object"
+files = { "case.ts" = "Object = 2;\n" }
+expected = [{ file = "case.ts", start = 0, end = 6 }]
+
+[[cases]]
+name = "undefined"
+files = { "case.ts" = "undefined = 3;\n" }
+expected = [{ file = "case.ts", start = 0, end = 9 }]
+
+[[cases]]
+name = "increment"
+files = { "case.ts" = "NaN++;\n" }
+expected = [{ file = "case.ts", start = 0, end = 3 }]
+
+[[cases]]
+name = "compound"
+files = { "case.ts" = "Math += 1;\n" }
+expected = [{ file = "case.ts", start = 0, end = 4 }]
+
+[[cases]]
+name = "destructuring"
+files = { "case.ts" = "({ Promise } = o);\n[Array] = a;\n" }
+expected = [{ file = "case.ts", start = 3, end = 10 }, { file = "case.ts", start = 20, end = 25 }]
+
+[[cases]]
+name = "browser-global"
+files = { "case.ts" = "window = 1;\n" }
+expected = []
+
+[[cases]]
+name = "unknown-global"
+files = { "case.ts" = "x = 1;\n" }
+expected = []
+
+[[cases]]
+name = "shadowed"
+files = { "case.ts" = "let Math = 1;\nMath = 2;\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-by-parameter"
+files = { "case.ts" = "function f(Object) {\n  Object = 1;\n}\n" }
+expected = []
+
+[[cases]]
+name = "member"
+files = { "case.ts" = "Array.x = 1;\n" }
+expected = []
+
+[[cases]]
+name = "read"
+files = { "case.ts" = "Math.max(1, 2);\n" }
+expected = []
+
+[[cases]]
+name = "in-function"
+files = { "case.ts" = "function f() {\n  JSON = null;\n}\n" }
+expected = [{ file = "case.ts", start = 17, end = 21 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-global-assign\nObject = 2;\n" }
+expected = []

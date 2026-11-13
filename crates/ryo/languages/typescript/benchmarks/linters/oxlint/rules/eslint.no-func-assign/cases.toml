@@ -1,0 +1,64 @@
+[[cases]]
+name = "assignment"
+files = { "case.ts" = "function f() {}\nf = 1;\n" }
+expected = [{ file = "case.ts", start = 16, end = 17 }]
+
+[[cases]]
+name = "increment"
+files = { "case.ts" = "function f() {}\nf++;\n" }
+expected = [{ file = "case.ts", start = 16, end = 17 }]
+
+[[cases]]
+name = "destructuring"
+files = { "case.ts" = "function f() {}\n[f] = a;\n({ f } = o);\n" }
+expected = [{ file = "case.ts", start = 17, end = 18 }, { file = "case.ts", start = 28, end = 29 }]
+
+[[cases]]
+name = "function-expression-name"
+files = { "case.ts" = "let g = function h() {\n  h = 2;\n};\n" }
+expected = [{ file = "case.ts", start = 25, end = 26 }]
+
+[[cases]]
+name = "shadowed-by-parameter"
+files = { "case.ts" = "function f() {}\nfunction g(f) {\n  f = 1;\n}\n" }
+expected = []
+
+[[cases]]
+name = "variable-holding-a-function"
+files = { "case.ts" = "let f = function () {};\nf = 1;\n" }
+expected = []
+
+[[cases]]
+name = "arrow"
+files = { "case.ts" = "let f = () => 1;\nf = 2;\n" }
+expected = []
+
+[[cases]]
+name = "declared"
+files = { "case.ts" = "declare function f(): void;\nf = 1;\n" }
+expected = [{ file = "case.ts", start = 28, end = 29 }]
+
+[[cases]]
+name = "overloads"
+files = { "case.ts" = "function f(): void;\nfunction f(x?: number) {}\nf = 1;\n" }
+expected = [{ file = "case.ts", start = 46, end = 47 }, { file = "case.ts", start = 46, end = 47 }]
+
+[[cases]]
+name = "inside-the-function"
+files = { "case.ts" = "function f() {\n  f = 1;\n}\n" }
+expected = [{ file = "case.ts", start = 17, end = 18 }]
+
+[[cases]]
+name = "read"
+files = { "case.ts" = "function f() {}\nf();\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "function f() {}\n// eslint-disable-next-line no-func-assign\nf = 1;\n" }
+expected = []
+
+[[cases]]
+name = "three-overloads"
+files = { "case.ts" = "function f(): void;\nfunction f(x: number): void;\nfunction f(x?: number) {}\nf = 1;\nf = 2;\n" }
+expected = [{ file = "case.ts", start = 75, end = 76 }, { file = "case.ts", start = 75, end = 76 }, { file = "case.ts", start = 75, end = 76 }, { file = "case.ts", start = 82, end = 83 }, { file = "case.ts", start = 82, end = 83 }, { file = "case.ts", start = 82, end = 83 }]
