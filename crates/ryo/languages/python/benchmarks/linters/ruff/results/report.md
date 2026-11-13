@@ -2,6 +2,72 @@
 
 **In progress.** The goal remains all 413 Ruff 0.16.5 defaults as RyoQL, faithful full reports, and subsecond full-Django execution. Neither full parity nor the performance target has passed.
 
+## Fused engine, 5 rules (2026-11-13)
+
+Source `claude/checkpoint-341` (spike `50fd0800ac` with `claude/measure-subset` `a1a5e5e619` and `claude/oxlint-bench` `72087c14a3` merged), ARM64 VM with 10 cores. Each build of the worker ran `diagnostic-measure <ruff 0.16.5> <fresh cache> <collector> --case-inventory=<registration> PLE2510,LOG009,UP019,B006,F401` once, after `verify_profiles.py --full-inventory --prepare-inventory --worker <worker>`. Each run began with a 1-minute load under 3 (main 1.40, fused 1.04). The two builds differ only in `--features idiomatic-sh-ryo-core/fused-evaluation`. The route runs six trials per project with Ryo pinned to one worker. The rows are medians of the six trials. This is a 5-rule comparison and is not comparable with the 413-rule history below.
+
+| fastapi, 1,239 files | Ruff wall / CPU-s / RSS | Ryo main wall / CPU-s / RSS | Ryo fused wall / CPU-s / RSS |
+|---|---:|---:|---:|
+| empty tool cache | 0.060 s / 0.057 / 25 MB | 7.908 s / 7.906 / 79 MB | 1.602 s / 1.603 / 142 MB |
+| retained tool cache | 0.015 s / 0.011 / 21 MB | 0.229 s / 0.229 / 32 MB | 0.231 s / 0.231 / 33 MB |
+| edited tool cache | 0.016 s / 0.013 / 22 MB | 0.331 s / 0.331 / 46 MB | 0.252 s / 0.252 / 53 MB |
+
+Findings matched Ruff exactly in every trial (`B006=2`). Main and fused printed identical `findings:` lines.
+
+Two of the three projects gave no samples on either build:
+
+- Django was refused before any run with `symlink in context: docs/_theme/djangodocs-epub/static/docicons-behindscenes.png`. The context seal refuses tracked symlinks (bead ryo-b1gq.10).
+- On pandas, Ryo reports 8 F401 findings that Ruff does not, for example `asv_bench/benchmarks/arithmetic.py:376`. The contract refuses the project (bead ryo-b1gq.11). The difference is byte-identical between main and fused.
+
+The candidate's own `run-ryo` request for pandas (1,553 files, cold, one worker, run outside the route) took 58.04 s / 57.78 CPU-s / 147 MB on main and 11.55 s / 11.30 CPU-s / 184 MB on fused, with identical findings.
+
+Profiles were taken from the fused cold pandas `run-ryo`, because Django is refused.
+
+CPU profile (`perf record -e cpu-clock:u -F 499 --call-graph dwarf --user-callchains`, 5,684 samples), top self frames:
+
+| frame | self |
+|---|---:|
+| `execution_domain::comparing::holds_bound` | 9.2% |
+| `evaluation::batch::join` | 8.6% |
+| `evaluation::batch::closure` | 7.5% |
+| `_rjem_malloc` | 4.9% |
+| `HashMap<Value, ()>::insert` | 3.6% |
+| `_rjem_sdallocx` | 3.6% |
+| `evaluation::file_session::holds` | 3.1% |
+| `evaluation::batch::first_time` | 2.6% |
+| `sha256::compress256` | 2.5% |
+| `evaluation::file_session::decoded` | 2.4% |
+
+`Session::evaluate` is 89.6% inclusive. The Python parse (`build_recognized`) is 6.7% and the walk (`walk_in`) 12.4%.
+
+Heap profile (the `heap-profile` build, `lg_prof_sample:19`, jeprof). The largest dump holds 153 MB sampled live, against an RSS of 188 MB. The top inclusive frames are:
+
+| frame | share |
+|---|---:|
+| `visit_file` | 77.7% |
+| `parse_file` | 77.1% |
+| `read_file` / `evaluate` | 67.2% |
+| `batch::closure` | 21.9% |
+| `lint_with` | 20.6% |
+| `file_session::decoded` | 13.4% |
+| `batch::push` | 11.0% |
+| `build_recognized` | 9.4% |
+| `walk_in` | 8.5% |
+| `batch::project` | 8.1% |
+
+### 413-rule history (context, not like-for-like)
+
+Full Django (2,875 files) with all 413 rules through the worker's `run-ryo`, cold, default threads unless the row says otherwise. Each value comes from its diagnosis report.
+
+| report | Ryo wall | Ryo CPU-s | Ryo peak RSS | note |
+|---|---:|---:|---:|---|
+| perf-318 | not taken | | | cancelled at about 82 min on a loaded machine; 1 file x 413 took 58.2 s / 1.23 GB |
+| perf-323 | 3,572.7 s | 3,563.3 | 11.71 GB | one thread; stale rule copy, 11,496 unknowns |
+| heap-327 | 379.0 s | 2,644.7 user | 6.81 GB | heap-profiled run |
+| perf-p4 | 318.0 s | 2,543.0 | 6.56 GB | |
+| perf-p5 | 294.9 s | 2,549.7 | 3.63 GB | |
+| perf-p6 | 330.8 s | 2,636 | 3.60 GB | Ruff 0.16.5 on the same 413 rules: 0.145 s / 0.63 CPU-s / 133 MB |
+
 ## Current native151 split proof (2026-11-02)
 
 **151 PASS / 262 FAIL / 413 TOTAL.** The [413-row check](../RULES.md) gives each rule one current result and its failure reason or proof. The [native143 split proof](native143-split-2026-11-02/summary.json) remains unchanged. Eight further source-bound singleton replays on the same sealed `93487234` worker add **175/175 intended and raw-exact cases**: RUF046, RUF057, TC010, UP014, UP037, UP040, UP043 and UP049. Their [supplement summary and raw per-rule receipts](native151-supplement-2026-11-02/summary.json) bind each executed query, case profile, transitive helper and result hash. UP037's initial 16/19 candidate attempt remains in the supplement; its corrected query and fixture reran **19/19** on both candidate and Ruff. The explicit native descriptor has **151 rules / 3,950 cases**. This is a split proof, **not** one 151-rule execution: 3,950 intended passes, 3,869 raw report matches, 77 documented diagnostic differences and four UP025 metadata asymmetries. Ruff execution telemetry remains incomparable for all cases. The full-inventory CI job is a separate strict 413-rule check; it reports missing or failing rules as FAIL.
