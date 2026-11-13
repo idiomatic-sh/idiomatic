@@ -1,3 +1,7 @@
+# port 0.3.3
+
+Places its adapters at `adapter@0.4.0`, whose `adapter-owns-no-adapter` refuses the decorator through any trait of the port (arm e). Everything else is as in 0.3.2.
+
 # port 0.3.2
 
 Places its adapters at `adapter@0.3.2`, which keeps nested parts and groups of cases. 0.3.1 is removed with this version, not kept as published: no lock names it, nothing has been released, and an unreleased version keeps no copy for compatibility. Everything else is as in 0.3.1.
