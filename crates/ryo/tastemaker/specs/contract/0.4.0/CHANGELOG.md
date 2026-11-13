@@ -1,5 +1,9 @@
 # contract
 
+## 0.4.0
+
+`Parse` renders the required `ParseUseCase` method `semantics`, answering `None`: a language that implements no `Semantics` says so once, and a scaffolded contract compiles against the engine's trait as it is. The rendered fixtures carry it, and the scenarios that mutate a rendering expect one more finding for each member it lacks. Everything else is as in 0.3.0.
+
 ## 0.3.0
 
 A scaffolded contract compiles against the engine's traits as they are. `Parse` renders the explicit `ParseUseCase` methods `begin_semantics` (the buffer-filling `SemanticSlot` the language leaves empty), `completion_requirement` (`Independent`), `extend_file_model` and `recognizes_explicit` (`Declines`), and answers the relations `standard_library_import` and `token_link` as `NotYetRead`. `Project` renders `project_entries` (which fills the engine's buffer), takes the `observed_entries` of its request into `Resolved`, iterates `manifests()` by copy and answers `project_namespace_membership` as `NotYetRead`. The rendered fixtures carry them, and the scenarios that mutate a rendering expect one more finding for each member it lacks. A throwaway language scaffolded from `language` 0.4.0 compiles with `cargo check --all-targets`.

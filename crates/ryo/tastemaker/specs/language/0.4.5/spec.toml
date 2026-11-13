@@ -3,8 +3,8 @@ why = "Ryo owns the concepts, the language fulfils them. The compiler holds that
 closed = false
 specs = [
   { alias = "benchmark", spec = "idiomatic.ryo/benchmark@0.2.2", include = ["benchmarks"], count = { min = 1 }, params = { lang = { param = "lang" } }, description = "Comparative lint benchmarks, when this language has begun its rollout; the shared harness audits completeness." },
-  { alias = "parse-contract", spec = "idiomatic.ryo/contract@0.3.0", include = ["src/inbound/contracts/parse"], params = { trait = "ryo::languages::Parse" }, description = "The parse contract: the language's implementation of `ryo::languages::Parse`, which answers every syntax relation of the catalog." },
-  { alias = "project-contract", spec = "idiomatic.ryo/contract@0.3.0", include = ["src/inbound/contracts/project"], params = { trait = "ryo::languages::Project" }, description = "The project contract: the language's implementation of `ryo::languages::Project`, which answers every manifest relation of the catalog." },
+  { alias = "parse-contract", spec = "idiomatic.ryo/contract@0.4.0", include = ["src/inbound/contracts/parse"], params = { trait = "ryo::languages::Parse" }, description = "The parse contract: the language's implementation of `ryo::languages::Parse`, which answers every syntax relation of the catalog." },
+  { alias = "project-contract", spec = "idiomatic.ryo/contract@0.4.0", include = ["src/inbound/contracts/project"], params = { trait = "ryo::languages::Project" }, description = "The project contract: the language's implementation of `ryo::languages::Project`, which answers every manifest relation of the catalog." },
   { alias = "domain-concept", spec = "idiomatic.arch/concept@0.1.2", include = ["src/domain/{concept}"], exclude = ["src/domain/extras", "src/domain/language", "src/domain/nodes", "src/domain/relations", "src/domain/syntax", "src/domain/tokens"], count = { min = 0 }, params = { item-trait = [] }, description = "Every other domain concept of the language is a concept, with its nested parts and groups of cases: the six this spec places itself (the extras, the language, the nodes, the relations, the syntax and the tokens) are left to it." },
 ]
 templates = [
@@ -1276,6 +1276,10 @@ impl Parse for ParseContract {
         _tree: &languages::Elements,
         _slot: &mut languages::SemanticSlot,
     ) {
+    }
+
+    fn semantics(&self) -> Option<&dyn languages::Semantics> {
+        None
     }
 
     fn completion_requirement(&self) -> languages::CompletionRequirement {
@@ -15017,6 +15021,10 @@ impl Parse for ParseContract {
     ) {
     }
 
+    fn semantics(&self) -> Option<&dyn languages::Semantics> {
+        None
+    }
+
     fn completion_requirement(&self) -> languages::CompletionRequirement {
         languages::CompletionRequirement::Independent
     }
@@ -15820,7 +15828,7 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.ryo/language/thiserror-in-errors']
 then.findings = [
-  { rule = 'idiomatic.ryo/language/thiserror-in-errors', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 326 },
+  { rule = 'idiomatic.ryo/language/thiserror-in-errors', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 330 },
 ]
 
 [[scenarios]]
@@ -16111,6 +16119,10 @@ impl Parse for ParseContract {
         _tree: &languages::Elements,
         _slot: &mut languages::SemanticSlot,
     ) {
+    }
+
+    fn semantics(&self) -> Option<&dyn languages::Semantics> {
+        None
     }
 
     fn completion_requirement(&self) -> languages::CompletionRequirement {
@@ -16917,7 +16929,7 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.ryo/language/error-shape']
 then.findings = [
-  { rule = 'idiomatic.ryo/language/error-shape', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 329 },
+  { rule = 'idiomatic.ryo/language/error-shape', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 333 },
 ]
 
 [[scenarios]]
@@ -18276,6 +18288,10 @@ impl Parse for ParseContract {
     ) {
     }
 
+    fn semantics(&self) -> Option<&dyn languages::Semantics> {
+        None
+    }
+
     fn completion_requirement(&self) -> languages::CompletionRequirement {
         languages::CompletionRequirement::Independent
     }
@@ -19370,6 +19386,10 @@ impl Parse for ParseContract {
     ) {
     }
 
+    fn semantics(&self) -> Option<&dyn languages::Semantics> {
+        None
+    }
+
     fn completion_requirement(&self) -> languages::CompletionRequirement {
         languages::CompletionRequirement::Independent
     }
@@ -20173,7 +20193,7 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.arch/io-at-boundary']
 then.findings = [
-  { rule = 'idiomatic.arch/io-at-boundary', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 327 },
+  { rule = 'idiomatic.arch/io-at-boundary', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 331 },
 ]
 
 [[scenarios]]

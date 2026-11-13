@@ -1,3 +1,7 @@
+# language 0.4.5
+
+Places `contract` 0.4.0, whose `parse` contract answers the required `semantics` method with `None`. The language fixtures' parse contracts carry it. Everything else is as in 0.4.4.
+
 # language 0.4.4
 
 Places every other domain concept of a language, `src/domain/{concept}`, as an `idiomatic.arch/concept@0.1.2`, with its nested parts and groups of cases; the six concepts this spec places itself (`extras`, `language`, `nodes`, `relations`, `syntax`, `tokens`) are left to it. A language no longer places a concept with a manifest of its own beside the concept. Everything else is as in 0.4.3.
