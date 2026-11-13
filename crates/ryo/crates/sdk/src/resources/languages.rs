@@ -329,10 +329,7 @@ pub use ryo_language::domain::elements::types::SourceOrder;
 pub use ryo_language::domain::keys::service::{
     clear_keys, intern_key, key_class_at, push_key_word,
 };
-pub use ryo_language::domain::keys::types::{
-    BucketLink, KeyDigest, KeyRecord, KeyRecordIndex, KeyState, KeyWordIndex, RetainedKeyIndex,
-    ShapeWord, WordRange,
-};
+pub use ryo_language::domain::keys::types::{KeyState, RetainedKeyIndex, ShapeWord};
 pub use ryo_relations::domain::relations::constants::{IMPLIED, NO_SPAN};
 pub use ryo_relations::domain::relations::service::location;
 pub use ryo_relations::domain::relations::types::PropertyId;

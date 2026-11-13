@@ -29,7 +29,6 @@ pub use ryo::languages::BraceFormatFieldRow
 pub use ryo::languages::BraceFormatParse
 pub use ryo::languages::BraceFormatParseColumn
 pub use ryo::languages::BraceFormatParseRow
-pub use ryo::languages::BucketLink
 pub use ryo::languages::ByteSlice
 pub use ryo::languages::Bytes
 pub use ryo::languages::BytesLiteral
@@ -148,11 +147,7 @@ pub use ryo::languages::Integer
 pub use ryo::languages::InterpolatedStringLiteral
 pub use ryo::languages::InterpolatedStringLiteralColumn
 pub use ryo::languages::InterpolatedStringLiteralRow
-pub use ryo::languages::KeyDigest
-pub use ryo::languages::KeyRecord
-pub use ryo::languages::KeyRecordIndex
 pub use ryo::languages::KeyState
-pub use ryo::languages::KeyWordIndex
 pub use ryo::languages::KindBits
 pub use ryo::languages::KindName
 pub use ryo::languages::KindNames
@@ -348,7 +343,6 @@ pub use ryo::languages::VisibilityColumn
 pub use ryo::languages::VisibilityRow
 pub use ryo::languages::Visiting
 pub use ryo::languages::Why
-pub use ryo::languages::WordRange
 pub use ryo::languages::WorkspaceMember
 pub use ryo::languages::WorkspaceMemberColumn
 pub use ryo::languages::WorkspaceMemberRow

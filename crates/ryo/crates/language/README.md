@@ -36,7 +36,7 @@ The language domain's `expansions` concept: the trees a language reads under a m
 
 The language domain's `files` concept: the path every part of the engine names a file of the repository by.
 
-### keys
+### `keys`
 
 The language domain's `keys` concept: a file's structural keys, each complete key interned once, so that equal keys share the first occurrence that had them. Hashes choose candidates; complete word slices decide equality.
 
