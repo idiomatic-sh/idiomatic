@@ -14,6 +14,7 @@ pub mod observations;
 pub(crate) mod process_failure;
 pub mod process_output;
 pub(crate) mod process_receipts;
+pub mod profiles;
 pub mod project_inputs;
 pub(crate) mod registered_inputs;
 pub mod rule_context;

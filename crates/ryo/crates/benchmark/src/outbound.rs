@@ -4,6 +4,7 @@ pub mod engine;
 pub mod evidence;
 pub mod execution;
 pub mod linter;
+pub mod profile_tools;
 pub mod receipts;
 pub mod suite;
 pub mod worker;
