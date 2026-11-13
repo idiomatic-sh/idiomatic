@@ -15,9 +15,10 @@ use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::plans::service::each_input;
+use ryo_values::domain::plans::service::{each_input, inputs_of, kind_of, named};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
+use ryo_values::domain::query_operators::types::OperationKind;
 
 /// The plan with the rows a file hands over made as few as the steps after the files ask: the per-file inputs of each join after the
 /// files joined in each file, each per-file input of a join after the files narrowed to the rows its key can meet, then each per-file
@@ -96,20 +97,22 @@ fn reduced_frontier_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec
             None
         };
         let repeats = matches!(
+            kind_of(&cut_step.operation),
+            OperationKind::Select
+                | OperationKind::Capture
+                | OperationKind::Words
+                | OperationKind::Extend
+                | OperationKind::SpanBounds
+                | OperationKind::SourceMatches
+                | OperationKind::RenderSyntax
+                | OperationKind::FitsRendered
+                | OperationKind::SpanBetween
+        ) || matches!(
             cut_step.operation,
-            Operation::Select { .. }
-                | Operation::Capture { .. }
-                | Operation::Words { .. }
-                | Operation::Extend { .. }
-                | Operation::SpanBounds { .. }
-                | Operation::SourceMatches { .. }
-                | Operation::RenderSyntax { .. }
-                | Operation::FitsRendered { .. }
-                | Operation::SpanBetween { .. }
-                | Operation::Project {
-                    distinct: RepeatedRows::Kept,
-                    ..
-                }
+            Operation::Project {
+                distinct: RepeatedRows::Kept,
+                ..
+            }
         );
         if !cut || used.is_empty() || !repeats || made == Some(used.len()) {
             continue;
@@ -159,10 +162,7 @@ fn reduced_frontier_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec
 
 /// Whether the operation reads the step `read`.
 fn operation_reads(operation: &Operation, read: StepId) -> StepReading {
-    let mut reads = false;
-    let mut copy = operation.clone();
-    each_input(&mut copy, &mut |input| reads |= *input == Input::Step(read));
-    if reads {
+    if named(&inputs_of(operation)).contains(&Input::Step(read)) {
         StepReading::Reads
     } else {
         StepReading::Ignores
@@ -184,15 +184,14 @@ pub(crate) fn cut_relations_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]
         .iter()
         .filter(|step| step.scope == StepScope::CrossFile)
     {
-        let mut copy = step.operation.clone();
-        each_input(&mut copy, &mut |input| {
+        for input in named(&inputs_of(&step.operation)) {
             if let Input::Relation(relation) = input
                 && !wanted.contains(relation)
                 && provenance_of(*relation) != Provenance::Manifests
             {
                 wanted.push(*relation);
             }
-        });
+        }
     }
     for relation in wanted {
         let read = Input::Relation(relation);
@@ -200,12 +199,8 @@ pub(crate) fn cut_relations_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]
             .iter()
             .enumerate()
             .filter(|(_, step)| {
-                step.scope == StepScope::CrossFile && {
-                    let mut reads = false;
-                    let mut copy = step.operation.clone();
-                    each_input(&mut copy, &mut |input| reads |= *input == read);
-                    reads
-                }
+                step.scope == StepScope::CrossFile
+                    && named(&inputs_of(&step.operation)).contains(&read)
             })
             .map(|(place, _)| place)
             .collect();
