@@ -4,7 +4,7 @@
 use super::constants::NO_CONFIGURATION;
 use super::errors::ParseError;
 use super::interface::ParseUseCase;
-use super::service::{baseline_in, build_in, kinds_read_in, read_in, walk_in};
+use super::service::{baseline_in, kinds_read_in, read_in, walk_in};
 use super::types::{KindNames, ParseConfigurationIdentity, ParseRequest, SkippedDirectory};
 use super::types::{ParseEngine, absence_in};
 use crate::domain::elements::types::Elements;
@@ -137,14 +137,19 @@ impl<P: ParseUseCase> ParseEngine for P {
         request: ParseRequest<'_>,
         table: &mut Elements,
         symbols: &mut Symbols,
+        wanted: &[Relation],
     ) -> Result<(), ParseError> {
-        build_in(
-            self,
-            request,
-            table,
-            symbols,
-            ParseUseCase::completion_requirement(self),
-        )
+        super::service::build_wanted_in(self, request, table, symbols, wanted)
+    }
+
+    fn build_file_explicit(
+        &self,
+        request: ParseRequest<'_>,
+        table: &mut Elements,
+        symbols: &mut Symbols,
+        wanted: &[Relation],
+    ) -> Result<(), ParseError> {
+        super::service::build_explicit_in(self, request, table, symbols, wanted)
     }
 
     fn baseline_file(&self, request: &ParseRequest<'_>) -> Result<(), ParseError> {

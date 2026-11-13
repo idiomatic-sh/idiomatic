@@ -99,6 +99,7 @@ impl ParseEngine for FixtureParse {
         request: ParseRequest<'_>,
         table: &mut Elements,
         symbols: &mut Symbols,
+        _wanted: &[Relation],
     ) -> Result<(), ParseError> {
         let mut builder = table_builder(table, symbols, request.bytes);
         enter_node(&mut builder, KindBits(1), Offset(0));
@@ -115,6 +116,15 @@ impl ParseEngine for FixtureParse {
         _symbols: &mut Symbols,
         _wanted: &[Relation],
         _out: &mut dyn RowWriter,
+    ) -> Result<(), ParseError> {
+        Err(ParseError::Unsupported)
+    }
+    fn build_file_explicit(
+        &self,
+        _request: ParseRequest<'_>,
+        _table: &mut Elements,
+        _symbols: &mut Symbols,
+        _wanted: &[Relation],
     ) -> Result<(), ParseError> {
         Err(ParseError::Unsupported)
     }

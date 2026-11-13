@@ -65,6 +65,7 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
         request: ryo_language::inbound::use_cases::parse::types::ParseRequest<'_>,
         table: &mut ryo_language::domain::elements::types::Elements,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
+        _: &[ryo_relations::domain::relations::types::Relation],
     ) -> Result<(), ryo_language::inbound::use_cases::parse::errors::ParseError> {
         use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder};
         use ryo_relations::domain::relations::types::{KindBits, Offset};
@@ -99,9 +100,18 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
     ) -> Result<(), ryo_language::inbound::use_cases::parse::errors::ParseError> {
         let source = request.bytes;
         let file = request.file;
-        self.build_file(request, table, symbols)?;
+        self.build_file(request, table, symbols, wanted)?;
         self.walk_file(table, symbols, source, file, wanted, out);
         Ok(())
+    }
+    fn build_file_explicit(
+        &self,
+        _: ryo_language::inbound::use_cases::parse::types::ParseRequest<'_>,
+        _: &mut ryo_language::domain::elements::types::Elements,
+        _: &mut ryo_language::domain::symbols::types::Symbols,
+        _: &[ryo_relations::domain::relations::types::Relation],
+    ) -> Result<(), ryo_language::inbound::use_cases::parse::errors::ParseError> {
+        Err(ryo_language::inbound::use_cases::parse::errors::ParseError::Unsupported)
     }
     fn read_file_explicit(
         &self,

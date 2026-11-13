@@ -172,7 +172,7 @@ pub trait ParseEngine: Send + Sync {
     /// The kinds the readers of the language look at.
     fn reader_kinds(&self) -> Vec<KindBits>;
 
-    /// Builds the tree of the file in `table`.
+    /// Builds the tree of the file in `table`, completed for what the readers of `wanted` look at; no row is written.
     ///
     /// # Errors
     ///
@@ -182,6 +182,21 @@ pub trait ParseEngine: Send + Sync {
         request: ParseRequest<'_>,
         table: &mut Elements,
         symbols: &mut Symbols,
+        wanted: &[Relation],
+    ) -> Result<(), ParseError>;
+
+    /// Builds the tree of a file explicitly assigned to this provider, completed for what the readers of `wanted` look at; no row
+    /// is written.
+    ///
+    /// # Errors
+    ///
+    /// `Unsupported` unless the provider supports explicit selection, and what the language's `read_tree` answers.
+    fn build_file_explicit(
+        &self,
+        request: ParseRequest<'_>,
+        table: &mut Elements,
+        symbols: &mut Symbols,
+        wanted: &[Relation],
     ) -> Result<(), ParseError>;
 
     /// Does only what the language's library does for the file the request names, through a builder that builds nothing.
