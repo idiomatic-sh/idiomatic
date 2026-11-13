@@ -1,0 +1,94 @@
+[[cases]]
+name = "equal-or-less"
+files = { "case.ts" = "if (a === b || a < b) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 20 }]
+
+[[cases]]
+name = "less-or-equal"
+files = { "case.ts" = "if (a < b || a === b) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 20 }]
+
+[[cases]]
+name = "loose-equal"
+files = { "case.ts" = "if (a == b || a < b) {}\nif (a == b || a > b) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 19 }, { file = "case.ts", start = 28, end = 43 }]
+
+[[cases]]
+name = "equal-or-greater"
+files = { "case.ts" = "if (a === b || a > b) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 20 }]
+
+[[cases]]
+name = "less-or-greater"
+files = { "case.ts" = "if (a < b || a > b) {}\nif (a > b || a < b) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 18 }, { file = "case.ts", start = 27, end = 41 }]
+
+[[cases]]
+name = "inclusive-and"
+files = { "case.ts" = "if (a <= b && a >= b) {}\nif (a >= b && a <= b) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 20 }, { file = "case.ts", start = 29, end = 45 }]
+
+[[cases]]
+name = "swapped-operands"
+files = { "case.ts" = "if (a === b || b > a) {}\nif (a === b || b < a) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 20 }, { file = "case.ts", start = 29, end = 45 }]
+
+[[cases]]
+name = "members"
+files = { "case.ts" = "if (a.x === b || a.x < b) {}\nif (this.a === b || this.a < b) {}\nif (a[0] === b || a[0] < b) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 24 }, { file = "case.ts", start = 33, end = 59 }, { file = "case.ts", start = 68, end = 90 }]
+
+[[cases]]
+name = "expressions"
+files = { "case.ts" = "if (a + 1 === b || a + 1 < b) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 28 }]
+
+[[cases]]
+name = "literals"
+files = { "case.ts" = "if (1 === 2 || 1 < 2) {}\nif ('a' === b || \"a\" < b) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 20 }, { file = "case.ts", start = 29, end = 49 }]
+
+[[cases]]
+name = "optional-chain"
+files = { "case.ts" = "if (a?.x === b || a?.x < b) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 26 }]
+
+[[cases]]
+name = "inside-a-chain"
+files = { "case.ts" = "if (a === b || a < b || c) {}\nif (c || a === b || a < b) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 20 }]
+
+[[cases]]
+name = "calls"
+files = { "case.ts" = "if (f() === b || f() < b) {}\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized"
+files = { "case.ts" = "if ((a === b) || (a < b)) {}\nif (a === b || (a < b)) {}\n" }
+expected = []
+
+[[cases]]
+name = "not-equal"
+files = { "case.ts" = "if (a != b && a <= b) {}\nif (a !== b && a < b) {}\n" }
+expected = []
+
+[[cases]]
+name = "other-operand"
+files = { "case.ts" = "if (a === b || a < c) {}\n" }
+expected = []
+
+[[cases]]
+name = "impossible-and"
+files = { "case.ts" = "if (a < b && a > b) {}\n" }
+expected = []
+
+[[cases]]
+name = "inclusive-or"
+files = { "case.ts" = "if (a === b || a <= b) {}\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line double-comparisons\nif (a === b || a < b) {}\n" }
+expected = []

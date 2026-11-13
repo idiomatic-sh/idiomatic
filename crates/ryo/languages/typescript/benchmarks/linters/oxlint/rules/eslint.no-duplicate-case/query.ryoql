@@ -1,0 +1,14 @@
+import directives from "typescript/oxlint/eslint-directives";
+let switches = select id from "semantic-syntax" where kind = "switch-statement";
+let cases = select l.parent as switch, l.child as case from "semantic-child" as l join switches as r on l.parent = r.id where l.field = "cases";
+let tests = select l.switch as switch, c.child as test from cases as l join "semantic-child" as c on l.case = c.parent where c.field = "test";
+let shaped = select l.switch as switch, l.test as id, r.shape as shape, r.file as file, r.span as span from tests as l join "expression-shape" as r on l.test = r.id;
+let bounded = span-bounds(from=shaped, span="span", start-output="begin", end-output="finish");
+let later = select l.id as first, r.id as duplicate from bounded as l join bounded as r on l.switch = r.switch and l.shape = r.shape where l.begin < r.begin;
+let preceded = select r.id as id from bounded as l join bounded as r on l.switch = r.switch and l.shape = r.shape where l.begin < r.begin;
+let duplicates = antijoin(left=later, right=preceded, left-on=["first"], right-on=["id"]);
+let found = select l.first as id, l.duplicate as duplicate, r.file as file, r.span as span from duplicates as l join "semantic-syntax" as r on l.first = r.id;
+let firsts = project(from=found, columns=["id", "file", "span"]);
+let violations = directives(candidates=firsts, names="(?:^|,)(?:[^,]*/)?no-duplicate-case(?:,|$)");
+let reported = select l.id as id, l.duplicate as duplicate, l.file as file, l.span as span from found as l join violations as r on l.id = r.id;
+emit reported subject file key(id, duplicate);

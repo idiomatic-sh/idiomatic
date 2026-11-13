@@ -1,0 +1,164 @@
+[[cases]]
+name = "impossible"
+files = { "case.ts" = "if (a > 5 && a < 3) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 9 }]
+
+[[cases]]
+name = "impossible-at-the-bound"
+files = { "case.ts" = "if (a > 5 && a < 5) {}\nif (a < 3 && a >= 3) {}\nif (a <= 1 && a > 1) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 9 }, { file = "case.ts", start = 27, end = 32 }, { file = "case.ts", start = 51, end = 57 }]
+
+[[cases]]
+name = "left-redundant"
+files = { "case.ts" = "if (a < 5 && a < 3) {}\nif (a >= 3 && a > 5) {}\nif (a <= 2 && a < 2) {}\n" }
+expected = [{ file = "case.ts", start = 13, end = 18 }, { file = "case.ts", start = 37, end = 42 }, { file = "case.ts", start = 61, end = 66 }]
+
+[[cases]]
+name = "right-redundant"
+files = { "case.ts" = "if (a < 3 && a < 5) {}\nif (a > 5 && a >= 3) {}\nif (a < 2 && a <= 2) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 9 }, { file = "case.ts", start = 27, end = 32 }, { file = "case.ts", start = 51, end = 56 }]
+
+[[cases]]
+name = "possible-range"
+files = { "case.ts" = "if (a > 3 && a < 5) {}\nif (a >= 5 && a <= 5) {}\n" }
+expected = []
+
+[[cases]]
+name = "constant-first"
+files = { "case.ts" = "if (5 < a && a < 3) {}\nif (5 < a && 3 > a) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 9 }, { file = "case.ts", start = 27, end = 32 }]
+
+[[cases]]
+name = "values-not-spellings"
+files = { "case.ts" = "if (a > 5.0 && a < 0x3) {}\nif (a > 1e3 && a < 1_0) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 11 }, { file = "case.ts", start = 31, end = 38 }]
+
+[[cases]]
+name = "members"
+files = { "case.ts" = "if (a.b > 5 && a.b < 3) {}\nif (this.x > 5 && this.x < 3) {}\nif (a + 1 > 5 && a + 1 < 3) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 11 }, { file = "case.ts", start = 31, end = 41 }, { file = "case.ts", start = 64, end = 73 }]
+
+[[cases]]
+name = "different-references"
+files = { "case.ts" = "if (a > 5 && b < 3) {}\n" }
+expected = []
+
+[[cases]]
+name = "calls"
+files = { "case.ts" = "if (f() > 5 && f() < 3) {}\n" }
+expected = []
+
+[[cases]]
+name = "or"
+files = { "case.ts" = "if (a > 5 || a > 3) {}\nif (a < 3 || a > 5) {}\n" }
+expected = []
+
+[[cases]]
+name = "bigint"
+files = { "case.ts" = "if (a > 5n && a < 3n) {}\n" }
+expected = []
+
+[[cases]]
+name = "negative"
+files = { "case.ts" = "if (a > -1 && a < -5) {}\n" }
+expected = []
+
+[[cases]]
+name = "chained-left"
+files = { "case.ts" = "if (a > 5 && a < 3 && c) {}\nif (c && a > 5 && a < 3) {}\nif (a > 5 && c && a < 3) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 9 }, { file = "case.ts", start = 37, end = 42 }, { file = "case.ts", start = 60, end = 65 }]
+
+[[cases]]
+name = "nested-right"
+files = { "case.ts" = "if (a > 5 && (c && a < 3)) {}\n" }
+expected = []
+
+[[cases]]
+name = "stops-at-another-reference"
+files = { "case.ts" = "if (b > 1 && a > 5 && a < 3) {}\nif (a > 5 && b > 1 && a < 3) {}\n" }
+expected = [{ file = "case.ts", start = 36, end = 41 }]
+
+[[cases]]
+name = "stops-at-an-inclusive-pair"
+files = { "case.ts" = "if (a >= 3 && a > 5 && a <= 3) {}\nif (a <= 1 && a >= 1 && a > 0) {}\n" }
+expected = [{ file = "case.ts", start = 14, end = 19 }, { file = "case.ts", start = 48, end = 54 }]
+
+[[cases]]
+name = "each-earlier-bound"
+files = { "case.ts" = "if (a > 5 && a < 3 && a < 1) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 9 }, { file = "case.ts", start = 4, end = 9 }, { file = "case.ts", start = 22, end = 27 }]
+
+[[cases]]
+name = "parenthesized-comparisons"
+files = { "case.ts" = "if ((a > 5) && (a < 3)) {}\nif (a > (5) && a < 3) {}\n" }
+expected = [{ file = "case.ts", start = 5, end = 10 }, { file = "case.ts", start = 31, end = 38 }]
+
+[[cases]]
+name = "parenthesized-reference"
+files = { "case.ts" = "if ((a) > 5 && a < 3) {}\nif (a > 5 && (a) < 3) {}\n" }
+expected = []
+
+[[cases]]
+name = "equal-operators"
+files = { "case.ts" = "if (a === 5 && a > 3) {}\n" }
+expected = []
+
+[[cases]]
+name = "self-comparison"
+files = { "case.ts" = "if (a < a) {}\nif (a >= a) {}\nif (a.b < a.b) {}\nif (1 < 1) {}\nif (a < (a)) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 9 }, { file = "case.ts", start = 18, end = 24 }, { file = "case.ts", start = 33, end = 42 }, { file = "case.ts", start = 51, end = 56 }, { file = "case.ts", start = 65, end = 72 }]
+
+[[cases]]
+name = "self-equality"
+files = { "case.ts" = "if (a === a) {}\nif (a != a) {}\nif (f() < f()) {}\n" }
+expected = []
+
+[[cases]]
+name = "identical-operands"
+files = { "case.ts" = "if (x && x) {}\nif (a || a) {}\nif (a.b && a.b) {}\nif (!a && !a) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 5 }, { file = "case.ts", start = 19, end = 20 }, { file = "case.ts", start = 34, end = 37 }, { file = "case.ts", start = 53, end = 55 }]
+
+[[cases]]
+name = "identical-parenthesized"
+files = { "case.ts" = "if ((a) && a) {}\nif (a && (a)) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 7 }, { file = "case.ts", start = 21, end = 22 }]
+
+[[cases]]
+name = "identical-comparisons"
+files = { "case.ts" = "if (a < b && a < b) {}\nif (a < 1 && a < 1) {}\nif (a > 1 && a > 1) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 9 }, { file = "case.ts", start = 27, end = 32 }, { file = "case.ts", start = 27, end = 32 }, { file = "case.ts", start = 50, end = 55 }, { file = "case.ts", start = 50, end = 55 }]
+
+[[cases]]
+name = "identical-calls"
+files = { "case.ts" = "if (f() && f()) {}\nif (a ?? a) {}\nif (a && b && a) {}\n" }
+expected = []
+
+[[cases]]
+name = "negated-equality"
+files = { "case.ts" = "if (a === b && a !== b) {}\nif (a === b || a !== b) {}\nif (a == b && a != b) {}\nif (a !== b || a === b) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 11 }, { file = "case.ts", start = 31, end = 38 }, { file = "case.ts", start = 58, end = 64 }, { file = "case.ts", start = 83, end = 90 }]
+
+[[cases]]
+name = "negated-swapped"
+files = { "case.ts" = "if (a === b && b !== a) {}\nif (1 === a && a !== 1) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 11 }, { file = "case.ts", start = 31, end = 38 }]
+
+[[cases]]
+name = "negated-parenthesized"
+files = { "case.ts" = "if ((a === b) && (a !== b)) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 13 }]
+
+[[cases]]
+name = "mixed-strictness"
+files = { "case.ts" = "if (a == b && a !== b) {}\nif (a === b && a != b) {}\n" }
+expected = []
+
+[[cases]]
+name = "negated-other"
+files = { "case.ts" = "if (a === b && a !== c) {}\nif (f() === 1 && f() !== 1) {}\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line const-comparisons\nif (a > 5 && a < 3) {}\n" }
+expected = []

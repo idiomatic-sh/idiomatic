@@ -1,0 +1,119 @@
+[[cases]]
+name = "radix-below"
+files = { "case.ts" = "x.toString(1);\n" }
+expected = [{ file = "case.ts", start = 0, end = 13 }]
+
+[[cases]]
+name = "radix-above"
+files = { "case.ts" = "x.toString(37);\n" }
+expected = [{ file = "case.ts", start = 0, end = 14 }]
+
+[[cases]]
+name = "radix-zero"
+files = { "case.ts" = "x.toString(0);\n" }
+expected = [{ file = "case.ts", start = 0, end = 13 }]
+
+[[cases]]
+name = "radix-bounds"
+files = { "case.ts" = "x.toString(2);\nx.toString(36);\n" }
+expected = []
+
+[[cases]]
+name = "radix-fraction-inside"
+files = { "case.ts" = "x.toString(2.5);\n" }
+expected = []
+
+[[cases]]
+name = "radix-fraction-outside"
+files = { "case.ts" = "x.toString(1.5);\nx.toString(36.5);\n" }
+expected = [{ file = "case.ts", start = 0, end = 15 }, { file = "case.ts", start = 17, end = 33 }]
+
+[[cases]]
+name = "hexadecimal-radix"
+files = { "case.ts" = "x.toString(0x25);\n" }
+expected = [{ file = "case.ts", start = 0, end = 16 }]
+
+[[cases]]
+name = "exponent-radix"
+files = { "case.ts" = "x.toString(1e3);\n" }
+expected = [{ file = "case.ts", start = 0, end = 15 }]
+
+[[cases]]
+name = "to-fixed"
+files = { "case.ts" = "x.toFixed(20);\nx.toFixed(21);\n" }
+expected = [{ file = "case.ts", start = 15, end = 28 }]
+
+[[cases]]
+name = "to-exponential"
+files = { "case.ts" = "x.toExponential(20);\nx.toExponential(21);\n" }
+expected = [{ file = "case.ts", start = 21, end = 40 }]
+
+[[cases]]
+name = "to-precision"
+files = { "case.ts" = "x.toPrecision(0);\nx.toPrecision(1);\nx.toPrecision(21);\nx.toPrecision(22);\n" }
+expected = [{ file = "case.ts", start = 0, end = 16 }, { file = "case.ts", start = 55, end = 72 }]
+
+[[cases]]
+name = "to-precision-fraction"
+files = { "case.ts" = "x.toPrecision(0.5);\n" }
+expected = [{ file = "case.ts", start = 0, end = 18 }]
+
+[[cases]]
+name = "optional-call"
+files = { "case.ts" = "x?.toString(40);\n" }
+expected = [{ file = "case.ts", start = 0, end = 15 }]
+
+[[cases]]
+name = "computed-name"
+files = { "case.ts" = "x[\"toString\"](40);\n" }
+expected = [{ file = "case.ts", start = 0, end = 17 }]
+
+[[cases]]
+name = "template-name"
+files = { "case.ts" = "x[`toString`](40);\n" }
+expected = [{ file = "case.ts", start = 0, end = 17 }]
+
+[[cases]]
+name = "nested-object"
+files = { "case.ts" = "x.y.toString(40);\nnew X().toString(40);\n" }
+expected = [{ file = "case.ts", start = 0, end = 16 }, { file = "case.ts", start = 18, end = 38 }]
+
+[[cases]]
+name = "extra-argument"
+files = { "case.ts" = "x.toString(40, 1);\n" }
+expected = [{ file = "case.ts", start = 0, end = 17 }]
+
+[[cases]]
+name = "parenthesized-argument"
+files = { "case.ts" = "x.toString((40));\n" }
+expected = []
+
+[[cases]]
+name = "negative-argument"
+files = { "case.ts" = "x.toFixed(-1);\n" }
+expected = []
+
+[[cases]]
+name = "bigint-argument"
+files = { "case.ts" = "x.toString(40n);\n" }
+expected = []
+
+[[cases]]
+name = "cast-argument"
+files = { "case.ts" = "x.toString(40 as any);\n" }
+expected = []
+
+[[cases]]
+name = "plain-function"
+files = { "case.ts" = "toString(40);\n" }
+expected = []
+
+[[cases]]
+name = "other-method"
+files = { "case.ts" = "x.valueOf(40);\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line number-arg-out-of-range\nx.toString(1);\n" }
+expected = []
