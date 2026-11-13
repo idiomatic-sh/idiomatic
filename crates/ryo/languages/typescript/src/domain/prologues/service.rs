@@ -50,7 +50,7 @@ pub(crate) fn directive(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) ->
                     | Node::ArrowFunctionExpression
             )
         ),
-        Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => false,
+        Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) | Kind::Pattern(_) => false,
     };
     if !holds_prologue {
         return None;

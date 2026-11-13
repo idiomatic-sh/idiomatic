@@ -125,7 +125,7 @@ pub(in super::super) fn operator_of(tree: &Tree<'_>, holder: Position) -> Option
             Node::BinaryExpression | Node::LogicalExpression | Node::AssignmentExpression,
         ) => Operands::Binary,
         Kind::Node(Node::UnaryExpression | Node::UpdateExpression) => Operands::Unary,
-        Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => return None,
+        Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) | Kind::Pattern(_) => return None,
     };
     let children: Vec<Position> = languages::children(tree.elements, holder).collect();
     // A token before the left operand of a binary expression is a parenthesis of the operand.

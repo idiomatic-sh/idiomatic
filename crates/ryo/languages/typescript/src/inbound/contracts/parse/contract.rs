@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - the parse contract answers one method for each relation of the catalog, which the engine's trait generates from it, in the one contract.rs the contract spec places; the catalog's optional relations leave this file for the language's Semantics answers
 //! The `parse` contract: the language's implementation of `ryo::Parse`. It says which files are the language's, builds the file's
 //! tree in the worker's element table through the syntax port, notes the modules the file imports when the run asks for its notes,
 //! and answers, for every syntax relation of ryo's catalog, how the language reads it or that it is not in the language yet.
@@ -9,11 +10,12 @@ use crate::domain::relations::collections::relations::{
     call_argument::item::CallArgumentItem, comment::item::CommentItem,
     decorates::item::DecoratesItem, defines::item::DefinesItem, directive::item::DirectiveItem,
     function::item::FunctionItem, inherits::item::InheritsItem, parameter::item::ParameterItem,
-    reference::item::ReferenceItem, resolves::item::ResolvesItem, scope::item::ScopeItem,
-    static_call::item::StaticCallItem, static_import::item::StaticImportItem,
-    string_literal::item::StringLiteralItem, syntax_child::item::SyntaxChildItem,
-    syntax_error::item::SyntaxErrorItem, syntax_tree::item::SyntaxTreeItem,
-    visibility::item::VisibilityItem,
+    pattern_child::item::PatternChildItem, pattern_parse::item::PatternParseItem,
+    pattern_syntax::item::PatternSyntaxItem, reference::item::ReferenceItem,
+    resolves::item::ResolvesItem, scope::item::ScopeItem, static_call::item::StaticCallItem,
+    static_import::item::StaticImportItem, string_literal::item::StringLiteralItem,
+    syntax_child::item::SyntaxChildItem, syntax_error::item::SyntaxErrorItem,
+    syntax_tree::item::SyntaxTreeItem, visibility::item::VisibilityItem,
 };
 use std::sync::Arc;
 
@@ -107,7 +109,7 @@ impl Parse for ParseContract {
     }
 
     fn capabilities(&self) -> &'static [OptionalCapability] {
-        &[]
+        super::constants::CAPABILITIES
     }
 
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> {
@@ -396,5 +398,17 @@ impl Parse for ParseContract {
     fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
         // TypeScript module imports exist; a versioned host-library catalog is not read.
         languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_parse(&self) -> Support<Reader<languages::PatternParse, ()>> {
+        languages::reads::<PatternParseItem>()
+    }
+
+    fn pattern_syntax(&self) -> Support<Reader<languages::PatternSyntax, ()>> {
+        languages::reads::<PatternSyntaxItem>()
+    }
+
+    fn pattern_child(&self) -> Support<Reader<languages::PatternChild, ()>> {
+        languages::reads::<PatternChildItem>()
     }
 }

@@ -39,3 +39,7 @@ pub(crate) mod inherits;
 
 pub(crate) mod directive;
 pub(crate) mod visibility;
+
+pub(crate) mod pattern_child;
+pub(crate) mod pattern_parse;
+pub(crate) mod pattern_syntax;

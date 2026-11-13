@@ -285,6 +285,18 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn pattern_parse(&self) -> Support<Reader<languages::PatternParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_syntax(&self) -> Support<Reader<languages::PatternSyntax, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_child(&self) -> Support<Reader<languages::PatternChild, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }

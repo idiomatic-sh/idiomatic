@@ -46,7 +46,7 @@ pub(crate) fn field_of(tree: &Tree<'_>, at: Position) -> Field {
     let child = kind(tree, at);
     match child {
         Kind::Token(_) if operator_of(tree, holder) == Some(at) => Field::Operator,
-        Kind::Token(_) | Kind::Extra(_) => Field::None,
+        Kind::Token(_) | Kind::Extra(_) | Kind::Pattern(_) => Field::None,
         Kind::Node(Node::Decorator) => Field::Decorators,
         Kind::Node(Node::TSTypeAnnotation) if returning(node) == Returning::Returns => {
             Field::ReturnType

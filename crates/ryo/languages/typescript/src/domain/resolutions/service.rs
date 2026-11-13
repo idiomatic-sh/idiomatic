@@ -80,7 +80,7 @@ fn binds(
                     return Some(specifier);
                 }
             }
-            Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => {}
+            Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) | Kind::Pattern(_) => {}
         }
     }
     None

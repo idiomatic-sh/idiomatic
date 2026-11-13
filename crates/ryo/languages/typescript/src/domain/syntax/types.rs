@@ -6,8 +6,9 @@ use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 use ryo::languages::{ByteSlice, Bytes, Count};
 
-/// What a node or a token of a typescript syntax tree is: a node or a token of the standard, or an extra the standard lacks. The element table
-/// holds its number: the nodes first, then the tokens, then the extras, each in the order of its enum.
+/// What a node or a token of a typescript syntax tree is: a node or a token of the standard, an extra the standard lacks, or an element
+/// of a regular-expression pattern the file carries. The element table holds its number: the nodes first, then the tokens, then the
+/// extras, then the pattern elements, each in the order of its enum.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Kind {
     /// A node.
@@ -16,6 +17,8 @@ pub(crate) enum Kind {
     Token(Token),
     /// A kind the standard lacks.
     Extra(Extra),
+    /// An element of a parsed regular-expression pattern, kept under the element that carries it.
+    Pattern(PatternNode),
 }
 
 /// Whether an element is a token, a leaf, or a node.
@@ -76,4 +79,59 @@ pub(crate) enum Scripting {
     Own(Dialect),
     /// The script the blocks of the file make, in the dialect the blocks together call for.
     Script(Bytes, Dialect),
+}
+
+/// What an element of a parsed regular-expression pattern is, named as the regular-expression grammar of the language's library names
+/// it, in kebab case. One closed list, each name once.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    strum::EnumIter,
+    strum::IntoStaticStr,
+    strum::FromRepr,
+    strum::EnumCount,
+)]
+#[strum(serialize_all = "kebab-case")]
+#[repr(u16)]
+pub(crate) enum PatternNode {
+    /// The whole pattern.
+    Pattern,
+    /// Alternatives separated by `|`.
+    Disjunction,
+    /// One alternative: a sequence of terms.
+    Alternative,
+    /// `^`, `$`, `\b` or `\B`.
+    BoundaryAssertion,
+    /// `(?=…)`, `(?!…)`, `(?<=…)` or `(?<!…)`.
+    LookAroundAssertion,
+    /// A term with `*`, `+`, `?` or `{…}`.
+    Quantifier,
+    /// One character, written or escaped.
+    Character,
+    /// `.`.
+    Dot,
+    /// `\d`, `\D`, `\s`, `\S`, `\w` or `\W`.
+    CharacterClassEscape,
+    /// `\p{…}` or `\P{…}`.
+    UnicodePropertyEscape,
+    /// `[…]` or `[^…]`.
+    CharacterClass,
+    /// `a-z` inside a character class.
+    CharacterClassRange,
+    /// `\q{…}` inside a character class.
+    ClassStringDisjunction,
+    /// One string of a `\q{…}`.
+    ClassString,
+    /// `(…)` or `(?<name>…)`.
+    CapturingGroup,
+    /// `(?:…)`, with its modifiers.
+    IgnoreGroup,
+    /// `\1`.
+    IndexedReference,
+    /// `\k<name>`.
+    NamedReference,
 }

@@ -22,3 +22,11 @@ pub(crate) const UNSPECIFIED_CODE: &str = "unspecified";
 
 /// The configuration identity of a parse that takes no configuration.
 pub(crate) const NO_CONFIGURATION: &str = "";
+
+/// The property a carrier of a regular-expression pattern holds: the flags the pattern was read with, as the source states them, empty
+/// when it states none and `unknown` when it states them in a way the source does not settle.
+pub(crate) const PATTERN_FLAGS: ryo::languages::PropertyId = ryo::languages::PropertyId(6);
+/// The property a carrier holds when the library refused its pattern: the library's message.
+pub(crate) const PATTERN_ERROR: ryo::languages::PropertyId = ryo::languages::PropertyId(7);
+/// The property a pattern element holds when it stands for a number: a character's code point, a reference's group index.
+pub(crate) const PATTERN_VALUE: ryo::languages::PropertyId = ryo::languages::PropertyId(8);

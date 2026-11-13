@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - the parse contract answers one method for each relation of the catalog, which the engine's trait generates from it, in the one contract.rs the contract spec places; the catalog's optional relations leave this file for the language's Semantics answers
 //! The `parse` contract: the language's implementation of `ryo::Parse`. It says which files are the language's, builds the file's
 //! tree in the worker's element table through the syntax port, notes the modules the file imports when the run asks for its notes,
 //! and answers, for every syntax relation of ryo's catalog, how the language reads it or that it is not in the language yet.
@@ -303,6 +304,18 @@ impl Parse for ParseContract {
     }
 
     fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_parse(&self) -> Support<Reader<languages::PatternParse, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_syntax(&self) -> Support<Reader<languages::PatternSyntax, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_child(&self) -> Support<Reader<languages::PatternChild, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 

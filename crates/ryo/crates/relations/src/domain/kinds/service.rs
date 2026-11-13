@@ -7,7 +7,7 @@
 //! expansions, in its tests, allow them.
 
 /// Writes the numbering of the language's kind `$kind`, an enum whose variants are `Node($node)`, `Token($token)` and, when given,
-/// `Extra($extra)`: `kind_bits`, the number the element table holds for a kind; `kind_of`, the kind a number stands for, `$unknown` for a
+/// `Extra($extra)` and after it one further vocabulary, under the variant name the language gives it: `kind_bits`, the number the element table holds for a kind; `kind_of`, the kind a number stands for, `$unknown` for a
 /// number no kind has; `kind_name`, its name; and `kinds`, every kind in the order of their numbers. `$vis` is their visibility.
 #[macro_export]
 macro_rules! kinds {
@@ -58,6 +58,65 @@ macro_rules! kinds {
                 .map($kind::Node)
                 .chain(<$token as ::strum::IntoEnumIterator>::iter().map($kind::Token))
                 .chain(<$extra as ::strum::IntoEnumIterator>::iter().map($kind::Extra))
+        }
+    };
+    ($vis:vis $kind:ident { Node($node:ident), Token($token:ident), Extra($extra:ident), $more:ident($further:ident) $(,)? } unknown $unknown:expr) => {
+        /// The number the element table holds for a kind: the nodes first, then the tokens, then the extras, then the kinds of the
+        /// further vocabulary, which a language gives the trees of another grammar it parses under its own elements.
+        #[must_use]
+        $vis const fn kind_bits(kind: $kind) -> $crate::domain::relations::types::KindBits {
+            const NODES: u16 = <$node as ::strum::EnumCount>::COUNT as u16;
+            const EXTRAS: u16 = NODES + <$token as ::strum::EnumCount>::COUNT as u16;
+            const FURTHER: u16 = EXTRAS + <$extra as ::strum::EnumCount>::COUNT as u16;
+            $crate::domain::relations::types::KindBits(match kind {
+                $kind::Node(node) => node as u16,
+                $kind::Token(token) => NODES + token as u16,
+                $kind::Extra(extra) => EXTRAS + extra as u16,
+                $kind::$more(further) => FURTHER + further as u16,
+            })
+        }
+
+        /// The kind the number stands for; the unknown kind for a number no kind has.
+        #[must_use]
+        $vis fn kind_of(bits: $crate::domain::relations::types::KindBits) -> $kind {
+            let nodes = u16::try_from(<$node as ::strum::EnumCount>::COUNT).unwrap_or(u16::MAX);
+            let extras = nodes.saturating_add(
+                u16::try_from(<$token as ::strum::EnumCount>::COUNT).unwrap_or(u16::MAX),
+            );
+            let further = extras.saturating_add(
+                u16::try_from(<$extra as ::strum::EnumCount>::COUNT).unwrap_or(u16::MAX),
+            );
+            let number = bits.0;
+            let found = if number < nodes {
+                $node::from_repr(number).map($kind::Node)
+            } else if number < extras {
+                $token::from_repr(number - nodes).map($kind::Token)
+            } else if number < further {
+                $extra::from_repr(number - extras).map($kind::Extra)
+            } else {
+                $further::from_repr(number - further).map($kind::$more)
+            };
+            found.unwrap_or($unknown)
+        }
+
+        /// A kind's name, its vocabulary's: text that leaves the engine.
+        #[must_use]
+        $vis fn kind_name(kind: $kind) -> $crate::domain::terms::types::NameText<'static> {
+            $crate::domain::terms::types::NameText(match kind {
+                $kind::Node(node) => node.into(),
+                $kind::Token(token) => token.into(),
+                $kind::Extra(extra) => extra.into(),
+                $kind::$more(further) => further.into(),
+            })
+        }
+
+        /// Every kind, in the order of their numbers.
+        $vis fn kinds() -> impl Iterator<Item = $kind> {
+            <$node as ::strum::IntoEnumIterator>::iter()
+                .map($kind::Node)
+                .chain(<$token as ::strum::IntoEnumIterator>::iter().map($kind::Token))
+                .chain(<$extra as ::strum::IntoEnumIterator>::iter().map($kind::Extra))
+                .chain(<$further as ::strum::IntoEnumIterator>::iter().map($kind::$more))
         }
     };
     ($vis:vis $kind:ident { Node($node:ident), Token($token:ident) $(,)? } unknown $unknown:expr) => {

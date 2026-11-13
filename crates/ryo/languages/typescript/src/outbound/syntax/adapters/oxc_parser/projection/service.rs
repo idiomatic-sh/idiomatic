@@ -193,7 +193,7 @@ pub(in super::super) fn write(node: &mut Piece, builder: &mut languages::TableBu
             }
             languages::leave_node(builder, end);
         }
-        Kind::Token(_) | Kind::Extra(_) => match &node.text {
+        Kind::Token(_) | Kind::Extra(_) | Kind::Pattern(_) => match &node.text {
             Text::Source => languages::token(builder, kind_bits(node.kind), start, end),
             Text::Decoded(text) => languages::decoded_token(
                 builder,

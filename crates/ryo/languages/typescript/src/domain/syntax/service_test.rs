@@ -28,7 +28,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_kind_is_found_by_its_number_and_has_a_name"),
         word: Word::Succeeds,
         input: || Question::Every,
-        expect: Expect::Value("true 185"),
+        expect: Expect::Value("true 203"),
     },
     Case {
         name: CaseName("text_the_parser_could_not_read_is_an_error"),
