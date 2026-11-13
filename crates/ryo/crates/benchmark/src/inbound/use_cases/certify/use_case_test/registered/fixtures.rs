@@ -5,6 +5,7 @@ use ryo_benchmark_contracts::domain::measurements::types::*;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
 use ryo_benchmark_contracts::domain::requests::types::CertificationCases;
+use ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage;
 use serde_json::{Value as Document, json};
 use sha2::{Digest as _, Sha256};
 use std::{
@@ -18,6 +19,8 @@ pub(in crate::inbound::use_cases::certify::use_case_test) struct Native {
     pub(in crate::inbound::use_cases::certify::use_case_test) launches: Mutex<usize>,
     pub(in crate::inbound::use_cases::certify::use_case_test) worker: PathBuf,
     pub(in crate::inbound::use_cases::certify::use_case_test) reference: PathBuf,
+    /// The registered rule whose native verification fails, if any.
+    pub(in crate::inbound::use_cases::certify::use_case_test) failing: Mutex<Option<&'static str>>,
 }
 impl ExecutionPort for Native {
     fn profile(&self) -> ExecutionProfile {
@@ -52,8 +55,9 @@ impl ExecutionPort for Native {
             receipt,
             records.iter().map(|r| format!("{r}\n")).collect::<String>(),
         )?;
+        let failed = *self.failing.lock().unwrap() == Some(rule);
         Ok(ProcessOutput {
-            status: ProcessExitCode(0),
+            status: ProcessExitCode(i32::from(failed)),
             signal: ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
             stdout: CapturedBytes(vec![]),
             stderr: CapturedBytes(vec![]),
@@ -148,6 +152,7 @@ impl Fixture {
                 launches: Mutex::new(0),
                 worker: worker_executable,
                 reference: reference_executable,
+                failing: Mutex::new(None),
             }),
         }
     }
@@ -167,6 +172,21 @@ impl Fixture {
         measured_profile: &Path,
         selected_rules: &Path,
     ) -> Result<crate::domain::suite::types::certificate::value::Certificate, ReportsError> {
+        self.certify_as(
+            measured_profile,
+            selected_rules,
+            BenchmarkCoverage::Accounted,
+            RegisteredCoverage::Full,
+        )
+    }
+    /// Certify the measured profile under `scope`, proving the registered rules `coverage` names.
+    pub(in crate::inbound::use_cases::certify::use_case_test) fn certify_as(
+        &self,
+        measured_profile: &Path,
+        selected_rules: &Path,
+        scope: BenchmarkCoverage,
+        coverage: RegisteredCoverage,
+    ) -> Result<crate::domain::suite::types::certificate::value::Certificate, ReportsError> {
         let operation = crate::inbound::use_cases::certify::use_case::CertifyUseCaseImpl::new(
             Arc::new(crate::outbound::suite::factory::local()),
             Arc::new(crate::outbound::receipts::fixtures::fake::ReceiptsFake::default()),
@@ -183,10 +203,11 @@ impl Fixture {
             &self.worker_executable,
             selected_rules,
             &self._root.path().join("scratch"),
-            BenchmarkCoverage::Accounted,
+            scope,
             &CertificationCases::Registered {
                 registration: self.registration.clone(),
                 output: self._root.path().join("receipts"),
+                coverage,
             },
         )
     }
@@ -258,6 +279,7 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn swapped(
         &f.profile.join("rules"),
         &f.worker_executable,
         &f.reference_executable,
+        &RegisteredCoverage::Full,
     )
     .map(|context| context.paths.len())
     .map_err(|error| refusal(&f, &error, reason, 0))
@@ -331,4 +353,47 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn modules(
     f.certify()
         .map(|_| 0)
         .map_err(|error| refusal(&f, &error, reason, 0))
+}
+
+/// A profile staged from the registered one with only `rules` as its defaults, as a diagnostic run stages it.
+pub(in crate::inbound::use_cases::certify::use_case_test) fn narrowed(
+    fixture: &Fixture,
+    rules: &[&str],
+) -> PathBuf {
+    let destination = fixture._root.path().join("narrowed");
+    copy_measured_profile(fixture, &destination);
+    let manifest = std::fs::read_to_string(destination.join("benchmark.toml")).unwrap();
+    write(
+        &destination.join("benchmark.toml"),
+        &manifest.replace("defaults=['A','B']", &format!("defaults={rules:?}")),
+    );
+    for rule in ["A", "B"] {
+        if !rules.contains(&rule) {
+            std::fs::remove_dir_all(destination.join("rules").join(rule)).unwrap();
+        }
+    }
+    destination
+}
+
+/// Certify the `measured` profile under `scope` with `rules` selected from `source`, while registered rule B fails.
+pub(in crate::inbound::use_cases::certify::use_case_test) fn selected(
+    f: &Fixture,
+    measured: &Path,
+    scope: BenchmarkCoverage,
+    source: &Path,
+    rules: &[&str],
+) -> Result<crate::domain::suite::types::certificate::value::Certificate, ReportsError> {
+    *f.execution.failing.lock().unwrap() = Some("B");
+    f.certify_as(
+        measured,
+        &measured.join("rules"),
+        scope,
+        RegisteredCoverage::Selected {
+            rules: rules
+                .iter()
+                .map(|rule| ryo::linter::RuleId::try_from(*rule).unwrap())
+                .collect(),
+            source: source.to_owned(),
+        },
+    )
 }

@@ -29,8 +29,8 @@ use ryo_benchmark_contracts::domain::requests::types::{
 use ryo_benchmark_contracts::domain::workloads::types::{Project, RuleContextProfile};
 use std::sync::Arc;
 
-/// The certificate both fixture contestants hold.
-fn certificate() -> Certificate {
+/// The certificate both fixture contestants hold, covering the `covered` rules.
+fn certificate(covered: &[&str]) -> Certificate {
     let request = RunRequest {
         performance: Default::default(),
         selected_rules: CohortSelection::Frozen,
@@ -54,7 +54,10 @@ fn certificate() -> Certificate {
     Certificate {
         case_source: CertificationCases::Profile,
         coverage: Audit {
-            implemented: vec![ryo::linter::RuleId::try_from("A").expect("rule identifier")],
+            implemented: covered
+                .iter()
+                .map(|rule| ryo::linter::RuleId::try_from(*rule).expect("rule identifier"))
+                .collect(),
             missing: vec![],
         },
         paths: vec![],
@@ -94,7 +97,21 @@ pub fn with_corpus<R>(
     projects: usize,
     operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
 ) -> R {
-    let certificate = certificate();
+    with_cohort(scope, projects, &["A"], &CohortSelection::Frozen, operate)
+}
+
+/// Hand `operate` a corpus of `projects` under `scope`, certified for the `covered` rules and measuring `cohort`.
+///
+/// # Panics
+/// When a covered rule is not a valid rule identifier.
+pub fn with_cohort<R>(
+    scope: BenchmarkCoverage,
+    projects: usize,
+    covered: &[&str],
+    cohort: &CohortSelection,
+    operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
+) -> R {
+    let certificate = certificate(covered);
     let invalid_syntax = ryo::linter::RuleId::try_from("invalid-syntax").expect("rule identifier");
     let suffixes = [SourceSuffix(".fixture")];
     operate(&CorpusMeasurement {
@@ -112,7 +129,7 @@ pub fn with_corpus<R>(
         frozen_workload: std::path::Path::new("workload"),
         certificate: &certificate,
         mode: &MeasurementMode::Diagnostic,
-        cohort: &CohortSelection::Frozen,
+        cohort,
         rule_context: &RuleContextProfile::Undeclared,
         search_roots: &SearchRoots::Undeclared,
         context_mode: ProjectContextMode::Isolated,
