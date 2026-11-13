@@ -202,6 +202,9 @@ impl LanguagePort for LanguageUseCaseAdapter {
         out: &mut dyn RowWriter,
     ) -> FileReading {
         let request = parse_request(file);
+        // Branch-only (spike ryo-5cnx): the parse step writes no row; the fused evaluator asks for each relation it reads.
+        #[cfg(feature = "fused-evaluation")]
+        let _: &mut dyn RowWriter = out;
         if let SourceSelection::Named(selected) = file.source_language {
             let mut matches = self
                 .languages
@@ -225,13 +228,23 @@ impl LanguagePort for LanguageUseCaseAdapter {
             {
                 return FileReading::Manifest;
             }
-            return match language.parse.read_file_explicit(
+            // Branch-only (spike ryo-5cnx): the parse step builds the tree as `build` does, the fused evaluator walking on demand.
+            #[cfg(feature = "fused-evaluation")]
+            let read = ryo_language::inbound::use_cases::parse::service::build(
+                &*language.parse,
+                request,
+                table,
+                symbols,
+            );
+            #[cfg(not(feature = "fused-evaluation"))]
+            let read = language.parse.read_file_explicit(
                 request,
                 table,
                 symbols,
                 file.wanted,
                 out,
-            ) {
+            );
+            return match read {
                 Ok(()) => FileReading::Read(LanguageNumber(number)),
                 Err(error) => FileReading::Failed(ReadFailure(
                     format!("explicit source provider `{}`: {error}", selected.0).into(),
@@ -245,10 +258,18 @@ impl LanguagePort for LanguageUseCaseAdapter {
             {
                 continue;
             }
-            match language
+            #[cfg(feature = "fused-evaluation")]
+            let read = ryo_language::inbound::use_cases::parse::service::build(
+                &*language.parse,
+                request,
+                table,
+                symbols,
+            );
+            #[cfg(not(feature = "fused-evaluation"))]
+            let read = language
                 .parse
-                .read_file(request, table, symbols, file.wanted, out)
-            {
+                .read_file(request, table, symbols, file.wanted, out);
+            match read {
                 Ok(()) => return FileReading::Read(LanguageNumber(number)),
                 Err(ParseError::Unsupported) => {}
                 Err(other) => failure = Some(ReadFailure(other.to_string().into())),
