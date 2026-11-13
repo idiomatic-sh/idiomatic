@@ -1,9 +1,10 @@
+// ignore: idiomatic.arch/file-length - one corpus workflow read top to bottom: the cohort guard, the project loop, one project's ordered trials and the requests they send share CorpusBoundaries and CorpusMeasurement, and no placed role splits them
 //! Every project is measured in both orders and compared cold, retained and edited.
 use super::constants::{
     CANDIDATE_EDITED, CANDIDATE_FIRST, CANDIDATE_RETAINED, CLEAN_EDITED_DIRECTORY,
-    EDITED_CACHE_CONDITION, EMPTY_CACHE_CONDITION, FINDING_SEPARATOR, ONE_FINDING, PATH_SEPARATOR,
-    PREFLIGHT_DIRECTORY, REFERENCE_EDITED, REFERENCE_FIRST, REFERENCE_RETAINED,
-    RETAINED_CACHE_CONDITION, RETAINED_DIRECTORY, TRIAL_PREFIX, TRIALS,
+    COHORT_OUTSIDE_CERTIFICATE, EDITED_CACHE_CONDITION, EMPTY_CACHE_CONDITION, FINDING_SEPARATOR,
+    ONE_FINDING, PATH_SEPARATOR, PREFLIGHT_DIRECTORY, REFERENCE_EDITED, REFERENCE_FIRST,
+    REFERENCE_RETAINED, RETAINED_CACHE_CONDITION, RETAINED_DIRECTORY, TRIAL_PREFIX, TRIALS,
 };
 use super::types::{
     ComparisonName, CorpusBoundaries, CorpusMeasurement, FindingCounts, SourceProfile,
@@ -20,18 +21,24 @@ use ryo_benchmark_contracts::domain::measurements::types::{
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use ryo_benchmark_contracts::domain::requests::types::{
-    BenchmarkCoverage, ContextSeal, FileMetadataDeclaration, InputDeclaration, RunRequest,
-    StagedSources,
+    BenchmarkCoverage, CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration,
+    RunRequest, StagedSources,
 };
 use ryo_benchmark_contracts::domain::workloads::types::{ConfigurationOverride, Project};
 use std::path::{Path, PathBuf};
 
-/// Measure every project of the corpus, then publish the samples of an accounted run or say that a diagnostic one is not a metric.
+/// Refuse a cohort outside the certificate, measure every project of the corpus, then publish the samples of an accounted run or say that a diagnostic one is not a metric.
 pub(super) fn measure_corpus(
     boundaries: &CorpusBoundaries<'_>,
     corpus: &CorpusMeasurement<'_>,
     observations: &mut dyn std::io::Write,
 ) -> Result<(), Error> {
+    let covered = corpus.certificate.coverage.authored();
+    if let CohortSelection::Explicit(rules) = corpus.cohort
+        && !rules.iter().all(|rule| covered.contains(rule))
+    {
+        return Err(Error::Invalid(COHORT_OUTSIDE_CERTIFICATE.into()));
+    }
     let mut samples = Vec::new();
     let mut failures = Vec::new();
     for project in &corpus.projects {

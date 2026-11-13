@@ -97,7 +97,7 @@ fn summary(registration: &Registration, inventory: &Inventory, state: RunState) 
     }
 }
 
-/// Run every pinned rule; one failed or missing implementation never removes another row.
+/// Run every pinned rule the coverage names; one failed or missing implementation never removes another row.
 ///
 /// # Errors
 /// Refuses invalid registrations and propagates artifact persistence failures.
@@ -108,16 +108,20 @@ pub fn verify(
     receipts: &dyn ReceiptsPort,
     execution: &dyn ExecutionPort,
     store: &dyn InventoryPort,
-    _coverage: &RegisteredCoverage,
+    coverage: &RegisteredCoverage,
 ) -> Result<InventoryVerdict, Error> {
     require_authority(registration, suite, store)?;
-    let mut inventory = Inventory::new(
-        &registration
+    let mut inventory = Inventory::new(&match coverage {
+        RegisteredCoverage::Full => registration
             .defaults
             .iter()
             .map(|rule| RuleLabel(rule.0.clone()))
             .collect::<Vec<_>>(),
-    )?;
+        RegisteredCoverage::Selected { rules, .. } => rules
+            .iter()
+            .map(|rule| RuleLabel(rule.to_string()))
+            .collect(),
+    })?;
     store.begin(output)?;
     store.publish(
         output,
@@ -286,6 +290,16 @@ pub fn certify_registered(
         ));
     }
     Ok(CaseCount(
-        registration.rules.iter().map(|rule| rule.cases.len()).sum(),
+        registration
+            .rules
+            .iter()
+            .filter(|rule| match coverage {
+                RegisteredCoverage::Full => true,
+                RegisteredCoverage::Selected { rules, .. } => rules
+                    .iter()
+                    .any(|selected| selected.to_string() == rule.rule_id.0),
+            })
+            .map(|rule| rule.cases.len())
+            .sum(),
     ))
 }
