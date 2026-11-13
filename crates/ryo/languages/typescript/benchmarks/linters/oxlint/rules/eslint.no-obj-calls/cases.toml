@@ -1,0 +1,89 @@
+[[cases]]
+name = "call"
+files = { "case.ts" = "Math();\n" }
+expected = [{ file = "case.ts", start = 0, end = 6 }]
+
+[[cases]]
+name = "new"
+files = { "case.ts" = "new JSON();\n" }
+expected = [{ file = "case.ts", start = 0, end = 10 }]
+
+[[cases]]
+name = "each-object"
+files = { "case.ts" = "Atomics();\nIntl();\nReflect();\n" }
+expected = [{ file = "case.ts", start = 0, end = 9 }, { file = "case.ts", start = 11, end = 17 }, { file = "case.ts", start = 19, end = 28 }]
+
+[[cases]]
+name = "optional-call"
+files = { "case.ts" = "Math?.();\n" }
+expected = [{ file = "case.ts", start = 0, end = 8 }]
+
+[[cases]]
+name = "global-this"
+files = { "case.ts" = "globalThis.Math();\nglobalThis[\"JSON\"]();\nglobalThis[`Reflect`]();\nnew globalThis.Intl();\n" }
+expected = [{ file = "case.ts", start = 0, end = 17 }, { file = "case.ts", start = 19, end = 39 }, { file = "case.ts", start = 41, end = 64 }, { file = "case.ts", start = 66, end = 87 }]
+
+[[cases]]
+name = "const-alias"
+files = { "case.ts" = "const R = Reflect;\nR();\n" }
+expected = [{ file = "case.ts", start = 19, end = 22 }]
+
+[[cases]]
+name = "let-alias"
+files = { "case.ts" = "let L = Math;\nL();\n" }
+expected = [{ file = "case.ts", start = 14, end = 17 }]
+
+[[cases]]
+name = "alias-chain"
+files = { "case.ts" = "const A = JSON;\nconst B = A;\nnew B();\n" }
+expected = [{ file = "case.ts", start = 29, end = 36 }]
+
+[[cases]]
+name = "alias-in-function"
+files = { "case.ts" = "function f() {\n  const Z = JSON;\n  return Z();\n}\n" }
+expected = [{ file = "case.ts", start = 42, end = 45 }]
+
+[[cases]]
+name = "method"
+files = { "case.ts" = "Math.max(1, 2);\n" }
+expected = []
+
+[[cases]]
+name = "other-global"
+files = { "case.ts" = "Temporal();\nwindow.JSON();\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-callee"
+files = { "case.ts" = "(Math)();\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-alias"
+files = { "case.ts" = "const P = (Math);\nP();\n" }
+expected = []
+
+[[cases]]
+name = "cast-alias"
+files = { "case.ts" = "const C = Math as any;\nC();\n" }
+expected = []
+
+[[cases]]
+name = "shadowed"
+files = { "case.ts" = "function f(Math) {\n  Math();\n}\n" }
+expected = []
+
+[[cases]]
+name = "alias-shadowed"
+files = { "case.ts" = "const K = Math;\nfunction h(K) {\n  K();\n}\n" }
+expected = []
+
+[[cases]]
+name = "destructured-alias"
+files = { "case.ts" = "const { M } = { M: Math };\nM();\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-obj-calls\nMath();\n" }
+expected = []

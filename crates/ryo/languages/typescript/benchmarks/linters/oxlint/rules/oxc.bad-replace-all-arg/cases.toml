@@ -1,0 +1,99 @@
+[[cases]]
+name = "literal"
+files = { "case.ts" = "s.replaceAll(/a/, \"b\");\n" }
+expected = [{ file = "case.ts", start = 2, end = 12 }]
+
+[[cases]]
+name = "literal-global"
+files = { "case.ts" = "s.replaceAll(/a/g, \"b\");\ns.replaceAll(/a/gi, \"b\");\n" }
+expected = []
+
+[[cases]]
+name = "literal-other-flags"
+files = { "case.ts" = "s.replaceAll(/a/imsuy, \"b\");\n" }
+expected = [{ file = "case.ts", start = 2, end = 12 }]
+
+[[cases]]
+name = "constructor"
+files = { "case.ts" = "s.replaceAll(new RegExp(\"a\"), \"b\");\ns.replaceAll(RegExp(\"a\", \"i\"), \"b\");\n" }
+expected = [{ file = "case.ts", start = 2, end = 12 }, { file = "case.ts", start = 38, end = 48 }]
+
+[[cases]]
+name = "constructor-global"
+files = { "case.ts" = "s.replaceAll(new RegExp(\"a\", \"g\"), \"b\");\ns.replaceAll(new RegExp(\"a\", `gy`), \"b\");\n" }
+expected = []
+
+[[cases]]
+name = "constructor-flags-unknown"
+files = { "case.ts" = "s.replaceAll(new RegExp(\"a\", flags), \"b\");\ns.replaceAll(new RegExp(\"a\", \"I\"), \"b\");\n" }
+expected = []
+
+[[cases]]
+name = "constructor-template-flags"
+files = { "case.ts" = "s.replaceAll(new RegExp(\"a\", `i`), \"b\");\n" }
+expected = [{ file = "case.ts", start = 2, end = 12 }]
+
+[[cases]]
+name = "constructor-literal-pattern"
+files = { "case.ts" = "s.replaceAll(new RegExp(/a/g), \"b\");\n" }
+expected = [{ file = "case.ts", start = 2, end = 12 }]
+
+[[cases]]
+name = "constructor-on-global-object"
+files = { "case.ts" = "s.replaceAll(new globalThis.RegExp(\"a\"), \"b\");\ns.replaceAll(new window[\"RegExp\"](\"a\"), \"b\");\n" }
+expected = [{ file = "case.ts", start = 2, end = 12 }, { file = "case.ts", start = 49, end = 59 }]
+
+[[cases]]
+name = "constructor-shadowed"
+files = { "case.ts" = "function f(RegExp) {\n  s.replaceAll(new RegExp(\"a\"), \"b\");\n}\n" }
+expected = []
+
+[[cases]]
+name = "const"
+files = { "case.ts" = "const r = /a/;\ns.replaceAll(r, \"b\");\n" }
+expected = [{ file = "case.ts", start = 17, end = 27 }]
+
+[[cases]]
+name = "let"
+files = { "case.ts" = "let r = new RegExp(\"a\", \"m\");\ns.replaceAll(r, \"b\");\n" }
+expected = [{ file = "case.ts", start = 32, end = 42 }]
+
+[[cases]]
+name = "const-global"
+files = { "case.ts" = "const r = /a/g;\ns.replaceAll(r, \"b\");\n" }
+expected = []
+
+[[cases]]
+name = "alias-chain"
+files = { "case.ts" = "const r = /a/;\nconst q = r;\ns.replaceAll(q, \"b\");\n" }
+expected = [{ file = "case.ts", start = 30, end = 40 }]
+
+[[cases]]
+name = "parameter"
+files = { "case.ts" = "function f(r: RegExp) {\n  s.replaceAll(r, \"b\");\n}\n" }
+expected = []
+
+[[cases]]
+name = "computed-and-optional"
+files = { "case.ts" = "s[\"replaceAll\"](/a/, \"b\");\ns?.replaceAll(/a/, \"b\");\ns.replaceAll?.(/a/, \"b\");\n" }
+expected = [{ file = "case.ts", start = 2, end = 14 }, { file = "case.ts", start = 30, end = 40 }, { file = "case.ts", start = 54, end = 64 }]
+
+[[cases]]
+name = "parenthesized-callee"
+files = { "case.ts" = "(s.replaceAll)(/a/, \"b\");\n" }
+expected = []
+
+[[cases]]
+name = "string-pattern"
+files = { "case.ts" = "s.replaceAll(\"a\", \"b\");\n" }
+expected = []
+
+[[cases]]
+name = "other-method"
+files = { "case.ts" = "s.replace(/a/, \"b\");\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line bad-replace-all-arg\ns.replaceAll(/a/, \"b\");\n" }
+expected = []

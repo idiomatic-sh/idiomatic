@@ -1,0 +1,149 @@
+[[cases]]
+name = "object-property"
+files = { "case.ts" = "const a = { then: 1 };\n" }
+expected = [{ file = "case.ts", start = 12, end = 16 }]
+
+[[cases]]
+name = "object-method"
+files = { "case.ts" = "const a = { then() {} };\nconst b = { get then() { return 1; } };\n" }
+expected = [{ file = "case.ts", start = 12, end = 16 }, { file = "case.ts", start = 41, end = 45 }]
+
+[[cases]]
+name = "object-shorthand"
+files = { "case.ts" = "const a = { then };\n" }
+expected = [{ file = "case.ts", start = 12, end = 16 }]
+
+[[cases]]
+name = "object-quoted"
+files = { "case.ts" = "const a = { \"then\": 1 };\nconst b = { [\"then\"]: 1 };\nconst c = { [`then`]: 1 };\n" }
+expected = [{ file = "case.ts", start = 12, end = 18 }, { file = "case.ts", start = 38, end = 44 }, { file = "case.ts", start = 65, end = 71 }]
+
+[[cases]]
+name = "object-constant-key"
+files = { "case.ts" = "const k = \"then\";\nconst a = { [k]: 1 };\n" }
+expected = [{ file = "case.ts", start = 10, end = 16 }]
+
+[[cases]]
+name = "object-let-key"
+files = { "case.ts" = "let k = \"then\";\nconst a = { [k]: 1 };\n" }
+expected = [{ file = "case.ts", start = 8, end = 14 }]
+
+[[cases]]
+name = "template-or-wrapped-constant-key"
+files = { "case.ts" = "const k = `then`;\nconst j = (\"then\");\nconst a = { [k]: 1, [j]: 2 };\n" }
+expected = []
+
+[[cases]]
+name = "constant-key-each-use"
+files = { "case.ts" = "const k = \"then\";\nconst a = { [k]: 1 };\no[k] = 2;\n" }
+expected = [{ file = "case.ts", start = 10, end = 16 }, { file = "case.ts", start = 10, end = 16 }]
+
+[[cases]]
+name = "class-members"
+files = { "case.ts" = "class A {\n  then() {}\n  static then = 1;\n}\n" }
+expected = [{ file = "case.ts", start = 12, end = 16 }, { file = "case.ts", start = 31, end = 35 }]
+
+[[cases]]
+name = "class-quoted"
+files = { "case.ts" = "class A {\n  \"then\"() {}\n}\n" }
+expected = [{ file = "case.ts", start = 12, end = 18 }]
+
+[[cases]]
+name = "class-constant-key"
+files = { "case.ts" = "const k = \"then\";\nclass A {\n  [k]() {}\n}\n" }
+expected = [{ file = "case.ts", start = 10, end = 16 }]
+
+[[cases]]
+name = "member-assignment"
+files = { "case.ts" = "o.then = f;\no[\"then\"] ||= f;\no[`then`] = f;\n" }
+expected = [{ file = "case.ts", start = 0, end = 6 }, { file = "case.ts", start = 14, end = 20 }, { file = "case.ts", start = 31, end = 37 }]
+
+[[cases]]
+name = "member-assignment-wrapped"
+files = { "case.ts" = "(o.then) = f;\no!.then = f;\n" }
+expected = [{ file = "case.ts", start = 1, end = 7 }, { file = "case.ts", start = 14, end = 21 }]
+
+[[cases]]
+name = "export-declarations"
+files = { "case.ts" = "export function then() {}\n" }
+expected = [{ file = "case.ts", start = 16, end = 20 }]
+
+[[cases]]
+name = "export-class"
+files = { "case.ts" = "export class then {}\n" }
+expected = [{ file = "case.ts", start = 13, end = 17 }]
+
+[[cases]]
+name = "export-variable"
+files = { "case.ts" = "export const then = 1;\n" }
+expected = [{ file = "case.ts", start = 13, end = 17 }]
+
+[[cases]]
+name = "export-pattern"
+files = { "case.ts" = "export const { a: { then } } = o;\n" }
+expected = [{ file = "case.ts", start = 20, end = 24 }]
+
+[[cases]]
+name = "export-specifier"
+files = { "case.ts" = "const then = 1;\nexport { then };\n" }
+expected = [{ file = "case.ts", start = 25, end = 29 }]
+
+[[cases]]
+name = "export-renamed"
+files = { "case.ts" = "export { x as then } from \"m\";\nexport { y as \"then\" };\n" }
+expected = [{ file = "case.ts", start = 14, end = 18 }, { file = "case.ts", start = 45, end = 51 }]
+
+[[cases]]
+name = "define-property"
+files = { "case.ts" = "Object.defineProperty(o, \"then\", { value: 1 });\nReflect.defineProperty(o, `then`, {});\n" }
+expected = [{ file = "case.ts", start = 25, end = 31 }, { file = "case.ts", start = 74, end = 80 }]
+
+[[cases]]
+name = "define-property-constant"
+files = { "case.ts" = "const k = \"then\";\nObject.defineProperty(o, k, {});\n" }
+expected = [{ file = "case.ts", start = 10, end = 16 }]
+
+[[cases]]
+name = "from-entries"
+files = { "case.ts" = "Object.fromEntries([[\"a\", 1], [\"then\", 2]]);\n" }
+expected = [{ file = "case.ts", start = 31, end = 37 }]
+
+[[cases]]
+name = "other-names"
+files = { "case.ts" = "const a = { thenable: 1, catch() {} };\nclass B {\n  #then() {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "type-members"
+files = { "case.ts" = "interface I {\n  then(): void;\n}\ntype T = { then: number };\n" }
+expected = []
+
+[[cases]]
+name = "reads"
+files = { "case.ts" = "o.then(f);\nconst x = o?.then;\no.then++;\n" }
+expected = []
+
+[[cases]]
+name = "export-other"
+files = { "case.ts" = "export default function then() {}\nexport { then as other } from \"m\";\nexport * as then from \"m\";\n" }
+expected = []
+
+[[cases]]
+name = "define-property-short"
+files = { "case.ts" = "Object.defineProperty(o, \"then\");\nObject?.defineProperty(o, \"then\", {});\n" }
+expected = []
+
+[[cases]]
+name = "alias-chain-key"
+files = { "case.ts" = "const k = \"then\";\nconst j = k;\nconst a = { [j]: 1 };\n" }
+expected = []
+
+[[cases]]
+name = "parameter-key"
+files = { "case.ts" = "function f(k: string) {\n  return { [k]: 1 };\n}\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line unicorn/no-thenable\nconst a = { then: 1 };\n" }
+expected = []

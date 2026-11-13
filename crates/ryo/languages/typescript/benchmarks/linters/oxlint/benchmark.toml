@@ -132,17 +132,10 @@ defaults = [
 # Rules that resolve a name to its binding, not yet written: calls of builtins, shadowing, the uses of a binding, and the
 # value a `const` initializer gives (unicorn.no-thenable follows `const k = "then"` into `o[k]`).
 binding_relations = [
-  "eslint.no-new-native-nonconstructor",
-  "eslint.no-obj-calls",
   "eslint.no-unassigned-vars",
   "eslint.no-unused-vars",
-  "oxc.bad-match-all-arg",
-  "oxc.bad-replace-all-arg",
   "oxc.only-used-in-recursion",
   "typescript.no-unnecessary-parameter-property-assignment",
-  "unicorn.no-invalid-fetch-options",
-  "unicorn.no-thenable",
-  "unicorn.prefer-set-size",
 ]
 # Rules that compare numbers by value: `1`, `1.0` and `0x1` are one number (typescript.prefer-as-const compares
 # `let x: 1 = 1.0` so).
