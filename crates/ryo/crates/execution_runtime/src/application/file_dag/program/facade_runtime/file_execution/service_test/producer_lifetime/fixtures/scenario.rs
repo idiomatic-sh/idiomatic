@@ -105,10 +105,12 @@ pub(in super::super) fn exercise(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![], vec![]],
-            plans: vec![
+            plans: std::iter::IntoIterator::into_iter(vec![
                 shared_plan(ProjectionOrder::Forward, FinalConsumer::Completes),
                 shared_plan(ProjectionOrder::Reversed, final_consumer),
-            ],
+            ])
+            .map(std::sync::Arc::new)
+            .collect(),
             bindings: vec![vec![], vec![]],
         },
         &[rule(), second],

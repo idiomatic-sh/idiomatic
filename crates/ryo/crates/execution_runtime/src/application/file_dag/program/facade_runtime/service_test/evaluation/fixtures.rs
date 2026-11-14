@@ -54,7 +54,9 @@ pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],
-            plans: vec![plan(scenario)],
+            plans: std::iter::IntoIterator::into_iter(vec![plan(scenario)])
+                .map(std::sync::Arc::new)
+                .collect(),
             bindings: vec![vec![]],
         },
         &[rule()],

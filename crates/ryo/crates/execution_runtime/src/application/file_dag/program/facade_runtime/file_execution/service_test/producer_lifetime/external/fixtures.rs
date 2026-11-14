@@ -100,7 +100,7 @@ pub(super) fn prepare_case(exit: ExternalRootExit) -> Result<PreparedCase, Opera
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]; 4],
-            plans,
+            plans: plans.into_iter().map(std::sync::Arc::new).collect(),
             bindings: vec![vec![]; 4],
         },
         &rules,

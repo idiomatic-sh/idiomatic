@@ -98,7 +98,9 @@ fn admitted(
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],
-            plans: vec![source_plan],
+            plans: std::iter::IntoIterator::into_iter(vec![source_plan])
+                .map(std::sync::Arc::new)
+                .collect(),
             bindings: vec![bindings],
         },
         &[rule()],

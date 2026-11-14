@@ -1,11 +1,11 @@
 //! Finite authored pattern slots, each compiled at most once, thread-safe: a source search's slot when the program is
 //! compiled (the presence fold), every other slot when its operator first uses it.
 
-use crate::domain::patterns::types::PatternMatcher;
 use crate::domain::patterns::errors::PatternsError;
+use crate::domain::patterns::types::PatternMatcher;
 use crate::domain::table_texts::types::{RegexPattern, TextView};
-use ryo_matching::inbound::use_cases::matching::{
-    types::{CompiledRegex, CompiledTextGlobs, GlobPattern, RegexSource as AuthoredRegex},
+use ryo_matching::inbound::use_cases::matching::types::{
+    CompiledRegex, CompiledTextGlobs, GlobPattern, RegexSource as AuthoredRegex,
 };
 use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
 use ryo_values::domain::plans::types::Operation;
@@ -36,10 +36,10 @@ enum PreparedPattern {
 impl PreparedMatchers {
     /// Declare only authored literal keys from these plans, without interpreting their contents.
     #[cfg(any(test, feature = "fixtures"))]
-    pub fn new(plans: &[Plan]) -> Self {
+    pub fn new<'a>(plans: impl IntoIterator<Item = &'a Plan>) -> Self {
         Self::from_operations(
             plans
-                .iter()
+                .into_iter()
                 .flat_map(|plan| plan.steps.iter().map(|step| &step.operation)),
         )
     }
@@ -157,9 +157,13 @@ pub fn compile_regex(
         .0
         .compile_regex(AuthoredRegex(pattern.0))
         .map_err(|error| {
-            let (ryo_matching::inbound::use_cases::matching::errors::MatchingError::InvalidRegex { reason }
-            | ryo_matching::inbound::use_cases::matching::errors::MatchingError::BadGlob { reason, .. }) =
-                error;
+            let (ryo_matching::inbound::use_cases::matching::errors::MatchingError::InvalidRegex {
+                reason,
+            }
+            | ryo_matching::inbound::use_cases::matching::errors::MatchingError::BadGlob {
+                reason,
+                ..
+            }) = error;
             PatternsError::InvalidRegex { reason }
         })
 }

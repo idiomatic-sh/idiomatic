@@ -101,8 +101,7 @@ impl PreparedProgram {
     }
     pub(crate) fn matchers(
         &self,
-    ) -> &Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers>
-    {
+    ) -> &Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers> {
         &self.matchers
     }
     pub(crate) fn bindings(&self, rule: RuleIndex) -> Result<&[ParameterBinding], OperatingError> {
@@ -228,6 +227,12 @@ pub(crate) fn prepare(
         schedule,
         observations,
     } = compiled;
+    // The interpreter reads owned plans; the compiled ones are shared with the compilation cache, so it takes its own copy
+    // here, its one entry. F1 commit 6 replaces this preparation with the file pass's, which reads the shared plans.
+    let plans: Vec<ryo_values::domain::plans::types::Plan> = plans
+        .iter()
+        .map(|plan| ryo_values::domain::plans::types::Plan::clone(plan))
+        .collect();
     let mut walk = ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(
         &plans, &bindings,
     );

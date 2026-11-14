@@ -13,7 +13,7 @@ use ryo_values::domain::stores::types::{Crossing, StoredRule};
 pub(crate) fn with_producers(
     digest: &dyn DigestPort,
     mut rules: Vec<StoredRule>,
-    plans: &[ryo_values::domain::plans::types::Plan],
+    plans: &[std::sync::Arc<ryo_values::domain::plans::types::Plan>],
     schedule: &RuleSchedule,
     bindings: &[Vec<ResolvedObservationBinding>],
 ) -> Result<super::super::types::PreparedRuleIdentities, RuleCompilationError> {

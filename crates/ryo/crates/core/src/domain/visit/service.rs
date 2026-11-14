@@ -233,8 +233,11 @@ pub(crate) fn roles_of(plans: &[&Plan]) -> RoleRead {
 /// # Errors
 ///
 /// `UnknownRelation` when a plan reads a relation the catalog does not list.
-pub(crate) fn wants(plans: &[Plan], catalog: &[Relation]) -> Result<Wants, VisitError> {
-    let refs: Vec<&Plan> = plans.iter().collect();
+pub(crate) fn wants<P: std::borrow::Borrow<Plan>>(
+    plans: &[P],
+    catalog: &[Relation],
+) -> Result<Wants, VisitError> {
+    let refs: Vec<&Plan> = plans.iter().map(std::borrow::Borrow::borrow).collect();
     let wanted = wanted(&refs, catalog)?;
     let walked = walked(&wanted);
     let noted = if wanted.iter().any(|relation| {

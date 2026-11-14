@@ -20,7 +20,6 @@ use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 #[cfg(test)]
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_operators::domain::table_scratch::types::OperatorScratch;
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
     operator::types::Emit as RowSink,
@@ -29,6 +28,7 @@ use ryo_execution_domain::domain::{
 use ryo_execution_store::application::file_dag::derived::relation_owner::types::ScopePartials;
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_operators::domain::table_scratch::types::OperatorScratch;
 use ryo_relations::domain::relations::{
     service::kinds,
     types::{CellKind, FileId, Integer, Relation, Value as Cell},
@@ -150,7 +150,9 @@ pub(super) fn project_into(column: u32, sink: &mut dyn RowSink) -> Result<(), Op
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],
-            plans: vec![projected(column)],
+            plans: std::iter::IntoIterator::into_iter(vec![projected(column)])
+                .map(std::sync::Arc::new)
+                .collect(),
             bindings: vec![vec![]],
         },
         &[rule()],
@@ -277,7 +279,9 @@ pub(super) fn indexed_join(key: i64, column: u32) -> Result<Table, OperatingErro
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],
-            plans: vec![authored(steps)],
+            plans: std::iter::IntoIterator::into_iter(vec![authored(steps)])
+                .map(std::sync::Arc::new)
+                .collect(),
             bindings: vec![vec![]],
         },
         &[rule()],

@@ -43,7 +43,13 @@ fn reopen(keys: &[Generation]) -> Reopened {
         recorded.clone();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
-            plans: vec![request(&[left], &[right], &[(Side::Right, payload)])],
+            plans: std::iter::IntoIterator::into_iter(vec![request(
+                &[left],
+                &[right],
+                &[(Side::Right, payload)],
+            )])
+            .map(std::sync::Arc::new)
+            .collect(),
             bindings: vec![vec![]],
             observations: vec![vec![]],
             schedule: RuleSchedule::Independent,

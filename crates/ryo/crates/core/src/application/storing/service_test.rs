@@ -155,7 +155,7 @@ fn storing(failing: Failing) -> Storing {
 fn rerun(at: PlanAtRead) -> Result<Value, Failure> {
     let storing = storing(Failing::Nothing);
     let rules = [rule()];
-    let identify = |plan: Plan| storing.stored_rules(&rules, &[plan], &[], Digest([0; 16]), None);
+    let identify = |plan: Plan| storing.stored_rules(&rules, &[&plan], &[], Digest([0; 16]), None);
     let mut listing = storing.listing(&Answering::Findings)?;
     listing.stored = Stored {
         rules: identify(plan(PlanAtRead::Same)),

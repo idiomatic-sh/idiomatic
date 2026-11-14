@@ -18,7 +18,7 @@ use ryo_values::domain::stores::types::StoredFile;
 /// again when a manifest changed. Nothing to digest when no rule of `plans` reads what the project writes.
 pub(crate) fn resolution(
     manifests: &[ManifestFile],
-    plans: &[ryo_values::domain::plans::types::Plan],
+    plans: &[&ryo_values::domain::plans::types::Plan],
     session: &Session,
     digest: &dyn DigestPort,
 ) -> std::io::Result<Digest> {

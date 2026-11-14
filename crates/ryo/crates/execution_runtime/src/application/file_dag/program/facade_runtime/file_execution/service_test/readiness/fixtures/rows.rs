@@ -97,7 +97,7 @@ pub(crate) fn observe(omit: bool) -> Observed {
             Compiled {
                 schedule: RuleSchedule::Independent,
                 observations: vec![vec![]; 5],
-                plans,
+                plans: plans.into_iter().map(std::sync::Arc::new).collect(),
                 bindings: vec![vec![]; 5],
             },
             &rules,

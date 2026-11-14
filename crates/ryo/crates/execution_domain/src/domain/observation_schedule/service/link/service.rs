@@ -35,7 +35,7 @@ use std::collections::BTreeSet;
 /// [`RuleIntentError::InvalidReference`] when a step, output or binding a plan names does not exist, and
 /// [`RuleIntentError::TooManyOutputs`] when a pruned plan has more outputs than a `u32` numbers.
 pub fn link(
-    mut plans: Vec<Plan>,
+    mut plans: Vec<std::sync::Arc<Plan>>,
     bindings: Vec<Vec<ResolvedObservationBinding>>,
 ) -> Result<LinkedObservationPlans, RuleIntentError> {
     if bindings.iter().all(Vec::is_empty) && plans.iter().all(|plan| plan.observations.is_empty()) {
@@ -94,7 +94,12 @@ pub fn link(
     let escapes = cross_file_exports(&plans, &bindings, &wanted)?;
     let mut output_maps = Vec::with_capacity(plans.len());
     for (rule, plan) in plans.iter_mut().enumerate() {
-        output_maps.push(prune(plan, &wanted[rule], &exports[rule], &escapes[rule])?);
+        output_maps.push(prune(
+            std::sync::Arc::make_mut(plan),
+            &wanted[rule],
+            &exports[rule],
+            &escapes[rule],
+        )?);
     }
     let mut kept_bindings = Vec::new();
     for (rule, inputs) in bindings.into_iter().enumerate() {
@@ -134,7 +139,7 @@ pub fn link(
 pub(super) fn demand_bound_input(
     rule: RuleIndex,
     input: ObservationBindingId,
-    plans: &[Plan],
+    plans: &[std::sync::Arc<Plan>],
     bindings: &[Vec<ResolvedObservationBinding>],
     used: &mut [UsedInputs],
     exports: &mut [ExportedOutputs],
@@ -182,7 +187,7 @@ pub(super) fn demand_bound_input(
 
 /// A per-file producer needs an escape only when an actual cross-file step reads its bound input.
 pub(super) fn cross_file_exports(
-    plans: &[Plan],
+    plans: &[std::sync::Arc<Plan>],
     bindings: &[Vec<ResolvedObservationBinding>],
     wanted: &[WantedSteps],
 ) -> Result<Vec<EscapingOutputs>, RuleIntentError> {
@@ -216,7 +221,7 @@ pub(super) fn cross_file_exports(
 
 /// Mark the per-file outputs that one bound input reads for a cross-file step.
 pub(super) fn mark_escapes(
-    plans: &[Plan],
+    plans: &[std::sync::Arc<Plan>],
     binding: &ResolvedObservationBinding,
     escapes: &mut [EscapingOutputs],
 ) -> Result<(), RuleIntentError> {

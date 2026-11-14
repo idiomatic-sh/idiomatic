@@ -305,7 +305,7 @@ fn shared_owner() -> Result<Observed, OperatingError> {
     let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
-            plans,
+            plans: plans.into_iter().map(std::sync::Arc::new).collect(),
             bindings: vec![vec![]; 4],
             observations: vec![vec![]; 4],
             schedule: RuleSchedule::Independent,

@@ -12,13 +12,12 @@ use fixtures::execution::*;
 use fixtures::provider::*;
 use rustc_hash::FxHashMap;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
-use ryo_execution_domain::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
-use ryo_operators::domain::table_scratch::types::Memo;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_domain::domain::rule_intent::types::{
     CaptureIntent, DiagnosticDelivery, FileRuleIntent, ObservationDemand,
 };
 use ryo_execution_domain::domain::table_model::{service::materialize, types::Rows};
+use ryo_execution_domain::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
     operator::types::Emit as RowSink,
@@ -28,6 +27,7 @@ use ryo_execution_store::application::file_dag::{
     derived::relation_owner::types::ScopePartials, relations::types::ReuseEligibility,
 };
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_operators::domain::table_scratch::types::Memo;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, FileId, Integer, Value as Cell,
 };
@@ -182,7 +182,7 @@ pub(super) fn exercise_nested(single_result: bool) -> Result<Observed, Operating
     second.id = RuleId("nested-join".into());
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
-            plans: vec![outer, inner],
+            plans: vec![std::sync::Arc::new(outer), std::sync::Arc::new(inner)],
             bindings: vec![vec![], vec![]],
             observations: vec![vec![], vec![]],
             schedule: RuleSchedule::Independent,

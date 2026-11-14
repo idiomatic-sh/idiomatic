@@ -86,7 +86,7 @@ fn subject(missing: Input) -> Result<Value, Failure> {
     let compiled = Compiled {
         schedule: RuleSchedule::Independent,
         observations: vec![vec![], vec![]],
-        plans,
+        plans: plans.into_iter().map(std::sync::Arc::new).collect(),
         bindings,
     };
     let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();

@@ -1,16 +1,16 @@
 //! The `kind_check` service: free functions named by verb that find the words a plan writes for a kind and say whether any language has
 //! a kind they name, with no IO and no ports.
 
-use ryo_operators::domain::functions::service::apply;
-use ryo_operators::domain::functions::types::MadeText;
 use crate::domain::kind_check::constants::LANGUAGE_SEPARATOR;
 use crate::domain::kind_check::types::{
     AskedKind, KindMatch, KindMessage, KindOrigin, KindRefusal, LanguageList, RulePlace,
     UnknownKind,
 };
 use crate::domain::kind_sets::service::satisfies;
-use ryo_operators::domain::patterns::types::PatternMatcher;
 use ryo_operators::domain::contract::types::PredicateOutcome;
+use ryo_operators::domain::functions::service::apply;
+use ryo_operators::domain::functions::types::MadeText;
+use ryo_operators::domain::patterns::types::PatternMatcher;
 use ryo_operators::domain::table_texts::types::TextView;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindWord};
@@ -157,7 +157,8 @@ pub(crate) fn names_a_kind(
     };
     let named = vocabularies.0.iter().any(|vocabulary| {
         vocabulary.kinds.iter().any(|kind| {
-            satisfies(test, TextView(&kind.0), TextView(&asked.word.0), matcher) == PredicateOutcome::Holds
+            satisfies(test, TextView(&kind.0), TextView(&asked.word.0), matcher)
+                == PredicateOutcome::Holds
         })
     });
     if named {
@@ -183,15 +184,15 @@ pub(crate) fn languages_of(vocabularies: &KindVocabularies) -> LanguageList {
 
 /// The first word a rule writes for a kind that no linked language has a kind for.
 #[must_use]
-pub fn first_unknown(
-    plans: &[Plan],
+pub fn first_unknown<P: std::borrow::Borrow<Plan>>(
+    plans: &[P],
     bindings: &[Vec<ParameterBinding>],
     vocabularies: &KindVocabularies,
     matcher: PatternMatcher<'_>,
 ) -> Option<UnknownKind> {
     plans.iter().enumerate().find_map(|(at, plan)| {
         let bound = bindings.get(at).map_or(&[][..], Vec::as_slice);
-        kinds_asked(plan, bound)
+        kinds_asked(plan.borrow(), bound)
             .into_iter()
             .find(|asked| names_a_kind(asked, vocabularies, matcher) == KindMatch::Nothing)
             .map(|asked| UnknownKind {

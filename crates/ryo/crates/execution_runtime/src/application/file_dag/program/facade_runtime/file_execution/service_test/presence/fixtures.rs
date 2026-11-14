@@ -151,7 +151,7 @@ pub(super) fn prepare(plans: Vec<Plan>) -> Arc<PreparedProgram> {
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]; count],
-            plans,
+            plans: plans.into_iter().map(std::sync::Arc::new).collect(),
             bindings: vec![vec![]; count],
         },
         &specs,

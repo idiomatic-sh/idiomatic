@@ -48,7 +48,9 @@ pub(crate) fn source(rows: Rows<'_>) -> Result<Table, OperatingError> {
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],
-            plans: vec![plan],
+            plans: std::iter::IntoIterator::into_iter(vec![plan])
+                .map(std::sync::Arc::new)
+                .collect(),
             bindings: vec![vec![]],
         },
         &[rule()],

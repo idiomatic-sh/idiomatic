@@ -41,7 +41,7 @@ use {
 /// more than one, the answer's are the rule's id, then each heading of any rule, as many times as one rule has it, in the order the
 /// rules first name it: a rule's row fills its own and leaves the others empty, so no column of any rule is lost.
 #[must_use]
-pub(crate) fn rows_answer(plans: &[Plan], limit: RowTotal) -> RowsAnswer {
+pub(crate) fn rows_answer(plans: &[&Plan], limit: RowTotal) -> RowsAnswer {
     if let [plan] = plans {
         return RowsAnswer {
             limit,

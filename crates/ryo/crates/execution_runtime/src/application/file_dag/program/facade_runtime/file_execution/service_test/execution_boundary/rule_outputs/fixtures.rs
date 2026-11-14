@@ -75,6 +75,7 @@ pub(super) fn output_requests(
             };
             plan
         })
+        .map(std::sync::Arc::new)
         .collect();
     let rules = outputs
         .iter()

@@ -162,7 +162,7 @@ pub(crate) fn records_of<'a>(files: &[CorpusInput], kept: &'a [Record]) -> Vec<O
 /// policy is to run always.
 pub(crate) fn gating_of(
     applicability: &[ryo_values::domain::runs::types::RuleApplicability],
-    plans: &[ryo_values::domain::plans::types::Plan],
+    plans: &[&ryo_values::domain::plans::types::Plan],
 ) -> super::types::Gating {
     if applicability.len() != plans.len()
         || applicability

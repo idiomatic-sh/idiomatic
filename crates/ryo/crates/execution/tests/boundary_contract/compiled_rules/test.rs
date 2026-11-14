@@ -263,8 +263,8 @@ fn independent_compilation_preserves_unused_steps_and_original_frontier_order() 
         })
         .expect("independent compile");
     assert_eq!(
-        compiled.plans(),
-        [original.clone()],
+        compiled.plans().collect::<Vec<_>>(),
+        [&original],
         "independent preparation must not perform observation pruning/remapping"
     );
     let program = engine

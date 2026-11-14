@@ -139,7 +139,9 @@ pub(crate) fn execute(
         faults.derived.clone();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
-            plans: vec![request],
+            plans: std::iter::IntoIterator::into_iter(vec![request])
+                .map(std::sync::Arc::new)
+                .collect(),
             bindings: vec![vec![]],
             observations: vec![vec![]],
             schedule: RuleSchedule::Independent,

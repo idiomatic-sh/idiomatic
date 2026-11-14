@@ -42,7 +42,7 @@ impl MetadataUseCase for MetadataUseCaseImpl {
     }
     fn first_unknown(
         &self,
-        plans: &[Plan],
+        plans: &[&Plan],
         bindings: super::types::PlanBindings<'_>,
         vocabularies: &KindVocabularies,
         matching: &impl ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,

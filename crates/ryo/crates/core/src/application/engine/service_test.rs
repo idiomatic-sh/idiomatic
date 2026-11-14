@@ -35,7 +35,8 @@ fn subject(_: Input) -> Result<Value, Failure> {
         })
         .expect("no rules compile")
         .plans()
-        .is_empty())
+        .next()
+        .is_none())
 }
 
 #[test]

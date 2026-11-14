@@ -6,8 +6,8 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
-use ryo_operators::domain::patterns::types::PatternMatcher;
-use ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers;
+use ryo_operators::domain::patterns::errors::PatternsError;
+use ryo_operators::domain::patterns::types::{PatternMatcher, prepared::value::PreparedMatchers};
 use ryo_operators::domain::table_texts::types::TextView;
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl as QueryCompileUseCaseImpl;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
@@ -313,7 +313,7 @@ fn pattern_builds(count: usize) -> Result<Compiled, RuleCompilationError> {
     let refused = plans(&[matching(oversized)])?;
     let oversized_refused = matches!(
         refused.regex(TextView(oversized), matcher),
-        Some(Err(ryo_operators::domain::patterns::errors::PatternsError::InvalidRegex { .. }))
+        Some(Err(PatternsError::InvalidRegex { .. }))
     );
     Ok(Compiled::Matchers {
         prepared,

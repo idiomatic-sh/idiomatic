@@ -146,7 +146,7 @@ pub(super) fn prepare(bindings: Vec<Vec<ParameterBinding>>) -> Prepared {
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]; count],
-            plans: vec![binding_plan(); count],
+            plans: vec![std::sync::Arc::new(binding_plan()); count],
             bindings,
         },
         &RULE_IDS[..count]

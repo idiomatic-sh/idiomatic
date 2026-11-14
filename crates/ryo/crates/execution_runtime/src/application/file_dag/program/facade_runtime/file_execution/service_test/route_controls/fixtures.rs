@@ -136,7 +136,9 @@ pub(crate) fn run_read(
     let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
-            plans: vec![plan],
+            plans: std::iter::IntoIterator::into_iter(vec![plan])
+                .map(std::sync::Arc::new)
+                .collect(),
             bindings: vec![vec![]],
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],

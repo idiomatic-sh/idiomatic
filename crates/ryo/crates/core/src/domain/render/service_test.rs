@@ -319,9 +319,12 @@ fn answered() -> Value {
         frontier: Vec::new(),
         comparison_origins: Vec::new(),
     };
-    let one = rows_answer(&[headed(&["file", "name"])], RowTotal(5));
+    let one = rows_answer(&[&headed(&["file", "name"])], RowTotal(5));
     let many = rows_answer(
-        &[headed(&["file", "name", "span"]), headed(&["name", "name"])],
+        &[
+            &headed(&["file", "name", "span"]),
+            &headed(&["name", "name"]),
+        ],
         RowTotal(5),
     );
     let names: Vec<&str> = many.headings.iter().map(|heading| &*heading.0).collect();

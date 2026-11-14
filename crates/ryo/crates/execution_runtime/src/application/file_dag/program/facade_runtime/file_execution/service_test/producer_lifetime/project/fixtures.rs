@@ -14,9 +14,7 @@ use crate::application::file_dag::program::facade_runtime::service::ProjectFront
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution_domain::domain::{
-    completion::types::CoverageState,
-    coverage::types::Partials,
-    table_model::types::Frontier,
+    completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
 };
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
@@ -87,7 +85,7 @@ pub(super) fn prepare_case(exit: PhaseExit) -> Result<PreparedCase, OperatingErr
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]; 4],
-            plans,
+            plans: plans.into_iter().map(std::sync::Arc::new).collect(),
             bindings: vec![vec![]; 4],
         },
         &rules,

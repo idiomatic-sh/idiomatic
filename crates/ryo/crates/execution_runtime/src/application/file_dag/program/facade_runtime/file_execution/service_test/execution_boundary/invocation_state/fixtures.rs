@@ -5,7 +5,6 @@ use super::super::super::scratch_owner::fixtures::{Left, execute, hosted};
 use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_operators::domain::table_scratch::types::Memo;
 use ryo_execution_domain::domain::operator::types::Emit as RowSink;
 #[cfg(test)]
 use ryo_execution_domain::domain::operator::types::OperatorContext;
@@ -21,6 +20,7 @@ use ryo_execution_domain::domain::{
 use ryo_execution_store::application::file_dag::derived::relation_owner::types::ScopePartials;
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_operators::domain::table_scratch::types::Memo;
 use ryo_relations::domain::relations::types::{FileId, Integer, Value as Cell};
 use ryo_values::domain::hosted::types::HostKind;
 use ryo_values::domain::plan_parts::types::HostedNumber;
@@ -126,7 +126,9 @@ fn chained() -> Observed {
         Compiled {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![]],
-            plans: vec![plan],
+            plans: std::iter::IntoIterator::into_iter(vec![plan])
+                .map(std::sync::Arc::new)
+                .collect(),
             bindings: vec![vec![]],
         },
         &[rule()],
