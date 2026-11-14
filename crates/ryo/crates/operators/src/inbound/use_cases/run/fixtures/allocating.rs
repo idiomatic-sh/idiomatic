@@ -1,6 +1,7 @@
 //! The allocation rows of the kernels, measured: the blocks a file's nodes allocate once the worker's buffers are warm, which
 //! the allocation test compares for a thousand rows and a hundred thousand. Each row is a program over `Defines`: two
-//! selects sharing one index of its name, and the nodes that drop repeated rows through `hash_index`'s keyed rows.
+//! selects sharing one index of its name, the nodes that drop repeated rows through `hash_index`'s keyed rows, and the span
+//! kinds of `text_map`, which write one row per row into cells reserved once.
 
 use super::{TableInputs, TextResources, emitted};
 use crate::domain::physical_plan::fixtures::Step;
@@ -18,9 +19,10 @@ use ryo_values::domain::rows::types::{RowCount, Table};
 /// The programs of the kernels' allocation rows, each answering little or answering more for more rows.
 #[derive(Clone, Copy, Debug)]
 pub struct Kernels {
-    /// Whether each program's answer grows with the rows: the selects key on a name every fourth row has, and every row is
-    /// its own node, so no row repeats; else no row has the key, the rows repeat four rows, and only the index, the lookups
-    /// and the keyed rows of what is kept allocate.
+    /// Whether each program's answer grows with the rows: the selects key on a name every fourth row has, every row is its
+    /// own node, so no row repeats, and words are minted from every row; else no row has the key, the rows repeat four rows,
+    /// the span kinds write into cells reserved once, and only the index, the lookups and the keyed rows of what is kept
+    /// allocate.
     pub answering: bool,
 }
 
@@ -31,13 +33,15 @@ enum KernelRow {
     KeyedSelects,
     /// A union, an intersection (a probe dropping repeated answers) and a projection dropping repeats.
     RepeatsDropped,
+    /// The span kinds of `text_map`, one row per row: span-bounds and span-between of each row's span.
+    SpanKinds,
 }
 
 /// Whether every row holds for `kernels`: a file of a hundred thousand rows allocates the same blocks as a file of a
 /// thousand, each measured with buffers warm from a file of the same rows. Programs that do not run do not hold it.
 #[must_use]
 pub fn held(kernels: &Kernels) -> bool {
-    [KernelRow::KeyedSelects, KernelRow::RepeatsDropped]
+    [KernelRow::KeyedSelects, KernelRow::RepeatsDropped, KernelRow::SpanKinds]
         .into_iter()
         .all(|row| match (blocks(row, kernels, 1_000), blocks(row, kernels, 100_000)) {
             (Some(few), Some(many)) => few == many,
@@ -107,6 +111,7 @@ fn blocks(row: KernelRow, kernels: &Kernels, rows: usize) -> Option<u64> {
             }
             repeats_dropped()
         }
+        KernelRow::SpanKinds => span_kinds(kernels.answering),
     };
     let inputs = TableInputs::new(&[(Relation::Defines, &table)]);
     let emits: Vec<PlanNodeId> = (0..u32::try_from(steps.len()).unwrap_or(u32::MAX))
@@ -161,5 +166,31 @@ fn repeats_dropped() -> Vec<Step> {
             },
             inputs: vec![defines.1],
         },
+    ]
+}
+
+/// Span-bounds and span-between of each row's span; or, answering, the words of each row's name, minted one by one.
+fn span_kinds(answering: bool) -> Vec<Step> {
+    let defines = (Input::Relation(Relation::Defines), PlanInput::Relation(Relation::Defines));
+    let over = |operation: Operation| Step {
+        operation,
+        inputs: vec![defines.1],
+    };
+    if answering {
+        return vec![over(Operation::Words {
+            from: defines.0,
+            text: ColumnIndex(3),
+        })];
+    }
+    vec![
+        over(Operation::SpanBounds {
+            from: defines.0,
+            span: ColumnIndex(6),
+        }),
+        over(Operation::SpanBetween {
+            from: defines.0,
+            start: ColumnIndex(6),
+            end: ColumnIndex(6),
+        }),
     ]
 }

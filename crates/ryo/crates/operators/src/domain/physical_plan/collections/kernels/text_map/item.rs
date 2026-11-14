@@ -64,7 +64,7 @@ pub(crate) struct RowMapRun<'r> {
 }
 
 /// Runs every row of `input` through `map` into `run.output`, and answers the fault of the first row that raised one: the
-/// rows written before it stay.
+/// rows written before it stay. A kind of one row per row has its cells reserved once, not grown row by row.
 pub(crate) fn mapped(
     map: &RowMap,
     input: InputRows<'_>,
@@ -72,7 +72,11 @@ pub(crate) fn mapped(
 ) -> Result<Option<PortableOperatorFault>, PortableOperatorFault> {
     run.output.kinds = kinds_of(input).to_vec();
     run.output.kinds.extend(appended_kinds(map));
-    for row in 0..count_of(input).0 {
+    let rows = count_of(input).0;
+    if matches!(map, RowMap::SpanBounds(_) | RowMap::SpanBetween(_)) {
+        run.output.cells.reserve_exact(rows.saturating_mul(run.output.kinds.len()));
+    }
+    for row in 0..rows {
         let mut decode = std::mem::take(&mut run.scratch.other);
         let cells = row_of(input, RowIndex(row), &mut decode);
         let mapped_row = row_mapped(map, cells, run);

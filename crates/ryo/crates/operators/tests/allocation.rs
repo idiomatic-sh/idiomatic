@@ -1,8 +1,9 @@
 //! The allocation row of the kernels, proved on the programs of the run fixtures (`fixtures::allocating`): two selects keyed
-//! on one column share one index of it, and a union, an intersection and a projection drop repeated rows through
-//! `hash_index`'s keyed rows, so each allocates the same blocks for a hundred thousand rows as for a thousand once the
-//! worker's buffers are warm. A key copied out of every row fails it; programs whose answer grows with the rows do too. It
-//! runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
+//! on one column share one index of it, a union, an intersection and a projection drop repeated rows through `hash_index`'s
+//! keyed rows, and span-bounds and span-between write one row per row into cells reserved once, so each allocates the same
+//! blocks for a hundred thousand rows as for a thousand once the worker's buffers are warm. A key copied out of every row
+//! fails it; programs whose answer grows with the rows do too. It runs alone in its process, with `dhat` as the global
+//! allocator, so nothing else counts.
 
 /// Counts every allocation the test makes, so a run's allocations are read back.
 #[global_allocator]
