@@ -154,25 +154,3 @@ pub(crate) enum Triviality {
     /// It is not.
     Significant,
 }
-
-/// The value of an integer literal: every Rust integer literal a compiler accepts fits 128 bits.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct IntegerValue(pub u128);
-
-/// What a numeric literal's digits stand for.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum NumberValue {
-    /// An integer.
-    Integer(IntegerValue),
-    /// A float, as the binary64 value of its digits (an `f32` literal's value after rounding to `f32`).
-    Float(ryo::languages::FloatBits),
-}
-
-/// A numeric literal as Rust reads it: its value, and the type suffix written after its digits.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct DecodedNumber<'a> {
-    /// The value its digits stand for.
-    pub value: NumberValue,
-    /// The suffix written after the digits; none when no type is written.
-    pub suffix: Option<ryo::languages::NameText<'a>>,
-}

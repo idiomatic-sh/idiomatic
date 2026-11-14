@@ -28,6 +28,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value("integer 16"),
     },
     Case {
+        name: CaseName("a_float_its_value_gives_back_is_exact"),
+        word: Word::Succeeds,
+        input: || "const A: f64 = 0.000_1e3;",
+        expect: Expect::Value("float 0.1"),
+    },
+    Case {
+        name: CaseName("a_float_writing_more_digits_than_its_value_gives_back_is_rounded"),
+        word: Word::Succeeds,
+        input: || "const A: f64 = 0.30000000000000000001;",
+        expect: Expect::Value("float 0.3 rounded"),
+    },
+    Case {
         name: CaseName("a_string_is_no_number"),
         word: Word::Succeeds,
         input: || "const A: &str = \"16\";",
@@ -63,7 +75,10 @@ fn subject(source: Input) -> Result<Value, Failure> {
     let written = match stored(&tree, literal) {
         LiteralNumber::NotNumeric => "no number".to_owned(),
         LiteralNumber::Unread => "unread".to_owned(),
-        LiteralNumber::Known { kind, value } => format!("{} {}", kind.0, value.0),
+        LiteralNumber::Known { kind, value, exact } => match exact {
+            languages::Flag::Raised => format!("{} {}", kind.0, value.0),
+            languages::Flag::Lowered => format!("{} {} rounded", kind.0, value.0),
+        },
     };
     Ok(Box::leak(written.into_boxed_str()))
 }

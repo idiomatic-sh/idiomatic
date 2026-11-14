@@ -1,6 +1,5 @@
-// ignore: idiomatic.arch/file-length - the one schemas.rs the language spec places for this adapter, holding the library text it converts: the kind map, one arm for each of the grammar's kinds with no catch-all, and the numeric literal schema; no placed role splits them
 //! What the library gives, which the adapter does not control, and its conversion into the adapter's own types: the parser's events into
-//! steps, a numeric literal's text into its value, and the grammar's kinds into the language's own, one arm for each with no
+//! steps, a file's bytes into text, and the grammar's kinds into the language's own, one arm for each with no
 //! catch-all, so a kind the library gains stops this from compiling until it is given a kind of the language's (or `Other`) on
 //! purpose.
 
@@ -9,13 +8,13 @@ use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 use ra_ap_parser::StrStep;
 use ra_ap_syntax::SyntaxKind;
-use ryo::languages::{Count, FloatBits, NameText, Offset};
+use ryo::languages::{Count, Offset};
 
 use std::borrow::Cow;
 
-use super::constants::{BASES, F32_SUFFIX, F64_SUFFIX, INTEGER_SUFFIXES, UNREADABLE};
-use super::types::{DecodedNumber, IntegerValue, NumberValue, ParserMessage, Repaired, Step};
-use crate::domain::syntax::types::{Kind, TokenText};
+use super::constants::UNREADABLE;
+use super::types::{ParserMessage, Repaired, Step};
+use crate::domain::syntax::types::Kind;
 use crate::outbound::syntax::types::SourceText;
 
 /// One step of the parser's events.
@@ -374,132 +373,6 @@ pub(super) const fn kind_of(kind: SyntaxKind) -> Kind {
         SyntaxKind::YEET_EXPR => Kind::Node(Node::YeetExpr),
         SyntaxKind::YIELD_EXPR => Kind::Node(Node::YieldExpr),
         SyntaxKind::TOMBSTONE | SyntaxKind::EOF | SyntaxKind::__LAST => Kind::Extra(Extra::Other),
-    }
-}
-
-/// A numeric literal as the lexer gave its token: digits with a base prefix or none, `_` between them, a fraction and an exponent for a
-/// float, then a type suffix (the Rust Reference, Integer literals and Floating-point literals).
-struct NumberSchema<'a>(&'a str);
-
-/// Why a compiler refuses a numeric literal.
-#[derive(Debug)]
-enum NumberSchemaError {
-    /// A suffix that names no numeric type of the literal's base: `1.0u8`, `0b1f32`, `1f16`.
-    Suffix,
-    /// Digits with no value: one outside the base, an integer past 128 bits.
-    Digits,
-}
-
-/// The integer `digits` stand for in `radix`, each `_` skipped; none without a digit, with a digit outside the radix, or past 128 bits.
-fn integer(digits: &str, radix: u32) -> Option<IntegerValue> {
-    let mut value: u128 = 0;
-    let mut counted = false;
-    for character in digits.chars().filter(|character| *character != '_') {
-        let digit = character.to_digit(radix)?;
-        value = value
-            .checked_mul(u128::from(radix))?
-            .checked_add(u128::from(digit))?;
-        counted = true;
-    }
-    counted.then_some(IntegerValue(value))
-}
-
-/// The binary64 value of the decimal `digits`, each `_` skipped: rounded to `f32` first when the suffix is `f32`, to `f64` when it is
-/// `f64` or absent; refused for another suffix (`f16` and `f128` have no value here).
-fn float(digits: &str, suffix: &str) -> Result<FloatBits, NumberSchemaError> {
-    let text: Cow<'_, str> = if digits.contains('_') {
-        Cow::Owned(digits.replace('_', ""))
-    } else {
-        Cow::Borrowed(digits)
-    };
-    // A parse that fails is digits the lexer took that are no number of this width: they have no value.
-    if suffix == F32_SUFFIX {
-        match text.parse::<f32>() {
-            Ok(value) => Ok(FloatBits(f64::from(value).to_bits())),
-            Err(_) => Err(NumberSchemaError::Digits),
-        }
-    } else if suffix.is_empty() || suffix == F64_SUFFIX {
-        match text.parse::<f64>() {
-            Ok(value) => Ok(FloatBits(value.to_bits())),
-            Err(_) => Err(NumberSchemaError::Digits),
-        }
-    } else {
-        Err(NumberSchemaError::Suffix)
-    }
-}
-
-/// Where the decimal number at the start of `text` ends, and whether a fraction or an exponent made it a float.
-fn decimal_end(text: &str) -> (usize, bool) {
-    let bytes = text.as_bytes();
-    let digits_from = |from: usize| {
-        from + bytes
-            .get(from..)
-            .unwrap_or_default()
-            .iter()
-            .take_while(|byte| byte.is_ascii_digit() || **byte == b'_')
-            .count()
-    };
-    let mut end = digits_from(0);
-    let mut floating = false;
-    if bytes.get(end) == Some(&b'.') {
-        end = digits_from(end + 1);
-        floating = true;
-    }
-    if matches!(bytes.get(end), Some(b'e' | b'E')) {
-        let signed = end + 1 + usize::from(matches!(bytes.get(end + 1), Some(b'+' | b'-')));
-        let after = digits_from(signed);
-        if bytes
-            .get(signed..after)
-            .is_some_and(|exponent| exponent.iter().any(u8::is_ascii_digit))
-        {
-            end = after;
-            floating = true;
-        }
-    }
-    (end, floating)
-}
-
-impl<'a> TryFrom<NumberSchema<'a>> for DecodedNumber<'a> {
-    type Error = NumberSchemaError;
-
-    fn try_from(schema: NumberSchema<'a>) -> Result<Self, Self::Error> {
-        let text = schema.0;
-        let (suffix, value) = if let Some((rest, radix)) = BASES
-            .iter()
-            .find_map(|(prefix, radix)| Some((text.strip_prefix(prefix)?, *radix)))
-        {
-            let end = rest
-                .find(|character: char| character != '_' && !character.is_digit(radix.max(10)))
-                .unwrap_or(rest.len());
-            let (digits, suffix) = rest.split_at(end);
-            if !suffix.is_empty() && !INTEGER_SUFFIXES.contains(&suffix) {
-                return Err(NumberSchemaError::Suffix);
-            }
-            let value = integer(digits, radix).ok_or(NumberSchemaError::Digits)?;
-            (suffix, NumberValue::Integer(value))
-        } else {
-            let (end, floating) = decimal_end(text);
-            let (digits, suffix) = text.split_at(end);
-            let value = if !floating && (suffix.is_empty() || INTEGER_SUFFIXES.contains(&suffix)) {
-                NumberValue::Integer(integer(digits, 10).ok_or(NumberSchemaError::Digits)?)
-            } else {
-                NumberValue::Float(float(digits, suffix)?)
-            };
-            (suffix, value)
-        };
-        Ok(Self {
-            value,
-            suffix: (!suffix.is_empty()).then_some(NameText(suffix)),
-        })
-    }
-}
-
-/// What the numeric literal written as `written` stands for; none when a compiler refuses it.
-pub(super) fn number_of(written: TokenText<'_>) -> Option<DecodedNumber<'_>> {
-    // The refusal says why a compiler refuses the literal; the table holds no value for it either way.
-    match DecodedNumber::try_from(NumberSchema(written.0)) {
-        Ok(number) => Some(number),
-        Err(NumberSchemaError::Suffix | NumberSchemaError::Digits) => None,
     }
 }
 
