@@ -6,16 +6,12 @@ use super::constants::{
     UNIQUE_DECLARATION,
 };
 use super::types::{BindingIndex, BoundName, Definition, IndexState};
-use crate::domain::names::service::{
-    bindings, declaration_kind, declared, identifier, parameters, text,
-};
+use crate::domain::names::service::{bindings, declaration_kind, declared, identifier, parameters};
 use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service::enclosing;
-use crate::domain::syntax::constants::{
-    RECEIVER, REDECLARATION_OF, REFERENCE_DECLARATION, REFERENCE_FLAGS,
-};
+use crate::domain::syntax::constants::{REDECLARATION_OF, REFERENCE_DECLARATION, REFERENCE_FLAGS};
 use crate::domain::syntax::{
-    service::{kind, parent},
+    service::{kind, parameter_kind, parent},
     types::Kind,
 };
 use ryo::languages::{self, Offset, Position, Symbol, Symbols, Tree};
@@ -56,7 +52,10 @@ pub(crate) fn definitions<'a>(
         .flat_map(move |parameter| {
             bindings(tree, parameter).map(move |binding| (parameter, binding))
         })
-        .filter(move |(_, binding)| text(tree, *binding).0 != RECEIVER)
+        // A `this` parameter types the receiver and declares no name, with or without its annotation.
+        .filter(move |(parameter, _)| {
+            parameter_kind(tree, *parameter) != languages::ParameterKind::Receiver
+        })
         .map(move |(parameter, binding)| Definition {
             id: parameter,
             binding,

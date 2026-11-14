@@ -29,6 +29,11 @@ files = { "case.tsx" = "import X from \"x\";\nfunction Y() {\n  return null;\n}\
 expected = []
 
 [[cases]]
+name = "typed-this-parameter"
+files = { "case.ts" = "function f(this: Window) {}\nf();\nexport const g = function (this: Window, x: number) { return x; };\n" }
+expected = []
+
+[[cases]]
 name = "jsx-factory"
 files = { "case.tsx" = "import React from \"react\";\nimport { h } from \"preact\";\nexport const z = 1;\n" }
 expected = []
