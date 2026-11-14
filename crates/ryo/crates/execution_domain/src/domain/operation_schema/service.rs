@@ -10,7 +10,6 @@ use super::types::traversal::value::TraversalShape;
 use crate::domain::operating::{errors::OperatingError, types::InputPlace};
 use crate::domain::table_model::service::check_columns;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::plan_parts::service::parameter_in;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -95,15 +94,8 @@ pub fn schema_of(
             ));
             Ok(answer)
         }
-        Operation::Rank { column, sets, .. } => {
-            let input = first()?;
-            let ParameterBinding::TextSets(_) =
-                parameter_in(bindings, *sets).ok_or(OperatingError::Unbound)?
-            else {
-                return Err(OperatingError::WrongBinding);
-            };
-            appended(input.kinds, &[*column], CellKind::Number)
-        }
+        // What its parameter is bound to is checked at its first row, as the interpreter does: no row, no refusal.
+        Operation::Rank { column, .. } => appended(first()?.kinds, &[*column], CellKind::Number),
         Operation::Replace { text, .. } | Operation::Words { text, .. } => {
             appended(first()?.kinds, &[*text], CellKind::Symbol)
         }
@@ -157,8 +149,8 @@ pub fn schema_of(
             ..
         } => {
             let input = first()?;
-            if texts.is_empty()
-                || literals.len() != texts.len() + 1
+            // A candidate of literals alone is a candidate: the row meaning interleaves no text column.
+            if literals.len() != texts.len() + 1
                 || texts.iter().any(|text| {
                     !matches!(
                         projected(input.kinds, &[*text]),
