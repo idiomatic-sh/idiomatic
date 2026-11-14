@@ -59,6 +59,8 @@ pub(crate) const TYPESCRIPT_SYNTAX_FLAG: ryo::languages::PropertyId =
     ryo::languages::PropertyId(12);
 /// The text of a raised flag property.
 pub(crate) const RAISED_FLAG: &str = "1";
+/// The text of a lowered flag property.
+pub(crate) const LOWERED_FLAG: &str = "0";
 
 /// An expression whose children could not all be read has no class a query could compare.
 pub(crate) const SHAPES_INCOMPLETE: &str = "expression shapes require a complete syntax tree";

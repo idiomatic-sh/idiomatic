@@ -60,10 +60,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(0),
     },
     Case {
-        name: CaseName("a_file_with_only_script_blocks_is_the_script_languages"),
-        word: Word::Refuses,
+        name: CaseName("a_file_with_only_script_blocks_is_read_as_javascript"),
+        word: Word::Succeeds,
         input: || Given::Embedded("source.vue", b"<script>const a = 1;</script>"),
-        expect: Expect::Error(languages::ParseError::Unsupported),
+        expect: Expect::Value(0),
     },
     Case {
         name: CaseName("a_file_with_no_script_is_the_script_languages"),

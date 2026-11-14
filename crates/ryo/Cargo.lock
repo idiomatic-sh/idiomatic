@@ -1275,7 +1275,6 @@ dependencies = [
  "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-go",
  "idiomatic-sh-ryo-html",
- "idiomatic-sh-ryo-javascript",
  "idiomatic-sh-ryo-json",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-markdown",
@@ -1517,29 +1516,6 @@ dependencies = [
  "swc_common",
  "swc_html_ast",
  "swc_html_parser",
-]
-
-[[package]]
-name = "idiomatic-sh-ryo-javascript"
-version = "0.1.4"
-dependencies = [
- "dhat",
- "divan",
- "globset",
- "idiomatic-sh-ryo-javascript",
- "idiomatic-sh-ryo-sdk",
- "oxc_allocator",
- "oxc_ast",
- "oxc_ast_visit",
- "oxc_parser",
- "oxc_semantic",
- "oxc_span",
- "postcard",
- "serde",
- "serde_json",
- "strum",
- "thiserror 2.0.20",
- "yaml_serde",
 ]
 
 [[package]]

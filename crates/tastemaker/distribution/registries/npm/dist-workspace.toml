@@ -10,4 +10,4 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]

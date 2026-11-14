@@ -143,8 +143,7 @@ languages/<lang>/
 | language | node standard | token standard |
 |---|---|---|
 | Python | CPython `ast` | CPython `token` module |
-| JavaScript | ESTree | ECMA-262 §12 |
-| TypeScript | `@typescript-eslint/ast-spec` `AST_NODE_TYPES` | `AST_TOKEN_TYPES` |
+| TypeScript, which reads JavaScript files too | `@typescript-eslint/ast-spec` `AST_NODE_TYPES` | `AST_TOKEN_TYPES` |
 | Markdown | mdast | micromark token types |
 | HTML | the DOM's nodes | the HTML §13.2.5 tokenizer |
 | CSS | CSS Syntax Level 3 §5 | CSS Syntax Level 3 §4 |
@@ -286,7 +285,7 @@ A language that would search a file again for each element a reader is given (TO
 
 ## Per-language notes
 
-- JavaScript and TypeScript follow oxc's source-type defaults: JSX in `.js`, `.jsx` and `.tsx`, `.mjs` is a module, `.cjs` is CommonJS, `.js` is unambiguous. JSX in a `.mjs`, `.cjs`, `.ts`, `.mts` or `.cts` file is a `syntax_error` row, as oxc reports it.
+- TypeScript reads JavaScript files as it reads its own, with oxc's source type for each extension: `.mjs` is a module, `.cjs` is CommonJS, `.js` is unambiguous, and every JavaScript file reads JSX, as oxlint reads it, as `.tsx` does. JSX in a `.ts`, `.mts` or `.cts` file is a `syntax_error` row, as oxc reports it.
 
 ## Semantic syntax projections and advertised optional capabilities
 
@@ -329,7 +328,7 @@ Current availability is explicit:
 | Python | Its declared semantic, literal, binding, target, constant-key, and percent-format readers |
 | JSON, TOML | Identifier and qualified-name readers |
 | Markdown | Qualified-name reader |
-| CSS, Go, HTML, JavaScript, Rust, TypeScript | None; these optional facts remain unavailable |
+| CSS, Go, HTML, Rust, TypeScript | None; these optional facts remain unavailable |
 
 Percent-format parsing and conversion-field facts are currently advertised only by Python;
 other providers explicitly report `NotYetRead` for those two relations.

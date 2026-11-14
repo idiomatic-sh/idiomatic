@@ -11,8 +11,6 @@ pub(crate) fn linked() -> ryo::linter::Languages {
         ryo_go::linked(),
         #[cfg(feature = "html")]
         ryo_html::linked(),
-        #[cfg(feature = "javascript")]
-        ryo_javascript::linked(),
         #[cfg(feature = "json")]
         ryo_json::linked(),
         #[cfg(feature = "markdown")]

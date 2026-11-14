@@ -53,7 +53,6 @@ defines: A name a file declares or brings in, under its shared kind, with the la
   css: not in this language (no-such-construct)
   go: reads
   html: reads
-  javascript: reads
   json: not in this language (not-code)
   markdown: reads
   python: reads

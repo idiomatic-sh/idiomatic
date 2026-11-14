@@ -1,7 +1,7 @@
 # oxlint benchmark
 
 The TypeScript provider against oxlint 1.76.0, the standalone executable of the GitHub release `apps_v1.76.0`, which is built on
-`oxc_parser` 0.142.0, the parser both ryo providers link. `uv run --script tools/install.py` installs it as `oxlint`.
+`oxc_parser` 0.142.0, the parser the TypeScript provider links. `uv run --script tools/install.py` installs it as `oxlint`.
 
 `benchmark.toml` pins the 96 rules a plain run of oxlint 1.76.0 enables. Of them, 90 have a query, each in `rules/<plugin>.<rule>/`
 with its cases; the other 6 are `deferred`, each under the limitation that blocks it: a relation or column the TypeScript provider
@@ -21,7 +21,8 @@ These oxlint checks have no query and no case yet:
 - `oxc.only-used-in-recursion`: a recursive use written as JSX.
 
 The reference runs `oxlint -c <state>/oxlint.json -A all -D <plugin>/<rule>… --format json --threads 1 --disable-nested-config --
-<files>` in the corpus root over TypeScript files only (`.ts`, `.mts`, `.cts`, `.tsx`); the worker links `ryo_typescript` alone. The
+<files>` in the corpus root over TypeScript and JavaScript files (`.ts`, `.mts`, `.cts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`); the
+worker links `ryo_typescript` alone, which reads both. The
 adapter writes `{}` to `oxlint.json` in the run's state before each run, and discovery (`oxlint -c <scratch>/oxlint.json
 --debug=files --disable-nested-config .`) reads the same, so a project's own configuration is never read: vite's `oxlint.config.ts`
 needs a JavaScript runtime this standalone executable does not have.

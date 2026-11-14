@@ -328,7 +328,8 @@ pub(super) fn token_kind(kind: oxc_parser::Kind) -> Result<Token, oxc_parser::Ki
 #[path = "schemas_test.rs"]
 mod tests;
 
-/// What Oxc reads a file of `dialect` as: what it reads a file of that extension as, and a file of declarations as declarations.
+/// What Oxc reads a file of `dialect` as: what it reads a file of that extension as, a file of declarations as declarations, and
+/// every JavaScript file with JSX, as oxlint reads `.js`, `.mjs` and `.cjs` files.
 pub(super) fn source_type_of(dialect: Dialect) -> SourceType {
     let (extension, declarations) = match dialect {
         Dialect::TypeScript => (PLAIN_EXTENSION, false),
@@ -343,7 +344,12 @@ pub(super) fn source_type_of(dialect: Dialect) -> SourceType {
         Dialect::JavaScriptModule => (SCRIPT_MODULE_EXTENSION, false),
         Dialect::JavaScriptCommonJs => (SCRIPT_COMMONJS_EXTENSION, false),
     };
-    SourceType::from_extension(extension)
+    let source = SourceType::from_extension(extension)
         .unwrap_or_else(|_| SourceType::ts())
-        .with_typescript_definition(declarations)
+        .with_typescript_definition(declarations);
+    if source.is_typescript() {
+        source
+    } else {
+        source.with_jsx(true)
+    }
 }

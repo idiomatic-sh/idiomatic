@@ -7,9 +7,10 @@ use super::projection::service::{
     normalized, parameter, write,
 };
 use super::schemas::{node_kind, source_type_of, token_kind};
-use super::types::{ChildCursor, Decoded, DecodedText, Piece, Text, VisitorStack};
+use super::types::{ChildCursor, Decoded, DecodedText, NodeProperty, Piece, Text, VisitorStack};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
+use crate::domain::syntax::constants::{LOWERED_FLAG, RAISED_FLAG, TYPESCRIPT_SYNTAX_FLAG};
 use crate::domain::syntax::types::{Dialect, Kind};
 use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::interface::SyntaxPort;
@@ -225,6 +226,18 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
         let length = u32::try_from(text.0.len()).unwrap_or(u32::MAX);
         let mut root = projection.roots.remove(0);
         root.span = Span::new(0, length);
+        // Whether the file is TypeScript, as Oxc's source type says: the fact oxlint's JavaScript-only rules test.
+        root.properties.push(NodeProperty {
+            id: TYPESCRIPT_SYNTAX_FLAG,
+            value: DecodedText(
+                if source_type.is_typescript() {
+                    RAISED_FLAG
+                } else {
+                    LOWERED_FLAG
+                }
+                .to_owned(),
+            ),
+        });
         let mut leaves = Vec::new();
         for token in &parsed.tokens {
             if token.start() < token.end() {

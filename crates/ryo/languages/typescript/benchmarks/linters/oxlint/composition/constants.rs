@@ -95,8 +95,25 @@ const MTS_EXTENSION: &str = ".mts";
 const CTS_EXTENSION: &str = ".cts";
 /// TypeScript JSX source suffix.
 const TSX_EXTENSION: &str = ".tsx";
-/// The suffixes of the sources the matched input profile admits: TypeScript only, the one language the worker links.
-pub(crate) const SOURCE_SUFFIXES: [&str; 4] =
-    [TS_EXTENSION, MTS_EXTENSION, CTS_EXTENSION, TSX_EXTENSION];
+/// JavaScript source suffix.
+const JS_EXTENSION: &str = ".js";
+/// JavaScript JSX source suffix.
+const JSX_EXTENSION: &str = ".jsx";
+/// JavaScript ES module source suffix.
+const MJS_EXTENSION: &str = ".mjs";
+/// JavaScript CommonJS module source suffix.
+const CJS_EXTENSION: &str = ".cjs";
+/// The suffixes of the sources the matched input profile admits: TypeScript's and JavaScript's, both of which the one language the
+/// worker links reads.
+pub(crate) const SOURCE_SUFFIXES: [&str; 8] = [
+    TS_EXTENSION,
+    MTS_EXTENSION,
+    CTS_EXTENSION,
+    TSX_EXTENSION,
+    JS_EXTENSION,
+    JSX_EXTENSION,
+    MJS_EXTENSION,
+    CJS_EXTENSION,
+];
 /// Stable command, artifact or observation identity for rules directory.
 pub(crate) const RULES_DIRECTORY: &str = "rules";

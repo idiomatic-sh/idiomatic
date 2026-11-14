@@ -1359,26 +1359,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "idiomatic-sh-ryo-javascript"
-version = "0.1.4"
-dependencies = [
- "globset",
- "idiomatic-sh-ryo-sdk",
- "oxc_allocator",
- "oxc_ast",
- "oxc_ast_visit",
- "oxc_parser",
- "oxc_semantic",
- "oxc_span",
- "postcard",
- "serde",
- "serde_json",
- "strum",
- "thiserror 2.0.20",
- "yaml_serde",
-]
-
-[[package]]
 name = "idiomatic-sh-ryo-json"
 version = "0.1.4"
 dependencies = [
@@ -1554,7 +1534,6 @@ dependencies = [
  "idiomatic-sh-ryo-css",
  "idiomatic-sh-ryo-go",
  "idiomatic-sh-ryo-html",
- "idiomatic-sh-ryo-javascript",
  "idiomatic-sh-ryo-json",
  "idiomatic-sh-ryo-markdown",
  "idiomatic-sh-ryo-python",

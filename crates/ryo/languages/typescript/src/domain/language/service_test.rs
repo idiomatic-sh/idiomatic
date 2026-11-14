@@ -164,7 +164,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_vue_file_of_no_script_block_is_declined"),
         word: Word::Succeeds,
         input: || Scenario::Blocks("x.vue", &[]),
-        expect: Expect::Value(Answer::Blocks(false, Dialect::TypeScript)),
+        expect: Expect::Value(Answer::Blocks(false, Dialect::JavaScript)),
     },
     Case {
         name: CaseName("a_file_of_another_extension_is_plain_typescript"),
