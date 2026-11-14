@@ -128,17 +128,12 @@ defaults = [
 "typescript/oxlint/regexp-without-global" = "fragments/regexp-without-global.ryoql"
 
 # Defaults deferred, each under the limitation that blocks it: `numeric_literal` has no column saying whether a literal's
-# digits survive binary64, `pattern_parse` has no place for the parser's message, and there is no control flow relation;
-# oxlint reports the `typescript_silent` rules on no TypeScript file.
+# digits survive binary64, and there is no control flow relation; oxlint reports the `typescript_silent` rules on no TypeScript
+# file.
 [deferred]
 # Rules that ask whether a number literal's written digits survive binary64 (`9007199254740993` does not).
 numeric_literal = [
   "eslint.no-loss-of-precision",
-]
-# oxlint reports a malformed `RegExp` pattern where the parser's message points (inside the string, or an empty span in the flags);
-# `pattern-parse` holds the message and not that place.
-regular_expressions = [
-  "eslint.no-invalid-regexp",
 ]
 control_flow = [
   "eslint.constructor-super",

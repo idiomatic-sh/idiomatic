@@ -109,3 +109,19 @@ pub(crate) fn parameter_kind(tree: &Tree<'_>, at: languages::Position) -> langua
         }
     }
 }
+
+/// The offset a property of the element at `at` holds, in decimal, when it holds one.
+#[must_use]
+pub(crate) fn offset(
+    tree: &Tree<'_>,
+    at: languages::Position,
+    property: languages::PropertyId,
+) -> Option<languages::Offset> {
+    let Ok(offset) = languages::property_at(tree.elements, at, property)?
+        .0
+        .parse()
+    else {
+        return None; // the adapter writes a decimal offset: text that is none is no offset
+    };
+    Some(languages::Offset(offset))
+}

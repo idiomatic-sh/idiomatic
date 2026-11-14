@@ -25,17 +25,18 @@ macro_rules! pattern_parse {
             scope File,
             notes Unneeded,
             columns {
-                /// The source element that carries the pattern, such as a pattern literal or the string a pattern constructor takes.
+                /// The source element that carries the pattern, such as a pattern literal or the string a pattern constructor takes; or,
+                /// when a call gives flags but no pattern text, the flags it gives.
                 carrier Carrier: NodeId => Node;
                 /// The flags the pattern was parsed with, as written, or `unknown` when the source does not state them.
                 flags Flags: Symbol => Symbol;
-                /// `parsed` or `malformed`.
+                /// `parsed`, `malformed` (pattern refused) or `malformed-flags` (flags refused, pattern unread).
                 outcome Outcome: Symbol => Symbol;
-                /// The parser's message for a malformed pattern; nothing for a parsed one.
+                /// The parser's message for what it refused; nothing for a parsed pattern.
                 error Error: Symbol => Symbol;
                 /// The file it is in.
                 file File: FileId => File;
-                /// The carrier's extent.
+                /// Where the parser refused it, when it did; else the carrier's extent.
                 span Span: Span => Span;
             }
         }

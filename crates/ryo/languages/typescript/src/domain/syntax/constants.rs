@@ -47,6 +47,12 @@ pub(crate) const PATTERN_FLAGS: ryo::languages::PropertyId = ryo::languages::Pro
 pub(crate) const PATTERN_ERROR: ryo::languages::PropertyId = ryo::languages::PropertyId(7);
 /// The property a pattern element holds when it stands for a number: a character's code point, a reference's group index.
 pub(crate) const PATTERN_VALUE: ryo::languages::PropertyId = ryo::languages::PropertyId(8);
+/// The property a carrier holds, in decimal, when the library refused its pattern or its flags: where the place it points at starts.
+pub(crate) const PATTERN_ERROR_START: ryo::languages::PropertyId = ryo::languages::PropertyId(9);
+/// The property a carrier holds, in decimal, with [`PATTERN_ERROR_START`]: where that place ends.
+pub(crate) const PATTERN_ERROR_END: ryo::languages::PropertyId = ryo::languages::PropertyId(10);
+/// The property a carrier holds when the library refused the flags it was given, and so never read its pattern: the library's message.
+pub(crate) const PATTERN_FLAGS_ERROR: ryo::languages::PropertyId = ryo::languages::PropertyId(11);
 
 /// An expression whose children could not all be read has no class a query could compare.
 pub(crate) const SHAPES_INCOMPLETE: &str = "expression shapes require a complete syntax tree";
