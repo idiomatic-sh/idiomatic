@@ -4,7 +4,7 @@ use super::super::fixtures::contract::check;
 use super::item::NumericLiteralItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::fixtures::reading::{SHOWN, reading};
-use ryo::languages::contract::{Reading, want_file, want_name, want_node, want_span};
+use ryo::languages::contract::{Reading, want_file, want_flag, want_name, want_node, want_span};
 
 /// The source the item reads.
 type Input = &'static str;
@@ -24,6 +24,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     want_node(18),
                     want_name("integer"),
                     want_name("3"),
+                    want_flag(true),
                     want_file(SHOWN),
                     want_span((1, 15), (1, 16)),
                 ],
@@ -31,6 +32,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     want_node(26),
                     want_name("integer"),
                     want_name("16"),
+                    want_flag(true),
                     want_file(SHOWN),
                     want_span((1, 21), (1, 23)),
                 ],
@@ -38,6 +40,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     want_node(30),
                     want_name("integer"),
                     want_name("16"),
+                    want_flag(true),
                     want_file(SHOWN),
                     want_span((1, 25), (1, 29)),
                 ],
@@ -45,6 +48,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     want_node(34),
                     want_name("integer"),
                     want_name("16"),
+                    want_flag(true),
                     want_file(SHOWN),
                     want_span((1, 31), (1, 39)),
                 ],
@@ -61,6 +65,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 want_node(16),
                 want_name("float"),
                 want_name("1.0"),
+                want_flag(true),
                 want_file(SHOWN),
                 want_span((1, 16), (1, 22)),
             ]],
@@ -76,6 +81,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 want_node(16),
                 want_name("float"),
                 want_name("1.0"),
+                want_flag(true),
                 want_file(SHOWN),
                 want_span((1, 16), (1, 20)),
             ]],
@@ -91,6 +97,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 want_node(18),
                 want_name("integer"),
                 want_name("1"),
+                want_flag(true),
                 want_file(SHOWN),
                 want_span((1, 16), (1, 17)),
             ]],
@@ -107,6 +114,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     want_node(61),
                     want_name("integer"),
                     want_name("1"),
+                    want_flag(true),
                     want_file(SHOWN),
                     want_span((1, 35), (1, 36)),
                 ],
@@ -114,6 +122,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     want_node(65),
                     want_name("integer"),
                     want_name("9"),
+                    want_flag(true),
                     want_file(SHOWN),
                     want_span((1, 39), (1, 40)),
                 ],
