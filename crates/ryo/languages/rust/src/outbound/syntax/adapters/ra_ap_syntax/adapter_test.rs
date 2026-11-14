@@ -38,6 +38,8 @@ enum Scenario {
     Standard(&'static str, &'static str),
     /// Every file whose tree is pinned in `standard/`: the ones whose tree differs from the pinned one.
     Pinned,
+    /// Source text whose literal nodes are looked at: the numeric kind, value and suffix each holds.
+    Numbers(&'static str),
 }
 
 /// What a row of the cases is given.
@@ -142,6 +144,36 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::Origins("fn f() { a + 1; }"),
         expect: Expect::Value("all the file's"),
+    },
+    Case {
+        name: CaseName("an_integer_literal_holds_its_value_in_base_ten_and_its_suffix"),
+        word: Word::Succeeds,
+        input: || {
+            Scenario::Numbers(
+                "const A: [u64; 6] = [1_000, 0xFF_u8, 0x1f32, 0o17, 0b1010i64, 1f64];",
+            )
+        },
+        expect: Expect::Value(
+            "integer 6 -, integer 1000 -, integer 255 u8, integer 7986 -, integer 15 -, integer 10 i64, float 1.0 f64",
+        ),
+    },
+    Case {
+        name: CaseName("a_float_literal_holds_its_one_binary64_spelling"),
+        word: Word::Succeeds,
+        input: || Scenario::Numbers("const B: [f64; 4] = [2.50, 1., 1_0e-1, 0.1f32];"),
+        expect: Expect::Value(
+            "integer 4 -, float 2.5 -, float 1.0 -, float 1.0 -, float 0.10000000149011612 f32",
+        ),
+    },
+    Case {
+        name: CaseName("a_numeric_literal_a_compiler_refuses_holds_nothing"),
+        word: Word::Succeeds,
+        input: || {
+            Scenario::Numbers(
+                "const C: [u8; 4] = [0b102, 1.0u8, 0b1f32, 340282366920938463463374607431768211456];",
+            )
+        },
+        expect: Expect::Value("integer 4 -, - - -, - - -, - - -, - - -"),
     },
 ];
 
@@ -277,6 +309,23 @@ fn origins(source: &'static str) -> String {
     }
 }
 
+/// The numeric kind, value and suffix each literal node of `source` holds, `-` for one it does not.
+fn numbers(source: &'static str) -> String {
+    use crate::domain::numeric_literals::constants::{NUMERIC_KIND, NUMERIC_SUFFIX, NUMERIC_VALUE};
+    let (elements, _) = read(source);
+    positions(&elements)
+        .filter(|at| kind_at(&elements, *at) == kind_bits(Kind::Node(Node::Literal)))
+        .map(|at| {
+            [NUMERIC_KIND, NUMERIC_VALUE, NUMERIC_SUFFIX]
+                .map(|property| {
+                    ryo::languages::property_at(&elements, at, property).map_or("-", |text| text.0)
+                })
+                .join(" ")
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 fn subject(scenario: Input) -> Value {
     let shown = match scenario {
         Scenario::Functions(source) => functions(source),
@@ -291,6 +340,7 @@ fn subject(scenario: Input) -> Value {
             difference(source, dump).unwrap_or_else(|| "none".to_owned())
         }
         Scenario::Pinned => pinned_differences(),
+        Scenario::Numbers(source) => numbers(source),
     };
     // The answer is leaked: a case compares it with text that lives for the whole run.
     Box::leak(shown.into_boxed_str())

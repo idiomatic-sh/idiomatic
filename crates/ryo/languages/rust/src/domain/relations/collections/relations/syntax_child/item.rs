@@ -1,5 +1,6 @@
 //! The `syntax_child` relation of the language: every edge of the tree, ordered under its parent.
 
+use crate::domain::model::types::ReadIndexes;
 use crate::domain::syntax::service::{is_root, ordinal, parent};
 use crate::domain::syntax::types::Rootness;
 use ryo::languages;
@@ -8,7 +9,7 @@ use ryo::languages;
 pub(crate) struct SyntaxChildItem;
 
 ryo::reads! {
-    SyntaxChildItem => languages::SyntaxChild |tree, at, _symbols| {
+    SyntaxChildItem => languages::SyntaxChild, model(ReadIndexes) |tree, _model, at, _symbols| {
         kinds: every,
         require (is_root(tree, at) == Rootness::Inner);
         row {
