@@ -1,0 +1,54 @@
+[[cases]]
+name = "initialized"
+files = { "src/lib.rs" = "pub fn f() -> u8 {\n    let x: _ = 1;\n    x\n}\n" }
+expected = [{ file = "src/lib.rs", start = 23, end = 36 }]
+
+[[cases]]
+name = "uninitialized-and-wildcard"
+files = { "src/lib.rs" = "pub fn f() -> u8 {\n    let x: _;\n    x = 1;\n    let _: _ = 2;\n    let mut y : _ = 3;\n    y += x;\n    y\n}\n" }
+expected = [{ file = "src/lib.rs", start = 23, end = 32 }, { file = "src/lib.rs", start = 48, end = 61 }, { file = "src/lib.rs", start = 66, end = 84 }]
+
+[[cases]]
+name = "other-types"
+files = { "src/lib.rs" = "pub fn f() -> usize {\n    let a: (_) = 1u8;\n    let b: (_, _) = (1u8, 2u8);\n    let c: Vec<_> = vec![a, b.0, b.1];\n    let d: [_; 1] = [0u8];\n    let e = 1;\n    c.len() + d.len() + e\n}\n" }
+expected = []
+
+[[cases]]
+name = "let-else-and-nested-blocks"
+files = { "src/lib.rs" = "pub fn f(v: Option<u8>) -> u8 {\n    let Some(x): _ = v else { return 0 };\n    let c = || {\n        let y: _ = 2u8;\n        y\n    };\n    x + c()\n}\n" }
+expected = [{ file = "src/lib.rs", start = 36, end = 73 }, { file = "src/lib.rs", start = 99, end = 114 }]
+
+[[cases]]
+name = "spacing-and-comments"
+files = { "src/lib.rs" = "pub fn f() -> u8 {\n    let x /* note */ : /* note */ _ = 1;\n    let y:_=2;\n    x + y\n}\n" }
+expected = [{ file = "src/lib.rs", start = 23, end = 59 }, { file = "src/lib.rs", start = 64, end = 74 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        let x: _ = 1;\n        assert_eq!(x, 1);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 58, end = 71 }]
+
+[[cases]]
+name = "in-macros"
+files = { "src/lib.rs" = "macro_rules! unused {\n    () => {\n        let x: _ = 1;\n    };\n}\nmacro_rules! typed {\n    ($t:ty) => {{\n        let x: $t = 1;\n        x\n    }};\n}\npub fn f() -> u8 {\n    typed!(_)\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::let_with_type_underscore)]\npub fn f() -> u8 {\n    let x: _ = 1;\n    x\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::complexity)]\npub fn f() -> u8 {\n    let x: _ = 1;\n    x\n}\npub fn g() -> u8 {\n    #[allow(clippy::all)]\n    let x: _ = 1;\n    x\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::let_with_type_underscore)]\npub fn f() -> u8 {\n    let x: _ = 1;\n    x\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::complexity)]\npub fn f() -> u8 {\n    #[warn(clippy::let_with_type_underscore)]\n    let x: _ = 1;\n    x\n}\n" }
+expected = [{ file = "src/lib.rs", start = 99, end = 112 }]

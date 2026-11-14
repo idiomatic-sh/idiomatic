@@ -1,0 +1,69 @@
+[[cases]]
+name = "type-parameter"
+files = { "src/lib.rs" = "pub fn f<T: Copy>(x: T) -> T\nwhere\n    T: Clone,\n{\n    x\n}\n" }
+expected = [{ file = "src/lib.rs", start = 9, end = 10 }]
+
+[[cases]]
+name = "lifetime-parameter"
+files = { "src/lib.rs" = "pub fn f<'a: 'b, 'b>(x: &'a str, _: &'b str) -> &'a str\nwhere\n    'a: 'b,\n{\n    x\n}\n" }
+expected = [{ file = "src/lib.rs", start = 9, end = 11 }]
+
+[[cases]]
+name = "maybe-sized-and-several"
+files = { "src/lib.rs" = "pub fn f<K, Q: ?Sized, T: Copy>(k: &K, _: &Q, t: T) -> bool\nwhere\n    K: std::borrow::Borrow<Q>,\n    Q: Eq,\n    T: Send,\n    T: Sync,\n{\n    let _ = (k, t);\n    true\n}\n" }
+expected = [{ file = "src/lib.rs", start = 12, end = 13 }, { file = "src/lib.rs", start = 23, end = 24 }]
+
+[[cases]]
+name = "only-one-place"
+files = { "src/lib.rs" = "pub fn f<T: Copy, U>(x: T, _: U) -> T\nwhere\n    U: Clone,\n{\n    x\n}\npub fn g<T>(x: T) -> T\nwhere\n    T: Clone,\n{\n    x\n}\npub fn h<T: Copy>(x: T) -> T {\n    x\n}\n" }
+expected = []
+
+[[cases]]
+name = "empty-bounds-and-other-types"
+files = { "src/lib.rs" = "pub fn f<T: Copy, U: Copy>(x: T, _: U) -> T\nwhere\n    T:,\n    Vec<U>: Clone,\n    (U): Send,\n    for<'c> &'c U: Copy,\n{\n    x\n}\npub fn g<T:>(x: T) -> T\nwhere\n    T: Copy,\n{\n    x\n}\n" }
+expected = []
+
+[[cases]]
+name = "higher-ranked-with-no-bounds"
+files = { "src/lib.rs" = "pub fn f<T: Copy>(x: T) -> T\nwhere\n    for<'c> T:,\n{\n    x\n}\n" }
+expected = [{ file = "src/lib.rs", start = 9, end = 10 }]
+
+[[cases]]
+name = "methods-and-traits"
+files = { "src/lib.rs" = "pub struct S;\nimpl S {\n    pub fn m<T: Copy>(&self, x: T) -> T\n    where\n        T: Clone,\n    {\n        x\n    }\n}\npub trait Tr {\n    fn declared<T: Copy>(x: T)\n    where\n        T: Clone;\n    fn provided<T: Copy>(x: T) -> T\n    where\n        T: Clone,\n    {\n        x\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 36, end = 37 }, { file = "src/lib.rs", start = 146, end = 147 }, { file = "src/lib.rs", start = 205, end = 206 }]
+
+[[cases]]
+name = "types-are-not-checked"
+files = { "src/lib.rs" = "pub struct W<T: Copy>(T)\nwhere\n    T: Clone;\nimpl<T: Copy> W<T>\nwhere\n    T: Clone,\n{\n    pub fn get(&self) -> T {\n        self.0\n    }\n}\npub trait Tr<T: Copy>\nwhere\n    T: Clone,\n{\n}\n" }
+expected = []
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    fn helper<T: Copy>(x: T) -> T\n    where\n        T: Clone,\n    {\n        x\n    }\n    #[test]\n    fn t() {\n        assert_eq!(helper(1), 1);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 39, end = 40 }]
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! m {\n    () => {\n        pub fn f<T: Copy>(x: T) -> T\n        where\n            T: Clone,\n        {\n            x\n        }\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::multiple_bound_locations)]\npub fn f<T: Copy>(x: T) -> T\nwhere\n    T: Clone,\n{\n    x\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::style)]\npub fn f<T: Copy>(x: T) -> T\nwhere\n    T: Clone,\n{\n    x\n}\npub struct S;\n#[allow(clippy::all)]\nimpl S {\n    pub fn m<T: Copy>(x: T) -> T\n    where\n        T: Clone,\n    {\n        x\n    }\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::multiple_bound_locations)]\npub fn f<T: Copy>(x: T) -> T\nwhere\n    T: Clone,\n{\n    x\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::style)]\n#[warn(clippy::multiple_bound_locations)]\npub fn f<T: Copy>(x: T) -> T\nwhere\n    T: Clone,\n{\n    x\n}\n" }
+expected = [{ file = "src/lib.rs", start = 76, end = 77 }]
