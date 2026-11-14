@@ -139,3 +139,51 @@ fn public_skip_of_one_shared_rule_preserves_the_other_rules_reader() {
     );
     request.finish();
 }
+
+/// A file's source is asked once, for exactly the relations the request's rules read: a source that serves the functions and
+/// the comments is asked for the functions alone when the one rule selects functions.
+#[test]
+fn a_file_reads_only_the_relations_its_rules_read() {
+    use ryo_execution::inbound::use_cases::execution::interface::{
+        Arena, CaptureContext, FileRunInput, KindSupport, Partiality, SemanticSupport,
+        SourceLanguage,
+    };
+    use ryo_execution_runtime::outbound::facts::fixtures::sources::SourceFake;
+    use ryo_execution_runtime::outbound::facts::types::fact_sources::value::FactSources;
+    use ryo_relations::domain::relations::types::{Words, WorkerNumber};
+    let engine = engine();
+    let program = prepared(&engine);
+    let corpus = corpus();
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
+    let mut facts = TableFacts::new(&[]);
+    let mut source = SourceFake::serving(&[Relation::Function, Relation::Comment]);
+    let mut symbols = Symbols::default();
+    let (mut arena, mut places, mut words) = (Vec::new(), Vec::new(), Words::default());
+    let first = [ryo_values::domain::stored_facts::types::Bucket(0)];
+    let _rules = request.run_file(
+        FileRunInput {
+            language: SourceLanguage::Recognized,
+            file: FileId(0),
+            intents: &[COLLECTED],
+            source: ryo_values::domain::files::types::SourceView(b""),
+            sources: FactSources::read(&mut source, &mut []).expect("one source"),
+            active: &[],
+            said: &[],
+            recovery: ryo_execution::inbound::use_cases::metadata::interface::Recovery::Whole,
+            answering: Partiality::Physical,
+            semantic: SemanticSupport::Absent,
+            kinds: KindSupport::Absent,
+            first: &first,
+        },
+        &mut symbols,
+        CaptureContext {
+            worker: WorkerNumber(0),
+            arena: Arena(&mut arena),
+            places: &mut places,
+            words: &mut words,
+        },
+        &mut facts,
+    );
+    assert_eq!(source.reads, [vec![Relation::Function]]);
+    request.finish();
+}
