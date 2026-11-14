@@ -27,41 +27,70 @@ fn block(reachable: Flag, live: Flag, implicit_return: Flag) -> FlowBlockFact {
     }
 }
 
-/// Writes a graph of three blocks, an edge, a step and a member through `builder`, and answers the numbers the blocks were given.
+/// The edges a graph is written with, in order: every field differs between the two.
+const EDGES: [FlowEdgeFact; 2] = [
+    FlowEdgeFact {
+        source: BlockNumber(0),
+        target: BlockNumber(2),
+        kind: FlowEdgeKind::Jump,
+    },
+    FlowEdgeFact {
+        source: BlockNumber(2),
+        target: BlockNumber(1),
+        kind: FlowEdgeKind::Backedge,
+    },
+];
+
+/// The steps a graph is written with, in order: every field differs between the two.
+const STEPS: [FlowStepFact; 2] = [
+    FlowStepFact {
+        block: BlockNumber(1),
+        ordinal: StepOrdinal(1),
+        kind: FlowStepKind::Statement,
+        node: Position(0),
+    },
+    FlowStepFact {
+        block: BlockNumber(2),
+        ordinal: StepOrdinal(0),
+        kind: FlowStepKind::ReturnUndefined,
+        node: Position(3),
+    },
+];
+
+/// The members a graph is written with, in order: every field differs between the two.
+const MEMBERS: [FlowMemberFact; 2] = [
+    FlowMemberFact {
+        node: Position(3),
+        block: BlockNumber(2),
+    },
+    FlowMemberFact {
+        node: Position(0),
+        block: BlockNumber(1),
+    },
+];
+
+/// Writes a graph of three blocks, then [`EDGES`], [`STEPS`] and [`MEMBERS`] through `builder`, and answers the numbers the blocks
+/// were given.
 fn written_graph(builder: &mut TableBuilder<'_>) -> [BlockNumber; 3] {
     let numbers = [
         add_flow_block(builder, block(Flag::Raised, Flag::Raised, Flag::Lowered)),
         add_flow_block(builder, block(Flag::Lowered, Flag::Lowered, Flag::Lowered)),
         add_flow_block(builder, block(Flag::Raised, Flag::Lowered, Flag::Raised)),
     ];
-    add_flow_edge(
-        builder,
-        FlowEdgeFact {
-            source: BlockNumber(0),
-            target: BlockNumber(2),
-            kind: FlowEdgeKind::Jump,
-        },
-    );
-    add_flow_step(
-        builder,
-        FlowStepFact {
-            block: BlockNumber(1),
-            ordinal: StepOrdinal(1),
-            kind: FlowStepKind::Statement,
-            node: Position(0),
-        },
-    );
-    add_flow_member(
-        builder,
-        FlowMemberFact {
-            node: Position(0),
-            block: BlockNumber(1),
-        },
-    );
+    for edge in EDGES {
+        add_flow_edge(builder, edge);
+    }
+    for step in STEPS {
+        add_flow_step(builder, step);
+    }
+    for member in MEMBERS {
+        add_flow_member(builder, member);
+    }
     numbers
 }
 
-/// Three blocks written in turn: 1 when they are numbered 0, 1 and 2 and the graph keeps them, with the edge, step and member, as given.
+/// Three blocks written in turn: 1 when they are numbered 0, 1 and 2 and the graph keeps every fact as given, in order: each
+/// block's marks, each edge's ends and kind, each step's block, place, kind and element, and each member's element and block.
 fn blocks_are_numbered_from_zero_in_the_order_given() -> usize {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
@@ -75,9 +104,9 @@ fn blocks_are_numbered_from_zero_in_the_order_given() -> usize {
                     block(Flag::Lowered, Flag::Lowered, Flag::Lowered),
                     block(Flag::Raised, Flag::Lowered, Flag::Raised),
                 ]
-            && graph.edges.len() == 1
-            && graph.steps.len() == 1
-            && graph.members.len() == 1,
+            && graph.edges == EDGES
+            && graph.steps == STEPS
+            && graph.members == MEMBERS,
     )
 }
 

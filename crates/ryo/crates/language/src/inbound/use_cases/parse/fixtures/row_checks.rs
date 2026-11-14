@@ -6,13 +6,15 @@ use super::super::types::ParseEngine;
 use super::super::types::{ParseRequest, Recognition, SourceFile};
 use super::collect::Collect;
 use super::validators::{
-    embedded_roots_valid, filtered_projection_valid, identifier_valid, projection_preserves_native,
-    qualified_name_valid, semantic_spans_valid, shape_representatives_valid, well_formed,
+    embedded_roots_valid, empty_module_flow, filtered_projection_valid, flow_valid,
+    identifier_valid, projection_preserves_native, qualified_name_valid, semantic_spans_valid,
+    shape_representatives_valid, well_formed,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::elements::service::{end_of, positions};
 use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
+use crate::domain::flow::constants::{EDGE_WORDS, STEP_WORDS};
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest};
@@ -113,16 +115,17 @@ pub(super) fn rows(subject: &dyn ParseEngine, samples: &[SourceFile]) {
                     if matches!(*relation, Relation::Scope | Relation::IndentRegion) {
                         return count == 1;
                     }
-                    // An empty file is still one module: its control flow graph has the module's own blocks and the edges between
-                    // them, and the module's element is in one of them; it has no step.
-                    if *relation == Relation::FlowMember {
-                        return count == 1;
-                    }
-                    if *relation == Relation::FlowBlock {
-                        return count > 0;
-                    }
-                    if *relation == Relation::FlowEdge {
-                        return true;
+                    // An empty file is still one module: its control flow graph has the module's own blocks, its root element is
+                    // its one member, and control leaves only the root's block; it has no step (the count below).
+                    if matches!(
+                        *relation,
+                        Relation::FlowMember | Relation::FlowBlock | Relation::FlowEdge
+                    ) {
+                        let root = ryo_relations::domain::relations::service::node_id(
+                            FileId(0),
+                            ryo_relations::domain::relations::types::Position(0),
+                        );
+                        return empty_module_flow(&out.rows(), *relation, root.0);
                     }
                     // Compiler features describe module configuration even without source constructs.
                     if *relation == Relation::CompilerFeature {
@@ -236,6 +239,38 @@ pub(super) fn read(
         wanted,
         &mut out,
     )?;
+    if wanted.contains(&Relation::FlowBlock) {
+        let ids: Vec<u64> = positions(&elements)
+            .map(|position| {
+                ryo_relations::domain::relations::service::node_id(FileId(0), position).0
+            })
+            .collect();
+        assert!(
+            flow_valid(
+                &out.rows(),
+                |id| ids.contains(&id),
+                |relation, cell| {
+                    u32::try_from(cell)
+                        .ok()
+                        .and_then(|symbol| {
+                            crate::domain::symbols::service::text_of(
+                                &symbols,
+                                bytes,
+                                ryo_relations::domain::terms::types::Symbol(symbol),
+                            )
+                        })
+                        .is_some_and(|text| {
+                            if relation == Relation::FlowEdge {
+                                EDGE_WORDS.contains(&text.0)
+                            } else {
+                                STEP_WORDS.contains(&text.0)
+                            }
+                        })
+                }
+            ),
+            "flow rows must be of the file, name its blocks and elements, and spell their kinds in the flow relations' words"
+        );
+    }
     assert!(
         embedded_roots_valid(&elements),
         "an embedded expression root must be a node attached directly to its source carrier"
