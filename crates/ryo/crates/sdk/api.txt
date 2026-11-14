@@ -395,7 +395,6 @@ pub use ryo::languages::has_noted_words
 pub use ryo::languages::impact_name
 pub use ryo::languages::intern_derived
 pub use ryo::languages::intern_key
-pub use ryo::languages::key_class_at
 pub use ryo::languages::kind_at
 pub use ryo::languages::kinds
 pub use ryo::languages::last_at
