@@ -5,7 +5,6 @@ use crate::outbound::facts::interface::FactsWorker;
 use crate::outbound::facts::types::BucketSource;
 use crate::outbound::facts::types::ColumnsMut;
 use crate::outbound::facts::types::KeptBucket;
-use crate::outbound::facts::types::ResidentStability;
 use crate::outbound::facts::types::WordsToKeep;
 use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
 use ryo_relations::domain::relations::{
@@ -69,9 +68,6 @@ impl ProjectFacts {
 }
 
 impl FactsWorker for ProjectFacts {
-    fn resident_stability(&self) -> ResidentStability {
-        ResidentStability::Stable
-    }
     fn rows(&self, relation: Relation) -> Result<ColumnsView<'_>, FactsError> {
         assert_eq!(relation, self.relation);
         self.reads.fetch_add(1, Ordering::SeqCst);

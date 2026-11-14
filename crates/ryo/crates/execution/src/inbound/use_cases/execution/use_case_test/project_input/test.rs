@@ -20,7 +20,6 @@ use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
 use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
 use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
 use ryo_execution_runtime::outbound::facts::types::KeptBucket;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{ColumnsView, FileId, Relation};
@@ -43,9 +42,6 @@ fn denied() -> FactsError {
     }
 }
 impl FactsWorker for UnavailableFacts {
-    fn resident_stability(&self) -> ResidentStability {
-        ResidentStability::Stable
-    }
     fn rows(&self, _: Relation) -> Result<ColumnsView<'_>, FactsError> {
         let _before = self.reads.fetch_add(1, Ordering::Relaxed);
         Err(denied())

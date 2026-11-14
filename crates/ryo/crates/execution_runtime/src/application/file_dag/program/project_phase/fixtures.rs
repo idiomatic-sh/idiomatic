@@ -9,7 +9,7 @@ use crate::application::file_dag::program::project_phase::types::{
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::{FactsFinish, FactsWorker};
-use crate::outbound::facts::types::{ColumnsMut, KeptBucket, ResidentStability, WordsToKeep};
+use crate::outbound::facts::types::{ColumnsMut, KeptBucket, WordsToKeep};
 use ryo_execution_domain::domain::coverage::types::{Covered, RuleIndex};
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use ryo_language::domain::files::types::FilePath;
@@ -43,9 +43,6 @@ impl FactsFinish for NoFacts {
     }
 }
 impl FactsWorker for NoFacts {
-    fn resident_stability(&self) -> ResidentStability {
-        ResidentStability::Stable
-    }
     fn rows(
         &self,
         _: Relation,

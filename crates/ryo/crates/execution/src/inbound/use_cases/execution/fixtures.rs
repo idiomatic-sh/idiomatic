@@ -194,12 +194,6 @@ impl TableFacts {
 }
 
 impl ryo_execution_runtime::outbound::facts::interface::FactsWorker for TableFacts {
-    fn resident_stability(
-        &self,
-    ) -> ryo_execution_runtime::outbound::facts::types::ResidentStability {
-        ryo_execution_runtime::outbound::facts::types::ResidentStability::Stable
-    }
-
     fn columns_mut(
         &mut self,
     ) -> Result<

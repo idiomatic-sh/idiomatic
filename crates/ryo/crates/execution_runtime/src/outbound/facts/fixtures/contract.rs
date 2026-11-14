@@ -173,11 +173,7 @@ fn frontier_proofs_follow_their_bytes(facts: &dyn FactsPort) -> Result<Value, Fa
 fn resident_rows_survive_other_reads_and_word_flushes(
     facts: &dyn FactsPort,
 ) -> Result<Value, FactsError> {
-    use crate::outbound::facts::types::ResidentStability;
     let mut worker = facts.worker()?;
-    if worker.resident_stability() == ResidentStability::Unstable {
-        return Ok(1);
-    }
     let first = [7, 3, 2, (7_u64 << 32_u32) | 0x0b];
     let second = [1, 1, 2, (1_u64 << 32_u32) | 0x03];
     {
