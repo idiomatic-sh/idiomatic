@@ -11,7 +11,9 @@ answer yet.
 `fragments/constness.ryoql` gives the expressions whose truthiness is constant, as oxlint's `is_constant` decides it;
 `fragments/unique-bindings.ryoql` gives the one binding a reference resolves to, with its kind;
 `fragments/constant-values.ryoql` gives the value a `const`, `let` or `var` initializer gives a reference;
-`fragments/regexp-without-global.ryoql` gives the regular expressions written without the `g` flag.
+`fragments/regexp-without-global.ryoql` gives the regular expressions written without the `g` flag;
+`fragments/javascript-files.ryoql` gives the files read as JavaScript, whose `compiler-feature` `typescript.syntax` is lowered:
+the files oxlint's JavaScript-only rules run on.
 
 These oxlint checks have no query and no case yet:
 

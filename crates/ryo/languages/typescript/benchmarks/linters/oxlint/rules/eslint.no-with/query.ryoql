@@ -1,2 +1,10 @@
-let none = select id, file, span from "semantic-syntax" where kind = "program" and kind = "debugger-statement";
-emit none subject file key(id);
+import directives from "typescript/oxlint/eslint-directives";
+import javascript_files from "typescript/oxlint/javascript-files";
+let files = javascript_files();
+let broken = select file from "syntax-error";
+let keywords = select l.parent as statement, r.id as id, r.file as file, r.span as span from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "keyword" and r.text = "with";
+let statements = select l.id as id, l.file as file, l.span as span from keywords as l join "semantic-syntax" as r on l.statement = r.id where r.kind = "with-statement";
+let in_javascript = select l.id as id, l.file as file, l.span as span from statements as l join files as r on l.file = r.file;
+let candidates = antijoin(left=in_javascript, right=broken, left-on=["file"], right-on=["file"]);
+let violations = directives(candidates=candidates, names="(?:^|,)(?:[^,]*/)?no-with(?:,|$)");
+emit violations subject file key(id);
