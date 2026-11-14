@@ -1,0 +1,59 @@
+[[cases]]
+name = "shorthand-and-in"
+files = { "src/lib.rs" = "pub(self) fn a() {}\npub(in self) fn b() {}\npub fn c() {\n    a();\n    b();\n}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 9 }, { file = "src/lib.rs", start = 20, end = 32 }]
+
+[[cases]]
+name = "item-kinds"
+files = { "src/lib.rs" = "pub(self) struct S;\npub(self) enum E {}\npub(self) const C: u8 = 0;\npub(self) static T: u8 = 0;\npub(self) type A = u8;\npub(self) trait Tr {}\npub(self) mod m {}\npub(self) use std::fmt;\npub(self) union U {\n    x: u8,\n}\npub fn f() -> fmt::Result {\n    let _ = (S, C, T, 0 as A, U { x: 1 });\n    Ok(())\n}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 9 }, { file = "src/lib.rs", start = 20, end = 29 }, { file = "src/lib.rs", start = 40, end = 49 }, { file = "src/lib.rs", start = 67, end = 76 }, { file = "src/lib.rs", start = 95, end = 104 }, { file = "src/lib.rs", start = 118, end = 127 }, { file = "src/lib.rs", start = 140, end = 149 }, { file = "src/lib.rs", start = 159, end = 168 }, { file = "src/lib.rs", start = 183, end = 192 }]
+
+[[cases]]
+name = "other-restrictions"
+files = { "src/lib.rs" = "pub mod m {\n    pub(crate) fn a() {}\n    pub(super) fn b() {}\n    pub(in crate::m) fn c() {}\n    pub mod n {\n        pub(in super) fn d() {}\n        pub(in self::super) fn e() {}\n    }\n}\npub(crate) fn f() {}\npub fn g() {}\nfn h() {}\n" }
+expected = []
+
+[[cases]]
+name = "members-are-not-checked"
+files = { "src/lib.rs" = "pub struct S {\n    pub(self) a: u8,\n}\npub struct W(pub(self) u8);\nimpl S {\n    pub(self) fn m(&self) -> u8 {\n        self.a\n    }\n}\npub fn f(s: S, w: W) -> u8 {\n    s.m() + w.0\n}\n" }
+expected = []
+
+[[cases]]
+name = "nested-items-and-modules"
+files = { "src/lib.rs" = "pub mod outer {\n    pub(self) fn a() {}\n    pub fn b() {\n        pub(self) fn inner() {}\n        inner();\n        a();\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 20, end = 29 }, { file = "src/lib.rs", start = 65, end = 74 }]
+
+[[cases]]
+name = "spacing-and-module-file"
+files = { "src/lib.rs" = "pub mod a;\n", "src/a.rs" = "pub( self ) fn x() {}\npub(in  self) fn y() {}\npub fn z() {\n    x();\n    y();\n}\n" }
+expected = [{ file = "src/a.rs", start = 0, end = 11 }, { file = "src/a.rs", start = 22, end = 35 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    pub(self) fn helper() {}\n    #[test]\n    fn t() {\n        helper();\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 38 }]
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! unused {\n    () => {\n        pub(self) fn b() {}\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::needless_pub_self)]\npub(self) fn a() {}\npub fn c() {\n    a();\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::style)]\npub(self) fn a() {}\n#[allow(clippy::all)]\nmod m {\n    pub(self) fn b() {}\n    pub fn c() {\n        b();\n    }\n}\npub fn d() {\n    a();\n    m::c();\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::needless_pub_self)]\npub(self) fn a() {}\npub fn c() {\n    a();\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::style)]\n#[warn(clippy::needless_pub_self)]\npub(self) fn a() {}\npub fn c() {\n    a();\n}\n" }
+expected = [{ file = "src/lib.rs", start = 60, end = 69 }]

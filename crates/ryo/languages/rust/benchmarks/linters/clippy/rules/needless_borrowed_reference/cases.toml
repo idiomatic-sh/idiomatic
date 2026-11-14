@@ -1,0 +1,59 @@
+[[cases]]
+name = "reference-to-ref-binding"
+files = { "src/lib.rs" = "pub fn f(v: &Option<String>) -> usize {\n    let &ref x = v;\n    match v {\n        &Some(ref s) => s.len() + x.as_ref().map_or(0, String::len),\n        &None => 0,\n    }\n}\npub fn g(v: &[String]) -> usize {\n    v.iter().map(|&ref s| s.len()).sum()\n}\n" }
+expected = [{ file = "src/lib.rs", start = 48, end = 54 }, { file = "src/lib.rs", start = 82, end = 94 }, { file = "src/lib.rs", start = 223, end = 229 }]
+
+[[cases]]
+name = "tuple-and-struct"
+files = { "src/lib.rs" = "pub struct P {\n    pub a: String,\n    pub b: String,\n}\npub struct W(pub String, pub String);\npub fn f(t: &(String, String), p: &P, w: &W) -> usize {\n    let &(ref a, ref b) = t;\n    let &(_, ref c) = t;\n    let n = match p {\n        &P { ref a, b: ref b2 } => a.len() + b2.len(),\n    };\n    let &P { a: ref a3, .. } = p;\n    let &W(ref w1, _) = w;\n    a.len() + b.len() + c.len() + n + a3.len() + w1.len()\n}\n" }
+expected = [{ file = "src/lib.rs", start = 157, end = 172 }, { file = "src/lib.rs", start = 186, end = 197 }, { file = "src/lib.rs", start = 233, end = 256 }, { file = "src/lib.rs", start = 295, end = 315 }, { file = "src/lib.rs", start = 329, end = 342 }]
+
+[[cases]]
+name = "slices"
+files = { "src/lib.rs" = "pub fn f(v: &[String; 3], s: &[String]) -> usize {\n    let &[ref a, ref b, _] = v;\n    let n = match s {\n        &[ref x, .., ref y] => x.len() + y.len(),\n        &[ref x, ref rest @ ..] => x.len() + rest.len(),\n        &[] => 0,\n    };\n    a.len() + b.len() + n\n}\n" }
+expected = [{ file = "src/lib.rs", start = 59, end = 77 }, { file = "src/lib.rs", start = 113, end = 132 }]
+
+[[cases]]
+name = "not-needless"
+files = { "src/lib.rs" = "pub struct P {\n    pub a: String,\n    pub b: u8,\n}\npub fn f(t: &(String, u8), p: &P, m: &mut String, v: &[u8]) -> usize {\n    let &(ref a, b) = t;\n    let &P { a: ref a2, b: b2 } = p;\n    let &mut ref mut x = m;\n    let &(_, _) = t;\n    let &[_, ..] = v else { return 0 };\n    let &ref y @ _ = v;\n    a.len() + usize::from(b) + a2.len() + usize::from(b2) + x.len() + y.len()\n}\npub fn g(t: &mut (String, String)) -> usize {\n    let &mut (ref mut a, ref b) = t;\n    a.len() + b.len()\n}\n" }
+expected = []
+
+[[cases]]
+name = "or-patterns-and-loops"
+files = { "src/lib.rs" = "pub enum E {\n    A(String),\n    B(String),\n}\npub fn f(v: &E, pairs: &[(u8, String)]) -> usize {\n    let n = match v {\n        &E::A(ref s) | &E::B(ref s) => s.len(),\n    };\n    let m = match Some(v) {\n        Some(&E::A(ref s) | &E::B(ref s)) => s.len(),\n        None => 0,\n    };\n    let mut k = 0;\n    for &(_, ref s) in pairs {\n        k += s.len();\n    }\n    if let Some(&(_, ref s)) = pairs.first() {\n        k += s.len();\n    }\n    n + m + k\n}\n" }
+expected = [{ file = "src/lib.rs", start = 308, end = 319 }, { file = "src/lib.rs", start = 375, end = 386 }]
+
+[[cases]]
+name = "parenthesized"
+files = { "src/lib.rs" = "pub fn f(v: &String, t: &(String, String)) -> usize {\n    let &(ref x) = v;\n    let &((ref a), (ref b)) = t;\n    let (&ref y) = v;\n    x.len() + a.len() + b.len() + y.len()\n}\n" }
+expected = [{ file = "src/lib.rs", start = 62, end = 70 }, { file = "src/lib.rs", start = 84, end = 103 }, { file = "src/lib.rs", start = 118, end = 124 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        let v = String::new();\n        let &ref x = &v;\n        assert!(x.is_empty());\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 93, end = 99 }]
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! m {\n    ($v:expr) => {\n        let &ref x = $v;\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::needless_borrowed_reference)]\npub fn f(v: &String) -> usize {\n    let &ref x = v;\n    x.len()\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::complexity)]\npub fn f(v: &String) -> usize {\n    let &ref x = v;\n    x.len()\n}\npub fn g(v: &String) -> usize {\n    #[allow(clippy::all)]\n    let &ref x = v;\n    x.len()\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::needless_borrowed_reference)]\npub fn f(v: &String) -> usize {\n    let &ref x = v;\n    x.len()\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::complexity)]\npub fn f(v: &String) -> usize {\n    #[warn(clippy::needless_borrowed_reference)]\n    let &ref x = v;\n    x.len()\n}\n" }
+expected = [{ file = "src/lib.rs", start = 119, end = 125 }]

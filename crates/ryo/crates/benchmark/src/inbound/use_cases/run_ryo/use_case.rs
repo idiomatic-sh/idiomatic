@@ -35,9 +35,6 @@ impl RunRyoUseCase for RunRyoUseCaseImpl {
     fn run_ryo(&self) -> Result<(), Error> {
         let request = self.worker.receive()?;
         let prepared = crate::application::worker_request::service::prepare(request)?;
-        if let ContextSeal::Sealed(manifest) = &prepared.request.context_manifest {
-            self.context.validate(manifest, &prepared.request.root)?;
-        }
         let session = self.engine.load(&prepared.request)?;
         let configured =
             crate::application::worker_request::service::configure(&prepared.request, session)?;

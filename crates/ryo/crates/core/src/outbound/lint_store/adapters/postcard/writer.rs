@@ -2,9 +2,8 @@
 
 use crate::outbound::lint_store::adapters::postcard::connection::BUFFER_BYTES;
 use crate::outbound::lint_store::adapters::postcard::connection::BucketReader;
-#[cfg(unix)]
-use crate::outbound::lint_store::adapters::postcard::connection::PositionalReader;
 use crate::outbound::lint_store::adapters::postcard::connection::StagingConnection;
+use crate::outbound::lint_store::adapters::postcard::connection::StoreFile;
 use crate::outbound::lint_store::adapters::postcard::connection::copy_buffered;
 use crate::outbound::lint_store::adapters::postcard::connection::invalid;
 use crate::outbound::lint_store::adapters::postcard::connection::seek_buffered;
@@ -56,11 +55,11 @@ use std::io::Write;
 
 /// Parse original rows for the unchanged persistent bucket-copy path.
 pub(super) fn old_rows(
-    file: &mut std::fs::File,
+    file: &StoreFile,
     span: SectionSpan,
 ) -> std::io::Result<Vec<Frame<'static>>> {
-    let held = SectionLength(file.metadata()?.len());
-    old_rows_in(file, span, held)
+    let held = file.held()?;
+    old_rows_in(&mut file.at(FileOffset(0)), span, held)
 }
 
 /// The prior frame view remains byte-compatible for writers and their work tests.
@@ -79,12 +78,9 @@ pub(super) fn old_rows_in(
 }
 
 /// Enumerate header descriptors using bounded read-ahead, never a whole bucket allocation.
-pub(super) fn old_word_rows(
-    file: &mut std::fs::File,
-    span: SectionSpan,
-) -> std::io::Result<Vec<OldFrame>> {
-    let held = SectionLength(file.metadata()?.len());
-    old_word_rows_in(file, span, held)
+pub(super) fn old_word_rows(file: &StoreFile, span: SectionSpan) -> std::io::Result<Vec<OldFrame>> {
+    let held = file.held()?;
+    old_word_rows_in(&mut file.at(FileOffset(0)), span, held)
 }
 
 pub(super) fn old_word_rows_in(
@@ -258,9 +254,8 @@ pub(super) fn read_old_in(
 
 /// Resolve an old row without changing the shared snapshot file cursor. This keeps
 /// the exact requested-row read and late truncation checks of `read_old_in`.
-#[cfg(unix)]
 pub(super) fn read_old_file_in(
-    file: &std::fs::File,
+    file: &StoreFile,
     held: SectionLength,
     snapshot: StoreSnapshot,
     bucket: SectionSpan,
@@ -268,10 +263,7 @@ pub(super) fn read_old_file_in(
     into: &mut PackedWords,
 ) -> std::io::Result<()> {
     read_old_in(
-        &mut PositionalReader {
-            file,
-            at: FileOffset(0),
-        },
+        &mut file.at(FileOffset(0)),
         held,
         snapshot,
         bucket,
@@ -324,20 +316,13 @@ pub(super) fn write_bucket(
     into: &mut impl Write,
     at: &mut FileOffset,
     rows: &[Frame<'_>],
-    mut old: Option<&mut std::fs::File>,
+    old: Option<&StoreFile>,
     mut staged: Option<&mut StagingConnection>,
 ) -> std::io::Result<SectionSpan> {
-    // Snapshot size and position are validated once per bucket, not once per tiny row.
-    let old_length = old
-        .as_ref()
-        .map(|file| file.metadata().map(|metadata| metadata.len()))
-        .transpose()?;
-    let mut old_position = old
-        .as_deref_mut()
-        .map(|file| file.stream_position())
-        .transpose()?
-        .unwrap_or(0);
-    let mut old = old.map(|file| BufReader::with_capacity(BUFFER_BYTES, file));
+    // Snapshot size is validated once per bucket, not once per tiny row.
+    let old_length = old.map(|file| file.held().map(|held| held.0)).transpose()?;
+    let mut old_position = 0;
+    let mut old = old.map(|file| BufReader::with_capacity(BUFFER_BYTES, file.at(FileOffset(0))));
     if let Some(spool) = staged.as_deref_mut() {
         spool.flush()?;
     }

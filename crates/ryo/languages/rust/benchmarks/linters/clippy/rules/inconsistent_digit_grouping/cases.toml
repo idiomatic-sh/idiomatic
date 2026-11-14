@@ -1,0 +1,64 @@
+[[cases]]
+name = "uneven-groups"
+files = { "src/lib.rs" = "pub const X: u64 = 618_64_9189_73_511;\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 37 }]
+
+[[cases]]
+name = "consistent"
+files = { "src/lib.rs" = "pub const A: u64 = 1_000_000;\npub const B: u64 = 12_345;\npub const C: u64 = 1_00;\npub const D: u32 = 1000;\n" }
+expected = []
+
+[[cases]]
+name = "first-group-larger"
+files = { "src/lib.rs" = "pub const X: u32 = 1000_000;\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 27 }]
+
+[[cases]]
+name = "suffixed"
+files = { "src/lib.rs" = "pub const X: u32 = 1_0000_00u32;\npub const Y: u32 = 1_000_u32;\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 31 }]
+
+[[cases]]
+name = "fraction"
+files = { "src/lib.rs" = "pub const A: f64 = 1_000.000_1;\npub const B: f64 = 1_000.0001;\npub const C: f64 = 1_000.12;\npub const D: f64 = 10.123_456;\npub const E: f64 = 1000.123_456;\n" }
+expected = [{ file = "src/lib.rs", start = 51, end = 61 }, { file = "src/lib.rs", start = 142, end = 154 }]
+
+[[cases]]
+name = "large-groups-are-not-inconsistent"
+files = { "src/lib.rs" = "pub const X: u64 = 1_00000_00000;\npub const Y: u64 = 1234567;\n" }
+expected = []
+
+[[cases]]
+name = "mistyped-suffix-wins"
+files = { "src/lib.rs" = "pub const X: i32 = 1_000_32;\n" }
+expected = []
+
+[[cases]]
+name = "hex-is-another-lint"
+files = { "src/lib.rs" = "pub const X: u32 = 0x1_23_456;\n" }
+expected = []
+
+[[cases]]
+name = "uuid"
+files = { "src/lib.rs" = "pub const X: u128 = 0x12345678_1234_1234_1234_123456789abc;\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::inconsistent_digit_grouping)]\npub const X: u32 = 1000_000;\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::style)]\npub const X: u32 = 1000_000;\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::inconsistent_digit_grouping)]\npub const X: u32 = 1000_000;\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::style)]\n#[warn(clippy::inconsistent_digit_grouping)]\npub const X: u32 = 1000_000;\n" }
+expected = [{ file = "src/lib.rs", start = 89, end = 97 }]

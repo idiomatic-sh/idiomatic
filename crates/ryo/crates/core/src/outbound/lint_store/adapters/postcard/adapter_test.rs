@@ -20,10 +20,11 @@ use crate::outbound::lint_store::adapters::postcard::buckets::schemas::bucket_by
 use crate::outbound::lint_store::adapters::postcard::buckets::schemas::rebuilt_bucket_bytes;
 use crate::outbound::lint_store::adapters::postcard::connection::BUFFER_BYTES;
 use crate::outbound::lint_store::adapters::postcard::connection::StagingConnection;
-use crate::outbound::lint_store::adapters::postcard::connection::append;
+use crate::outbound::lint_store::adapters::postcard::connection::StoreFile;
 use crate::outbound::lint_store::adapters::postcard::connection::copy_buffered;
-use crate::outbound::lint_store::adapters::postcard::connection::read;
 use crate::outbound::lint_store::adapters::postcard::connection::validate;
+use crate::outbound::lint_store::adapters::postcard::fixtures::staging::append;
+use crate::outbound::lint_store::adapters::postcard::fixtures::staging::read;
 use crate::outbound::lint_store::adapters::postcard::types::FileOffset;
 use crate::outbound::lint_store::adapters::postcard::types::Payload;
 use crate::outbound::lint_store::adapters::postcard::types::SectionSpan;
@@ -118,15 +119,14 @@ enum Question {
     OldReadDescriptorsSurviveReplacementAndRejectOtherSnapshots,
     /// an open snapshot refuses external payload truncation.
     AnOpenSnapshotRefusesExternalPayloadTruncation,
-    #[cfg(unix)]
     /// bucket reader observes each row at its buffer acquisition.
     BucketReaderObservesEachRowAtItsBufferAcquisition,
-    #[cfg(unix)]
     /// bucket reader acquires other bucket after mutation or truncation.
     BucketReaderAcquiresOtherBucketAfterMutationOrTruncation,
-    #[cfg(unix)]
     /// bucket readers keep snapshot identity across concurrent consumers.
     BucketReadersKeepSnapshotIdentityAcrossConcurrentConsumers,
+    /// an open old row batch reads its rows while the store is read and kept.
+    AnOpenOldRowBatchReadsItsRowsWhileTheStoreIsReadAndKept,
     /// inline and staged mixed rows match legacy bytes at varint boundaries.
     InlineAndStagedMixedRowsMatchLegacyBytesAtVarintBoundaries,
     /// old spans and fresh rows preserve selected file remapping and tie order.
@@ -141,9 +141,8 @@ enum Question {
     OldDescriptorEnumerationSkipsHugePayloadsAndResolutionReadsOne,
     /// old payloads and headers share one exact read without neighbor prefetch.
     OldPayloadsAndHeadersShareOneExactReadWithoutNeighborPrefetch,
-    #[cfg(unix)]
-    /// positional old payload read preserves cursor and refuses late truncation.
-    PositionalOldPayloadReadPreservesCursorAndRefusesLateTruncation,
+    /// positional old payload read refuses late truncation (and, on Unix, preserves the cursor).
+    PositionalOldPayloadReadRefusesLateTruncation,
     /// spool lifetime and foreign overflow truncation checks are not empty fallbacks.
     SpoolLifetimeAndForeignOverflowTruncationChecksAreNotEmptyFallbacks,
     /// failed creation write flush and read do not commit a descriptor.
@@ -298,25 +297,28 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Question::AnOpenSnapshotRefusesExternalPayloadTruncation,
         expect: Expect::Value(true),
     },
-    #[cfg(unix)]
     Case {
         name: CaseName("bucket_reader_observes_each_row_at_its_buffer_acquisition"),
         word: Word::Succeeds,
         input: || Question::BucketReaderObservesEachRowAtItsBufferAcquisition,
         expect: Expect::Value(true),
     },
-    #[cfg(unix)]
     Case {
         name: CaseName("bucket_reader_acquires_other_bucket_after_mutation_or_truncation"),
         word: Word::Succeeds,
         input: || Question::BucketReaderAcquiresOtherBucketAfterMutationOrTruncation,
         expect: Expect::Value(true),
     },
-    #[cfg(unix)]
     Case {
         name: CaseName("bucket_readers_keep_snapshot_identity_across_concurrent_consumers"),
         word: Word::Succeeds,
         input: || Question::BucketReadersKeepSnapshotIdentityAcrossConcurrentConsumers,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("an_open_old_row_batch_reads_its_rows_while_the_store_is_read_and_kept"),
+        word: Word::Succeeds,
+        input: || Question::AnOpenOldRowBatchReadsItsRowsWhileTheStoreIsReadAndKept,
         expect: Expect::Value(true),
     },
     Case {
@@ -363,11 +365,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Question::OldPayloadsAndHeadersShareOneExactReadWithoutNeighborPrefetch,
         expect: Expect::Value(true),
     },
-    #[cfg(unix)]
     Case {
-        name: CaseName("positional_old_payload_read_preserves_cursor_and_refuses_late_truncation"),
+        name: CaseName("positional_old_payload_read_refuses_late_truncation"),
         word: Word::Succeeds,
-        input: || Question::PositionalOldPayloadReadPreservesCursorAndRefusesLateTruncation,
+        input: || Question::PositionalOldPayloadReadRefusesLateTruncation,
         expect: Expect::Value(true),
     },
     Case {
@@ -643,11 +644,12 @@ fn old_spans_and_fresh_rows_preserve_selected_file_remapping_and_tie_order()
     let old_bytes = bucket_bytes(&old.iter().collect::<Vec<_>>()).expect("legacy");
     let mut file = tempfile::tempfile().expect("old snapshot");
     file.write_all(&old_bytes).expect("write");
+    let file = StoreFile::new(file);
     let span = SectionSpan {
         start: FileOffset(0),
         length: SectionLength(u64::try_from(old_bytes.len()).expect("size")),
     };
-    let parsed = old_rows(&mut file, span).expect("headers only");
+    let parsed = old_rows(&file, span).expect("headers only");
     assert!(
         parsed
             .iter()
@@ -669,7 +671,7 @@ fn old_spans_and_fresh_rows_preserve_selected_file_remapping_and_tie_order()
     let mut actual = Vec::new();
     let mut at = FileOffset(0);
     let _copied_section =
-        write_bucket(&mut actual, &mut at, rows, Some(&mut file), None).expect("bounded copy");
+        write_bucket(&mut actual, &mut at, rows, Some(&file), None).expect("bounded copy");
     assert_eq!(
         Some(actual),
         rebuilt_bucket_bytes(
@@ -687,7 +689,7 @@ fn corrupt_headers_order_and_truncated_payloads_are_refused() -> Result<Value, F
         let mut file = tempfile::tempfile().expect("file");
         file.write_all(&bytes).expect("write");
         let _refusal = old_rows(
-            &mut file,
+            &StoreFile::new(file),
             SectionSpan {
                 start: FileOffset(0),
                 length: SectionLength(u64::try_from(bytes.len()).expect("size")),
@@ -1018,13 +1020,12 @@ fn old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch()
     Ok(true)
 }
 
-#[cfg(unix)]
-fn positional_old_payload_read_preserves_cursor_and_refuses_late_truncation()
--> Result<Value, Failure> {
+fn positional_old_payload_read_refuses_late_truncation() -> Result<Value, Failure> {
     use crate::outbound::lint_store::adapters::postcard::writer::{
         old_word_rows_in, read_old_file_in,
     };
     use ryo_values::domain::stores::types::{OldWords, StoreSnapshot};
+    #[cfg(unix)]
     use std::io::{Seek as _, SeekFrom};
 
     let selected = row(128, 16_384);
@@ -1047,10 +1048,12 @@ fn positional_old_payload_read_preserves_cursor_and_refuses_late_truncation()
         offset: ryo_values::domain::records::types::PayloadOffset(first.span.start.0),
         length: ryo_values::domain::records::types::PayloadLength(first.span.length.0),
     };
+    #[cfg(unix)]
     let cursor = file.seek(SeekFrom::End(0)).expect("cursor");
+    let store = StoreFile::new(file.try_clone().expect("a second handle"));
     let mut loaded = PackedWords::default();
     read_old_file_in(
-        &file,
+        &store,
         SectionLength(held),
         StoreSnapshot(81),
         bucket,
@@ -1059,12 +1062,14 @@ fn positional_old_payload_read_preserves_cursor_and_refuses_late_truncation()
     )
     .expect("positional payload");
     assert_eq!(loaded, selected.words);
+    // Windows' positional read moves the handle's cursor; there no reader of the store file reads through it (`StoreFile`).
+    #[cfg(unix)]
     assert_eq!(file.seek(SeekFrom::Current(0)).expect("cursor"), cursor);
 
     file.set_len(descriptor.offset.0 + descriptor.length.0 - 1)
         .expect("truncate selected payload");
     let _refusal = read_old_file_in(
-        &file,
+        &store,
         SectionLength(held),
         StoreSnapshot(81),
         bucket,
@@ -1495,17 +1500,17 @@ fn subject(question: Input) -> Result<Value, Failure> {
         Question::AnOpenSnapshotRefusesExternalPayloadTruncation => {
             an_open_snapshot_refuses_external_payload_truncation()?
         }
-        #[cfg(unix)]
         Question::BucketReaderObservesEachRowAtItsBufferAcquisition => {
             bucket_reader_observes_each_row_at_its_buffer_acquisition()?
         }
-        #[cfg(unix)]
         Question::BucketReaderAcquiresOtherBucketAfterMutationOrTruncation => {
             bucket_reader_acquires_other_bucket_after_mutation_or_truncation()?
         }
-        #[cfg(unix)]
         Question::BucketReadersKeepSnapshotIdentityAcrossConcurrentConsumers => {
             bucket_readers_keep_snapshot_identity_across_concurrent_consumers()?
+        }
+        Question::AnOpenOldRowBatchReadsItsRowsWhileTheStoreIsReadAndKept => {
+            an_open_old_row_batch_reads_its_rows_while_the_store_is_read_and_kept()?
         }
         Question::PriorSchemaStoreIsEmpty => {
             store.stored()?.keep(stored(1), &KeptRows::default())?;
@@ -1638,9 +1643,8 @@ fn subject(question: Input) -> Result<Value, Failure> {
         Question::OldPayloadsAndHeadersShareOneExactReadWithoutNeighborPrefetch => {
             old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch()?
         }
-        #[cfg(unix)]
-        Question::PositionalOldPayloadReadPreservesCursorAndRefusesLateTruncation => {
-            positional_old_payload_read_preserves_cursor_and_refuses_late_truncation()?
+        Question::PositionalOldPayloadReadRefusesLateTruncation => {
+            positional_old_payload_read_refuses_late_truncation()?
         }
         Question::SpoolLifetimeAndForeignOverflowTruncationChecksAreNotEmptyFallbacks => {
             spool_lifetime_and_foreign_overflow_truncation_checks_are_not_empty_fallbacks()?
@@ -2010,7 +2014,6 @@ fn an_open_snapshot_refuses_external_payload_truncation() -> Result<Value, Failu
     Ok(true)
 }
 
-#[cfg(unix)]
 fn bucket_reader_observes_each_row_at_its_buffer_acquisition() -> Result<Value, Failure> {
     use ryo_values::domain::stored_facts::types::PackedWords;
     use ryo_values::domain::stores::types::ReadWordPayload;
@@ -2081,7 +2084,6 @@ fn bucket_reader_observes_each_row_at_its_buffer_acquisition() -> Result<Value, 
     Ok(true)
 }
 
-#[cfg(unix)]
 fn bucket_reader_acquires_other_bucket_after_mutation_or_truncation() -> Result<Value, Failure> {
     use ryo_values::domain::stored_facts::types::PackedWords;
     use ryo_values::domain::stores::types::ReadWordPayload;
@@ -2141,7 +2143,6 @@ fn bucket_reader_acquires_other_bucket_after_mutation_or_truncation() -> Result<
     Ok(true)
 }
 
-#[cfg(unix)]
 fn bucket_readers_keep_snapshot_identity_across_concurrent_consumers() -> Result<Value, Failure> {
     use ryo_values::domain::stored_facts::types::PackedWords;
     use ryo_values::domain::stores::types::ReadWordPayload;
@@ -2212,4 +2213,72 @@ fn bucket_readers_keep_snapshot_identity_across_concurrent_consumers() -> Result
         }
     });
     Ok(true)
+}
+
+/// A live old-row batch shares the store's handle with the direct row read and the keep that copies from it: none of them moves
+/// another's place, so the batch reads each row as a batch read alone does (on Windows a reader through the handle's cursor would).
+fn an_open_old_row_batch_reads_its_rows_while_the_store_is_read_and_kept() -> Result<Value, Failure>
+{
+    use ryo_values::domain::stores::types::ReadWordPayload;
+
+    let root = tempfile::tempdir().expect("directory");
+    let store = store_in(root.path(), "interleaved-batch");
+    let mut source = stored(1);
+    let first = source.handed.frontier[0].clone();
+    for (file, bucket) in [(1, 2), (0, 5), (1, 5)] {
+        let mut row = first.clone();
+        row.file = StoredFileNumber(file);
+        row.bucket = Bucket(bucket);
+        row.words = PackedWords(vec![u8::try_from(file * 16 + bucket).expect("word"); 300]);
+        source.handed.frontier.push(row);
+    }
+    register_proofs(&mut source.handed);
+    let planted = source.handed.frontier.len();
+    store.stored()?.keep(source, &KeptRows::default())?;
+    let snapshot = store.stored()?;
+    let descriptors: Vec<_> = snapshot
+        .handed(&BucketsWanted::All)?
+        .0
+        .frontier
+        .iter()
+        .map(|row| match &row.payload {
+            ReadWordPayload::Old(words) => *words,
+            ReadWordPayload::Inline(_) => panic!("old row"),
+        })
+        .collect();
+    let mut alone_batch = snapshot
+        .begin_old_rows(&BucketsWanted::All)?
+        .expect("postcard batch");
+    let mut alone = Vec::new();
+    for descriptor in &descriptors {
+        let mut words = PackedWords::default();
+        alone_batch.read(descriptor, &mut words)?;
+        alone.push(words);
+    }
+    let mut batch = snapshot
+        .begin_old_rows(&BucketsWanted::All)?
+        .expect("postcard batch");
+    let mut interleaved = Vec::new();
+    let mut direct = Vec::new();
+    for (place, descriptor) in descriptors.iter().enumerate() {
+        let mut words = PackedWords::default();
+        batch.read(descriptor, &mut words)?;
+        interleaved.push(words);
+        let mut words = PackedWords::default();
+        snapshot.read_old(descriptor, &mut words)?;
+        direct.push(words);
+        if place == 0 {
+            let mut next = stored(2);
+            register_proofs(&mut next.handed);
+            snapshot.keep(
+                next,
+                &KeptRows {
+                    staged: Vec::new(),
+                    unchanged: vec![Bucket(5)],
+                    file_again: vec![again(1, 1)],
+                },
+            )?;
+        }
+    }
+    Ok(descriptors.len() == planted && interleaved == alone && direct == alone)
 }

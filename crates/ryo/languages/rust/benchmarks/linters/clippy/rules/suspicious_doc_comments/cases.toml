@@ -1,0 +1,54 @@
+[[cases]]
+name = "crate-docs-on-an-item"
+files = { "src/lib.rs" = "///! Crate docs.\n\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 16 }]
+
+[[cases]]
+name = "several-lines"
+files = { "src/lib.rs" = "///! First.\n///! Second.\n/// Third.\n///! Fourth.\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 48 }]
+
+[[cases]]
+name = "block"
+files = { "src/lib.rs" = "/**! Block. */\npub fn f() {}\n/**!\n * Lines.\n */\npub fn g() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 14 }, { file = "src/lib.rs", start = 29, end = 47 }]
+
+[[cases]]
+name = "in-module"
+files = { "src/lib.rs" = "pub mod m {\n    ///! Module docs.\n    pub fn f() {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 16, end = 33 }]
+
+[[cases]]
+name = "fields-and-variants"
+files = { "src/lib.rs" = "pub struct S {\n    ///! A.\n    pub a: u8,\n}\npub enum E {\n    ///! V.\n    V,\n}\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 26 }, { file = "src/lib.rs", start = 61, end = 68 }]
+
+[[cases]]
+name = "not-suspicious"
+files = { "src/lib.rs" = "//! Inner.\n/// Outer! with a bang.\n//// ! Four.\n/// !Space first.\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "two-items"
+files = { "src/lib.rs" = "///! A.\npub fn f() {}\n///! B.\npub fn g() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 7 }, { file = "src/lib.rs", start = 22, end = 29 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "///! A.\n#[allow(clippy::suspicious_doc_comments)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious)]\npub mod m {\n    ///! A.\n    pub fn f() {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious_doc_comments)]\n///! A.\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n///! A.\n#[warn(clippy::suspicious_doc_comments)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 30, end = 37 }]

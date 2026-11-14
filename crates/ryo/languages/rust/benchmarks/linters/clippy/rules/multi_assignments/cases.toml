@@ -1,0 +1,59 @@
+[[cases]]
+name = "chained"
+files = { "src/lib.rs" = "pub fn f() -> i32 {\n    let mut a = ();\n    let mut b = 1;\n    a = b = 2;\n    let _ = a;\n    b\n}\n" }
+expected = [{ file = "src/lib.rs", start = 63, end = 72 }]
+
+[[cases]]
+name = "parenthesized-and-block"
+files = { "src/lib.rs" = "pub fn f() -> i32 {\n    let mut a = ();\n    let mut b = 1;\n    a = (b = 2);\n    a = ((b = 3));\n    a = { b = 4 };\n    a = {{ (b = 5) }};\n    let _ = a;\n    b\n}\n" }
+expected = [{ file = "src/lib.rs", start = 63, end = 74 }, { file = "src/lib.rs", start = 80, end = 93 }, { file = "src/lib.rs", start = 99, end = 112 }, { file = "src/lib.rs", start = 118, end = 135 }]
+
+[[cases]]
+name = "not-nested"
+files = { "src/lib.rs" = "pub fn f() -> i32 {\n    let mut a = ();\n    let mut b = 1;\n    a = { b = 2; };\n    a = { let _x = 0; b = 3 };\n    let c = b = 4;\n    let _ = (a, c);\n    b += 1;\n    b\n}\n" }
+expected = []
+
+[[cases]]
+name = "compound-inside"
+files = { "src/lib.rs" = "pub fn f() -> i32 {\n    let mut a = ();\n    let mut b = 1;\n    a = b += 2;\n    a = (b -= 1);\n    let _ = a;\n    b\n}\n" }
+expected = []
+
+[[cases]]
+name = "three-deep"
+files = { "src/lib.rs" = "pub fn f() -> i32 {\n    let mut a = ();\n    let mut b = ();\n    let mut c = 1;\n    a = b = c = 2;\n    let _ = (a, b);\n    c\n}\n" }
+expected = [{ file = "src/lib.rs", start = 83, end = 96 }, { file = "src/lib.rs", start = 87, end = 96 }]
+
+[[cases]]
+name = "in-closures-and-tests"
+files = { "src/lib.rs" = "pub fn f() -> i32 {\n    let mut b = 1;\n    let mut set = || {\n        let mut a = ();\n        a = b = 2;\n        a\n    };\n    set();\n    b\n}\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        let mut a = ();\n        let mut b = 1;\n        a = b = 2;\n        assert_eq!((a, b), ((), 2));\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 94, end = 103 }, { file = "src/lib.rs", start = 246, end = 255 }]
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! m {\n    ($a:ident, $b:ident) => {\n        $a = $b = 1;\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::multi_assignments)]\npub fn f() -> i32 {\n    let mut a = ();\n    let mut b = 1;\n    a = b = 2;\n    let _ = a;\n    b\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious)]\npub fn f() -> i32 {\n    let mut a = ();\n    let mut b = 1;\n    a = b = 2;\n    let _ = a;\n    b\n}\npub fn g() -> i32 {\n    let mut a = ();\n    let mut b = 1;\n    #[allow(clippy::all)]\n    {\n        a = b = 2;\n    }\n    let _ = a;\n    b\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::multi_assignments)]\npub fn f() -> i32 {\n    let mut a = ();\n    let mut b = 1;\n    a = b = 2;\n    let _ = a;\n    b\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n#[warn(clippy::multi_assignments)]\npub fn f() -> i32 {\n    let mut a = ();\n    let mut b = 1;\n    a = b = 2;\n    let _ = a;\n    b\n}\n" }
+expected = [{ file = "src/lib.rs", start = 128, end = 137 }]
+
+[[cases]]
+name = "unsafe-labeled-and-async-blocks"
+files = { "src/lib.rs" = "#[allow(unused_unsafe, unused_labels)]\npub fn f() -> i32 {\n    let mut a = ();\n    let mut b = 1;\n    a = unsafe { b = 2 };\n    a = 'l: { b = 3 };\n    let _ = a;\n    b\n}\npub async fn g() -> i32 {\n    let mut b = 1;\n    let a;\n    a = async { b = 2 };\n    a.await;\n    b\n}\n" }
+expected = [{ file = "src/lib.rs", start = 102, end = 122 }, { file = "src/lib.rs", start = 128, end = 145 }]

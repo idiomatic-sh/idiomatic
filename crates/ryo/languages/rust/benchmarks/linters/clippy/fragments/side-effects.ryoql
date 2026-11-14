@@ -1,0 +1,9 @@
+input operands: relation<id: node, file: file>;
+param kinds: string;
+output relation<id: node, file: file>;
+let effect_nodes = select id, file from "syntax-tree" where matches(kind, $kinds);
+let inner_effects = axis(from=effect_nodes, relation="syntax-child", direction=ancestor, domain=operands);
+let holding = select related as id, file from inner_effects;
+let being = select l.id as id, l.file as file from operands as l join effect_nodes as r on l.id = r.id;
+let effectful = union(left=holding, right=being);
+return effectful;

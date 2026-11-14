@@ -5,6 +5,7 @@ use crate::domain::bindings::types::PossibleConstant;
 use crate::domain::declarations::service::{
     declaration, declaration_kind, declaration_span, identity, refined,
 };
+use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::relations::constants::{NAME_LIKE_CONSTANT, VARIABLE};
 use crate::domain::scopes::service::owner;
@@ -16,7 +17,7 @@ use ryo::languages;
 pub(crate) struct DefinesItem;
 
 ryo::reads! {
-    DefinesItem => languages::Defines |tree, at, symbols| {
+    DefinesItem => languages::Defines, model(ReadIndexes) |tree, _model, at, symbols| {
         kinds: [
             Kind::Node(Node::Struct),
             Kind::Node(Node::Enum),

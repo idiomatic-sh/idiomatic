@@ -18,7 +18,7 @@ ryo::reads! {
   Some(index)=>{
    each(crate::domain::semantic_syntax::service::positions(tree))as expression{
     require category(tree,expression)==Category::Expression;
-    given shape=languages::key_class_at(&index,expression)?;
+    given shape=languages::shape_class_at(&index,expression)?;
     row{id:node(expression),shape:node(shape),file:file,span:span(expression),}
    }
   }

@@ -1,0 +1,13 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+import doc_comments from "rust/clippy/doc-comments";
+import attribute_owners from "rust/clippy/attribute-owners";
+import hulls from "rust/clippy/hulls";
+let docs = doc_comments();
+let bangs = select id, file, span from docs where matches(text, "^(?:///!|/\*\*!)");
+let bang_ids = select id, file from bangs;
+let owners = attribute_owners(elements=bang_ids);
+let members = select l.owner as owner, l.id as id, r.file as file, r.span as span from owners as l join bangs as r on l.id = r.id;
+let spans = hulls(members=members);
+let candidates = select id, file, span from spans;
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:suspicious_doc_comments|suspicious|all))\s*(?:,|$)");
+emit violations subject file key(span);

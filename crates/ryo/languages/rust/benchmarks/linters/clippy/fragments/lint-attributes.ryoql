@@ -1,0 +1,17 @@
+input candidates: relation<id: node, file: file, span: span>;
+param names: string;
+output relation<id: node, file: file, span: span>;
+let levels = select occurrence, declaration, target, arguments, file from "decorates" where target = "allow" or target = "expect" or target = "warn" or target = "deny" or target = "forbid";
+let lint_levels = select occurrence, declaration, target, file from levels where matches(arguments, $names);
+let lint_deciders = select declaration as id, file from lint_levels;
+let lint_nearest = axis(from=candidates, relation="syntax-child", direction=nearest-ancestor, domain=lint_deciders);
+let lint_silencers = select declaration, file from lint_levels where target = "allow" or target = "expect";
+let lint_silenced = select l.id as id, l.file as file, l.span as span from lint_nearest as l join lint_silencers as r on l.related = r.declaration;
+let warnings_levels = select occurrence, declaration, target, file from levels where matches(arguments, "(?:^|,)\s*warnings\s*(?:,|$)");
+let warnings_deciders = select declaration as id, file from warnings_levels;
+let warnings_nearest = axis(from=candidates, relation="syntax-child", direction=nearest-ancestor, domain=warnings_deciders);
+let warnings_silencers = select declaration, file from warnings_levels where target = "allow" or target = "expect";
+let warnings_silenced = select l.id as id, l.file as file, l.span as span from warnings_nearest as l join warnings_silencers as r on l.related = r.declaration;
+let silenced = union(left=lint_silenced, right=warnings_silenced);
+let kept = antijoin(left=candidates, right=silenced, left-on=["id", "span"], right-on=["id", "span"]);
+return kept;

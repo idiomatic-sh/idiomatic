@@ -1,0 +1,74 @@
+[[cases]]
+name = "eq-or-lt"
+files = { "src/lib.rs" = "pub fn f(a: u32, b: u32) -> bool {\n    a == b || a < b\n}\n" }
+expected = [{ file = "src/lib.rs", start = 39, end = 54 }]
+
+[[cases]]
+name = "simple"
+files = { "src/lib.rs" = "pub fn f0(a: u32, b: u32) -> bool {\n    a <= b\n}\npub fn f1(a: u32, b: u32) -> bool {\n    a < b || b < a\n}\npub fn f2(a: u32, b: u32) -> bool {\n    a == b || a != b\n}\npub fn f3(a: u32, b: u32) -> bool {\n    a < b && a == b\n}\npub fn f4(a: u32, b: u32) -> bool {\n    a <= b || a >= b\n}\n" }
+expected = []
+
+[[cases]]
+name = "or-pairs"
+files = { "src/lib.rs" = "pub fn f0(a: u32, b: u32) -> bool {\n    a < b || a == b\n}\npub fn f1(a: u32, b: u32) -> bool {\n    a == b || a > b\n}\npub fn f2(a: u32, b: u32) -> bool {\n    a > b || a == b\n}\npub fn f3(a: u32, b: u32) -> bool {\n    a < b || a > b\n}\npub fn f4(a: u32, b: u32) -> bool {\n    a > b || a < b\n}\n" }
+expected = [{ file = "src/lib.rs", start = 40, end = 55 }, { file = "src/lib.rs", start = 98, end = 113 }, { file = "src/lib.rs", start = 156, end = 171 }, { file = "src/lib.rs", start = 214, end = 228 }, { file = "src/lib.rs", start = 271, end = 285 }]
+
+[[cases]]
+name = "and-pairs"
+files = { "src/lib.rs" = "pub fn f0(a: u32, b: u32) -> bool {\n    a <= b && a >= b\n}\npub fn f1(a: u32, b: u32) -> bool {\n    a >= b && a <= b\n}\npub fn f2(a: u32, b: u32) -> bool {\n    a != b && a >= b\n}\npub fn f3(a: u32, b: u32) -> bool {\n    a >= b && a != b\n}\npub fn f4(a: u32, b: u32) -> bool {\n    a != b && a <= b\n}\npub fn f5(a: u32, b: u32) -> bool {\n    a <= b && a != b\n}\n" }
+expected = [{ file = "src/lib.rs", start = 40, end = 56 }, { file = "src/lib.rs", start = 99, end = 115 }, { file = "src/lib.rs", start = 158, end = 174 }, { file = "src/lib.rs", start = 217, end = 233 }, { file = "src/lib.rs", start = 276, end = 292 }, { file = "src/lib.rs", start = 335, end = 351 }]
+
+[[cases]]
+name = "swapped-operands"
+files = { "src/lib.rs" = "pub fn f0(a: u32, b: u32) -> bool {\n    a == b || b < a\n}\npub fn f1(a: u32, b: u32) -> bool {\n    b == a || a < b\n}\npub fn f2(a: u32, b: u32) -> bool {\n    a <= b && b >= a\n}\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized"
+files = { "src/lib.rs" = "pub fn f0(a: u32, b: u32) -> bool {\n    (a == b) || (a < b)\n}\npub fn f1(a: u32, b: u32) -> bool {\n    ((a < b)) || a == b\n}\npub fn f2(a: u32, b: u32) -> bool {\n    (a == b || a < b)\n}\n" }
+expected = [{ file = "src/lib.rs", start = 40, end = 59 }, { file = "src/lib.rs", start = 102, end = 121 }, { file = "src/lib.rs", start = 164, end = 181 }]
+
+[[cases]]
+name = "different-operands"
+files = { "src/lib.rs" = "pub fn f0(a: u32, b: u32) -> bool {\n    a == b || a < 1\n}\npub fn f1(a: u32, b: u32) -> bool {\n    a == 1 || a < 1\n}\npub fn f2(a: u32, b: u32) -> bool {\n    a == b || b < b\n}\n" }
+expected = [{ file = "src/lib.rs", start = 98, end = 113 }]
+
+[[cases]]
+name = "places"
+files = { "src/lib.rs" = "pub struct S {\n    pub x: u32,\n    pub v: [u32; 2],\n}\npub fn f(s: &S, t: &S) -> bool {\n    s.x == t.v[0] || s.x < t.v[0]\n}\npub fn g(s: &S) -> bool {\n    s.v.len() == 2 || s.v.len() < 2\n}\n" }
+expected = [{ file = "src/lib.rs", start = 91, end = 120 }]
+
+[[cases]]
+name = "number-spellings"
+files = { "src/lib.rs" = "pub fn f0(a: u32, b: u32) -> bool {\n    a == 0x10 || a < 16\n}\npub fn f1(a: u32, b: u32) -> bool {\n    a == 1 || a < 1_u32\n}\n" }
+expected = [{ file = "src/lib.rs", start = 40, end = 59 }, { file = "src/lib.rs", start = 102, end = 121 }]
+
+[[cases]]
+name = "chained"
+files = { "src/lib.rs" = "pub fn f0(a: u32, b: u32) -> bool {\n    a == b || a < b || a > b\n}\npub fn f1(a: u32, b: u32) -> bool {\n    a == b && a < b || a > b\n}\n" }
+expected = [{ file = "src/lib.rs", start = 40, end = 55 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        let (a, b) = (1, 2);\n        let c = a == b || a < b;\n        assert!(c);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 95, end = 110 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::double_comparisons)]\npub fn f(a: u32, b: u32) -> bool {\n    a == b || a < b\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::complexity)]\npub fn f(a: u32, b: u32) -> bool {\n    a == b || a < b\n}\n#[allow(clippy::all)]\npub fn g(a: u32, b: u32) -> bool {\n    a == b || a < b\n}\n#[expect(warnings)]\npub fn h(a: u32, b: u32) -> bool {\n    a == b || a < b\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::double_comparisons)]\npub fn f(a: u32, b: u32) -> bool {\n    a == b || a < b\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::all)]\n#[warn(clippy::double_comparisons)]\npub fn f(a: u32, b: u32) -> bool {\n    a == b || a < b\n}\npub fn g(a: u32, b: u32) -> bool {\n    a == b || a < b\n}\n" }
+expected = [{ file = "src/lib.rs", start = 98, end = 113 }]

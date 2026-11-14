@@ -20,6 +20,9 @@ on:
         options: [ryo, tastemaker, asymptote]
 permissions:
   contents: read
+env:
+  # nextest's `ci` profile (each product's .config/nextest.toml): no fail-fast, so a machine reports every red test.
+  NEXTEST_PROFILE: ci
 concurrency:
   group: check-${{ github.ref }}-${{ inputs.product }}
   cancel-in-progress: true
@@ -31,6 +34,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24

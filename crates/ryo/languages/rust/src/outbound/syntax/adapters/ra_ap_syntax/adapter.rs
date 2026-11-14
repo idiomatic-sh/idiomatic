@@ -8,21 +8,19 @@
 //! under the macro call (`adopt`), which only the readers that ask for them see. A call that does not parse as the macro's grammar
 //! adds nothing.
 
-use super::constants::{CRLF, LF, MATCHES, VEC};
-use super::schemas::kind_of;
+use super::constants::{MATCHES, VEC};
 use super::schemas::repaired;
 use super::schemas::step_of;
 use super::types::{
-    ArgumentSpan, Child, Cursor, DecodedString, Expansion, FragmentEntryPoint, HeldMacro,
-    MacroArgument, MacroName, Open, RustText, Step, Stretch, StringLiteral, Triviality,
+    ArgumentSpan, Child, Cursor, Expansion, FragmentEntryPoint, HeldMacro, MacroArgument,
+    MacroName, Open, RustText, Step, Stretch, Triviality,
 };
-use crate::domain::syntax::service::kind_bits;
+use super::writer::emit;
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::{Expanding, SourceText};
 use ra_ap_parser::{LexedStr, StrStep, TopEntryPoint};
 use ra_ap_syntax::{Edition, SyntaxKind};
-use rustc_literal_escaper::unescape_str;
-use ryo::languages::{self, Count, Offset, Position};
+use ryo::languages::{self, Count, Flag, Offset, Position};
 /// The `ra_ap_syntax` syntax adapter.
 #[derive(Debug)]
 pub(crate) struct SyntaxRaApSyntaxAdapter {
@@ -34,71 +32,6 @@ impl SyntaxRaApSyntaxAdapter {
     /// The adapter, reading again the arguments of the macros `expanding` names.
     pub(crate) const fn new(expanding: Expanding<'static>) -> Self {
         Self { expanding }
-    }
-}
-
-/// The value a string literal stands for, with its escapes resolved; nothing where an escape is wrong. A raw string is its text between
-/// its delimiters, a carriage return and a line feed in it being one line feed.
-fn decoded(literal: StringLiteral<'_>) -> Option<DecodedString> {
-    let literal = literal.0;
-    if let Some(raw) = literal.strip_prefix('r') {
-        let hashes = raw.len() - raw.trim_start_matches('#').len();
-        let inner = raw.get(hashes + 1..raw.len().checked_sub(hashes + 1)?)?;
-        return Some(DecodedString(inner.replace(CRLF, LF)));
-    }
-    let inner = literal.strip_prefix('"')?.strip_suffix('"')?;
-    let mut value = String::with_capacity(inner.len());
-    let mut wrong = false;
-    unescape_str(inner, |_, character| match character {
-        Ok(each) => value.push(each),
-        Err(_) => wrong = true,
-    });
-    (!wrong).then_some(DecodedString(value))
-}
-
-/// Writes `step` into the table at the cursor, which moves past the text of a token.
-fn emit(
-    builder: &mut languages::TableBuilder<'_>,
-    text: RustText<'_>,
-    step: &Step,
-    cursor: &mut Cursor,
-) {
-    match step {
-        Step::Enter(kind) => {
-            cursor.next.0 += 1;
-            languages::enter_node(builder, kind_bits(kind_of(*kind)), cursor.position);
-        }
-        Step::Token(kind, length) => {
-            cursor.next.0 += 1;
-            let end = Offset(
-                cursor
-                    .position
-                    .0
-                    .saturating_add(u32::try_from(length.0).unwrap_or(u32::MAX)),
-            );
-            let (from, to) = (index(cursor.position).0, index(end).0);
-            let value = (*kind == SyntaxKind::STRING)
-                .then(|| {
-                    let written = text.0.get(from..to)?;
-                    decoded(StringLiteral(written))
-                })
-                .flatten();
-            match value {
-                Some(value) => languages::decoded_token(
-                    builder,
-                    kind_bits(kind_of(*kind)),
-                    cursor.position,
-                    end,
-                    languages::NameText(&value.0),
-                ),
-                None => languages::token(builder, kind_bits(kind_of(*kind)), cursor.position, end),
-            }
-            cursor.position = end;
-        }
-        Step::Exit => languages::leave_node(builder, cursor.position),
-        Step::Error(message, at) => {
-            languages::diagnose(builder, languages::ReportText(message), *at, *at);
-        }
     }
 }
 
@@ -122,6 +55,7 @@ impl SyntaxPort for SyntaxRaApSyntaxAdapter {
         let mut cursor = Cursor {
             position: Offset(0),
             next: Position(0),
+            literal: Flag::Lowered,
         };
         // The last name written before a `!`, and whether the token tree that follows belongs to a call of an expression macro.
         let (mut name, mut armed) = (0..0, false);

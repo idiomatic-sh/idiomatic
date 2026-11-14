@@ -1,0 +1,59 @@
+[[cases]]
+name = "empty-else"
+files = { "src/lib.rs" = "pub fn f(c: bool) {\n    if c {\n        println!(\"yes\");\n    } else {\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 62, end = 74 }]
+
+[[cases]]
+name = "spacing-and-let"
+files = { "src/lib.rs" = "pub fn f(c: Option<u8>) {\n    if let Some(x) = c {\n        println!(\"{x}\");\n    }\n    else{}\n    if c.is_none() { println!(\"none\") } else {   }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 86, end = 92 }, { file = "src/lib.rs", start = 133, end = 143 }]
+
+[[cases]]
+name = "else-if-chain"
+files = { "src/lib.rs" = "pub fn f(a: bool, b: bool) {\n    if a {\n        println!(\"a\");\n    } else if b {\n        println!(\"b\");\n    } else {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 110, end = 117 }]
+
+[[cases]]
+name = "not-empty"
+files = { "src/lib.rs" = "pub fn f(c: bool) -> u8 {\n    if c {\n        println!(\"yes\");\n    } else {\n        ;\n    }\n    if c {\n        println!(\"yes\");\n    } else {\n        // nothing\n    }\n    if c {\n        println!(\"yes\");\n    } else {\n        /* nothing */\n    }\n    if c {\n        println!(\"yes\");\n    } else {\n        #[cfg(any())]\n        println!(\"never\");\n    }\n    let x = if c { 1 } else { 2 };\n    if c {\n        println!(\"yes\");\n    } else {\n        let _ = 0;\n    }\n    x\n}\n" }
+expected = []
+
+[[cases]]
+name = "comment-between"
+files = { "src/lib.rs" = "pub fn f(c: bool) {\n    if c {\n        println!(\"yes\");\n    } /* why */ else {\n    }\n    if c {\n        println!(\"yes\");\n    } // why\n    else {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "unit-expression-value"
+files = { "src/lib.rs" = "pub fn f(c: bool) {\n    let () = if c { () } else {};\n    let _x = if c {} else {};\n}\n" }
+expected = [{ file = "src/lib.rs", start = 45, end = 52 }, { file = "src/lib.rs", start = 75, end = 82 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        if 1 > 0 {\n            assert!(true);\n        } else {\n        }\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 106, end = 122 }]
+
+[[cases]]
+name = "in-macros"
+files = { "src/lib.rs" = "macro_rules! branch {\n    ($c:expr) => {\n        if $c {\n            println!(\"yes\");\n        } else {\n        }\n    };\n}\npub fn f(c: bool) {\n    branch!(c);\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::needless_else)]\npub fn f(c: bool) {\n    if c {\n        println!(\"yes\");\n    } else {\n    }\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::style)]\npub fn f(c: bool) {\n    if c {\n        println!(\"yes\");\n    } else {\n    }\n}\npub fn g(c: bool) {\n    #[allow(clippy::all)]\n    if c {\n        println!(\"yes\");\n    } else {\n    }\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::needless_else)]\npub fn f(c: bool) {\n    if c {\n        println!(\"yes\");\n    } else {\n    }\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::style)]\n#[warn(clippy::needless_else)]\npub fn f(c: bool) {\n    if c {\n        println!(\"yes\");\n    } else {\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 118, end = 130 }]

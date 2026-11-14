@@ -1,0 +1,11 @@
+version = 1
+parents = ["6ef244ff2fe52796096a7d1ae0754e9f6ac8addaf6110425f720c42250cc7d3a"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/no-env-reads", path = "crates/benchmark/src/main.rs", level = "error", fingerprint = "bb77367917fd5a47", count = 1, message = "`std::env::var_os` reads an environment variable", since_rev = "71e531ca3daf3efb343ebaa6760f024681ceb276", since = "2026-11-14" },
+  { tool = "tastemaker", rule = "idiomatic.arch/no-env-reads", path = "crates/benchmark/src/main.rs", level = "error", fingerprint = "b25f79cf876f05ad", count = 1, message = "`std::env::var_os` reads an environment variable", since_rev = "71e531ca3daf3efb343ebaa6760f024681ceb276", since = "2026-11-14" },
+]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/no-env-reads", path = "crates/benchmark/src/main.rs", level = "error", fingerprint = "5ceda1e41e7eeb86" },
+]

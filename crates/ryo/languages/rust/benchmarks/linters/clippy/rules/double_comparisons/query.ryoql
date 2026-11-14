@@ -1,0 +1,14 @@
+import binary_operands from "rust/clippy/binary-operands";
+import eq_expr_value from "rust/clippy/eq-expr-value";
+import lint_attributes from "rust/clippy/lint-attributes";
+let binaries = binary_operands();
+let logical = select id, op, left, right, file, span from binaries where op = "||" or op = "&&";
+let left_sides = select l.id as id, l.op as op, l.right as right, l.file as file, l.span as span, r.op as left_op, r.left as left_first, r.right as left_second from logical as l join binaries as r on l.left = r.id;
+let sides = select l.id as id, l.file as file, l.span as span, l.left_first as left_first, l.left_second as left_second, r.left as right_first, r.right as right_second from left_sides as l join binaries as r on l.right = r.id where l.op = "||" and (l.left_op = "==" and r.op = "<" or l.left_op = "<" and r.op = "==" or l.left_op = "==" and r.op = ">" or l.left_op = ">" and r.op = "==" or l.left_op = "<" and r.op = ">" or l.left_op = ">" and r.op = "<") or l.op = "&&" and (l.left_op = "<=" and r.op = ">=" or l.left_op = ">=" and r.op = "<=" or l.left_op = "!=" and r.op = ">=" or l.left_op = ">=" and r.op = "!=" or l.left_op = "!=" and r.op = "<=" or l.left_op = "<=" and r.op = "!=");
+let firsts = select id, left_first as left, right_first as right, file, span from sides;
+let seconds = select id, left_second as left, right_second as right, file, span from sides;
+let same_first = eq_expr_value(pairs=firsts);
+let same_second = eq_expr_value(pairs=seconds);
+let same = select l.id as id, l.file as file, l.span as span from same_first as l join same_second as r on l.id = r.id;
+let violations = lint_attributes(candidates=same, names="(?:^|,)\s*(?:clippy::(?:double_comparisons|complexity|all))\s*(?:,|$)");
+emit violations subject file key(id);

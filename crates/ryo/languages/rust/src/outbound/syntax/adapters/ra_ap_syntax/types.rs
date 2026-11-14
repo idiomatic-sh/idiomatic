@@ -1,7 +1,7 @@
 //! The types of the `ra_ap_syntax` adapter: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use ra_ap_syntax::SyntaxKind;
-use ryo::languages::{Count, Offset, Position};
+use ryo::languages::{Count, Flag, Offset, Position};
 
 /// Rust source text as the adapter reads it: the file's text, with a character the lexer reports in place of each byte that is not part
 /// of one.
@@ -64,6 +64,8 @@ pub(crate) struct Cursor {
     pub position: Offset,
     /// The place the next element has in the table.
     pub next: Position,
+    /// Whether the node last entered is a literal, whose numeric token gives it a value.
+    pub literal: Flag,
 }
 
 /// A direct child of a token tree: the bytes it spans, and its kind.

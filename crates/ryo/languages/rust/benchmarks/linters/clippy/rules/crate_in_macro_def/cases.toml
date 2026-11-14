@@ -1,0 +1,64 @@
+[[cases]]
+name = "exported"
+files = { "src/lib.rs" = "pub fn helper() {}\n#[macro_export]\nmacro_rules! m {\n    () => {\n        crate::helper()\n    };\n}\n" }
+expected = [{ file = "src/lib.rs", start = 72, end = 77 }]
+
+[[cases]]
+name = "first-only"
+files = { "src/lib.rs" = "pub fn helper() {}\n#[macro_export]\nmacro_rules! m {\n    () => {\n        crate::helper();\n        crate::helper()\n    };\n    ($e:expr) => {\n        crate::helper()\n    };\n}\n" }
+expected = [{ file = "src/lib.rs", start = 72, end = 77 }]
+
+[[cases]]
+name = "nested-groups-in-order"
+files = { "src/lib.rs" = "pub fn helper(_: ()) {}\n#[macro_export]\nmacro_rules! m {\n    () => {\n        {\n            $crate::helper(crate::helper(()))\n        }\n    };\n}\n#[macro_export]\nmacro_rules! n {\n    ([$($x:tt)*]) => {\n        $crate::helper(());\n        crate :: helper(())\n    };\n}\n" }
+expected = [{ file = "src/lib.rs", start = 106, end = 111 }, { file = "src/lib.rs", start = 236, end = 241 }]
+
+[[cases]]
+name = "hygienic-or-not-a-path"
+files = { "src/lib.rs" = "pub fn helper() {}\n#[macro_export]\nmacro_rules! m {\n    () => {\n        $crate::helper()\n    };\n    (crate) => {\n        $crate::helper()\n    };\n}\n#[macro_export]\nmacro_rules! n {\n    ($crate_name:ident) => {\n        $crate::helper()\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "in-matcher-and-comments"
+files = { "src/lib.rs" = "pub fn helper() {}\n#[macro_export]\nmacro_rules! m {\n    (crate::$i:ident) => {\n        $crate::helper()\n    };\n}\n#[macro_export]\nmacro_rules! n {\n    () => {\n        $ /* gap */ crate::helper();\n        crate /* gap */ ::helper()\n    };\n}\n#[macro_export]\nmacro_rules! k {\n    () => {\n        $crate: :helper;\n        crate: :x\n    };\n}\n" }
+expected = [{ file = "src/lib.rs", start = 57, end = 62 }, { file = "src/lib.rs", start = 203, end = 208 }]
+
+[[cases]]
+name = "not-exported"
+files = { "src/lib.rs" = "pub fn helper() {}\nmacro_rules! m {\n    () => {\n        crate::helper()\n    };\n}\n#[macro_use]\nmod inner {\n    macro_rules! n {\n        () => {\n            crate::helper()\n        };\n    }\n}\n#[std::prelude::v1::derive(Clone)]\npub struct S;\n" }
+expected = []
+
+[[cases]]
+name = "export-with-arguments-and-other-attributes"
+files = { "src/lib.rs" = "pub fn helper() {}\n/// Docs.\n#[doc(hidden)]\n#[macro_export(local_inner_macros)]\nmacro_rules! m {\n    () => {\n        crate::helper()\n    };\n}\n" }
+expected = [{ file = "src/lib.rs", start = 117, end = 122 }]
+
+[[cases]]
+name = "in-module-file"
+files = { "src/lib.rs" = "pub mod a;\n", "src/a.rs" = "pub fn helper() {}\n#[macro_export]\nmacro_rules! m {\n    () => {\n        crate::a::helper()\n    };\n}\n" }
+expected = [{ file = "src/a.rs", start = 72, end = 77 }]
+
+[[cases]]
+name = "in-function-body"
+files = { "src/lib.rs" = "pub fn helper() {}\npub fn f() {\n    #[macro_export]\n    macro_rules! inner {\n        () => {\n            crate::helper()\n        };\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 105, end = 110 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "pub fn helper() {}\n#[allow(clippy::crate_in_macro_def)]\n#[macro_export]\nmacro_rules! m {\n    () => {\n        crate::helper()\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "pub fn helper() {}\n#[macro_export]\n#[allow(clippy::suspicious)]\nmacro_rules! m {\n    () => {\n        crate::helper()\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::crate_in_macro_def)]\npub fn helper() {}\n#[macro_export]\nmacro_rules! m {\n    () => {\n        crate::helper()\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\npub fn helper() {}\n#[warn(clippy::crate_in_macro_def)]\n#[macro_export]\nmacro_rules! m {\n    () => {\n        crate::helper()\n    };\n}\n" }
+expected = [{ file = "src/lib.rs", start = 138, end = 143 }]

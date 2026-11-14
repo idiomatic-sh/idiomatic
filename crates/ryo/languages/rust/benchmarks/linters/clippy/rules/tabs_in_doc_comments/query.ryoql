@@ -1,0 +1,7 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+import doc_comments from "rust/clippy/doc-comments";
+let docs = doc_comments();
+let tabs = source-matches(from=docs, span="span", pattern="\t+", output="tab");
+let candidates = select id, file, tab as span from tabs;
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:tabs_in_doc_comments|style|all))\s*(?:,|$)");
+emit violations subject file key(span);

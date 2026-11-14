@@ -1,0 +1,59 @@
+[[cases]]
+name = "packed"
+files = { "src/lib.rs" = "#[repr(packed)]\npub struct A(u8, u32);\n" }
+expected = [{ file = "src/lib.rs", start = 16, end = 38 }]
+
+[[cases]]
+name = "packed-aligned"
+files = { "src/lib.rs" = "#[repr(packed(2))]\npub struct A {\n    pub a: u8,\n    pub b: u32,\n}\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 66 }]
+
+[[cases]]
+name = "qualified"
+files = { "src/lib.rs" = "#[repr(C, packed)]\npub struct A(u8, u32);\n#[repr(Rust, packed)]\npub struct B(u8, u32);\n#[repr(packed, C)]\npub struct C(u8, u32);\n#[repr(C, packed(4))]\npub struct D(u8, u32);\n" }
+expected = []
+
+[[cases]]
+name = "split-attributes"
+files = { "src/lib.rs" = "#[repr(packed)]\n#[repr(C)]\npub struct A(u8, u32);\n#[repr(C)]\n#[repr(packed)]\npub struct B(u8, u32);\n" }
+expected = []
+
+[[cases]]
+name = "other-representations"
+files = { "src/lib.rs" = "#[repr(C)]\npub struct A(u8, u32);\n#[repr(align(8))]\npub struct B(u8, u32);\n#[repr(transparent)]\npub struct C(u32);\n#[repr(u8)]\npub enum D {\n    X,\n}\n" }
+expected = []
+
+[[cases]]
+name = "union"
+files = { "src/lib.rs" = "#[repr(packed)]\npub union U {\n    pub a: u8,\n    pub b: u32,\n}\n" }
+expected = [{ file = "src/lib.rs", start = 16, end = 62 }]
+
+[[cases]]
+name = "documented-and-visible"
+files = { "src/lib.rs" = "/// A packed pair.\n#[derive(Clone, Copy)]\n#[repr(packed)]\n#[allow(dead_code)]\npub(crate) struct A(u8, u32);\n" }
+expected = [{ file = "src/lib.rs", start = 78, end = 107 }]
+
+[[cases]]
+name = "in-module-and-function"
+files = { "src/lib.rs" = "pub mod m {\n    #[repr(packed)]\n    pub struct A(u8, u32);\n}\npub fn f() -> usize {\n    #[repr(packed)]\n    struct B(u8, u32);\n    std::mem::size_of::<B>()\n}\n" }
+expected = [{ file = "src/lib.rs", start = 36, end = 58 }, { file = "src/lib.rs", start = 107, end = 125 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::repr_packed_without_abi)]\n#[repr(packed)]\npub struct A(u8, u32);\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious)]\n#[repr(packed)]\npub struct A(u8, u32);\n#[repr(packed)]\n#[allow(clippy::all)]\npub struct B(u8, u32);\n#[expect(warnings)]\n#[repr(packed)]\npub struct C(u8, u32);\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::repr_packed_without_abi)]\n#[repr(packed)]\npub struct A(u8, u32);\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::all)]\n#[warn(clippy::repr_packed_without_abi)]\n#[repr(packed)]\npub struct A(u8, u32);\n#[repr(packed)]\npub struct B(u8, u32);\n" }
+expected = [{ file = "src/lib.rs", start = 80, end = 102 }]

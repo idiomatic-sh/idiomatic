@@ -1,0 +1,88 @@
+description = "A language implements `ryo::languages::Semantics` only in its parse contract's `semantics.rs`: never in `contract.rs`, another file of the part, or another contract."
+why = "The parse contract's answers to the catalog's optional relations are one concept with one home, so every language, present and future, has the same shape: `contract.rs` answers the baseline relations through `Parse`, `semantics.rs` the optional ones through `Semantics`, and neither file carries the other's list. `Semantics` is handed out by `Parse::semantics`, so an implementation under any other contract is misplaced."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let token-edges = select l."parent" as "parent", r."id" as "token", r."kind" as "kind", r."text" as "text" from "syntax-child" as l join tree-tokens as r on l."child" = r."id";
+let paths = select * from tree-nodes where kind = "path";
+let segments = select * from tree-nodes where kind = "path-segment";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let path-segment-edges = select l."id" as "pathnode", r."child" as "child" from paths as l join "syntax-child" as r on l."id" = r."parent";
+let path-segments = select l."pathnode" as "pathnode", r."id" as "segment" from path-segment-edges as l join segments as r on l."child" = r."id";
+let segment-ref-edges = select l."pathnode" as "pathnode", r."child" as "child" from path-segments as l join "syntax-child" as r on l."segment" = r."parent";
+let segment-refs = select l."pathnode" as "pathnode", r."id" as "nameref" from segment-ref-edges as l join name-refs as r on l."child" = r."id";
+let path-names = select l."pathnode" as "pathnode", r."text" as "name" from segment-refs as l join token-edges as r on l."nameref" = r."parent";
+let impls = select * from tree-nodes where kind = "impl";
+let impl-children = select r."child" as "child", l."id" as "id", l."file" as "file", r."ordinal" as "ordinal" from impls as l join "syntax-child" as r on l."id" = r."parent";
+let path-types = select * from tree-nodes where kind = "path-type";
+let impl-types = select l."child" as "type", l."id" as "id", l."file" as "file", l."ordinal" as "ordinal" from impl-children as l join path-types as r on l."child" = r."id";
+let for-tokens = select * from tree-tokens where kind = "for-kw";
+let impl-for = select l."id" as "id", l."ordinal" as "for" from impl-children as l join for-tokens as r on l."child" = r."id";
+let impl-types-for = select r."for" as "for", l."id" as "id", l."file" as "file", l."ordinal" as "ordinal", l."type" as "type" from impl-types as l join impl-for as r on l."id" = r."id";
+let trait-types = select * from impl-types-for where ordinal < for;
+let trait-path-edges = select r."child" as "child", l."id" as "impl", l."file" as "file" from trait-types as l join "syntax-child" as r on l."type" = r."parent";
+let trait-paths = select l."impl" as "impl", l."file" as "file", r."id" as "pathnode" from trait-path-edges as l join paths as r on l."child" = r."id";
+let trait-names = select l."impl" as "impl", l."file" as "file", r."name" as "trait" from trait-paths as l join path-names as r on l."pathnode" = r."pathnode";
+let semantic-impls = select * from trait-names where trait = "Semantics";
+let semantic-files = project(from=semantic-impls, columns=["file"]);
+let placed = select * from semantic-files where glob_any(file, "{**/inbound/contracts/parse/semantics.rs}");
+let misplaced = difference(left=semantic-files, right=placed);
+let misplaced-rows = extend(from=misplaced, values={"problem": "implements `Semantics` outside the parse contract's `semantics.rs`"});
+emit misplaced-rows subject "file" key("problem");
+'''
+
+[diagnostic]
+primary = "file"
+message = "this file {problem}"
+help = "Move the parse contract's `impl Semantics<…>` block, over the language's own model type, with the imports only it uses, into `src/inbound/contracts/parse/semantics.rs`, declared `mod semantics;` in `contracts/parse.rs`; `Parse::semantics` answers `Some(self)`. An ignore is not legitimate here: the placement is the one shape every language has."
+
+[given]
+include = ['**/*.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'semantics-in-parse-semantics'
+scenario = 'The parse contract implements Semantics in its semantics.rs.'
+given.files.'src/inbound/contracts/parse/semantics.rs' = '''
+use ryo::languages::{self, Semantics};
+
+use super::contract::ParseContract;
+
+impl languages::Semantics<()> for ParseContract {}
+'''
+
+[[scenarios]]
+id = 'semantics-in-contract'
+scenario = 'The parse contract implements Semantics in contract.rs.'
+given.files.'src/inbound/contracts/parse/contract.rs' = '''
+use ryo::languages::{self, Parse};
+
+pub struct ParseContract;
+
+impl Parse for ParseContract {}
+
+impl languages::Semantics<()> for ParseContract {}
+'''
+then.findings = [
+  { path = 'src/inbound/contracts/parse/contract.rs' },
+]
+
+[[scenarios]]
+id = 'semantics-under-project'
+scenario = 'A semantics.rs under the project contract implements Semantics.'
+given.files.'src/inbound/contracts/project/semantics.rs' = '''
+use ryo::languages::Semantics;
+
+use super::contract::ProjectContract;
+
+impl Semantics for ProjectContract {}
+'''
+then.findings = [
+  { path = 'src/inbound/contracts/project/semantics.rs' },
+]

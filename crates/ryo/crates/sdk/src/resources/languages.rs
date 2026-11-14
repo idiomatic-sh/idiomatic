@@ -327,10 +327,14 @@ pub use ryo_language::domain::decoded::service::property_at;
 pub use ryo_language::domain::decoded::types::{FloatBits, FloatBuffer};
 pub use ryo_language::domain::elements::service::source_order;
 pub use ryo_language::domain::elements::types::SourceOrder;
-pub use ryo_language::domain::keys::service::{
-    clear_keys, intern_key, key_class_at, push_key_word,
-};
+pub use ryo_language::domain::keys::service::{clear_keys, intern_key, push_key_word};
 pub use ryo_language::domain::keys::types::{KeyState, RetainedKeyIndex, ShapeWord};
+pub use ryo_language::domain::shapes::service::{
+    child_class, clear_shapes, prepare_shapes, push_shape_word, rewrite_shape_words, shape_class_at,
+};
+pub use ryo_language::domain::shapes::types::{
+    KeptShapeWords, ShapeClasses, ShapeExtent, ShapeIndex, ShapeKey, ShapeStep,
+};
 pub use ryo_relations::domain::relations::constants::{IMPLIED, NO_SPAN};
 pub use ryo_relations::domain::relations::service::location;
 pub use ryo_relations::domain::relations::types::PropertyId;

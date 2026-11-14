@@ -1,0 +1,15 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+let atoms = select id, file, span from "syntax-tree" where kind = "cfg-atom";
+let features = source-matches(from=atoms, span="span", pattern="\Afeature\s*=\s*\x22cargo-clippy\x22\z", output="found");
+let owners = select id, file from "syntax-tree" where kind = "cfg-meta" or kind = "cfg-attr-meta";
+let owned = axis(from=features, relation="syntax-child", direction=nearest-ancestor, domain=owners);
+let cfg_attrs = select id, file from "syntax-tree" where kind = "cfg-attr-meta";
+let attr_items = select l.parent as owner, l.child as child, l.file as file from "syntax-child" as l join cfg_attrs as r on l.parent = r.id;
+let attr_metas = select l.owner as owner, l.child as child, l.file as file from attr_items as l join "syntax-tree" as r on l.child = r.id where r.kind = "path-meta" or r.kind = "token-tree-meta" or r.kind = "key-value-meta" or r.kind = "unsafe-meta" or r.kind = "cfg-meta" or r.kind = "cfg-attr-meta";
+let attr_counts = group-count(from=attr_metas, keys=["owner", "file"], count="metas");
+let single_attrs = select owner as id, file from attr_counts where metas = 1;
+let cfgs = select id, file from "syntax-tree" where kind = "cfg-meta";
+let checked = union(left=cfgs, right=single_attrs);
+let candidates = select l.id as id, l.file as file, l.span as span from owned as l join checked as r on l.related = r.id;
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:deprecated_clippy_cfg_attr|suspicious|all))\s*(?:,|$)");
+emit violations subject file key(span);

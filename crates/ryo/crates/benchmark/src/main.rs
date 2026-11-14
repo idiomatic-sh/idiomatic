@@ -87,8 +87,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let operate = OperateUseCaseImpl::new(
             Arc::new(ryo_benchmark::outbound::executables::factory::cargo(
                 operate_constants::BUILD_TOOL.into(),
-                // ignore: idiomatic.arch/no-env-reads - the reference tool is the first of its name on the search path, the operating system's convention for finding a command
-                std::env::var_os(operate_constants::SEARCH_PATH).unwrap_or_default(),
+                std::env::join_paths(
+                    // ignore: idiomatic.arch/no-env-reads - the reference tool is the first of its name in the starting build tool's toolchain, then on the search path, the operating system's convention for finding a command
+                    std::env::var_os(operate_constants::TOOLCHAIN_TOOL)
+                        .map(std::path::PathBuf::from)
+                        .and_then(|tool| tool.parent().map(std::path::Path::to_path_buf))
+                        .into_iter()
+                        .chain(std::env::split_paths(
+                            &std::env::var_os(operate_constants::SEARCH_PATH).unwrap_or_default(),
+                        )),
+                )?,
             )),
             Arc::new(ryo_benchmark::outbound::suite::factory::local()),
             Arc::new(inventory::factory::local()),

@@ -24,6 +24,8 @@ pub enum Operation {
     UnsafeAuxiliaryPath,
     /// A dependency that escapes the boundary is refused.
     EscapingDependency,
+    /// A receipt is assembled from the manifest alone, after its snapshot is gone.
+    ReceiptReadsNoFile,
 }
 
 /// What a contract row is refused with.
@@ -78,6 +80,12 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an existing corpus seals under its root"),
         word: Word::Succeeds,
         input: || Operation::ExistingCorpusSeals,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a receipt reads no file of its snapshot"),
+        word: Word::Succeeds,
+        input: || Operation::ReceiptReadsNoFile,
         expect: Expect::Value(()),
     },
     Case {
@@ -184,6 +192,26 @@ fn observe(adapter: &impl ContextPort, operation: Operation) -> Result<(), Error
             let root = manifest.boundary.join("pkg");
             adapter
                 .receipt(&manifest, &root, vec![missing("../../escape")])
+                .map(|_| ())
+        }
+        Operation::ReceiptReadsNoFile => {
+            let manifest = materialized("pkg/__init__.py")?;
+            let root = manifest.boundary.join("pkg");
+            match std::fs::remove_dir_all(&manifest.boundary) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.into()),
+            }
+            adapter
+                .receipt(
+                    &manifest,
+                    &root,
+                    vec![
+                        present("__init__.py"),
+                        missing("../__init__.py"),
+                        missing("absent.py"),
+                    ],
+                )
                 .map(|_| ())
         }
     }

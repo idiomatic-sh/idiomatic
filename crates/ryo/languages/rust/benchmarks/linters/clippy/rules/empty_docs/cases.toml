@@ -1,0 +1,69 @@
+[[cases]]
+name = "empty-line-doc"
+files = { "src/lib.rs" = "///\npub fn f() {}\n///   \npub fn g() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 3 }, { file = "src/lib.rs", start = 18, end = 24 }]
+
+[[cases]]
+name = "several-empty"
+files = { "src/lib.rs" = "///\n///\n#[doc = \"\"]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 18 }]
+
+[[cases]]
+name = "doc-attributes"
+files = { "src/lib.rs" = "#[doc = \"\"]\npub fn f() {}\n#[doc = \"  \"]\npub fn g() {}\n#[doc = \"fine\"]\npub fn h() {}\n" }
+expected = [{ file = "src/lib.rs", start = 8, end = 10 }, { file = "src/lib.rs", start = 34, end = 38 }]
+
+[[cases]]
+name = "inner"
+files = { "src/lib.rs" = "pub mod m {\n    //!\n}\npub fn f() {\n    /*! */\n}\npub fn g() {\n    //!\n    //! inside\n}\n" }
+expected = [{ file = "src/lib.rs", start = 16, end = 19 }, { file = "src/lib.rs", start = 39, end = 45 }]
+
+[[cases]]
+name = "crate-level"
+files = { "src/lib.rs" = "//!\n\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 3 }]
+
+[[cases]]
+name = "blocks"
+files = { "src/lib.rs" = "/** */\npub fn f() {}\n/**\n */\npub fn g() {}\n/** a */\npub fn h() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 6 }, { file = "src/lib.rs", start = 21, end = 28 }]
+
+[[cases]]
+name = "members"
+files = { "src/lib.rs" = "pub enum E {\n    ///\n    A,\n    /// fine\n    B,\n}\npub struct S {\n    ///\n    pub x: u8,\n}\npub trait T {\n    ///\n    fn f() {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 17, end = 20 }, { file = "src/lib.rs", start = 69, end = 72 }, { file = "src/lib.rs", start = 108, end = 111 }]
+
+[[cases]]
+name = "mixed-with-text"
+files = { "src/lib.rs" = "///\n/// text\n///\npub fn f() {}\n///\npub mod m {\n    //! inner text\n}\n" }
+expected = []
+
+[[cases]]
+name = "hidden-and-suspicious"
+files = { "src/lib.rs" = "///\n#[doc(hidden)]\npub fn f() {}\n///\n///!\npub fn g() {}\n" }
+expected = []
+
+[[cases]]
+name = "detached-by-blank-line"
+files = { "src/lib.rs" = "///\n\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 3 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "///\n#[allow(clippy::empty_docs)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious)]\npub mod m {\n    ///\n    pub fn f() {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::empty_docs)]\n///\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n///\n#[warn(clippy::empty_docs)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 30, end = 33 }]

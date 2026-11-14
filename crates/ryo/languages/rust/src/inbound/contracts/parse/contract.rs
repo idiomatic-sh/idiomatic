@@ -16,6 +16,7 @@ use ryo::languages::{
 
 use crate::domain::fact_extraction::service::note_of;
 use crate::domain::language::service::reads;
+use crate::domain::model::{service::clear, types::ReadIndexes};
 use crate::domain::relations::collections::relations::{
     annotates::item::AnnotatesItem, assigns::item::AssignsItem,
     call_argument::item::CallArgumentItem, comment::item::CommentItem,
@@ -49,19 +50,19 @@ impl ParseContract {
 }
 
 impl Parse for ParseContract {
-    type FileModel = ();
+    type FileModel = ReadIndexes;
 
     fn begin_semantics(&self, _: &ParseRequest<'_>, _: &Elements, _: &mut SemanticSlot) {}
 
-    fn semantics(&self) -> Option<&dyn languages::Semantics> {
-        None
+    fn semantics(&self) -> Option<&dyn languages::Semantics<ReadIndexes>> {
+        Some(self)
     }
 
     fn completion_requirement(&self) -> CompletionRequirement {
         CompletionRequirement::Independent
     }
 
-    fn extend_file_model(&self, _: &Tree<'_>, _: Position, _: &mut Self::FileModel) {}
+    fn extend_file_model(&self, _: &Tree<'_>, _: Position, _: &mut ReadIndexes) {}
 
     fn recognizes_explicit(&self, _: &ParseRequest<'_>) -> Recognition {
         Recognition::Declines
@@ -75,7 +76,9 @@ impl Parse for ParseContract {
         languages::ParseConfigurationIdentity(NO_CONFIGURATION)
     }
 
-    fn file_model(&self, _tree: &Tree<'_>, _model: &mut ()) {}
+    fn file_model(&self, _tree: &Tree<'_>, model: &mut ReadIndexes) {
+        clear(model);
+    }
 
     fn recognizes(&self, request: &ParseRequest<'_>) -> Recognition {
         reads(request.path)
@@ -125,123 +128,123 @@ impl Parse for ParseContract {
         }
     }
 
-    fn function(&self) -> Support<Reader<languages::Function, ()>> {
+    fn function(&self) -> Support<Reader<languages::Function, ReadIndexes>> {
         languages::reads::<FunctionItem>()
     }
 
-    fn annotates(&self) -> Support<Reader<languages::Annotates, ()>> {
+    fn annotates(&self) -> Support<Reader<languages::Annotates, ReadIndexes>> {
         languages::reads::<AnnotatesItem>()
     }
 
-    fn assigns(&self) -> Support<Reader<languages::Assigns, ()>> {
+    fn assigns(&self) -> Support<Reader<languages::Assigns, ReadIndexes>> {
         languages::reads::<AssignsItem>()
     }
 
-    fn comment(&self) -> Support<Reader<languages::Comment, ()>> {
+    fn comment(&self) -> Support<Reader<languages::Comment, ReadIndexes>> {
         languages::reads::<CommentItem>()
     }
 
-    fn directive(&self) -> Support<Reader<languages::Directive, ()>> {
+    fn directive(&self) -> Support<Reader<languages::Directive, ReadIndexes>> {
         // standard: The Rust Reference, Attributes and Conditional compilation: conditions are attributes of items, which `cfg` reads as syntax, not instructions to a build tool in a comment or header.
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 
-    fn decorates(&self) -> Support<Reader<languages::Decorates, ()>> {
+    fn decorates(&self) -> Support<Reader<languages::Decorates, ReadIndexes>> {
         languages::reads::<DecoratesItem>()
     }
 
-    fn defines(&self) -> Support<Reader<languages::Defines, ()>> {
+    fn defines(&self) -> Support<Reader<languages::Defines, ReadIndexes>> {
         languages::reads::<DefinesItem>()
     }
 
-    fn visibility(&self) -> Support<Reader<languages::Visibility, ()>> {
+    fn visibility(&self) -> Support<Reader<languages::Visibility, ReadIndexes>> {
         languages::reads::<VisibilityItem>()
     }
 
-    fn inherits(&self) -> Support<Reader<languages::Inherits, ()>> {
+    fn inherits(&self) -> Support<Reader<languages::Inherits, ReadIndexes>> {
         languages::reads::<InheritsItem>()
     }
 
-    fn mention(&self) -> Support<Reader<languages::Mention, ()>> {
+    fn mention(&self) -> Support<Reader<languages::Mention, ReadIndexes>> {
         languages::reads::<MentionItem>()
     }
 
-    fn parameter(&self) -> Support<Reader<languages::Parameter, ()>> {
+    fn parameter(&self) -> Support<Reader<languages::Parameter, ReadIndexes>> {
         languages::reads::<ParameterItem>()
     }
 
-    fn reference(&self) -> Support<Reader<languages::Reference, ()>> {
+    fn reference(&self) -> Support<Reader<languages::Reference, ReadIndexes>> {
         languages::reads::<ReferenceItem>()
     }
 
-    fn scope(&self) -> Support<Reader<languages::Scope, ()>> {
+    fn scope(&self) -> Support<Reader<languages::Scope, ReadIndexes>> {
         languages::reads::<ScopeItem>()
     }
 
-    fn static_call(&self) -> Support<Reader<languages::StaticCall, ()>> {
+    fn static_call(&self) -> Support<Reader<languages::StaticCall, ReadIndexes>> {
         languages::reads::<StaticCallItem>()
     }
 
-    fn call_argument(&self) -> Support<Reader<languages::CallArgument, ()>> {
+    fn call_argument(&self) -> Support<Reader<languages::CallArgument, ReadIndexes>> {
         languages::reads::<CallArgumentItem>()
     }
 
-    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, ReadIndexes>> {
         languages::native_semantic_syntax()
     }
 
-    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, ReadIndexes>> {
         languages::native_semantic_child()
     }
 
-    fn resolves(&self) -> Support<Reader<languages::Resolves, ()>> {
+    fn resolves(&self) -> Support<Reader<languages::Resolves, ReadIndexes>> {
         languages::reads::<ResolvesItem>()
     }
 
-    fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
+    fn static_import(&self) -> Support<Reader<languages::StaticImport, ReadIndexes>> {
         languages::reads::<StaticImportItem>()
     }
 
-    fn string_literal(&self) -> Support<Reader<languages::StringLiteral, ()>> {
+    fn string_literal(&self) -> Support<Reader<languages::StringLiteral, ReadIndexes>> {
         languages::reads::<StringLiteralItem>()
     }
 
-    fn prose(&self) -> Support<Reader<languages::Prose, ()>> {
+    fn prose(&self) -> Support<Reader<languages::Prose, ReadIndexes>> {
         languages::absent(AbsenceCause::NotADocument)
     }
 
-    fn syntax_child(&self) -> Support<Reader<languages::SyntaxChild, ()>> {
+    fn syntax_child(&self) -> Support<Reader<languages::SyntaxChild, ReadIndexes>> {
         languages::reads::<SyntaxChildItem>()
     }
 
-    fn syntax_error(&self) -> Support<Reader<languages::SyntaxError, ()>> {
+    fn syntax_error(&self) -> Support<Reader<languages::SyntaxError, ReadIndexes>> {
         languages::reads::<SyntaxErrorItem>()
     }
 
-    fn source_location(&self) -> Support<Reader<languages::SourceLocation, ()>> {
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, ReadIndexes>> {
         languages::source_locations()
     }
 
-    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, ()>> {
+    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, ReadIndexes>> {
         // standard: Rust Reference, Whitespace: nonempty whitespace separates tokens;
         // lexical INDENT/DEDENT suite regions are not part of its whitespace grammar.
         // https://doc.rust-lang.org/reference/whitespace.html
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 
-    fn syntax_tree(&self) -> Support<Reader<languages::SyntaxTree, ()>> {
+    fn syntax_tree(&self) -> Support<Reader<languages::SyntaxTree, ReadIndexes>> {
         languages::reads::<SyntaxTreeItem>()
     }
 
-    fn mapping(&self) -> Support<Reader<languages::Mapping, ()>> {
+    fn mapping(&self) -> Support<Reader<languages::Mapping, ReadIndexes>> {
         languages::absent(AbsenceCause::NotAKeyedDocument)
     }
 
-    fn entry(&self) -> Support<Reader<languages::Entry, ()>> {
+    fn entry(&self) -> Support<Reader<languages::Entry, ReadIndexes>> {
         languages::absent(AbsenceCause::NotAKeyedDocument)
     }
 
-    fn sequence_element(&self) -> Support<Reader<languages::SequenceElement, ()>> {
+    fn sequence_element(&self) -> Support<Reader<languages::SequenceElement, ReadIndexes>> {
         languages::absent(AbsenceCause::NotAKeyedDocument)
     }
 }
