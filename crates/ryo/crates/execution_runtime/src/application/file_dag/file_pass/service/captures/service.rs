@@ -45,7 +45,6 @@ pub(crate) fn captured_rule(
     let frontiers = at.request.program.frontiers(rule)?;
     let nodes = fused_rule(&at.pass.program, rule)?.clone();
     let plan = Arc::clone(at.pass.plans.get(rule.0).ok_or(OperatingError::NotRun)?);
-    let reads = at.pass.reads.get(rule.0).ok_or(OperatingError::NotRun)?.clone();
     let CaptureContext {
         worker,
         arena: Arena(arena),
@@ -61,19 +60,19 @@ pub(crate) fn captured_rule(
             continue;
         }
         let step = match source {
-            Input::Step(id) => Some(id.0 as usize),
+            Input::Step(id) => Some(*id),
             Input::Relation(_) | Input::BoundObservation(_) => None,
         };
         if step
-            .and_then(|step| plan.steps.get(step))
+            .and_then(|step| plan.steps.get(step.0 as usize))
             .is_some_and(|each| each.scope == StepScope::CrossFile)
         {
             continue;
         }
         let outcome = (|| {
             let step = step.ok_or(OperatingError::NotRun)?;
-            let node = nodes.steps.get(step).ok_or(OperatingError::NotRun).and_then(Clone::clone);
-            let NodeAnswer { mut table, coverage } = node_rows(at, symbols, rule, node, reads.get(step))?;
+            let node = nodes.steps.get(step.0 as usize).ok_or(OperatingError::NotRun).and_then(Clone::clone);
+            let NodeAnswer { mut table, coverage } = node_rows(at, symbols, rule, node, step)?;
             let coverage = file_frontier_coverage(coverage, at.file)?;
             let frame_places = escape_frame(
                 &mut table,

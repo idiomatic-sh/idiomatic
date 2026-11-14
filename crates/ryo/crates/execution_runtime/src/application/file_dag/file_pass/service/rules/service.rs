@@ -214,14 +214,13 @@ pub(crate) fn delivered_rule(
     }
     let nodes = fused_rule(&at.pass.program, rule)?;
     let plan = at.pass.plans.get(rule.0).ok_or(OperatingError::NotRun)?;
-    let reads = at.pass.reads.get(rule.0).ok_or(OperatingError::NotRun)?;
     let emit = if diagnostic == DiagnosticDelivery::Disabled {
         RootOutcome::NoQuery
     } else {
         let step = plan.emit.step.0 as usize;
         match plan.steps.get(step).map(|each| each.scope) {
             Some(phase) if phase != StepScope::PerFile => RootOutcome::Deferred { phase },
-            _ => node_outcome(at, symbols, rule, nodes.emit.clone(), reads.get(step)),
+            _ => node_outcome(at, symbols, rule, nodes.emit.clone(), plan.emit.step),
         }
     };
     if observations == ObservationDemand::Required {
@@ -241,7 +240,7 @@ pub(crate) fn delivered_rule(
                             .get(id.0 as usize)
                             .ok_or(OperatingError::NotRun)
                             .and_then(Clone::clone);
-                        node_outcome(at, symbols, rule, step, reads.get(id.0 as usize))
+                        node_outcome(at, symbols, rule, step, id)
                     }
                     Some(Input::Relation(_) | Input::BoundObservation(_)) | None => {
                         RootOutcome::Failed(OperatingError::NotRun)
