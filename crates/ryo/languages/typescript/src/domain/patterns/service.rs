@@ -2,10 +2,13 @@
 //! library parsed of the regular-expression patterns a file carries: the properties it left on a carrier and on each pattern element,
 //! and where each element stands under the carrier.
 
-use super::constants::{BODY, MALFORMED, MAX, MIN, PARSED};
-use super::types::PatternRole;
-use crate::domain::syntax::constants::{PATTERN_ERROR, PATTERN_FLAGS, PATTERN_VALUE};
-use crate::domain::syntax::service::{kind, parent, written};
+use super::constants::{BODY, MALFORMED, MALFORMED_FLAGS, MAX, MIN, PARSED};
+use super::types::{PatternRole, Refusal, RefusedPart};
+use crate::domain::syntax::constants::{
+    PATTERN_ERROR, PATTERN_ERROR_END, PATTERN_ERROR_START, PATTERN_FLAGS, PATTERN_FLAGS_ERROR,
+    PATTERN_VALUE,
+};
+use crate::domain::syntax::service::{kind, offset, parent, written};
 use crate::domain::syntax::types::Kind;
 use crate::domain::syntax::types::PatternNode;
 use ryo::languages::{self, Integer, NameText, Position, Symbol, Symbols, Tree};
@@ -17,23 +20,53 @@ pub(crate) fn flags(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Opt
         .map(|text| languages::intern_derived(symbols, tree.source, text))
 }
 
-/// Whether the library parsed the pattern the element at `at` carries, or refused it.
+/// What the library refused of the carrier at `at`: its flags, its pattern, or nothing.
+#[must_use]
+fn refused<'t>(tree: &Tree<'t>, at: Position) -> Option<Refusal<'t>> {
+    if let Some(message) = languages::property_at(tree.elements, at, PATTERN_FLAGS_ERROR) {
+        return Some(Refusal {
+            part: RefusedPart::Flags,
+            message,
+        });
+    }
+    languages::property_at(tree.elements, at, PATTERN_ERROR).map(|message| Refusal {
+        part: RefusedPart::Pattern,
+        message,
+    })
+}
+
+/// Whether the library parsed the pattern the element at `at` carries, refused it, or refused the flags it was given.
 #[must_use]
 pub(crate) fn outcome(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Symbol {
-    let word = if languages::property_at(tree.elements, at, PATTERN_ERROR).is_some() {
-        MALFORMED
-    } else {
-        PARSED
+    let word = match refused(tree, at).map(|refused| refused.part) {
+        None => PARSED,
+        Some(RefusedPart::Pattern) => MALFORMED,
+        Some(RefusedPart::Flags) => MALFORMED_FLAGS,
     };
     languages::intern_derived(symbols, tree.source, NameText(word))
 }
 
-/// The library's message for the pattern the element at `at` carries, when it refused it; no text when it parsed it.
+/// The library's message for what it refused of the carrier at `at`; no text when it refused nothing.
 #[must_use]
 pub(crate) fn error(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Symbol {
-    languages::property_at(tree.elements, at, PATTERN_ERROR).map_or(languages::NO_SYMBOL, |text| {
-        languages::intern_derived(symbols, tree.source, text)
+    refused(tree, at).map_or(languages::NO_SYMBOL, |refused| {
+        languages::intern_derived(symbols, tree.source, refused.message)
     })
+}
+
+/// Where the library refused what the carrier at `at` gave it, when it did and said where; the carrier's own extent otherwise.
+#[must_use]
+pub(crate) fn span(tree: &Tree<'_>, at: Position) -> languages::Span {
+    match (
+        offset(tree, at, PATTERN_ERROR_START),
+        offset(tree, at, PATTERN_ERROR_END),
+    ) {
+        (Some(start), Some(end)) => languages::Span { start, end },
+        _ => languages::Span {
+            start: languages::start_at(tree.elements, at),
+            end: languages::end_at(tree.elements, at),
+        },
+    }
 }
 
 /// The element that carries the pattern the element at `at` belongs to: the nearest element above it that is not of the pattern.

@@ -1,13 +1,16 @@
 //! The patterns of the adapter: which elements carry a regular-expression pattern, and the trees `oxc_regular_expression` parses of
 //! them, written under each carrier with the properties the domain reads.
 
-use super::super::constants::{NO_FLAGS, PATTERN_CONSTRUCTOR, UNKNOWN_FLAGS};
+use super::super::constants::{EMPTY_PATTERN, NO_FLAGS, PATTERN_CONSTRUCTOR, UNKNOWN_FLAGS};
 use super::super::projection::service::declaration_start;
 use super::super::types::{
-    Carrier, CarrierIndex, Carries, DecodedText, Form, Hosting, PatternFlags, PatternWriter,
+    Carrier, CarrierIndex, Carries, DecodedText, Form, Hosting, PatternFlags, PatternWriter, Reach,
     VisitorStack,
 };
-use crate::domain::syntax::constants::{PATTERN_ERROR, PATTERN_FLAGS, PATTERN_VALUE};
+use crate::domain::syntax::constants::{
+    PATTERN_ERROR, PATTERN_ERROR_END, PATTERN_ERROR_START, PATTERN_FLAGS, PATTERN_FLAGS_ERROR,
+    PATTERN_VALUE,
+};
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::domain::syntax::types::PatternNode;
@@ -80,8 +83,9 @@ fn pattern_node(kind: RegExpAstKind<'_>) -> Option<PatternNode> {
     })
 }
 
-/// Notes the string a call of `RegExp` takes first as a possible carrier, with the flags its second argument gives: whether the name
-/// is the global constructor is known only once the file's names are resolved.
+/// Notes the string a call of `RegExp` takes first as a possible carrier, with the flags its second argument gives; or, when the first
+/// is no string, the string the second is, whose flags alone are read. Whether the name is the global constructor is known only once
+/// the file's names are resolved.
 pub(in super::super) fn constructed<'a>(projection: &mut VisitorStack<'a>, kind: AstKind<'a>) {
     let (callee, arguments) = if let AstKind::CallExpression(call) = kind {
         (&call.callee, &call.arguments)
@@ -96,9 +100,6 @@ pub(in super::super) fn constructed<'a>(projection: &mut VisitorStack<'a>, kind:
     if name.name != PATTERN_CONSTRUCTOR {
         return;
     }
-    let Some(Argument::StringLiteral(pattern)) = arguments.first() else {
-        return;
-    };
     let flags = match arguments.get(1) {
         None => PatternFlags::Absent,
         Some(Argument::StringLiteral(flags)) => {
@@ -106,15 +107,24 @@ pub(in super::super) fn constructed<'a>(projection: &mut VisitorStack<'a>, kind:
         }
         Some(_) => PatternFlags::Unknown,
     };
+    let (span, form) = match (arguments.first(), &flags) {
+        (Some(Argument::StringLiteral(pattern)), _) => (pattern.span, Form::Constructor(name)),
+        (Some(_), PatternFlags::Quoted(span, _)) => (*span, Form::Flags),
+        _ => return,
+    };
     projection.carriers.push(Carrier {
-        span: pattern.span,
-        form: Form::Constructor(name),
+        span,
+        form,
         flags,
         host: Hosting::Unwritten,
     });
+    projection
+        .pending
+        .push(CarrierIndex(projection.carriers.len() - 1));
 }
 
-/// Whether the node the walk enters carries a pattern: a pattern literal always, a string when the call around it noted it.
+/// Whether the node the walk enters carries a pattern: a pattern literal always, a string when it is the one the last pending call
+/// noted.
 pub(in super::super) fn carried(projection: &mut VisitorStack<'_>, kind: AstKind<'_>) -> Carries {
     if let AstKind::RegExpLiteral(literal) = kind {
         let start = literal.span.start.saturating_add(1);
@@ -128,22 +138,25 @@ pub(in super::super) fn carried(projection: &mut VisitorStack<'_>, kind: AstKind
         });
         Carries::Pattern(CarrierIndex(projection.carriers.len() - 1))
     } else if let AstKind::StringLiteral(literal) = kind
-        && projection.carriers.last().is_some_and(|carrier| {
-            carrier.span == literal.span
-                && matches!(carrier.form, Form::Constructor(_))
-                && carrier.host == Hosting::Unwritten
+        && projection.pending.last().is_some_and(|index| {
+            projection
+                .carriers
+                .get(index.0)
+                .is_some_and(|carrier| carrier.span == literal.span)
         })
+        && let Some(index) = projection.pending.pop()
     {
-        Carries::Pattern(CarrierIndex(projection.carriers.len() - 1))
+        Carries::Pattern(index)
     } else {
         Carries::Nothing
     }
 }
 
-/// Parses the pattern of every carrier the projection wrote and writes it under the carrier: its elements with their numbers, and on
-/// the carrier the flags it was read with, or the library's message when it refused the pattern. A string is a carrier only when the
-/// `RegExp` it is passed to names the global constructor: its identifier has no `REFERENCE_DECLARATION`, so no declaration of the
-/// file binds it.
+/// Parses the pattern of every carrier the projection wrote and writes it under the carrier. A pattern a literal or the global
+/// constructor reads is written whole: the flags it was read with, then its elements with their numbers, or the place and message of
+/// what the library refused. The global constructor is a `RegExp` whose identifier has no `REFERENCE_DECLARATION`, so no declaration
+/// of the file binds it. Any other carrier, a string a `RegExp` some declaration of the file binds is given, or flags given with no
+/// pattern string, is written only when the library refuses it, and never with elements.
 pub(in super::super) fn written_patterns(
     allocator: &Allocator,
     source: NameText<'_>,
@@ -155,54 +168,47 @@ pub(in super::super) fn written_patterns(
         let Hosting::At(host) = carrier.host else {
             continue;
         };
-        let parsed = match carrier.form {
+        let (flags, flags_span) = match &carrier.flags {
+            PatternFlags::Bare(span) => (slice(source, *span), Some(*span)),
+            PatternFlags::Quoted(span, text) => (NameText(text.0.as_str()), Some(*span)),
+            PatternFlags::Absent => (NameText(NO_FLAGS), None),
+            PatternFlags::Unknown => (NameText(UNKNOWN_FLAGS), None),
+        };
+        let (reach, parsed) = match carrier.form {
             Form::Literal(pattern) => {
-                let PatternFlags::Bare(flags) = carrier.flags else {
+                let PatternFlags::Bare(bare) = carrier.flags else {
                     continue;
                 };
-                LiteralParser::new(
+                let parsed = LiteralParser::new(
                     allocator,
                     slice(source, pattern).0,
-                    Some(slice(source, flags).0),
+                    Some(slice(source, bare).0),
                     Options {
                         pattern_span_offset: pattern.start,
-                        flags_span_offset: flags.start,
+                        flags_span_offset: bare.start,
                     },
                 )
-                .parse()
+                .parse();
+                (Reach::Read, parsed)
             }
             Form::Constructor(name) => {
                 let global = name
                     .reference_id
                     .get()
                     .is_some_and(|reference| declaration_start(scoping, reference).is_none());
-                if !global {
-                    continue;
-                }
-                let (flags, flags_start) = match &carrier.flags {
-                    PatternFlags::Quoted(span, _) => (Some(slice(source, *span).0), span.start),
-                    PatternFlags::Bare(_) | PatternFlags::Absent | PatternFlags::Unknown => {
-                        (None, 0)
-                    }
-                };
-                ConstructorParser::new(
-                    allocator,
-                    slice(source, carrier.span).0,
-                    flags,
-                    Options {
-                        pattern_span_offset: carrier.span.start,
-                        flags_span_offset: flags_start,
-                    },
-                )
-                .parse()
+                let reach = if global { Reach::Read } else { Reach::Checked };
+                let parser =
+                    constructor_parser(allocator, source, Some(carrier.span), &carrier.flags);
+                (reach, parser.parse())
             }
+            Form::Flags => (
+                Reach::Checked,
+                constructor_parser(allocator, source, None, &carrier.flags).parse(),
+            ),
         };
-        let flags = match &carrier.flags {
-            PatternFlags::Bare(span) => slice(source, *span),
-            PatternFlags::Quoted(_, text) => NameText(text.0.as_str()),
-            PatternFlags::Absent => NameText(NO_FLAGS),
-            PatternFlags::Unknown => NameText(UNKNOWN_FLAGS),
-        };
+        if reach == Reach::Checked && parsed.is_ok() {
+            continue;
+        }
         languages::write_embedded(
             builder,
             host,
@@ -213,16 +219,69 @@ pub(in super::super) fn written_patterns(
                 match parsed {
                     Ok(pattern) => PatternWriter { builder: logical }.visit_pattern(&pattern),
                     Err(error) => {
-                        // A message formats into retained storage without failure.
-                        let _written = languages::node_property_fmt(
-                            logical,
-                            PATTERN_ERROR,
-                            format_args!("{error}"),
-                        );
+                        let place = error.labels.as_slice().first().map(|label| {
+                            Span::new(label.offset(), label.offset().saturating_add(label.len()))
+                        });
+                        refusal(logical, place, flags_span, format_args!("{error}"));
                     }
                 }
             },
         );
+    }
+}
+
+/// The parser of the pattern string a call of `RegExp` is given at `pattern`, or of an empty one when it is given none, with the flags
+/// string it is given when it is one.
+fn constructor_parser<'a>(
+    allocator: &'a Allocator,
+    source: NameText<'a>,
+    pattern: Option<Span>,
+    flags: &PatternFlags,
+) -> ConstructorParser<'a> {
+    let (flags_text, flags_start) = match flags {
+        PatternFlags::Quoted(span, _) => (Some(slice(source, *span).0), span.start),
+        PatternFlags::Bare(_) | PatternFlags::Absent | PatternFlags::Unknown => (None, 0),
+    };
+    let (pattern_text, pattern_start) = pattern.map_or((EMPTY_PATTERN, 0), |span| {
+        (slice(source, span).0, span.start)
+    });
+    ConstructorParser::new(
+        allocator,
+        pattern_text,
+        flags_text,
+        Options {
+            pattern_span_offset: pattern_start,
+            flags_span_offset: flags_start,
+        },
+    )
+}
+
+/// Writes on a carrier what the library refused: its message, under the flags' property when the place it points at lies in the
+/// flags and the pattern's otherwise, and that place.
+fn refusal(
+    logical: &mut languages::TableBuilder<'_>,
+    place: Option<Span>,
+    flags: Option<Span>,
+    message: std::fmt::Arguments<'_>,
+) {
+    let in_flags = place
+        .zip(flags)
+        .is_some_and(|(place, flags)| flags.contains_inclusive(place));
+    let property = if in_flags {
+        PATTERN_FLAGS_ERROR
+    } else {
+        PATTERN_ERROR
+    };
+    // A message and offsets format into retained storage without failure.
+    let _written = languages::node_property_fmt(logical, property, message);
+    if let Some(place) = place {
+        let _start = languages::node_property_fmt(
+            logical,
+            PATTERN_ERROR_START,
+            format_args!("{}", place.start),
+        );
+        let _end =
+            languages::node_property_fmt(logical, PATTERN_ERROR_END, format_args!("{}", place.end));
     }
 }
 

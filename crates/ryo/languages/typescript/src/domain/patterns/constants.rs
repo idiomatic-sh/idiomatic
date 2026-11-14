@@ -11,3 +11,5 @@ pub(crate) const MAX: &str = "max";
 pub(crate) const PARSED: &str = "parsed";
 /// The outcome of a pattern the library refused.
 pub(crate) const MALFORMED: &str = "malformed";
+/// The outcome of a carrier whose flags the library refused, so that it never read the pattern.
+pub(crate) const MALFORMED_FLAGS: &str = "malformed-flags";

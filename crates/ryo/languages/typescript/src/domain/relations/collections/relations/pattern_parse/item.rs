@@ -17,7 +17,7 @@ ryo::reads! {
             outcome: value(patterns::outcome(tree, symbols, at)),
             error: value(patterns::error(tree, symbols, at)),
             file: file,
-            span: span(at),
+            span: value(patterns::span(tree, at)),
         }
     }
 }

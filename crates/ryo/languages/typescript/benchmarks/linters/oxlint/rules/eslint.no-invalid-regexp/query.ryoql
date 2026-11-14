@@ -1,0 +1,12 @@
+import directives from "typescript/oxlint/eslint-directives";
+let regex_tokens = select id from "semantic-syntax" where kind = "regular-expression";
+let literals = select l.parent as carrier from "semantic-child" as l join regex_tokens as r on l.child = r.id;
+let refused = select carrier, outcome, file, span from "pattern-parse" where outcome = "malformed-flags" or (outcome = "malformed" and flags != "unknown");
+let called = antijoin(left=refused, right=literals, left-on=["carrier"], right-on=["carrier"]);
+let in_pattern = select carrier as id, file, span from called where outcome = "malformed";
+let in_flags = select carrier as id, file, span from called where outcome = "malformed-flags";
+let marks = source-matches(from=in_flags, span="span", pattern="\A", output="mark");
+let flag_rows = select id, file, mark as span from marks;
+let found = union(left=in_pattern, right=flag_rows);
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-invalid-regexp(?:,|$)");
+emit violations subject file key(id);

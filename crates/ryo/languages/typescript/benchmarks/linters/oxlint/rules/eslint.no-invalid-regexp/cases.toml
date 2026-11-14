@@ -1,0 +1,134 @@
+[[cases]]
+name = "unterminated-class"
+files = { "case.ts" = "const a = new RegExp(\"[\");\n" }
+expected = [{ file = "case.ts", start = 22, end = 23 }]
+
+[[cases]]
+name = "call-unterminated-group"
+files = { "case.ts" = "const a = RegExp(\"(\");\n" }
+expected = [{ file = "case.ts", start = 18, end = 19 }]
+
+[[cases]]
+name = "quantifier-out-of-order"
+files = { "case.ts" = "const a = new RegExp(\"a{2,1}\");\n" }
+expected = [{ file = "case.ts", start = 23, end = 28 }]
+
+[[cases]]
+name = "trailing-backslash"
+files = { "case.ts" = "const a = new RegExp(\"\\\\\");\n" }
+expected = [{ file = "case.ts", start = 22, end = 24 }]
+
+[[cases]]
+name = "unknown-flag"
+files = { "case.ts" = "const a = new RegExp(\"a\", \"z\");\n" }
+expected = [{ file = "case.ts", start = 27, end = 27 }]
+
+[[cases]]
+name = "duplicate-flag"
+files = { "case.ts" = "const a = new RegExp(\"a\", \"gg\");\n" }
+expected = [{ file = "case.ts", start = 28, end = 28 }]
+
+[[cases]]
+name = "unicode-with-sets"
+files = { "case.ts" = "const a = new RegExp(\"a\", \"uv\");\n" }
+expected = [{ file = "case.ts", start = 28, end = 28 }]
+
+[[cases]]
+name = "flags-only"
+files = { "case.ts" = "const a = new RegExp(p, \"z\");\n" }
+expected = [{ file = "case.ts", start = 25, end = 25 }]
+
+[[cases]]
+name = "flags-only-second-flag"
+files = { "case.ts" = "const a = new RegExp(p, \"gz\");\n" }
+expected = [{ file = "case.ts", start = 26, end = 26 }]
+
+[[cases]]
+name = "flags-only-literal-pattern"
+files = { "case.ts" = "const a = new RegExp(/a/, \"zz\");\n" }
+expected = [{ file = "case.ts", start = 27, end = 27 }]
+
+[[cases]]
+name = "flags-before-pattern"
+files = { "case.ts" = "const a = new RegExp(\"[\", \"z\");\n" }
+expected = [{ file = "case.ts", start = 27, end = 27 }]
+
+[[cases]]
+name = "unsettled-flags"
+files = { "case.ts" = "const a = new RegExp(\"[\", f);\n" }
+expected = []
+
+[[cases]]
+name = "nothing-settled"
+files = { "case.ts" = "const a = new RegExp(p, f);\n" }
+expected = []
+
+[[cases]]
+name = "valid-flags-only"
+files = { "case.ts" = "const a = new RegExp(p, \"g\");\n" }
+expected = []
+
+[[cases]]
+name = "unicode-class"
+files = { "case.ts" = "const a = new RegExp(\"[a]\", \"u\");\n" }
+expected = []
+
+[[cases]]
+name = "unicode-property"
+files = { "case.ts" = "const a = new RegExp(\"\\\\p{L}\", \"u\");\n" }
+expected = []
+
+[[cases]]
+name = "property-without-unicode"
+files = { "case.ts" = "const a = new RegExp(\"\\\\p{L}\");\n" }
+expected = []
+
+[[cases]]
+name = "template-pattern"
+files = { "case.ts" = "const a = new RegExp(`[`);\n" }
+expected = []
+
+[[cases]]
+name = "template-flags"
+files = { "case.ts" = "const a = new RegExp(\"[\", `g`);\n" }
+expected = []
+
+[[cases]]
+name = "flags-spelled-unknown"
+files = { "case.ts" = "const a = new RegExp(\"[\", \"unknown\");\n" }
+expected = [{ file = "case.ts", start = 28, end = 28 }]
+
+[[cases]]
+name = "shadowed-call"
+files = { "case.ts" = "const RegExp = (s) => s; const a = RegExp(\"[\");\n" }
+expected = [{ file = "case.ts", start = 43, end = 44 }]
+
+[[cases]]
+name = "shadowed-parameter"
+files = { "case.ts" = "function f(RegExp) { return new RegExp(\"a\", \"z\"); }\n" }
+expected = [{ file = "case.ts", start = 45, end = 45 }]
+
+[[cases]]
+name = "member-callee"
+files = { "case.ts" = "const a = window.RegExp(\"[\");\n" }
+expected = []
+
+[[cases]]
+name = "nested-call"
+files = { "case.ts" = "const a = new RegExp(RegExp(\"[\").source, \"z\");\n" }
+expected = [{ file = "case.ts", start = 29, end = 30 }, { file = "case.ts", start = 42, end = 42 }]
+
+[[cases]]
+name = "no-arguments"
+files = { "case.ts" = "const a = new RegExp;\n" }
+expected = []
+
+[[cases]]
+name = "literal"
+files = { "case.ts" = "const a = /[a]/;\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-invalid-regexp\nconst a = new RegExp(\"[\");\n" }
+expected = []

@@ -11,10 +11,10 @@ use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service::enclosing;
 use crate::domain::syntax::constants::{REDECLARATION_OF, REFERENCE_DECLARATION, REFERENCE_FLAGS};
 use crate::domain::syntax::{
-    service::{kind, parameter_kind, parent},
+    service::{kind, offset, parameter_kind, parent},
     types::Kind,
 };
-use ryo::languages::{self, Offset, Position, Symbol, Symbols, Tree};
+use ryo::languages::{self, Position, Symbol, Symbols, Tree};
 use std::cell::{Ref, RefCell};
 
 /// The names the declaration at `at` binds, each with the `defines` row it gives: the names of a declaration in the scope around it;
@@ -108,17 +108,6 @@ pub(crate) fn indexed<'m>(
         index.state = IndexState::Indexed;
     }
     cell.borrow()
-}
-
-/// The offset a property of the element at `at` holds, in decimal, when it holds one.
-fn offset(tree: &Tree<'_>, at: Position, property: languages::PropertyId) -> Option<Offset> {
-    let Ok(offset) = languages::property_at(tree.elements, at, property)?
-        .0
-        .parse()
-    else {
-        return None; // the adapter writes a decimal offset: text that is none is no offset
-    };
-    Some(Offset(offset))
 }
 
 /// The declarations the reference at `at` resolves to: the first declaration of its name, then each that declares it again. An

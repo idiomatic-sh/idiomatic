@@ -49,6 +49,9 @@ pub(super) struct VisitorStack<'a> {
     pub scoping: Scoping,
     /// The elements that may carry a regular-expression pattern, in the order the walk met them.
     pub carriers: Vec<Carrier<'a>>,
+    /// The carriers a call noted whose string the walk has not reached yet, innermost last: a call's strings are reached before any
+    /// call after it is entered, so the string the walk meets is the last one's or none's.
+    pub pending: Vec<CarrierIndex>,
 }
 
 /// A value decoded by the source parser.
@@ -112,9 +115,21 @@ pub(super) struct Carrier<'a> {
 pub(super) enum Form<'a> {
     /// Between the slashes of a pattern literal, at this extent.
     Literal(Span),
-    /// As a string literal, the first argument of a call of `RegExp` by this name: a pattern only when the name is the global
-    /// constructor, which oxc's resolution says once it has resolved the file's names.
+    /// As a string literal, the first argument of a call of `RegExp` by this name: read whole only when the name is the global
+    /// constructor, which oxc's resolution says once it has resolved the file's names, and only checked otherwise.
     Constructor(&'a oxc_ast::ast::IdentifierReference<'a>),
+    /// Not at all: the first argument of a call of `RegExp` is no string, and the carrier is the string its second argument is, whose
+    /// flags alone are read.
+    Flags,
+}
+
+/// How far a carrier is read: a pattern the global constructor or a literal reads is written whole; any other is only checked.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Reach {
+    /// Written whole: the flags, then the pattern's elements or the place and message of what the library refused.
+    Read,
+    /// Written only when the library refuses it: the flags, and the place and message of what it refused; never any element.
+    Checked,
 }
 
 /// How the source writes the flags of a pattern.

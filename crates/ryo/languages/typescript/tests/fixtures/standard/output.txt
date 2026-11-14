@@ -2221,8 +2221,8 @@ tree 3 N literal 10 19
 tree 4 T regular-expression 10 19
 tree 2 T punctuator 19 20
 tree 1 T whitespace 20 21
-file 6c3e54f6b1f373b8 168
-tree 0 N program 0 168
+file 71f2c69fa66a598f 195
+tree 0 N program 0 195
 tree 1 N variable-declaration 0 17
 tree 2 T keyword 0 5
 tree 2 T whitespace 5 6
@@ -2344,6 +2344,28 @@ tree 4 T punctuator 164 165
 tree 3 T whitespace 165 166
 tree 3 T punctuator 166 167
 tree 1 T whitespace 167 168
+tree 1 N variable-declaration 168 194
+tree 2 T keyword 168 173
+tree 2 T whitespace 173 174
+tree 2 N variable-declarator 174 193
+tree 3 N identifier 174 175
+tree 4 T identifier-token 174 175
+tree 3 T whitespace 175 176
+tree 3 T punctuator 176 177
+tree 3 T whitespace 177 178
+tree 3 N call-expression 178 193
+tree 4 N identifier 178 184
+tree 5 T identifier-token 178 184
+tree 4 T punctuator 184 185
+tree 4 N identifier 185 186
+tree 5 T identifier-token 185 186
+tree 4 T punctuator 186 187
+tree 4 T whitespace 187 188
+tree 4 N literal 188 192
+tree 5 T string 188 192
+tree 4 T punctuator 192 193
+tree 2 T punctuator 193 194
+tree 1 T whitespace 194 195
 string 2:22 2:25 x5b
 call 2:15 2:21 x526567457870
 string 3:18 3:21 x62
@@ -2355,6 +2377,8 @@ string 6:10 6:13 x5b
 call 6:3 6:9 x526567457870
 function 5:1 7:2 x66
 parameter 5:12 5:45 positional 0 x526567457870
+string 8:21 8:25 x677a
+call 8:11 8:17 x526567457870
 file f7560eb6af8a1fec 153
 tree 0 N program 0 153
 tree 1 N variable-declaration 0 19

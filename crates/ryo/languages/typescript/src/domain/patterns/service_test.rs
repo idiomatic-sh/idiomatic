@@ -15,19 +15,27 @@ type Failure = ();
 /// The rows of this concept's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_literal_carries_its_flags_and_its_elements"),
+        name: CaseName("a_parsed_pattern_spans_its_carrier"),
         word: Word::Succeeds,
         input: || "/a[b-c]/g;",
         expect: Expect::Value(
-            "carrier@2 flags=[g] parsed -; pattern@5 under 2 a[b-c] body value=0 nested=Lowered; disjunction@6 under 2 a[b-c] body value=0 nested=Raised; alternative@7 under 2 a[b-c] body value=0 nested=Raised; character@8 under 2 a body value=97 nested=Raised; character-class@9 under 2 [b-c] body value=0 nested=Raised; character-class-range@10 under 2 b-c body value=0 nested=Raised; character@11 under 2 b min value=98 nested=Raised; character@12 under 2 c max value=99 nested=Raised",
+            "carrier@2 flags=[g] parsed - span=0..9; pattern@5 under 2 a[b-c] body value=0 nested=Lowered; disjunction@6 under 2 a[b-c] body value=0 nested=Raised; alternative@7 under 2 a[b-c] body value=0 nested=Raised; character@8 under 2 a body value=97 nested=Raised; character-class@9 under 2 [b-c] body value=0 nested=Raised; character-class-range@10 under 2 b-c body value=0 nested=Raised; character@11 under 2 b min value=98 nested=Raised; character@12 under 2 c max value=99 nested=Raised",
         ),
     },
     Case {
-        name: CaseName("a_refused_pattern_keeps_the_message_on_its_carrier"),
+        name: CaseName("a_refused_pattern_keeps_its_place"),
         word: Word::Succeeds,
         input: || "RegExp(\"(\");",
         expect: Expect::Value(
-            "carrier@6 flags=[] malformed Invalid regular expression: Unterminated capturing group",
+            "carrier@6 flags=[] malformed Invalid regular expression: Unterminated capturing group span=8..9",
+        ),
+    },
+    Case {
+        name: CaseName("refused_flags_are_told_from_a_refused_pattern"),
+        word: Word::Succeeds,
+        input: || "RegExp(\"a\", \"z\");",
+        expect: Expect::Value(
+            "carrier@6 flags=[z] malformed-flags Invalid regular expression: Unknown flag: `z` found span=13..14",
         ),
     },
 ];
@@ -66,12 +74,15 @@ fn subject(source: Input) -> Result<Value, Failure> {
         if let Some(flags) = super::service::flags(tree, symbols, at) {
             let outcome = super::service::outcome(tree, symbols, at);
             let error = super::service::error(tree, symbols, at);
+            let span = super::service::span(tree, at);
             answers.push(format!(
-                "carrier@{} flags=[{}] {} {}",
+                "carrier@{} flags=[{}] {} {} span={}..{}",
                 at.0,
                 text(tree, symbols, flags),
                 text(tree, symbols, outcome),
-                text(tree, symbols, error)
+                text(tree, symbols, error),
+                span.start.0,
+                span.end.0
             ));
         }
     }

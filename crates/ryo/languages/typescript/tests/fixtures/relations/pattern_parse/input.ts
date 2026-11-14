@@ -5,3 +5,4 @@ const d = RegExp("c", "y");
 function f(RegExp: (pattern: string) => void) {
   RegExp("[");
 }
+const e = RegExp(p, "gz");
