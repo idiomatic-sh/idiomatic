@@ -162,3 +162,48 @@ expected = [{ file = "src/lib.rs", start = 19, end = 20 }]
 name = "number-value-repeat"
 files = { "src/lib.rs" = "#[rustfmt::skip(v = 1, v = 2)]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 23, end = 28 }]
+
+[[cases]]
+name = "dotted-number-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = 1.2.3, a, a)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "trailing-dot-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = 1., a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 27, end = 28 }]
+
+[[cases]]
+name = "fraction-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = 1.5, a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 28, end = 29 }]
+
+[[cases]]
+name = "exponent-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = 1e3, a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 28, end = 29 }]
+
+[[cases]]
+name = "hash-raw-string-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = r#\"x\"#, a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 31, end = 32 }]
+
+[[cases]]
+name = "hash-raw-byte-string-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = br#\"x\"#, a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 32, end = 33 }]
+
+[[cases]]
+name = "hash-raw-c-string-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = cr#\"x\"#, a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 32, end = 33 }]
+
+[[cases]]
+name = "hex-escape-char-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = '\\x41', a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 31, end = 32 }]
+
+[[cases]]
+name = "unicode-escape-char-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = '\\u{41}', a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 33, end = 34 }]
