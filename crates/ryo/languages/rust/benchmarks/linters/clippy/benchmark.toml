@@ -526,12 +526,9 @@ defaults = [
 [deferred]
 # Answerable from the relations the Rust provider reads today; authored by this round's batches.
 unauthored = [
-  "almost_complete_range",
   "blanket_clippy_restriction_lints",
   "block_scrutinee",
   "blocks_in_conditions",
-  "builtin_type_shadow",
-  "crate_in_macro_def",
   "deprecated_cfg_attr",
   "deprecated_clippy_cfg_attr",
   "deprecated_semver",
