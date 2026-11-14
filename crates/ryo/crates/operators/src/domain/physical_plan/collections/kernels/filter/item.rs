@@ -1,15 +1,44 @@
-//! The `filter` kernel over the moved comparisons, unchanged, and the `project` kernel over the projection's one meaning.
+//! The `filter` item of the `kernels` collection: the rows a select's compiled comparisons, the moved ones unchanged, hold for,
+//! with its kept columns.
+
+#[cfg(test)]
+use super::super::interface::{KernelsItem, Reach};
 use crate::domain::comparing::service::holds_bound;
 use crate::domain::comparing::types::{DecisionWorkspace, NameCount, RowShape};
 use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
 use crate::domain::patterns::types::PatternMatcher;
 use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
-use crate::domain::physical_plan::types::{FilterKernel, SelectParts};
+use crate::domain::physical_plan::types::FilterKernel;
+use crate::domain::select::types::SelectParts;
+#[cfg(test)]
+use crate::domain::physical_plan::types::Lowering;
 use crate::domain::table_scratch::types::Memo;
 use crate::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::types::{CellKind, Value};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, RepeatedRows};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, Table};
+
+/// `filter`, one item of the `kernels` collection.
+#[cfg(test)]
+pub(crate) struct FilterItem;
+
+#[cfg(test)]
+impl KernelsItem for FilterItem {
+    fn reached_by(&self, lowering: &Lowering) -> Reach {
+        let runs = {
+            match lowering {
+                Lowering::Filter { .. } | Lowering::Lookup { .. } => true,
+                Lowering::Probe { probe, .. } => !probe.filter.comparisons.is_empty(),
+                Lowering::Project { .. }
+                | Lowering::Extend { .. }
+                | Lowering::Distinct { .. }
+                | Lowering::Group { .. }
+                | Lowering::Unlowered => false,
+            }
+        };
+        if runs { Reach::Runs } else { Reach::Skips }
+    }
+}
 
 /// The filter of `select` over rows of `kinds`, its memo of each name's decisions readied for the open file.
 pub(crate) fn filter<'f>(
@@ -100,43 +129,4 @@ pub(crate) fn kept_kinds(
                 .ok_or(PortableOperatorFault::NoSuchColumn { index: *column })
         })
         .collect()
-}
-
-/// Appends a row's projection to `output`, the first time only when repeated rows are dropped. Repeats are found through
-/// `seen`, which holds the place of each kept row of `output` and copies no row.
-///
-/// # Errors
-///
-/// `NoSuchColumn` for a column past the row.
-pub(crate) fn projected(
-    row: &[Value],
-    columns: &[ColumnIndex],
-    distinct: RepeatedRows,
-    seen: &mut hashbrown::HashTable<RowCount>,
-    output: &mut Table,
-) -> Result<(), PortableOperatorFault> {
-    let start = output.cells.len();
-    crate::domain::project::service::project(row, columns, &mut output.cells)?;
-    if distinct == RepeatedRows::Dropped {
-        let width = columns.len();
-        let hasher = rustc_hash::FxBuildHasher;
-        let cells = &output.cells;
-        let row_at = |at: RowCount| {
-            cells
-                .get(at.0 * width..at.0 * width + width)
-                .unwrap_or_default()
-        };
-        let new = cells.get(start..).unwrap_or_default();
-        let hash = std::hash::BuildHasher::hash_one(&hasher, new);
-        if seen.find(hash, |earlier| row_at(*earlier) == new).is_some() {
-            output.cells.truncate(start);
-            return Ok(());
-        }
-        let _: hashbrown::hash_table::OccupiedEntry<'_, RowCount> =
-            seen.insert_unique(hash, output.count, |earlier| {
-                std::hash::BuildHasher::hash_one(&hasher, row_at(*earlier))
-            });
-    }
-    output.count = RowCount(output.count.0 + 1);
-    Ok(())
 }

@@ -2,17 +2,26 @@
 //! after them; its reader reads every row before an input's fault and raises that fault only then, unless one of those rows
 //! faults first, so the earliest row's fault wins whatever the pipeline (D15).
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::service::filter::service::{filter, keep, kept_kinds, projected};
-use crate::domain::physical_plan::service::index::service::{
-    decode, facts, hold, lookups, rows_of,
+use crate::domain::physical_plan::collections::kernels::distinct::item::counted;
+use crate::domain::physical_plan::collections::kernels::extend::item::{extended, kind_of, resolved};
+use crate::domain::physical_plan::collections::kernels::filter::item::{filter, keep, kept_kinds};
+use crate::domain::physical_plan::collections::kernels::group::item::{GroupScratch, grouped};
+use crate::domain::physical_plan::collections::kernels::lookup::item::lookups;
+use crate::domain::physical_plan::collections::kernels::probe::item::{ProbeScratch, probed};
+use crate::domain::physical_plan::collections::kernels::project::item::projected;
+use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
+    count_of, facts, kinds_of, row_of,
+};
+use crate::domain::physical_plan::collections::kernels::scan_node::item::{
+    give_back, hold, sources_of, take,
 };
 use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, NodeDecisions};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    KernelRun, Lowering, NodeReaders, PlanNodeId, Reading, Retention, RowSource, TakenRows,
+    CellStart, InputRows, KernelInputs, KernelRun, Lowering, NodeReaders, NodeRows, PlanNodeId,
+    Reading, RowSource,
 };
-use ryo_relations::domain::relations::types::Value;
-use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
+use ryo_values::domain::rows::types::{RowIndex, Table};
 
 /// Makes `node`'s rows for the open file in `buffers`, and answers the fault it raised after them.
 ///
@@ -28,11 +37,7 @@ pub(crate) fn run(
 ) -> Result<(), PortableOperatorFault> {
     // A node held in this file was made by a build that answered it with its index's other lookups, or by an earlier
     // request for it: its rows stand until the engine releases them at its last consumer.
-    let held = buffers
-        .nodes
-        .get(usize::try_from(node.0).unwrap_or(usize::MAX))
-        .is_some_and(Option::is_some);
-    if !held {
+    if buffers.rows(node) == NodeRows::Absent {
         materialize(plan, run, node, buffers)?;
     }
     match buffers
@@ -55,22 +60,50 @@ fn sized(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
     }
 }
 
-/// Readies what `source` reads: an earlier node is run first when it holds no rows.
-fn reading<'a>(
+/// Runs an earlier node `source` reads when it holds no rows.
+fn ready(
     plan: &PhysicalPlan,
-    run: &mut KernelRun<'a>,
+    run: &mut KernelRun<'_>,
+    source: RowSource,
+    buffers: &mut FileBuffers,
+) -> Result<(), PortableOperatorFault> {
+    match source {
+        RowSource::Node(read) if buffers.rows(read) == NodeRows::Absent => {
+            materialize(plan, run, read, buffers)
+        }
+        RowSource::Node(_) | RowSource::Facts(_) => Ok(()),
+    }
+}
+
+/// What `source` reads, taken for its reader: a relation's rows lent in place, or a ready node's rows.
+fn reading<'a>(
+    run: &KernelRun<'a>,
     source: RowSource,
     buffers: &mut FileBuffers,
 ) -> Result<Reading<'a>, PortableOperatorFault> {
     match source {
         RowSource::Facts(relation) => facts(run.inputs, relation).map(Reading::Facts),
-        RowSource::Node(read) => {
-            let place = usize::try_from(read.0).unwrap_or(usize::MAX);
-            if buffers.nodes.get(place).is_none_or(Option::is_none) {
-                materialize(plan, run, read, buffers)?;
-            }
-            take(buffers, read).map(|taken| Reading::Node(read, taken))
-        }
+        RowSource::Node(read) => take(buffers, read).map(|taken| Reading::Node(read, taken)),
+    }
+}
+
+/// The rows of a reading, read in place.
+fn rows_in<'r>(reading: &'r Reading<'_>) -> InputRows<'r> {
+    match reading {
+        Reading::Facts(view) => InputRows::Facts(view),
+        Reading::Node(_, taken) => InputRows::Table(&taken.rows),
+    }
+}
+
+/// Gives a reading back after `readings` of its node's readers.
+fn returned(
+    plan: &PhysicalPlan,
+    buffers: &mut FileBuffers,
+    reading: Reading<'_>,
+    readings: NodeReaders,
+) {
+    if let Reading::Node(read, taken) = reading {
+        give_back(plan, buffers, read, taken, readings);
     }
 }
 
@@ -83,24 +116,109 @@ fn materialize(
 ) -> Result<(), PortableOperatorFault> {
     sized(plan, buffers);
     let place = usize::try_from(node.0).unwrap_or(usize::MAX);
-    let physical = plan
+    let lowering = &plan
         .nodes
         .get(place)
-        .ok_or(PortableOperatorFault::WrongOperation)?;
-    let (source, mut output) = match &physical.lowering {
+        .ok_or(PortableOperatorFault::WrongOperation)?
+        .lowering;
+    match lowering {
         Lowering::Lookup { index, .. } => return lookups(plan, run, *index, buffers),
         Lowering::Unlowered => return Err(PortableOperatorFault::NotRun),
-        Lowering::Filter { source, .. } | Lowering::Project { source, .. } => {
-            (*source, Table::default())
+        Lowering::Filter { .. }
+        | Lowering::Project { .. }
+        | Lowering::Extend { .. }
+        | Lowering::Group { .. }
+        | Lowering::Probe { .. }
+        | Lowering::Distinct { .. } => {}
+    }
+    let mut sources = sources_of(lowering);
+    let first = sources.next().ok_or(PortableOperatorFault::WrongOperation)?;
+    let second = sources.next();
+    ready(plan, run, first, buffers)?;
+    if let Some(second) = second {
+        ready(plan, run, second, buffers)?;
+    }
+    // One node read on both sides is taken once and read twice.
+    let shared = second == Some(first) && matches!(first, RowSource::Node(_));
+    let left = reading(run, first, buffers)?;
+    let right = match second {
+        Some(second) if !shared => match reading(run, second, buffers) {
+            Ok(right) => Some(right),
+            Err(fault) => {
+                returned(plan, buffers, left, NodeReaders(1));
+                return Err(fault);
+            }
+        },
+        Some(_) | None => None,
+    };
+    let left_fault = pending_of(&left);
+    let right_fault = match &right {
+        Some(right) => pending_of(right),
+        None if shared => left_fault.clone(),
+        None => None,
+    };
+    // A blocking kernel reads every row of an input before it answers one: an input's fault comes before any of its rows. A
+    // union reads its right rows only after every left row.
+    let blocked = match lowering {
+        Lowering::Probe { .. } => right_fault.clone(),
+        Lowering::Group { .. } => left_fault.clone(),
+        Lowering::Filter { .. }
+        | Lowering::Project { .. }
+        | Lowering::Extend { .. }
+        | Lowering::Distinct { .. }
+        | Lowering::Lookup { .. }
+        | Lowering::Unlowered => None,
+    };
+    let mut output = Table::default();
+    let made = match blocked {
+        Some(fault) => Ok(Some(fault)),
+        None => {
+            let right_rows = match (&right, left_fault.is_some()) {
+                (_, true) if matches!(lowering, Lowering::Distinct { .. }) => None,
+                (Some(right), _) => Some(rows_in(right)),
+                (None, _) => shared.then(|| rows_in(&left)),
+            };
+            let inputs = KernelInputs {
+                input: rows_in(&left),
+                other: right_rows,
+            };
+            kernels(lowering, run, node, inputs, buffers, &mut output)
         }
     };
-    let input = reading(plan, run, source, buffers)?;
-    let (kinds, rows): (&[_], RowCount) = match &input {
-        Reading::Facts(view) => (view.kinds, rows_of(view)),
-        Reading::Node(_, taken) => (&taken.rows.kinds, taken.rows.count),
-    };
-    let mut fault = None;
-    match &physical.lowering {
+    returned(plan, buffers, left, NodeReaders(if shared { 2 } else { 1 }));
+    if let Some(right) = right {
+        returned(plan, buffers, right, NodeReaders(1));
+    }
+    let fault = made?;
+    hold(plan, buffers, node, output, fault.or(left_fault).or(right_fault));
+    Ok(())
+}
+
+/// The fault a read node raised after its rows.
+fn pending_of(reading: &Reading<'_>) -> Option<PortableOperatorFault> {
+    match reading {
+        Reading::Facts(_) => None,
+        Reading::Node(_, taken) => taken.pending.clone(),
+    }
+}
+
+/// Makes a node's rows from its inputs' rows into `output`, and answers the fault of the first row that raised one.
+///
+/// # Errors
+///
+/// A fault of the node's shape: a column past its input's rows.
+fn kernels(
+    lowering: &Lowering,
+    run: &mut KernelRun<'_>,
+    node: PlanNodeId,
+    KernelInputs { input, other }: KernelInputs<'_>,
+    buffers: &mut FileBuffers,
+    output: &mut Table,
+) -> Result<Option<PortableOperatorFault>, PortableOperatorFault> {
+    let place = usize::try_from(node.0).unwrap_or(usize::MAX);
+    let kinds = kinds_of(input);
+    let rows = count_of(input).0;
+    match lowering {
         Lowering::Filter { select, .. } => {
             output.kinds = kept_kinds(kinds, &select.kept)?;
             let texts = run.resources.texts();
@@ -109,93 +227,72 @@ fn materialize(
                 .get_mut(place)
                 .ok_or(PortableOperatorFault::WrongOperation)?;
             let kernel = filter(select, kinds, texts, decisions);
-            for row in 0..rows.0 {
-                let cells = row_of(&input, RowIndex(row), &mut buffers.row);
-                if let Err(error) = keep(
-                    kernel,
-                    run.matcher,
-                    cells,
-                    decisions,
-                    &mut buffers.written,
-                    &mut output,
-                ) {
-                    fault = Some(error);
-                    break;
+            for row in 0..rows {
+                let cells = row_of(input, RowIndex(row), &mut buffers.row);
+                if let Err(fault) = keep(kernel, run.matcher, cells, decisions, &mut buffers.written, output) {
+                    return Ok(Some(fault));
                 }
             }
         }
-        Lowering::Project {
-            columns, distinct, ..
-        } => {
-            output.kinds = kept_kinds(kinds, columns)?;
-            let mut seen = hashbrown::HashTable::new();
-            for row in 0..rows.0 {
-                let cells = row_of(&input, RowIndex(row), &mut buffers.row);
-                if let Err(error) = projected(cells, columns, *distinct, &mut seen, &mut output) {
-                    fault = Some(error);
-                    break;
+        Lowering::Project { project, .. } => {
+            output.kinds = kept_kinds(kinds, &project.columns)?;
+            buffers.seen.clear();
+            for row in 0..rows {
+                let cells = row_of(input, RowIndex(row), &mut buffers.row);
+                if let Err(fault) = projected(cells, &project.columns, project.distinct, &mut buffers.seen, output) {
+                    return Ok(Some(fault));
                 }
             }
+        }
+        Lowering::Extend { extension, .. } => {
+            if let Err(fault) = resolved(&extension.values, &extension.bindings, run.resources, &mut buffers.values) {
+                return Ok(Some(fault));
+            }
+            output.kinds = kinds.iter().copied().chain(buffers.values.iter().map(|value| kind_of(*value))).collect();
+            for row in 0..rows {
+                let cells = row_of(input, RowIndex(row), &mut buffers.row);
+                extended(cells, &buffers.values, &mut buffers.written, output);
+            }
+        }
+        Lowering::Distinct { .. } => {
+            output.kinds = kinds.to_vec();
+            buffers.seen.clear();
+            for source in std::iter::once(input).chain(other) {
+                if kinds_of(source) != kinds {
+                    return Err(PortableOperatorFault::ShapeMismatch);
+                }
+                for row in 0..count_of(source).0 {
+                    let start = CellStart(output.cells.len());
+                    output.cells.extend_from_slice(row_of(source, RowIndex(row), &mut buffers.row));
+                    counted(output, start, ryo_values::domain::plan_parts::types::RepeatedRows::Dropped, &mut buffers.seen);
+                }
+            }
+        }
+        Lowering::Probe { probe, .. } => {
+            let right = other.ok_or(PortableOperatorFault::WrongOperation)?;
+            let decisions = buffers
+                .decisions
+                .get_mut(place)
+                .ok_or(PortableOperatorFault::WrongOperation)?;
+            let scratch = ProbeScratch {
+                index: &mut buffers.index,
+                row: &mut buffers.row,
+                written: &mut buffers.written,
+                seen: &mut buffers.seen,
+                decisions,
+            };
+            return probed(probe, input, right, run, scratch, output);
+        }
+        Lowering::Group { group, .. } => {
+            let scratch = GroupScratch {
+                index: &mut buffers.index,
+                row: &mut buffers.row,
+                values: &mut buffers.values,
+                written: &mut buffers.written,
+            };
+            grouped(input, &group.keys, group.distinct, scratch, output)?;
         }
         Lowering::Lookup { .. } | Lowering::Unlowered => {}
     }
-    if let Reading::Node(read, taken) = input {
-        let pending = taken.pending.clone();
-        give_back(plan, buffers, read, taken);
-        fault = fault.or(pending);
-    }
-    hold(plan, buffers, node, output, fault);
-    Ok(())
-}
-
-/// Row `row` of what a kernel reads: a node's cells in place, a relation's decoded into `scratch`.
-fn row_of<'r>(input: &'r Reading<'_>, row: RowIndex, scratch: &'r mut Vec<Value>) -> &'r [Value] {
-    match input {
-        Reading::Facts(view) => {
-            decode(view, row, scratch);
-            scratch
-        }
-        Reading::Node(_, taken) => {
-            let width = taken.rows.kinds.len().max(1);
-            taken
-                .rows
-                .cells
-                .get(row.0 * width..row.0 * width + width)
-                .unwrap_or_default()
-        }
-    }
-}
-
-/// Takes `read`'s rows out of the buffers for its reader.
-fn take(buffers: &mut FileBuffers, read: PlanNodeId) -> Result<TakenRows, PortableOperatorFault> {
-    let place = usize::try_from(read.0).unwrap_or(usize::MAX);
-    let rows = buffers
-        .nodes
-        .get_mut(place)
-        .and_then(Option::take)
-        .ok_or(PortableOperatorFault::NotRun)?;
-    let pending = buffers.pending.get_mut(place).and_then(Option::take);
-    Ok(TakenRows { rows, pending })
-}
-
-/// Gives a read input back after its reader is done; it is released instead when that was its last reader and no consumer
-/// keeps it.
-fn give_back(plan: &PhysicalPlan, buffers: &mut FileBuffers, read: PlanNodeId, taken: TakenRows) {
-    let place = usize::try_from(read.0).unwrap_or(usize::MAX);
-    let left = buffers.remaining.get_mut(place).map_or(0, |left| {
-        left.0 = left.0.saturating_sub(1);
-        left.0
-    });
-    let retained = plan
-        .nodes
-        .get(place)
-        .is_some_and(|node| node.retained == Retention::Retained);
-    if left > 0 || retained {
-        if let Some(held) = buffers.nodes.get_mut(place) {
-            *held = Some(taken.rows);
-        }
-        if let Some(pending) = buffers.pending.get_mut(place) {
-            *pending = taken.pending;
-        }
-    }
+    Ok(None)
 }

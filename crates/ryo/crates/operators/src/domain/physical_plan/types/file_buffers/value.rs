@@ -4,7 +4,6 @@
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::{NodeReaders, NodeRows, PlanNodeId};
 use crate::domain::table_scratch::types::{LazyScratch, Memo, SelectScratch};
-use ryo_relations::domain::relations::types::TextHash;
 use ryo_relations::domain::relations::types::Value;
 
 /// The buffers of one worker, reused across files.
@@ -33,6 +32,10 @@ pub struct FileBuffers {
     pub(crate) row: Vec<Value>,
     /// The row a kernel is writing.
     pub(crate) written: Vec<Value>,
+    /// The values a kernel collects: an extension's resolved values, a group's distinct values.
+    pub(crate) values: Vec<Value>,
+    /// The place of each row `distinct` kept, by the hash of its cells, its capacity kept across nodes.
+    pub(crate) seen: hashbrown::HashTable<ryo_values::domain::rows::types::RowCount>,
 }
 
 /// What a filter decided before, for one node: the verdicts by text, kept for the run, and each name's decision, for the file.
@@ -44,8 +47,9 @@ pub(crate) struct NodeDecisions {
     pub(crate) memo: Vec<Memo>,
 }
 
-/// Rows keyed by the hash of one column's text, with no allocation per row: each key's first and last row in a hash table,
-/// and the next row of the same key in `next`, ascending, so a key's rows are read in source order.
+/// Rows keyed by the hash of their key, with no allocation per row and no key copied out: each key's first and last row and
+/// its row count in a hash table, and the next row of the same key in `next`, ascending, so a key's rows are read in source
+/// order. A key is one name column's text, or the cells of key columns, compared from the keyed rows' own cells.
 #[derive(Debug, Default)]
 pub(crate) struct KeyedRows {
     /// Each key's hash, first row and last row.
@@ -54,16 +58,22 @@ pub(crate) struct KeyedRows {
     pub(crate) next: Vec<IndexedRow>,
 }
 
-/// One key of an index: its hash and the first and last of its rows.
+/// One key of an index: its hash, the first and last of its rows and how many rows it has.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct KeyedRun {
-    /// The hash of the key's text.
-    pub(crate) hash: TextHash,
+    /// The hash of the key: of its text for a name column, of its cells otherwise.
+    pub(crate) hash: IndexKeyHash,
     /// Its first row.
     pub(crate) first: IndexedRow,
     /// Its last row.
     pub(crate) last: IndexedRow,
+    /// How many rows it has.
+    pub(crate) rows: ryo_values::domain::rows::types::RowCount,
 }
+
+/// The hash of a key: of its text for a name column, of its cells otherwise.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct IndexKeyHash(pub(crate) u64);
 
 /// A row of an indexed relation, by its place in the relation's rows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

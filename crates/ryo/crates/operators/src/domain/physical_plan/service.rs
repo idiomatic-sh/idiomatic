@@ -1,43 +1,115 @@
-//! The planner's one dispatch over the operation kinds, and the `keyed_select` rewrite over what it lowered.
-pub(crate) mod filter;
-pub(crate) mod index;
+//! The planner's one dispatch over the operation kinds, each kind lowered once by its own concept; the registry of the rewrites
+//! it applies over what it lowered, and the `kernels!` catalog of the kernels the lowerings run.
 pub(crate) mod run;
 
-use crate::domain::comparing::service::fixed_prefix;
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    IndexPlace, KeyedIndex, Lowering, NodeReaders, PhysicalNode, PlanInput, PlanNodeId, Retention,
-    RowSource, SelectKey, SelectParts, ServedAt, Unserved,
+    Lowering, NodeReaders, PhysicalNode, PlanInput, PlanNodeId, Retention, RowSource, ServedAt,
+    Unserved,
 };
-use ryo_language::domain::symbols::service::hash_of;
-use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_relations::domain::relations::service::kinds;
-use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
+use crate::domain::set_rows::types::{SetKind, SetLowering};
+use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_operators::types::OperationKind;
 
-/// The physical plan of `program`: each node lowered once, the selects keyed on one relation's column by two or more of them
-/// rewritten to lookups of one shared index of it, and every node of a kind of a later stage recorded as unserved.
+/// Every rewrite, in the order the planner applies them: each an equivalence, so a plan answers the same rows with or without
+/// it.
+pub(crate) const REWRITES: &[&dyn RewritesItem] = &[
+    &crate::domain::physical_plan::collections::rewrites::keyed_select::item::KeyedSelectItem,
+    &crate::domain::physical_plan::collections::rewrites::existence_probe::item::ExistenceProbeItem,
+];
+
+/// Declares the kernels once: the catalog the reachability case reads, each kernel by its item.
+macro_rules! kernels {
+    ($( $(#[$doc:meta])* $kernel:ident => $item:path, )+) => {
+        /// A kernel of the physical plan.
+        #[cfg(test)]
+                #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        pub(crate) enum Kernel {
+            $( $(#[$doc])* $kernel, )+
+        }
+
+                #[cfg(test)]
+        impl Kernel {
+            /// Every kernel, in catalog order.
+            pub(crate) const ALL: &'static [Self] = &[ $( Self::$kernel, )+ ];
+
+            /// The item of the kernel.
+            pub(crate) fn item(self) -> &'static dyn crate::domain::physical_plan::collections::kernels::interface::KernelsItem {
+                match self {
+                    $( Self::$kernel => &$item, )+
+                }
+            }
+        }
+    };
+}
+
+kernels! {
+    /// The `scan_facts` kernel.
+    ScanFacts => crate::domain::physical_plan::collections::kernels::scan_facts::item::ScanFactsItem,
+    /// The `scan_node` kernel.
+    ScanNode => crate::domain::physical_plan::collections::kernels::scan_node::item::ScanNodeItem,
+    /// The `lookup` kernel.
+    Lookup => crate::domain::physical_plan::collections::kernels::lookup::item::LookupItem,
+    /// The `filter` kernel.
+    Filter => crate::domain::physical_plan::collections::kernels::filter::item::FilterItem,
+    /// The `project` kernel.
+    Project => crate::domain::physical_plan::collections::kernels::project::item::ProjectItem,
+    /// The `extend` kernel.
+    Extend => crate::domain::physical_plan::collections::kernels::extend::item::ExtendItem,
+    /// The `probe` kernel.
+    Probe => crate::domain::physical_plan::collections::kernels::probe::item::ProbeItem,
+    /// The `hash_index` kernel.
+    HashIndex => crate::domain::physical_plan::collections::kernels::hash_index::item::HashIndexItem,
+    /// The `distinct` kernel.
+    Distinct => crate::domain::physical_plan::collections::kernels::distinct::item::DistinctItem,
+    /// The `group` kernel.
+    Group => crate::domain::physical_plan::collections::kernels::group::item::GroupItem,
+}
+
+/// The physical plan of `program`: each node lowered once, every registered rewrite applied, and every node of a kind of a
+/// later stage recorded as unserved.
 ///
 /// # Errors
 ///
 /// `WrongOperation` when a node reads a later node.
 pub(crate) fn plan(program: &LogicalProgram<'_>) -> Result<PhysicalPlan, PortableOperatorFault> {
+    plan_with(program, REWRITES)
+}
+
+/// The physical plan of `program` with `rewrites` applied in order, and no other.
+///
+/// # Errors
+///
+/// `WrongOperation` when a node reads a later node.
+pub(crate) fn plan_with(
+    program: &LogicalProgram<'_>,
+    rewrites: &[&dyn RewritesItem],
+) -> Result<PhysicalPlan, PortableOperatorFault> {
     program.check_shape()?;
     let logical = program.nodes();
     let mut nodes: Vec<PhysicalNode> = logical
         .iter()
         .map(|node| PhysicalNode {
-            lowering: lowered(node.operation, node.inputs.0.first(), node.bindings.0),
+            lowering: lowered(node.operation, node.inputs.0, node.bindings.0),
             readers: NodeReaders(0),
             retained: Retention::Released,
         })
         .collect();
     let mut unserved = Vec::new();
-    for (node, id) in logical.iter().zip((0..).map(PlanNodeId)) {
+    for ((node, physical), id) in logical.iter().zip(&nodes).zip((0..).map(PlanNodeId)) {
+        if physical.lowering == Lowering::Unlowered {
+            unserved.push(Unserved {
+                node: id,
+                until: stage_of(node.operation),
+            });
+        }
+    }
+    for node in logical {
         for input in node.inputs.0 {
             if let PlanInput::Node(read) = input
                 && let Some(reader) = place(&mut nodes, *read)
@@ -45,16 +117,16 @@ pub(crate) fn plan(program: &LogicalProgram<'_>) -> Result<PhysicalPlan, Portabl
                 reader.readers = NodeReaders(reader.readers.0.saturating_add(1));
             }
         }
-        if let Some(until) = stage_of(node.operation, node.inputs.0.first()) {
-            unserved.push(Unserved { node: id, until });
-        }
     }
     for kept in program.emitted().chain(program.held().iter().copied()) {
         if let Some(node) = place(&mut nodes, kept) {
             node.retained = Retention::Retained;
         }
     }
-    let indexes = keyed_selects(&mut nodes);
+    let mut indexes = Vec::new();
+    for rewrite in rewrites {
+        rewrite.rewrite(&mut nodes, &mut indexes);
+    }
     Ok(PhysicalPlan {
         nodes,
         indexes,
@@ -68,62 +140,82 @@ fn place(nodes: &mut [PhysicalNode], id: PlanNodeId) -> Option<&mut PhysicalNode
 }
 
 /// What a node reads its rows from, when this stage's kernels read it.
-fn source_of(input: Option<&PlanInput>) -> Option<RowSource> {
-    match input? {
+fn source_of(input: &PlanInput) -> Option<RowSource> {
+    match input {
         PlanInput::Node(node) => Some(RowSource::Node(*node)),
         PlanInput::Relation(relation) => Some(RowSource::Facts(*relation)),
         PlanInput::Bound(_) | PlanInput::Observation(_) => None,
     }
 }
 
-/// The kernels of one operation: the planner's one dispatch over the kinds.
-fn lowered(
+/// The kernels of one operation: the planner's one dispatch over the kinds, each arm its kind's one lowering.
+pub(crate) fn lowered(
     operation: &Operation,
-    input: Option<&PlanInput>,
+    inputs: &[PlanInput],
     bindings: &[ParameterBinding],
 ) -> Lowering {
-    match (operation, source_of(input)) {
-        (
-            Operation::Select {
-                comparisons, kept, ..
+    let first = inputs.first().and_then(source_of);
+    let both = || first.zip(inputs.get(1).and_then(source_of));
+    let set = |kind: SetKind, left_on, right_on| {
+        both().map(|(left, right)| match crate::domain::set_rows::service::lower(kind, left_on, right_on) {
+            SetLowering::Distinct => Lowering::Distinct {
+                sources: [left, right],
             },
-            Some(source),
-        ) => Lowering::Filter {
+            SetLowering::Probe(probe) => Lowering::Probe { left, right, probe },
+        })
+    };
+    let lowering = match operation {
+        Operation::Select {
+            comparisons, kept, ..
+        } => first.map(|source| Lowering::Filter {
             source,
-            select: SelectParts {
-                comparisons: comparisons.clone(),
-                kept: kept.clone(),
-                bindings: bindings.to_vec(),
-            },
-        },
-        (
-            Operation::Project {
-                columns, distinct, ..
-            },
-            Some(source),
-        ) => Lowering::Project {
+            select: crate::domain::select::service::lower(comparisons, kept, bindings),
+        }),
+        Operation::Project {
+            columns, distinct, ..
+        } => first.map(|source| Lowering::Project {
             source,
-            columns: columns.clone(),
-            distinct: *distinct,
-        },
-        _ => Lowering::Unlowered,
-    }
-}
-
-/// The stage that lowers a node this stage does not, or nothing when it is lowered.
-fn stage_of(operation: &Operation, input: Option<&PlanInput>) -> Option<ServedAt> {
-    let stage = match operation {
-        Operation::Select { .. } | Operation::Project { .. } => {
-            return source_of(input).map_or(Some(ServedAt(4)), |_| None);
-        }
-        Operation::Extend { .. }
-        | Operation::Join { .. }
-        | Operation::Union { .. }
-        | Operation::Intersection { .. }
-        | Operation::Difference { .. }
-        | Operation::Antijoin { .. }
-        | Operation::GroupCount { .. } => 1,
-        Operation::Capture { .. }
+            project: crate::domain::project::service::lower(columns, *distinct),
+        }),
+        Operation::Extend { values, .. } => first.map(|source| Lowering::Extend {
+            source,
+            extension: crate::domain::append::service::lower(values, bindings),
+        }),
+        Operation::Join {
+            left_on,
+            right_on,
+            output,
+            filter,
+            view,
+            reach: None,
+            ..
+        } => both().map(|(left, right)| Lowering::Probe {
+            left,
+            right,
+            probe: crate::domain::equality_join::service::lower(
+                crate::domain::equality_join::types::JoinShape {
+                    left_on,
+                    right_on,
+                    output,
+                    view,
+                    reach: None,
+                },
+                filter,
+                bindings,
+            ),
+        }),
+        Operation::Union { .. } => set(SetKind::Union, &[], &[]),
+        Operation::Intersection { .. } => set(SetKind::Intersection, &[], &[]),
+        Operation::Difference { .. } => set(SetKind::Difference, &[], &[]),
+        Operation::Antijoin {
+            left_on, right_on, ..
+        } => set(SetKind::Antijoin, left_on, right_on),
+        Operation::GroupCount { keys, distinct, .. } => first.map(|source| Lowering::Group {
+            source,
+            group: crate::domain::aggregate::service::lower(keys, *distinct),
+        }),
+        Operation::Join { reach: Some(_), .. }
+        | Operation::Capture { .. }
         | Operation::Rank { .. }
         | Operation::Replace { .. }
         | Operation::OrderedMatch { .. }
@@ -132,96 +224,55 @@ fn stage_of(operation: &Operation, input: Option<&PlanInput>) -> Option<ServedAt
         | Operation::SourceMatches { .. }
         | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. }
-        | Operation::SpanBounds { .. } => 2,
-        Operation::GroupDigest { .. }
+        | Operation::SpanBounds { .. }
+        | Operation::GroupDigest { .. }
         | Operation::Axis { .. }
         | Operation::Closure { .. }
         | Operation::OrderedDfs { .. }
-        | Operation::Cycles { .. } => 3,
-        Operation::Rows { .. } | Operation::Hosted { .. } => 4,
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. } => None,
     };
-    Some(ServedAt(stage))
+    lowering.unwrap_or(Lowering::Unlowered)
 }
 
-/// The key a filter of a relation fixes in its infallible prefix: a name column equal to a written, non-empty text. A key
-/// after the prefix is no key: a comparison before it may fail, and the lookup would skip the rows it fails on.
-fn key_of(source: RowSource, comparisons: &[PlanComparison]) -> Option<SelectKey> {
-    let RowSource::Facts(relation) = source else {
-        return None;
-    };
-    let columns = kinds(relation);
-    fixed_prefix(comparisons, columns)
-        .0
-        .iter()
-        .find_map(|comparison| {
-            let ((Operand::Column(column), Operand::Literal(QueryLiteral::Text(text)))
-            | (Operand::Literal(QueryLiteral::Text(text)), Operand::Column(column))) =
-                (&comparison.left, &comparison.right)
-            else {
-                return None;
-            };
-            let named = columns
-                .get(usize::try_from(column.0).unwrap_or(usize::MAX))
-                .is_some_and(|kind| *kind == CellKind::Symbol);
-            (comparison.test == Test::Equal && named && !text.0.is_empty()).then(|| SelectKey {
-                relation,
-                column: *column,
-                key: hash_of(ByteSlice(text.0.as_bytes())),
-            })
-        })
+/// The stage of the swap whose kernels lower a kind: this stage's kinds are `ServedAt(1)`.
+pub(crate) fn stage_of_kind(kind: OperationKind) -> ServedAt {
+    ServedAt(match kind {
+        OperationKind::Select
+        | OperationKind::Project
+        | OperationKind::Extend
+        | OperationKind::Join
+        | OperationKind::Union
+        | OperationKind::Intersection
+        | OperationKind::Difference
+        | OperationKind::Antijoin
+        | OperationKind::GroupCount => 1,
+        OperationKind::Capture
+        | OperationKind::Rank
+        | OperationKind::Replace
+        | OperationKind::OrderedMatch
+        | OperationKind::Words
+        | OperationKind::SpanBetween
+        | OperationKind::SourceMatches
+        | OperationKind::RenderSyntax
+        | OperationKind::FitsRendered
+        | OperationKind::SpanBounds => 2,
+        OperationKind::GroupDigest
+        | OperationKind::Axis
+        | OperationKind::Closure
+        | OperationKind::OrderedDfs
+        | OperationKind::Cycles => 3,
+        OperationKind::Rows | OperationKind::Hosted => 4,
+    })
 }
 
-/// The `keyed_select` rewrite: the filters of one relation keyed on one of its columns become lookups of one shared index of
-/// it when two or more of them key on it; a single one keeps its scan, which costs less than an index.
-fn keyed_selects(nodes: &mut [PhysicalNode]) -> Vec<KeyedIndex> {
-    let mut keyed: Vec<KeyedIndex> = Vec::new();
-    let mut keys: Vec<Vec<SelectKey>> = Vec::new();
-    for (node, id) in nodes.iter().zip((0..).map(PlanNodeId)) {
-        let Lowering::Filter { source, select } = &node.lowering else {
-            continue;
-        };
-        let Some(key) = key_of(*source, &select.comparisons) else {
-            continue;
-        };
-        match keyed
-            .iter()
-            .position(|index| index.relation == key.relation && index.column == key.column)
-        {
-            Some(at) => {
-                if let (Some(index), Some(held)) = (keyed.get_mut(at), keys.get_mut(at)) {
-                    index.lookups.push(id);
-                    held.push(key);
-                }
-            }
-            None => {
-                keyed.push(KeyedIndex {
-                    relation: key.relation,
-                    column: key.column,
-                    lookups: vec![id],
-                });
-                keys.push(vec![key]);
-            }
-        }
+/// The stage that lowers a node this stage does not: its kind's, or for one of this stage's kinds, the stage that reads what
+/// it reads: a join's closure demand at the third, a bound table or an observation at the fourth.
+fn stage_of(operation: &Operation) -> ServedAt {
+    match (stage_of_kind(kind_of(operation)), operation) {
+        (ServedAt(1), Operation::Join { reach: Some(_), .. }) => ServedAt(3),
+        (ServedAt(1), _) => ServedAt(4),
+        (stage, _) => stage,
     }
-    let mut indexes = Vec::new();
-    for (index, held) in keyed.into_iter().zip(keys) {
-        if index.lookups.len() < 2 {
-            continue;
-        }
-        let shared = IndexPlace(indexes.len());
-        for (lookup, key) in index.lookups.iter().zip(&held) {
-            if let Some(node) = place(nodes, *lookup)
-                && let Lowering::Filter { select, .. } =
-                    std::mem::replace(&mut node.lowering, Lowering::Unlowered)
-            {
-                node.lowering = Lowering::Lookup {
-                    index: shared,
-                    key: key.key,
-                    select,
-                };
-            }
-        }
-        indexes.push(index);
-    }
-    indexes
 }

@@ -40,3 +40,14 @@ pub(crate) fn evaluate(
     }
     driver.emit(projected)
 }
+
+/// The one lowering of a projection: its columns and repeated-row choice, for the `project` kernel.
+pub(crate) fn lower(
+    columns: &[ColumnIndex],
+    distinct: ryo_values::domain::plan_parts::types::RepeatedRows,
+) -> super::types::ProjectParts {
+    super::types::ProjectParts {
+        columns: columns.to_vec(),
+        distinct,
+    }
+}

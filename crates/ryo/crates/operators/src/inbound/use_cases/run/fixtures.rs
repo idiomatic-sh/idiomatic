@@ -2,10 +2,11 @@
 //! the programs a case plans, built from operations over relations.
 
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::physical_plan::fixtures::Step;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::{
-    Candidates, FactRows, LogicalNode, NodeBindings, NodeRows, OpenFileBytes, PlanInput,
+    Candidates, FactRows, LogicalNode, NodeBindings, NodeRows, OpenFileBytes,
     PlanInputList, PlanInputs, PlanNodeId, RenderOutcomes, RenderRequests, Resources, RuleOrdinal,
 };
 use crate::domain::table_texts::types::Texts;
@@ -24,7 +25,6 @@ use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{ObservationBindingId, ParameterId, StepScope};
-use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::Table;
 use std::cell::Cell;
@@ -208,15 +208,6 @@ pub fn vocabulary() -> KindVocabulary {
     }
 }
 
-/// One step of a case's program: its operation and what each of its inputs reads.
-#[derive(Clone, Debug)]
-pub struct Step {
-    /// The operation.
-    pub operation: Operation,
-    /// What its inputs read, in the order its kind reads them.
-    pub inputs: Vec<PlanInput>,
-}
-
 /// The rows each emitted step answers, in emit order, or the first fault: the steps planned as one program, each the emit of
 /// a rule of its own when `emits` names it, and run over `inputs` and `resources` with `buffers`.
 ///
@@ -288,4 +279,44 @@ pub fn ran(
         crate::outbound::matching::factory::use_case(),
     ))
     .run(plan, node, buffers, inputs, resources)
+}
+
+/// The rows every node of `steps` answers, each the emit of a rule of its own, planned with `rewrites` alone and run over
+/// `inputs` and `resources`: what a program answers with and without a rewrite.
+///
+/// # Errors
+///
+/// The fault the planner or the runner answers.
+#[cfg(test)]
+pub(crate) fn rewritten(
+    steps: &[Step],
+    rewrites: &[&dyn crate::domain::physical_plan::collections::rewrites::interface::RewritesItem],
+    inputs: &dyn PlanInputs,
+    resources: &mut dyn Resources,
+) -> Result<Vec<Table>, PortableOperatorFault> {
+    let vocabulary = vocabulary();
+    let mut program = LogicalProgram::new(&vocabulary);
+    let mut emits = Vec::with_capacity(steps.len());
+    for (rule, step) in (0..).map(RuleOrdinal).zip(steps) {
+        let id = program.node(LogicalNode {
+            operation: &step.operation,
+            inputs: PlanInputList(&step.inputs),
+            bindings: NodeBindings(&[]),
+            scope: StepScope::PerFile,
+        });
+        program.emit(rule, id);
+        emits.push(id);
+    }
+    let plan = crate::domain::physical_plan::service::plan_with(&program, rewrites)?;
+    let mut buffers = FileBuffers::default();
+    emits
+        .into_iter()
+        .map(|node| {
+            ran(&plan, node, &mut buffers, inputs, resources)?;
+            match buffers.rows(node) {
+                NodeRows::Materialized(table) => Ok(table.clone()),
+                NodeRows::Absent => Err(PortableOperatorFault::NotRun),
+            }
+        })
+        .collect()
 }

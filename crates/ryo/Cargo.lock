@@ -1606,6 +1606,7 @@ dependencies = [
  "cargo_metadata",
  "cucumber",
  "dhat",
+ "divan",
  "hashbrown 0.17.1",
  "heck",
  "idiomatic-sh-ryo-derived",

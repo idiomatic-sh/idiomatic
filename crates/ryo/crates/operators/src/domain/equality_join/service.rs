@@ -287,3 +287,40 @@ pub(crate) fn evaluate(
         &mut scratch.other,
     )
 }
+
+/// The one lowering of a join with no closure demand: an inner probe of a `hash_index` of the right rows its filter keeps, each
+/// right column read where the view places it.
+pub(crate) fn lower(
+    shape: JoinShape<'_>,
+    filter: &[ryo_values::domain::plan_parts::types::PlanComparison],
+    bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
+) -> super::types::ProbeParts {
+    use super::types::{EmptyRight, Existence, ProbeKey, ProbeMode, ProbeParts};
+    // No view names every column of the right rows: a column is where it is.
+    let placed = |column: &ColumnIndex| match shape.view.get(usize::try_from(column.0).unwrap_or(usize::MAX)) {
+        Some(physical) => *physical,
+        None => *column,
+    };
+    ProbeParts {
+        mode: ProbeMode::Inner,
+        key: ProbeKey::Columns {
+            left: shape.left_on.to_vec(),
+            right: shape.right_on.iter().map(placed).collect(),
+        },
+        filter: crate::domain::select::service::lower(filter, &[], bindings),
+        output: shape
+            .output
+            .iter()
+            .map(|column| match column.side {
+                Side::Left => *column,
+                Side::Right => JoinColumn {
+                    side: Side::Right,
+                    column: placed(&column.column),
+                },
+            })
+            .collect(),
+        existence: Existence::Every,
+        repeated: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
+        empty_right: EmptyRight::KeyRead,
+    }
+}

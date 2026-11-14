@@ -1,7 +1,8 @@
 //! The allocation row of the shared hash index, measured: the blocks a file's keyed selects allocate once the worker's buffers
 //! are warm, which the allocation test compares for a thousand rows and a hundred thousand.
 
-use super::{Step, TableInputs, TextResources, emitted};
+use super::{TableInputs, TextResources, emitted};
+use crate::domain::physical_plan::fixtures::Step;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::fixtures::{kinds, node_id};

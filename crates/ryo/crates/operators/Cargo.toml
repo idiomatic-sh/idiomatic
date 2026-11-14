@@ -34,8 +34,15 @@ idiomatic-sh-ryo-values = { path = "../values", features = ["fixtures"] }
 idiomatic-sh-ryo-relations = { path = "../relations", features = ["fixtures"] }
 cargo_metadata.workspace = true
 cucumber.workspace = true
+divan.workspace = true
 libtest-mimic.workspace = true
 tokio.workspace = true
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+required-features = ["fixtures"]
 
 [[test]]
 name = "allocation"

@@ -9,7 +9,12 @@ use crate::domain::contract::types::{PortableOperatorFault, RenderKind};
 use crate::domain::table_texts::types::Texts;
 use ryo_language::domain::elements::types::Elements;
 use ryo_relations::domain::relations::types::{ColumnsView, NodeId, Relation, TextHash, Value};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison, RepeatedRows};
+use crate::domain::aggregate::types::GroupParts;
+use crate::domain::append::types::ExtendParts;
+use crate::domain::equality_join::types::ProbeParts;
+use crate::domain::project::types::ProjectParts;
+use crate::domain::select::types::SelectParts;
+use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::{ObservationBindingId, ParameterId, StepScope};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -184,25 +189,42 @@ pub(crate) enum Lowering {
     Project {
         /// What it reads.
         source: RowSource,
-        /// The columns, in order.
-        columns: Vec<ColumnIndex>,
-        /// Whether a repeated row is kept once.
-        distinct: RepeatedRows,
+        /// The columns and whether a repeated row is kept once.
+        project: ProjectParts,
+    },
+    /// `extend`: each row followed by the values, resolved once per file.
+    Extend {
+        /// What it reads.
+        source: RowSource,
+        /// The values and what their parameters are bound to.
+        extension: ExtendParts,
+    },
+    /// `hash_index` of the right rows, then `probe` of it with each left row.
+    Probe {
+        /// The rows probed with, in their order.
+        left: RowSource,
+        /// The rows indexed.
+        right: RowSource,
+        /// What the probe keeps.
+        probe: ProbeParts,
+    },
+    /// `distinct` over the rows of each source in turn: a row the first time only.
+    Distinct {
+        /// What it reads, in order.
+        sources: [RowSource; 2],
+    },
+    /// `group`: the rows keyed through `hash_index`'s table, one row per group in the order of its first row, with its count.
+    Group {
+        /// What it reads.
+        source: RowSource,
+        /// The keys and what is counted.
+        group: GroupParts,
     },
     /// No kernel at this stage: the plan's `unserved` names the stage that lowers it.
     Unlowered,
 }
 
-/// What a select keeps: its comparisons, its kept columns and what its parameters are bound to.
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct SelectParts {
-    /// The comparisons, in their order.
-    pub(crate) comparisons: Vec<PlanComparison>,
-    /// The columns kept; none means every column.
-    pub(crate) kept: Vec<ColumnIndex>,
-    /// What the comparisons' parameters are bound to.
-    pub(crate) bindings: Vec<ParameterBinding>,
-}
+
 
 /// The place of a shared index among a plan's indexes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -285,6 +307,46 @@ pub(crate) struct TakenRows {
     /// The fault raised after them.
     pub(crate) pending: Option<PortableOperatorFault>,
 }
+
+/// Rows a kernel reads in place: a relation's columns or a node's table.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum InputRows<'a> {
+    /// A relation's columns, lent by the facts.
+    Facts(&'a ColumnsView<'a>),
+    /// A table of rows.
+    Table(&'a Table),
+}
+
+/// The rows a node's kernels read: its first input's, and its second's when it reads two.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct KernelInputs<'a> {
+    /// The first input's rows.
+    pub(crate) input: InputRows<'a>,
+    /// The second input's rows, when the node reads two.
+    pub(crate) other: Option<InputRows<'a>>,
+}
+
+/// Rows keyed by key columns: the rows and their key columns.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct KeyedSide<'a> {
+    /// The rows.
+    pub(crate) rows: InputRows<'a>,
+    /// Their key columns.
+    pub(crate) on: &'a [ColumnIndex],
+}
+
+/// One row of keyed rows.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct KeyedRowAt<'a> {
+    /// The rows and their key columns.
+    pub(crate) side: KeyedSide<'a>,
+    /// The row.
+    pub(crate) row: ryo_values::domain::rows::types::RowIndex,
+}
+
+/// The place in a table's cells where the row being written starts.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CellStart(pub(crate) usize);
 
 /// The rows a node's kernel reads: a relation's, lent in place, or an earlier node's, taken while it reads them.
 #[derive(Debug)]

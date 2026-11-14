@@ -1,6 +1,11 @@
 //! The run use case through `plan` and `run` only: what a planned program answers, how often it reads its facts, what it holds
 //! and which fault it reports, each against the same rows run another way.
-use super::fixtures::{Step, TableInputs, TextResources, emitted};
+use super::fixtures::{TableInputs, TextResources, emitted, rewritten};
+use crate::domain::equality_join::types::ProbeMode;
+use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem;
+use crate::domain::physical_plan::fixtures::{Step, case_program};
+use crate::domain::physical_plan::service::REWRITES;
+use crate::domain::physical_plan::types::{KeyedIndex, Lowering, PhysicalNode};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
@@ -28,6 +33,8 @@ enum Scenario {
     DynamicRegexBeforeKey,
     PipelineHolds,
     ZeroColumns,
+    RewritesKeepRows,
+    RewriteChangingRows,
 }
 #[derive(Debug, PartialEq)]
 enum Observation {
@@ -87,7 +94,54 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::ZeroColumns,
         expect: Expect::Value(Observation::Count(RowCount(4))),
     },
+    Case {
+        name: CaseName("every_rewrite_preserves_rows"),
+        word: Word::Succeeds,
+        input: || Scenario::RewritesKeepRows,
+        expect: Expect::Value(Observation::Same(true)),
+    },
+    Case {
+        name: CaseName("a_rewrite_changing_rows_fails_every_rewrite_preserves_rows"),
+        word: Word::Succeeds,
+        input: || Scenario::RewriteChangingRows,
+        expect: Expect::Value(Observation::Same(false)),
+    },
 ];
+
+/// The planted counter-example of a rewrite: every anti probe made a semi probe, which keeps other rows.
+struct AntiAsSemi;
+
+impl RewritesItem for AntiAsSemi {
+    fn rewrite(&self, nodes: &mut [PhysicalNode], _indexes: &mut Vec<KeyedIndex>) {
+        for node in nodes {
+            if let Lowering::Probe { probe, .. } = &mut node.lowering
+                && probe.mode == ProbeMode::Anti
+            {
+                probe.mode = ProbeMode::Semi;
+            }
+        }
+    }
+}
+
+/// Whether the case program answers the same rows planned with every rewrite of `rewrites` and with each left out.
+fn rewrites_keep_rows(rewrites: &[&dyn RewritesItem]) -> Result<Value, Failure> {
+    let pairs = [("kind", "alpha"), ("kind", "beta"), ("other", "alpha"), ("kind", "gamma"), ("other", "beta")];
+    let mut resources = TextResources::new(&["kind", "other", "alpha", "beta", "gamma"]);
+    let table = defines(&pairs, &resources);
+    let inputs = TableInputs::new(&[(DEFINES, &table)]);
+    let steps = case_program();
+    let every = rewritten(&steps, rewrites, &inputs, &mut resources)?;
+    for left_out in 0..rewrites.len() {
+        let others: Vec<&dyn RewritesItem> = (0..rewrites.len())
+            .filter(|at| *at != left_out)
+            .filter_map(|at| rewrites.get(at).copied())
+            .collect();
+        if rewritten(&steps, &others, &inputs, &mut resources)? != every {
+            return Ok(Observation::Same(false));
+        }
+    }
+    Ok(Observation::Same(true))
+}
 
 /// The rows of `DEFINES`, one per (refinement, name) pair, each a node of file 0, with `texts` the file's symbols.
 fn defines(pairs: &[(&str, &str)], texts: &TextResources) -> Table {
@@ -297,6 +351,12 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
                 &mut buffers,
             )?;
             Ok(Observation::Held(buffers.held().count()))
+        }
+        Scenario::RewritesKeepRows => rewrites_keep_rows(REWRITES),
+        Scenario::RewriteChangingRows => {
+            let mut planted: Vec<&dyn RewritesItem> = REWRITES.to_vec();
+            planted.push(&AntiAsSemi);
+            rewrites_keep_rows(&planted)
         }
         Scenario::ZeroColumns => {
             let mut resources = TextResources::new(TEXTS);
