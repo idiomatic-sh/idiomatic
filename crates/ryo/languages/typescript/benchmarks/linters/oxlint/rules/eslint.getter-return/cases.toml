@@ -1,0 +1,444 @@
+[[cases]]
+name = "empty-getter-in-cjs"
+files = { "case.cjs" = "var foo = { get bar() {} };\n" }
+expected = [{ file = "case.cjs", start = 19, end = 24 }]
+
+[[cases]]
+name = "typescript-getter-with-optional-return"
+files = { "case.ts" = "var foo = {\n    get bar(): boolean | undefined {\n        if (Math.random() > 0.5) {\n            return true;\n        }\n    }\n};\n" }
+expected = []
+
+[[cases]]
+name = "fail-01"
+files = { "case.js" = "var foo = { get bar() {} };" }
+expected = [{ file = "case.js", start = 19, end = 24 }]
+
+[[cases]]
+name = "fail-01-ts"
+files = { "case.ts" = "var foo = { get bar() {} };" }
+expected = []
+
+[[cases]]
+name = "fail-02"
+files = { "case.js" = "var foo = { get\n bar () {} };" }
+expected = [{ file = "case.js", start = 21, end = 26 }]
+
+[[cases]]
+name = "fail-02-ts"
+files = { "case.ts" = "var foo = { get\n bar () {} };" }
+expected = []
+
+[[cases]]
+name = "fail-03"
+files = { "case.js" = "var foo = { get bar(){if(baz) {return true;}} };" }
+expected = [{ file = "case.js", start = 19, end = 45 }]
+
+[[cases]]
+name = "fail-03-ts"
+files = { "case.ts" = "var foo = { get bar(){if(baz) {return true;}} };" }
+expected = []
+
+[[cases]]
+name = "fail-04"
+files = { "case.js" = "var foo = { get bar() { ~function () {return true;}} };" }
+expected = [{ file = "case.js", start = 19, end = 52 }]
+
+[[cases]]
+name = "fail-04-ts"
+files = { "case.ts" = "var foo = { get bar() { ~function () {return true;}} };" }
+expected = []
+
+[[cases]]
+name = "fail-05"
+files = { "case.js" = "var foo = { get bar() { return; } };" }
+expected = [{ file = "case.js", start = 19, end = 33 }]
+
+[[cases]]
+name = "fail-05-ts"
+files = { "case.ts" = "var foo = { get bar() { return; } };" }
+expected = []
+
+[[cases]]
+name = "fail-06"
+files = { "case.js" = "class foo { get bar(){} }" }
+expected = [{ file = "case.js", start = 19, end = 23 }]
+
+[[cases]]
+name = "fail-06-ts"
+files = { "case.ts" = "class foo { get bar(){} }" }
+expected = []
+
+[[cases]]
+name = "fail-07"
+files = { "case.js" = "var foo = class {\n  static get\nbar(){} }" }
+expected = [{ file = "case.js", start = 34, end = 38 }]
+
+[[cases]]
+name = "fail-07-ts"
+files = { "case.ts" = "var foo = class {\n  static get\nbar(){} }" }
+expected = []
+
+[[cases]]
+name = "fail-08"
+files = { "case.js" = "class foo { get bar(){ if (baz) { return true; }}}" }
+expected = [{ file = "case.js", start = 19, end = 49 }]
+
+[[cases]]
+name = "fail-08-ts"
+files = { "case.ts" = "class foo { get bar(){ if (baz) { return true; }}}" }
+expected = []
+
+[[cases]]
+name = "fail-09"
+files = { "case.js" = "class foo { get bar(){ ~function () { return true; }()}}" }
+expected = [{ file = "case.js", start = 19, end = 55 }]
+
+[[cases]]
+name = "fail-09-ts"
+files = { "case.ts" = "class foo { get bar(){ ~function () { return true; }()}}" }
+expected = []
+
+[[cases]]
+name = "fail-10"
+files = { "case.js" = "Object.defineProperty(foo, 'bar', { get: function (){}});" }
+expected = [{ file = "case.js", start = 41, end = 54 }]
+
+[[cases]]
+name = "fail-10-ts"
+files = { "case.ts" = "Object.defineProperty(foo, 'bar', { get: function (){}});" }
+expected = []
+
+[[cases]]
+name = "fail-11"
+files = { "case.js" = "Object.defineProperty(foo, 'bar', { get: function getfoo (){}});" }
+expected = [{ file = "case.js", start = 41, end = 61 }]
+
+[[cases]]
+name = "fail-11-ts"
+files = { "case.ts" = "Object.defineProperty(foo, 'bar', { get: function getfoo (){}});" }
+expected = []
+
+[[cases]]
+name = "fail-12"
+files = { "case.js" = "Object.defineProperty(foo, 'bar', { get(){} });" }
+expected = [{ file = "case.js", start = 39, end = 43 }]
+
+[[cases]]
+name = "fail-12-ts"
+files = { "case.ts" = "Object.defineProperty(foo, 'bar', { get(){} });" }
+expected = []
+
+[[cases]]
+name = "fail-13"
+files = { "case.js" = "Object.defineProperty(foo, 'bar', { get: () => {}});" }
+expected = [{ file = "case.js", start = 41, end = 49 }]
+
+[[cases]]
+name = "fail-13-ts"
+files = { "case.ts" = "Object.defineProperty(foo, 'bar', { get: () => {}});" }
+expected = []
+
+[[cases]]
+name = "fail-14"
+files = { "case.js" = "Object.defineProperty(foo, \"bar\", { get: function (){if(bar) {return true;}}});" }
+expected = [{ file = "case.js", start = 41, end = 76 }]
+
+[[cases]]
+name = "fail-14-ts"
+files = { "case.ts" = "Object.defineProperty(foo, \"bar\", { get: function (){if(bar) {return true;}}});" }
+expected = []
+
+[[cases]]
+name = "fail-15"
+files = { "case.js" = "Object.defineProperty(foo, \"bar\", { get: function (){ ~function () { return true; }()}});" }
+expected = [{ file = "case.js", start = 41, end = 86 }]
+
+[[cases]]
+name = "fail-15-ts"
+files = { "case.ts" = "Object.defineProperty(foo, \"bar\", { get: function (){ ~function () { return true; }()}});" }
+expected = []
+
+[[cases]]
+name = "fail-16"
+files = { "case.js" = "Reflect.defineProperty(foo, 'bar', { get: function (){}});" }
+expected = [{ file = "case.js", start = 42, end = 55 }]
+
+[[cases]]
+name = "fail-16-ts"
+files = { "case.ts" = "Reflect.defineProperty(foo, 'bar', { get: function (){}});" }
+expected = []
+
+[[cases]]
+name = "fail-17"
+files = { "case.js" = "Object.create(foo, { bar: { get: function() {} } })" }
+expected = [{ file = "case.js", start = 33, end = 46 }]
+
+[[cases]]
+name = "fail-17-ts"
+files = { "case.ts" = "Object.create(foo, { bar: { get: function() {} } })" }
+expected = []
+
+[[cases]]
+name = "fail-18"
+files = { "case.js" = "Object.create(foo, { bar: { get() {} } })" }
+expected = [{ file = "case.js", start = 31, end = 36 }]
+
+[[cases]]
+name = "fail-18-ts"
+files = { "case.ts" = "Object.create(foo, { bar: { get() {} } })" }
+expected = []
+
+[[cases]]
+name = "fail-19"
+files = { "case.js" = "Object.create(foo, { bar: { get: () => {} } })" }
+expected = [{ file = "case.js", start = 33, end = 41 }]
+
+[[cases]]
+name = "fail-19-ts"
+files = { "case.ts" = "Object.create(foo, { bar: { get: () => {} } })" }
+expected = []
+
+[[cases]]
+name = "fail-20"
+files = { "case.js" = "Object?.defineProperty(foo, 'bar', { get: function (){} });" }
+expected = [{ file = "case.js", start = 42, end = 55 }]
+
+[[cases]]
+name = "fail-20-ts"
+files = { "case.ts" = "Object?.defineProperty(foo, 'bar', { get: function (){} });" }
+expected = []
+
+[[cases]]
+name = "fail-21"
+files = { "case.js" = "(Object?.defineProperty)(foo, 'bar', { get: function (){} });" }
+expected = [{ file = "case.js", start = 44, end = 57 }]
+
+[[cases]]
+name = "fail-21-ts"
+files = { "case.ts" = "(Object?.defineProperty)(foo, 'bar', { get: function (){} });" }
+expected = []
+
+[[cases]]
+name = "fail-22"
+files = { "case.js" = "var foo = { get bar() { try { return a(); } catch {} } };" }
+expected = [{ file = "case.js", start = 19, end = 54 }]
+
+[[cases]]
+name = "fail-22-ts"
+files = { "case.ts" = "var foo = { get bar() { try { return a(); } catch {} } };" }
+expected = []
+
+[[cases]]
+name = "fail-23"
+files = { "case.js" = "var foo = { get bar() { try { return a(); } catch {  } finally {  } } };" }
+expected = [{ file = "case.js", start = 19, end = 69 }]
+
+[[cases]]
+name = "fail-23-ts"
+files = { "case.ts" = "var foo = { get bar() { try { return a(); } catch {  } finally {  } } };" }
+expected = []
+
+[[cases]]
+name = "fail-24"
+files = { "case.js" = "\n        var foo = {\n            get bar() {\n                for (let i = 0; i<10; i++) {\n                    return i;\n                }\n            }\n        }" }
+expected = [{ file = "case.js", start = 40, end = 151 }]
+
+[[cases]]
+name = "fail-24-ts"
+files = { "case.ts" = "\n        var foo = {\n            get bar() {\n                for (let i = 0; i<10; i++) {\n                    return i;\n                }\n            }\n        }" }
+expected = []
+
+[[cases]]
+name = "fail-25"
+files = { "case.js" = "\n        var foo = {\n            get bar() {\n                let i = 0;\n                while (i < 10) {\n                    return i;\n                }\n            }\n        }" }
+expected = [{ file = "case.js", start = 40, end = 166 }]
+
+[[cases]]
+name = "fail-25-ts"
+files = { "case.ts" = "\n        var foo = {\n            get bar() {\n                let i = 0;\n                while (i < 10) {\n                    return i;\n                }\n            }\n        }" }
+expected = []
+
+[[cases]]
+name = "pass-01"
+files = { "case.js" = "var foo = { get bar(){return true;} };" }
+expected = []
+
+[[cases]]
+name = "pass-02"
+files = { "case.js" = "class foo { get bar(){return true;} }" }
+expected = []
+
+[[cases]]
+name = "pass-03"
+files = { "case.js" = "class foo { get bar(){if(baz){return true;} else {return false;} } }" }
+expected = []
+
+[[cases]]
+name = "pass-04"
+files = { "case.js" = "class foo { get(){return true;} }" }
+expected = []
+
+[[cases]]
+name = "pass-05"
+files = { "case.js" = "Object.defineProperty(foo, \"bar\", { get: function () {return true;}});" }
+expected = []
+
+[[cases]]
+name = "pass-06"
+files = { "case.js" = "Object.defineProperty(foo, \"bar\", { get: function () { ~function (){ return true; }();return true;}});" }
+expected = []
+
+[[cases]]
+name = "pass-07"
+files = { "case.js" = "Object.defineProperty(foo, \"bar\", { set: function () {}});" }
+expected = []
+
+[[cases]]
+name = "pass-08"
+files = { "case.js" = "Object.defineProperty(foo, \"bar\", { set: () => {}});" }
+expected = []
+
+[[cases]]
+name = "pass-09"
+files = { "case.js" = "Object.defineProperties(foo, { bar: { get: function () {return true;}} });" }
+expected = []
+
+[[cases]]
+name = "pass-10"
+files = { "case.js" = "Object.defineProperties(foo, { bar: { get: function () { ~function (){ return true; }(); return true;}} });" }
+expected = []
+
+[[cases]]
+name = "pass-11"
+files = { "case.js" = "Object.defineProperties(foo, { bar: { set: function () {}} });" }
+expected = []
+
+[[cases]]
+name = "pass-12"
+files = { "case.js" = "Reflect.defineProperty(foo, \"bar\", { get: function () {return true;}});" }
+expected = []
+
+[[cases]]
+name = "pass-13"
+files = { "case.js" = "Reflect.defineProperty(foo, \"bar\", { get: function () { ~function (){ return true; }();return true;}});" }
+expected = []
+
+[[cases]]
+name = "pass-14"
+files = { "case.js" = "Object.create(foo, { bar: { get() {return true;} } });" }
+expected = []
+
+[[cases]]
+name = "pass-15"
+files = { "case.js" = "Object.create(foo, { bar: { get: function () {return true;} } });" }
+expected = []
+
+[[cases]]
+name = "pass-16"
+files = { "case.js" = "Object.create(foo, { bar: { get: () => {return true;} } });" }
+expected = []
+
+[[cases]]
+name = "pass-17"
+files = { "case.js" = "var get = function(){};" }
+expected = []
+
+[[cases]]
+name = "pass-18"
+files = { "case.js" = "var get = function(){ return true; };" }
+expected = []
+
+[[cases]]
+name = "pass-19"
+files = { "case.js" = "var foo = { bar(){} };" }
+expected = []
+
+[[cases]]
+name = "pass-20"
+files = { "case.js" = "var foo = { bar(){ return true; } };" }
+expected = []
+
+[[cases]]
+name = "pass-21"
+files = { "case.js" = "var foo = { bar: function(){} };" }
+expected = []
+
+[[cases]]
+name = "pass-22"
+files = { "case.js" = "var foo = { bar: function(){return;} };" }
+expected = []
+
+[[cases]]
+name = "pass-23"
+files = { "case.js" = "var foo = { bar: function(){return true;} };" }
+expected = []
+
+[[cases]]
+name = "pass-24"
+files = { "case.js" = "var foo = { get: function () {} }" }
+expected = []
+
+[[cases]]
+name = "pass-25"
+files = { "case.js" = "var foo = { get: () => {}};" }
+expected = []
+
+[[cases]]
+name = "pass-26"
+files = { "case.js" = "class C { get; foo() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-27"
+files = { "case.js" = "foo.defineProperty(null, { get() {} });" }
+expected = []
+
+[[cases]]
+name = "pass-28"
+files = { "case.js" = "foo.defineProperties(null, { bar: { get() {} } });" }
+expected = []
+
+[[cases]]
+name = "pass-29"
+files = { "case.js" = "foo.create(null, { bar: { get() {} } });" }
+expected = []
+
+[[cases]]
+name = "pass-30"
+files = { "case.js" = "var foo = { get willThrowSoValid() { throw MyException() } };" }
+expected = []
+
+[[cases]]
+name = "pass-31"
+files = { "case.js" = "const originalClearTimeout = targetWindow.clearTimeout;\n        Object.defineProperty(targetWindow, 'vscodeOriginalClearTimeout', { get: () => originalClearTimeout });\n        " }
+expected = []
+
+[[cases]]
+name = "pass-32"
+files = { "case.js" = "\n        var foo = {\n                get bar() {\n                        let name = ([] || [])[1];\n                        return name;\n                },\n        };\n        " }
+expected = []
+
+[[cases]]
+name = "pass-33"
+files = { "case.js" = "var foo = { get bar() { try { return a(); } finally {  } } };" }
+expected = []
+
+[[cases]]
+name = "pass-34"
+files = { "case.js" = "\n        var foo = {\n            get bar() {\n                switch (baz) {\n                    case VS_LIGHT_THEME: return a;\n                    case VS_HC_THEME: return b;\n                    case VS_HC_LIGHT_THEME: return c;\n                    default: return d;\n                }\n            }\n        };\n        " }
+expected = []
+
+[[cases]]
+name = "pass-35"
+files = { "case.js" = "\n        export default class ProgressBar extends Component {\n            get steps() {\n                const steps = [];\n\n                for (let i = 0; i < this.maxStepsNumber; i++) {\n                    steps.push({\n                        stepnum: i + 1,\n                    });\n                }\n\n                return steps;\n            }\n        }" }
+expected = []
+
+[[cases]]
+name = "pass-36"
+files = { "case.js" = "\n        var foo = {\n            get bar() {\n                for (let i = 0; i<10; i++) {\n                    if (i === 5) {\n                        return i;\n                    }\n                }\n                return 0;\n            }\n        }" }
+expected = []
+
+[[cases]]
+name = "pass-37"
+files = { "case.js" = "\n        var foo = {\n            get bar() {\n                let i = 0;\n                while (i < 10) {\n                    if (i === 5) {\n                        return i;\n                    }\n                    i++;\n                }\n                return 0;\n            }\n        }" }
+expected = []

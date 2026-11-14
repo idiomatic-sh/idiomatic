@@ -12,10 +12,25 @@ use ryo_benchmark_contracts::domain::workloads::types::Tool;
     reason = "fixture artifact setup must succeed before testing the port"
 )]
 pub fn audited(complete: bool) -> crate::domain::suite::types::audit::value::Audit {
+    audit_of("fixture", complete)
+}
+
+/// The audit of a tool whose one default is `rule`, with the rule's query and cases authored when `complete`, through the real
+/// artifact boundary.
+///
+/// # Panics
+///
+/// Panics when `rule` is not a rule identifier, or the fixture artifacts cannot be created or validated.
+#[must_use]
+#[expect(
+    clippy::expect_used,
+    reason = "fixture artifact setup must succeed before testing the port"
+)]
+pub fn audit_of(rule: &str, complete: bool) -> crate::domain::suite::types::audit::value::Audit {
     let directory = tempfile::tempdir().expect("audit fixture");
     std::fs::create_dir_all(directory.path().join("rules")).expect("rule root");
     if complete {
-        let rule = directory.path().join("rules/fixture");
+        let rule = directory.path().join("rules").join(rule);
         std::fs::create_dir_all(&rule).expect("rule directory");
         std::fs::write(
             rule.join("query.ryoql"),
@@ -55,11 +70,35 @@ expected = []
         parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
         source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
-        defaults: vec!["fixture".try_into().expect("rule identifier")],
+        defaults: vec![rule.try_into().expect("rule identifier")],
     };
     crate::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(std::sync::Arc::new(
         crate::outbound::suite::factory::local(),
     ))
     .audit(directory.path(), &tool)
     .expect("audited fixture")
+}
+
+/// The fixture tool whose one default is `rule`, which it also defers under `capability`.
+///
+/// # Panics
+///
+/// Panics when `rule` is not a rule identifier.
+#[must_use]
+#[expect(
+    clippy::expect_used,
+    reason = "a fixture's rule identifier is a test precondition"
+)]
+pub fn deferring(rule: &str, capability: &str) -> Tool {
+    let rule: ryo::linter::RuleId = rule.try_into().expect("rule identifier");
+    Tool {
+        defaults: vec![rule.clone()],
+        deferred: std::collections::BTreeMap::from([(
+            rule,
+            ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName(
+                capability.into(),
+            ),
+        )]),
+        ..crate::inbound::use_cases::admit_measurement::fixtures::tool()
+    }
 }

@@ -1,6 +1,6 @@
 project-context-mode = "isolated"
-# The standalone oxlint executable of the GitHub release apps_v1.76.0, built on oxc_parser 0.142.0, the parser both ryo providers
-# link. Each SHA-256 is of the executable inside the release archive tools/install.py pins for the machine; the archive's own
+# The standalone oxlint executable of the GitHub release apps_v1.76.0, built on oxc_parser 0.142.0, the parser the TypeScript
+# provider links. Each SHA-256 is of the executable inside the release archive tools/install.py pins for the machine; the archive's own
 # SHA-256 is beside it there.
 tool = "oxlint"
 version = "1.76.0"
@@ -127,18 +127,10 @@ defaults = [
 "typescript/oxlint/constant-values" = "fragments/constant-values.ryoql"
 "typescript/oxlint/regexp-without-global" = "fragments/regexp-without-global.ryoql"
 
-# Defaults deferred, each under the limitation that blocks it: there is no control flow relation; oxlint reports the
-# `typescript_silent` rules on no TypeScript file.
+# Defaults deferred, each under the limitation that blocks it: there is no control flow relation.
 [deferred]
 control_flow = [
   "eslint.constructor-super",
   "eslint.no-this-before-super",
   "eslint.no-unreachable",
-]
-# oxlint 1.76.0 reports none of these on `.ts`, `.mts`, `.cts` or `.tsx`: getter-return runs on JavaScript only, oxc's
-# TypeScript check reports a duplicate class member with no rule attached, and `with` does not parse in TypeScript.
-typescript_silent = [
-  "eslint.getter-return",
-  "eslint.no-dupe-class-members",
-  "eslint.no-with",
 ]
