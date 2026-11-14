@@ -82,7 +82,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Call::Prepare(&["src/lib.rs", "src/a.rs"]),
         expect: Expect::Value(Cow::Borrowed(
-            "toolchain/bin/cargo-clippy in root: clippy --workspace --all-targets --message-format=json --offline -- -A clippy::all -A clippy::pedantic -A clippy::nursery -A clippy::restriction -A clippy::cargo -W clippy::zero_prefixed_literal",
+            "toolchain/bin/cargo-clippy in root: clippy --workspace --lib --bins --tests --examples --message-format=json --offline -- -A clippy::all -A clippy::pedantic -A clippy::nursery -A clippy::restriction -A clippy::cargo -W clippy::zero_prefixed_literal",
         )),
     },
     Case {

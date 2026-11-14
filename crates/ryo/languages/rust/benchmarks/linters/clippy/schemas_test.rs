@@ -51,6 +51,8 @@ const FAILED_WITHOUT_ERROR: &str = r#"{"reason":"build-finished","success":false
 /// The dependency file rustc wrote for a workspace member, its sources relative to the workspace root, beside a registry
 /// source and a non-Rust prerequisite.
 const RELATIVE_DEP_INFO: &str = "/t/debug/build/member/1/out/member-1.d: crates/member/src/lib.rs crates/member/src/a.rs /usr/local/cargo/registry/src/index.crates.io-1/cfg-if-1.0.5/src/lib.rs crates/member/README.md\n\n/t/debug/build/member/1/out/libmember-1.rmeta: crates/member/src/lib.rs crates/member/src/a.rs\n";
+/// The dependency file of clap's library, which includes `../examples/demo.rs` from `src/lib.rs`, and one source above the root.
+const PARENT_DEP_INFO: &str = "/t/debug/build/clap/3/out/clap-3.d: src/lib.rs src/../examples/demo.rs src/../examples/demo.md ../outside/lib.rs\n";
 /// The dependency file of a build script named by absolute paths, one under the root `/r` and one outside it.
 const ABSOLUTE_DEP_INFO: &str =
     "/t/debug/build/member/2/out/build_script_build-2.d: /r/build.rs /elsewhere/build.rs\n";
@@ -210,6 +212,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Wire::DepInfo(ABSOLUTE_DEP_INFO),
         expect: Expect::Value(Cow::Borrowed("build.rs")),
+    },
+    Case {
+        name: CaseName(
+            "dep_info_keeps_root_sources: a source named through `..` is its path under the root, never one above it",
+        ),
+        word: Word::Succeeds,
+        input: || Wire::DepInfo(PARENT_DEP_INFO),
+        expect: Expect::Value(Cow::Borrowed("examples/demo.rs\nsrc/lib.rs")),
     },
     Case {
         name: CaseName("dep_info_keeps_root_sources: an escaped space is part of its path"),

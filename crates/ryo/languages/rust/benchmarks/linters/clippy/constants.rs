@@ -2,10 +2,13 @@
 
 /// A measured or compared run: every clippy lint off, each group a project's manifest could turn on included, then the selected
 /// ones (`-W clippy::<lint>`, appended). The command line comes after the manifest's `[lints]` flags, so it outranks them.
-pub(crate) const MEASURED_RUN: [&str; 16] = [
+pub(crate) const MEASURED_RUN: [&str; 19] = [
     CLIPPY,
     WORKSPACE,
-    ALL_TARGETS,
+    LIB,
+    BINS,
+    TESTS,
+    EXAMPLES,
     MESSAGE_FORMAT_JSON,
     OFFLINE,
     END_OPTIONS,
@@ -21,10 +24,13 @@ pub(crate) const MEASURED_RUN: [&str; 16] = [
     CARGO_GROUP,
 ];
 /// The discovery run: every clippy lint off, so it only fetches, checks and writes each crate's dependency file.
-pub(crate) const DISCOVERY_RUN: [&str; 16] = [
+pub(crate) const DISCOVERY_RUN: [&str; 19] = [
     CLIPPY,
     WORKSPACE,
-    ALL_TARGETS,
+    LIB,
+    BINS,
+    TESTS,
+    EXAMPLES,
     MESSAGE_FORMAT_JSON,
     LOCKED,
     END_OPTIONS,
@@ -61,8 +67,15 @@ pub(crate) const JOBS_VARIABLE: &str = "CARGO_BUILD_JOBS";
 pub(crate) const ONE_JOB: &str = "1";
 /// Every package of the root's workspace.
 const WORKSPACE: &str = "--workspace";
-/// Every target: libraries, binaries, tests, benches, examples and build scripts.
-const ALL_TARGETS: &str = "--all-targets";
+/// The library target. With binaries, tests and examples, every target a stable toolchain checks: a bench target is left out, as
+/// ripgrep's (globset's `#![feature(test)]`) builds on nightly only, and clippy refuses the whole run on stable for it.
+const LIB: &str = "--lib";
+/// Every binary target.
+const BINS: &str = "--bins";
+/// Every test target, the library's unit tests included.
+const TESTS: &str = "--tests";
+/// Every example target.
+const EXAMPLES: &str = "--examples";
 /// One JSON message per line on stdout.
 const MESSAGE_FORMAT_JSON: &str = "--message-format=json";
 /// Refuse a lock change but fetch what the lock names: discovery, the one run that may reach the network.
