@@ -1,3 +1,7 @@
+# language 0.4.9
+
+Places `contract` 0.6.0, whose parse contract answers the catalog's optional relations in `semantics.rs`, declared `mod semantics;` in the contract's module file, which the `contract-module` template admits beside what it renders. Everything else is as in 0.4.8.
+
 # language 0.4.8
 
 Places `contract` 0.5.0, whose `parse` contract no longer answers the relations the catalog declares `optional`. The language fixtures' parse contracts carry it. Everything else is as in 0.4.7.

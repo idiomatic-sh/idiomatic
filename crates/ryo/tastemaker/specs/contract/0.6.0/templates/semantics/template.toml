@@ -1,0 +1,343 @@
+description = "The parse contract's answers to the catalog's optional relations: the contract's struct implementing `ryo::languages::Semantics`."
+why = "`Semantics` is the engine's second trait on the parse contract's struct: what a language answers of the relations the catalog declares `optional`, beside the baseline ones `Parse` answers in `contract.rs`. A language that answers any of them answers each here, in the file named for the trait, so `contract.rs` keeps one list and this file the other, and `Parse::semantics` hands this implementation out with `Some(self)`. A language that answers none of them has no `semantics.rs` and answers `None`. Only the parse contract has one: `Semantics` is handed out by `Parse`."
+content = '''
+{% if trait == "ryo::languages::Parse" -%}
+//! The `{{ part }}` contract's answers to the relations of ryo's catalog declared `optional`: for each, how the language reads it
+//! or that it is not in the language yet. `Parse::semantics` hands this implementation to the engine.
+
+use ryo::languages::{self, AbsenceCause, Reader, Support};
+
+use super::contract::{{ part | pascal }}Contract;
+
+impl languages::Semantics for {{ part | pascal }}Contract {
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_parse(&self) -> Support<Reader<languages::FormatParse, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_field(&self) -> Support<Reader<languages::FormatField, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_parse(&self) -> Support<Reader<languages::PatternParse, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_syntax(&self) -> Support<Reader<languages::PatternSyntax, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_child(&self) -> Support<Reader<languages::PatternChild, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+}
+{%- else -%}
+{{ refuse("only the parse contract implements `ryo::languages::Semantics`: `Parse::semantics` hands it out") }}
+{%- endif %}
+'''
+
+[params]
+part = { type = "identifier", from = "directory-name", description = "The contract's directory name: the stem of its struct." }
+trait = { type = "string", description = "The path of the engine's trait the contract implements (`ryo::languages::Parse`): only the parse contract places this file." }
+
+[given]
+file = 'semantics.rs'
+params = { part = 'parse', trait = 'ryo::languages::Parse' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'semantics.rs' = '''
+//! The `parse` contract's answers to the relations of ryo's catalog declared `optional`: for each, how the language reads it
+//! or that it is not in the language yet. `Parse::semantics` hands this implementation to the engine.
+
+use ryo::languages::{self, AbsenceCause, Reader, Support};
+
+use super::contract::ParseContract;
+
+impl languages::Semantics for ParseContract {
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_parse(&self) -> Support<Reader<languages::FormatParse, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_field(&self) -> Support<Reader<languages::FormatField, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_parse(&self) -> Support<Reader<languages::PatternParse, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_syntax(&self) -> Support<Reader<languages::PatternSyntax, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_child(&self) -> Support<Reader<languages::PatternChild, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+}
+'''
+
+[[scenarios]]
+id = 'impl-missing'
+scenario = 'The file does not implement `Semantics`.'
+given.files.'semantics.rs' = '''
+//! The `parse` contract's answers to the relations of ryo's catalog declared `optional`: for each, how the language reads it
+//! or that it is not in the language yet. `Parse::semantics` hands this implementation to the engine.
+
+use ryo::languages::{self, AbsenceCause, Reader, Support};
+
+use super::contract::ParseContract;
+'''
+then.findings = [
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+]
+
+[[scenarios]]
+id = 'under-the-project-contract'
+scenario = 'A semantics.rs under the project contract is refused.'
+given.params = { part = 'project', trait = 'ryo::languages::Project' }
+given.files.'semantics.rs' = '''
+//! The `project` contract's answers.
+'''
+then.findings = [
+  { rule = 'semantics#template', path = 'semantics.rs' },
+]
