@@ -1,6 +1,7 @@
 import lint_attributes from "rust/clippy/lint-attributes";
 import item_heads from "rust/clippy/item-heads";
 import cfg_test from "rust/clippy/cfg-test";
+import expanded_attributes from "rust/clippy/expanded-attributes";
 let containers = select id, file from "syntax-tree" where kind = "source-file" or kind = "item-list";
 let items = select l.parent as container, l.child as id, l.ordinal as ordinal, l.file as file from "syntax-child" as l join containers as r on l.parent = r.id where l.field = "items";
 let modules = select l.container as container, l.id as id, l.ordinal as ordinal, l.file as file from items as l join "syntax-tree" as r on l.id = r.id where r.kind = "module";
@@ -12,7 +13,8 @@ let preceded = select l.container as container, l.id as id, l.ordinal as ordinal
 let firsts = antijoin(left=inline_modules, right=preceded, left-on=["id"], right-on=["id"]);
 let afters = select l.id as test, r.id as id, l.file as file from firsts as l join items as r on l.container = r.container where l.ordinal < r.ordinal;
 let after_modules = select l.test as test, l.file as file from afters as l join "syntax-tree" as r on l.id = r.id where r.kind = "module" or r.kind = "macro-call";
-let expanding = select declaration as id, file from "decorates" where target = "derive" or target = "test";
+let expanded = expanded_attributes();
+let expanding = select declaration as id, file from expanded;
 let after_expanding = select l.test as test, l.file as file from afters as l join expanding as r on l.id = r.id;
 let blocked = union(left=after_modules, right=after_expanding);
 let after_children = select l.test as test, r.child as id, l.file as file from afters as l join "syntax-child" as r on l.id = r.parent;
