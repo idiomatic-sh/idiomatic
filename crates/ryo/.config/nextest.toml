@@ -2,3 +2,7 @@
 # Run them with `cargo test --all-features --benches --test '*bdd'`.
 [profile.default]
 default-filter = "not kind(bench) and not binary(/bdd$|^distribution$/)"
+
+# The CI profile (check.yml sets NEXTEST_PROFILE=ci): every test runs, so one red does not hide the rest of a machine's reds.
+[profile.ci]
+fail-fast = false

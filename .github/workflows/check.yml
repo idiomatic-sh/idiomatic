@@ -20,6 +20,9 @@ on:
         options: [ryo, tastemaker, asymptote]
 permissions:
   contents: read
+env:
+  # nextest's `ci` profile (each product's .config/nextest.toml): no fail-fast, so a machine reports every red test.
+  NEXTEST_PROFILE: ci
 concurrency:
   group: check-${{ github.ref }}-${{ inputs.product }}
   cancel-in-progress: true
