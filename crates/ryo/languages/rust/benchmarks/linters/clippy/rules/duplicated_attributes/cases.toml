@@ -157,3 +157,8 @@ expected = []
 name = "bare-char-item"
 files = { "src/lib.rs" = "#[rustfmt::skip(a, a, '=')]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 19, end = 20 }]
+
+[[cases]]
+name = "number-value-repeat"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = 1, v = 2)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 23, end = 28 }]
