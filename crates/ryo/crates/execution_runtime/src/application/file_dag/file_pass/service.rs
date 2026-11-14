@@ -12,7 +12,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::portable_fault;
 use ryo_execution_domain::domain::trust::service::{needs_of, physical_reads};
 use ryo_execution_domain::domain::trust::types::RelationRead;
-use ryo_language::domain::elements::service::{kind_names, positions};
+use ryo_language::domain::elements::service::{kind_at, kind_names, positions};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::of_kind;
 use ryo_language::domain::symbols::service::intern_derived;
@@ -71,6 +71,8 @@ pub(crate) fn fill_roots(roots: &mut FileRoots, elements: &Elements, texts: &Tex
         list.clear();
     }
     let names = kind_names(elements);
+    // A tree built without its kind index lists no element under any kind: its roots are found by reading each element's kind.
+    let indexed = (0..names.len()).any(|kind| u16::try_from(kind).is_ok_and(|kind| !of_kind(elements, KindBits(kind)).is_empty()));
     for root in &roots.kinds {
         let numbered = names
             .iter()
@@ -81,7 +83,15 @@ pub(crate) fn fill_roots(roots: &mut FileRoots, elements: &Elements, texts: &Tex
         };
         for node in &root.nodes {
             if let Some(list) = roots.lists.get_mut(usize::try_from(node.0).unwrap_or(usize::MAX)) {
-                list.extend(of_kind(elements, KindBits(kind)).iter().map(|at| node_id(file, *at)));
+                if indexed {
+                    list.extend(of_kind(elements, KindBits(kind)).iter().map(|at| node_id(file, *at)));
+                } else {
+                    list.extend(
+                        positions(elements)
+                            .filter(|at| kind_at(elements, *at) == KindBits(kind))
+                            .map(|at| node_id(file, at)),
+                    );
+                }
             }
         }
     }
@@ -250,4 +260,3 @@ pub(crate) fn served(pass: Option<&Result<PassProgram, OperatingError>>) -> Resu
     }
     latest.map_or(Ok(()), |stage| Err(OperatingError::NotServedUntil(stage)))
 }
-

@@ -46,7 +46,8 @@ pub(crate) fn facts(
 
 /// How many rows a relation's columns hold.
 pub(crate) fn rows_of(view: &ColumnsView<'_>) -> RowCount {
-    RowCount(view.columns.first().map_or(0, |column| column.0.len()))
+    // The readable prefix: a column shorter than the others ends the rows every column holds.
+    RowCount(view.columns.iter().map(|column| column.0.len()).min().unwrap_or(0))
 }
 
 /// Row `row` of the columns, decoded into `into` one cell per column: the facts are read in place, never into a table.

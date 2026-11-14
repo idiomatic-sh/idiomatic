@@ -1,6 +1,8 @@
 //! A rule's node in the open file: run by the operators, its rows answered with their coverage, and every node's rows
 //! released when the file ends.
 
+use ryo_operators::domain::physical_plan::types::{FactRows, PlanInputs as _};
+use ryo_operators::domain::tree_cells::service::native_form;
 use crate::application::file_dag::program::facade_runtime::file_execution::service::classify;
 use crate::application::file_dag::file_pass::types::{NodeAnswer, NodeReads, PassFile, PassResources};
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
@@ -42,9 +44,22 @@ pub(crate) fn node_rows(
     node: Result<PlanNodeId, OperatingError>,
     reads: Option<&NodeReads>,
 ) -> Result<NodeAnswer, OperatingError> {
-    let node = node?;
     let empty = NodeReads::default();
     let reads = reads.unwrap_or(&empty);
+    let node = match node {
+        Ok(node) => node,
+        Err(error) => {
+            // A step's schema fault is answered once its sources are admitted: a relation the facts refuse stops the file first.
+            for read in &reads.uses {
+                if native_form(read.relation).is_none()
+                    && matches!(at.inputs.facts(read.relation), FactRows::Refused)
+                {
+                    break;
+                }
+            }
+            return Err(error);
+        }
+    };
     let completion = CompletionPolicy::file_inputs(rule, at.file, at.evaluation, at.publication);
     if completion.region_admission(&reads.needs) == RegionAdmission::Blocked {
         let mut table = Table::default();

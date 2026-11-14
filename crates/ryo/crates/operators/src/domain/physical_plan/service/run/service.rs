@@ -260,7 +260,17 @@ fn kernels(
             }
         }
         Lowering::Project { project, .. } => {
-            output.kinds = kept_kinds(kinds, &project.columns)?;
+            // A projection keeps exactly its columns: none is a row of no column, never every column as a filter's none is.
+            output.kinds = project
+                .columns
+                .iter()
+                .map(|column| {
+                    kinds
+                        .get(usize::try_from(column.0).unwrap_or(usize::MAX))
+                        .copied()
+                        .ok_or(PortableOperatorFault::NoSuchColumn { index: *column })
+                })
+                .collect::<Result<_, _>>()?;
             buffers.seen.clear();
             for row in 0..rows {
                 let cells = row_of(input, RowIndex(row), &mut buffers.row);
