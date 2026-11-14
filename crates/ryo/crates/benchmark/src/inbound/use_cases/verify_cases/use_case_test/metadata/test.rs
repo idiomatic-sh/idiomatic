@@ -40,7 +40,6 @@ type Value = usize;
 type Failure = Refusal;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
-    #[cfg(unix)]
     Case {
         name: CaseName("an unchanged non-executable mode lets both cases execute"),
         word: Word::Succeeds,
@@ -50,7 +49,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Value(2),
     },
-    #[cfg(unix)]
     Case {
         name: CaseName("an unchanged executable mode lets both cases execute"),
         word: Word::Succeeds,
@@ -60,7 +58,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Value(2),
     },
-    #[cfg(unix)]
     Case {
         name: CaseName("a reference that makes a file executable stops the second candidate"),
         word: Word::Refuses,
@@ -70,7 +67,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Error(Refusal::MetadataDrift),
     },
-    #[cfg(unix)]
     Case {
         name: CaseName("a reference that clears the executable bit stops the second candidate"),
         word: Word::Refuses,
@@ -86,13 +82,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     mode_drift(scenario).map_err(|error| category(&error.to_string()))
 }
 
-#[cfg(unix)]
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
 
-#[cfg(unix)]
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);

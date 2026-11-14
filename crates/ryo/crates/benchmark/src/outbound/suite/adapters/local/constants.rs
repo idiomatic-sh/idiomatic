@@ -158,6 +158,7 @@ pub(super) const SOURCE_ARTIFACT_ESCAPES_ITS_BOUNDARY: &str =
 /// Text of the nonutf8 source path in this part.
 pub(super) const NONUTF8_SOURCE_PATH: &str = "nonUTF8 source path";
 /// Text of the metadata source is not a regular in this part.
+#[cfg(unix)]
 pub(super) const METADATA_SOURCE_IS_NOT_A_REGULAR: &str = "metadata source is not a regular file";
 /// Text of the posix executable observations are unsupporte in this part.
 #[cfg(not(unix))]

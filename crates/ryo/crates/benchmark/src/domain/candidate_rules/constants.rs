@@ -14,4 +14,5 @@ pub(super) const TEXT: &str = "**";
 pub(super) const FRONTEND_PROJECTION_WAS_NOT_REGISTERED: &str =
     "frontend projection was not registered";
 /// Text of the text 2 in this part.
+#[cfg(unix)]
 pub(super) const TEXT_2: &str = "\\\\";

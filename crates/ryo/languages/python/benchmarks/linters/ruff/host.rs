@@ -1,7 +1,10 @@
 //! Host observation at the linter process edge: the facts the permission applicability decision is given.
-/// Whether this host honours the file permissions the pinned reference observes.
-#[cfg(unix)]
+/// Whether this host honours the file permissions the pinned reference observes: never off Unix, where files carry no
+/// execute bit.
 pub(crate) fn permission_checks_supported() -> crate::host_policy::Permissions {
+    if !cfg!(unix) {
+        return crate::host_policy::Permissions::Unsupported;
+    }
     if std::env::consts::OS != crate::composition::constants::LINUX {
         return crate::host_policy::Permissions::Supported;
     }
@@ -37,9 +40,4 @@ pub(crate) fn permission_checks_supported() -> crate::host_policy::Permissions {
         crate::host_policy::Isolation::Bare
     };
     crate::host_policy::supported(kernel, isolation)
-}
-/// Whether this host honours the file permissions the pinned reference observes.
-#[cfg(not(unix))]
-pub(crate) fn permission_checks_supported() -> crate::host_policy::Permissions {
-    crate::host_policy::Permissions::Unsupported
 }

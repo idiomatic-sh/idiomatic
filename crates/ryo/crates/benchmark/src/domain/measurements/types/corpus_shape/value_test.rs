@@ -60,7 +60,7 @@ fn subject((language, count): Input) -> Result<Value, Failure> {
     .map(|()| "admitted")
     .map_err(|error| match error {
         Error::Invalid(message) => &*Box::leak(message.into_boxed_str()),
-        _ => "unexpected",
+        Error::Io(_) | Error::Json(_) | Error::Toml(_) => "unexpected",
     })
 }
 

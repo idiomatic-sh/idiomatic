@@ -65,6 +65,7 @@ fn refuses() {
 }
 
 mod discrepancy;
+#[cfg(unix)]
 mod metadata;
 mod process_capture;
 mod process_identity;

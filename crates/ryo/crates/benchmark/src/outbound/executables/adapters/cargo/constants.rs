@@ -21,6 +21,7 @@ pub(super) const TOOL_NOT_FOUND: &str = "reference tool not found on the search 
 /// The refusal of a child whose output was not captured.
 pub(super) const NO_OUTPUT: &str = "the sealed executable's output was not captured";
 /// Owner read, write and execute; group and others read and execute.
+#[cfg(unix)]
 pub(super) const EXECUTABLE_MODE: u32 = 0o755;
 /// The size of one read of a child's output.
 pub(super) const CHUNK: usize = 8192;

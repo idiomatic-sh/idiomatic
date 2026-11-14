@@ -109,6 +109,10 @@ fn set_mode(path: &std::path::Path, mode: u32) {
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap();
 }
 #[cfg(not(unix))]
+#[expect(
+    dead_code,
+    reason = "every scenario that uses it runs on unix only; unix-behind-cfg asks this file for the twin"
+)]
 fn set_mode(_path: &std::path::Path, _mode: u32) {}
 #[cfg(unix)]
 fn metadata_drift_blocks_each_attempt() -> String {

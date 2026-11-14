@@ -9,6 +9,7 @@ use std::borrow::Cow;
 #[derive(Clone, Copy)]
 enum Scenario {
     /// A declared mode, staged by the named materialization route and reverified before each attempt.
+    #[cfg(unix)]
     DeclaredMode(&'static str),
     /// A profile requiring file observations whose cases omit them.
     OmittedObservations,
@@ -50,11 +51,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::DeclaredMode("listed-disk"),
         expect: Expect::Value(2),
     },
+    #[cfg(unix)]
     Case {
         name: CaseName("a sealed missing request needs metadata only for observed sources"),
         word: Word::Succeeds,
         input: || Scenario::SealedMissing,
         expect: Expect::Value(2),
+    },
+    #[cfg(not(unix))]
+    Case {
+        name: CaseName("a host without execute bits refuses the executable observations"),
+        word: Word::Refuses,
+        input: || Scenario::SealedMissing,
+        expect: Expect::Error(Cow::Borrowed(
+            "POSIX executable observations are unsupported on this host",
+        )),
     },
     Case {
         name: CaseName("a decoded full-report case keeps its comparison"),
@@ -127,18 +138,26 @@ fn fixture(root: &std::path::Path, mode: &str, declare: bool) -> std::path::Path
 }
 
 /// Clears the execute bits of `path` and answers the permissions it had before.
+#[cfg(unix)]
 fn clear_execute(path: &std::path::Path) -> std::fs::Permissions {
     let before = std::fs::metadata(path).unwrap().permissions();
-    #[cfg(unix)]
     let cleared = <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(
         std::os::unix::fs::PermissionsExt::mode(&before) & !0o111,
     );
-    #[cfg(not(unix))]
-    let cleared = before.clone();
     std::fs::set_permissions(path, cleared).unwrap();
     before
 }
+/// Platforms without execute bits have none to clear.
+#[cfg(not(unix))]
+#[expect(
+    dead_code,
+    reason = "every scenario that uses it runs on unix only; unix-behind-cfg asks this file for the twin"
+)]
+fn clear_execute(path: &std::path::Path) -> std::fs::Permissions {
+    std::fs::metadata(path).unwrap().permissions()
+}
 
+#[cfg(unix)]
 fn declared_mode(
     mode: &str,
 ) -> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
@@ -346,6 +365,7 @@ fn given_sibling() -> Result<Value, ryo_benchmark_contracts::domain::reports::er
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
+        #[cfg(unix)]
         Scenario::DeclaredMode(mode) => declared_mode(mode),
         Scenario::OmittedObservations => omitted_observations(),
         Scenario::SealedMissing => sealed_missing_request(),

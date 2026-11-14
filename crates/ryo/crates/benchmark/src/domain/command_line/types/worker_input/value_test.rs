@@ -43,7 +43,7 @@ fn subject(arguments: Input) -> Result<Value, Failure> {
         .map(|argument| BenchmarkArgument((*argument).into()));
     let input = WorkerInput::read(&mut arguments).map_err(|error| match error {
         Error::Invalid(message) => &*Box::leak(message.into_boxed_str()),
-        _ => "unexpected",
+        Error::Io(_) | Error::Json(_) | Error::Toml(_) => "unexpected",
     })?;
     Ok(Box::leak(
         format!(
