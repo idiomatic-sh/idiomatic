@@ -106,20 +106,24 @@ fn tokens() -> PlanComparison {
 
 /// What the service made of `step`, whose join filtered with `filter`.
 fn fused(step: &PlanStep, filter: &PlanComparison) -> Fused {
-    match &step.operation {
-        Operation::Join { .. } => Fused::Join,
-        Operation::Axis {
-            direction,
-            from,
-            domain_filter,
-            output,
-            ..
-        } if domain_filter.as_slice() == std::slice::from_ref(filter) => Fused::Axis {
+    if let Operation::Join { .. } = &step.operation {
+        Fused::Join
+    } else if let Operation::Axis {
+        direction,
+        from,
+        domain_filter,
+        output,
+        ..
+    } = &step.operation
+        && domain_filter.as_slice() == std::slice::from_ref(filter)
+    {
+        Fused::Axis {
             direction: *direction,
             from: *from,
             output: Cow::Owned(output.clone()),
-        },
-        _ => Fused::Other,
+        }
+    } else {
+        Fused::Other
     }
 }
 
