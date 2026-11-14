@@ -7,10 +7,10 @@ pub mod lowering;
 pub mod physical_plan;
 
 use crate::domain::contract::types::{PortableOperatorFault, RenderKind};
+use crate::domain::select::types::SelectParts;
 use crate::domain::table_texts::types::Texts;
 use ryo_language::domain::elements::types::Elements;
 use ryo_relations::domain::relations::types::{ColumnsView, NodeId, Relation, TextHash, Value};
-use crate::domain::select::types::SelectParts;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::{ObservationBindingId, ParameterId, StepScope};
 use ryo_values::domain::plans::types::Operation;

@@ -3,8 +3,8 @@
 use super::super::types::RegexIdentity;
 use super::types::{PhysicalAuthorization, PhysicalBinding, PhysicalRoute};
 use crate::domain::operating::errors::OperatingError;
-use ryo_operators::domain::evaluation::types::Lent;
 use ryo_operators::domain::equality_join::types::PartitionExtremum;
+use ryo_operators::domain::evaluation::types::Lent;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;

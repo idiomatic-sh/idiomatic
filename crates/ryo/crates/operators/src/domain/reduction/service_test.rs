@@ -81,7 +81,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
-        name: CaseName("a_group_digest_s_row_meaning_is_first_row_distinct_count_and_digest_per_group"),
+        name: CaseName(
+            "a_group_digest_s_row_meaning_is_first_row_distinct_count_and_digest_per_group",
+        ),
         word: Word::Succeeds,
         input: || Scenario::RowMeaningDigest,
         expect: Expect::Value(std::borrow::Cow::Borrowed(ROW_MEANING_DIGESTS)),

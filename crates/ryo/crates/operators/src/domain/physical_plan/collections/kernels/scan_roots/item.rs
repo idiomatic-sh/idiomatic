@@ -3,9 +3,9 @@
 
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
+use crate::domain::physical_plan::types::{PlanInputs, PlanNodeId, TreeRead};
 #[cfg(test)]
 use crate::domain::physical_plan::types::{RowSource, lowering::value::Lowering};
-use crate::domain::physical_plan::types::{PlanInputs, PlanNodeId, TreeRead};
 use crate::domain::tree_cells::service::{native_form, tree_value};
 use crate::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_language::domain::elements::types::Elements;

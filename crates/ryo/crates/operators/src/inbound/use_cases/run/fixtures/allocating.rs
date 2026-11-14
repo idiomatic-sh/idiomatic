@@ -7,10 +7,12 @@ use crate::domain::physical_plan::fixtures::Step;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::fixtures::{kinds, node_id};
-use ryo_relations::domain::relations::types::{FileId, Integer, Offset, Position, Relation, Span, Value};
+use ryo_relations::domain::relations::types::{
+    FileId, Integer, Offset, Position, Relation, Span, Value,
+};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, Input, JoinColumn, LiteralText, Operand, PlanComparison, QueryLiteral, ReachLookup, Side,
-    Test,
+    ColumnIndex, ComparisonOrigin, Input, JoinColumn, LiteralText, Operand, PlanComparison,
+    QueryLiteral, ReachLookup, Side, Test,
 };
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::{RowCount, Table};
@@ -31,8 +33,13 @@ pub fn held(workloads: &Workloads) -> bool {
     let past = workloads.past_bound;
     let selects = selects_held(&KeyedSelects { answering: past });
     let closure = seeded_held(&SeededClosure { fused: !past });
-    let kernels = graph_kernel_blocks().is_some_and(|[cold, warm]| if past { cold == 0 } else { warm == 0 });
-    if past { selects || closure || kernels } else { selects && closure && kernels }
+    let kernels =
+        graph_kernel_blocks().is_some_and(|[cold, warm]| if past { cold == 0 } else { warm == 0 });
+    if past {
+        selects || closure || kernels
+    } else {
+        selects && closure && kernels
+    }
 }
 
 /// Two selects of `Defines` keyed on its name, so the planner shares one index of the name between them.
@@ -135,7 +142,10 @@ struct SeededClosure {
 /// Whether a file of ten thousand chains allocates the same blocks as a file of a hundred, for the same two bound chains,
 /// each measured with buffers warm from a file of the same rows. A whole closure grows with the graph and does not hold it.
 fn seeded_held(closure: &SeededClosure) -> bool {
-    match (closure_blocks(closure, 100), closure_blocks(closure, 10_000)) {
+    match (
+        closure_blocks(closure, 100),
+        closure_blocks(closure, 10_000),
+    ) {
         (Some(few), Some(many)) => few == many,
         (None, _) | (_, None) => false,
     }
@@ -143,7 +153,10 @@ fn seeded_held(closure: &SeededClosure) -> bool {
 
 /// `pairs` rows of `EDGES`, parent to child, each of ordinal 0, the field `f`, file 0.
 fn edge_rows(pairs: impl Iterator<Item = (u32, u32)>, resources: &TextResources) -> Table {
-    let mut table = Table { kinds: kinds(EDGES).to_vec(), ..Table::default() };
+    let mut table = Table {
+        kinds: kinds(EDGES).to_vec(),
+        ..Table::default()
+    };
     for (parent, child) in pairs {
         table.cells.extend([
             Value::Node(node_id(FileId(0), Position(parent))),
@@ -159,7 +172,10 @@ fn edge_rows(pairs: impl Iterator<Item = (u32, u32)>, resources: &TextResources)
 
 /// `chains` chains of ten edges, chain `c` from node `11c` to `11c + 10`.
 fn chains(chains: u32, resources: &TextResources) -> Table {
-    edge_rows((0..chains).flat_map(|chain| (chain * 11..chain * 11 + 10).map(|at| (at, at + 1))), resources)
+    edge_rows(
+        (0..chains).flat_map(|chain| (chain * 11..chain * 11 + 10).map(|at| (at, at + 1))),
+        resources,
+    )
 }
 
 /// The closure's program: the join of the left rows (read from `Defines`) with the closure of the edges on its source,
@@ -171,8 +187,14 @@ fn closure_steps(fused: bool) -> Vec<Step> {
         left_on: vec![ColumnIndex(0)],
         right_on: vec![ColumnIndex(0)],
         output: vec![
-            JoinColumn { side: Side::Left, column: ColumnIndex(0) },
-            JoinColumn { side: Side::Right, column: ColumnIndex(1) },
+            JoinColumn {
+                side: Side::Left,
+                column: ColumnIndex(0),
+            },
+            JoinColumn {
+                side: Side::Right,
+                column: ColumnIndex(1),
+            },
         ],
         filter: Vec::new(),
         view: Vec::new(),
@@ -187,7 +209,10 @@ fn closure_steps(fused: bool) -> Vec<Step> {
         };
         return vec![Step {
             operation: join(Input::Relation(EDGES), Some(reach)),
-            inputs: vec![PlanInput::Relation(Relation::Defines), PlanInput::Relation(EDGES)],
+            inputs: vec![
+                PlanInput::Relation(Relation::Defines),
+                PlanInput::Relation(EDGES),
+            ],
         }];
     }
     vec![
@@ -201,8 +226,14 @@ fn closure_steps(fused: bool) -> Vec<Step> {
             inputs: vec![PlanInput::Relation(EDGES)],
         },
         Step {
-            operation: join(Input::Step(ryo_values::domain::plan_parts::types::StepId(0)), None),
-            inputs: vec![PlanInput::Relation(Relation::Defines), PlanInput::Node(PlanNodeId(0))],
+            operation: join(
+                Input::Step(ryo_values::domain::plan_parts::types::StepId(0)),
+                None,
+            ),
+            inputs: vec![
+                PlanInput::Relation(Relation::Defines),
+                PlanInput::Node(PlanNodeId(0)),
+            ],
         },
     ]
 }
@@ -217,7 +248,9 @@ fn closure_blocks(closure: &SeededClosure, count: u32) -> Option<u64> {
     let left = edge_rows([(33, 0), (770, 0)].into_iter(), &resources);
     let inputs = TableInputs::new(&[(EDGES, &edges), (Relation::Defines, &left)]);
     let steps = closure_steps(closure.fused);
-    let emit = [PlanNodeId(u32::try_from(steps.len() - 1).unwrap_or(u32::MAX))];
+    let emit = [PlanNodeId(
+        u32::try_from(steps.len() - 1).unwrap_or(u32::MAX),
+    )];
     let mut buffers = FileBuffers::default();
     emitted(&steps, &emit, &inputs, &mut resources, &mut buffers).ok()?;
     buffers.release(emit[0]);
@@ -235,7 +268,14 @@ fn graph_kernel_blocks() -> Option<[u64; 2]> {
     let mut resources = TextResources::new(&["f"]);
     // Rings of ten nodes, each with a chord: cycles for `components`, and walks that meet entities again.
     let mut edges = edge_rows(
-        (0..100_u32).flat_map(|ring| (0..10).flat_map(move |at| [(ring * 10 + at, ring * 10 + (at + 1) % 10), (ring * 10 + at, ring * 10 + (at + 3) % 10)])),
+        (0..100_u32).flat_map(|ring| {
+            (0..10).flat_map(move |at| {
+                [
+                    (ring * 10 + at, ring * 10 + (at + 1) % 10),
+                    (ring * 10 + at, ring * 10 + (at + 3) % 10),
+                ]
+            })
+        }),
         &resources,
     );
     // Each edge its own order among its source's edges.
@@ -263,35 +303,66 @@ fn graph_kernels_once(
     use crate::domain::physical_plan::collections::kernels::components::item::cyclic;
     use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visited;
     use crate::domain::physical_plan::collections::kernels::probe::item::ProbeScratch;
-    use crate::domain::physical_plan::collections::kernels::reach::item::{ReachScratch, Starts, reached};
+    use crate::domain::physical_plan::collections::kernels::reach::item::{
+        ReachScratch, Starts, reached,
+    };
     use crate::domain::physical_plan::types::{InputRows, KernelRun};
     let rows = InputRows::Table(edges);
     let graph = crate::domain::closure::service::lower(&[], ColumnIndex(0), ColumnIndex(1));
-    let dfs = crate::domain::ordered_dfs::service::lower(crate::domain::ordered_dfs::types::DfsShape {
-        root: ColumnIndex(0),
-        edge_columns: [ColumnIndex(0), ColumnIndex(1), ColumnIndex(2), ColumnIndex(2)],
-        root_keys: &[],
-        edge_keys: &[],
-    });
+    let dfs =
+        crate::domain::ordered_dfs::service::lower(crate::domain::ordered_dfs::types::DfsShape {
+            root: ColumnIndex(0),
+            edge_columns: [
+                ColumnIndex(0),
+                ColumnIndex(1),
+                ColumnIndex(2),
+                ColumnIndex(2),
+            ],
+            root_keys: &[],
+            edge_keys: &[],
+        });
     let cycles = crate::domain::cycles::service::lower(ColumnIndex(0), ColumnIndex(1));
     let matching = ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
-    let mut decisions = crate::domain::physical_plan::types::file_buffers::value::NodeDecisions::default();
+    let mut decisions =
+        crate::domain::physical_plan::types::file_buffers::value::NodeDecisions::default();
     let before = dhat::HeapStats::get().total_blocks;
     let mut run = KernelRun {
         inputs,
         resources,
         matcher: crate::domain::patterns::types::PatternMatcher(&matching),
     };
-    let FileBuffers { index, second, walk, cycles: cycle_scratch, row, written, seen, .. } = buffers;
+    let FileBuffers {
+        index,
+        second,
+        walk,
+        cycles: cycle_scratch,
+        row,
+        written,
+        seen,
+        ..
+    } = buffers;
     for kernel in 0..3 {
         output.cells.clear();
         output.count = RowCount(0);
         let fault = match kernel {
-            0 => reached(&graph, rows, Starts::Every, &mut run, ReachScratch {
-                index: &mut *index,
-                walk: &mut *walk,
-                probe: ProbeScratch { index: &mut *second, row: &mut *row, written: &mut *written, seen: &mut *seen, decisions: &mut decisions },
-            }, output),
+            0 => reached(
+                &graph,
+                rows,
+                Starts::Every,
+                &mut run,
+                ReachScratch {
+                    index: &mut *index,
+                    walk: &mut *walk,
+                    probe: ProbeScratch {
+                        index: &mut *second,
+                        row: &mut *row,
+                        written: &mut *written,
+                        seen: &mut *seen,
+                        decisions: &mut decisions,
+                    },
+                },
+                output,
+            ),
             1 => visited(&dfs, rows, rows, &mut *walk, output),
             _ => cyclic(&cycles, rows, &mut *index, &mut *cycle_scratch, output),
         };

@@ -336,7 +336,10 @@ pub(crate) fn seeded(
     bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
 ) -> super::types::SeededJoin {
     super::types::SeededJoin {
-        columns: shape.reach.map(|reach| reach.columns.clone()).unwrap_or_default(),
+        columns: shape
+            .reach
+            .map(|reach| reach.columns.clone())
+            .unwrap_or_default(),
         probe: lower(shape, filter, bindings),
     }
 }

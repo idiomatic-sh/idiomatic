@@ -10,12 +10,12 @@ use super::super::hash_index::item::{cells, find_cells, indexed, next_of};
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of, row_of};
 use crate::domain::contract::types::PortableOperatorFault;
-#[cfg(test)]
-use crate::domain::physical_plan::types::lowering::value::Lowering;
-use crate::domain::physical_plan::types::file_buffers::value::{KeyedRows, NO_ROW, NodeDecisions};
 use crate::domain::equality_join::types::{
     EmptyRight, Existence, OrderedProbe, PartitionExtremum, ProbeKey, ProbeMode, ProbeParts,
 };
+use crate::domain::physical_plan::types::file_buffers::value::{KeyedRows, NO_ROW, NodeDecisions};
+#[cfg(test)]
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::{CellStart, InputRows, KernelRun, KeyedRowAt, KeyedSide};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Side};
@@ -203,7 +203,9 @@ pub(crate) fn probed(
             };
             if !passed {
                 let start = CellStart(output.cells.len());
-                output.cells.extend_from_slice(row_of(left, at, scratch.row));
+                output
+                    .cells
+                    .extend_from_slice(row_of(left, at, scratch.row));
                 counted(output, start, probe.repeated, scratch.seen);
             }
             continue;
@@ -241,7 +243,11 @@ pub(crate) fn probed(
     clippy::indexing_slicing,
     reason = "the chain is made together with the rows it indexes: a row past it is a bug, which panics"
 )]
-fn extremes(right: InputRows<'_>, order: OrderedProbe, index: &mut KeyedRows) -> Result<(), PortableOperatorFault> {
+fn extremes(
+    right: InputRows<'_>,
+    order: OrderedProbe,
+    index: &mut KeyedRows,
+) -> Result<(), PortableOperatorFault> {
     let KeyedRows { keys, next } = index;
     for key in keys.iter_mut() {
         let mut best = key.first;
@@ -268,7 +274,11 @@ fn extremes(right: InputRows<'_>, order: OrderedProbe, index: &mut KeyedRows) ->
 /// # Errors
 ///
 /// `ShapeMismatch` for a cell that is not a number, `NoSuchColumn` past the row.
-fn number_at(rows: InputRows<'_>, row: RowIndex, column: ColumnIndex) -> Result<ryo_relations::domain::relations::types::Integer, PortableOperatorFault> {
+fn number_at(
+    rows: InputRows<'_>,
+    row: RowIndex,
+    column: ColumnIndex,
+) -> Result<ryo_relations::domain::relations::types::Integer, PortableOperatorFault> {
     match cell_of(rows, row, column) {
         Some(Value::Number(number)) => Ok(number),
         Some(_) => Err(PortableOperatorFault::ShapeMismatch),

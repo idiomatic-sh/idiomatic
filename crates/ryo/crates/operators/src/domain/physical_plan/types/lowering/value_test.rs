@@ -14,7 +14,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_union_reads_its_left_then_its_right"),
         word: Word::Succeeds,
         input: || Lowering::Distinct {
-            sources: [RowSource::Node(PlanNodeId(0)), RowSource::Node(PlanNodeId(1))],
+            sources: [
+                RowSource::Node(PlanNodeId(0)),
+                RowSource::Node(PlanNodeId(1)),
+            ],
         },
         expect: Expect::Value(std::borrow::Cow::Borrowed(&[
             RowSource::Node(PlanNodeId(0)),
@@ -31,5 +34,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, |lowering: Input| Ok(lowering.sources().collect()));
+    run(CASES, Word::Succeeds, |lowering: Input| {
+        Ok(lowering.sources().collect())
+    });
 }

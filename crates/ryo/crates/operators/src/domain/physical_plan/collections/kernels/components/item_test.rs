@@ -12,16 +12,17 @@ type Value = Reach;
 type Failure = ();
 
 /// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("a_union_does_not_run_it"),
-        word: Word::Succeeds,
-        input: || Lowering::Distinct {
-            sources: [RowSource::Node(PlanNodeId(0)), RowSource::Node(PlanNodeId(1))],
-        },
-        expect: Expect::Value(Reach::Skips),
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("a_union_does_not_run_it"),
+    word: Word::Succeeds,
+    input: || Lowering::Distinct {
+        sources: [
+            RowSource::Node(PlanNodeId(0)),
+            RowSource::Node(PlanNodeId(1)),
+        ],
     },
-];
+    expect: Expect::Value(Reach::Skips),
+}];
 
 /// Calls the part on one input; the author states it.
 #[expect(

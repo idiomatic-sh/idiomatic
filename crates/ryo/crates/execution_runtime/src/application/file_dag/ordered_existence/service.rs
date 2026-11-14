@@ -7,9 +7,9 @@ use ryo_execution_domain::domain::{
     operating::errors::OperatingError, self_join_recogniser::types::Extremum,
 };
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
+use ryo_operators::domain::equality_join::types::PartitionExtremum;
 use ryo_operators::domain::ordered_existence::types::OrderedExistenceDriver;
 use ryo_operators::domain::ordered_existence::types::OrderedExistenceScratch;
-use ryo_operators::domain::equality_join::types::PartitionExtremum;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_relations::domain::relations::types::{Integer, Value};
 use ryo_values::domain::{

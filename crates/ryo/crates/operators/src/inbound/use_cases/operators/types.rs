@@ -1,13 +1,11 @@
 //! The request and answer of the operators capability: one borrowed call in, one pure meaning out.
 
-use crate::domain::equality_join::types::PartitionExtremum;
 use crate::domain::capture::types::{CaptureOutput, CaptureSlots, SlotPattern, SlotSubject};
 use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::contract::types::SourceByteLength;
 use crate::domain::equality_join::types::JoinInput;
-use crate::domain::ordered_existence::types::{
-    OrderedExistenceDriver, OrderedExistenceScratch,
-};
+use crate::domain::equality_join::types::PartitionExtremum;
+use crate::domain::ordered_existence::types::{OrderedExistenceDriver, OrderedExistenceScratch};
 use crate::domain::ordered_match::types::OrderedMatchDriver;
 use crate::domain::reduction::types::{
     AggregationCheckOrder, AggregationHash, AggregationPlan, DigestDatum, DigestValues, Finishing,

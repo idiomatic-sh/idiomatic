@@ -200,7 +200,10 @@ const EDGES: Relation = Relation::SemanticChild;
 
 /// Rows of `EDGES` from `pairs` (parent, child, order), the field `kind`, file 0.
 fn edge_rows(pairs: impl Iterator<Item = (u32, u32, i64)>, texts: &TextResources) -> Table {
-    let mut table = Table { kinds: kinds(EDGES).to_vec(), ..Table::default() };
+    let mut table = Table {
+        kinds: kinds(EDGES).to_vec(),
+        ..Table::default()
+    };
     for (parent, child, order) in pairs {
         table.cells.extend([
             Value::Node(node_id(FileId(0), Position(parent))),
@@ -226,12 +229,20 @@ fn chains(chains: u32, length: u32, texts: &TextResources) -> Table {
 }
 
 /// Runs `steps` over `tables` again and again, emitting the last node and releasing it after.
-fn run_graph(bencher: divan::Bencher<'_, '_>, steps: &[Step], tables: &[(Relation, &Table)], texts: &mut TextResources) {
+fn run_graph(
+    bencher: divan::Bencher<'_, '_>,
+    steps: &[Step],
+    tables: &[(Relation, &Table)],
+    texts: &mut TextResources,
+) {
     let inputs = TableInputs::new(tables);
-    let emit = [PlanNodeId(u32::try_from(steps.len() - 1).unwrap_or(u32::MAX))];
+    let emit = [PlanNodeId(
+        u32::try_from(steps.len() - 1).unwrap_or(u32::MAX),
+    )];
     let mut buffers = FileBuffers::default();
     bencher.bench_local(|| {
-        let answered = emitted(steps, &emit, &inputs, texts, &mut buffers).expect("the workload's program runs");
+        let answered = emitted(steps, &emit, &inputs, texts, &mut buffers)
+            .expect("the workload's program runs");
         buffers.release(emit[0]);
         answered
     });
@@ -247,8 +258,14 @@ fn seeded_closure() -> Step {
             left_on: vec![ColumnIndex(0)],
             right_on: vec![ColumnIndex(0)],
             output: vec![
-                JoinColumn { side: Side::Left, column: ColumnIndex(0) },
-                JoinColumn { side: Side::Right, column: ColumnIndex(1) },
+                JoinColumn {
+                    side: Side::Left,
+                    column: ColumnIndex(0),
+                },
+                JoinColumn {
+                    side: Side::Right,
+                    column: ColumnIndex(1),
+                },
             ],
             filter: Vec::new(),
             view: Vec::new(),
@@ -270,7 +287,12 @@ fn seeded_closure_over_deep_chains(bencher: divan::Bencher<'_, '_>, seeds: u32) 
     let mut texts = TextResources::new(&["kind"]);
     let edges = chains(100, 1_000, &texts);
     let left = edge_rows((0..seeds).map(|chain| (chain * 1_001, 0, 0)), &texts);
-    run_graph(bencher, &[seeded_closure()], &[(EDGES, &edges), (DEFINES, &left)], &mut texts);
+    run_graph(
+        bencher,
+        &[seeded_closure()],
+        &[(EDGES, &edges), (DEFINES, &left)],
+        &mut texts,
+    );
 }
 
 /// A closure from every source over deep chains: 10 chains of `length` edges, each node reaching the rest of its chain.
@@ -297,7 +319,10 @@ fn chorded_rings(rings: u32, texts: &TextResources) -> Table {
         (0..rings).flat_map(|ring| {
             (0..10).flat_map(move |at| {
                 let order = i64::from(ring * 20 + at * 2);
-                [(ring * 10 + at, ring * 10 + (at + 1) % 10, order), (ring * 10 + at, ring * 10 + (at + 3) % 10, order + 1)]
+                [
+                    (ring * 10 + at, ring * 10 + (at + 1) % 10, order),
+                    (ring * 10 + at, ring * 10 + (at + 3) % 10, order + 1),
+                ]
             })
         }),
         texts,
@@ -332,7 +357,11 @@ fn components_of_rings(bencher: divan::Bencher<'_, '_>) {
     let mut texts = TextResources::new(&["kind"]);
     let edges = chorded_rings(500, &texts);
     let cycles = Step {
-        operation: Operation::Cycles { edges: Input::Relation(EDGES), source: ColumnIndex(0), destination: ColumnIndex(1) },
+        operation: Operation::Cycles {
+            edges: Input::Relation(EDGES),
+            source: ColumnIndex(0),
+            destination: ColumnIndex(1),
+        },
         inputs: vec![PlanInput::Relation(EDGES)],
     };
     run_graph(bencher, &[cycles], &[(EDGES, &edges)], &mut texts);
@@ -342,9 +371,16 @@ fn components_of_rings(bencher: divan::Bencher<'_, '_>) {
 #[divan::bench]
 fn group_digest(bencher: divan::Bencher<'_, '_>) {
     let mut texts = TextResources::new(&["kind"]);
-    let edges = edge_rows((0..100_000_u32).map(|at| (at / 100, 100_000 + at, i64::from(at % 7))), &texts);
+    let edges = edge_rows(
+        (0..100_000_u32).map(|at| (at / 100, 100_000 + at, i64::from(at % 7))),
+        &texts,
+    );
     let digest = Step {
-        operation: Operation::GroupDigest { from: Input::Relation(EDGES), keys: vec![ColumnIndex(0)], over: ColumnIndex(2) },
+        operation: Operation::GroupDigest {
+            from: Input::Relation(EDGES),
+            keys: vec![ColumnIndex(0)],
+            over: ColumnIndex(2),
+        },
         inputs: vec![PlanInput::Relation(EDGES)],
     };
     run_graph(bencher, &[digest], &[(EDGES, &edges)], &mut texts);

@@ -188,3 +188,39 @@ pub fn tree_value(tree: &TreeRows<'_>, at: Position, column: ColumnIndex) -> Val
         _ => Value::Flag(Flag::Lowered),
     }
 }
+
+/// Appends to `found` the nodes of `file` a tree walk from the element at `at` reaches in `direction`, in walk order: the
+/// parent, the children, the ancestors nearest first, the descendants in tree order, the deeper descendants (not the
+/// children), or the previous or next sibling.
+pub(crate) fn walked_tree(
+    elements: &Elements,
+    file: ryo_relations::domain::relations::types::FileId,
+    direction: ryo_values::domain::plan_parts::types::Direction,
+    at: Position,
+    found: &mut Vec<Value>,
+) {
+    use ryo_language::domain::elements::service::{
+        children, next_sibling, previous_sibling, size_at,
+    };
+    use ryo_values::domain::plan_parts::types::Direction;
+    let up = |from: Position| (from.0 != 0).then(|| parent_at(elements, from));
+    let node = |position: Position| Value::Node(node_id(file, position));
+    let below = (at.0 + 1..=at.0 + size_at(elements, at).0).map(Position);
+    match direction {
+        Direction::Parent => found.extend(up(at).map(node)),
+        Direction::Child => found.extend(children(elements, at).map(node)),
+        Direction::Ancestor | Direction::NearestAncestor => {
+            found.extend(std::iter::successors(up(at), |each| up(*each)).map(node));
+        }
+        Direction::Descendant => found.extend(below.map(node)),
+        Direction::Deep => {
+            found.extend(
+                below
+                    .filter(|each| parent_at(elements, *each) != at)
+                    .map(node),
+            );
+        }
+        Direction::PreviousSibling => found.extend(previous_sibling(elements, at).map(node)),
+        Direction::NextSibling => found.extend(next_sibling(elements, at).map(node)),
+    }
+}

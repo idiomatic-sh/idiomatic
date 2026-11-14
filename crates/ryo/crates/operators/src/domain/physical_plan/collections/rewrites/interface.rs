@@ -1,6 +1,6 @@
 //! The shape every item of the `rewrites` collection implements.
 
-use crate::domain::physical_plan::types::{KeyedIndex};
+use crate::domain::physical_plan::types::KeyedIndex;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 
 /// What every item of the `rewrites` collection offers: an equivalence over a plan's lowered nodes.

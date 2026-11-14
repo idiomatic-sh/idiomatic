@@ -135,7 +135,9 @@ fn subject(text: Input) -> Result<Value, Failure> {
     match (closures, seeded) {
         (0, 1) => Ok(Reading::Seeded),
         (1, 0) => Ok(Reading::Whole),
-        other => panic!("one closure, read one way, is expected; the plan holds (closures, seeded joins) {other:?}"),
+        other => panic!(
+            "one closure, read one way, is expected; the plan holds (closures, seeded joins) {other:?}"
+        ),
     }
 }
 

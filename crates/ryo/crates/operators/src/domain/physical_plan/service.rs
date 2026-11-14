@@ -1,15 +1,21 @@
 //! The planner's one dispatch over the operation kinds, each kind lowered once by its own concept; the registry of the rewrites
 //! it applies over what it lowered, and the `kernels!` catalog of the kernels the lowerings run.
+pub(crate) mod kernels;
 pub(crate) mod run;
 
+use crate::domain::aggregate::types::GroupMeasure;
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::ordered_dfs::types::DfsShape;
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
-use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-use crate::domain::physical_plan::types::{NodeReaders, PlanInput, PlanNodeId, Retention, RowSource, ServedAt, Unserved};
-use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
+use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+use crate::domain::physical_plan::types::{
+    NodeReaders, PlanInput, PlanNodeId, Retention, RowSource, ServedAt, Unserved,
+};
 use crate::domain::set_rows::types::{SetKind, SetLowering};
+use crate::domain::{aggregate, closure, cycles, ordered_dfs};
 use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -229,12 +235,9 @@ pub(crate) fn lowered(
         } => set(SetKind::Antijoin, left_on, right_on),
         Operation::GroupCount { keys, distinct, .. } => first.map(|source| Lowering::Group {
             source,
-            group: crate::domain::aggregate::service::lower(
+            group: aggregate::service::lower(
                 keys,
-                distinct.map_or(
-                    crate::domain::aggregate::types::GroupMeasure::Rows,
-                    crate::domain::aggregate::types::GroupMeasure::DistinctValues,
-                ),
+                distinct.map_or(GroupMeasure::Rows, GroupMeasure::DistinctValues),
             ),
         }),
         Operation::Join {
@@ -248,7 +251,7 @@ pub(crate) fn lowered(
         } => both().map(|(left, edges)| Lowering::SeededReach {
             left,
             edges,
-            graph: crate::domain::closure::service::lower(&reach.keys, reach.source, reach.destination),
+            graph: closure::service::lower(&reach.keys, reach.source, reach.destination),
             join: crate::domain::equality_join::service::seeded(
                 crate::domain::equality_join::types::JoinShape {
                     left_on,
@@ -263,10 +266,7 @@ pub(crate) fn lowered(
         }),
         Operation::GroupDigest { keys, over, .. } => first.map(|source| Lowering::Group {
             source,
-            group: crate::domain::aggregate::service::lower(
-                keys,
-                crate::domain::aggregate::types::GroupMeasure::Digest(*over),
-            ),
+            group: aggregate::service::lower(keys, GroupMeasure::Digest(*over)),
         }),
         Operation::Closure {
             keys,
@@ -275,7 +275,7 @@ pub(crate) fn lowered(
             ..
         } => first.map(|edges| Lowering::Reach {
             edges,
-            graph: crate::domain::closure::service::lower(keys, *source, *destination),
+            graph: closure::service::lower(keys, *source, *destination),
         }),
         Operation::Axis {
             direction,
@@ -289,24 +289,26 @@ pub(crate) fn lowered(
             ..
         } => {
             let third = inputs.get(2).and_then(source_of);
-            both().zip(third).map(|((starts, edges), domain)| Lowering::Axis {
-                starts,
-                edges,
-                domain,
-                axis: crate::domain::axis::service::lower(
-                    crate::domain::axis::types::AxisShape {
-                        direction: *direction,
-                        id: *id,
-                        parent: *parent,
-                        child: *child,
-                        domain_id: *domain_id,
-                        output,
-                    },
-                    domain_filter,
-                    domain_view,
-                    bindings,
-                ),
-            })
+            both()
+                .zip(third)
+                .map(|((starts, edges), domain)| Lowering::Axis {
+                    starts,
+                    edges,
+                    domain,
+                    axis: crate::domain::axis::service::lower(
+                        crate::domain::axis::types::AxisShape {
+                            direction: *direction,
+                            id: *id,
+                            parent: *parent,
+                            child: *child,
+                            domain_id: *domain_id,
+                            output,
+                        },
+                        domain_filter,
+                        domain_view,
+                        bindings,
+                    ),
+                })
         }
         Operation::OrderedDfs {
             root,
@@ -320,7 +322,7 @@ pub(crate) fn lowered(
         } => both().map(|(roots, edges)| Lowering::OrderedWalk {
             roots,
             edges,
-            dfs: crate::domain::ordered_dfs::service::lower(crate::domain::ordered_dfs::types::DfsShape {
+            dfs: ordered_dfs::service::lower(DfsShape {
                 root: *root,
                 edge_columns: [*source, *destination, *order, *edge],
                 root_keys,
@@ -328,10 +330,12 @@ pub(crate) fn lowered(
             }),
         }),
         Operation::Cycles {
-            source, destination, ..
+            source,
+            destination,
+            ..
         } => first.map(|edges| Lowering::Components {
             edges,
-            cycles: crate::domain::cycles::service::lower(*source, *destination),
+            cycles: cycles::service::lower(*source, *destination),
         }),
         Operation::Capture { .. }
         | Operation::Rank { .. }

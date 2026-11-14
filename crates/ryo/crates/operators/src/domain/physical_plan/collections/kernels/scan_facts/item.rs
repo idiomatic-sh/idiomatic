@@ -22,7 +22,8 @@ impl KernelsItem for ScanFactsItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
         let runs = {
             matches!(lowering, Lowering::Lookup { .. })
-                || lowering.sources()
+                || lowering
+                    .sources()
                     .any(|source| matches!(source, RowSource::Facts(_)))
         };
         if runs { Reach::Runs } else { Reach::Skips }

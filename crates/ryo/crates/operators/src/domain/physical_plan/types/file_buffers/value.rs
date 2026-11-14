@@ -141,8 +141,15 @@ pub(crate) struct WalkScratch {
     pub(crate) starts: Vec<IndexedRow>,
     /// The key columns a walk reads: of the rows it starts from, of the edges it keys, and of an edge's far end.
     pub(crate) columns: WalkColumns,
-    /// The rows a seeded closure reached, each as the join's logical right row, for the join's probe.
+    /// The rows a seeded closure reached, each as the join's logical right row, for the join's probe; an axis's verdict
+    /// on one domain element.
     pub(crate) rows: ryo_values::domain::rows::types::Table,
+    /// The entities of a breadth-first walk's level, or the cells of an axis's domain element.
+    pub(crate) entities: Vec<Value>,
+    /// The entities of the next level of a breadth-first walk.
+    pub(crate) next: Vec<Value>,
+    /// The row an axis's domain filter writes.
+    pub(crate) written: Vec<Value>,
 }
 
 /// The key columns a walk reads, kept with their capacity between nodes.

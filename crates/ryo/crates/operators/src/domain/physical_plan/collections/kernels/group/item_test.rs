@@ -2,8 +2,8 @@
 use super::item::GroupItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
-use crate::domain::physical_plan::types::{PlanNodeId, RowSource};
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::{PlanNodeId, RowSource};
 
 /// The lowering a node was given.
 type Input = Lowering;

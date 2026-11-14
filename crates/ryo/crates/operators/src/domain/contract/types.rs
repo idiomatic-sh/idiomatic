@@ -16,6 +16,8 @@ pub enum PortableOperatorFault {
     },
     /// A present cell is not a span.
     ShapeMismatch,
+    /// Two edges of one partition and source share an order value: an ordered depth-first visit needs them distinct.
+    DuplicateOrder,
     /// A span-bound extraction received an invalid interval.
     InvalidSpanBounds,
     /// A composed span exceeds the source or reverses its interval.

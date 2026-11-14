@@ -1,5 +1,4 @@
 //! Borrowed ordered existence contracts; no engine authority.
-use crate::domain::equality_join::types::PartitionExtremum;
 
 /// Finite immutable rows already demanded and admitted by the existing engine owner.
 /// Repeated reads return identical keys/numbers; equality is exact Value equality.

@@ -120,7 +120,11 @@ fn mark_components(
 /// Marks the nodes on a cycle of `graph` and leaves their values ascending in `scratch.ordered`.
 pub(crate) fn cycles(graph: &dyn CycleDriver, scratch: &mut CycleScratch) {
     let nodes = graph.nodes().0;
-    components(graph.nodes(), |node, place| graph.edge(node, place), scratch);
+    components(
+        graph.nodes(),
+        |node, place| graph.edge(node, place),
+        scratch,
+    );
     scratch.ordered.clear();
     scratch.ordered.extend(
         (0..nodes)

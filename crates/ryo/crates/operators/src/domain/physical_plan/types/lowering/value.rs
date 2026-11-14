@@ -125,12 +125,21 @@ impl Lowering {
             | Self::Project { source, .. }
             | Self::Extend { source, .. }
             | Self::Group { source, .. } => (Some(*source), None, None),
-            Self::Reach { edges, .. } | Self::Components { edges, .. } => (Some(*edges), None, None),
+            Self::Reach { edges, .. } | Self::Components { edges, .. } => {
+                (Some(*edges), None, None)
+            }
             Self::Probe { left, right, .. } => (Some(*left), Some(*right), None),
-            Self::Distinct { sources: [left, right] } => (Some(*left), Some(*right), None),
+            Self::Distinct {
+                sources: [left, right],
+            } => (Some(*left), Some(*right), None),
             Self::SeededReach { left, edges, .. } => (Some(*left), Some(*edges), None),
             Self::OrderedWalk { roots, edges, .. } => (Some(*roots), Some(*edges), None),
-            Self::Axis { starts, edges, domain, .. } => (Some(*starts), Some(*edges), Some(*domain)),
+            Self::Axis {
+                starts,
+                edges,
+                domain,
+                ..
+            } => (Some(*starts), Some(*edges), Some(*domain)),
             Self::Lookup { .. } | Self::Unlowered => (None, None, None),
         };
         first.into_iter().chain(second).chain(third)

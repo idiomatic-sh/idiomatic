@@ -7,9 +7,9 @@ use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of, row_of};
 use crate::domain::aggregate::types::GroupMeasure;
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::physical_plan::types::file_buffers::value::{KeyedRows, NO_ROW};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
-use crate::domain::physical_plan::types::file_buffers::value::{KeyedRows, NO_ROW};
 use crate::domain::physical_plan::types::{InputRows, KeyedRowAt, KeyedSide};
 use crate::domain::reduction::service::{folded, hash_of};
 use crate::domain::reduction::types::DigestDatum;
@@ -107,11 +107,16 @@ pub(crate) fn grouped(
                 let mut row = run.first;
                 while row != NO_ROW {
                     if let Some(value) = cell_of(input, indexed(row), column) {
-                        scratch.hashes.0.push(hash_of(digest_datum(value, &scratch.texts)).0);
+                        scratch
+                            .hashes
+                            .0
+                            .push(hash_of(digest_datum(value, &scratch.texts)).0);
                     }
                     row = next_of(scratch.index, row);
                 }
-                let found = folded(crate::domain::reduction::types::HashScratch(&mut scratch.hashes.0));
+                let found = folded(crate::domain::reduction::types::HashScratch(
+                    &mut scratch.hashes.0,
+                ));
                 digest = Some(Integer(found.digest.0));
                 found.counted.0
             }
@@ -149,7 +154,9 @@ pub(crate) fn grouped(
 fn digest_datum<'t>(value: Value, texts: &Texts<'t>) -> DigestDatum<'t> {
     match crate::domain::table_texts::service::datum(value, texts) {
         Datum::Unlocated => DigestDatum::Unlocated,
-        Datum::Text(text) => DigestDatum::Text(ryo_values::domain::row_texts::types::CellText(text.0)),
+        Datum::Text(text) => {
+            DigestDatum::Text(ryo_values::domain::row_texts::types::CellText(text.0))
+        }
         Datum::Number(number) => DigestDatum::Number(number),
         Datum::Flag(flag) => DigestDatum::Flag(flag),
         Datum::Numbers(numbers) => DigestDatum::Numbers(numbers),
