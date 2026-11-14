@@ -113,8 +113,12 @@ fn element_comparisons(
                                 .unwrap_or(usize::MAX),
                         )
                         .copied()?;
-                    (wanted.side == Side::Right)
-                        .then(|| view_source(element_view, wanted.column).unwrap_or(wanted.column))
+                    // A column past the elements' view is one the view does not make: the filter, and the push, decline.
+                    if wanted.side == Side::Right {
+                        view_source(element_view, wanted.column)
+                    } else {
+                        None
+                    }
                 })
             };
             filters.push(PlanComparison {

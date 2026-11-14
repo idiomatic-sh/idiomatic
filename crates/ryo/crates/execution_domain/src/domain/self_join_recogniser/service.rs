@@ -86,11 +86,7 @@ pub(super) fn number_origins(
             let (from, column) = match operation {
                 Operation::Select { from, kept, .. } => (
                     *from,
-                    if kept.is_empty() {
-                        column
-                    } else {
-                        *usize::try_from(column.0).map_or(None, |slot| kept.get(slot))?
-                    },
+                    ryo_values::domain::plan_parts::service::view_source(kept, column)?,
                 ),
                 Operation::Project { from, columns, .. } => (
                     *from,

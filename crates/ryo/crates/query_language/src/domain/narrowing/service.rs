@@ -75,8 +75,9 @@ pub(crate) fn narrow_lookups_roots(
         }
         let through = Input::Step(StepId(first + count - 1));
         if let Some(join) = steps.get_mut(place + width) {
-            reading_through(&mut join.operation, local, through, &|column| {
-                projection_column(&kept, column)
+            // `kept` is every column the join reads of `local`, so each has its place in the values: the rename is whole.
+            let _: Option<()> = reading_through(&mut join.operation, local, through, &|column| {
+                Some(projection_column(&kept, column))
             });
         }
         place += width + 1;
