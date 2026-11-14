@@ -97,7 +97,7 @@ pub(in crate::inbound::use_cases::certify::use_case_test) struct Fixture {
 }
 impl Fixture {
     pub(in crate::inbound::use_cases::certify::use_case_test) fn new() -> Self {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::outbound::inventory::fixtures::data::canonical_directory().unwrap();
         let profile = root.path().join("measured");
         let reference_executable = root
             .path()

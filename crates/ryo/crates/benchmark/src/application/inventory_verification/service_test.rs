@@ -101,7 +101,7 @@ impl ExecutionPort for ToyExecution {
 }
 fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
     use sha2::Digest as _;
-    let context = tempfile::tempdir().unwrap();
+    let context = crate::outbound::inventory::fixtures::data::canonical_directory().unwrap();
     let reference = context.path().join("native-reference");
     let worker = context.path().join("native-worker");
     std::fs::write(&reference, b"pinned reference executable").unwrap();
