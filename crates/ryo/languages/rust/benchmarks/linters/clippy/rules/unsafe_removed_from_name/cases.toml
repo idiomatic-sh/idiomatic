@@ -1,0 +1,54 @@
+[[cases]]
+name = "renamed"
+files = { "src/lib.rs" = "use std::cell::UnsafeCell as TotallySafeCell;\npub fn f() -> TotallySafeCell<u8> {\n    TotallySafeCell::new(0)\n}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 45 }]
+
+[[cases]]
+name = "nested-and-several"
+files = { "src/lib.rs" = "pub mod m {\n    pub struct UnsafeA;\n    pub struct UnsafeB;\n    pub fn unsafe_c() {}\n    pub mod inner {\n        pub struct UnsafeD;\n    }\n}\npub use m::{inner::{UnsafeD as D}, unsafe_c as c, UnsafeA as A, UnsafeB as B};\n" }
+expected = [{ file = "src/lib.rs", start = 141, end = 219 }]
+
+[[cases]]
+name = "kept-or-discarded"
+files = { "src/lib.rs" = "pub mod m {\n    pub struct UnsafeA;\n    pub struct UnsafeB;\n    pub trait UnsafeT {}\n    pub struct Plain;\n}\npub use m::UnsafeA as StillUnsafeA;\npub use m::UnsafeB;\npub use m::UnsafeT as _;\npub use m::Plain as unsafe_plain;\npub use m::{UnsafeA as AnUnsafeOne};\n" }
+expected = []
+
+[[cases]]
+name = "case-of-the-word"
+files = { "src/lib.rs" = "pub mod m {\n    pub struct UNSAFE;\n    pub struct NotUnsafeYet;\n    pub fn unsafely() {}\n}\npub use m::UNSAFE as Loud;\npub use m::NotUnsafeYet as Ready;\npub use m::unsafely as surely;\n" }
+expected = [{ file = "src/lib.rs", start = 118, end = 151 }, { file = "src/lib.rs", start = 152, end = 182 }]
+
+[[cases]]
+name = "attributes-visibility-and-functions"
+files = { "src/lib.rs" = "pub mod m {\n    pub struct UnsafeA;\n}\n#[doc(hidden)]\npub(crate) use m::UnsafeA as A;\npub fn f() -> A {\n    use std::cell::UnsafeCell as Cell;\n    let _ = Cell::new(0);\n    A\n}\n" }
+expected = [{ file = "src/lib.rs", start = 53, end = 84 }, { file = "src/lib.rs", start = 107, end = 141 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    use std::cell::UnsafeCell as Cell;\n    #[test]\n    fn t() {\n        assert_eq!(Cell::new(1).into_inner(), 1);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 63 }]
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! m {\n    () => {\n        use std::cell::UnsafeCell as Cell;\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::unsafe_removed_from_name)]\npub use std::cell::UnsafeCell as Cell;\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::style)]\npub use std::cell::UnsafeCell as Cell;\n#[allow(clippy::all)]\npub mod m {\n    pub use std::cell::UnsafeCell as Cell;\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::unsafe_removed_from_name)]\npub use std::cell::UnsafeCell as Cell;\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::style)]\n#[warn(clippy::unsafe_removed_from_name)]\npub use std::cell::UnsafeCell as Cell;\n" }
+expected = [{ file = "src/lib.rs", start = 67, end = 105 }]

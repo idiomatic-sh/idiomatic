@@ -1,0 +1,64 @@
+[[cases]]
+name = "greater-or-equal"
+files = { "src/lib.rs" = "pub fn f(x: i32, y: i32) -> [bool; 4] {\n    [x >= y + 1, x >= 1 + y, x - 1 >= y, -1 + x >= y]\n}\n" }
+expected = [{ file = "src/lib.rs", start = 45, end = 55 }, { file = "src/lib.rs", start = 57, end = 67 }, { file = "src/lib.rs", start = 69, end = 79 }, { file = "src/lib.rs", start = 81, end = 92 }]
+
+[[cases]]
+name = "less-or-equal"
+files = { "src/lib.rs" = "pub fn f(x: i32, y: i32) -> [bool; 4] {\n    [x + 1 <= y, 1 + x <= y, x <= y - 1, x <= -1 + y]\n}\n" }
+expected = [{ file = "src/lib.rs", start = 45, end = 55 }, { file = "src/lib.rs", start = 57, end = 67 }, { file = "src/lib.rs", start = 69, end = 79 }, { file = "src/lib.rs", start = 81, end = 92 }]
+
+[[cases]]
+name = "wrong-side-or-operator"
+files = { "src/lib.rs" = "pub fn f(x: i32, y: i32) -> [bool; 8] {\n    [x + 1 >= y, x >= y - 1, x <= y + 1, x - 1 <= y, x > y + 1, x < y - 1, x == y + 1, y + 1 >= x - 1]\n}\n" }
+expected = []
+
+[[cases]]
+name = "other-literals"
+files = { "src/lib.rs" = "pub fn f(x: u32, y: u32) -> [bool; 7] {\n    [x >= y + 1u32, x >= y + 0x1, x >= y + 0b0001, x >= y + 1_, x >= y + 0o1_u32, x >= y + 01, x >= y + 2]\n}\npub fn g(x: f64, y: f64) -> bool {\n    x >= y + 1.0\n}\n" }
+expected = [{ file = "src/lib.rs", start = 45, end = 58 }, { file = "src/lib.rs", start = 60, end = 72 }, { file = "src/lib.rs", start = 74, end = 89 }, { file = "src/lib.rs", start = 91, end = 102 }, { file = "src/lib.rs", start = 104, end = 120 }, { file = "src/lib.rs", start = 122, end = 133 }]
+
+[[cases]]
+name = "parenthesized"
+files = { "src/lib.rs" = "pub fn f(x: i32, y: i32) -> [bool; 4] {\n    [x >= (y + 1), (x - 1) >= y, (x >= y + 1), x >= y + (1)]\n}\npub fn g(x: i32, y: i32) -> bool {\n    x >= y - -1\n}\n" }
+expected = [{ file = "src/lib.rs", start = 74, end = 84 }]
+
+[[cases]]
+name = "nested-operands"
+files = { "src/lib.rs" = "pub fn f(v: &[i32], i: usize, n: usize) -> bool {\n    v.len() >= i * 2 + 1 && n + 1 <= v.len() || (i as usize) - 1 >= n\n}\n" }
+expected = [{ file = "src/lib.rs", start = 54, end = 74 }, { file = "src/lib.rs", start = 78, end = 94 }, { file = "src/lib.rs", start = 98, end = 119 }]
+
+[[cases]]
+name = "both-sides"
+files = { "src/lib.rs" = "pub fn f(x: i32, y: i32) -> bool {\n    x - 1 >= y + 1\n}\n" }
+expected = [{ file = "src/lib.rs", start = 39, end = 53 }]
+
+[[cases]]
+name = "in-test-module-and-const"
+files = { "src/lib.rs" = "pub const N: bool = 3 >= 1 + 1;\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        let ok = 4 + 1 <= 6;\n        assert!(ok);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 20, end = 30 }, { file = "src/lib.rs", start = 99, end = 109 }]
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! m {\n    ($x:expr, $y:expr) => {\n        $x >= $y + 1\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::int_plus_one)]\npub fn f(x: i32, y: i32) -> bool {\n    x >= y + 1\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::complexity)]\npub fn f(x: i32, y: i32) -> bool {\n    x >= y + 1\n}\npub fn g(x: i32, y: i32) -> bool {\n    #[allow(clippy::all)]\n    let b = x >= y + 1;\n    b\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::int_plus_one)]\npub fn f(x: i32, y: i32) -> bool {\n    x >= y + 1\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::complexity)]\n#[warn(clippy::int_plus_one)]\npub fn f(x: i32, y: i32) -> bool {\n    x >= y + 1\n}\n" }
+expected = [{ file = "src/lib.rs", start = 99, end = 109 }]

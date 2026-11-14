@@ -1,0 +1,64 @@
+[[cases]]
+name = "struct-and-tuple-fields"
+files = { "src/lib.rs" = "pub struct S {\n    pub a: u8,\n}\npub fn f() {\n    S { a: 1 }.a = 2;\n    (1, 2).0 = 3;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 49, end = 65 }, { file = "src/lib.rs", start = 71, end = 83 }]
+
+[[cases]]
+name = "projections"
+files = { "src/lib.rs" = "pub struct S {\n    pub v: Vec<u8>,\n    pub t: (u8, u8),\n}\npub fn f() {\n    S { v: vec![1], t: (1, 2) }.v[0] = 2;\n    S { v: vec![], t: (1, 2) }.t.1 = 3;\n    ((1, 2), 3).0.1 = 4;\n    (vec![1u8],).0[0] = 5;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 75, end = 111 }, { file = "src/lib.rs", start = 117, end = 151 }, { file = "src/lib.rs", start = 157, end = 176 }, { file = "src/lib.rs", start = 182, end = 203 }]
+
+[[cases]]
+name = "parenthesized"
+files = { "src/lib.rs" = "pub struct S {\n    pub a: u8,\n}\npub fn f() {\n    (S { a: 1 }).a = 2;\n    ((1, 2)).0 = 3;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 49, end = 67 }, { file = "src/lib.rs", start = 73, end = 87 }]
+
+[[cases]]
+name = "not-temporary"
+files = { "src/lib.rs" = "pub struct S {\n    pub a: u8,\n}\npub struct T(pub u8);\npub fn f(mut s: S, mut v: Vec<u8>) -> u8 {\n    s.a = 1;\n    v[0] = 2;\n    let (a, b);\n    (a, b) = (1u8, 2u8);\n    let c;\n    S { a: c } = S { a: 3 };\n    T(4).0 = 5;\n    s.a += 1;\n    [1u8, 2][0] = 3;\n    s.a + v[0] + a + b + c\n}\n" }
+expected = []
+
+[[cases]]
+name = "deref-and-index"
+files = { "src/lib.rs" = "use std::ops::{Deref, DerefMut, Index, IndexMut};\npub struct Inner {\n    pub x: u8,\n}\npub struct W {\n    pub inner: Inner,\n}\nimpl Deref for W {\n    type Target = Inner;\n    fn deref(&self) -> &Inner {\n        &self.inner\n    }\n}\nimpl DerefMut for W {\n    fn deref_mut(&mut self) -> &mut Inner {\n        &mut self.inner\n    }\n}\nimpl Index<usize> for W {\n    type Output = u8;\n    fn index(&self, _: usize) -> &u8 {\n        &self.inner.x\n    }\n}\nimpl IndexMut<usize> for W {\n    fn index_mut(&mut self, _: usize) -> &mut u8 {\n        &mut self.inner.x\n    }\n}\npub fn f() {\n    W { inner: Inner { x: 0 } }.x = 1;\n    W { inner: Inner { x: 0 } }.inner.x = 2;\n    W { inner: Inner { x: 0 } }[0] = 3;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 614, end = 653 }]
+
+[[cases]]
+name = "shorthand-fields"
+files = { "src/lib.rs" = "use std::ops::{Deref, DerefMut};\npub struct Inner {\n    pub x: u8,\n}\npub struct W {\n    pub inner: Inner,\n}\nimpl Deref for W {\n    type Target = Inner;\n    fn deref(&self) -> &Inner {\n        &self.inner\n    }\n}\nimpl DerefMut for W {\n    fn deref_mut(&mut self) -> &mut Inner {\n        &mut self.inner\n    }\n}\npub fn f(inner: Inner, x: u8) {\n    W { inner }.inner.x = 1;\n    Inner { x }.x = 2;\n    W { inner: Inner { x } }.x = 3;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 346, end = 369 }, { file = "src/lib.rs", start = 375, end = 392 }]
+
+[[cases]]
+name = "spread"
+files = { "src/lib.rs" = "#[derive(Default)]\npub struct S {\n    pub a: u8,\n    pub b: u8,\n}\npub fn f() {\n    S { a: 1, ..S::default() }.b = 2;\n    S { ..Default::default() }.a = 3;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 83, end = 115 }, { file = "src/lib.rs", start = 121, end = 153 }]
+
+[[cases]]
+name = "in-closures-and-tests"
+files = { "src/lib.rs" = "pub fn f() {\n    let c = || {\n        (1, 2).1 = 3;\n    };\n    c();\n}\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        (1, 2).0 = 3;\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 38, end = 50 }, { file = "src/lib.rs", start = 128, end = 140 }]
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! m {\n    () => {\n        (1, 2).0 = 3;\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::temporary_assignment)]\npub fn f() {\n    (1, 2).0 = 3;\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::complexity)]\npub fn f() {\n    (1, 2).0 = 3;\n}\npub fn g() {\n    #[allow(clippy::all)]\n    {\n        (1, 2).0 = 3;\n    }\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::temporary_assignment)]\npub fn f() {\n    (1, 2).0 = 3;\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::complexity)]\n#[warn(clippy::temporary_assignment)]\npub fn f() {\n    (1, 2).0 = 3;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 85, end = 97 }]

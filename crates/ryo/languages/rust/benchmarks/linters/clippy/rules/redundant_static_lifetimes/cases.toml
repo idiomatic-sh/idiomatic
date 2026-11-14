@@ -1,0 +1,59 @@
+[[cases]]
+name = "const-and-static"
+files = { "src/lib.rs" = "pub const A: &'static str = \"a\";\npub static B: &'static [u8] = b\"b\";\n" }
+expected = [{ file = "src/lib.rs", start = 14, end = 21 }, { file = "src/lib.rs", start = 48, end = 55 }]
+
+[[cases]]
+name = "nested-types"
+files = { "src/lib.rs" = "pub const A: &'static [&'static str] = &[\"a\"];\npub const B: (&'static str, [&'static u8; 1]) = (\"b\", [&1]);\npub const C: &'static (u8, &'static str) = &(1, \"c\");\npub const D: &'static [u8; 2] = &[1, 2];\npub const E: &'static &'static str = &\"e\";\n" }
+expected = [{ file = "src/lib.rs", start = 14, end = 21 }, { file = "src/lib.rs", start = 24, end = 31 }, { file = "src/lib.rs", start = 62, end = 69 }, { file = "src/lib.rs", start = 77, end = 84 }, { file = "src/lib.rs", start = 122, end = 129 }, { file = "src/lib.rs", start = 136, end = 143 }, { file = "src/lib.rs", start = 176, end = 183 }, { file = "src/lib.rs", start = 226, end = 233 }]
+
+[[cases]]
+name = "not-redundant"
+files = { "src/lib.rs" = "pub trait T {}\nimpl T for u8 {}\npub const A: &str = \"a\";\npub const B: Option<&'static str> = None;\npub const C: &'static dyn T = &0u8;\npub const D: &'static fn() = &(f as fn());\npub const E: &'static (dyn T + Sync) = &0u8;\npub const F: &'static (u8) = &0;\npub fn f() {}\npub struct S;\nimpl S {\n    pub const G: &'static str = \"g\";\n}\npub trait U {\n    const H: &'static str = \"h\";\n}\n" }
+expected = []
+
+[[cases]]
+name = "mutable-and-generic-paths"
+files = { "src/lib.rs" = "pub static mut M: &'static mut [u8] = &mut [];\npub const V: &'static Vec<u8> = &Vec::new();\npub const P: &'static std::option::Option<u8> = &None;\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 26 }, { file = "src/lib.rs", start = 61, end = 68 }, { file = "src/lib.rs", start = 106, end = 113 }]
+
+[[cases]]
+name = "inside-functions-and-modules"
+files = { "src/lib.rs" = "pub fn f() -> usize {\n    const LOCAL: &'static str = \"x\";\n    static OTHER: &'static str = \"y\";\n    LOCAL.len() + OTHER.len()\n}\npub mod m {\n    pub const X: &'static str = \"x\";\n}\n" }
+expected = [{ file = "src/lib.rs", start = 40, end = 47 }, { file = "src/lib.rs", start = 78, end = 85 }, { file = "src/lib.rs", start = 159, end = 166 }]
+
+[[cases]]
+name = "spacing-and-comments"
+files = { "src/lib.rs" = "pub const A: & 'static str = \"a\";\npub const B: &/* c */'static str = \"b\";\npub const C: &'static\n    str = \"c\";\n" }
+expected = [{ file = "src/lib.rs", start = 15, end = 22 }, { file = "src/lib.rs", start = 55, end = 62 }, { file = "src/lib.rs", start = 88, end = 95 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    const S: &'static str = \"s\";\n    #[test]\n    fn t() {\n        assert_eq!(S, \"s\");\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 39, end = 46 }]
+
+[[cases]]
+name = "in-macros"
+files = { "src/lib.rs" = "macro_rules! constant {\n    ($name:ident) => {\n        pub const $name: &'static str = \"x\";\n    };\n}\nconstant!(A);\nmacro_rules! unused {\n    () => {\n        pub const B: &'static str = \"x\";\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::redundant_static_lifetimes)]\npub const A: &'static str = \"a\";\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::style)]\npub const A: &'static str = \"a\";\n#[allow(clippy::all)]\npub mod m {\n    pub const B: &'static str = \"b\";\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::redundant_static_lifetimes)]\npub const A: &'static str = \"a\";\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::style)]\n#[warn(clippy::redundant_static_lifetimes)]\npub const A: &'static str = \"a\";\n" }
+expected = [{ file = "src/lib.rs", start = 83, end = 90 }]

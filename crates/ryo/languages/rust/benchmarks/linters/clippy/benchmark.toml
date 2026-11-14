@@ -527,47 +527,23 @@ defaults = [
 "rust/clippy/item-heads" = "fragments/item-heads.ryoql"
 "rust/clippy/empty-line-after" = "fragments/empty-line-after.ryoql"
 "rust/clippy/operator-before-unary" = "fragments/operator-before-unary.ryoql"
+"rust/clippy/bindings" = "fragments/bindings.ryoql"
+"rust/clippy/next-token" = "fragments/next-token.ryoql"
 
 # Defaults deferred, each under the limitation that blocks it. 406 need types or the standard item a path names: semantic
 # analysis, which no provider answers yet.
 [deferred]
 # Answerable from the relations the Rust provider reads today; authored by this round's batches.
 unauthored = [
-  "almost_complete_range",
-  "block_scrutinee",
   "blocks_in_conditions",
-  "builtin_type_shadow",
-  "crate_in_macro_def",
   "disallowed_names",
-  "duplicate_underscore_argument",
-  "empty_loop",
-  "infallible_destructuring_match",
-  "int_plus_one",
   "items_after_test_module",
-  "just_underscores_and_digits",
-  "let_with_type_underscore",
   "manual_take",
-  "multi_assignments",
-  "multiple_bound_locations",
-  "needless_arbitrary_self_type",
-  "needless_borrowed_reference",
-  "needless_else",
   "needless_ifs",
-  "needless_pub_self",
-  "nonstandard_macro_braces",
-  "option_env_unwrap",
-  "redundant_at_rest_pattern",
-  "redundant_field_names",
-  "redundant_pattern",
-  "redundant_static_lifetimes",
   "repr_packed_without_abi",
   "single_element_loop",
-  "temporary_assignment",
   "too_many_arguments",
   "toplevel_ref_arg",
-  "unneeded_wildcard_pattern",
-  "unsafe_removed_from_name",
-  "unused_unit",
   "wildcard_in_or_patterns",
 ]
 # Rules that compare a literal's value or two expressions' shapes: the Rust provider answers neither `numeric_literal` nor
@@ -948,6 +924,7 @@ types = [
   "unused_enumerate_index",
   "unused_format_specs",
   "unused_io_amount",
+  "unused_unit",
   "unwrap_or_default",
   "useless_asref",
   "useless_borrows_in_formatting",
@@ -1019,6 +996,10 @@ module_tree = [
 msrv = [
   "approx_constant",
   "collapsible_if",
+]
+# Rules that read the package's edition, which no Rust relation answers: block_scrutinee reports only before edition 2024.
+edition = [
+  "block_scrutinee",
 ]
 # Reported on Cargo.toml's `[lints]` table, a file the worker does not read as Rust.
 manifest_lints = [
