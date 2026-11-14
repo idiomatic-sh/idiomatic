@@ -1,0 +1,89 @@
+[[cases]]
+name = "expressions"
+files = { "src/lib.rs" = "pub fn f() -> (Vec<u8>, String, bool) {\n    let v = vec!(1, 2);\n    let s = format![\"{}\", 1];\n    let m = matches!{v.len(), 2};\n    (v, s, m)\n}\n" }
+expected = [{ file = "src/lib.rs", start = 52, end = 62 }, { file = "src/lib.rs", start = 76, end = 92 }, { file = "src/lib.rs", start = 106, end = 126 }]
+
+[[cases]]
+name = "standard-braces"
+files = { "src/lib.rs" = "pub fn f() -> (Vec<u8>, String, bool) {\n    let v = vec![1, 2];\n    let s = format!(\"{}\", 1);\n    let m = matches!(v.len(), 2);\n    println!(\"{s}\");\n    (v, s, m)\n}\n" }
+expected = []
+
+[[cases]]
+name = "statements"
+files = { "src/lib.rs" = "pub fn f() {\n    println![\"a\"];\n    print!{\"b\"}\n    eprintln!{\"c\"};\n    eprint![\"d\"];\n    vec!{0u8};\n}\n" }
+expected = [{ file = "src/lib.rs", start = 17, end = 30 }, { file = "src/lib.rs", start = 36, end = 47 }, { file = "src/lib.rs", start = 52, end = 66 }, { file = "src/lib.rs", start = 72, end = 84 }, { file = "src/lib.rs", start = 90, end = 99 }]
+
+[[cases]]
+name = "write-and-format-args"
+files = { "src/lib.rs" = "use std::fmt::Write;\npub fn f(out: &mut String) -> std::fmt::Result {\n    write!{out, \"a\"}?;\n    writeln![out, \"b\"]?;\n    let _ = format_args!{\"c\"};\n    Ok(())\n}\n" }
+expected = [{ file = "src/lib.rs", start = 74, end = 90 }, { file = "src/lib.rs", start = 97, end = 115 }, { file = "src/lib.rs", start = 130, end = 147 }]
+
+[[cases]]
+name = "paths-and-spacing"
+files = { "src/lib.rs" = "pub fn f() -> (Vec<u8>, Vec<u8>, Vec<u8>) {\n    (std::vec!(1), ::std::vec! (2), vec! /* c */ (3))\n}\n" }
+expected = [{ file = "src/lib.rs", start = 49, end = 61 }, { file = "src/lib.rs", start = 63, end = 78 }]
+
+[[cases]]
+name = "nested-calls"
+files = { "src/lib.rs" = "pub fn f() -> String {\n    format!(\"{}\", vec!(1u8).len())\n}\npub fn g() -> Vec<Vec<u8>> {\n    vec![vec!(1)]\n}\n" }
+expected = []
+
+[[cases]]
+name = "other-macros"
+files = { "src/lib.rs" = "pub fn f() -> Vec<u8> {\n    assert!{true};\n    assert_eq![1, 1];\n    let v: Vec<u8> = Vec::new();\n    debug_assert!{v.is_empty()};\n    v\n}\nmacro_rules! my_vec {\n    ($($x:expr),*) => { vec![$($x),*] };\n}\npub fn g() -> Vec<u8> {\n    my_vec!{1, 2}\n}\n" }
+expected = []
+
+[[cases]]
+name = "items-and-constants"
+files = { "src/lib.rs" = "pub static S: &str = concat!{\"a\", \"b\"};\npub fn f() -> Vec<u8> {\n    const N: usize = 1;\n    let x = [0u8; N];\n    vec!(x[0])\n}\n" }
+expected = [{ file = "src/lib.rs", start = 114, end = 124 }]
+
+[[cases]]
+name = "macro-definitions"
+files = { "src/lib.rs" = "macro_rules! uses {\n    () => {\n        vec!(1u8)\n    };\n    ($e:expr) => {{\n        println!{\"{}\", $e};\n        format![\"\"]\n    }};\n}\nmacro_rules! fine {\n    () => {\n        vec![1u8]\n    };\n}\npub fn f() -> Vec<u8> {\n    let _ = uses!(1);\n    uses!()\n}\n" }
+expected = [{ file = "src/lib.rs", start = 40, end = 49 }, { file = "src/lib.rs", start = 85, end = 103 }, { file = "src/lib.rs", start = 113, end = 124 }]
+
+[[cases]]
+name = "macro-definition-tokens"
+files = { "src/lib.rs" = "macro_rules! spaced {\n    (vec!(x)) => {\n        $crate::vec! /* c */ (1u8)\n    };\n    ($name:ident) => {\n        vec ! [1u8];\n        vec!{1u8};\n        $name!(1)\n    };\n}\n" }
+expected = [{ file = "src/lib.rs", start = 27, end = 34 }, { file = "src/lib.rs", start = 57, end = 75 }, { file = "src/lib.rs", start = 135, end = 144 }]
+
+[[cases]]
+name = "spacing-before-the-bang"
+files = { "src/lib.rs" = "pub fn f() -> Vec<u8> {\n    vec !(1)\n}\n#[allow(unused_macros)]\nmacro_rules! g {\n    () => {\n        vec !(1)\n    };\n}\n" }
+expected = [{ file = "src/lib.rs", start = 100, end = 108 }]
+
+[[cases]]
+name = "attribute-on-the-call"
+files = { "src/lib.rs" = "#![allow(clippy::nonstandard_macro_braces)]\npub fn f() {\n    #[warn(clippy::nonstandard_macro_braces)]\n    println![\"a\"];\n}\n" }
+expected = [{ file = "src/lib.rs", start = 107, end = 120 }]
+
+[[cases]]
+name = "uncalled-macro-definition"
+files = { "src/lib.rs" = "macro_rules! unused {\n    () => {\n        vec!(1u8)\n    };\n}\n" }
+expected = [{ file = "src/lib.rs", start = 42, end = 51 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        let v = vec!(1);\n        assert_eq!(v.len(), 1);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 66, end = 73 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::nonstandard_macro_braces)]\npub fn f() -> Vec<u8> {\n    vec!(1)\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::style)]\npub fn f() -> Vec<u8> {\n    vec!(1)\n}\npub fn g() -> Vec<u8> {\n    #[allow(clippy::all)]\n    let v = vec!(1);\n    v\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::nonstandard_macro_braces)]\npub fn f() -> Vec<u8> {\n    vec!(1)\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::style)]\n#[warn(clippy::nonstandard_macro_braces)]\npub fn f() -> Vec<u8> {\n    vec!(1)\n}\n" }
+expected = [{ file = "src/lib.rs", start = 95, end = 102 }]

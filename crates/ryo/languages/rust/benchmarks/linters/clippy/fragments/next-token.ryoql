@@ -1,0 +1,10 @@
+input tokens: relation<id: node, file: file>;
+output relation<id: node, file: file, next: node, kind: symbol, span: span>;
+let significant = select id, kind, span from "syntax-tree" where kind != "whitespace" and kind != "comment";
+let slots = select l.parent as tree, l.child as id, l.ordinal as ordinal, r.kind as kind, r.span as span from "syntax-child" as l join significant as r on l.child = r.id;
+let starts = select l.id as id, l.file as file, r.tree as tree, r.ordinal as ordinal from tokens as l join slots as r on l.id = r.id;
+let later = select l.id as id, l.file as file, r.id as next, r.ordinal as ordinal, r.kind as kind, r.span as span from starts as l join slots as r on l.tree = r.tree where r.ordinal > l.ordinal;
+let farther = select l.id as id, l.next as next from later as l join later as r on l.id = r.id where r.ordinal < l.ordinal;
+let following = antijoin(left=later, right=farther, left-on=["id", "next"], right-on=["id", "next"]);
+let rows = select id, file, next, kind, span from following;
+return rows;

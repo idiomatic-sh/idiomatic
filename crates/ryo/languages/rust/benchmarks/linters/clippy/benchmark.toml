@@ -521,6 +521,7 @@ defaults = [
 [query-modules]
 "rust/clippy/lint-attributes" = "fragments/lint-attributes.ryoql"
 "rust/clippy/bindings" = "fragments/bindings.ryoql"
+"rust/clippy/next-token" = "fragments/next-token.ryoql"
 
 # Defaults deferred, each under the limitation that blocks it. 406 need types or the standard item a path names: semantic
 # analysis, which no provider answers yet.
@@ -545,13 +546,9 @@ unauthored = [
   "items_after_test_module",
   "manual_take",
   "mixed_attributes_style",
-  "needless_borrowed_reference",
-  "needless_else",
   "needless_ifs",
   "needless_parens_on_range_literals",
-  "needless_pub_self",
   "non_minimal_cfg",
-  "nonstandard_macro_braces",
   "option_env_unwrap",
   "possible_missing_comma",
   "possible_missing_else",
