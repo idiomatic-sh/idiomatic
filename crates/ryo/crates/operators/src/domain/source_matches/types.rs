@@ -139,6 +139,14 @@ pub(crate) struct SourceMatchesParts {
 }
 
 /// Where a source search reads the line its span starts on.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::source_matches::types::BaseLineColumn;
+/// use ryo_values::domain::plan_parts::types::ColumnIndex;
+/// assert_ne!(BaseLineColumn::At(ColumnIndex(2)), BaseLineColumn::Unnumbered);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BaseLineColumn {
     /// Lines are not numbered.
@@ -157,6 +165,19 @@ pub(crate) enum SearchedGroup {
 }
 
 /// What a search's source gate answered for a row.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::source_matches::service::checked_source;
+/// use ryo_operators::domain::source_matches::types::{BaseLineColumn, SearchedSpan};
+/// use ryo_relations::domain::relations::types::{Offset, Span, Value};
+/// use ryo_values::domain::files::types::SourceView;
+/// use ryo_values::domain::plan_parts::types::ColumnIndex;
+/// let absent = [Value::Span(Span { start: Offset(u32::MAX), end: Offset(0) })];
+/// let searched = checked_source(&absent, ColumnIndex(0), BaseLineColumn::Unnumbered, SourceView(b""));
+/// assert!(matches!(searched, Ok(SearchedSpan::Absent)));
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub enum SearchedSpan<'a> {
     /// The span is absent: the row gives no occurrence.
