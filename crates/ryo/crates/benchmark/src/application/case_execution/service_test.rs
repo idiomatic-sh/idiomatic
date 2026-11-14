@@ -1,7 +1,11 @@
 //! The shared preparation boundary rejects physical drift before linter preparation.
-use super::fixtures::{ObservingLinter, Refused, RefusingContext, sealed_manifest};
 use super::service::{candidate, run as run_case};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::context::fixtures::{
+    data::sealed_manifest,
+    fake::{Refused, RefusingContext},
+};
+use crate::outbound::linter::fixtures::fake::ObservingLinter;
 use crate::outbound::{execution::fixtures::fake::ExecutionFake, linter::interface::LinterPort};
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
 use ryo_benchmark_contracts::domain::measurements::types::{Invocation, ProcessOutput};
@@ -24,7 +28,16 @@ enum Scenario {
     #[cfg(unix)]
     ModeDrift,
     DeclaredMissing,
-    Bracket(Refused),
+    Bracket(Route, Refused),
+}
+
+/// Which verification route a bracket row launches through.
+#[derive(Clone, Copy)]
+enum Route {
+    /// `candidate`, decoding through `decoded`.
+    Candidate,
+    /// `run`, one verification attempt, decoding through `validate_report`.
+    Attempt,
 }
 
 /// What a row is given.
@@ -53,13 +66,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a refused seal launches no candidate"),
         word: Word::Succeeds,
-        input: || Scenario::Bracket(Refused::Seal),
+        input: || Scenario::Bracket(Route::Candidate, Refused::Seal),
         expect: Expect::Value("fixture seal refusal; 0"),
     },
     Case {
         name: CaseName("a refused receipt fails the candidate after its launch"),
         word: Word::Succeeds,
-        input: || Scenario::Bracket(Refused::Receipt),
+        input: || Scenario::Bracket(Route::Candidate, Refused::Receipt),
+        expect: Expect::Value("fixture receipt refusal; 1"),
+    },
+    Case {
+        name: CaseName("a refused receipt fails the verification attempt after its launch"),
+        word: Word::Succeeds,
+        input: || Scenario::Bracket(Route::Attempt, Refused::Receipt),
         expect: Expect::Value("fixture receipt refusal; 1"),
     },
 ];
@@ -69,7 +88,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         #[cfg(unix)]
         Scenario::ModeDrift => metadata_drift_blocks_each_attempt(),
         Scenario::DeclaredMissing => declared_missing_primary_is_reverified(),
-        Scenario::Bracket(refused) => bracket(refused),
+        Scenario::Bracket(route, refused) => bracket(route, refused),
     };
     Ok(Box::leak(observed.into_boxed_str()))
 }
@@ -321,8 +340,8 @@ fn declared_missing_primary_is_reverified() -> String {
     seen.join("; ")
 }
 
-/// The candidate's refusal and its launch count when the context port refuses either side of the launch.
-fn bracket(refused: Refused) -> String {
+/// The route's refusal and its launch count when the context port refuses either side of the launch.
+fn bracket(route: Route, refused: Refused) -> String {
     let execution = ExecutionFake {
         status: 0,
         ..Default::default()
@@ -341,13 +360,38 @@ fn bracket(refused: Refused) -> String {
         files: vec![ryo::linter::RelativePath("input.py".into())],
         state: "cache".into(),
     };
-    let refusal = candidate(
-        &crate::outbound::suite::factory::local(),
-        &RefusingContext(refused),
-        &ObservingLinter::default(),
-        &execution,
-        &request,
-    )
+    let suite = crate::outbound::suite::factory::local();
+    let context = RefusingContext(refused);
+    let linter = ObservingLinter::default();
+    let refusal = match route {
+        Route::Candidate => candidate(&suite, &context, &linter, &execution, &request),
+        Route::Attempt => {
+            let case = PreparedCase {
+                comparison: CaseComparison::Full,
+                rule: ryo::linter::RuleId::try_from("A001").unwrap(),
+                name: "sealed".into(),
+                expected: RunReport {
+                    execution_metadata: ExecutionMetadata::Complete,
+                    project_context: ProjectContext::NotRequested,
+                    diagnostics: Vec::new(),
+                    skipped: Vec::new(),
+                    coverage: CoverageAccounting::Unaccounted,
+                    files: request.files.clone(),
+                },
+                request,
+                reference_discrepancy: PreparedReferenceBehavior::Agrees,
+            };
+            run_case(
+                &suite,
+                &context,
+                &linter,
+                &execution,
+                &case,
+                std::path::Path::new("rules"),
+            )
+            .result
+        }
+    }
     .unwrap_err();
     format!("{refusal}; {}", execution.history.lock().unwrap().len())
 }

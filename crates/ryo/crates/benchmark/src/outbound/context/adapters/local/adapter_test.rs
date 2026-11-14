@@ -209,7 +209,13 @@ fn verify_refuses_a_snapshot_edited_or_removed_after_the_receipt() -> Result<(),
     std::fs::write(root.join("__init__.py"), b"x")?;
     let edited =
         verify_receipt(&manifest, &root, &observed).expect_err("an edited byte is refused");
-    assert_eq!(edited.to_string(), "context bytes changed: pkg/__init__.py");
+    assert_eq!(
+        edited.to_string(),
+        format!(
+            "context bytes changed: {}",
+            Path::new("pkg").join("__init__.py").display()
+        )
+    );
     std::fs::write(root.join("__init__.py"), b"")?;
     verify_receipt(&manifest, &root, &observed)?;
     std::fs::remove_dir_all(&manifest.boundary)?;

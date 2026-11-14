@@ -1,6 +1,7 @@
 //! The inputs the contract's rows start from.
 use ryo_benchmark_contracts::domain::context::types::CaseContext;
 use ryo_benchmark_contracts::domain::context::types::ContextBytes;
+use ryo_benchmark_contracts::domain::context::types::ContextManifest;
 use std::collections::BTreeMap;
 
 /// The context every row starts from: one auxiliary file and one declared absence.
@@ -35,5 +36,16 @@ pub fn missing(path: &str) -> ryo::linter::ProjectDependency {
     ryo::linter::ProjectDependency {
         path: ryo::linter::RelativePath(path.into()),
         state: ryo::linter::ProjectDependencyState::Missing,
+    }
+}
+
+/// A sealed manifest of nothing, for a context double that never reads it.
+pub fn sealed_manifest() -> ContextManifest {
+    ContextManifest {
+        boundary: "/fixture".into(),
+        logical_root: ".".into(),
+        auxiliary_files: BTreeMap::new(),
+        source_files: BTreeMap::new(),
+        missing: Vec::new(),
     }
 }

@@ -1,12 +1,14 @@
 //! A measured run executes only a request without declared observations and covers exactly its files.
-use super::fixtures::{
-    Empty, ObservingLinter, Pinned, Refused, RefusingContext, history_len, last_environment,
-    request, sealed_manifest, succeeding,
-};
+use super::fixtures::{Empty, Pinned, history_len, last_environment, request, succeeding};
 use super::service::{run as measure, run_with};
 use super::types::Pinning;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::context::fixtures::{
+    data::sealed_manifest,
+    fake::{Refused, RefusingContext},
+};
 use crate::outbound::linter::fixtures::fake::LinterFake;
+use crate::outbound::linter::fixtures::fake::ObservingLinter;
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::{ContextSeal, FileMetadataDeclaration};
