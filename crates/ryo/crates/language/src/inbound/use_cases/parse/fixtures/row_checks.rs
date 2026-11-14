@@ -113,6 +113,17 @@ pub(super) fn rows(subject: &dyn ParseEngine, samples: &[SourceFile]) {
                     if matches!(*relation, Relation::Scope | Relation::IndentRegion) {
                         return count == 1;
                     }
+                    // An empty file is still one module: its control flow graph has the module's own blocks and the edges between
+                    // them, and the module's element is in one of them; it has no step.
+                    if *relation == Relation::FlowMember {
+                        return count == 1;
+                    }
+                    if *relation == Relation::FlowBlock {
+                        return count > 0;
+                    }
+                    if *relation == Relation::FlowEdge {
+                        return true;
+                    }
                     // Compiler features describe module configuration even without source constructs.
                     if *relation == Relation::CompilerFeature {
                         return out.rows().iter().all(|(feature_relation, row)| {

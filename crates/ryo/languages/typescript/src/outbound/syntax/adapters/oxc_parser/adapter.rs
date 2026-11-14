@@ -1,13 +1,16 @@
 //! Read TypeScript with Oxc and project its typed AST into TypeScript-ESTree nodes.
 
 use super::constants::{IMPORT_META, IMPORT_OPTIONS_KEY, NEW_TARGET, NOT_UTF8};
+use super::flow::service::{drafted_flow, placed_nodes, written_flow};
 use super::patterns::service::{carried, constructed, written_patterns};
 use super::projection::service::{
     annotate, attach, expression_body, gap, insert, jsx_names, leaf, meta_words, node_properties,
     normalized, parameter, source_type_of, write,
 };
 use super::schemas::{node_kind, token_kind};
-use super::types::{ChildCursor, Decoded, DecodedText, Piece, Text, VisitorStack};
+use super::types::{
+    ChildCursor, Decoded, DecodedText, FlowDraft, NodePositions, Piece, Text, VisitorStack,
+};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::{Dialect, Kind};
@@ -75,6 +78,7 @@ impl<'a> Visit<'a> for VisitorStack<'a> {
             cursor: ChildCursor(0),
             properties: node_properties(&self.scoping, kind),
             carries,
+            node: Some(kind.node_id()),
         });
     }
 
@@ -210,10 +214,17 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
             })
             .with_config(TokensParserConfig)
             .parse();
-        // The semantic pass runs first: it fills the reference and symbol cells of the AST the projection reads.
+        // The semantic pass runs first: it fills the reference and symbol cells of the AST the projection reads, and builds the
+        // control flow graph with the node store its block of each node is kept in, as oxlint's linter pass does; the graph is
+        // drafted by node id before the pass is dropped.
         let semantic = oxc_semantic::SemanticBuilder::new()
             .with_check_syntax_error(true)
+            .with_build_nodes(true)
+            .with_cfg(true)
             .build(&parsed.program);
+        let mut flow = FlowDraft::default();
+        drafted_flow(&semantic.semantic, &mut flow);
+        let mut positions = NodePositions(vec![None; semantic.semantic.nodes().len()]);
         let mut projection = VisitorStack {
             scoping: semantic.semantic.into_scoping(),
             ..VisitorStack::default()
@@ -302,7 +313,10 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
                 leaf(Kind::Extra(Extra::Error), Span::new(readable, length)),
             );
         }
+        let first = languages::builder_position(builder);
         write(&mut root, &mut projection.carriers, builder);
+        placed_nodes(&root, first, &mut positions);
+        written_flow(&flow, &positions, builder);
         written_patterns(
             &allocator,
             languages::NameText(source),

@@ -16,6 +16,11 @@ pub mod file_package;
 pub mod filesystem_executable;
 pub mod filesystem_file;
 pub mod filesystem_line_count;
+/// The control flow graphs of a file's functions: their blocks, edges, steps and the block each element is evaluated in.
+pub mod flow_block;
+pub mod flow_edge;
+pub mod flow_member;
+pub mod flow_step;
 pub mod format_field;
 pub mod format_parse;
 pub mod format_specification;

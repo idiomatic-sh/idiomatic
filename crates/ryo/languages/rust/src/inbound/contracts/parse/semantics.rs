@@ -140,4 +140,20 @@ impl languages::Semantics<ReadIndexes> for ParseContract {
     fn pattern_child(&self) -> Support<Reader<languages::PatternChild, ReadIndexes>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn flow_edge(&self) -> Support<Reader<languages::FlowEdge, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn flow_block(&self) -> Support<Reader<languages::FlowBlock, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn flow_member(&self) -> Support<Reader<languages::FlowMember, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn flow_step(&self) -> Support<Reader<languages::FlowStep, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }

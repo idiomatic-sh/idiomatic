@@ -72,6 +72,10 @@ macro_rules! each_relation {
                 PatternParse pattern_parse PatternParseRow PatternParseColumn optional;
                 PatternSyntax pattern_syntax PatternSyntaxRow PatternSyntaxColumn optional;
                 PatternChild pattern_child PatternChildRow PatternChildColumn optional;
+                FlowEdge flow_edge FlowEdgeRow FlowEdgeColumn optional;
+                FlowBlock flow_block FlowBlockRow FlowBlockColumn optional;
+                FlowMember flow_member FlowMemberRow FlowMemberColumn optional;
+                FlowStep flow_step FlowStepRow FlowStepColumn optional;
             }
             manifest {
                 PackageDependency package_dependency PackageDependencyRow PackageDependencyColumn baseline;

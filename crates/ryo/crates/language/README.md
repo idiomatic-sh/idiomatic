@@ -36,6 +36,14 @@ The language domain's `expansions` concept: the trees a language reads under a m
 
 The language domain's `files` concept: the path every part of the engine names a file of the repository by.
 
+### flow
+
+The language domain's `flow` concept: the control flow graphs a language's read gives of a file's functions, by block number and element position, and the words the four flow relations say their kinds of edge and step in.
+
+### `flow_table`
+
+The language domain's `flow_table` concept: the control flow graphs kept in a file's element table, written through its builder and read back by the readers of the four flow relations.
+
 ### `keys`
 
 The language domain's `keys` concept: a file's structural keys, each complete key interned once, so that equal keys share the first occurrence that had them. Hashes choose candidates; complete word slices decide equality.

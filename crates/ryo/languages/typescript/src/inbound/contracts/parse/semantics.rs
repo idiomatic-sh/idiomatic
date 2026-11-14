@@ -6,7 +6,9 @@ use ryo::languages::{self, AbsenceCause, Reader, Support};
 use crate::domain::model::types::ReadIndexes;
 use crate::domain::relations::collections::relations::{
     binding_read::item::BindingReadItem, binding_use::item::BindingUseItem,
-    expression_shape::item::ExpressionShapeItem, numeric_literal::item::NumericLiteralItem,
+    expression_shape::item::ExpressionShapeItem, flow_block::item::FlowBlockItem,
+    flow_edge::item::FlowEdgeItem, flow_member::item::FlowMemberItem,
+    flow_step::item::FlowStepItem, numeric_literal::item::NumericLiteralItem,
     pattern_child::item::PatternChildItem, pattern_parse::item::PatternParseItem,
     pattern_syntax::item::PatternSyntaxItem,
 };
@@ -145,5 +147,21 @@ impl languages::Semantics<ReadIndexes> for ParseContract {
 
     fn pattern_child(&self) -> Support<Reader<languages::PatternChild, ReadIndexes>> {
         languages::reads::<PatternChildItem>()
+    }
+
+    fn flow_edge(&self) -> Support<Reader<languages::FlowEdge, ReadIndexes>> {
+        languages::reads::<FlowEdgeItem>()
+    }
+
+    fn flow_block(&self) -> Support<Reader<languages::FlowBlock, ReadIndexes>> {
+        languages::reads::<FlowBlockItem>()
+    }
+
+    fn flow_member(&self) -> Support<Reader<languages::FlowMember, ReadIndexes>> {
+        languages::reads::<FlowMemberItem>()
+    }
+
+    fn flow_step(&self) -> Support<Reader<languages::FlowStep, ReadIndexes>> {
+        languages::reads::<FlowStepItem>()
     }
 }
