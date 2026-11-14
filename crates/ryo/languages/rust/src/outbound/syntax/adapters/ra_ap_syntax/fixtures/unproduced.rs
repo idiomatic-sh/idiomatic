@@ -8,7 +8,7 @@ use crate::domain::syntax::service::kind_name;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use crate::fixtures::kinds::sample;
-use crate::outbound::syntax::fixtures::contract::{Told, expanding, made_by};
+use crate::outbound::syntax::fixtures::contract::{Told, made_by, opaque};
 use crate::outbound::syntax::fixtures::fake::SyntaxFake;
 use crate::outbound::syntax::fixtures::trees::{SOURCES, tree_of};
 use ra_ap_syntax::SyntaxKind;
@@ -44,7 +44,7 @@ pub(in super::super) const UNPRODUCED: [Kind; 6] = [
 
 /// How many of the kinds never produced are an element of a source anyway: of the probes, or of the sample of a kind.
 pub(in super::super) fn unproduced_kinds_a_source_gives() -> usize {
-    let adapter = SyntaxRaApSyntaxAdapter::new(expanding(Told::Standard));
+    let adapter = SyntaxRaApSyntaxAdapter::new(opaque(Told::Language));
     let samples = crate::domain::syntax::service::kinds().filter_map(|kind| match sample(kind) {
         Sample::Node(source) | Sample::Token(source) => Some(source.0),
         Sample::Unread(_) => None,
@@ -59,7 +59,7 @@ pub(in super::super) fn unproduced_kinds_a_source_gives() -> usize {
 /// Whether every tree written by hand for a source of the domain's tests is the table this adapter makes of it: the first source for
 /// which they differ, or `agreed`.
 pub(in super::super) fn trees_agree() -> String {
-    let adapter = SyntaxRaApSyntaxAdapter::new(expanding(Told::Nothing));
+    let adapter = SyntaxRaApSyntaxAdapter::new(opaque(Told::Called));
     for source in SOURCES {
         let made = made_by(&adapter, source);
         let written = made_by(

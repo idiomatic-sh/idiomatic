@@ -32,7 +32,7 @@ impl std::ops::Deref for ParserMessage {
     }
 }
 
-/// The name of a macro, as it is written before the `!`.
+/// The name of a macro, as it is written before the `!`: the last segment of the call's path.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct MacroName(pub Box<str>);
 
@@ -68,42 +68,16 @@ pub(crate) struct Cursor {
     pub literal: Flag,
 }
 
-/// A direct child of a token tree: the bytes it spans, and its kind.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct Child {
-    /// Where it starts.
-    pub from: Offset,
-    /// Where it ends.
-    pub to: Offset,
-    /// Its kind (that of its node, or of its token).
-    pub kind: SyntaxKind,
-}
-
-/// A stretch of text in an argument list.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct ArgumentSpan {
-    /// Where it starts.
-    pub from: Offset,
-    /// Where it ends.
-    pub to: Offset,
-}
-
-/// What a stretch of an argument list is read as.
+/// The grammar a macro call's arguments are read by.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum FragmentEntryPoint {
-    /// An expression.
-    Expression,
-    /// A pattern.
-    Pattern,
-}
-
-/// A stretch of an argument list and what it is read as.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct Stretch {
-    /// The text.
-    pub span: ArgumentSpan,
-    /// What it is read as.
-    pub reading: FragmentEntryPoint,
+pub(crate) enum ArgumentGrammar {
+    /// A list of expressions separated by commas, a trailing comma allowed, each of them perhaps named (`width = 3`, read as its value):
+    /// the arguments of every macro but `vec!` and `matches!`.
+    Arguments,
+    /// The elements of an array (`vec![a, b]`) or an element and its count (`vec![a; n]`).
+    Vector,
+    /// An expression, then a pattern and perhaps `if` and a guard (`matches!`).
+    Matches,
 }
 
 /// An argument of a macro read again: where its text starts and the steps it parses to.
@@ -115,11 +89,13 @@ pub(crate) struct MacroArgument {
     pub steps: Vec<Step>,
 }
 
-/// A node being open while the file's own tree is written.
+/// A node being open while a tree is written.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Open {
     /// The node's place in the table.
     pub at: Position,
+    /// Its kind: a token tree is a call's arguments only when it is a child of a macro call.
+    pub kind: SyntaxKind,
 }
 
 /// A token tree being held while its macro is looked at.
@@ -144,13 +120,4 @@ pub(crate) struct Expansion {
     pub host: Position,
     /// The arguments.
     pub arguments: Vec<MacroArgument>,
-}
-
-/// Whether a child of a token tree is white space or a comment.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Triviality {
-    /// It is.
-    Trivia,
-    /// It is not.
-    Significant,
 }

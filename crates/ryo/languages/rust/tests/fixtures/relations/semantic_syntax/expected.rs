@@ -1,4 +1,4 @@
-// Native projection reuses independently specified native syntax rows.
+// The native rows and edges, and the argument tree of `m!(a)` added under its call.
 // The rows `relations/semantic_syntax/input.rs` must give.
 
 use ryo::languages::contract::{
@@ -12,7 +12,7 @@ const ROWS: &[SemanticSyntaxExpectedRow] = &[
         kind: name("source-file"),
         text: name(""),
         file: file("semantic_syntax/input.rs"),
-        span: span((1, 1), (2, 1)),
+        span: span((1, 1), (3, 1)),
     },
     SemanticSyntaxExpectedRow {
         id: node(1),
@@ -111,6 +111,125 @@ const ROWS: &[SemanticSyntaxExpectedRow] = &[
         text: name("\n"),
         file: file("semantic_syntax/input.rs"),
         span: span((1, 12), (2, 1)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(15),
+        kind: name("macro-call"),
+        text: name(""),
+        file: file("semantic_syntax/input.rs"),
+        span: span((2, 1), (2, 7)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(16),
+        kind: name("path"),
+        text: name(""),
+        file: file("semantic_syntax/input.rs"),
+        span: span((2, 1), (2, 2)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(17),
+        kind: name("path-segment"),
+        text: name(""),
+        file: file("semantic_syntax/input.rs"),
+        span: span((2, 1), (2, 2)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(18),
+        kind: name("name-ref"),
+        text: name(""),
+        file: file("semantic_syntax/input.rs"),
+        span: span((2, 1), (2, 2)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(19),
+        kind: name("ident"),
+        text: name("m"),
+        file: file("semantic_syntax/input.rs"),
+        span: span((2, 1), (2, 2)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(20),
+        kind: name("bang"),
+        text: name("!"),
+        file: file("semantic_syntax/input.rs"),
+        span: span((2, 2), (2, 3)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(21),
+        kind: name("token-tree"),
+        text: name(""),
+        file: file("semantic_syntax/input.rs"),
+        span: span((2, 3), (2, 6)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(22),
+        kind: name("l-paren"),
+        text: name("("),
+        file: file("semantic_syntax/input.rs"),
+        span: span((2, 3), (2, 4)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(23),
+        kind: name("ident"),
+        text: name("a"),
+        file: file("semantic_syntax/input.rs"),
+        span: span((2, 4), (2, 5)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(24),
+        kind: name("r-paren"),
+        text: name(")"),
+        file: file("semantic_syntax/input.rs"),
+        span: span((2, 5), (2, 6)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(25),
+        kind: name("semicolon"),
+        text: name(";"),
+        file: file("semantic_syntax/input.rs"),
+        span: span((2, 6), (2, 7)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(26),
+        kind: name("whitespace"),
+        text: name("\n"),
+        file: file("semantic_syntax/input.rs"),
+        span: span((2, 7), (3, 1)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(27),
+        kind: name("path-expr"),
+        text: name(""),
+        file: file("semantic_syntax/input.rs"),
+        span: span((2, 4), (2, 5)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(28),
+        kind: name("path"),
+        text: name(""),
+        file: file("semantic_syntax/input.rs"),
+        span: span((2, 4), (2, 5)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(29),
+        kind: name("path-segment"),
+        text: name(""),
+        file: file("semantic_syntax/input.rs"),
+        span: span((2, 4), (2, 5)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(30),
+        kind: name("name-ref"),
+        text: name(""),
+        file: file("semantic_syntax/input.rs"),
+        span: span((2, 4), (2, 5)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(31),
+        kind: name("ident"),
+        text: name("a"),
+        file: file("semantic_syntax/input.rs"),
+        span: span((2, 4), (2, 5)),
     },
 ];
 

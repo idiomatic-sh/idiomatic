@@ -43,6 +43,26 @@ pub(super) fn projection_preserves_native(out: &Collect) -> bool {
     })
 }
 
+/// With embedded expressions or macro expansions, projection keeps every native row and edge: it only adds the trees read again.
+pub(super) fn projection_extends_native(out: &Collect) -> bool {
+    [
+        (Relation::SyntaxTree, Relation::SemanticSyntax),
+        (Relation::SyntaxChild, Relation::SemanticChild),
+    ]
+    .into_iter()
+    .all(|(native, semantic)| {
+        let projected: std::collections::BTreeSet<_> = out
+            .rows()
+            .into_iter()
+            .filter_map(|(relation, row)| (relation == semantic).then_some(row))
+            .collect();
+        out.rows()
+            .into_iter()
+            .filter(|(relation, _)| *relation == native)
+            .all(|(_, row)| projected.contains(&row))
+    })
+}
+
 /// Compare the consumer-visible result of a field equality predicate, not only row counts.
 pub(super) fn filtered_projection_valid(out: &Collect, field: u64) -> bool {
     let select = |wanted| {

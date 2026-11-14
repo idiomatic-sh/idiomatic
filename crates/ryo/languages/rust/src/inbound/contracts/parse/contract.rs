@@ -190,11 +190,11 @@ impl Parse for ParseContract {
     }
 
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, ReadIndexes>> {
-        languages::native_semantic_syntax()
+        languages::expanded_semantic_syntax()
     }
 
     fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, ReadIndexes>> {
-        languages::native_semantic_child()
+        languages::expanded_semantic_child()
     }
 
     fn resolves(&self) -> Support<Reader<languages::Resolves, ReadIndexes>> {

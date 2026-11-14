@@ -4,10 +4,11 @@ use super::service::prepare;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::model::types::ReadIndexes;
 use crate::domain::syntax::{service::is_token, types::Leaf};
+use crate::domain::syntax::constants::OPAQUE_MACROS;
 use crate::outbound::syntax::{
     factory,
     interface::SyntaxPort as _,
-    types::{Expanding, SourceText},
+    types::{OpaqueMacros, SourceText},
 };
 use ryo::languages;
 
@@ -84,7 +85,7 @@ fn subject((source, left, right): Input) -> Result<Value, Failure> {
         languages::Symbols::default(),
     );
     let bytes = languages::ByteSlice(source.as_bytes());
-    factory::ra_ap_syntax(Expanding(&[])).read(
+    factory::ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS)).read(
         SourceText(source.as_bytes()),
         &mut languages::table_builder(&mut elements, &mut symbols, bytes),
     );

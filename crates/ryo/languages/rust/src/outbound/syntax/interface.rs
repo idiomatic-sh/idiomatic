@@ -25,7 +25,7 @@
 //!
 //! # Macros
 //!
-//! A token tree has no structure of its own. The names the adapter is built with as `Expanding` are the macros whose arguments are
+//! A token tree has no structure of its own. The names the adapter is built with as `OpaqueMacros` are the macros whose arguments are
 //! expressions; for a call of one of them the adapter reads the arguments again, and adds the trees it finds after the file's own
 //! tree, each under its call: `adopt(builder, call)`, then `mark_expansion(builder, ..)` for each element and the writes of its
 //! steps, then `release(builder)`. The file's own tree keeps the token tree as it was. A call that does not parse as the macro's
