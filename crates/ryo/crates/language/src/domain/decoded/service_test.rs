@@ -84,13 +84,12 @@ fn decoded(literal: &str) -> FloatBits {
             .parse::<f64>()
             .expect("the row writes a decimal literal")
     } else {
-        #[expect(
-            clippy::cast_precision_loss,
-            reason = "the literal's integer rounds to the nearest binary64, as a parser decodes it"
-        )]
-        let rounded = u128::from_str_radix(&literal[2..], radix)
-            .expect("the row writes a prefixed integer") as f64;
-        rounded
+        // the literal's integer rounds to the nearest binary64, as a parser decodes it
+        u128::from_str_radix(&literal[2..], radix)
+            .expect("the row writes a prefixed integer")
+            .to_string()
+            .parse::<f64>()
+            .expect("a whole number's decimal digits parse")
     };
     FloatBits(value.to_bits())
 }
