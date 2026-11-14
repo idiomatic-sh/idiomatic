@@ -1,0 +1,74 @@
+[[cases]]
+name = "paren-in-paren"
+files = { "src/lib.rs" = "pub fn f(x: i32) -> i32 {\n    ((x))\n}\n" }
+expected = [{ file = "src/lib.rs", start = 30, end = 35 }]
+
+[[cases]]
+name = "tuple-in-paren"
+files = { "src/lib.rs" = "pub fn f() -> (i32, i32) {\n    ((1, 2))\n}\npub fn g() {\n    let _ = (());\n}\n" }
+expected = [{ file = "src/lib.rs", start = 31, end = 39 }, { file = "src/lib.rs", start = 67, end = 71 }]
+
+[[cases]]
+name = "call-argument"
+files = { "src/lib.rs" = "fn g(x: i32) -> i32 {\n    x\n}\npub fn f(x: i32) -> i32 {\n    g((x))\n}\n" }
+expected = [{ file = "src/lib.rs", start = 62, end = 65 }]
+
+[[cases]]
+name = "method-argument"
+files = { "src/lib.rs" = "pub fn f(v: &mut Vec<i32>, x: i32) {\n    v.push((x));\n}\n" }
+expected = [{ file = "src/lib.rs", start = 48, end = 51 }]
+
+[[cases]]
+name = "comments-and-commas"
+files = { "src/lib.rs" = "fn g(x: i32) -> i32 {\n    x\n}\npub fn f(x: i32) -> i32 {\n    let a = ((x) /* c */);\n    let b = ((/* c */ x));\n    let c = g( (x) );\n    let d = g(/* c */ (x));\n    let e = g((x),);\n    let h = g(\n        // c\n        (x),\n    );\n    a + b + c + d + e + h\n}\n" }
+expected = [{ file = "src/lib.rs", start = 95, end = 108 }, { file = "src/lib.rs", start = 125, end = 128 }]
+
+[[cases]]
+name = "single-parens"
+files = { "src/lib.rs" = "fn g(x: i32) -> i32 {\n    x\n}\npub fn f(x: i32) -> i32 {\n    let y = (x);\n    g(x + (y)) + (x)\n}\n" }
+expected = []
+
+[[cases]]
+name = "two-arguments"
+files = { "src/lib.rs" = "fn h(a: i32, b: i32) -> i32 {\n    a + b\n}\npub fn f(x: i32) -> i32 {\n    h((x), (x))\n}\n" }
+expected = []
+
+[[cases]]
+name = "tuple-argument"
+files = { "src/lib.rs" = "fn g(t: (i32, i32)) -> i32 {\n    t.0\n}\npub fn f() -> i32 {\n    g((1, 2))\n}\n" }
+expected = []
+
+[[cases]]
+name = "triple"
+files = { "src/lib.rs" = "fn g(x: i32) -> i32 {\n    x\n}\npub fn f(x: i32) -> i32 {\n    g(((x))) + (((x)))\n}\n" }
+expected = [{ file = "src/lib.rs", start = 62, end = 67 }, { file = "src/lib.rs", start = 71, end = 78 }, { file = "src/lib.rs", start = 72, end = 77 }]
+
+[[cases]]
+name = "spaced-and-commented"
+files = { "src/lib.rs" = "pub fn f(x: i32) -> i32 {\n    let a = ( (x) );\n    let b = (\n        (x)\n    );\n    let c = (/* c */ (x));\n    a + b + c\n}\n" }
+expected = [{ file = "src/lib.rs", start = 38, end = 45 }, { file = "src/lib.rs", start = 59, end = 78 }]
+
+[[cases]]
+name = "in-closure-and-match"
+files = { "src/lib.rs" = "pub fn f(x: Option<i32>) -> i32 {\n    let g = |y: i32| ((y));\n    match x {\n        Some(v) => ((v)),\n        None => g(0),\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 55, end = 60 }, { file = "src/lib.rs", start = 95, end = 100 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::double_parens)]\npub fn f(x: i32) -> i32 {\n    ((x))\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::complexity)]\npub fn f(x: i32) -> i32 {\n    ((x))\n}\n#[expect(clippy::all)]\npub fn g(x: i32) -> i32 {\n    ((x))\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::double_parens)]\npub fn f(x: i32) -> i32 {\n    ((x))\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::complexity)]\n#[warn(clippy::double_parens)]\npub fn f(x: i32) -> i32 {\n    ((x))\n}\npub fn g(x: i32) -> i32 {\n    ((x))\n}\n" }
+expected = [{ file = "src/lib.rs", start = 91, end = 96 }]

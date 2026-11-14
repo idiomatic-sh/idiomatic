@@ -1,0 +1,74 @@
+[[cases]]
+name = "minus"
+files = { "src/lib.rs" = "pub const A: &[i32] = &[\n    1,\n    2\n    -3,\n];\n" }
+expected = [{ file = "src/lib.rs", start = 37, end = 37 }]
+
+[[cases]]
+name = "star-and-and"
+files = { "src/lib.rs" = "pub fn f(a: i32, r: &i32, x: bool, y: bool) -> (Vec<i32>, Vec<bool>) {\n    let v = [\n        a\n        *r,\n    ];\n    let w = [\n        x\n        &&y,\n    ];\n    (v.to_vec(), w.to_vec())\n}\n" }
+expected = [{ file = "src/lib.rs", start = 94, end = 94 }, { file = "src/lib.rs", start = 137, end = 137 }]
+
+[[cases]]
+name = "continuation-indented"
+files = { "src/lib.rs" = "pub const A: &[i32] = &[\n    1,\n    2\n        - 3,\n];\n" }
+expected = []
+
+[[cases]]
+name = "same-line"
+files = { "src/lib.rs" = "pub const A: &[i32] = &[1, 2 - 3, 4 * 5];\n" }
+expected = []
+
+[[cases]]
+name = "other-operators"
+files = { "src/lib.rs" = "pub const A: &[i32] = &[\n    1\n    & 3,\n    2\n    + 3,\n    4\n    / 2,\n];\n" }
+expected = []
+
+[[cases]]
+name = "less-indented"
+files = { "src/lib.rs" = "pub const A: &[i32] = &[\n    1,\n    2\n-3,\n];\n" }
+expected = [{ file = "src/lib.rs", start = 37, end = 37 }]
+
+[[cases]]
+name = "comment-between"
+files = { "src/lib.rs" = "pub const A: &[i32] = &[\n    1,\n    2 // two\n    -3,\n];\n" }
+expected = [{ file = "src/lib.rs", start = 37, end = 37 }]
+
+[[cases]]
+name = "first-on-shared-line"
+files = { "src/lib.rs" = "pub const A: &[i32] = &[\n    1, 2\n    -3,\n];\n" }
+expected = [{ file = "src/lib.rs", start = 33, end = 33 }]
+
+[[cases]]
+name = "repeat-and-tuple"
+files = { "src/lib.rs" = "pub const A: [i32; 2] = [1\n-1; 2];\npub const T: (i32, i32) = (2\n-3, 4);\n" }
+expected = []
+
+[[cases]]
+name = "multi-line-left"
+files = { "src/lib.rs" = "fn g(x: i32) -> i32 {\n    x\n}\npub fn f(a: i32) -> Vec<i32> {\n    let v = [\n        g(\n            a,\n        )\n        - 1,\n        g(\n            a,\n        )\n            - 1,\n    ];\n    v.to_vec()\n}\n" }
+expected = [{ file = "src/lib.rs", start = 110, end = 110 }]
+
+[[cases]]
+name = "tabs"
+files = { "src/lib.rs" = "pub const A: &[i32] = &[\n\t1,\n\t2\n\t-3,\n\t4\n  -5,\n];\n" }
+expected = [{ file = "src/lib.rs", start = 31, end = 31 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::possible_missing_comma)]\npub const A: &[i32] = &[\n    1,\n    2\n    -3,\n];\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::correctness)]\npub const A: &[i32] = &[\n    2\n    -3,\n];\n#[allow(clippy::all)]\npub const B: &[i32] = &[\n    2\n    -3,\n];\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::possible_missing_comma)]\npub const A: &[i32] = &[\n    2\n    -3,\n];\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::correctness)]\n#[warn(clippy::possible_missing_comma)]\npub const A: &[i32] = &[\n    2\n    -3,\n];\npub const B: &[i32] = &[\n    2\n    -3,\n];\n" }
+expected = [{ file = "src/lib.rs", start = 101, end = 101 }]
