@@ -1,5 +1,13 @@
 # allocation-test
 
+## 0.3.0
+
+The template takes variables, so any crate places its allocation test from it, not only the kernel language crate: `doc`,
+the module doc; `owner` and `case`, the case's name; `fixture`, `double` and `field`, the fixture module, its double and the
+double's boolean that puts it within or past the bound; `holds` and `breaks`, the two assertions' messages. Rendered with
+the language crate's values it is 0.2.0's text byte for byte. It stays `match = "text"`. 0.2.0 is deleted: no lock in the
+repository reads it once the ryo workspace moves to 0.3.0 (its release tags keep it).
+
 ## 0.2.0
 
 The template is placed closed: `match = "text"`, where 0.1.0 had the default `contains`. The content is the
