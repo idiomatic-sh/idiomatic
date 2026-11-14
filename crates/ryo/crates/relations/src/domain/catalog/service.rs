@@ -69,6 +69,9 @@ macro_rules! each_relation {
                 Prose prose ProseRow ProseColumn baseline;
                 NumericLiteral numeric_literal NumericLiteralRow NumericLiteralColumn optional;
                 TokenLink token_link TokenLinkRow TokenLinkColumn optional;
+                PatternParse pattern_parse PatternParseRow PatternParseColumn optional;
+                PatternSyntax pattern_syntax PatternSyntaxRow PatternSyntaxColumn optional;
+                PatternChild pattern_child PatternChildRow PatternChildColumn optional;
             }
             manifest {
                 PackageDependency package_dependency PackageDependencyRow PackageDependencyColumn baseline;

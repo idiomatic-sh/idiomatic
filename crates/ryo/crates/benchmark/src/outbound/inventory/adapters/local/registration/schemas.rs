@@ -163,6 +163,92 @@ impl TryFrom<RegisteredRuleSchema> for RegisteredRule {
     }
 }
 
+/// The canonical text of a written value, as a value.
+fn parsed(text: &CanonicalJson) -> Result<serde_json::Value, Error> {
+    serde_json::from_str(&text.0).map_err(|error| Error::Json(Box::new(error)))
+}
+
+/// The wire form of a pinned file.
+fn pin_value(pin: &FilePin) -> serde_json::Value {
+    serde_json::json!({"path": pin.path, "sha256": pin.sha256.0})
+}
+
+/// The wire form of one registered rule.
+fn rule_value(rule: &RegisteredRule) -> Result<serde_json::Value, Error> {
+    Ok(serde_json::json!({
+        "rule_id": rule.rule_id.0,
+        "command": match &rule.command {
+            RuleCommand::Registered(Command::CaseVerification { context }) => {
+                serde_json::json!({"kind": "case-verification", "context": context})
+            }
+            RuleCommand::Unregistered => serde_json::Value::Null,
+        },
+        "reason": match &rule.reason {
+            RuleReason::Stated(reason) => reason.0.clone().into(),
+            RuleReason::Unstated => serde_json::Value::Null,
+        },
+        "cases": rule
+            .cases
+            .iter()
+            .map(crate::outbound::inventory::adapters::local::case_wire::schemas::case_value)
+            .collect::<Result<Vec<_>, _>>()?,
+        "instance": match &rule.instance {
+            RuleInstance::Declared(text) => parsed(text)?,
+            RuleInstance::Undeclared => serde_json::Value::Null,
+        },
+        "artifacts": rule
+            .artifacts
+            .iter()
+            .map(|(path, digest)| (path.to_string_lossy().into_owned(), digest.0.clone().into()))
+            .collect::<serde_json::Map<_, _>>(),
+        "definition": match &rule.definition {
+            RuleDefinition::Pinned(pin) => pin_value(pin),
+            RuleDefinition::Unpinned => serde_json::Value::Null,
+        },
+        "modules": rule
+            .modules
+            .iter()
+            .map(|(name, pin)| (name.0.clone(), pin_value(pin)))
+            .collect::<serde_json::Map<_, _>>(),
+    }))
+}
+
+/// The registration document, as `load` reads it.
+pub(in super::super) fn registration_bytes(registration: &Registration) -> Result<Vec<u8>, Error> {
+    let authority = match &registration.authority {
+        RegistrationAuthority::ReceiptOnly => serde_json::json!({"kind": "receipt-only"}),
+        RegistrationAuthority::Unavailable { reason } => {
+            serde_json::json!({"kind": "unavailable", "reason": reason.0})
+        }
+        RegistrationAuthority::Execution {
+            profile,
+            profile_sha256,
+            reference,
+            worker,
+        } => serde_json::json!({
+            "kind": "execution",
+            "profile": profile,
+            "profile_sha256": profile_sha256.0,
+            "reference": {"path": reference.path, "sha256": reference.sha256.0},
+            "worker": {"path": worker.path, "sha256": worker.sha256.0},
+        }),
+    };
+    let mut bytes = serde_json::to_vec_pretty(&serde_json::json!({
+        "authority": authority,
+        "provider": registration.provider.0,
+        "defaults": registration.defaults.iter().map(|rule| rule.0.clone()).collect::<Vec<_>>(),
+        "rules": registration.rules.iter().map(rule_value).collect::<Result<Vec<_>, _>>()?,
+        "identity": registration
+            .identity
+            .iter()
+            .map(|(key, value)| Ok((key.0.clone(), parsed(value)?)))
+            .collect::<Result<serde_json::Map<_, _>, Error>>()?,
+    }))
+    .map_err(|error| Error::Json(Box::new(error)))?;
+    bytes.push(b'\n');
+    Ok(bytes)
+}
+
 impl TryFrom<RegistrationBytes<'_>> for Registration {
     type Error = Error;
 

@@ -1,9 +1,6 @@
 //! Read lazily interned structural classes; never emit unknown classes that could compare equal.
 use crate::domain::{
-    expression_shapes::{
-        constants::INCOMPLETE,
-        service::{prepare, shape_of},
-    },
+    expression_shapes::{constants::INCOMPLETE, service::prepare},
     model::types::Declarations,
     nodes::types::{Category, Node},
     syntax::{
@@ -21,7 +18,7 @@ ryo::reads! {
   Some(index)=>{
    each(crate::domain::semantic_syntax::service::positions(tree))as expression{
     require category(tree,expression)==Category::Expression;
-    given shape=shape_of(&index,expression)?;
+    given shape=languages::key_class_at(&index,expression)?;
     row{id:node(expression),shape:node(shape),file:file,span:span(expression),}
    }
   }

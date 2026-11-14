@@ -2,7 +2,9 @@
 
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
+use oxc_semantic::Scoping;
 use oxc_span::Span;
+use ryo::languages::PropertyId;
 
 /// The text attached to a leaf.
 #[derive(Debug)]
@@ -26,11 +28,15 @@ pub(super) struct Piece {
     pub text: Text,
     /// First child that can contain the next source-ordered token.
     pub cursor: ChildCursor,
+    /// The scalar properties the parser gives the node, written on it with the node.
+    pub properties: Vec<NodeProperty>,
+    /// Whether it carries a regular-expression pattern, and which.
+    pub carries: Carries,
 }
 
 /// A visitor's stack and completed root nodes.
 #[derive(Debug, Default)]
-pub(super) struct VisitorStack {
+pub(super) struct VisitorStack<'a> {
     /// Nodes currently being visited.
     pub open: Vec<Piece>,
     /// Completed root nodes.
@@ -39,11 +45,23 @@ pub(super) struct VisitorStack {
     pub decoded: Vec<Decoded>,
     /// Native node whose typed callback finishes its projection after the upstream walk.
     pub deferred: Option<VisitDepth>,
+    /// The symbols and references of the parser's semantic pass, which the references and bindings of the tree are resolved by.
+    pub scoping: Scoping,
+    /// The elements that may carry a regular-expression pattern, in the order the walk met them.
+    pub carriers: Vec<Carrier<'a>>,
 }
 
 /// A value decoded by the source parser.
 #[derive(Clone, Debug)]
 pub(super) struct DecodedText(pub String);
+/// A scalar property the parser gives a node: its id and the text of its value.
+#[derive(Debug)]
+pub(super) struct NodeProperty {
+    /// The property, among the language's ids.
+    pub id: PropertyId,
+    /// Its value, as the parser decoded it.
+    pub value: DecodedText,
+}
 /// The decoded value at an exact parser source range.
 #[derive(Debug)]
 pub(super) struct Decoded {
@@ -62,3 +80,67 @@ pub(super) struct ChildCursor(pub usize);
 /// Stack depth before entering a node with a typed normalization callback.
 #[derive(Debug)]
 pub(super) struct VisitDepth(pub usize);
+
+/// Whether a node carries a regular-expression pattern.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Carries {
+    /// It carries none.
+    Nothing,
+    /// It carries the pattern of the carrier at this place of the walk's list.
+    Pattern(CarrierIndex),
+}
+
+/// A place in the walk's list of carriers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct CarrierIndex(pub usize);
+
+/// An element that may carry a regular-expression pattern: a pattern literal, or the string a call of `RegExp` takes first.
+#[derive(Debug)]
+pub(super) struct Carrier<'a> {
+    /// The carrier's extent.
+    pub span: Span,
+    /// How the source writes the pattern.
+    pub form: Form<'a>,
+    /// How the source writes the flags.
+    pub flags: PatternFlags,
+    /// Where the carrier was written in the element table.
+    pub host: Hosting,
+}
+
+/// How the source writes a pattern.
+#[derive(Clone, Copy, Debug)]
+pub(super) enum Form<'a> {
+    /// Between the slashes of a pattern literal, at this extent.
+    Literal(Span),
+    /// As a string literal, the first argument of a call of `RegExp` by this name: a pattern only when the name is the global
+    /// constructor, which oxc's resolution says once it has resolved the file's names.
+    Constructor(&'a oxc_ast::ast::IdentifierReference<'a>),
+}
+
+/// How the source writes the flags of a pattern.
+#[derive(Debug)]
+pub(super) enum PatternFlags {
+    /// After the closing slash of a literal, at this extent.
+    Bare(Span),
+    /// As a string literal at this extent, which stands for this text.
+    Quoted(Span, DecodedText),
+    /// Not at all: the call takes no second argument.
+    Absent,
+    /// As an argument the source does not settle.
+    Unknown,
+}
+
+/// Where a carrier stands in the element table.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Hosting {
+    /// Not written: the projection dropped it.
+    Unwritten,
+    /// Written at this position.
+    At(ryo::languages::Position),
+}
+
+/// What writes a parsed pattern's elements into the element table, under the carrier it was adopted by.
+pub(super) struct PatternWriter<'b, 't> {
+    /// The table being written.
+    pub builder: &'b mut ryo::languages::TableBuilder<'t>,
+}

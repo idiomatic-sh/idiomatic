@@ -1,11 +1,8 @@
 //! Lazily build full, parser-derived constant keys for supported Python expressions.
 
-use crate::domain::constant_keys::types::RetainedKeyIndex;
 use crate::domain::constant_keys::types::{
-    BuiltKey, KeyClass, KeyHash, KeyRecord, KeyRecordIndex, KeyState, KeyVisibility, KeyWord,
-    LiteralKind,
+    BuiltKey, ConstantKeyFragment, KeyClass, KeyVisibility, KeyWord, LiteralKind,
 };
-use crate::domain::constant_keys::types::{ConstantKeyFragment, KeyWordIndex, WordRange};
 use crate::domain::{
     constant_numbers::{
         service::{float_key, negate, number, property, to_float},
@@ -24,9 +21,10 @@ use crate::domain::{
     },
     tokens::types::Token,
 };
-use ryo::languages::{self, Position, Symbols, Tree};
+use ryo::languages::{
+    self, KeyState, Position, RetainedKeyIndex, Symbols, Tree, intern_key, push_key_word,
+};
 use std::cell::{Ref, RefCell};
-use std::hash::{Hash, Hasher};
 
 /// Read the already-built numeric payload at a child expression.
 fn numeric_class(classes: &[Option<KeyClass>], at: Position) -> Option<NumericState> {
@@ -36,20 +34,10 @@ fn numeric_class(classes: &[Option<KeyClass>], at: Position) -> Option<NumericSt
     classes.get(slot)?.as_ref()?.number
 }
 
-/// Invalidate file-local keys while retaining reusable allocations.
-pub(crate) fn clear(index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>) {
-    index.classes.clear();
-    index.words.clear();
-    index.records.clear();
-    index.buckets.clear();
-    index.scratch.clear();
-    index.state = KeyState::Fresh;
-}
-
 /// The retained representative for one supported occurrence.
 #[must_use]
 pub(crate) fn key_of(
-    index: &RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
+    index: &RetainedKeyIndex<KeyClass, KeyWord>,
     at: Position,
 ) -> Option<Position> {
     let Ok(slot) = usize::try_from(at.0) else {
@@ -88,19 +76,6 @@ fn literal_word(tree: &Tree<'_>, at: Position, symbols: &mut Symbols) -> Option<
     ))
 }
 
-/// Append one key component, marking the reader partial if its retained buffer cannot grow.
-fn push_word(
-    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
-    word: KeyWord,
-) -> Option<()> {
-    if index.scratch.try_reserve(1).is_err() {
-        index.state = KeyState::Partial;
-        return None;
-    }
-    index.scratch.push(word);
-    Some(())
-}
-
 /// Whether an occurrence is a synthetic literal segment inside an interpolated string.
 fn interpolation_fragment(tree: &Tree<'_>, at: Position) -> ConstantKeyFragment {
     use crate::domain::syntax::service::parent;
@@ -127,7 +102,7 @@ fn constant_key(
     tree: &Tree<'_>,
     at: Position,
     symbols: &mut Symbols,
-    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
+    index: &mut RetainedKeyIndex<KeyClass, KeyWord>,
 ) -> Option<BuiltKey> {
     if interpolation_fragment(tree, at) == ConstantKeyFragment::Interpolated {
         return None;
@@ -135,13 +110,13 @@ fn constant_key(
     if property(tree, at, SCALAR_KIND).map(|text| text.0) == Some(INTEGER_SCALAR)
         && property(tree, at, SCALAR_VALUE).is_some_and(|value| value.0.parse::<u64>().is_err())
     {
-        push_word(index, literal_word(tree, at, symbols)?)?;
+        push_key_word(index, literal_word(tree, at, symbols)?)?;
         return Some(BuiltKey {
             number: Some(NumericState::StructuralInteger),
         });
     }
     if let Some(number) = number(tree, at) {
-        push_word(index, KeyWord::Number(number))?;
+        push_key_word(index, KeyWord::Number(number))?;
         return Some(BuiltKey {
             number: Some(NumericState::Number(number)),
         });
@@ -158,7 +133,7 @@ fn constant_key(
         if !found {
             return None;
         }
-        push_word(
+        push_key_word(
             index,
             KeyWord::Literal(
                 LiteralKind::String,
@@ -167,7 +142,7 @@ fn constant_key(
         )?;
         return Some(BuiltKey { number: None });
     }
-    push_word(index, literal_word(tree, at, symbols)?)?;
+    push_key_word(index, literal_word(tree, at, symbols)?)?;
     Some(BuiltKey { number: None })
 }
 
@@ -175,9 +150,9 @@ fn constant_key(
 fn tuple_key(
     tree: &Tree<'_>,
     at: Position,
-    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
+    index: &mut RetainedKeyIndex<KeyClass, KeyWord>,
 ) -> Option<BuiltKey> {
-    push_word(index, KeyWord::Tuple)?;
+    push_key_word(index, KeyWord::Tuple)?;
     for child in
         languages::children(tree.elements, at).filter(|child| field_of(tree, *child) == Field::Elts)
     {
@@ -187,9 +162,9 @@ fn tuple_key(
         let Some(Some(class)) = index.classes.get(slot).copied() else {
             return None;
         };
-        push_word(index, KeyWord::Child(class.representative))?;
+        push_key_word(index, KeyWord::Child(class.representative))?;
     }
-    push_word(index, KeyWord::EndTuple)?;
+    push_key_word(index, KeyWord::EndTuple)?;
     Some(BuiltKey { number: None })
 }
 
@@ -197,7 +172,7 @@ fn tuple_key(
 fn unary_key(
     tree: &Tree<'_>,
     at: Position,
-    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
+    index: &mut RetainedKeyIndex<KeyClass, KeyWord>,
 ) -> Option<BuiltKey> {
     let operand = child_at(tree, at, Field::Operand)?;
     let NumericState::Number(mut number) = numeric_class(&index.classes, operand)? else {
@@ -213,7 +188,7 @@ fn unary_key(
         number.real = negate(number.real)?;
         number.imaginary = negate(number.imaginary)?;
     }
-    push_word(index, KeyWord::Number(number))?;
+    push_key_word(index, KeyWord::Number(number))?;
     Some(BuiltKey {
         number: Some(NumericState::Number(number)),
     })
@@ -223,7 +198,7 @@ fn unary_key(
 fn complex_binary_key(
     tree: &Tree<'_>,
     at: Position,
-    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
+    index: &mut RetainedKeyIndex<KeyClass, KeyWord>,
 ) -> Option<BuiltKey> {
     let left = child_at(tree, at, Field::Left)?;
     let right = child_at(tree, at, Field::Right)?;
@@ -255,7 +230,7 @@ fn complex_binary_key(
         real: float_key(left_real),
         imaginary: float_key(right_imaginary),
     };
-    push_word(index, KeyWord::Number(result))?;
+    push_key_word(index, KeyWord::Number(result))?;
     Some(BuiltKey {
         number: Some(NumericState::Number(result)),
     })
@@ -266,7 +241,7 @@ fn build_key(
     tree: &Tree<'_>,
     at: Position,
     symbols: &mut Symbols,
-    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
+    index: &mut RetainedKeyIndex<KeyClass, KeyWord>,
 ) -> Option<BuiltKey> {
     index.scratch.clear();
     match kind(tree, at) {
@@ -278,60 +253,14 @@ fn build_key(
     }
 }
 
-fn intern(
-    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
-    at: Position,
-) -> Option<Position> {
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    Hash::hash(&index.scratch, &mut hasher);
-    intern_with_hash(index, at, KeyHash(Hasher::finish(&hasher)))
-}
-
-/// Intern after a caller-selected hash, also making collision handling directly testable.
-pub(super) fn intern_with_hash(
-    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
-    at: Position,
-    hash: KeyHash,
-) -> Option<Position> {
-    let mut candidate = index.buckets.get(&hash).copied();
-    while let Some(place) = candidate {
-        let record = index.records.get(place.0)?;
-        if index.words.get(record.words.start.0..record.words.end.0)
-            == Some(index.scratch.as_slice())
-        {
-            return Some(record.representative);
-        }
-        candidate = record.previous;
-    }
-    if index.words.try_reserve(index.scratch.len()).is_err()
-        || index.records.try_reserve(1).is_err()
-        || index.buckets.try_reserve(1).is_err()
-    {
-        return None;
-    }
-    let start = index.words.len();
-    index.words.extend_from_slice(&index.scratch);
-    let place = KeyRecordIndex(index.records.len());
-    index.records.push(KeyRecord {
-        words: WordRange {
-            start: KeyWordIndex(start),
-            end: KeyWordIndex(index.words.len()),
-        },
-        representative: at,
-        previous: index.buckets.get(&hash).copied(),
-    });
-    let _previous_bucket_head = index.buckets.insert(hash, place);
-    Some(at)
-}
-
 /// Prepare supported classes once, retaining complete rows even when another occurrence is unknown.
 /// Candidate visibility comes from the caller's semantic projection.
 pub(crate) fn prepare<'a>(
     tree: &Tree<'_>,
-    held: &'a RefCell<RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>>,
+    held: &'a RefCell<RetainedKeyIndex<KeyClass, KeyWord>>,
     symbols: &mut Symbols,
     mut visible: impl FnMut(Position, &mut Symbols) -> KeyVisibility,
-) -> Ref<'a, RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>> {
+) -> Ref<'a, RetainedKeyIndex<KeyClass, KeyWord>> {
     if held.borrow().state == KeyState::Fresh {
         let mut index = held.borrow_mut();
         let count = usize::try_from(languages::end_of(tree.elements).0).unwrap_or(usize::MAX);
@@ -362,17 +291,15 @@ pub(crate) fn prepare<'a>(
                 continue;
             }
             match build_key(tree, at, symbols, &mut index) {
-                Some(built) => match intern(&mut index, at) {
-                    Some(representative) => {
-                        if let Some(slot) = index.classes.get_mut(raw) {
-                            *slot = Some(KeyClass {
-                                representative,
-                                number: built.number,
-                            });
-                        }
+                Some(built) => {
+                    let representative = intern_key(&mut index, at);
+                    if let Some(slot) = index.classes.get_mut(raw) {
+                        *slot = Some(KeyClass {
+                            representative,
+                            number: built.number,
+                        });
                     }
-                    None => index.state = KeyState::Partial,
-                },
+                }
                 None => {
                     // Only actual primitive nodes with missing parser values make absence uncertain.
                     if kind(tree, at) == Kind::Node(Node::Constant)

@@ -1,0 +1,64 @@
+[[cases]]
+name = "symbol"
+files = { "case.ts" = "const s = new Symbol(\"x\");\n" }
+expected = [{ file = "case.ts", start = 10, end = 13 }]
+
+[[cases]]
+name = "bigint"
+files = { "case.ts" = "const b = new BigInt(1);\n" }
+expected = [{ file = "case.ts", start = 10, end = 13 }]
+
+[[cases]]
+name = "no-arguments"
+files = { "case.ts" = "new Symbol;\n" }
+expected = [{ file = "case.ts", start = 0, end = 3 }]
+
+[[cases]]
+name = "type-arguments"
+files = { "case.ts" = "new BigInt<number>(1);\n" }
+expected = [{ file = "case.ts", start = 0, end = 3 }]
+
+[[cases]]
+name = "call"
+files = { "case.ts" = "Symbol(\"x\");\nBigInt(1);\n" }
+expected = []
+
+[[cases]]
+name = "other-constructor"
+files = { "case.ts" = "new Map();\n" }
+expected = []
+
+[[cases]]
+name = "declared"
+files = { "case.ts" = "let Symbol = class {};\nnew Symbol();\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-only"
+files = { "case.ts" = "function f(Symbol) {\n  return new Symbol();\n}\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-beside-global"
+files = { "case.ts" = "function f(Symbol) {\n  return new Symbol();\n}\nSymbol.iterator;\n" }
+expected = [{ file = "case.ts", start = 30, end = 33 }]
+
+[[cases]]
+name = "alias"
+files = { "case.ts" = "const S = Symbol;\nnew S();\n" }
+expected = []
+
+[[cases]]
+name = "member"
+files = { "case.ts" = "new globalThis.Symbol();\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized"
+files = { "case.ts" = "new (Symbol)();\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-new-native-nonconstructor\nnew Symbol();\n" }
+expected = []

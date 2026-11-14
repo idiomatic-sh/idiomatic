@@ -20,6 +20,9 @@ mod measure;
 #[path = "../src/inbound/use_cases/measure_corpus/acceptance.rs"]
 mod measure_corpus;
 
+#[path = "../src/inbound/use_cases/operate/acceptance.rs"]
+mod operate;
+
 #[path = "../src/inbound/use_cases/profile/acceptance.rs"]
 mod profile;
 

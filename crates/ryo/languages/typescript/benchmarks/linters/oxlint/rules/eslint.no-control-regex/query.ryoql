@@ -1,0 +1,8 @@
+import directives from "typescript/oxlint/eslint-directives";
+let controls = select id, carrier, file, span from "pattern-syntax" where kind = "character" and value <= 31 and (matches(text, "^\\{1,2}[xu]") or matches(text, "^\\{1,2}[0-7]$") or matches(text, "^\\{1,2}0+$"));
+let bounds = span-bounds(from=controls, span="span", start-output="begin", end-output="finish");
+let later = select l.id as id from bounds as l join bounds as r on l.carrier = r.carrier where r.begin < l.begin;
+let firsts = antijoin(left=bounds, right=later, left-on=["id"], right-on=["id"]);
+let found = select id, file, span from firsts;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-control-regex(?:,|$)");
+emit violations subject file key(id, span);

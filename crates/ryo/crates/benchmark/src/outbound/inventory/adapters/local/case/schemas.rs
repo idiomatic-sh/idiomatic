@@ -29,10 +29,12 @@ use std::collections::BTreeMap;
 fn sha(value: Option<String>) -> Option<Sha256Text> {
     value.map(Sha256Text)
 }
+
 /// The path a document spells.
 fn path(value: String) -> PathText {
     PathText(value)
 }
+
 /// The canonical text of an optional wire value.
 fn canonical(value: Option<serde_json::Value>) -> Option<CanonicalJson> {
     value.map(|value| CanonicalJson(value.to_string()))

@@ -5,12 +5,12 @@
 use ryo::languages::{self, Tree};
 
 use super::constants::{DOC_OPEN, EMPTY_BLOCK, RECEIVER};
-use super::types::{Kind, Leaf};
+use super::types::{Kind, Leaf, PatternNode};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 
-ryo::languages::kinds!(pub Kind { Node(Node), Token(Token), Extra(Extra) } unknown Kind::Extra(Extra::Error));
+ryo::languages::kinds!(pub Kind { Node(Node), Token(Token), Extra(Extra), Pattern(PatternNode) } unknown Kind::Extra(Extra::Error));
 
 /// The kind of the element at `at`.
 #[must_use]
@@ -61,7 +61,7 @@ pub(crate) fn last(tree: &Tree<'_>, at: languages::Position) -> languages::Posit
 }
 
 /// The bytes of the element at `at`, as the file spells them.
-fn written<'a>(tree: &Tree<'a>, at: languages::Position) -> languages::NameText<'a> {
+pub(crate) fn written<'a>(tree: &Tree<'a>, at: languages::Position) -> languages::NameText<'a> {
     let from = usize::try_from(languages::start_at(tree.elements, at).0).unwrap_or(usize::MAX);
     let to = usize::try_from(languages::end_at(tree.elements, at).0).unwrap_or(usize::MAX);
     languages::NameText(
@@ -104,6 +104,8 @@ pub(crate) fn parameter_kind(tree: &Tree<'_>, at: languages::Position) -> langua
         {
             languages::ParameterKind::Receiver
         }
-        Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => languages::ParameterKind::Positional,
+        Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) | Kind::Pattern(_) => {
+            languages::ParameterKind::Positional
+        }
     }
 }

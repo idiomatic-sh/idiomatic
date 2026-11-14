@@ -1,12 +1,12 @@
 //! The support of the group's tests.
 
 use super::super::super::{
-    service::{classify, write_float},
-    types::{FloatBits, FloatBuffer, NumericClassification, NumericValue},
+    service::classify,
+    types::{NumericClassification, NumericValue},
 };
 use crate::domain::semantic_syntax::service::positions;
 use crate::fixtures::reading::parsed;
-use ryo::languages::{self, ByteSlice, Tree};
+use ryo::languages::{self, ByteSlice, FLOAT_TEXT_BYTES, FloatBits, FloatBuffer, Tree};
 
 pub(super) struct NumericLiteral {
     /// The literal's numeric kind.
@@ -16,8 +16,10 @@ pub(super) struct NumericLiteral {
 }
 
 pub(super) fn float_text(bits: u64) -> String {
-    let mut buffer = FloatBuffer([0; crate::domain::numeric_literals::constants::FLOAT_TEXT_BYTES]);
-    write_float(FloatBits(bits), &mut buffer).0.to_owned()
+    let mut buffer = FloatBuffer([0; FLOAT_TEXT_BYTES]);
+    languages::binary64_text(FloatBits(bits), &mut buffer)
+        .0
+        .to_owned()
 }
 
 pub(super) fn literals(source: &'static str) -> Vec<NumericLiteral> {

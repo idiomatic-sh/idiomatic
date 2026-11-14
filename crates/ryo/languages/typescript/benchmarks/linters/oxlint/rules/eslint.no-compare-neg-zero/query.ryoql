@@ -1,0 +1,17 @@
+import directives from "typescript/oxlint/eslint-directives";
+import parenthesized from "typescript/oxlint/parenthesized";
+let zeros = select id, file, span from "numeric-literal" where value = "0.0" or value = "0";
+let wrapped_zeros = parenthesized(candidates=zeros);
+let bare_zeros = antijoin(left=zeros, right=wrapped_zeros, left-on=["id"], right-on=["id"]);
+let minus_operators = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "operator" and r.text = "-";
+let negations = select l.id as id from minus_operators as l join "semantic-syntax" as r on l.id = r.id where r.kind = "unary-expression";
+let negated = select l.parent as id, l.child as argument from "semantic-child" as l join negations as r on l.parent = r.id where l.field = "argument";
+let negative_zeros = select l.id as id from negated as l join bare_zeros as r on l.argument = r.id;
+let operators = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "operator" and (r.text = "==" or r.text = "===" or r.text = "!=" or r.text = "!==" or r.text = "<" or r.text = "<=" or r.text = ">" or r.text = ">=");
+let comparisons = select l.id as id from operators as l join "semantic-syntax" as r on l.id = r.id where r.kind = "binary-expression";
+let operands = select c.parent as id, c.child as operand from comparisons as l join "semantic-child" as c on l.id = c.parent where c.field = "left" or c.field = "right";
+let hits = select l.id as id from operands as l join negative_zeros as r on l.operand = r.id;
+let compared = project(from=hits, columns=["id"]);
+let found = select r.id as id, r.file as file, r.span as span from compared as l join "semantic-syntax" as r on l.id = r.id;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-compare-neg-zero(?:,|$)");
+emit violations subject file key(id);

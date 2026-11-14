@@ -1,9 +1,13 @@
 //! The fake of the `inventory` port: what the core's tests stand in for it with. It remembers
 //! which outputs were published and which observation directories were captured.
 use super::super::interface::InventoryPort;
-use super::super::types::{ContextFiles, RawArtifacts, ReceiptFile, Registration, Row, Summary};
+use super::super::types::{
+    CaseDocuments, ContextFiles, ProfileProjection, RawArtifacts, ReceiptFile, Registration, Row,
+    RuleInstanceRecord, Summary,
+};
 use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
+use ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -18,6 +22,7 @@ struct Remembered {
     published: BTreeSet<PathBuf>,
     /// Observation directories whose streams were captured.
     captured: BTreeSet<PathBuf>,
+    stored: BTreeSet<PathBuf>,
 }
 
 /// What the core's tests stand in for `inventory` with.
@@ -93,6 +98,28 @@ impl InventoryPort for InventoryFake {
     }
     fn audit_report(&self, _audit: &ReceiptAudit) -> Result<CapturedBytes, Error> {
         Ok(CapturedBytes(b"{}\n".to_vec()))
+    }
+    fn store(&self, path: &Path, _registration: &Registration) -> Result<(), Error> {
+        let _directory = std::fs::metadata(path.parent().unwrap_or(path))?;
+        let _new = self.state().stored.insert(path.to_owned());
+        Ok(())
+    }
+    fn stage_profile(
+        &self,
+        source: &Path,
+        _destination: &Path,
+        _projection: &ProfileProjection,
+    ) -> Result<(), Error> {
+        let _source = std::fs::metadata(source)?;
+        Ok(())
+    }
+    fn case_inventory(&self, stage: &Path) -> Result<CaseDocuments, Error> {
+        let _stage = std::fs::metadata(stage)?;
+        Ok(CaseDocuments(Vec::new()))
+    }
+    fn instance(&self, record: &RuleInstanceRecord) -> Result<CanonicalJson, Error> {
+        let _stage = std::fs::metadata(&record.stage)?;
+        Ok(CanonicalJson("{}".into()))
     }
 }
 

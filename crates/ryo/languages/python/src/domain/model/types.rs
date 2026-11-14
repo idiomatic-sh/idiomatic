@@ -2,7 +2,7 @@
 //! language works out of a file once, before its readers run.
 
 use crate::domain::brace_format::types::{BraceFormatResult, BraceFormatState, CachedBraceFormat};
-use crate::domain::constant_keys::types::{KeyClass, KeyHash, KeyState, KeyWord, RetainedKeyIndex};
+use crate::domain::constant_keys::types::{KeyClass, KeyWord};
 use crate::domain::expression_types::types::ExpressionTypeIndex;
 use crate::domain::format_syntax::types::{
     CachedFormat, FormatParseResult, FormatParseState, RetainedFormatIndex,
@@ -10,8 +10,7 @@ use crate::domain::format_syntax::types::{
 use crate::domain::indentation::types::IndentationIndex;
 use crate::domain::read_scratch::types::ReadScratch;
 use crate::domain::terminal_flow::types::TerminalIndex;
-use crate::domain::{labels::types::Field, syntax::types::Kind};
-use ryo::languages::{Position, PropertyId, Symbol};
+use ryo::languages::{Position, RetainedKeyIndex, ShapeWord, Symbol};
 use std::cell::RefCell;
 
 /// Where a scope says a name it assigns is bound instead of in itself.
@@ -58,9 +57,9 @@ pub(crate) struct Declarations {
     /// Configured language target, attached to every recognized source file.
     pub language_target: crate::domain::standard_library::types::TargetVersion,
     /// Lazy canonical expression classes, invalidated between source revisions.
-    pub expression_shapes: RefCell<RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>>,
+    pub expression_shapes: RefCell<RetainedKeyIndex<Position, ShapeWord>>,
     /// Lazy normalized constant-expression keys, invalidated between source revisions.
-    pub constant_keys: RefCell<RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>>,
+    pub constant_keys: RefCell<RetainedKeyIndex<KeyClass, KeyWord>>,
     /// Lazy decoded percent-format parses, invalidated between source revisions.
     pub format_parsing:
         RefCell<RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>>,
@@ -141,36 +140,6 @@ pub(crate) struct SemanticIndex {
     pub state: QualificationState,
 }
 
-/// Every component is tagged; a child identity cannot be mistaken for literal text.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) enum ShapeWord {
-    /// The parsed node kind.
-    Kind(Kind),
-    /// A semantic field and its child class.
-    Child(Field, Position),
-    /// A significant operator or keyword.
-    Token(Kind, Symbol),
-    /// Canonical lexical identifier.
-    Identifier(Symbol),
-    /// A decoded literal segment, merged across implicit concatenation.
-    Literal(Symbol),
-    /// A typed scalar property captured by the parser.
-    Property(PropertyId, Symbol),
-}
-/// A hash chooses candidates only; full stored keys establish equality.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct ShapeHash(pub u64);
-/// Whether the retained index belongs to a complete current tree.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum ShapeState {
-    #[default]
-    /// No source has requested construction since the last invalidation.
-    Fresh,
-    /// The source was fully indexed.
-    Complete,
-    /// One or more syntax inputs could not be represented completely.
-    Partial,
-}
 /// Storage is kept across source edits; no index is built until requested.
 /// A sparse environment frame; branches inherit their entry state without copying it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

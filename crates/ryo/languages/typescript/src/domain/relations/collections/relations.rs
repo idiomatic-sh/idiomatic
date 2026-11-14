@@ -6,6 +6,10 @@ pub(crate) mod call_argument;
 
 pub(crate) mod resolves;
 
+pub(crate) mod binding_read;
+
+pub(crate) mod binding_use;
+
 #[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod fixtures;
 pub(crate) mod syntax_child;
@@ -14,6 +18,10 @@ pub(crate) mod syntax_error;
 pub(crate) mod comment;
 
 pub(crate) mod string_literal;
+
+pub(crate) mod numeric_literal;
+
+pub(crate) mod expression_shape;
 
 pub(crate) mod function;
 
@@ -39,3 +47,7 @@ pub(crate) mod inherits;
 
 pub(crate) mod directive;
 pub(crate) mod visibility;
+
+pub(crate) mod pattern_child;
+pub(crate) mod pattern_parse;
+pub(crate) mod pattern_syntax;

@@ -132,15 +132,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Catalog,
         expect: Expect::Value(Answer::Catalog(Catalog {
-            relations: 69,
-            as_their_origin: 69,
+            relations: 72,
+            as_their_origin: 72,
         })),
     },
     Case {
         name: CaseName("partition_follows_the_declared_scope"),
         word: Word::Succeeds,
         input: || Asked::Declared,
-        expect: Expect::Value(Answer::Count(69)),
+        expect: Expect::Value(Answer::Count(72)),
     },
     Case {
         name: CaseName("snapshots_are_invariant_but_file_sources_keep_their_requirement"),

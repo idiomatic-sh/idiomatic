@@ -1,0 +1,209 @@
+[[cases]]
+name = "variable"
+files = { "case.ts" = "const x = 1;\nlet y;\nvar z = 2;\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }, { file = "case.ts", start = 17, end = 18 }, { file = "case.ts", start = 24, end = 25 }]
+
+[[cases]]
+name = "used"
+files = { "case.ts" = "const x = 1;\nlog(x);\n" }
+expected = []
+
+[[cases]]
+name = "each-kind"
+files = { "case.ts" = "function f() {}\nclass C {}\nimport { q } from \"q\";\nimport D from \"d\";\nimport * as N from \"n\";\ntype T = 1;\ninterface I {}\nenum E { A }\nnamespace S {}\n" }
+expected = [{ file = "case.ts", start = 9, end = 10 }, { file = "case.ts", start = 22, end = 23 }, { file = "case.ts", start = 36, end = 37 }, { file = "case.ts", start = 57, end = 58 }, { file = "case.ts", start = 81, end = 82 }, { file = "case.ts", start = 98, end = 99 }, { file = "case.ts", start = 115, end = 116 }, { file = "case.ts", start = 125, end = 126 }, { file = "case.ts", start = 143, end = 144 }]
+
+[[cases]]
+name = "used-as-type"
+files = { "case.ts" = "import { T } from \"t\";\ninterface I {}\nlet v: T | I;\nlog(v);\n" }
+expected = []
+
+[[cases]]
+name = "type-query"
+files = { "case.ts" = "const a = 1;\nexport type A = typeof a;\n" }
+expected = []
+
+[[cases]]
+name = "jsx"
+files = { "case.tsx" = "import X from \"x\";\nfunction Y() {\n  return null;\n}\nexport const z = <X><Y /></X>;\n" }
+expected = []
+
+[[cases]]
+name = "typed-this-parameter"
+files = { "case.ts" = "function f(this: Window) {}\nf();\nexport const g = function (this: Window, x: number) { return x; };\n" }
+expected = []
+
+[[cases]]
+name = "jsx-factory"
+files = { "case.tsx" = "import React from \"react\";\nimport { h } from \"preact\";\nexport const z = 1;\n" }
+expected = []
+
+[[cases]]
+name = "jsx-factory-outside-tsx"
+files = { "case.ts" = "import React from \"react\";\nimport { h } from \"preact\";\n" }
+expected = [{ file = "case.ts", start = 7, end = 12 }, { file = "case.ts", start = 36, end = 37 }]
+
+[[cases]]
+name = "declaration-file"
+files = { "types.d.ts" = "const hidden = 1;\ninterface Hidden {}\n" }
+expected = []
+
+[[cases]]
+name = "exported"
+files = { "case.ts" = "export const a = 1;\nexport function b() {}\nexport class C {}\nexport default function d() {}\nexport interface I {}\nexport type T = 1;\nexport enum E {}\nexport namespace N {}\nexport const { e, f: [g] } = o;\n" }
+expected = []
+
+[[cases]]
+name = "export-list"
+files = { "case.ts" = "const a = 1;\nfunction b() {}\nclass C {}\nexport { a, b as bee };\nexport default C;\n" }
+expected = []
+
+[[cases]]
+name = "export-merged"
+files = { "case.ts" = "interface I {\n  a: number;\n}\nexport interface I {\n  b: number;\n}\n" }
+expected = []
+
+[[cases]]
+name = "underscore"
+files = { "case.ts" = "const _x = 1;\nfunction _f(_a) {}\nclass _C {}\nimport _i from \"i\";\ninterface _I {}\ntype _T = 1;\nenum _E {}\n" }
+expected = []
+
+[[cases]]
+name = "caught"
+files = { "case.ts" = "try {} catch (e) {}\ntry {} catch (_e) {}\ntry {} catch (used) { log(used); }\ntry {} catch {}\n" }
+expected = [{ file = "case.ts", start = 14, end = 15 }, { file = "case.ts", start = 34, end = 36 }]
+
+[[cases]]
+name = "recursive-function"
+files = { "case.ts" = "function f(n) {\n  return n ? f(n - 1) : 0;\n}\nfunction g() {}\ng();\n" }
+expected = [{ file = "case.ts", start = 9, end = 10 }]
+
+[[cases]]
+name = "recursive-arrow"
+files = { "case.ts" = "const f = () => f();\nconst g = function () {\n  return g;\n};\nconst h = () => 1;\nconst k = run(() => k);\nlog(h);\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }, { file = "case.ts", start = 27, end = 28 }]
+
+[[cases]]
+name = "self-referencing-class"
+files = { "case.ts" = "class A {\n  static make(): A {\n    return new A();\n  }\n}\nclass B {}\nlog(new B());\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "self-referencing-type"
+files = { "case.ts" = "interface N {\n  next: N;\n}\ntype L = { next: L };\ntype M = number;\nlet m: M;\nlog(m);\n" }
+expected = [{ file = "case.ts", start = 10, end = 11 }, { file = "case.ts", start = 32, end = 33 }]
+
+[[cases]]
+name = "function-and-class-expressions"
+files = { "case.ts" = "export const f = function g() {};\nexport const c = class K {};\n" }
+expected = []
+
+[[cases]]
+name = "self-update"
+files = { "case.ts" = "let a = 0;\na++;\nlet b = 0;\nb += 1;\nlet c = 0;\nc = c + 1;\nlet d = o;\nd = d.next;\nlet e = 0;\ne ||= 1;\n" }
+expected = [{ file = "case.ts", start = 4, end = 5 }, { file = "case.ts", start = 20, end = 21 }, { file = "case.ts", start = 39, end = 40 }, { file = "case.ts", start = 61, end = 62 }, { file = "case.ts", start = 84, end = 85 }]
+
+[[cases]]
+name = "self-update-used"
+files = { "case.ts" = "let a = 0;\nlog(a++);\nlet b = 0;\nconst c = (b += 1);\nlet d = 0;\nd = f(d);\nlet e = 0;\nif (e++) {}\nlog(c);\n" }
+expected = []
+
+[[cases]]
+name = "self-update-in-loop"
+files = { "case.ts" = "let a = 0;\nfor (;;) {\n  a++;\n}\nlet b = 0;\nwhile (x) {\n  b = b + 1;\n}\n" }
+expected = []
+
+[[cases]]
+name = "self-update-in-function"
+files = { "case.ts" = "let a = 0;\nlet b = 0;\nlet c = 0;\nexport function g() {\n  a++;\n  b += 1;\n  c = c + 1;\n}\nexport const h = () => a++;\n" }
+expected = []
+
+[[cases]]
+name = "write-only"
+files = { "case.ts" = "let x;\nx = 1;\nlet y = 0;\n[y] = [1];\n" }
+expected = [{ file = "case.ts", start = 4, end = 5 }, { file = "case.ts", start = 18, end = 19 }]
+
+[[cases]]
+name = "parameters"
+files = { "case.ts" = "export function f(a, b) {\n  return b;\n}\nexport function g(a, b) {\n  return a;\n}\nexport const h = (a, b = 1) => 0;\n" }
+expected = [{ file = "case.ts", start = 61, end = 62 }, { file = "case.ts", start = 98, end = 99 }, { file = "case.ts", start = 101, end = 102 }]
+
+[[cases]]
+name = "rest-parameter"
+files = { "case.ts" = "export function f(a, ...rest) {\n  return rest;\n}\nexport function g(a, ...rest) {\n  return a;\n}\n" }
+expected = [{ file = "case.ts", start = 18, end = 19 }, { file = "case.ts", start = 73, end = 77 }]
+
+[[cases]]
+name = "destructured-parameters"
+files = { "case.ts" = "export function f({ a }, b) {\n  return b;\n}\nexport function g(a, { b }) {\n  return b;\n}\nexport function h({ c } = {}, d) {\n  return d;\n}\n" }
+expected = [{ file = "case.ts", start = 20, end = 21 }, { file = "case.ts", start = 108, end = 109 }]
+
+[[cases]]
+name = "parameter-property"
+files = { "case.ts" = "export class P {\n  constructor(private x: number, y: number) {}\n}\nexport class Q {\n  constructor(y: number, public x: number) {}\n}\n" }
+expected = [{ file = "case.ts", start = 50, end = 51 }]
+
+[[cases]]
+name = "method-parameters"
+files = { "case.ts" = "export class C {\n  m(a) {}\n  set v(b) {}\n  override o(c) {}\n}\nexport abstract class D {\n  abstract m(a): void;\n  n(b): void;\n  n(b) {}\n}\nexport const o = { set v(a) {}, m(b) {} };\n" }
+expected = [{ file = "case.ts", start = 21, end = 22 }, { file = "case.ts", start = 129, end = 130 }, { file = "case.ts", start = 171, end = 172 }]
+
+[[cases]]
+name = "overloads"
+files = { "case.ts" = "function o(a: number): void;\nfunction o(a: any) {}\nexport function p(a: number): void;\nexport function p(a: any) {\n  return a;\n}\n" }
+expected = [{ file = "case.ts", start = 9, end = 10 }, { file = "case.ts", start = 40, end = 41 }]
+
+[[cases]]
+name = "signature-parameters"
+files = { "case.ts" = "export type F = (a: number) => void;\nexport interface I {\n  m(a: number): void;\n  new (a: number): I;\n}\n" }
+expected = []
+
+[[cases]]
+name = "ambient"
+files = { "case.ts" = "declare const D: number;\ndeclare function df(a: number): void;\ndeclare class DC {}\ndeclare namespace DN {}\n" }
+expected = [{ file = "case.ts", start = 14, end = 15 }]
+
+[[cases]]
+name = "declared-module"
+files = { "case.ts" = "declare module \"m\" {\n  interface X {}\n  type Y = 1;\n  const z: number;\n  function w(): void;\n}\ndeclare module \"n\" {\n  export interface X2 {}\n  interface Y2 {}\n}\n" }
+expected = [{ file = "case.ts", start = 60, end = 61 }, { file = "case.ts", start = 153, end = 155 }]
+
+[[cases]]
+name = "declare-global"
+files = { "case.ts" = "declare global {\n  interface Window {\n    q: number;\n  }\n  const g: number;\n}\nexport {};\n" }
+expected = []
+
+[[cases]]
+name = "namespaces"
+files = { "case.ts" = "namespace A.B {}\nexport namespace C {\n  export const y = 1;\n  const z = 2;\n}\n" }
+expected = [{ file = "case.ts", start = 68, end = 69 }]
+
+[[cases]]
+name = "type-parameters"
+files = { "case.ts" = "export function f<T, U>(x: T) {\n  return x;\n}\nexport type G<T> = number;\nexport interface H<T> {}\nexport class J<T> {}\nexport type K<T> = T extends Array<infer R> ? R : never;\n" }
+expected = [{ file = "case.ts", start = 21, end = 22 }, { file = "case.ts", start = 60, end = 61 }, { file = "case.ts", start = 92, end = 93 }, { file = "case.ts", start = 113, end = 114 }]
+
+[[cases]]
+name = "loop-variables"
+files = { "case.ts" = "for (const x of xs) {}\nfor (const k in o) {}\nexport function empty(o) {\n  for (const k in o) return false;\n  return true;\n}\n" }
+expected = [{ file = "case.ts", start = 11, end = 12 }, { file = "case.ts", start = 34, end = 35 }]
+
+[[cases]]
+name = "destructuring"
+files = { "case.ts" = "const { a, b, ...rest } = o;\nconst [c, d] = l;\nlog(b, rest, d);\n" }
+expected = [{ file = "case.ts", start = 8, end = 9 }, { file = "case.ts", start = 36, end = 37 }]
+
+[[cases]]
+name = "merged-declarations"
+files = { "case.ts" = "const Foo = 1;\ntype Foo = number;\nlet v: Foo;\nlog(v);\nvar w;\nvar w;\n" }
+expected = [{ file = "case.ts", start = 58, end = 59 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.ts" = "const x = 1;\nexport function f(x) {\n  return x;\n}\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "disabled"
+files = { "case.ts" = "// eslint-disable-next-line no-unused-vars\nconst a = 1;\nconst b = 2; // oxlint-disable-line no-unused-vars\nconst c = 3;\n" }
+expected = [{ file = "case.ts", start = 113, end = 114 }]

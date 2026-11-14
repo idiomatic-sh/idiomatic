@@ -18,19 +18,13 @@ from authoring import native_standalone
 from authoring import profile_shards
 from authoring import profile_staging
 from authoring import profile_worker
-from authoring import rule_registration
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('ruff', type=Path, nargs='?', help='pinned Ruff executable')
-    parser.add_argument('rules', nargs='*', help='optional rule IDs in the 413-rule inventory; use --prepared for historical authoring profiles')
+    parser.add_argument('rules', nargs='*', help='optional rule IDs; use --prepared for historical authoring profiles')
     parser.add_argument('--profile', help='run one named combined prepared profile')
-    parser.add_argument('--full-inventory', action='store_true', help='enumerate all 413 pinned defaults; strict failure unless every rule passes')
     parser.add_argument('--prepared', action='store_true', help='use the historical prepared-profile authoring manifest')
-    parser.add_argument('--prepare-inventory', action='store_true', help='materialize registered case contexts without executing them; shared certification owns execution')
-    parser.add_argument('--worker', type=Path, help='existing sealed worker for --full-inventory; never builds a worker')
-    parser.add_argument('--inventory-runner', type=Path, help='existing shared benchmark collector executable')
-    parser.add_argument('--rule-timeout', type=float, default=120.0, help='per-rule full-inventory timeout in seconds (default: 120)')
     parser.add_argument('--native-standalone', action='store_true', help='execute every explicitly declared native query/case profile separately; never the combined cohort')
     parser.add_argument('--self-test-native-standalone', action='store_true', help='exercise native inventory/selection/identity guards without building or running contestants')
     parser.add_argument('--shards', type=int, help='execute each case once across deterministic case shards')
@@ -40,26 +34,9 @@ def main() -> int:
     parser.add_argument('--output-dir', type=Path, help='persist staged repro inputs, identities, exit status, stdout and stderr')
     parser.add_argument('--reference-only', action='store_true', help='check sealed expected findings with Ruff only')
     parser.add_argument('--self-test', action='store_true', help='exercise fail-closed profile guards without running Cargo')
-    parser.add_argument('--stage-request', type=Path, metavar='PINNED_REQUEST', help='stage rules, fragments and benchmark.toml from --source into a fresh --output-dir and build a run-ryo request over the corpus of PINNED_REQUEST; prints the staged digest')
-    parser.add_argument('--source', default='HEAD', help='the measured source commit --stage-request stages from (default: HEAD)')
-    parser.add_argument('--cache', type=Path, help='the store directory the staged request names (default: <output-dir>/cache)')
     arguments = parser.parse_args()
-    if arguments.stage_request is not None:
-        if arguments.output_dir is None or arguments.output_dir.exists():
-            parser.error('--stage-request requires a fresh --output-dir')
-        output_directory = arguments.output_dir.resolve()
-        receipt = profile_staging.stage_measurement_request(arguments.stage_request.resolve(strict=True), arguments.source, output_directory, (arguments.cache or output_directory / 'cache').resolve())
-        print(json.dumps(receipt, indent=2))
-        return 0
-    inventory_default = not (arguments.prepared or arguments.profile or arguments.native_standalone or arguments.self_test or arguments.self_test_native_standalone)
-    if arguments.full_inventory or inventory_default:
-        if arguments.ruff is None or arguments.output_dir is None or (arguments.worker is not None and arguments.reuse_worker_from is not None) or (arguments.rule_timeout <= 0) or arguments.profile or arguments.native_standalone or arguments.reference_only or (arguments.shards is not None) or (arguments.workers is not None) or arguments.parity_check or arguments.prepared or (arguments.full_inventory and arguments.rules):
-            parser.error('inventory verification requires Ruff, fresh output-dir and positive timeout; use --prepared or --profile for historical authoring flags; --full-inventory accepts no rule subset')
-        return rule_registration.verify_full_inventory(arguments)
-    if arguments.worker is not None:
-        parser.error('--worker is supported only with inventory verification')
-    if arguments.inventory_runner is not None:
-        parser.error('--inventory-runner is supported only with inventory verification')
+    if not (arguments.prepared or arguments.profile or arguments.native_standalone or arguments.self_test or arguments.self_test_native_standalone):
+        parser.error('choose --prepared, --profile, --native-standalone or a self-test; every default is verified by the collector (asymptote tool bench-correctness/python/ruff)')
     if arguments.self_test_native_standalone:
         profile_proof_tests.native_standalone_self_test()
         return 0

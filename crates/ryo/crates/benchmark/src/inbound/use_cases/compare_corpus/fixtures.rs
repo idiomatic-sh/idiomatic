@@ -183,5 +183,183 @@ pub fn use_case_with(outside: Outside) -> CompareCorpusUseCaseImpl {
         Arc::new(ContextFake),
         Arc::new(SuiteFake::default()),
         Arc::new(EvidenceFake),
+        Arc::new(crate::outbound::discovery::fixtures::fake::DiscoveryFake { files: Vec::new() }),
+        Arc::new(crate::outbound::workspace::fixtures::fake::WorkspaceFake),
+    )
+}
+
+/// A linter that reports only the findings of the files a request names, and that leaves `unanswered` unanswered: a run
+/// naming it fails as an incomplete candidate does.
+#[derive(Debug)]
+pub struct FilesLinter {
+    /// What it reports over every file.
+    pub inner: LinterFake,
+    /// Whether it answers every file it is given.
+    pub answers: Answers,
+}
+
+/// Which files a `FilesLinter` answers.
+#[derive(Debug)]
+pub enum Answers {
+    /// Every file it is given.
+    Every,
+    /// Every file but this one, whose checks it leaves unanswered.
+    AllBut(RelativePath),
+}
+
+impl crate::outbound::linter::interface::LinterPort for FilesLinter {
+    fn rule_configuration(
+        &self,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        self.inner.rule_configuration()
+    }
+    fn prepare(
+        &self,
+        request: &RunRequest,
+    ) -> Result<
+        ryo_benchmark_contracts::domain::measurements::types::Invocation,
+        ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+    > {
+        self.inner.prepare(request)
+    }
+    fn decode(
+        &self,
+        request: &RunRequest,
+        output: ryo_benchmark_contracts::domain::measurements::types::ProcessOutput,
+    ) -> Result<
+        ryo_benchmark_contracts::domain::reports::types::RunReport,
+        ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+    > {
+        if let Answers::AllBut(file) = &self.answers
+            && request.files.contains(file)
+        {
+            return Err(
+                ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(format!(
+                    "incomplete candidate: {} is read only in part",
+                    file.0
+                )),
+            );
+        }
+        let mut report = self.inner.decode(request, output)?;
+        report
+            .diagnostics
+            .retain(|finding| request.files.contains(&finding.file));
+        Ok(report)
+    }
+    fn settings_text(
+        &self,
+        normalized: &ryo_benchmark_contracts::domain::measurements::types::Invocation,
+        case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
+        profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+    ) -> Result<
+        crate::outbound::linter::types::CanonicalText,
+        ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+    > {
+        self.inner.settings_text(normalized, case, profile)
+    }
+    fn rule_context_text(
+        &self,
+        prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext,
+    ) -> crate::outbound::linter::types::CanonicalText {
+        self.inner.rule_context_text(prepared)
+    }
+    fn version_line(
+        &self,
+        tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine {
+        self.inner.version_line(tool)
+    }
+}
+
+/// A checkout of one project at a fixed directory, tracking the files it names.
+#[derive(Debug)]
+pub struct ProjectWorkspace {
+    /// The checkout's root.
+    pub root: std::path::PathBuf,
+    /// The files the project tracks.
+    pub tracked: Vec<String>,
+}
+
+impl crate::outbound::workspace::interface::WorkspacePort for ProjectWorkspace {
+    fn prepare(
+        &self,
+        project: &ryo_benchmark_contracts::domain::workloads::types::Project,
+    ) -> Result<
+        crate::outbound::workspace::interface::Workspace,
+        ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+    > {
+        Ok(crate::outbound::workspace::interface::Workspace {
+            root: self.root.clone(),
+            revision: crate::outbound::workspace::types::CommitRevision(project.revision.0.clone()),
+            applied: None,
+        })
+    }
+    fn tracked_files(
+        &self,
+        _: &crate::outbound::workspace::interface::Workspace,
+    ) -> Result<
+        crate::outbound::workspace::types::TrackedFiles,
+        ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+    > {
+        Ok(crate::outbound::workspace::types::TrackedFiles(
+            self.tracked.clone(),
+        ))
+    }
+    fn apply_patch(
+        &self,
+        _: &mut crate::outbound::workspace::interface::Workspace,
+        _: &std::path::Path,
+    ) -> Result<(), ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+        Ok(())
+    }
+    fn reset(
+        &self,
+        _: &mut crate::outbound::workspace::interface::Workspace,
+    ) -> Result<(), ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+        Ok(())
+    }
+}
+
+/// The use case over a project of two sources, `bad.py` and `case.py`, in `root`: the reference finds `A` in `case.py` and
+/// refuses to parse `bad.py`; the candidate finds the same `A` and leaves `bad.py` unanswered.
+///
+/// # Panics
+/// Never: the rule identifiers are valid literals.
+#[must_use]
+pub fn projects_use_case(root: &std::path::Path) -> CompareCorpusUseCaseImpl {
+    let bad = RelativePath("bad.py".into());
+    let unparsed = BenchmarkFinding {
+        file: bad.clone(),
+        ..finding_of(syntax(), 0)
+    };
+    CompareCorpusUseCaseImpl::new(
+        Arc::new(FilesLinter {
+            inner: LinterFake {
+                diagnostics: vec![finding(0), unparsed],
+                arguments: Vec::new(),
+            },
+            answers: Answers::Every,
+        }),
+        Arc::new(FilesLinter {
+            inner: LinterFake {
+                diagnostics: vec![finding(0)],
+                arguments: Vec::new(),
+            },
+            answers: Answers::AllBut(bad.clone()),
+        }),
+        Arc::new(ExecutionFake {
+            status: 0,
+            ..ExecutionFake::default()
+        }),
+        Arc::new(ContextFake),
+        Arc::new(SuiteFake::default()),
+        Arc::new(EvidenceFake),
+        Arc::new(crate::outbound::discovery::fixtures::fake::DiscoveryFake {
+            files: vec![bad, RelativePath("case.py".into())],
+        }),
+        Arc::new(ProjectWorkspace {
+            root: root.to_owned(),
+            tracked: vec!["bad.py".into(), "case.py".into()],
+        }),
     )
 }

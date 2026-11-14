@@ -1,0 +1,89 @@
+[[cases]]
+name = "min-of-max"
+files = { "case.ts" = "Math.min(Math.max(x, 10), 5);\n" }
+expected = [{ file = "case.ts", start = 0, end = 28 }]
+
+[[cases]]
+name = "max-of-min"
+files = { "case.ts" = "Math.max(Math.min(x, 5), 10);\n" }
+expected = [{ file = "case.ts", start = 0, end = 28 }]
+
+[[cases]]
+name = "possible-clamp"
+files = { "case.ts" = "Math.min(Math.max(x, 5), 10);\nMath.max(Math.min(x, 10), 5);\n" }
+expected = []
+
+[[cases]]
+name = "constant-first"
+files = { "case.ts" = "Math.min(Math.max(10, x), 5);\n" }
+expected = [{ file = "case.ts", start = 0, end = 28 }]
+
+[[cases]]
+name = "inner-second"
+files = { "case.ts" = "Math.min(5, Math.max(x, 10));\n" }
+expected = [{ file = "case.ts", start = 0, end = 28 }]
+
+[[cases]]
+name = "values-not-spellings"
+files = { "case.ts" = "Math.min(Math.max(x, 0x5), 10.0);\nMath.min(Math.max(x, 1e3), 5);\n" }
+expected = [{ file = "case.ts", start = 34, end = 63 }]
+
+[[cases]]
+name = "equal-bounds"
+files = { "case.ts" = "Math.min(Math.max(x, 10), 10);\n" }
+expected = []
+
+[[cases]]
+name = "any-bound"
+files = { "case.ts" = "Math.min(Math.max(x, 1, 3), 5);\nMath.min(Math.max(x, 7, 3), 5);\nMath.min(Math.max(x, 7), 9, 5);\n" }
+expected = [{ file = "case.ts", start = 32, end = 62 }, { file = "case.ts", start = 64, end = 94 }]
+
+[[cases]]
+name = "negative-bounds"
+files = { "case.ts" = "Math.min(Math.max(x, -10), -20);\n" }
+expected = []
+
+[[cases]]
+name = "no-bound"
+files = { "case.ts" = "Math.min(Math.max(x, 10));\nMath.min(Math.max(x, y), 5);\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-inner"
+files = { "case.ts" = "Math.min((Math.max(x, 10)), 5);\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-bound"
+files = { "case.ts" = "Math.min(Math.max(x, (10)), 5);\n" }
+expected = []
+
+[[cases]]
+name = "optional-outer"
+files = { "case.ts" = "Math?.min(Math.max(x, 10), 5);\n" }
+expected = [{ file = "case.ts", start = 0, end = 29 }]
+
+[[cases]]
+name = "optional-inner"
+files = { "case.ts" = "Math.min(Math?.max(x, 10), 5);\n" }
+expected = []
+
+[[cases]]
+name = "computed-names"
+files = { "case.ts" = "Math[\"min\"](Math.max(x, 10), 5);\nMath[`min`](Math.max(x, 10), 5);\n" }
+expected = [{ file = "case.ts", start = 0, end = 31 }, { file = "case.ts", start = 33, end = 64 }]
+
+[[cases]]
+name = "bigint-bounds"
+files = { "case.ts" = "Math.min(Math.max(x, 10n), 5n);\n" }
+expected = []
+
+[[cases]]
+name = "other-object"
+files = { "case.ts" = "M.min(M.max(x, 10), 5);\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line bad-min-max-func\nMath.min(Math.max(x, 10), 5);\n" }
+expected = []

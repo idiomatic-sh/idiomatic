@@ -383,4 +383,16 @@ impl languages::Semantics<Sections> for ParseContract {
     ) -> Support<Reader<languages::StandardLibraryImport, Sections>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn pattern_parse(&self) -> Support<Reader<languages::PatternParse, Sections>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_syntax(&self) -> Support<Reader<languages::PatternSyntax, Sections>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_child(&self) -> Support<Reader<languages::PatternChild, Sections>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }

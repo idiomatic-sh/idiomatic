@@ -6,6 +6,14 @@
 )]
 use ryo::languages::Why;
 use ryo::languages::contract::{Expected, Unfilled, Unshown};
+/// The rows the `binding_read` relation must give for its fixture input.
+mod binding_read {
+    include!("../../tests/fixtures/relations/binding_read/expected.rs");
+}
+/// The rows the `binding_use` relation must give for its fixture input.
+mod binding_use {
+    include!("../../tests/fixtures/relations/binding_use/expected.rs");
+}
 /// The rows the `resolves` relation must give for its fixture input.
 mod resolves {
     include!("../../tests/fixtures/relations/resolves/expected.rs");
@@ -70,6 +78,14 @@ mod static_import {
 mod string_literal {
     include!("../../tests/fixtures/relations/string_literal/expected.rs");
 }
+/// The rows the `numeric-literal` relation must give for its fixture.
+mod numeric_literal {
+    include!("../../tests/fixtures/relations/numeric_literal/expected.rs");
+}
+/// The rows the `expression-shape` relation must give for its fixture.
+mod expression_shape {
+    include!("../../tests/fixtures/relations/expression_shape/expected.rs");
+}
 /// The rows the `syntax-child` relation must give for its fixture.
 mod syntax_child {
     include!("../../tests/fixtures/relations/syntax_child/expected.rs");
@@ -91,6 +107,18 @@ mod source_location {
 mod visibility {
     include!("../../tests/fixtures/relations/visibility/expected.rs");
 }
+/// The rows the `pattern-parse` relation must give for its fixture.
+mod pattern_parse {
+    include!("../../tests/fixtures/relations/pattern_parse/expected.rs");
+}
+/// The rows the `pattern-syntax` relation must give for its fixture.
+mod pattern_syntax {
+    include!("../../tests/fixtures/relations/pattern_syntax/expected.rs");
+}
+/// The rows the `pattern-child` relation must give for its fixture.
+mod pattern_child {
+    include!("../../tests/fixtures/relations/pattern_child/expected.rs");
+}
 /// The expected rows of every relation the language reads from trees, one entry for each.
 pub(super) fn expected() -> Vec<Expected> {
     vec![
@@ -99,6 +127,8 @@ pub(super) fn expected() -> Vec<Expected> {
         source_location::expected(),
         comment::expected(),
         string_literal::expected(),
+        numeric_literal::expected(),
+        expression_shape::expected(),
         directive::expected(),
         function::expected(),
         scope::expected(),
@@ -108,6 +138,8 @@ pub(super) fn expected() -> Vec<Expected> {
         reference::expected(),
         static_call::expected(),
         resolves::expected(),
+        binding_read::expected(),
+        binding_use::expected(),
         call_argument::expected(),
         annotates::expected(),
         assigns::expected(),
@@ -117,6 +149,9 @@ pub(super) fn expected() -> Vec<Expected> {
         syntax_child::expected(),
         semantic_child::expected(),
         syntax_error::expected(),
+        pattern_parse::expected(),
+        pattern_syntax::expected(),
+        pattern_child::expected(),
     ]
 }
 
@@ -146,12 +181,16 @@ pub(super) fn unfilled() -> Vec<Unfilled> {
         &["struct", "trait", "type", "package", "macro", "section", "implementation"],
         "TypeScript declares a type by a class, an interface, a type alias or an enum, each its own kind, and has no struct, trait, package, macro, section or implementation declaration",
     ));
-    found.extend(words(
-        "defines",
-        "kind",
-        &["parameter"],
-        "a parameter is a row of `parameter`, with its kind and place, not of `defines`",
-    ));
+    for column in ["since-major", "since-minor"] {
+        found.push(Unfilled {
+            relation: "binding_read",
+            column,
+            unshown: Unshown::Filled,
+            reason: Why(
+                "ECMAScript versions no global name a TypeScript file reads: the builtins are the global object's, read whatever the target",
+            ),
+        });
+    }
     found.extend(words(
         "parameter",
         "kind",

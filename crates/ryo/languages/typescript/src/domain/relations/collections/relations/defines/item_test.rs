@@ -26,6 +26,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
+        name: CaseName("a_typed_this_parameter_declares_no_name"),
+        word: Word::Succeeds,
+        input: || "function f(this: Window) {}",
+        expect: Expect::Value(Reading {
+            rows: &[&[
+                want_node(1),
+                want_name("function"),
+                want_name("function-declaration"),
+                want_name("f"),
+                want_node(0),
+                want_file("item.ts"),
+                want_span((1, 10), (1, 11)),
+            ]],
+            causes: &[],
+        }),
+    },
+    Case {
         name: CaseName("an_empty_file_has_no_row"),
         word: Word::Succeeds,
         input: || "",

@@ -2,9 +2,10 @@
 use super::interface::CompareCorpusUseCase;
 use super::types::{CorpusParity, ParityBoundaries};
 use crate::outbound::{
-    context::interface::ContextPort, evidence::interface::EvidencePort,
-    execution::interface::ExecutionPort, linter::interface::LinterPort,
-    suite::interface::SuitePort,
+    context::interface::ContextPort, discovery::interface::DiscoveryPort,
+    evidence::interface::EvidencePort, execution::interface::ExecutionPort,
+    linter::interface::LinterPort, suite::interface::SuitePort,
+    workspace::interface::WorkspacePort,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::sync::Arc;
@@ -23,6 +24,10 @@ pub struct CompareCorpusUseCaseImpl {
     suite: Arc<dyn SuitePort>,
     /// Parity metrics and the per-rule document.
     evidence: Arc<dyn EvidencePort>,
+    /// The reference tool's own selection of a worktree's files.
+    discovery: Arc<dyn DiscoveryPort>,
+    /// Pinned project checkouts.
+    workspace: Arc<dyn WorkspacePort>,
 }
 
 impl CompareCorpusUseCaseImpl {
@@ -35,6 +40,8 @@ impl CompareCorpusUseCaseImpl {
         context: Arc<dyn ContextPort>,
         suite: Arc<dyn SuitePort>,
         evidence: Arc<dyn EvidencePort>,
+        discovery: Arc<dyn DiscoveryPort>,
+        workspace: Arc<dyn WorkspacePort>,
     ) -> Self {
         Self {
             reference,
@@ -43,6 +50,24 @@ impl CompareCorpusUseCaseImpl {
             context,
             suite,
             evidence,
+            discovery,
+            workspace,
+        }
+    }
+}
+
+impl CompareCorpusUseCaseImpl {
+    /// The boundaries a comparison calls, borrowed.
+    fn boundaries(&self) -> ParityBoundaries<'_> {
+        ParityBoundaries {
+            reference: self.reference.as_ref(),
+            candidate: self.candidate.as_ref(),
+            execution: self.execution.as_ref(),
+            context: self.context.as_ref(),
+            suite: self.suite.as_ref(),
+            evidence: self.evidence.as_ref(),
+            discovery: self.discovery.as_ref(),
+            workspace: self.workspace.as_ref(),
         }
     }
 }
@@ -53,18 +78,7 @@ impl CompareCorpusUseCase for CompareCorpusUseCaseImpl {
         parity: &CorpusParity<'_>,
         observations: &mut dyn std::io::Write,
     ) -> Result<(), Error> {
-        super::service::compare_corpus(
-            &ParityBoundaries {
-                reference: self.reference.as_ref(),
-                candidate: self.candidate.as_ref(),
-                execution: self.execution.as_ref(),
-                context: self.context.as_ref(),
-                suite: self.suite.as_ref(),
-                evidence: self.evidence.as_ref(),
-            },
-            parity,
-            observations,
-        )
+        super::service::compare_corpus(&self.boundaries(), parity, observations)
     }
 }
 

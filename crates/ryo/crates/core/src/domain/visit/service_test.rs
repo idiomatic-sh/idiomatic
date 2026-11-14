@@ -239,7 +239,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("notes_are_wanted_exactly_for_relations_that_declare_them"),
         word: Word::Succeeds,
         input: || Question::NotesAsDeclared,
-        expect: Expect::Value(69),
+        expect: Expect::Value(72),
     },
     Case {
         name: CaseName("a_plan_reading_a_relation_the_catalog_lacks_is_refused_by_the_visit_wants"),

@@ -129,8 +129,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Ask::Catalog,
         // The feature catalog includes the internal Hosted operation as well as
-        // the 25 public operators. The 69 relations include ProjectNamespaceMembership.
-        expect: Expect::Value(Answer::Features(26 + 17 + 8 + 69)),
+        // the 25 public operators. The 72 relations include ProjectNamespaceMembership.
+        expect: Expect::Value(Answer::Features(26 + 17 + 8 + 72)),
     },
     Case {
         name: CaseName("a_select_is_fed_the_rows_of_its_input"),
@@ -173,7 +173,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Ask::FedOverNothing,
         expect: Expect::Value(Answer::Told {
-            features: 26 + 17 + 8 + 69,
+            features: 26 + 17 + 8 + 72,
             unfed: true,
         }),
     },

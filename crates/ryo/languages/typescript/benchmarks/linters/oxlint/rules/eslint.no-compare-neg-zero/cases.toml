@@ -1,0 +1,84 @@
+[[cases]]
+name = "strict-equality"
+files = { "case.ts" = "if (x === -0) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 12 }]
+
+[[cases]]
+name = "left-operand"
+files = { "case.ts" = "if (-0 > x) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 10 }]
+
+[[cases]]
+name = "every-comparison"
+files = { "case.ts" = "a == -0;\na != -0;\na !== -0;\na < -0;\na <= -0;\na >= -0;\n" }
+expected = [{ file = "case.ts", start = 0, end = 7 }, { file = "case.ts", start = 9, end = 16 }, { file = "case.ts", start = 18, end = 26 }, { file = "case.ts", start = 28, end = 34 }, { file = "case.ts", start = 36, end = 43 }, { file = "case.ts", start = 45, end = 52 }]
+
+[[cases]]
+name = "float-zero"
+files = { "case.ts" = "if (x === -0.0) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 14 }]
+
+[[cases]]
+name = "hexadecimal-zero"
+files = { "case.ts" = "if (x === -0x0) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 14 }]
+
+[[cases]]
+name = "bigint-zero"
+files = { "case.ts" = "if (x === -0n) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 13 }]
+
+[[cases]]
+name = "spaced-sign"
+files = { "case.ts" = "if (x === - 0) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 13 }]
+
+[[cases]]
+name = "parenthesized-operand"
+files = { "case.ts" = "if (x === (-0)) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 14 }]
+
+[[cases]]
+name = "both-operands"
+files = { "case.ts" = "if (-0 === -0) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 13 }]
+
+[[cases]]
+name = "parenthesized-zero"
+files = { "case.ts" = "if (x == -(0)) {}\n" }
+expected = []
+
+[[cases]]
+name = "positive-zero"
+files = { "case.ts" = "if (x === 0) {}\n" }
+expected = []
+
+[[cases]]
+name = "plus-zero"
+files = { "case.ts" = "if (x === +0) {}\n" }
+expected = []
+
+[[cases]]
+name = "assignment"
+files = { "case.ts" = "x = -0;\n" }
+expected = []
+
+[[cases]]
+name = "arithmetic"
+files = { "case.ts" = "x = a + -0;\n" }
+expected = []
+
+[[cases]]
+name = "small-value"
+files = { "case.ts" = "if (x === -0.1) {}\n" }
+expected = []
+
+[[cases]]
+name = "switch-case"
+files = { "case.ts" = "switch (x) { case -0: break; }\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-compare-neg-zero\nif (x === -0) {}\n" }
+expected = []

@@ -1,0 +1,224 @@
+[[cases]]
+name = "default"
+files = { "case.ts" = "import d from \"m\";\nd = 2;\n" }
+expected = [{ file = "case.ts", start = 19, end = 20 }]
+
+[[cases]]
+name = "named"
+files = { "case.ts" = "import { a } from \"m\";\na = 1;\n" }
+expected = [{ file = "case.ts", start = 23, end = 24 }]
+
+[[cases]]
+name = "renamed"
+files = { "case.ts" = "import { a as b } from \"m\";\nb = 1;\n" }
+expected = [{ file = "case.ts", start = 28, end = 29 }]
+
+[[cases]]
+name = "increment"
+files = { "case.ts" = "import { a } from \"m\";\na++;\n" }
+expected = [{ file = "case.ts", start = 23, end = 24 }]
+
+[[cases]]
+name = "compound"
+files = { "case.ts" = "import { a } from \"m\";\na += 1;\na ||= 1;\n" }
+expected = [{ file = "case.ts", start = 23, end = 24 }, { file = "case.ts", start = 31, end = 32 }]
+
+[[cases]]
+name = "destructuring"
+files = { "case.ts" = "import { a } from \"m\";\n[a] = q;\n" }
+expected = [{ file = "case.ts", start = 24, end = 25 }]
+
+[[cases]]
+name = "named-member"
+files = { "case.ts" = "import { a } from \"m\";\na.b = 1;\n" }
+expected = []
+
+[[cases]]
+name = "namespace"
+files = { "case.ts" = "import * as ns from \"n\";\nns = 4;\n" }
+expected = [{ file = "case.ts", start = 25, end = 27 }]
+
+[[cases]]
+name = "namespace-member"
+files = { "case.ts" = "import * as ns from \"n\";\nns.x = 5;\n" }
+expected = [{ file = "case.ts", start = 25, end = 29 }]
+
+[[cases]]
+name = "namespace-computed-member"
+files = { "case.ts" = "import * as ns from \"n\";\nns[\"y\"] = 1;\n" }
+expected = [{ file = "case.ts", start = 25, end = 32 }]
+
+[[cases]]
+name = "namespace-member-compound"
+files = { "case.ts" = "import * as ns from \"n\";\nns.x += 1;\n" }
+expected = [{ file = "case.ts", start = 25, end = 29 }]
+
+[[cases]]
+name = "namespace-member-logical"
+files = { "case.ts" = "import * as ns from \"n\";\nns.x ||= 1;\n" }
+expected = [{ file = "case.ts", start = 25, end = 29 }]
+
+[[cases]]
+name = "namespace-member-increment"
+files = { "case.ts" = "import * as ns from \"n\";\nns.x++;\n--ns.y;\n" }
+expected = [{ file = "case.ts", start = 25, end = 29 }, { file = "case.ts", start = 35, end = 39 }]
+
+[[cases]]
+name = "namespace-member-delete"
+files = { "case.ts" = "import * as ns from \"n\";\ndelete ns.x;\n" }
+expected = [{ file = "case.ts", start = 32, end = 36 }]
+
+[[cases]]
+name = "namespace-member-delete-computed"
+files = { "case.ts" = "import * as ns from \"n\";\ndelete ns[\"x\"];\n" }
+expected = [{ file = "case.ts", start = 32, end = 39 }]
+
+[[cases]]
+name = "namespace-member-delete-optional"
+files = { "case.ts" = "import * as ns from \"n\";\ndelete ns?.x;\n" }
+expected = [{ file = "case.ts", start = 32, end = 37 }]
+
+[[cases]]
+name = "namespace-member-delete-parenthesized"
+files = { "case.ts" = "import * as ns from \"n\";\ndelete (ns.y);\n" }
+expected = []
+
+[[cases]]
+name = "namespace-member-delete-non-null"
+files = { "case.ts" = "import * as ns from \"n\";\ndelete ns.y!;\n" }
+expected = []
+
+[[cases]]
+name = "namespace-deep-member"
+files = { "case.ts" = "import * as ns from \"n\";\nns.x.y = 2;\nns.x.y++;\ndelete ns.x.y;\n" }
+expected = []
+
+[[cases]]
+name = "namespace-member-array-pattern"
+files = { "case.ts" = "import * as ns from \"n\";\n[ns.z] = q;\n[...ns.r] = q;\n[ns.d = 1] = q;\n" }
+expected = [{ file = "case.ts", start = 26, end = 30 }, { file = "case.ts", start = 41, end = 45 }, { file = "case.ts", start = 53, end = 57 }]
+
+[[cases]]
+name = "namespace-member-object-pattern"
+files = { "case.ts" = "import * as ns from \"n\";\n({ k: ns.w } = o);\n({ ...ns.r } = o);\n({ k: ns.d = 1 } = o);\n" }
+expected = [{ file = "case.ts", start = 31, end = 35 }, { file = "case.ts", start = 50, end = 54 }, { file = "case.ts", start = 69, end = 73 }]
+
+[[cases]]
+name = "namespace-member-object-expression"
+files = { "case.ts" = "import * as ns from \"n\";\nconst v = { k: ns.w };\n" }
+expected = []
+
+[[cases]]
+name = "namespace-member-for"
+files = { "case.ts" = "import * as ns from \"n\";\nfor (ns.w in o);\nfor (ns.v of o);\n" }
+expected = [{ file = "case.ts", start = 30, end = 34 }, { file = "case.ts", start = 47, end = 51 }]
+
+[[cases]]
+name = "namespace-member-parenthesized-target"
+files = { "case.ts" = "import * as ns from \"n\";\n(ns.x) = 1;\n(ns.y)++;\n" }
+expected = [{ file = "case.ts", start = 26, end = 30 }, { file = "case.ts", start = 38, end = 42 }]
+
+[[cases]]
+name = "namespace-parenthesized-object"
+files = { "case.ts" = "import * as ns from \"n\";\n(ns).x = 1;\n" }
+expected = []
+
+[[cases]]
+name = "namespace-wrapped-object"
+files = { "case.ts" = "import * as ns from \"n\";\n(ns as any).x = 1;\nns!.y = 1;\n" }
+expected = []
+
+[[cases]]
+name = "namespace-member-read"
+files = { "case.ts" = "import * as ns from \"n\";\nns.x;\nns.y();\nf(ns.z);\n" }
+expected = []
+
+[[cases]]
+name = "object-assign"
+files = { "case.ts" = "import * as ns from \"n\";\nObject.assign(ns, {});\n" }
+expected = [{ file = "case.ts", start = 39, end = 41 }]
+
+[[cases]]
+name = "object-mutators"
+files = { "case.ts" = "import * as ns from \"n\";\nObject.defineProperty(ns, \"x\", {});\nObject.defineProperties(ns, {});\nObject.freeze(ns);\nObject.setPrototypeOf(ns, null);\n" }
+expected = [{ file = "case.ts", start = 47, end = 49 }, { file = "case.ts", start = 85, end = 87 }, { file = "case.ts", start = 108, end = 110 }, { file = "case.ts", start = 135, end = 137 }]
+
+[[cases]]
+name = "reflect-mutators"
+files = { "case.ts" = "import * as ns from \"n\";\nReflect.defineProperty(ns, \"x\", {});\nReflect.deleteProperty(ns, \"x\");\nReflect.set(ns, \"x\", 1);\nReflect.setPrototypeOf(ns, null);\n" }
+expected = [{ file = "case.ts", start = 48, end = 50 }, { file = "case.ts", start = 85, end = 87 }, { file = "case.ts", start = 107, end = 109 }, { file = "case.ts", start = 143, end = 145 }]
+
+[[cases]]
+name = "other-object-methods"
+files = { "case.ts" = "import * as ns from \"n\";\nObject.seal(ns);\nObject.preventExtensions(ns);\nReflect.preventExtensions(ns);\nObject.keys(ns);\n" }
+expected = []
+
+[[cases]]
+name = "mutator-computed-and-optional"
+files = { "case.ts" = "import * as ns from \"n\";\nObject[\"assign\"](ns, {});\nObject?.assign(ns, {});\nObject.assign?.(ns, {});\n" }
+expected = [{ file = "case.ts", start = 42, end = 44 }, { file = "case.ts", start = 66, end = 68 }, { file = "case.ts", start = 91, end = 93 }]
+
+[[cases]]
+name = "mutator-computed-name"
+files = { "case.ts" = "import * as ns from \"n\";\nconst assign = \"assign\";\nObject[assign](ns, {});\n" }
+expected = []
+
+[[cases]]
+name = "mutator-second-argument"
+files = { "case.ts" = "import * as ns from \"n\";\nObject.assign({}, ns);\n" }
+expected = []
+
+[[cases]]
+name = "mutator-wrapped-argument"
+files = { "case.ts" = "import * as ns from \"n\";\nObject.assign((ns), {});\nObject.assign(ns as any, {});\nObject.assign(...[ns]);\n" }
+expected = []
+
+[[cases]]
+name = "mutator-shadowed"
+files = { "case.ts" = "import * as ns from \"n\";\nconst Object = o;\nObject.assign(ns, {});\n" }
+expected = []
+
+[[cases]]
+name = "mutator-on-a-named-import"
+files = { "case.ts" = "import { a } from \"m\";\nObject.assign(a, {});\n" }
+expected = []
+
+[[cases]]
+name = "mutator-on-a-member"
+files = { "case.ts" = "import * as ns from \"n\";\nObject.assign(ns.x, {});\n" }
+expected = []
+
+[[cases]]
+name = "after-a-delete"
+files = { "case.ts" = "import * as ns from \"n\";\nns.z = 1;\ndelete ns.y;\nns.w = 1;\nObject.assign(ns, {});\nns = 1;\n" }
+expected = [{ file = "case.ts", start = 25, end = 29 }, { file = "case.ts", start = 42, end = 46 }]
+
+[[cases]]
+name = "after-a-delete-other-import"
+files = { "case.ts" = "import * as ns from \"n\";\nimport { a } from \"m\";\ndelete ns.y;\na = 1;\n" }
+expected = [{ file = "case.ts", start = 55, end = 59 }, { file = "case.ts", start = 61, end = 62 }]
+
+[[cases]]
+name = "after-a-parenthesized-delete"
+files = { "case.ts" = "import * as ns from \"n\";\ndelete (ns.y);\nns.z = 1;\n" }
+expected = [{ file = "case.ts", start = 40, end = 44 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.ts" = "import * as ns from \"n\";\nimport { a } from \"m\";\nfunction f(ns, a) {\n  ns.x = 1;\n  a = 1;\n}\n" }
+expected = []
+
+[[cases]]
+name = "type-import"
+files = { "case.ts" = "import type { T } from \"m\";\nT = 1;\n" }
+expected = []
+
+[[cases]]
+name = "import-equals"
+files = { "case.ts" = "import q = require(\"q\");\nq = 1;\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "import { a } from \"m\";\n// eslint-disable-next-line no-import-assign\na = 1;\n" }
+expected = []

@@ -10,6 +10,10 @@ pub const QUERY_FILE: &str = "query.ryoql";
 pub const MODULE_NAME_PROBE: &str = "module source";
 /// The filename of a profile's manifest inside its profile directory.
 pub const PROFILE_MANIFEST: &str = "benchmark.toml";
+/// The filename of a rule's cases inside its rule directory.
+pub const CASES_FILE: &str = "cases.toml";
+/// The identity key of a sealed worker's digest.
+pub const WORKER_SHA256: &str = "worker_sha256";
 /// The worker argument naming the request file the parent wrote for it.
 pub const REQUEST_FILE: &str = "--request-file";
 /// The timed worker command of a linter's benchmark executable: no tracing.

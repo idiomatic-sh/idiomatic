@@ -1,0 +1,84 @@
+[[cases]]
+name = "identifier"
+files = { "case.ts" = "switch (x) { case a: break; case a: break; }\n" }
+expected = [{ file = "case.ts", start = 18, end = 19 }]
+
+[[cases]]
+name = "values-not-spellings"
+files = { "case.ts" = "switch (x) { case 1: case 1.0: break; }\n" }
+expected = [{ file = "case.ts", start = 18, end = 19 }]
+
+[[cases]]
+name = "member"
+files = { "case.ts" = "switch (x) { case a.b: case a.b: break; }\n" }
+expected = [{ file = "case.ts", start = 18, end = 21 }]
+
+[[cases]]
+name = "call"
+files = { "case.ts" = "switch (x) { case f(1): case f(1): break; }\n" }
+expected = [{ file = "case.ts", start = 18, end = 22 }]
+
+[[cases]]
+name = "parentheses"
+files = { "case.ts" = "switch (x) { case (a): case a: break; }\n" }
+expected = [{ file = "case.ts", start = 19, end = 20 }]
+
+[[cases]]
+name = "quotes"
+files = { "case.ts" = "switch (x) { case 'a': case \"a\": break; }\n" }
+expected = [{ file = "case.ts", start = 18, end = 21 }]
+
+[[cases]]
+name = "not-adjacent"
+files = { "case.ts" = "switch (x) { case a: case b: case a: break; }\n" }
+expected = [{ file = "case.ts", start = 18, end = 19 }]
+
+[[cases]]
+name = "three-alike"
+files = { "case.ts" = "switch (x) { case a: case a: case a: break; }\n" }
+expected = [{ file = "case.ts", start = 18, end = 19 }, { file = "case.ts", start = 18, end = 19 }]
+
+[[cases]]
+name = "around-default"
+files = { "case.ts" = "switch (x) { case a: default: case a: break; }\n" }
+expected = [{ file = "case.ts", start = 18, end = 19 }]
+
+[[cases]]
+name = "comment"
+files = { "case.ts" = "switch (x) { case a /* c */: case a: break; }\n" }
+expected = [{ file = "case.ts", start = 18, end = 19 }]
+
+[[cases]]
+name = "spacing"
+files = { "case.ts" = "switch (x) { case a + 1: case a+1: break; }\n" }
+expected = [{ file = "case.ts", start = 18, end = 23 }]
+
+[[cases]]
+name = "template"
+files = { "case.ts" = "switch (x) { case `a`: case `a`: break; }\n" }
+expected = [{ file = "case.ts", start = 18, end = 21 }]
+
+[[cases]]
+name = "computed-member"
+files = { "case.ts" = "switch (x) { case a.b: case a[\"b\"]: break; }\n" }
+expected = []
+
+[[cases]]
+name = "bigint-and-number"
+files = { "case.ts" = "switch (x) { case 1n: case 1: break; }\n" }
+expected = []
+
+[[cases]]
+name = "distinct"
+files = { "case.ts" = "switch (x) { case a: case b: break; }\n" }
+expected = []
+
+[[cases]]
+name = "separate-switches"
+files = { "case.ts" = "switch (x) { case a: break; }\nswitch (y) { case a: break; }\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "switch (x) {\n  // eslint-disable-next-line no-duplicate-case\n  case a: break;\n  case a: break;\n}\n" }
+expected = []

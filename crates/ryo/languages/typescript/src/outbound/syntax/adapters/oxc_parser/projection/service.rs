@@ -4,14 +4,23 @@ use super::super::constants::{
     COMMONJS_EXTENSION, JSX_EXTENSION, MODULE_EXTENSION, PLAIN_EXTENSION,
 };
 use super::super::types::{
-    ChildCursor, Decoded, DecodedText, Piece, Text, VisitDepth, VisitorStack,
+    Carrier, Carries, ChildCursor, Decoded, DecodedText, Hosting, NodeProperty, Piece, Text,
+    VisitDepth, VisitorStack,
 };
+use crate::domain::bindings::constants::{READ_WRITE, TYPE, VALUE, WRITE};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
+use crate::domain::syntax::constants::{
+    FLOAT_NUMBER, INTEGER_NUMBER, NUMERIC_KIND, NUMERIC_VALUE, REDECLARATION_OF,
+    REFERENCE_DECLARATION, REFERENCE_FLAGS,
+};
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::{Dialect, Kind};
 use crate::domain::tokens::types::Token;
+use oxc_ast::AstKind;
 use oxc_ast::ast::FormalParameter;
+use oxc_semantic::{ReferenceId, Scoping};
+
 use oxc_span::{GetSpan as _, SourceType, Span};
 use ryo::languages::{self, Offset};
 
@@ -36,9 +45,9 @@ pub(in super::super) fn annotate(piece: &mut Piece) {
 
 /// Normalize parser wrappers whose children belong to a standard node.
 /// Finish a node only after its typed visitor has normalized the native form.
-pub(in super::super) fn normalized(
-    projection: &mut VisitorStack,
-    visit: impl FnOnce(&mut VisitorStack),
+pub(in super::super) fn normalized<'a>(
+    projection: &mut VisitorStack<'a>,
+    visit: impl FnOnce(&mut VisitorStack<'a>),
     normalize: impl FnOnce(&mut Piece),
 ) {
     let previous = projection
@@ -53,7 +62,7 @@ pub(in super::super) fn normalized(
 }
 
 /// Preserve source ordering while attaching a completed standard node or transparent wrapper.
-pub(in super::super) fn attach(projection: &mut VisitorStack, mut piece: Piece) {
+pub(in super::super) fn attach(projection: &mut VisitorStack<'_>, mut piece: Piece) {
     piece
         .children
         .sort_by_key(|child| (child.span.start, std::cmp::Reverse(child.span.end)));
@@ -180,20 +189,36 @@ pub(in super::super) fn insert(node: &mut Piece, mut token: Piece) {
     node.children.push(token);
 }
 
-/// Emit the standard tree, preserving AST parentage and source order.
-pub(in super::super) fn write(node: &mut Piece, builder: &mut languages::TableBuilder<'_>) {
+/// Emit the standard tree, preserving AST parentage and source order, and note where each carrier of a pattern was written.
+pub(in super::super) fn write(
+    node: &mut Piece,
+    carriers: &mut [Carrier<'_>],
+    builder: &mut languages::TableBuilder<'_>,
+) {
     node.children
         .sort_by_key(|child| (child.span.start, std::cmp::Reverse(child.span.end)));
     let (start, end) = (Offset(node.span.start), Offset(node.span.end));
     match node.kind {
         Kind::Node(_) => {
+            if let Carries::Pattern(index) = node.carries
+                && let Some(carrier) = carriers.get_mut(index.0)
+            {
+                carrier.host = Hosting::At(languages::builder_position(builder));
+            }
             languages::enter_node(builder, kind_bits(node.kind), start);
+            for property in &node.properties {
+                languages::node_property(
+                    builder,
+                    property.id,
+                    languages::NameText(&property.value.0),
+                );
+            }
             for child in &mut node.children {
-                write(child, builder);
+                write(child, carriers, builder);
             }
             languages::leave_node(builder, end);
         }
-        Kind::Token(_) | Kind::Extra(_) => match &node.text {
+        Kind::Token(_) | Kind::Extra(_) | Kind::Pattern(_) => match &node.text {
             Text::Source => languages::token(builder, kind_bits(node.kind), start, end),
             Text::Decoded(text) => languages::decoded_token(
                 builder,
@@ -209,7 +234,7 @@ pub(in super::super) fn write(node: &mut Piece, builder: &mut languages::TableBu
 /// The meta and the property of a meta property at `span` (`import.meta`, `new.target`): the identifiers TypeScript-ESTree gives it,
 /// the first word at its start and the second at its end, each decoded as the parser does an identifier. Oxc keeps neither as a node.
 pub(in super::super) fn meta_words(
-    projection: &mut VisitorStack,
+    projection: &mut VisitorStack<'_>,
     span: Span,
     words: [languages::NameText<'static>; 2],
 ) -> [Piece; 2] {
@@ -238,7 +263,63 @@ pub(in super::super) fn leaf(kind: Kind, span: Span) -> Piece {
         children: Vec::new(),
         text: Text::Source,
         cursor: ChildCursor(0),
+        properties: Vec::new(),
+        carries: Carries::Nothing,
     }
+}
+
+/// The scalar properties the parser gives the node `kind`: what its semantic pass says of a name, and a numeric literal's kind and
+/// value.
+pub(in super::super) fn node_properties(scoping: &Scoping, kind: AstKind<'_>) -> Vec<NodeProperty> {
+    let mut properties = semantic_properties(scoping, kind);
+    properties.extend(numeric_properties(kind));
+    properties
+}
+
+/// Where the name the reference `id` resolves to is first declared, the [`REFERENCE_DECLARATION`] of its identifier: the start of
+/// that declaration's binding identifier, or nothing for a name no declaration of the file binds.
+pub(in super::super) fn declaration_start(scoping: &Scoping, id: ReferenceId) -> Option<Offset> {
+    scoping
+        .get_reference(id)
+        .symbol_id()
+        .map(|symbol| Offset(scoping.symbol_span(symbol).start))
+}
+
+/// What the semantic pass says of the node `kind`, as the properties the domain reads: how an identifier reference uses its name and
+/// where the name it resolves to is first declared, and, for a binding identifier that declares a name again, where it was first.
+fn semantic_properties(scoping: &Scoping, kind: AstKind<'_>) -> Vec<NodeProperty> {
+    let mut properties = Vec::new();
+    if let AstKind::IdentifierReference(reference) = kind
+        && let Some(id) = reference.reference_id.get()
+    {
+        let reference = scoping.get_reference(id);
+        let word = match (reference.is_read(), reference.is_write()) {
+            (true, true) => READ_WRITE,
+            (false, true) => WRITE,
+            (true, false) => VALUE,
+            (false, false) => TYPE,
+        };
+        properties.push(NodeProperty {
+            id: REFERENCE_FLAGS,
+            value: DecodedText(word.to_owned()),
+        });
+        if let Some(declared) = declaration_start(scoping, id) {
+            properties.push(NodeProperty {
+                id: REFERENCE_DECLARATION,
+                value: DecodedText(declared.0.to_string()),
+            });
+        }
+    }
+    if let AstKind::BindingIdentifier(binding) = kind
+        && let Some(symbol) = binding.symbol_id.get()
+        && scoping.symbol_span(symbol) != binding.span
+    {
+        properties.push(NodeProperty {
+            id: REDECLARATION_OF,
+            value: DecodedText(scoping.symbol_span(symbol).start.to_string()),
+        });
+    }
+    properties
 }
 
 /// Preserve unlexed bytes as whitespace only when ECMAScript classifies them that way.
@@ -290,4 +371,28 @@ pub(in super::super) fn source_type_of(dialect: Dialect) -> SourceType {
     SourceType::from_extension(extension)
         .unwrap_or_else(|_| SourceType::ts())
         .with_typescript_definition(declarations)
+}
+
+/// The numeric kind and value the parser decoded for a numeric literal, as the node's properties; none for another node.
+fn numeric_properties(kind: AstKind<'_>) -> Vec<NodeProperty> {
+    let (numeric, value) = if let AstKind::NumericLiteral(literal) = kind {
+        let mut buffer = languages::FloatBuffer([0; languages::FLOAT_TEXT_BYTES]);
+        let text =
+            languages::binary64_text(languages::FloatBits(literal.value.to_bits()), &mut buffer);
+        (FLOAT_NUMBER, text.0.to_owned())
+    } else if let AstKind::BigIntLiteral(literal) = kind {
+        (INTEGER_NUMBER, literal.value.to_string())
+    } else {
+        return Vec::new();
+    };
+    vec![
+        NodeProperty {
+            id: NUMERIC_KIND,
+            value: DecodedText(numeric.to_owned()),
+        },
+        NodeProperty {
+            id: NUMERIC_VALUE,
+            value: DecodedText(value),
+        },
+    ]
 }

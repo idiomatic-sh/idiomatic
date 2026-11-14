@@ -1,0 +1,99 @@
+[[cases]]
+name = "repeated"
+files = { "case.ts" = "if (a) {} else if (a) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 5 }]
+
+[[cases]]
+name = "not-adjacent"
+files = { "case.ts" = "if (a) {} else if (b) {} else if (a) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 5 }]
+
+[[cases]]
+name = "calls"
+files = { "case.ts" = "if (f(x)) {} else if (f(x)) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 8 }]
+
+[[cases]]
+name = "covered-by-or"
+files = { "case.ts" = "if (a || b) {} else if (a) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 10 }]
+
+[[cases]]
+name = "wider-or"
+files = { "case.ts" = "if (a) {} else if (a || b) {}\n" }
+expected = []
+
+[[cases]]
+name = "narrower-and"
+files = { "case.ts" = "if (a && b) {} else if (a) {}\n" }
+expected = []
+
+[[cases]]
+name = "covering-and"
+files = { "case.ts" = "if (a) {} else if (a && b) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 5 }]
+
+[[cases]]
+name = "values-not-spellings"
+files = { "case.ts" = "if (1) {} else if (1.0) {}\nif ('a') {} else if (\"a\") {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 5 }, { file = "case.ts", start = 31, end = 34 }]
+
+[[cases]]
+name = "computed-member"
+files = { "case.ts" = "if (a.b) {} else if (a[\"b\"]) {}\n" }
+expected = []
+
+[[cases]]
+name = "parentheses"
+files = { "case.ts" = "if ((a)) {} else if (a) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 7 }]
+
+[[cases]]
+name = "comparisons"
+files = { "case.ts" = "if (a === 1) {} else if (a === 1) {}\nif (a === 1) {} else if (1 === a) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 11 }]
+
+[[cases]]
+name = "nested-if"
+files = { "case.ts" = "if (a) {} else { if (a) {} }\n" }
+expected = []
+
+[[cases]]
+name = "later-pair"
+files = { "case.ts" = "if (a) {} else if (b) {} else if (b) {}\n" }
+expected = [{ file = "case.ts", start = 19, end = 20 }]
+
+[[cases]]
+name = "reordered-or"
+files = { "case.ts" = "if (a || b) {} else if (b || a) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 10 }]
+
+[[cases]]
+name = "reordered-and"
+files = { "case.ts" = "if (a && b) {} else if (b && a) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 10 }]
+
+[[cases]]
+name = "uncovered-operand"
+files = { "case.ts" = "if (a || b) {} else if (a || b || c) {}\n" }
+expected = []
+
+[[cases]]
+name = "covered-across-branches"
+files = { "case.ts" = "if (a) {} else if (b) {} else if (a || b) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 5 }]
+
+[[cases]]
+name = "spacing-and-comments"
+files = { "case.ts" = "if (a + 1) {} else if (a+1) {}\nif (a /* c */) {} else if (a) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 9 }, { file = "case.ts", start = 35, end = 36 }]
+
+[[cases]]
+name = "distinct"
+files = { "case.ts" = "if (a) {} else if (b) {}\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "// eslint-disable-next-line no-dupe-else-if\nif (a) {} else if (a) {}\n" }
+expected = []

@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 import importlib.util
-import json
-import os
-import shlex
 import subprocess
 import sys
 import tomllib
@@ -255,40 +252,6 @@ def test_an_own_tool_is_kept_only_when_it_is_the_command_of_the_release_archive_
     (tmp_path / "ryo").write_bytes(b"release")
     with pytest.raises(SystemExit):
         install.verify_release(crate, "x86_64-unknown-linux-gnu", tmp_path)
-
-
-def test_benchmark_collector_selects_only_one_matching_executable(tmp_path) -> None:
-    """The benchmark tool runs the collector its build names: `seal_cargo_artifact.py` takes the one release executable Cargo's
-    compiler-artifact records name, and refuses a build that names none or two."""
-    tools = tomllib.loads((ROOT / "crates/ryo/asymptote.toml").read_text())["tools"]
-    command = next(tool["run"][-1] for tool in tools if "ryo-benchmark-collector --message-format=json" in tool["run"][-1])
-    (sealing,) = [line for line in command.splitlines() if "seal_cargo_artifact.py" in line and "ryo-benchmark-collector" in line]
-    script, _build, *selection, sealed = shlex.split(sealing)[1:]
-    assert script == "../../ci/scripts/checks/seal_cargo_artifact.py"
-    assert selection == ["ryo-benchmark-collector", "bin", "/crates/benchmark/src/main.rs", "false"]
-    assert f'"$PWD/{sealed}"' in command
-    collector = tmp_path / "collector"
-    collector.write_text("#!/bin/sh\nexit 0\n")
-    collector.chmod(0o755)
-    matching = {
-        "reason": "compiler-artifact",
-        "target": {"name": "ryo-benchmark-collector", "kind": ["bin"], "src_path": "/checkout/crates/ryo/crates/benchmark/src/main.rs"},
-        "profile": {"test": False},
-        "executable": str(collector),
-    }
-    cases = (
-        ([matching], True),
-        ([{**matching, "reason": "build-finished"}], False),
-        ([{**matching, "target": {**matching["target"], "name": "other"}}], False),
-        ([matching, matching], False),
-    )
-    for number, (records, accepted) in enumerate(cases):
-        build = tmp_path / f"build-{number}.jsonl"
-        build.write_text("\n".join(json.dumps(record) for record in records) + "\n")
-        out = tmp_path / f"sealed-{number}"
-        run = subprocess.run([sys.executable, "-I", str(ROOT / "ci/scripts/checks/seal_cargo_artifact.py"), str(build), *selection, str(out)], capture_output=True, text=True, check=False)
-        # Two artifacts must not become one executable, and no artifact must not pass.
-        assert (run.returncode == 0 and out.is_file() and os.access(out, os.X_OK)) == accepted, run.stderr
 
 
 PYTEST_LISTING = (

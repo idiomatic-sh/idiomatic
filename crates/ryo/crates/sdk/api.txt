@@ -89,6 +89,7 @@ pub use ryo::languages::ExpressionType
 pub use ryo::languages::ExpressionTypeColumn
 pub use ryo::languages::ExpressionTypeRow
 pub use ryo::languages::Extent
+pub use ryo::languages::FLOAT_TEXT_BYTES
 pub use ryo::languages::FieldId
 pub use ryo::languages::FieldRequest
 pub use ryo::languages::FileId
@@ -110,6 +111,8 @@ pub use ryo::languages::FilesystemReadFailureColumn
 pub use ryo::languages::FilesystemReadFailureRow
 pub use ryo::languages::Flag
 pub use ryo::languages::Flags
+pub use ryo::languages::FloatBits
+pub use ryo::languages::FloatBuffer
 pub use ryo::languages::Folder
 pub use ryo::languages::FormatField
 pub use ryo::languages::FormatFieldColumn
@@ -144,6 +147,7 @@ pub use ryo::languages::Integer
 pub use ryo::languages::InterpolatedStringLiteral
 pub use ryo::languages::InterpolatedStringLiteralColumn
 pub use ryo::languages::InterpolatedStringLiteralRow
+pub use ryo::languages::KeyState
 pub use ryo::languages::KindBits
 pub use ryo::languages::KindName
 pub use ryo::languages::KindNames
@@ -206,6 +210,15 @@ pub use ryo::languages::Parse
 pub use ryo::languages::ParseConfigurationIdentity
 pub use ryo::languages::ParseError
 pub use ryo::languages::ParseRequest
+pub use ryo::languages::PatternChild
+pub use ryo::languages::PatternChildColumn
+pub use ryo::languages::PatternChildRow
+pub use ryo::languages::PatternParse
+pub use ryo::languages::PatternParseColumn
+pub use ryo::languages::PatternParseRow
+pub use ryo::languages::PatternSyntax
+pub use ryo::languages::PatternSyntaxColumn
+pub use ryo::languages::PatternSyntaxRow
 pub use ryo::languages::Position
 pub use ryo::languages::PrimaryFileRole
 pub use ryo::languages::Project
@@ -251,6 +264,7 @@ pub use ryo::languages::ResolvedTarget
 pub use ryo::languages::Resolves
 pub use ryo::languages::ResolvesColumn
 pub use ryo::languages::ResolvesRow
+pub use ryo::languages::RetainedKeyIndex
 pub use ryo::languages::RootPath
 pub use ryo::languages::RowKind
 pub use ryo::languages::Rows
@@ -272,6 +286,7 @@ pub use ryo::languages::SemanticsError
 pub use ryo::languages::SequenceElement
 pub use ryo::languages::SequenceElementColumn
 pub use ryo::languages::SequenceElementRow
+pub use ryo::languages::ShapeWord
 pub use ryo::languages::SkippedDirectory
 pub use ryo::languages::SourceDependency
 pub use ryo::languages::SourceDependencyColumn
@@ -337,10 +352,12 @@ pub use ryo::languages::adopt
 pub use ryo::languages::all
 pub use ryo::languages::append_embedded
 pub use ryo::languages::begin_name
+pub use ryo::languages::binary64_text
 pub use ryo::languages::builder_position
 pub use ryo::languages::child_of_kind
 pub use ryo::languages::children
 pub use ryo::languages::clear_elements
+pub use ryo::languages::clear_keys
 pub use ryo::languages::completion_requirement
 pub use ryo::languages::decoded_at
 pub use ryo::languages::decoded_token
@@ -367,6 +384,8 @@ pub use ryo::languages::has_incomplete_syntax
 pub use ryo::languages::has_noted_words
 pub use ryo::languages::impact_name
 pub use ryo::languages::intern_derived
+pub use ryo::languages::intern_key
+pub use ryo::languages::key_class_at
 pub use ryo::languages::kind_at
 pub use ryo::languages::kinds
 pub use ryo::languages::last_at
@@ -397,6 +416,7 @@ pub use ryo::languages::positions
 pub use ryo::languages::primary_role_from_manifests
 pub use ryo::languages::property_at
 pub use ryo::languages::provenance_of
+pub use ryo::languages::push_key_word
 pub use ryo::languages::push_name
 pub use ryo::languages::push_span
 pub use ryo::languages::push_text
@@ -490,6 +510,9 @@ pub use ryo::languages::contract::OracleRows
 pub use ryo::languages::contract::PackageDependencyExpectedRow
 pub use ryo::languages::contract::ParameterExpectedRow
 pub use ryo::languages::contract::ParseEngine
+pub use ryo::languages::contract::PatternChildExpectedRow
+pub use ryo::languages::contract::PatternParseExpectedRow
+pub use ryo::languages::contract::PatternSyntaxExpectedRow
 pub use ryo::languages::contract::Point
 pub use ryo::languages::contract::ProjectEngine
 pub use ryo::languages::contract::ProjectNamespaceMembershipExpectedRow

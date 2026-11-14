@@ -1,0 +1,15 @@
+import directives from "typescript/oxlint/eslint-directives";
+let uses = select reference, binding, file, context from "binding-use";
+let reads = select reference, name, file from "binding-read";
+let named = select l.reference as reference, l.binding as binding, r.name as name, l.file as file, l.context as context from uses as l join reads as r on l.reference = r.reference and l.file = r.file;
+let declarations = select l.reference as reference, l.file as file, l.context as context, r.kind as kind, r.span as declared from named as l join "defines" as r on l.binding = r.id and l.name = r.name and l.file = r.file;
+let writes = select reference, file from declarations where kind = "constant" and (context = "write" or context = "read-write");
+let candidates = select l.reference as reference, l.file as file, l.declared as declared from declarations as l join writes as r on l.reference = r.reference and l.file = r.file;
+let candidate_bounds = span-bounds(from=candidates, span="declared", start-output="begin", end-output="finish");
+let later = select l.reference as reference, l.file as file, l.begin as begin from candidate_bounds as l join candidate_bounds as r on l.reference = r.reference and l.file = r.file where l.begin > r.begin;
+let first = antijoin(left=candidate_bounds, right=later, left-on=["reference", "file", "begin"], right-on=["reference", "file", "begin"]);
+let tokens = select file, span from "semantic-syntax" where kind = "identifier-token";
+let token_bounds = span-bounds(from=tokens, span="span", start-output="tbegin", end-output="tfinish");
+let found = select l.reference as id, l.file as file, r.span as span from first as l join token_bounds as r on l.file = r.file and l.begin = r.tbegin;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-const-assign(?:,|$)");
+emit violations subject file key(id);

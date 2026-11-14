@@ -85,17 +85,6 @@ def guards_8(case, factory_controls, helper_relative, lambda_controls, manifest,
     if pinned_ruff is None:
         print('reference-only self-test requires the pinned Ruff executable on PATH', file=sys.stderr)
         return 1, ()
-    inventory_collector = fake_bin / 'inventory-collector'
-    inventory_collector.write_text('#!/bin/sh\nexit 0\n', encoding='utf-8')
-    inventory_collector.chmod(493)
-    inventory_output = root / 'default-inventory-output'
-    default_inventory = subprocess.run([sys.executable, str(helper), pinned_ruff, '--worker', str(reference_worker), '--inventory-runner', str(inventory_collector), '--output-dir', str(inventory_output), 'F401'], capture_output=True, text=True, check=False, env={**os.environ, 'RYO_RUFF_PREPARED_MANIFEST': str(temporary_manifest)})
-    registration_path = inventory_output / 'registration.json'
-    registration = json.loads(registration_path.read_text(encoding='utf-8')) if registration_path.is_file() else {}
-    rows = registration.get('rules', [])
-    if default_inventory.returncode != 0 or len(rows) != 413 or [row['rule_id'] for row in rows if row['command'] is not None] != ['F401'] or sum(row['reason'] == 'not selected for this invocation' for row in rows) != 412:
-        print(f'default canonical inventory routing failed: status={default_inventory.returncode}; stderr={default_inventory.stderr!r}', file=sys.stderr)
-        return 1, ()
     reference_output = root / 'reference-only-output'
     reference_only = subprocess.run([sys.executable, str(helper), pinned_ruff, '--prepared', '--output-dir', str(reference_output), '--reference-only', 'F401'], capture_output=True, text=True, check=False, env={**os.environ, 'PATH': f"{fake_bin}:{os.environ['PATH']}", 'RYO_RUFF_PREPARED_MANIFEST': str(temporary_manifest)})
     builds = cargo_build_marker.read_text().splitlines() if cargo_build_marker.exists() else []

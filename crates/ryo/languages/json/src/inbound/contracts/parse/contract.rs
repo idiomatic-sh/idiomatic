@@ -358,4 +358,16 @@ impl languages::Semantics<Model> for ParseContract {
     fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn pattern_parse(&self) -> Support<Reader<languages::PatternParse, Model>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_syntax(&self) -> Support<Reader<languages::PatternSyntax, Model>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn pattern_child(&self) -> Support<Reader<languages::PatternChild, Model>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }

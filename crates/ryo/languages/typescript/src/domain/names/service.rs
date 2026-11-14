@@ -8,7 +8,7 @@
 use super::{
     constants::{
         BLOCK_COMMENT, BLOCK_END, CLOSE_PARAMETERS, CONSTANT, EXTENDS, LINE_COMMENT, OPEN_COMPUTED,
-        OPEN_PARAMETERS, SELECTION,
+        OPEN_PARAMETERS, SELECTION, USING,
     },
     types::{Assignment, Reference, Spelling},
 };
@@ -267,8 +267,10 @@ pub(crate) fn declared<'a>(
 pub(crate) fn declaration_kind(tree: &Tree<'_>, at: Position) -> languages::DeclarationKind {
     use languages::DeclarationKind as Declaration;
     match kind(tree, at) {
-        Kind::Node(Node::FunctionDeclaration | Node::TSDeclareFunction) => Declaration::Function,
-        Kind::Node(Node::ClassDeclaration) => Declaration::Class,
+        Kind::Node(
+            Node::FunctionDeclaration | Node::TSDeclareFunction | Node::FunctionExpression,
+        ) => Declaration::Function,
+        Kind::Node(Node::ClassDeclaration | Node::ClassExpression) => Declaration::Class,
         Kind::Node(Node::TSInterfaceDeclaration) => Declaration::Interface,
         Kind::Node(Node::TSTypeAliasDeclaration) => Declaration::TypeAlias,
         Kind::Node(Node::TSTypeParameter) => Declaration::TypeParameter,
@@ -285,7 +287,10 @@ pub(crate) fn declaration_kind(tree: &Tree<'_>, at: Position) -> languages::Decl
         ) => Declaration::Property,
         Kind::Node(Node::VariableDeclarator)
             if languages::children(tree.elements, parent(tree, at)).any(|child| {
-                kind(tree, child) == Kind::Token(Token::Keyword) && text(tree, child).0 == CONSTANT
+                (kind(tree, child) == Kind::Token(Token::Keyword)
+                    && text(tree, child).0 == CONSTANT)
+                    || (kind(tree, child) == Kind::Token(Token::IdentifierToken)
+                        && text(tree, child).0 == USING)
             }) =>
         {
             Declaration::Constant

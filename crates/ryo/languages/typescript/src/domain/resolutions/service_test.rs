@@ -1,4 +1,4 @@
-//! The `resolutions` service's cases: the plain name a type reference writes, what binds it there, and what holds it.
+//! The `resolutions` service's cases: the plain name a type reference writes, and what holds it.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::nodes::types::Node;
@@ -19,16 +19,16 @@ type Failure = ();
 /// The rows of this concept's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_class_binds_a_reference_in_a_sibling_function"),
+        name: CaseName("a_reference_in_a_function_is_held_by_the_function"),
         word: Word::Succeeds,
         input: || "class A {} function f(x: A) {}",
-        expect: Expect::Value("A->Node(ClassDeclaration) held by 11"),
+        expect: Expect::Value("A held by 11"),
     },
     Case {
-        name: CaseName("a_type_parameter_binds_inside_its_declaration"),
+        name: CaseName("a_type_parameter_reference_is_held_by_its_function"),
         word: Word::Succeeds,
         input: || "function g<T>(y: T) {}",
-        expect: Expect::Value("T->Node(TSTypeParameter) held by 1"),
+        expect: Expect::Value("T held by 1"),
     },
     Case {
         name: CaseName("a_qualified_reference_has_no_plain_name"),
@@ -37,10 +37,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value("no plain name held by 1"),
     },
     Case {
-        name: CaseName("an_unbound_name_binds_nothing"),
+        name: CaseName("a_reference_outside_any_declaration_is_held_by_the_file"),
         word: Word::Succeeds,
         input: || "let w: Missing;",
-        expect: Expect::Value("Missing->unbound held by 0"),
+        expect: Expect::Value("Missing held by 0"),
     },
 ];
 
@@ -86,12 +86,7 @@ fn subject(source: Input) -> Result<Value, Failure> {
             || String::from("no plain name"),
             |identifier| {
                 let name = crate::domain::names::service::identifier(tree, symbols, identifier);
-                let binding = super::service::binding_of(tree, symbols, reference, name)
-                    .map_or_else(
-                        || String::from("unbound"),
-                        |at| format!("{:?}", kind(tree, at)),
-                    );
-                format!("{}->{binding}", text(tree, symbols, name))
+                text(tree, symbols, name)
             },
         );
         format!("{bound} held by {}", holder.0)

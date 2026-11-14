@@ -1,0 +1,134 @@
+[[cases]]
+name = "identifiers"
+files = { "case.ts" = "x = {a: 1, a: 2};\n" }
+expected = [{ file = "case.ts", start = 5, end = 6 }]
+
+[[cases]]
+name = "identifier-and-string"
+files = { "case.ts" = "x = {a: 1, \"a\": 2};\n" }
+expected = [{ file = "case.ts", start = 5, end = 6 }]
+
+[[cases]]
+name = "computed-string"
+files = { "case.ts" = "x = {a: 1, [\"a\"]: 2};\n" }
+expected = [{ file = "case.ts", start = 5, end = 6 }]
+
+[[cases]]
+name = "computed-template"
+files = { "case.ts" = "x = {[`a`]: 1, a: 2};\n" }
+expected = [{ file = "case.ts", start = 6, end = 9 }]
+
+[[cases]]
+name = "numbers-by-value"
+files = { "case.ts" = "x = {1: 1, 0x1: 2};\nx = {1: 1, 1.0: 2};\n" }
+expected = [{ file = "case.ts", start = 5, end = 6 }, { file = "case.ts", start = 25, end = 26 }]
+
+[[cases]]
+name = "number-and-string"
+files = { "case.ts" = "x = {1: 1, \"1\": 2};\nx = {0.1: 1, \"0.1\": 2};\n" }
+expected = [{ file = "case.ts", start = 5, end = 6 }, { file = "case.ts", start = 25, end = 28 }]
+
+[[cases]]
+name = "large-number"
+files = { "case.ts" = "x = {1e21: 1, \"1000000000000000000000\": 2};\n" }
+expected = [{ file = "case.ts", start = 5, end = 9 }]
+
+[[cases]]
+name = "bigint-key"
+files = { "case.ts" = "x = {1n: 1, 1: 2};\n" }
+expected = [{ file = "case.ts", start = 5, end = 7 }]
+
+[[cases]]
+name = "computed-number"
+files = { "case.ts" = "x = {[1]: 1, 1: 2};\n" }
+expected = [{ file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "three-alike"
+files = { "case.ts" = "x = {a: 1, a: 2, a: 3};\n" }
+expected = [{ file = "case.ts", start = 5, end = 6 }, { file = "case.ts", start = 11, end = 12 }]
+
+[[cases]]
+name = "getter-and-setter"
+files = { "case.ts" = "x = {get a() {return 1}, set a(v) {}};\n" }
+expected = []
+
+[[cases]]
+name = "getter-and-value"
+files = { "case.ts" = "x = {get a() {return 1}, a: 2};\n" }
+expected = [{ file = "case.ts", start = 9, end = 10 }]
+
+[[cases]]
+name = "two-getters"
+files = { "case.ts" = "x = {get a() {return 1}, get a() {return 2}};\n" }
+expected = [{ file = "case.ts", start = 9, end = 10 }]
+
+[[cases]]
+name = "setter-then-value"
+files = { "case.ts" = "x = {get a() {return 1}, set a(v) {}, a: 3};\n" }
+expected = [{ file = "case.ts", start = 29, end = 30 }]
+
+[[cases]]
+name = "shorthand"
+files = { "case.ts" = "x = {a, a};\n" }
+expected = [{ file = "case.ts", start = 5, end = 6 }]
+
+[[cases]]
+name = "method"
+files = { "case.ts" = "x = {a() {}, a: 1};\nx = {async a() {}, a: 1};\n" }
+expected = [{ file = "case.ts", start = 5, end = 6 }, { file = "case.ts", start = 31, end = 32 }]
+
+[[cases]]
+name = "decoded-string"
+files = { "case.ts" = "x = {\"\\x61\": 1, a: 2};\n" }
+expected = [{ file = "case.ts", start = 5, end = 11 }]
+
+[[cases]]
+name = "spread"
+files = { "case.ts" = "x = {...a, ...a};\n" }
+expected = []
+
+[[cases]]
+name = "computed-expression"
+files = { "case.ts" = "x = {[a]: 1, [a]: 2};\n" }
+expected = []
+
+[[cases]]
+name = "prototype-setter"
+files = { "case.ts" = "x = {__proto__: 1, [\"__proto__\"]: 2};\nx = {\"__proto__\": 1, [\"__proto__\"]: 2};\nx = {__proto__, __proto__: 2};\n" }
+expected = []
+
+[[cases]]
+name = "computed-prototype"
+files = { "case.ts" = "x = {[\"__proto__\"]: 1, [\"__proto__\"]: 2};\n" }
+expected = [{ file = "case.ts", start = 6, end = 17 }]
+
+[[cases]]
+name = "exponent-spelling"
+files = { "case.ts" = "x = {0.1: 1, \".1\": 2};\nx = {1e21: 1, \"1e+21\": 2};\n" }
+expected = []
+
+[[cases]]
+name = "negative-number"
+files = { "case.ts" = "x = {[-1]: 1, \"-1\": 2};\n" }
+expected = []
+
+[[cases]]
+name = "template-expression"
+files = { "case.ts" = "x = {[`a${b}`]: 1, [`a${b}`]: 2};\n" }
+expected = []
+
+[[cases]]
+name = "nested-objects"
+files = { "case.ts" = "x = {a: 1, b: {a: 2}};\n" }
+expected = []
+
+[[cases]]
+name = "distinct"
+files = { "case.ts" = "x = {a: 1, b: 2};\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "x = {\n  // eslint-disable-next-line no-dupe-keys\n  a: 1,\n  a: 2,\n};\n" }
+expected = []

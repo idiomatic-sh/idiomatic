@@ -1,0 +1,11 @@
+import directives from "typescript/oxlint/eslint-directives";
+let zeros = select id from "numeric-literal" where kind = "float" and value = "0.0";
+let operators = select l.parent as id, r.text as operator from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "operator" and (r.text = "*" or r.text = "&" or r.text = "/");
+let binaries = select l.id as id, l.operator as operator from operators as l join "semantic-syntax" as r on l.id = r.id where r.kind = "binary-expression";
+let operands = select l.id as id, l.operator as operator, c.child as operand, c.field as side from binaries as l join "semantic-child" as c on l.id = c.parent where c.field = "left" or c.field = "right";
+let erased = select l.id as id, l.side as side from operands as l join zeros as r on l.operand = r.id where l.operator != "/" or l.side = "left";
+let found = select l.id as id, l.side as side, r.file as file, r.span as span from erased as l join "semantic-syntax" as r on l.id = r.id;
+let candidates = project(from=found, columns=["id", "file", "span"]);
+let violations = directives(candidates=candidates, names="(?:^|,)(?:[^,]*/)?erasing-op(?:,|$)");
+let reported = select l.id as id, l.side as side, l.file as file, l.span as span from found as l join violations as r on l.id = r.id;
+emit reported subject file key(id, side);

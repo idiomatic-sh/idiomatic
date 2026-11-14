@@ -1,0 +1,64 @@
+[[cases]]
+name = "numbers"
+files = { "case.ts" = "enum A { X = 1, Y = 1 }\n" }
+expected = [{ file = "case.ts", start = 13, end = 14 }]
+
+[[cases]]
+name = "values-not-spellings"
+files = { "case.ts" = "enum B { X = 1, Y = 1.0, Z = 0x1 }\n" }
+expected = [{ file = "case.ts", start = 13, end = 14 }, { file = "case.ts", start = 13, end = 14 }]
+
+[[cases]]
+name = "strings"
+files = { "case.ts" = "enum C { X = \"a\", Y = \"a\" }\n" }
+expected = [{ file = "case.ts", start = 13, end = 16 }]
+
+[[cases]]
+name = "decoded-strings"
+files = { "case.ts" = "enum K { X = \"a\", Y = \"\\x61\" }\n" }
+expected = [{ file = "case.ts", start = 13, end = 16 }]
+
+[[cases]]
+name = "three-alike"
+files = { "case.ts" = "enum L { X = 1, Y = 1, Z = 1 }\n" }
+expected = [{ file = "case.ts", start = 13, end = 14 }, { file = "case.ts", start = 13, end = 14 }]
+
+[[cases]]
+name = "template"
+files = { "case.ts" = "enum D { X = \"x\", Y = `x` }\n" }
+expected = []
+
+[[cases]]
+name = "implicit-value"
+files = { "case.ts" = "enum E { X, Y = 0 }\nenum J { X = 1, Y }\n" }
+expected = []
+
+[[cases]]
+name = "distinct"
+files = { "case.ts" = "enum F { X = 1, Y = 2 }\n" }
+expected = []
+
+[[cases]]
+name = "negative"
+files = { "case.ts" = "enum G { X = -1, Y = -1 }\n" }
+expected = []
+
+[[cases]]
+name = "number-and-string"
+files = { "case.ts" = "enum H { X = 1, Y = \"1\" }\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized"
+files = { "case.ts" = "enum I { X = (1), Y = 1 }\n" }
+expected = []
+
+[[cases]]
+name = "separate-enums"
+files = { "case.ts" = "enum M { X = 1 }\nenum N { X = 1 }\n" }
+expected = []
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "enum A {\n  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values\n  X = 1,\n  Y = 1,\n}\n" }
+expected = []

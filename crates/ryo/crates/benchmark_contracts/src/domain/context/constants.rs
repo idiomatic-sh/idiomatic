@@ -5,3 +5,5 @@ pub const MISSING: &str = "missing";
 pub const SOURCE: &str = "source";
 /// The digest section that lists the auxiliary files a case supplies.
 pub const AUXILIARY: &str = "auxiliary";
+/// The tag the content seal of a listed project context starts with.
+pub const LISTED_DISK_CONTEXT: &str = "listed-disk-context";

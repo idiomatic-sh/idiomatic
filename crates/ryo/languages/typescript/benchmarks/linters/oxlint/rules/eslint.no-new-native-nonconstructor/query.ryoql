@@ -1,0 +1,17 @@
+import directives from "typescript/oxlint/eslint-directives";
+import parenthesized from "typescript/oxlint/parenthesized";
+let global_reads = select name, file from "binding-read" where (state = "builtin" or state = "unbound") and (name = "Symbol" or name = "BigInt");
+let globals = project(from=global_reads, columns=["name", "file"]);
+let news = select id from "semantic-syntax" where kind = "new-expression";
+let callees = select l.parent as call, r.id as id, r.file as file, r.span as span from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "callee" and r.kind = "identifier";
+let new_callees = select l.call as call, l.id as id, l.file as file, l.span as span from callees as l join news as r on l.call = r.id;
+let callee_rows = select id, file, span from new_callees;
+let wrapped = parenthesized(candidates=callee_rows);
+let bare = antijoin(left=new_callees, right=wrapped, left-on=["id"], right-on=["id"]);
+let tokens = select file, span, text from "semantic-syntax" where kind = "identifier-token";
+let named = select l.call as call, l.file as file, r.text as name from bare as l join tokens as r on l.file = r.file and l.span = r.span where r.text = "Symbol" or r.text = "BigInt";
+let native = select l.call as call from named as l join globals as r on l.file = r.file and l.name = r.name;
+let keywords = select l.parent as call, r.id as id, r.file as file, r.span as span from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "keyword" and r.text = "new";
+let found = select r.id as id, r.file as file, r.span as span from native as l join keywords as r on l.call = r.call;
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-new-native-nonconstructor(?:,|$)");
+emit violations subject file key(id);

@@ -3,7 +3,7 @@
 pub(super) const UNKNOWN_OR_DUPLICATE_REGISTERED_RULE: &str =
     "unknown or duplicate registered rule";
 /// Text of the profiles in this part.
-pub(super) const PROFILES: &str = "profiles";
+pub(crate) const PROFILES: &str = "profiles";
 /// Text of the missing implementation registration in this part.
 pub(super) const MISSING_IMPLEMENTATION_REGISTRATION: &str = "missing implementation registration";
 /// Text of the missing implementation invocation in this part.

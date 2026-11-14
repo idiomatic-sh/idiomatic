@@ -52,6 +52,10 @@ Process observations separate measured wall time from decoded reports.
 
 Executable observation dependencies are resolved from the authored declarations and the selected rules.
 
+### operations
+
+The gated operations of a linter bench, each run as `ryo-benchmark-collector <verb> languages/<lang>/benchmarks/linters/<linter>`: `verify-inventory` (correctness), `measure-valid` and `parity`. The collector's `<verb> <bench-dir>` builds and seals the bench's worker under `<target>/benchmark/<lang>/<linter>/<verb>/`, and runs the worker's `<verb>` with the sealed paths; `verify-inventory` verifies the registration in process instead. A new bench gets all three with no lines of its own.
+
 ### process_failure
 
 An explicit completed process failure binds its templates and its exact-binary archive group.
@@ -75,6 +79,10 @@ The declared inputs of a registered case, resolved the same way for registration
 ### rule_context
 
 Declared linter configuration is resolved, checked against the request and counted without matching paths.
+
+### source_validity
+
+A corpus run covers the sources the pinned reference parses: measure-valid and parity drop each source the reference reports under its invalid-syntax rule, and say which.
 
 ### suite
 

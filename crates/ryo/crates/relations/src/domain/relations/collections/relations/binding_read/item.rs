@@ -23,7 +23,7 @@ macro_rules! binding_read {
         scope File,
         notes Unneeded,
         columns {
-        /// Real semantic read or deletion occurrence.
+        /// Real semantic read, write or deletion occurrence.
         reference Reference: NodeId => Node;
         /// Canonical lexical identifier.
         name Name: Symbol => Symbol;
@@ -31,7 +31,7 @@ macro_rules! binding_read {
         scope Scope: NodeId => Node;
         /// Execution boundary used by static association.
         phase Phase: NodeId => Node;
-        /// Value, type or deletion context; never a lint policy.
+        /// Value, type, write, read-write or deletion context; never a lint policy.
         context Context: Symbol => Symbol;
         /// Unique declaration, alternative declarations, possibly-unbound, unbound, builtin, declaration-or-builtin, or uncertain. These are static associations, not runtime initialization assertions.
         state State: Symbol => Symbol;
