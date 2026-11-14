@@ -317,8 +317,8 @@ pub fn ran(
     .run(plan, node, buffers, inputs, resources)
 }
 
-/// The rows every node of `steps` answers, each the emit of a rule of its own, planned with `rewrites` alone and run over
-/// `inputs` and `resources`: what a program answers with and without a rewrite.
+/// The rows each node of `emits` answers, each the emit of a rule of its own, the program of `steps` planned with `rewrites`
+/// alone and run over `inputs` and `resources`: what a program answers with and without a rewrite.
 ///
 /// # Errors
 ///
@@ -326,27 +326,29 @@ pub fn ran(
 #[cfg(test)]
 pub(crate) fn rewritten(
     steps: &[Step],
+    emits: &[PlanNodeId],
     rewrites: &[&dyn crate::domain::physical_plan::collections::rewrites::interface::RewritesItem],
     inputs: &dyn PlanInputs,
     resources: &mut dyn Resources,
 ) -> Result<Vec<Table>, PortableOperatorFault> {
     let mut program = LogicalProgram::new();
-    let mut emits = Vec::with_capacity(steps.len());
-    for (rule, step) in (0..).map(RuleOrdinal).zip(steps) {
-        let id = program.node(LogicalNode {
+    for step in steps {
+        let _id = program.node(LogicalNode {
             operation: &step.operation,
             inputs: PlanInputList(&step.inputs),
             bindings: NodeBindings(&[]),
             scope: StepScope::PerFile,
         });
-        program.emit(rule, id);
-        emits.push(id);
+    }
+    for (rule, node) in (0..).map(RuleOrdinal).zip(emits) {
+        program.emit(rule, *node);
     }
     let plan = crate::domain::physical_plan::service::plan_with(&program, rewrites)?;
     let mut buffers = FileBuffers::default();
     emits
-        .into_iter()
+        .iter()
         .map(|node| {
+            let node = *node;
             ran(&plan, node, &mut buffers, inputs, resources)?;
             match buffers.rows(node) {
                 NodeRows::Materialized(table) => Ok(table.clone()),

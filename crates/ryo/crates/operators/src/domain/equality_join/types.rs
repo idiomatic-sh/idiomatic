@@ -161,7 +161,6 @@ pub(crate) enum ProbeMode {
     Anti,
     /// A left row with no right row of its key strictly past it in an order: `ordered_existence`'s strategy for an antijoin
     /// of a self join, deciding by each key's extremum instead of pairing rows.
-    #[expect(dead_code, reason = "red step: F3 commit 3's ordered_existence rewrite constructs it")]
     Ordered(OrderedProbe),
 }
 

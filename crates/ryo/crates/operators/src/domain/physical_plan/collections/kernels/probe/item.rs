@@ -1,6 +1,7 @@
 //! The `probe` item of the `kernels` collection: each left row, in order, probes a `hash_index` of the right rows by its key.
 //! An inner probe answers the left row with each right row of its key, ascending; a semi probe keeps the left row when its key
-//! has a right row, an anti probe when it has none.
+//! has a right row, an anti probe when it has none, and an ordered probe when none of them orders strictly past it toward
+//! the probe's extremum (each key's extremum found once, as its first row).
 
 use super::super::distinct::item::counted;
 use super::super::filter::item::{filter, keep};
@@ -9,10 +10,12 @@ use super::super::hash_index::item::{cells, find_cells, indexed, next_of};
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of, row_of};
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::equality_join::types::{EmptyRight, Existence, ProbeKey, ProbeMode, ProbeParts};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::file_buffers::value::{KeyedRows, NO_ROW, NodeDecisions};
+use crate::domain::equality_join::types::{
+    EmptyRight, Existence, OrderedProbe, PartitionExtremum, ProbeKey, ProbeMode, ProbeParts,
+};
 use crate::domain::physical_plan::types::{CellStart, InputRows, KernelRun, KeyedRowAt, KeyedSide};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Side};
@@ -135,6 +138,9 @@ pub(crate) fn probed(
         on: right_on,
     };
     cells(indexed_side, scratch.index)?;
+    if let ProbeMode::Ordered(order) = probe.mode {
+        extremes(right, order, scratch.index)?;
+    }
     let empty = count_of(right).0 == 0;
     scratch.seen.clear();
     for at in 0..count_of(left).0 {
@@ -183,6 +189,25 @@ pub(crate) fn probed(
             }
             continue;
         }
+        if let ProbeMode::Ordered(order) = probe.mode {
+            let passed = match found {
+                None => false,
+                Some(key) => {
+                    let bound = number_at(right, indexed(key.first), order.right_order)?;
+                    let own = number_at(left, at, order.left_order)?;
+                    match order.extremum {
+                        PartitionExtremum::Maximum => bound > own,
+                        PartitionExtremum::Minimum => bound < own,
+                    }
+                }
+            };
+            if !passed {
+                let start = CellStart(output.cells.len());
+                output.cells.extend_from_slice(row_of(left, at, scratch.row));
+                counted(output, start, probe.repeated, scratch.seen);
+            }
+            continue;
+        }
         let exists = match (probe.existence, found) {
             (_, None) => false,
             (Existence::First, Some(_)) => true,
@@ -205,6 +230,50 @@ pub(crate) fn probed(
         }
     }
     Ok(None)
+}
+
+/// Makes each key's first row its extremum of the order's right column: an ordered probe reads only that row of a key.
+///
+/// # Errors
+///
+/// `ShapeMismatch` for an order cell that is not a number (the rewrite proved it one).
+#[expect(
+    clippy::indexing_slicing,
+    reason = "the chain is made together with the rows it indexes: a row past it is a bug, which panics"
+)]
+fn extremes(right: InputRows<'_>, order: OrderedProbe, index: &mut KeyedRows) -> Result<(), PortableOperatorFault> {
+    let KeyedRows { keys, next } = index;
+    for key in keys.iter_mut() {
+        let mut best = key.first;
+        let mut bound = number_at(right, indexed(best), order.right_order)?;
+        let mut row = next[usize::try_from(best.0).unwrap_or(usize::MAX)];
+        while row != NO_ROW {
+            let value = number_at(right, indexed(row), order.right_order)?;
+            let past = match order.extremum {
+                PartitionExtremum::Maximum => value > bound,
+                PartitionExtremum::Minimum => value < bound,
+            };
+            if past {
+                (best, bound) = (row, value);
+            }
+            row = next[usize::try_from(row.0).unwrap_or(usize::MAX)];
+        }
+        key.first = best;
+    }
+    Ok(())
+}
+
+/// The number in `column` of `row`.
+///
+/// # Errors
+///
+/// `ShapeMismatch` for a cell that is not a number, `NoSuchColumn` past the row.
+fn number_at(rows: InputRows<'_>, row: RowIndex, column: ColumnIndex) -> Result<ryo_relations::domain::relations::types::Integer, PortableOperatorFault> {
+    match cell_of(rows, row, column) {
+        Some(Value::Number(number)) => Ok(number),
+        Some(_) => Err(PortableOperatorFault::ShapeMismatch),
+        None => Err(PortableOperatorFault::NoSuchColumn { index: column }),
+    }
 }
 
 /// Every column of the rows, in order.

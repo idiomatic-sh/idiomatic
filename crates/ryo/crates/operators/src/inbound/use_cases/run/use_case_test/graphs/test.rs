@@ -3,13 +3,13 @@
 use super::super::super::fixtures::{TableInputs, TextResources, emitted};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::fixtures::Step;
+use crate::domain::physical_plan::fixtures::{Step, ordered_existence_pair, ordered_rows};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::fixtures::{kinds, node_id};
 use ryo_relations::domain::relations::types::{FileId, Integer, Position, Relation, Value as Cell};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Input as StepInput, JoinColumn, ReachLookup, Side,
+    ColumnIndex, ComparisonOrigin, Input as StepInput, JoinColumn, Operand, PlanComparison, ReachLookup, Side, Test,
 };
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::{RowCount, Table};
@@ -28,6 +28,8 @@ enum Scenario {
     Cycles,
     OrderedWalk,
     OrderedWalkOverATextOrder,
+    OrderedExistence,
+    EdgesFaultFirst,
 }
 #[derive(Debug, PartialEq)]
 enum Observation {
@@ -115,6 +117,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ]))),
     },
     Case {
+        name: CaseName("an_antijoin_of_a_later_row_keeps_each_partition_s_extremum"),
+        word: Word::Succeeds,
+        input: || Scenario::OrderedExistence,
+        // Parent, child and ordinal of each row no row of its parent orders past: the greatest ordinal per parent (both
+        // children tied at 2 under 1), then the least (both tied at 3 under 8). The planner rewrote both antijoins to
+        // ordered probes of the edges.
+        expect: Expect::Value(Observation::Rows(std::borrow::Cow::Borrowed(&[
+            1, 3, 2, 1, 4, 2, 6, 7, 5, 8, 11, 4, //
+            1, 2, 0, 6, 7, 5, 8, 9, 3, 8, 10, 3,
+        ]))),
+    },
+    Case {
+        name: CaseName("a_graph_kernel_raises_its_edges_fault_first"),
+        word: Word::Succeeds,
+        input: || Scenario::EdgesFaultFirst,
+        expect: Expect::Value(Observation::Same(true)),
+    },
+    Case {
         name: CaseName("an_ordered_walk_over_an_order_that_is_not_a_number_is_refused"),
         word: Word::Refuses,
         input: || Scenario::OrderedWalkOverATextOrder,
@@ -131,19 +151,9 @@ fn node(at: u32) -> Cell {
 fn edges(pairs: &[(u32, u32, i64)], texts: &TextResources) -> Table {
     let mut cells = Vec::with_capacity(pairs.len() * kinds(EDGES).len());
     for (parent, child, ordinal) in pairs {
-        cells.extend([
-            node(*parent),
-            node(*child),
-            Cell::Number(Integer(*ordinal)),
-            texts.symbol("f"),
-            Cell::File(FileId(0)),
-        ]);
+        cells.extend([node(*parent), node(*child), Cell::Number(Integer(*ordinal)), texts.symbol("f"), Cell::File(FileId(0))]);
     }
-    Table {
-        kinds: kinds(EDGES).to_vec(),
-        cells,
-        count: RowCount(pairs.len()),
-    }
+    Table { kinds: kinds(EDGES).to_vec(), cells, count: RowCount(pairs.len()) }
 }
 
 /// A cell as the case states it: a node by its position, a number as itself.
@@ -158,12 +168,7 @@ fn stated(cell: Cell) -> i64 {
 /// The closure of the edges from every source.
 fn closure(edges: StepInput, input: PlanInput) -> Step {
     Step {
-        operation: Operation::Closure {
-            edges,
-            keys: Vec::new(),
-            source: ColumnIndex(0),
-            destination: ColumnIndex(1),
-        },
+        operation: Operation::Closure { edges, keys: Vec::new(), source: ColumnIndex(0), destination: ColumnIndex(1) },
         inputs: vec![input],
     }
 }
@@ -194,14 +199,20 @@ fn join(right: (StepInput, PlanInput), residual: bool, reach: Option<ReachLookup
     }
 }
 
+/// The join `step` with its left rows read from `left` instead.
+fn left_of(mut step: Step, left: (StepInput, PlanInput)) -> Step {
+    if let Operation::Join { left: read, .. } = &mut step.operation {
+        *read = left.0;
+    }
+    if let Some(input) = step.inputs.first_mut() {
+        *input = left.1;
+    }
+    step
+}
+
 /// The closure's demand as the query planner fuses it: no partition, its source then its destination.
 fn reach() -> ReachLookup {
-    ReachLookup {
-        source: ColumnIndex(0),
-        destination: ColumnIndex(1),
-        keys: Vec::new(),
-        columns: vec![ColumnIndex(0), ColumnIndex(1)],
-    }
+    ReachLookup { source: ColumnIndex(0), destination: ColumnIndex(1), keys: Vec::new(), columns: vec![ColumnIndex(0), ColumnIndex(1)] }
 }
 
 /// What the join over the whole closure and the seeded closure answer over the same edges.
@@ -235,11 +246,10 @@ fn walked(chains: u32, length: u32, bound: &[u32], repeats: usize) -> Result<Val
         .collect();
     let left = edges(&starts, &resources);
     let inputs = TableInputs::new(&[(EDGES, &table), (Relation::Defines, &left)]);
-    let mut step = join((StepInput::Relation(EDGES), PlanInput::Relation(EDGES)), false, Some(reach()));
-    if let Operation::Join { left, .. } = &mut step.operation {
-        *left = StepInput::Relation(Relation::Defines);
-    }
-    step.inputs[0] = PlanInput::Relation(Relation::Defines);
+    let step = left_of(
+        join((StepInput::Relation(EDGES), PlanInput::Relation(EDGES)), false, Some(reach())),
+        (StepInput::Relation(Relation::Defines), PlanInput::Relation(Relation::Defines)),
+    );
     let mut buffers = FileBuffers::default();
     let _rows = emitted(&[step], &[PlanNodeId(0)], &inputs, &mut resources, &mut buffers)?;
     Ok(Observation::Walked(buffers.walk.runs.len(), buffers.walk.reached.len()))
@@ -273,6 +283,54 @@ fn ordered_walk(order: ColumnIndex) -> Step {
     }
 }
 
+/// The rows of `relation` whose field (column 3) self-matches as a regex: a field that is no pattern faults on its row.
+fn self_matching(relation: Relation) -> Step {
+    Step {
+        operation: Operation::Select {
+            from: StepInput::Relation(relation),
+            comparisons: vec![PlanComparison {
+                test: Test::Matches,
+                left: Operand::Column(ColumnIndex(3)),
+                right: Operand::Column(ColumnIndex(3)),
+                origin: ComparisonOrigin::Unrecorded,
+            }],
+            kept: Vec::new(),
+        },
+        inputs: vec![PlanInput::Relation(relation)],
+    }
+}
+
+/// A closure fused into its join reads its left rows (a select failing on row 1) as they stream and its edges (a select
+/// failing on row 4) whole before it walks: it reports the edges' fault, the one their select alone reports, and not the
+/// left rows' fault of an earlier row.
+fn edges_fault_first() -> Result<Value, Failure> {
+    let mut resources = TextResources::new(&["f", "(", "["]);
+    let fields = |bad: usize, text: &str| {
+        let mut table = edges(&[(1, 2, 0), (2, 3, 0), (3, 4, 0), (4, 5, 0), (5, 6, 0), (6, 7, 0)], &resources);
+        if let Some(field) = table.cells.get_mut(bad * 5 + 3) {
+            *field = resources.symbol(text);
+        }
+        table
+    };
+    let (left_rows, edge_rows) = (fields(1, "("), fields(4, "["));
+    let inputs = TableInputs::new(&[(EDGES, &edge_rows), (Relation::Defines, &left_rows)]);
+    let node = |at| (StepInput::Step(ryo_values::domain::plan_parts::types::StepId(at)), PlanInput::Node(PlanNodeId(at)));
+    let seeded = left_of(join(node(1), false, Some(reach())), node(0));
+    let (left, edges) = (self_matching(Relation::Defines), self_matching(EDGES));
+    let mut run = |steps: &[Step]| {
+        let last = PlanNodeId(u32::try_from(steps.len() - 1).unwrap_or(u32::MAX));
+        emitted(steps, &[last], &inputs, &mut resources, &mut FileBuffers::default())
+    };
+    let both = run(&[left.clone(), edges.clone(), seeded]);
+    let Err(first) = run(&[edges]) else {
+        return Ok(Observation::Same(false));
+    };
+    let Err(streamed) = run(&[left]) else {
+        return Ok(Observation::Same(false));
+    };
+    Ok(Observation::Same(both == Err(first.clone()) && streamed != first))
+}
+
 /// The edges of the ordered walks: 1 leads to 3 (order 2) and to 2 (order 1), 2 to 3, 3 back to 1.
 const WALKED: &[(u32, u32, i64)] = &[(1, 3, 2), (1, 2, 1), (2, 3, 0), (3, 1, 0)];
 
@@ -287,6 +345,16 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             &[(1, 2, 0), (2, 1, 0), (3, 3, 0), (4, 5, 0), (5, 6, 0), (9, 7, 0), (7, 8, 0), (8, 9, 0), (9, 10, 0)],
         ),
         Scenario::OrderedWalk => stated_rows(ordered_walk(ColumnIndex(2)), WALKED),
+        Scenario::EdgesFaultFirst => edges_fault_first(),
+        Scenario::OrderedExistence => {
+            let mut resources = TextResources::new(&["f"]);
+            let table = ordered_rows(resources.symbol("f"));
+            let inputs = TableInputs::new(&[(EDGES, &table)]);
+            let rows = emitted(&ordered_existence_pair(), &[PlanNodeId(3), PlanNodeId(7)], &inputs, &mut resources, &mut FileBuffers::default())?;
+            Ok(Observation::Rows(
+                rows.iter().flat_map(|table| table.cells.chunks(5).flat_map(|row| row.iter().take(3).copied().map(stated))).collect(),
+            ))
+        }
         Scenario::OrderedWalkOverATextOrder => stated_rows(ordered_walk(ColumnIndex(3)), WALKED),
         Scenario::WholeClosure => {
             let mut resources = TextResources::new(&["f"]);

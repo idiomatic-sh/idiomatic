@@ -14,7 +14,7 @@ impl RewritesItem for ExistenceProbeItem {
     fn rewrite(&self, nodes: &mut [PhysicalNode], _indexes: &mut Vec<KeyedIndex>) {
         for node in nodes {
             if let Lowering::Probe { probe, .. } = &mut node.lowering
-                && probe.mode != ProbeMode::Inner
+                && matches!(probe.mode, ProbeMode::Semi | ProbeMode::Anti)
             {
                 probe.existence = Existence::First;
             }

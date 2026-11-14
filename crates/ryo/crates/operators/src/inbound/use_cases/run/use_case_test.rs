@@ -6,7 +6,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::ProbeMode;
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem;
-use crate::domain::physical_plan::fixtures::{Step, case_program};
+use crate::domain::physical_plan::fixtures::{EDGES, Step, case_program, ordered_existence_pair, ordered_rows};
 use crate::domain::physical_plan::service::REWRITES;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
@@ -117,7 +117,9 @@ impl RewritesItem for AntiAsSemi {
     }
 }
 
-/// Whether the case program answers the same rows planned with every rewrite of `rewrites` and with each left out.
+/// Whether the case program, every node a rule's emit, and the two ordered existence shapes (the greatest and the least
+/// ordinal per parent, ties at either end among them), only their antijoins emitted, answer the same rows planned with every
+/// rewrite of `rewrites` and with each left out.
 fn rewrites_keep_rows(rewrites: &[&dyn RewritesItem]) -> Result<Value, Failure> {
     let pairs = [
         ("kind", "alpha"),
@@ -128,16 +130,19 @@ fn rewrites_keep_rows(rewrites: &[&dyn RewritesItem]) -> Result<Value, Failure> 
     ];
     let mut resources = TextResources::new(&["kind", "other", "alpha", "beta", "gamma"]);
     let table = defines(&pairs, &resources);
-    let inputs = TableInputs::new(&[(DEFINES, &table)]);
+    let edges = ordered_rows(resources.symbol("kind"));
+    let inputs = TableInputs::new(&[(DEFINES, &table), (EDGES, &edges)]);
     let steps = case_program();
-    let every = rewritten(&steps, rewrites, &inputs, &mut resources)?;
-    for left_out in 0..rewrites.len() {
-        let others: Vec<&dyn RewritesItem> = (0..rewrites.len())
-            .filter(|at| *at != left_out)
-            .filter_map(|at| rewrites.get(at).copied())
-            .collect();
-        if rewritten(&steps, &others, &inputs, &mut resources)? != every {
-            return Ok(Observation::Same(false));
+    let every_node: Vec<PlanNodeId> = (0..u32::try_from(steps.len()).unwrap_or(u32::MAX)).map(PlanNodeId).collect();
+    let programs = [(steps, every_node), (ordered_existence_pair(), vec![PlanNodeId(3), PlanNodeId(7)])];
+    for (steps, emits) in &programs {
+        let every = rewritten(steps, emits, rewrites, &inputs, &mut resources)?;
+        for left_out in 0..rewrites.len() {
+            let others: Vec<&dyn RewritesItem> =
+                (0..rewrites.len()).filter(|at| *at != left_out).filter_map(|at| rewrites.get(at).copied()).collect();
+            if rewritten(steps, emits, &others, &inputs, &mut resources)? != every {
+                return Ok(Observation::Same(false));
+            }
         }
     }
     Ok(Observation::Same(true))
