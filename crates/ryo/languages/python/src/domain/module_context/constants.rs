@@ -9,3 +9,5 @@ pub(crate) const MODULE_SUFFIX: &str = ".py";
 pub(crate) const INIT_FILE: &str = "__init__.py";
 /// The text `..`.
 pub(crate) const PARENT_DIRECTORY: &str = "..";
+/// The text `/`.
+pub(crate) const SEPARATOR: &str = "/";

@@ -9,6 +9,17 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
+/// The initializer marker of a directory, joined with `/`, the one separator the module context's paths use on every platform.
+fn initializer(directory: &Path) -> PathBuf {
+    let mut joined = directory.to_path_buf().into_os_string();
+    let text = directory.to_string_lossy();
+    if !text.chars().last().is_none_or(std::path::is_separator) {
+        joined.push(constants::SEPARATOR);
+    }
+    joined.push(constants::INIT_FILE);
+    PathBuf::from(joined)
+}
+
 /// Derive a dotted identity only within a fully observed package ancestry.
 fn module_path(file: &Path, package: Option<&Path>) -> ModuleDecision {
     let Some(package) = package else {
@@ -63,7 +74,7 @@ pub(crate) fn disk(file: &Path, markers: &Markers) -> ModuleDecision {
     };
     let mut package = None;
     loop {
-        let marker = directory.join(constants::INIT_FILE);
+        let marker = initializer(directory);
         match markers.0.get(&marker) {
             None => return ModuleDecision::Need(marker),
             Some(false) => return module_path(file, package),
@@ -83,7 +94,7 @@ pub(crate) fn given(file: &Path, files: &BTreeSet<PathBuf>) -> ModuleDecision {
     };
     let mut package = None;
     loop {
-        if !files.contains(&directory.join(constants::INIT_FILE)) {
+        if !files.contains(&initializer(directory)) {
             return module_path(file, package);
         }
         if directory.as_os_str().is_empty() {
@@ -113,12 +124,14 @@ pub(crate) fn relative_to(root: &Path, path: &Path) -> Option<PathBuf> {
         .zip(&path)
         .take_while(|(left, right)| left == right)
         .count();
-    let mut result = PathBuf::new();
-    for _ in common..root.len() {
-        result.push(constants::PARENT_DIRECTORY);
+    let ups = (common..root.len()).map(|_| Path::new(constants::PARENT_DIRECTORY).as_os_str());
+    let downs = path.iter().skip(common).map(|part| part.as_os_str());
+    let mut result = PathBuf::new().into_os_string();
+    for (index, part) in ups.chain(downs).enumerate() {
+        if index > 0 {
+            result.push(constants::SEPARATOR);
+        }
+        result.push(part);
     }
-    for part in path.iter().skip(common) {
-        result.push(part.as_os_str());
-    }
-    Some(result)
+    Some(PathBuf::from(result))
 }

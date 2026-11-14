@@ -133,3 +133,8 @@ pub(super) fn root_basename_preserves_contiguous_boundary_and_namespace_prefix()
     }
     observed.join("|")
 }
+
+pub(super) fn the_filesystem_root_is_joined_without_a_doubled_separator() -> String {
+    let markers = Markers::default();
+    format!("{:?}", disk(Path::new("/mod.py"), &markers))
+}
