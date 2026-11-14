@@ -62,3 +62,18 @@ expected = []
 name = "warn-reenables"
 files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n/// Docs.\n\n#[warn(clippy::empty_line_after_doc_comments)]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 30, end = 40 }]
+
+[[cases]]
+name = "doc-before-derive"
+files = { "src/lib.rs" = "/// Docs.\n\n#[derive(Clone)]\npub struct S;\n" }
+expected = []
+
+[[cases]]
+name = "doc-before-test"
+files = { "src/lib.rs" = "/// Docs.\n\n#[test]\nfn t() {}\n" }
+expected = []
+
+[[cases]]
+name = "derive-gap-only"
+files = { "src/lib.rs" = "/// Docs.\n\n#[must_use]\n\n#[derive(Clone)]\npub struct S;\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 10 }]

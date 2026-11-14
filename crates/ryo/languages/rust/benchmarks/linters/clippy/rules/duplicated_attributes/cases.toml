@@ -72,3 +72,13 @@ expected = []
 name = "warn-reenables"
 files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n#[warn(clippy::duplicated_attributes)]\n#[inline]\n#[inline]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 79, end = 88 }]
+
+[[cases]]
+name = "expression-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(group = ArgGroup::new(\"verb\").required(true).multiple(true))]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "literal-value"
+files = { "src/lib.rs" = "#[allow(dead_code, dead_code, reason = \"x = y\")]\nfn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 28 }]
