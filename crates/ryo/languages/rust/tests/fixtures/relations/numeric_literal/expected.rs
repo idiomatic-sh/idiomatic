@@ -55,7 +55,15 @@ const ROWS: &[NumericLiteralExpectedRow] = &[
         span: span((6, 33), (6, 36)),
     },
     NumericLiteralExpectedRow {
-        id: node(145),
+        id: node(152),
+        kind: name("float"),
+        value: name("0.3"),
+        exact_digits: false,
+        file: file("numeric_literal/input.rs"),
+        span: span((9, 22), (9, 44)),
+    },
+    NumericLiteralExpectedRow {
+        id: node(164),
         kind: name("integer"),
         value: name("1"),
         exact_digits: true,
@@ -63,7 +71,7 @@ const ROWS: &[NumericLiteralExpectedRow] = &[
         span: span((6, 18), (6, 19)),
     },
     NumericLiteralExpectedRow {
-        id: node(149),
+        id: node(168),
         kind: name("integer"),
         value: name("9"),
         exact_digits: true,
