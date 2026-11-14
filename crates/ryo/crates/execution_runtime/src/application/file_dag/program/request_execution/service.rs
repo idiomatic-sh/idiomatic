@@ -247,7 +247,6 @@ fn run_file(
                 OperatingError::NotRead
             })
     };
-    let facts = lookup.worker();
     let CaptureContext {
         worker,
         arena: Arena(arena),
@@ -325,7 +324,7 @@ fn run_file(
                             places: &mut *places,
                             words: &mut *words,
                         },
-                        facts,
+                        lookup,
                         &refused,
                     )
                     .unwrap_or_else(|error| stopped(error, &refused))

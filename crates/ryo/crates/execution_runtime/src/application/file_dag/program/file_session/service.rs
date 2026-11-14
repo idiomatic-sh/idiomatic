@@ -1,6 +1,7 @@
 //! A file session: the delegation to the file run and the rows the run reads.
 use super::types::FileSession;
 use super::types::{FileStop, RuleAfter, RuleFile};
+use crate::application::file_dag::fact_lookup::service::FactLookup;
 use crate::application::file_dag::program::file_session::interface::ProgramFileSessionPort;
 use crate::application::file_dag::program::file_session::types::CaptureContext;
 use crate::application::file_dag::program::file_session::types::FileFinished;
@@ -8,7 +9,6 @@ use crate::application::file_dag::program::file_session::types::FinishedReadines
 use crate::application::file_dag::program::file_session::types::SourceRows;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::outbound::facts::errors::FactsError;
-use crate::outbound::facts::interface::FactsWorker;
 use crate::outbound::facts::types::WordsToKeep;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::frontier_capture::types::FrontierCapture;
@@ -240,7 +240,7 @@ pub(crate) fn rest_of_rule(
     at: RuleFile<'_>,
     symbols: &mut Symbols,
     capture: CaptureContext<'_>,
-    facts: &dyn FactsWorker,
+    facts: &FactLookup<'_, '_>,
     refused: &RefCell<Option<FactsError>>,
 ) -> Result<RuleAfter, OperatingError> {
     let first = *at.first.get(at.rule.0).ok_or(OperatingError::NotRun)?;

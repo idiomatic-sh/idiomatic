@@ -22,6 +22,6 @@ pub(crate) struct FileWants<'a> {
 pub(crate) enum RowsRead {
     /// Not yet, or they were released: nothing is readable.
     Closed,
-    /// Every wanted relation was read and admitted.
+    /// The demanded relations were read and the active ones among them admitted.
     Read,
 }

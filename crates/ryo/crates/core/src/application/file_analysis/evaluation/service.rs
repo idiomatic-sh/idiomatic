@@ -6,7 +6,7 @@ use super::super::service::FileAnalysis;
 use super::super::types::{FileRead, FileVisit, LanguageSource, RuleGate, Worker};
 use crate::outbound::language::types::{FileToRead, SourceSelection};
 use ryo_relations::domain::relations::service::{all, provenance_of};
-use ryo_relations::domain::relations::types::{Provenance, Relation};
+use ryo_relations::domain::relations::types::Provenance;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
 use crate::domain::workers::service::governs_rule;
@@ -63,11 +63,11 @@ impl FileAnalysis {
         } else {
             Partiality::Physical
         };
-        let serves: Vec<Relation> = all()
-            .iter()
-            .copied()
-            .filter(|relation| provenance_of(*relation) != Provenance::Engine)
-            .collect();
+        // The catalog lists the engine's relations last, so what a language serves is the catalog before them: no list per file.
+        let catalog = all();
+        let engine =
+            catalog.partition_point(|relation| provenance_of(*relation) != Provenance::Engine);
+        let serves = catalog.get(..engine).unwrap_or(catalog);
         let mut refused = None;
         let mut reader;
         // The one place a file's sources are listed: the language that read it, if one did.
@@ -89,7 +89,7 @@ impl FileAnalysis {
                         roles: visit.setting.roled.into(),
                     },
                     tree: &mut tables.elements,
-                    serves: &serves,
+                    serves,
                     refused: &mut refused,
                 };
                 FactSources::read(&mut reader, Vec::new())?

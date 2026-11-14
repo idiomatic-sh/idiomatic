@@ -1,5 +1,6 @@
-//! The fact lookup of one file, through its own methods only: each relation read once by the source that serves it, refused until
-//! ensured or after release, a refusal stopping the file, and the partiality `partial_of` gives.
+//! The fact lookup of one file, through its own methods only: exactly the demanded relations read, each once by the source that
+//! serves it, a served relation refused until ensured, outside what was ensured or after release, core's own read in place, a
+//! refusal stopping the file, and the partiality `partial_of` gives.
 
 use super::service::{FactLookup, opened};
 use super::types::FileWants;
@@ -202,6 +203,83 @@ fn release_leaves_nothing_readable() -> Result<Value, Failure> {
     rows_of(&lookup, Relation::Function)
 }
 
+/// What each source is asked for when only `function` is demanded of a file whose further source serves `comment`: the tree
+/// source `function`, the further source nothing.
+fn only_the_demanded_relations_are_read() -> Result<Value, Failure> {
+    let mut worker = FactsFake::default().open_worker()?;
+    let mut tree = SourceFake::serving(&[Relation::Function]);
+    let mut further = SourceFake::serving(&[Relation::Comment]);
+    {
+        let mut lookup = FactLookup::new(
+            FactSources::read(&mut tree, vec![&mut further])?,
+            worker.as_mut(),
+            WHOLE,
+        );
+        lookup.ensure(&mut Symbols::default(), &[Relation::Function])?;
+    }
+    Ok(usize::from(
+        tree.reads == [vec![Relation::Function]] && further.reads == [Vec::<Relation>::new()],
+    ))
+}
+
+/// What reading `comment` answers once only `function` was ensured.
+fn a_relation_outside_what_was_ensured_is_refused() -> Result<Value, Failure> {
+    let mut worker = FactsFake::default().open_worker()?;
+    let mut tree = SourceFake::serving(&[Relation::Function]);
+    let mut further = SourceFake::serving(&[Relation::Comment]);
+    let mut lookup = FactLookup::new(
+        FactSources::read(&mut tree, vec![&mut further])?,
+        worker.as_mut(),
+        WHOLE,
+    );
+    lookup.ensure(&mut Symbols::default(), &[Relation::Function])?;
+    rows_of(&lookup, Relation::Comment)
+}
+
+/// What a second `ensure` asking for `comment` answers once the first read only `function`: the file is never read twice.
+fn a_later_ensure_beyond_the_first_is_refused() -> Result<Value, Failure> {
+    let mut worker = FactsFake::default().open_worker()?;
+    let mut tree = SourceFake::serving(&[Relation::Function]);
+    let mut further = SourceFake::serving(&[Relation::Comment]);
+    let mut lookup = FactLookup::new(
+        FactSources::read(&mut tree, vec![&mut further])?,
+        worker.as_mut(),
+        WHOLE,
+    );
+    lookup.ensure(&mut Symbols::default(), &[Relation::Function])?;
+    lookup.ensure(&mut Symbols::default(), &[Relation::Comment])?;
+    Ok(1)
+}
+
+/// How many relations the source admits when `function` and `comment` are active but only `function` is demanded: `function`.
+fn only_demanded_active_relations_are_admitted() -> Result<Value, Failure> {
+    let mut worker = FactsFake::default().open_worker()?;
+    let mut source = SourceFake::serving(&[Relation::Function, Relation::Comment]);
+    {
+        let mut lookup = FactLookup::new(
+            FactSources::read(&mut source, Vec::new())?,
+            worker.as_mut(),
+            WHOLE,
+        );
+        lookup.ensure(&mut Symbols::default(), &[Relation::Function])?;
+    }
+    Ok(source.admitted.len())
+}
+
+/// How many rows `comment`, which no source of the file serves and core wrote none of, reads from the worker once only `function`
+/// was ensured: none, read rather than refused.
+fn a_relation_no_source_serves_reads_the_worker() -> Result<Value, Failure> {
+    let mut worker = FactsFake::default().open_worker()?;
+    let mut source = SourceFake::serving(&[Relation::Function]);
+    let mut lookup = FactLookup::new(
+        FactSources::read(&mut source, Vec::new())?,
+        worker.as_mut(),
+        WHOLE,
+    );
+    lookup.ensure(&mut Symbols::default(), &[Relation::Function])?;
+    rows_of(&lookup, Relation::Comment)
+}
+
 fn subject(scenario: Input) -> Result<Value, Failure> {
     scenario()
 }
@@ -238,10 +316,46 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(0),
     },
     Case {
+        name: CaseName("only_the_demanded_relations_are_read"),
+        word: Word::Succeeds,
+        input: || only_the_demanded_relations_are_read,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("only_demanded_active_relations_are_admitted"),
+        word: Word::Succeeds,
+        input: || only_demanded_active_relations_are_admitted,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_relation_no_source_serves_reads_the_worker"),
+        word: Word::Succeeds,
+        input: || a_relation_no_source_serves_reads_the_worker,
+        expect: Expect::Value(0),
+    },
+    Case {
         name: CaseName("a_relation_not_ensured_is_refused"),
         word: Word::Refuses,
         input: || a_relation_not_ensured_is_refused,
-        expect: Expect::Error(FactsError::Refused),
+        expect: Expect::Error(FactsError::NotEnsured {
+            relation: Relation::Function,
+        }),
+    },
+    Case {
+        name: CaseName("a_relation_outside_what_was_ensured_is_refused"),
+        word: Word::Refuses,
+        input: || a_relation_outside_what_was_ensured_is_refused,
+        expect: Expect::Error(FactsError::NotEnsured {
+            relation: Relation::Comment,
+        }),
+    },
+    Case {
+        name: CaseName("a_later_ensure_beyond_the_first_is_refused"),
+        word: Word::Refuses,
+        input: || a_later_ensure_beyond_the_first_is_refused,
+        expect: Expect::Error(FactsError::NotEnsured {
+            relation: Relation::Comment,
+        }),
     },
     Case {
         name: CaseName("a_refused_relation_stops_with_refused"),
@@ -253,7 +367,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("release_leaves_nothing_readable"),
         word: Word::Refuses,
         input: || release_leaves_nothing_readable,
-        expect: Expect::Error(FactsError::Refused),
+        expect: Expect::Error(FactsError::NotEnsured {
+            relation: Relation::Function,
+        }),
     },
 ];
 

@@ -1,6 +1,7 @@
 //! The sources one file's rows come from, and the one check that no two of them serve one relation.
 
 use crate::outbound::facts::errors::FactsError;
+use crate::outbound::facts::types::SourceServes;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::service::all;
@@ -152,6 +153,23 @@ impl<'a> FactSources<'a> {
         match &self.tree {
             Tree::Read(source) => source.tree(),
             Tree::Unread(elements) => elements,
+        }
+    }
+
+    /// Whether any source of the file serves `relation`: one that no source serves is core's own, written to the worker by core.
+    pub(crate) fn serve(&self, relation: Relation) -> SourceServes {
+        let by_tree = match &self.tree {
+            Tree::Read(source) => source.serves().contains(&relation),
+            Tree::Unread(_) => false,
+        };
+        let by_others = self
+            .others
+            .iter()
+            .any(|source| source.serves().contains(&relation));
+        if by_tree || by_others {
+            SourceServes::Served
+        } else {
+            SourceServes::Unserved
         }
     }
 
