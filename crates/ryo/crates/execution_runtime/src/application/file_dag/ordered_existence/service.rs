@@ -4,8 +4,7 @@ use ryo_execution_domain::domain::operating::service::portable_fault;
 use ryo_execution_domain::domain::operator::contract::failure::types::FailureLatch;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
-    operating::errors::OperatingError,
-    self_join_recogniser::types::Extremum,
+    operating::errors::OperatingError, self_join_recogniser::types::Extremum,
 };
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_operators::domain::ordered_existence::types::OrderedExistenceDriver;
@@ -94,7 +93,7 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
 /// drives the borrowed semantic algorithm and never publishes or schedules.
 pub(crate) fn evaluate(
     semantics: &dyn ryo_execution_domain::domain::operating::types::PrimitiveSemantics,
-    shape: &ryo_execution_domain::domain::executable_program::types::OrderedExistence,
+    shape: &ryo_execution_domain::domain::interpreted_program::types::OrderedExistence,
     admitted: &ryo_execution_store::application::file_dag::relations::number::service::service::AdmittedNumber<'_>,
     rows: RepresentationInput<'_>,
     context: &mut ryo_execution_domain::domain::operator::types::OperatorContext<'_>,

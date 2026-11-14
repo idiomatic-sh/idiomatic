@@ -1,14 +1,14 @@
 //! Engine-owned grouping storage and text resolution; primitive reduction runs through the injected inbound capability.
-use ryo_operators::domain::table_texts::types::Texts;
 use super::types::{CountRoom, GroupTarget, Hashes, ResolvedValues};
-use crate::domain::{
-    operating::{errors::OperatingError, service::written_result, types::PrimitiveSemantics},
+use crate::domain::operating::{
+    errors::OperatingError, service::written_result, types::PrimitiveSemantics,
 };
 use ryo_derived::domain::key::types::On;
 use ryo_operators::domain::reduction::types::DigestDatum;
 use ryo_operators::domain::reduction::types::DigestValues;
 use ryo_operators::domain::reduction::types::GroupColumns;
 use ryo_operators::domain::reduction::types::HashScratch;
+use ryo_operators::domain::table_texts::types::Texts;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_values::domain::{plan_parts::types::ColumnIndex, rows::types::Table};
 

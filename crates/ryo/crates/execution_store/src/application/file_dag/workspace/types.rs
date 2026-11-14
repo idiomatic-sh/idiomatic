@@ -1,10 +1,10 @@
 //! The borrowed parts of one invocation's workspace a kernel works in, lent together so one evaluation can hold them at once.
-use ryo_operators::domain::table_scratch::types::Memo;
-use ryo_operators::domain::comparing::types::NameCount;
 use ryo_execution_domain::domain::operator::contract::types::{PrimitiveWorkspace, WorkCounters};
+use ryo_matching::inbound::use_cases::matching::types::CompiledRegex;
+use ryo_operators::domain::comparing::types::NameCount;
+use ryo_operators::domain::table_scratch::types::Memo;
 use ryo_operators::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers;
 use ryo_operators::domain::table_scratch::types::{LazyScratch, SelectScratch};
-use ryo_matching::inbound::use_cases::matching::types::CompiledRegex;
 
 /// The working allocations of one invocation, each borrowed apart from the others: a view of the workspace, never
 /// a second owner of them. The admitted publications are not lent.

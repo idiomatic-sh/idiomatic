@@ -9,12 +9,14 @@
     reason = "a bench that cannot run its own program has nothing to measure: the panic is the failure"
 )]
 
+use ryo_operators::domain::physical_plan::fixtures::Step;
 use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId};
-use ryo_operators::domain::physical_plan::fixtures::Step;
 use ryo_operators::inbound::use_cases::run::fixtures::{TableInputs, TextResources, emitted};
 use ryo_relations::domain::relations::fixtures::{kinds, node_id};
-use ryo_relations::domain::relations::types::{FileId, Integer, Offset, Position, Relation, Span, Value};
+use ryo_relations::domain::relations::types::{
+    FileId, Integer, Offset, Position, Relation, Span, Value,
+};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, Input, JoinColumn, LiteralText, Operand, PlanComparison,
     QueryLiteral, RepeatedRows, Side, StepId, Test,
@@ -32,7 +34,10 @@ const NAMES: usize = 43;
 fn defines(rows: usize, names: &[String], texts: &TextResources) -> Table {
     let mut cells = Vec::with_capacity(rows * kinds(DEFINES).len());
     for at in 0..rows {
-        let tree = Value::Node(node_id(FileId(0), Position(u32::try_from(at).unwrap_or(u32::MAX))));
+        let tree = Value::Node(node_id(
+            FileId(0),
+            Position(u32::try_from(at).unwrap_or(u32::MAX)),
+        ));
         let name = names.get(at % NAMES).map_or("kind", String::as_str);
         cells.extend([
             tree,

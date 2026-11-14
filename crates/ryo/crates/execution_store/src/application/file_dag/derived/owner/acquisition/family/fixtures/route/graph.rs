@@ -11,10 +11,7 @@ use crate::application::file_dag::derived::owner::{
 };
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::derived_views::types::ViewRequest;
-use ryo_execution_domain::domain::{
-    operating::errors::OperatingError,
-    table_model::types::Rows,
-};
+use ryo_execution_domain::domain::{operating::errors::OperatingError, table_model::types::Rows};
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
 

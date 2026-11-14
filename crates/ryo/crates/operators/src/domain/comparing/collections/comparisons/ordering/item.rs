@@ -42,7 +42,9 @@ impl ComparisonsItem for OrderingItem {
                 (Test::LessThan, Ordering::Less)
                 | (Test::LessThanOrEqual, Ordering::Less | Ordering::Equal)
                 | (Test::GreaterThan, Ordering::Greater)
-                | (Test::GreaterThanOrEqual, Ordering::Greater | Ordering::Equal) => PredicateOutcome::Holds,
+                | (Test::GreaterThanOrEqual, Ordering::Greater | Ordering::Equal) => {
+                    PredicateOutcome::Holds
+                }
                 _ => PredicateOutcome::Fails,
             }),
             Test::Equal

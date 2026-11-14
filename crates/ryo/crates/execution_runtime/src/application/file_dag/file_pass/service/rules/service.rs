@@ -1,36 +1,47 @@
 //! One file's rules through the planned program: its facts read once, each rule's emitted node, named outputs and frontiers,
 //! and the file finished with its named outputs' readiness.
 
-use crate::application::file_dag::file_pass::service::{fill_roots, given_back, taken};
-use crate::application::file_dag::program::facade_runtime::file_execution::service::{classify, readiness_of};
 use crate::application::file_dag::fact_lookup::service::FactLookup;
 use crate::application::file_dag::fact_lookup::types::FileWants;
-use crate::outbound::facts::errors::FactsError;
-use crate::outbound::facts::types::fact_sources::value::FactSources;
-use crate::application::file_dag::file_pass::types::{CaptureAt, OutputCommit, OutputState, PassFile, PassInputs, PassProgram, PassRequest};
 use crate::application::file_dag::file_pass::constants::SOURCE_FACTS_INCOMPLETE;
-use crate::application::file_dag::program::file_session::types::{CaptureContext, EmittedRoot, FileEnd, FileRules, FileRunInput, FileStop, FinishedReadiness, Partiality, RanRule, RuleAfter};
+use crate::application::file_dag::file_pass::service::captures::service::captured_rule;
+use crate::application::file_dag::file_pass::service::nodes::service::{node_outcome, released};
+use crate::application::file_dag::file_pass::service::{fill_roots, given_back, taken};
+use crate::application::file_dag::file_pass::types::{
+    CaptureAt, OutputCommit, OutputState, PassFile, PassInputs, PassProgram, PassRequest,
+};
+use crate::application::file_dag::program::facade_runtime::file_execution::service::{
+    classify, readiness_of,
+};
+use crate::application::file_dag::program::file_session::types::{
+    CaptureContext, EmittedRoot, FileEnd, FileRules, FileRunInput, FileStop, FinishedReadiness,
+    Partiality, RanRule, RuleAfter,
+};
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsWorker;
-use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+use crate::outbound::facts::types::fact_sources::value::FactSources;
 use ryo_execution_domain::domain::completion::types::ObservationAdmission;
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::executable_program::service::{rule as fused_rule, serving};
+use ryo_execution_domain::domain::executable_program::types::Serving;
 use ryo_execution_domain::domain::finish::types::Arena;
-use ryo_execution_domain::domain::fused_program::service::{rule as fused_rule, serving};
-use ryo_execution_domain::domain::fused_program::types::Serving;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::rule_intent::types::{DiagnosticDelivery, FileRuleIntent, ObservationDemand};
+use ryo_execution_domain::domain::rule_intent::types::{
+    DiagnosticDelivery, FileRuleIntent, ObservationDemand,
+};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::table_texts::types::Texts;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::observations::service::{new_frontiers, set_frontier};
 use ryo_values::domain::plan_parts::types::{Input, StepScope};
-use ryo_values::domain::records::types::{ObservationReadinessCount, ObservationReadinessSlot, ProducerReadiness};
-use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::records::types::{
+    ObservationReadinessCount, ObservationReadinessSlot, ProducerReadiness,
+};
 use ryo_values::domain::rows::types::Table;
 use std::cell::RefCell;
 use std::sync::Arc;
-use crate::application::file_dag::file_pass::service::nodes::service::{node_outcome, released};
-use crate::application::file_dag::file_pass::service::captures::service::captured_rule;
 
 /// One file's rules, one after another in the program's rule order, through the planned program: the file's facts read once,
 /// each rule's emitted node run by the operators, its frontiers captured, kept and committed, its steps reported to the
@@ -38,7 +49,7 @@ use crate::application::file_dag::file_pass::service::captures::service::capture
 /// refusal; a failed emitted node ends the file.
 pub(crate) fn run_rules(
     request: PassRequest<'_>,
-    pass: &Result<PassProgram, OperatingError>,
+    pass: &PassProgram,
     input: FileRunInput<'_>,
     symbols: &mut Symbols,
     capture: CaptureContext<'_>,
@@ -50,7 +61,13 @@ pub(crate) fn run_rules(
         said: input.said,
         recovery: input.recovery,
     };
-    let lookup = match opened(input.sources, facts, wants, symbols, request.program.demanded()) {
+    let lookup = match opened(
+        input.sources,
+        facts,
+        wants,
+        symbols,
+        request.program.demanded(),
+    ) {
         Ok(lookup) => lookup,
         Err(stop) => {
             return FileRules {
@@ -61,20 +78,13 @@ pub(crate) fn run_rules(
         }
     };
     let partials = lookup.partials().to_vec();
-    let admitted = request
-        .admission
-        .clone()
-        .and_then(|()| pass.as_ref().map_err(Clone::clone));
-    let pass = match admitted {
-        Ok(pass) => pass,
-        Err(error) => {
-            return FileRules {
-                rules: Vec::new(),
-                end: FileEnd::Refused(FileStop::Operating(error)),
-                partials,
-            };
-        }
-    };
+    if let Err(error) = request.admission.clone() {
+        return FileRules {
+            rules: Vec::new(),
+            end: FileEnd::Refused(FileStop::Operating(error)),
+            partials,
+        };
+    }
     let evaluation = match input.answering {
         Partiality::Physical => partials.as_slice(),
         Partiality::Relaxed => &[][..],
@@ -136,7 +146,9 @@ pub(crate) fn run_rules(
                 rules.push(RanRule {
                     rule,
                     emit: EmittedRoot::Withheld,
-                    after: RuleAfter::Stopped(FileStop::Operating(OperatingError::NotServedUntil(stage))),
+                    after: RuleAfter::Stopped(FileStop::Operating(OperatingError::NotServedUntil(
+                        stage,
+                    ))),
                 });
                 released(&mut at);
                 return (rules, FileEnd::Unfinished);
@@ -145,8 +157,14 @@ pub(crate) fn run_rules(
             let delivered = delivered_rule(&mut at, symbols, rule, diagnostic, observations);
             let refused = at.inputs.refused.take();
             let (emit, after) = match (delivered, refused) {
-                (_, Some(error)) => (EmittedRoot::Withheld, RuleAfter::Stopped(FileStop::Facts(error))),
-                (Err(error), None) => (EmittedRoot::Withheld, RuleAfter::Stopped(FileStop::Operating(error))),
+                (_, Some(error)) => (
+                    EmittedRoot::Withheld,
+                    RuleAfter::Stopped(FileStop::Facts(error)),
+                ),
+                (Err(error), None) => (
+                    EmittedRoot::Withheld,
+                    RuleAfter::Stopped(FileStop::Operating(error)),
+                ),
                 (Ok(outcome), None) => {
                     let emit = if emits {
                         EmittedRoot::Delivered(outcome)
@@ -191,7 +209,9 @@ pub(crate) fn run_rules(
         released(&mut at);
         (rules, FileEnd::Finished(readiness))
     })();
-    let PassFile { buffers, outputs, .. } = at;
+    let PassFile {
+        buffers, outputs, ..
+    } = at;
     scratch.buffers = buffers;
     scratch.outputs = outputs;
     given_back(pass, scratch);
@@ -202,7 +222,6 @@ pub(crate) fn run_rules(
         partials,
     }
 }
-
 
 /// The delivery of `rule`'s emitted node and, when demanded, its named outputs' readiness. A forwarded delivery is not this
 /// entry point's.
@@ -236,25 +255,26 @@ pub(crate) fn delivered_rule(
             }
             let completion =
                 CompletionPolicy::file_inputs(rule, at.file, at.evaluation, at.publication);
-            let outcome = if completion.observation_admission(&root.reads) == ObservationAdmission::Ready {
-                match plan.observations.get(index).map(|output| output.source) {
-                    Some(Input::Step(id)) => {
-                        let step = nodes
-                            .steps
-                            .get(id.0 as usize)
-                            .ok_or(OperatingError::NotRun)
-                            .and_then(Clone::clone);
-                        node_outcome(at, symbols, rule, step, id)
+            let outcome =
+                if completion.observation_admission(&root.reads) == ObservationAdmission::Ready {
+                    match plan.observations.get(index).map(|output| output.source) {
+                        Some(Input::Step(id)) => {
+                            let step = nodes
+                                .steps
+                                .get(id.0 as usize)
+                                .ok_or(OperatingError::NotRun)
+                                .and_then(Clone::clone);
+                            node_outcome(at, symbols, rule, step, id)
+                        }
+                        Some(Input::Relation(_) | Input::BoundObservation(_)) | None => {
+                            RootOutcome::Failed(OperatingError::NotRun)
+                        }
                     }
-                    Some(Input::Relation(_) | Input::BoundObservation(_)) | None => {
-                        RootOutcome::Failed(OperatingError::NotRun)
-                    }
-                }
-            } else {
-                classify(OperatingError::ObservationIncomplete {
-                    reason: SOURCE_FACTS_INCOMPLETE.into(),
-                })
-            };
+                } else {
+                    classify(OperatingError::ObservationIncomplete {
+                        reason: SOURCE_FACTS_INCOMPLETE.into(),
+                    })
+                };
             if let Some(state) = states.get_mut(index) {
                 state.readiness = readiness_of(&outcome);
             }

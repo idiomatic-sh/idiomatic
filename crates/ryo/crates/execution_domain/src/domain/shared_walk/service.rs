@@ -1,18 +1,11 @@
 //! One borrowed relation pass for active selection classes. No publication,
 //! provider demand, fallback, or owner lifetime is decided in this domain.
 
-use ryo_operators::domain::comparing::types::NameCount;
-use ryo_operators::domain::comparing::{
-        service::holds_bound,
-        types::{DecisionWorkspace, RowShape},
-    };
 use super::types::{
     ClassCount, ClassWork, CohortPlace, Eligibility, KindCount, PredicateMemo, PredicatePlace,
     WalkWork, native_batch::value::NativeBatch, prepared_walk::value::PreparedWalk,
 };
 use crate::domain::operator::types::OperatorContext;
-use ryo_operators::domain::table_texts::types::Texts;
-use ryo_operators::domain::tree_cells::types::TreeForm;
 use crate::domain::{
     kind_sets::{
         service::{kind_tests, named_kinds, names_a_kind, passes},
@@ -31,9 +24,16 @@ use crate::domain::{
         types::Rows,
     },
 };
-use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_language::domain::elements::service::{kind_at, kind_names};
 use ryo_language::domain::names::service::name_count;
+use ryo_operators::domain::comparing::types::NameCount;
+use ryo_operators::domain::comparing::{
+    service::holds_bound,
+    types::{DecisionWorkspace, RowShape},
+};
+use ryo_operators::domain::contract::types::PredicateOutcome;
+use ryo_operators::domain::table_texts::types::Texts;
+use ryo_operators::domain::tree_cells::types::TreeForm;
 use ryo_relations::domain::relations::types::{CellKind, Flag, Position, Relation, Value};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::types::RowIndex;

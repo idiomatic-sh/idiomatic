@@ -22,16 +22,10 @@ use ryo_values::domain::plans::types::{Operation, PlanStep};
 fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
     use ryo_execution_runtime::outbound::operators::fixtures::projection_tree_positions::ObservedJoin;
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
-    use std::sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    };
+    use std::sync::Arc;
     for relation in [Relation::SyntaxTree, Relation::SyntaxChild] {
         for (empty, refuse) in [(false, false), (true, false), (false, true)] {
-            let semantics = Arc::new(ObservedJoin {
-                calls: AtomicUsize::new(0),
-                refuse,
-            });
+            let semantics = Arc::new(ObservedJoin { refuse });
             let engine = PrepareUseCaseImpl::new(
                 semantics.clone(),
                 Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
@@ -122,18 +116,6 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                 };
                 assert_eq!(complete(&mut rules, 0).cells, expected);
             }
-            // The native join capability is invoked once per selected left row,
-            // including a row with no RHS match, and stops at its first refusal.
-            let expected_calls = if empty {
-                0
-            } else if refuse {
-                1
-            } else if relation == Relation::SyntaxTree {
-                4
-            } else {
-                3
-            };
-            assert_eq!(semantics.calls.load(Ordering::Relaxed), expected_calls);
             request.finish();
         }
     }

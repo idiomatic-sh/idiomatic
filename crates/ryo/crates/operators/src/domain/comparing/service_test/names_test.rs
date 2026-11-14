@@ -1,9 +1,9 @@
 //! How a comparison decides a name against a text: by the text's hash, once for each name, and across the files of a run.
 use super::{FROM, column, holds_all};
 use crate::domain::comparing::types::RowShape;
-use crate::domain::{comparing::errors::ComparingError, comparing::types::NameCount};
 use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::table_scratch::types::OperatorScratch;
+use crate::domain::{comparing::errors::ComparingError, comparing::types::NameCount};
 use ryo_language::domain::names::service::name_count;
 use ryo_language::domain::symbols::service::intern;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};

@@ -14,7 +14,9 @@ use ryo_relations::domain::relations::collections::relations::filesystem_executa
 use ryo_relations::domain::relations::collections::relations::filesystem_file::item::FilesystemFileRow;
 use ryo_relations::domain::relations::collections::relations::filesystem_line_count::item::FilesystemLineCountRow;
 use ryo_relations::domain::relations::collections::relations::filesystem_read_failure::item::FilesystemReadFailureRow;
-use ryo_relations::domain::relations::types::{ColumnsView, Flag, Integer, Missing, Offset, Relation, RowWriter, Span};
+use ryo_relations::domain::relations::types::{
+    ColumnsView, Flag, Integer, Missing, Offset, Relation, RowWriter, Span,
+};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::files::types::ExecutablePermission;
 use ryo_values::domain::stored_facts::types::{PartialAt, PartialCause, PartialScope, ReadInPart};
@@ -42,7 +44,7 @@ impl FactSource for EngineSource<'_> {
                 | ExecutablePermission::PosixNotExecutable) => {
                     if wanted.contains(&Relation::FilesystemExecutable) {
                         out.write(FilesystemExecutableRow {
-                    path: self.file,
+                            path: self.file,
                             executable: if posix == ExecutablePermission::PosixExecutable {
                                 Flag::Raised
                             } else {

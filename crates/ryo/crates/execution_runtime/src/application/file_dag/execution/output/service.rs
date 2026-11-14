@@ -2,16 +2,15 @@
 
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
-use ryo_operators::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers;
 use ryo_language::domain::symbols::{service::query_reborrow, types::QuerySymbols};
+use ryo_operators::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers;
 use ryo_relations::domain::relations::types::Value;
 
 pub(crate) struct Headers<'a> {
     phase: ryo_execution_domain::domain::operating::types::AfterTheFiles,
     semantic: Option<&'a dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
-    pub(crate) prepared_matchers: Option<
-        &'a ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers,
-    >,
+    pub(crate) prepared_matchers:
+        Option<&'a ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers>,
     pub(crate) prepared_kinds: Option<
         &'a ryo_execution_domain::domain::kind_sets::types::vocabulary::value::PreparedVocabulary,
     >,
@@ -61,40 +60,4 @@ impl<'a> Headers<'a> {
             emit.row(&mut downstream, row)
         })
     }
-}
-
-/// Deliver one committed publication through the same isolated downstream frame
-/// used by primitive output. Mutable consumer state lives for this delivery
-/// attempt, never in the producer context and never one allocation per row.
-pub(crate) fn replay(
-    rows: &ryo_execution_domain::domain::table_model::types::Rows<'_>,
-    context: &mut OperatorContext<'_>,
-    output: &mut dyn Emit,
-) -> Result<(), OperatingError> {
-    struct Delivery<'call, 'headers> {
-        headers: Headers<'headers>,
-        output: &'call mut dyn Emit,
-        buffers: DownstreamBuffers,
-    }
-    impl Emit for Delivery<'_, '_> {
-        fn row(
-            &mut self,
-            context: &mut OperatorContext<'_>,
-            row: &[Value],
-        ) -> Result<(), OperatingError> {
-            self.headers
-                .row(self.output, &mut context.symbols, &mut self.buffers, row)
-        }
-    }
-    let mut delivery = Delivery {
-        headers: Headers::from_context(context),
-        output,
-        buffers: DownstreamBuffers::default(),
-    };
-    ryo_execution_domain::domain::replay::service::scan(
-        rows,
-        &mut Vec::new(),
-        context,
-        &mut delivery,
-    )
 }

@@ -1,20 +1,20 @@
 //! The `AxisWalk` value: the axis resources the last walk ran over (a tree of elements, or an index of edges
 //! with its domain), the engine's strategy behind the operators' axis port.
 
-use ryo_operators::domain::table_scratch::types::SetMembership;
 use super::super::row_delivery::value::RowDelivery;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::failure::types::LatchState;
 use crate::domain::operator::contract::views::types::PreparedAxis;
-use ryo_operators::domain::tree_cells::service::{element_of, tree_value};
-use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_derived::domain::membership::types::MembershipView;
 use ryo_language::domain::elements::service::{
     children, next_sibling, parent_at, previous_sibling, size_at,
 };
 use ryo_operators::domain::axis::types::{AxisAdmission, AxisCandidates};
 use ryo_operators::domain::contract::types::PortableOperatorFault as Fault;
+use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_operators::domain::contract::types::VertexPlace;
+use ryo_operators::domain::table_scratch::types::SetMembership;
+use ryo_operators::domain::tree_cells::service::{element_of, tree_value};
 use ryo_relations::domain::relations::service::{node_file, node_id, node_position};
 use ryo_relations::domain::relations::types::{Count, Position, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};

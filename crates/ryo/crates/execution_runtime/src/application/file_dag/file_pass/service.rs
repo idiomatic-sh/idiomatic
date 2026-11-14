@@ -2,12 +2,20 @@
 //! the file's facts and tree in place; and the plan's root kinds, written as texts, mapped to the open file's own kind numbers,
 //! so each node reading the tree starts from the tree nodes of its kinds, and a node with no root kind from every tree node.
 
-use crate::application::file_dag::file_pass::types::{FileRoots, NodeReads, PassInputs, PassProgram, PassResources, PassScratch, PassSource, RootKindNodes, TreeStart};
+use crate::application::file_dag::file_pass::types::{
+    FileRoots, NodeReads, PassInputs, PassProgram, PassResources, PassScratch, PassSource,
+    RootKindNodes, RulesHeld, Stages, TreeStart,
+};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::fused_program::service::{assemble, logical, root_kinds, serving};
-use ryo_execution_domain::domain::fused_program::types::fused_program::value::FusedProgram;
-use ryo_execution_domain::domain::fused_program::types::program_inputs::value::ProgramInputs;
-use ryo_execution_domain::domain::fused_program::types::{RuleBindings, RuleInput, RuleObservations, Serving};
+use ryo_execution_domain::domain::executable_program::constants::BOUND_STAGE;
+use ryo_execution_domain::domain::executable_program::service::{
+    assemble, logical, root_kinds, serving,
+};
+use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
+use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
+use ryo_execution_domain::domain::executable_program::types::{
+    RuleBindings, RuleInput, RuleObservations, Serving,
+};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::portable_fault;
 use ryo_execution_domain::domain::trust::service::{needs_of, physical_reads};
@@ -18,7 +26,10 @@ use ryo_language::domain::kind_index::service::of_kind;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::domain::physical_plan::types::{Candidates, FactRows, OpenFileBytes, PlanInputs, PlanNodeId, RenderOutcomes, RenderRequests, Resources};
+use ryo_operators::domain::physical_plan::types::{
+    Candidates, FactRows, OpenFileBytes, PlanInputs, PlanNodeId, RenderOutcomes, RenderRequests,
+    Resources,
+};
 use ryo_operators::domain::table_texts::service::symbol_text;
 use ryo_operators::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::service::node_id;
@@ -52,7 +63,7 @@ pub(crate) fn demanded<P: std::borrow::Borrow<Plan>>(plans: &[P]) -> Box<[Relati
 }
 
 /// The roots of `program`, before any file.
-pub(crate) fn file_roots(program: &FusedProgram) -> FileRoots {
+pub(crate) fn file_roots(program: &ExecutableProgram) -> FileRoots {
     let kinds: Vec<RootKindNodes> = root_kinds(program)
         .map(|root| RootKindNodes {
             kind: root.kind.clone(),
@@ -62,7 +73,11 @@ pub(crate) fn file_roots(program: &FusedProgram) -> FileRoots {
     let count = kinds
         .iter()
         .flat_map(|root| &root.nodes)
-        .map(|node| usize::try_from(node.0).unwrap_or(usize::MAX).saturating_add(1))
+        .map(|node| {
+            usize::try_from(node.0)
+                .unwrap_or(usize::MAX)
+                .saturating_add(1)
+        })
         .max()
         .unwrap_or(0);
     let mut starts = vec![TreeStart::FromEveryNode; count];
@@ -80,27 +95,43 @@ pub(crate) fn file_roots(program: &FusedProgram) -> FileRoots {
 }
 
 /// Makes the candidates of `file`, whose tree is `elements` and whose kind names read through `texts`.
-pub(crate) fn fill_roots(roots: &mut FileRoots, elements: &Elements, texts: &Texts<'_>, file: FileId) {
+pub(crate) fn fill_roots(
+    roots: &mut FileRoots,
+    elements: &Elements,
+    texts: &Texts<'_>,
+    file: FileId,
+) {
     roots.all.clear();
-    roots.all.extend(positions(elements).map(|at| node_id(file, at)));
+    roots
+        .all
+        .extend(positions(elements).map(|at| node_id(file, at)));
     for list in &mut roots.lists {
         list.clear();
     }
     let names = kind_names(elements);
     // A tree built without its kind index lists no element under any kind: its roots are found by reading each element's kind.
-    let indexed = (0..names.len()).any(|kind| u16::try_from(kind).is_ok_and(|kind| !of_kind(elements, KindBits(kind)).is_empty()));
+    let indexed = (0..names.len()).any(|kind| {
+        u16::try_from(kind).is_ok_and(|kind| !of_kind(elements, KindBits(kind)).is_empty())
+    });
     for root in &roots.kinds {
-        let numbered = names
-            .iter()
-            .position(|name| symbol_text(texts, *name).is_some_and(|found| found.0 == &*root.kind.0));
+        let numbered = names.iter().position(|name| {
+            symbol_text(texts, *name).is_some_and(|found| found.0 == &*root.kind.0)
+        });
         // A kind the file does not name, or a number past the kinds a file can number, has no tree node in it.
         let Some(Ok(kind)) = numbered.map(u16::try_from) else {
             continue;
         };
         for node in &root.nodes {
-            if let Some(list) = roots.lists.get_mut(usize::try_from(node.0).unwrap_or(usize::MAX)) {
+            if let Some(list) = roots
+                .lists
+                .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
+            {
                 if indexed {
-                    list.extend(of_kind(elements, KindBits(kind)).iter().map(|at| node_id(file, *at)));
+                    list.extend(
+                        of_kind(elements, KindBits(kind))
+                            .iter()
+                            .map(|at| node_id(file, *at)),
+                    );
                 } else {
                     list.extend(
                         positions(elements)
@@ -165,7 +196,11 @@ pub(crate) fn pass_program(source: &PassSource) -> Result<PassProgram, Operating
 /// What a file of `pass` runs in: what an earlier file gave back, or one made for the program, its roots' kinds found.
 pub(crate) fn taken(pass: &PassProgram) -> PassScratch {
     // A file that panicked held its own scratch, never the pool's: what a poisoned pool holds is whole.
-    let given = pass.scratch.lock().unwrap_or_else(PoisonError::into_inner).pop();
+    let given = pass
+        .scratch
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .pop();
     given.unwrap_or_else(|| PassScratch {
         roots: file_roots(&pass.program),
         ..PassScratch::default()
@@ -195,7 +230,10 @@ fn step_reads(plan: &Plan) -> Box<[NodeReads]> {
             },
             needs: Vec::new(),
         };
-        absorb(&mut each.needs, trusted.get(at).map_or(&[][..], Vec::as_slice));
+        absorb(
+            &mut each.needs,
+            trusted.get(at).map_or(&[][..], Vec::as_slice),
+        );
         for input in named(&inputs_of(&step.operation)) {
             if let Input::Step(id) = input
                 && let Some(earlier) = reads.get(id.0 as usize)
@@ -256,7 +294,11 @@ impl Resources for PassResources<'_> {
     }
     fn mint(&mut self, text: CellText<'_>) -> Value {
         // Within a file a made text is the file's own derived symbol.
-        Value::Symbol(intern_derived(self.symbols, ByteSlice(self.source.0), NameText(text.0)))
+        Value::Symbol(intern_derived(
+            self.symbols,
+            ByteSlice(self.source.0),
+            NameText(text.0),
+        ))
     }
     fn source(&self) -> OpenFileBytes<'_> {
         OpenFileBytes(self.source.0)
@@ -273,25 +315,54 @@ impl Resources for PassResources<'_> {
     }
 }
 
-/// Refuses the project phase and the observation stage of a request whose file pass has a rule no stage serves yet, with the
-/// latest stage among them; a pass that could not be made refuses with its own fault. Branch only: until the fourth stage
-/// serves them.
+/// Refuses opening the project phase or the observation stage of a request holding a rule no stage serves yet, with the latest
+/// stage among them.
 ///
 /// # Errors
 ///
-/// `NotServedUntil` with the latest unserved stage, or the fault the pass's program was refused with.
-pub(crate) fn served(pass: Option<&Result<PassProgram, OperatingError>>) -> Result<(), OperatingError> {
-    let Some(pass) = pass else {
-        return Ok(());
+/// `NotServedUntil` the latest unserved stage.
+pub(crate) fn served(pass: &PassProgram) -> Result<(), OperatingError> {
+    stages(pass)
+        .latest
+        .map_or(Ok(()), |stage| Err(OperatingError::NotServedUntil(stage)))
+}
+
+/// Refuses evaluating a rule after the files: until the fourth stage no rule runs there. The refusal names the latest stage
+/// among the request's rules that no stage serves yet, or the fourth when every rule is served in the files.
+///
+/// # Errors
+///
+/// `NotServedUntil` that stage when the request holds a rule.
+pub(crate) fn served_after_the_files(pass: &PassProgram) -> Result<(), OperatingError> {
+    match stages(pass) {
+        Stages {
+            latest: Some(stage),
+            ..
+        } => Err(OperatingError::NotServedUntil(stage)),
+        Stages {
+            latest: None,
+            held: RulesHeld::Some,
+        } => Err(OperatingError::NotServedUntil(BOUND_STAGE)),
+        Stages {
+            latest: None,
+            held: RulesHeld::None,
+        } => Ok(()),
+    }
+}
+
+/// The latest stage among the request's rules that no stage serves yet, and whether it holds a rule at all.
+fn stages(pass: &PassProgram) -> Stages {
+    let mut found = Stages {
+        latest: None,
+        held: RulesHeld::None,
     };
-    let pass = pass.as_ref().map_err(Clone::clone)?;
-    let mut latest = None;
     let mut rule = RuleIndex(0);
     while let Ok(served) = serving(&pass.program, rule) {
+        found.held = RulesHeld::Some;
         if let Serving::NotServedUntil(stage) = served {
-            latest = latest.max(Some(stage));
+            found.latest = found.latest.max(Some(stage));
         }
         rule = RuleIndex(rule.0.saturating_add(1));
     }
-    latest.map_or(Ok(()), |stage| Err(OperatingError::NotServedUntil(stage)))
+    found
 }

@@ -59,7 +59,8 @@ pub struct InvocationWorkspace {
     relation_owner: std::rc::Rc<super::super::relations::service::RelationOwner>,
     pub(super) publications:
         Vec<Option<crate::application::file_dag::relations::handle::service::Publication>>,
-    downstream: ryo_operators::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers,
+    downstream:
+        ryo_operators::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers,
     predicates: ryo_operators::domain::table_scratch::types::LazyScratch<
         ryo_operators::domain::table_scratch::types::SelectScratch,
     >,

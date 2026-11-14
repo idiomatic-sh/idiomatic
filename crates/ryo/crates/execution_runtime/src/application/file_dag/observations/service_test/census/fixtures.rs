@@ -1,9 +1,8 @@
 //! The support of the `census` cases: a compiled program of two named observation inputs, read
 //! back as what its consumers, unions and walk census answer.
-use ryo_operators::domain::patterns::types::PatternMatcher;
 use super::super::fixtures::{DeclaredFileProducers, Fixture, FrontierSlots, Names, fixture};
 use ryo_execution_domain::domain::{
-    executable_program::{
+    interpreted_program::{
         service::compile,
         types::{InputSource, ObservationPlace},
     },
@@ -11,6 +10,7 @@ use ryo_execution_domain::domain::{
     shared_walk::types::prepared_walk::value::PreparedWalk,
 };
 use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
+use ryo_operators::domain::patterns::types::PatternMatcher;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::observations::types::{ObservationBindingName, ObservationColumnName};
 use ryo_values::domain::{

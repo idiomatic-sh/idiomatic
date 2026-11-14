@@ -1,22 +1,22 @@
 //! The sole admitted-program interpreter, authority issuance and physical dispatch.
 #[cfg(test)]
 use super::types::CallCount;
+#[cfg(test)]
+use super::types::ReaderInitializations;
 use super::types::{
     ActionCursor, Dependencies, InstructionIndex, InvocationFailure, KernelInput, KernelScratch,
     PollMode, ReaderCount, StageProgress,
 };
-#[cfg(test)]
-use super::types::{ProducerLeaseEvent, ReaderInitializations};
 use crate::application::file_dag::program::admission::service::AdmittedInput;
 use crate::application::file_dag::program::admission::service::AvailableInput;
 use crate::application::file_dag::program::admission::service::Inputs;
 use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::admission::types::Emptiness;
-use ryo_execution_domain::domain::executable_program::types::RegionId;
-use ryo_execution_domain::domain::executable_program::types::RouteKind;
-use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
-use ryo_execution_domain::domain::executable_program::types::instruction::value::Instruction;
-use ryo_execution_domain::domain::executable_program::types::region::value::Region;
+use ryo_execution_domain::domain::interpreted_program::types::RegionId;
+use ryo_execution_domain::domain::interpreted_program::types::RouteKind;
+use ryo_execution_domain::domain::interpreted_program::types::instruction::value::Instruction;
+use ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram;
+use ryo_execution_domain::domain::interpreted_program::types::region::value::Region;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::Emit;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
@@ -47,7 +47,7 @@ pub(crate) trait KernelInvocation {
 
     fn ordered(
         &self,
-        shape: &ryo_execution_domain::domain::executable_program::types::OrderedExistence,
+        shape: &ryo_execution_domain::domain::interpreted_program::types::OrderedExistence,
         permit: &KernelPermit<'_>,
         input: &AdmittedInput,
         context: &mut OperatorContext<'_>,
@@ -78,11 +78,11 @@ struct AdmissionProgress {
     emptiness: Vec<EmptinessAnswer>,
 }
 struct AcquiredInput {
-    source: ryo_execution_domain::domain::executable_program::types::InputSource,
+    source: ryo_execution_domain::domain::interpreted_program::types::InputSource,
     stage: InputStage,
 }
 struct EmptinessAnswer {
-    source: ryo_execution_domain::domain::executable_program::types::InputSource,
+    source: ryo_execution_domain::domain::interpreted_program::types::InputSource,
     representation: ryo_execution_domain::domain::operator::contract::types::EmptyRepresentation,
     emptiness: Emptiness,
 }
@@ -98,13 +98,6 @@ enum State {
     Published(AdmittedInput),
     Retired,
     Failed(OperatingError),
-}
-#[cfg(test)]
-struct ProducerLeaseProbe {
-    scope: ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope,
-    producer: RegionId,
-    consumers: Box<[RegionId]>,
-    events: Vec<ProducerLeaseEvent>,
 }
 struct Slot {
     #[cfg(test)]
@@ -138,7 +131,7 @@ struct ProjectState {
     state: std::rc::Rc<RuntimeState>,
 }
 pub(crate) struct ProgramExecution {
-    program: Arc<ExecutableProgram>,
+    program: Arc<InterpretedProgram>,
     owner: std::rc::Rc<RelationOwner>,
     /// The owner's generation when this execution opened; its liveness is the execution's.
     generation: ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
@@ -147,13 +140,10 @@ pub(crate) struct ProgramExecution {
     project_states: RefCell<Vec<ProjectState>>,
     cleanup_failure: RefCell<Option<OperatingError>>,
     readiness_counts: RefCell<ryo_execution_domain::domain::readiness::types::ReadinessCounts>,
-    #[cfg(test)]
-    producer_lease_probe: RefCell<Option<ProducerLeaseProbe>>,
 }
 /// Qualified state for the same interpreter; never an independent execution owner.
 enum RootReaders {
     Declared,
-    Selected(Arc<ryo_execution_domain::domain::executable_program::types::RemainingTable>),
 }
 pub(crate) struct RuntimeState {
     generation: ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
@@ -164,10 +154,10 @@ pub(crate) struct RuntimeState {
     retirement: RefCell<RetirementWork>,
     /// The file roots this file found absent: each publishes the empty table and owes no input.
     absent:
-        RefCell<ryo_execution_domain::domain::executable_program::types::absent_roots::value::AbsentRoots>,
+        RefCell<ryo_execution_domain::domain::interpreted_program::types::absent_roots::value::AbsentRoots>,
     /// The other regions the file's admitted roots reach whose skip formula fails on the file.
     interior: RefCell<
-        ryo_execution_domain::domain::executable_program::types::absent_regions::value::AbsentRegions,
+        ryo_execution_domain::domain::interpreted_program::types::absent_regions::value::AbsentRegions,
     >,
     /// The sources the file's presence read met refused, each the file's refusal for that source.
     refused: RefCell<Vec<super::types::SourceRefusal>>,
@@ -210,7 +200,7 @@ enum BoundInputs<'a> {
     Ordered(&'a AdmittedInput),
 }
 pub(crate) struct KernelPermit<'scope> {
-    program: &'scope ExecutableProgram,
+    program: &'scope InterpretedProgram,
     region: RegionId,
     instruction: InstructionIndex,
     generation: &'scope ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
@@ -223,7 +213,7 @@ pub(crate) struct KernelPermit<'scope> {
 /// Pure borrowed semantic authority. It exposes neither worker ownership nor
 /// dependency acquisition, and cannot outlive its admitted invocation permit.
 pub(crate) struct SemanticPermit<'scope> {
-    program: &'scope ExecutableProgram,
+    program: &'scope InterpretedProgram,
     region: RegionId,
     instruction: InstructionIndex,
     live: &'scope ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
@@ -235,7 +225,7 @@ pub(crate) struct PermittedPhysical<'permit, 'meaning, 'scope> {
     permit: &'permit SemanticPermit<'scope>,
     meaning: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'meaning>,
     authority:
-        ryo_execution_domain::domain::executable_program::physical::types::PhysicalAuthorization,
+        ryo_execution_domain::domain::interpreted_program::physical::types::PhysicalAuthorization,
 }
 
 /// The borrowed frame of one poll that the demand stages share; it grants nothing the poll lacked.
@@ -267,5 +257,3 @@ mod strategies;
 mod walks;
 
 // Private-state proof lives beneath the issuer, never behind concept-wide record fields.
-#[cfg(test)]
-mod lifecycle;

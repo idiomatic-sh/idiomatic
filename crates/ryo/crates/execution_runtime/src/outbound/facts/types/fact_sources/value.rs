@@ -161,7 +161,10 @@ impl<'a> FactSources<'a> {
 
 /// Refuses two sources of one file serving one relation, naming the first such relation in catalog order. Only a relation a
 /// further source serves can be served twice, so the catalog is read only for those.
-fn overlap(tree: Option<&dyn TreeSource>, others: &[&mut dyn FactSource]) -> Result<(), FactsError> {
+fn overlap(
+    tree: Option<&dyn TreeSource>,
+    others: &[&mut dyn FactSource],
+) -> Result<(), FactsError> {
     if others.is_empty() {
         return Ok(());
     }
@@ -170,8 +173,7 @@ fn overlap(tree: Option<&dyn TreeSource>, others: &[&mut dyn FactSource]) -> Res
             .iter()
             .filter(|source| source.serves().contains(relation))
             .count();
-        by_others > 1
-            || by_others == 1 && tree.is_some_and(|tree| tree.serves().contains(relation))
+        by_others > 1 || by_others == 1 && tree.is_some_and(|tree| tree.serves().contains(relation))
     });
     match first {
         Some(relation) => Err(FactsError::Overlap {

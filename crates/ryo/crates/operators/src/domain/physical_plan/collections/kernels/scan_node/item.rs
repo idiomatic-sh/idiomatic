@@ -6,7 +6,9 @@ use super::super::interface::{KernelsItem, Reach};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-use crate::domain::physical_plan::types::{Lowering, NodeReaders, PlanNodeId, Retention, RowSource, TakenRows};
+use crate::domain::physical_plan::types::{
+    Lowering, NodeReaders, PlanNodeId, Retention, RowSource, TakenRows,
+};
 use ryo_values::domain::rows::types::Table;
 
 /// `scan_node`, one item of the `kernels` collection.
@@ -16,10 +18,7 @@ pub(crate) struct ScanNodeItem;
 #[cfg(test)]
 impl KernelsItem for ScanNodeItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = {
-            sources_of(lowering)
-                .any(|source| matches!(source, RowSource::Node(_)))
-        };
+        let runs = { sources_of(lowering).any(|source| matches!(source, RowSource::Node(_))) };
         if runs { Reach::Runs } else { Reach::Skips }
     }
 }
@@ -100,7 +99,9 @@ pub(crate) fn sources_of(lowering: &Lowering) -> impl Iterator<Item = RowSource>
         | Lowering::Extend { source, .. }
         | Lowering::Group { source, .. } => (Some(*source), None),
         Lowering::Probe { left, right, .. } => (Some(*left), Some(*right)),
-        Lowering::Distinct { sources: [left, right] } => (Some(*left), Some(*right)),
+        Lowering::Distinct {
+            sources: [left, right],
+        } => (Some(*left), Some(*right)),
         Lowering::Lookup { .. } | Lowering::Unlowered => (None, None),
     };
     first.into_iter().chain(second)

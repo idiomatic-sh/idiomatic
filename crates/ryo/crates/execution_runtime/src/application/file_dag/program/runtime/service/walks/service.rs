@@ -1,27 +1,11 @@
 //! Walk-source admission for a live kernel permit.
 use super::super::KernelPermit;
 use crate::application::file_dag::program::admission::service::AdmittedWalkSource;
-use crate::application::file_dag::program::admission::service::FileGeneration;
 use crate::application::file_dag::program::admission::service::Partition;
-use ryo_execution_domain::domain::executable_program::types::InputId;
+use ryo_execution_domain::domain::interpreted_program::types::InputId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 impl KernelPermit<'_> {
-    pub(crate) fn require_file_walk(
-        &self,
-        expected: &FileGeneration,
-    ) -> Result<(), OperatingError> {
-        self.validate_live()?;
-        match self.partition {
-            Partition::File(actual)
-                if actual.matches(expected, self.generation)
-                    == crate::application::file_dag::program::admission::types::Agreement::Same =>
-            {
-                Ok(())
-            }
-            _ => Err(OperatingError::NotRead),
-        }
-    }
     pub(crate) fn require_project_walk(&self) -> Result<(), OperatingError> {
         self.validate_live()?;
         match self.partition {

@@ -45,7 +45,10 @@ fn collected_schema_first_follows_actual_source_admission() {
         kept: vec![ColumnIndex(99)],
     })];
     let mut read = TableFacts::new(&[]);
-    assert!(matches!(evaluate(input, &mut read), Err(FileStop::Facts(_))));
+    assert!(matches!(
+        evaluate(input, &mut read),
+        Err(FileStop::Facts(_))
+    ));
     assert_eq!(read.reads(), 1);
 }
 

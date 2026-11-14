@@ -2,8 +2,8 @@
 
 use super::super::interface::ComparisonsItem;
 use crate::domain::comparing::errors::ComparingError;
-use crate::domain::{table_scratch::types::SetMembership, contract::types::PredicateOutcome};
 use crate::domain::table_texts::types::Datum;
+use crate::domain::{contract::types::PredicateOutcome, table_scratch::types::SetMembership};
 use ryo_values::domain::plan_parts::types::Test;
 
 /// `membership`, one item of the `comparisons` collection.

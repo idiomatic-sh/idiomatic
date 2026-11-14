@@ -6,8 +6,8 @@ use crate::domain::physical_plan::fixtures::Step;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::{
-    Candidates, FactRows, LogicalNode, NodeBindings, NodeRows, OpenFileBytes,
-    PlanInputList, PlanInputs, PlanNodeId, RenderOutcomes, RenderRequests, Resources, RuleOrdinal,
+    Candidates, FactRows, LogicalNode, NodeBindings, NodeRows, OpenFileBytes, PlanInputList,
+    PlanInputs, PlanNodeId, RenderOutcomes, RenderRequests, Resources, RuleOrdinal,
 };
 use crate::domain::table_texts::types::Texts;
 use crate::inbound::use_cases::plan::interface::PlanUseCase as _;
@@ -29,6 +29,8 @@ use ryo_values::domain::rows::types::Table;
 use std::cell::Cell;
 
 pub mod allocating;
+#[cfg(test)]
+pub(crate) mod cases;
 
 /// The rows of relations, held as a worker's columns, lent to a run and counted per read.
 #[derive(Debug, Default)]
@@ -160,7 +162,9 @@ impl TextResources {
     /// `word`), at positions 1 to 3.
     #[must_use]
     pub fn small_tree() -> Self {
-        use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
+        use ryo_language::domain::builders::service::{
+            enter_node, leave_node, table_builder, token,
+        };
         use ryo_language::domain::completion::service::{completion, name_kind};
         use ryo_relations::domain::relations::types::{FileId, KindBits};
         let source = b"abc".to_vec();
@@ -168,7 +172,12 @@ impl TextResources {
         let mut builder = table_builder(&mut tree, &mut symbols, ByteSlice(&source));
         enter_node(&mut builder, KindBits(1), Offset(0));
         for (bits, start) in [(2, 0), (3, 1), (2, 2)] {
-            token(&mut builder, KindBits(bits), Offset(start), Offset(start + 1));
+            token(
+                &mut builder,
+                KindBits(bits),
+                Offset(start),
+                Offset(start + 1),
+            );
         }
         leave_node(&mut builder, Offset(3));
         for (bits, name) in [(1, "file"), (2, "word"), (3, "other")] {

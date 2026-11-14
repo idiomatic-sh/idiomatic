@@ -1,11 +1,10 @@
 //! Regular-expression boundary, error and compilation-reuse cases.
 
 use super::service::matches;
-use crate::domain::patterns::errors::PatternsError;
 use crate::domain::contract::types::PredicateOutcome;
+use crate::domain::patterns::errors::PatternsError;
 use crate::domain::table_texts::types::{Datum, TextView};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-
 
 type Input = (&'static str, &'static str);
 type Value = PredicateOutcome;

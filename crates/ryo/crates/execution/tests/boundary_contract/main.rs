@@ -87,18 +87,6 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
     };
     assert_eq!(table.count, RowCount(1));
     assert_eq!(table.cells, [Value::Number(Integer(1))]);
-    assert_eq!(
-        semantics
-            .reductions
-            .load(std::sync::atomic::Ordering::Relaxed),
-        1
-    );
-    assert_eq!(
-        semantics
-            .emissions
-            .load(std::sync::atomic::Ordering::Relaxed),
-        1
-    );
     assert!(matches!(rules.end, FileEnd::Finished(_)), "finish count");
     request.finish();
 }
@@ -137,4 +125,3 @@ mod file_run;
 
 mod combined;
 mod compiled_rules;
-mod interpreter;

@@ -5,12 +5,12 @@ use crate::application::file_dag::predicates::constants::{
 };
 use crate::application::file_dag::predicates::types::BoundPredicate;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers;
 use ryo_execution_domain::domain::operator::contract::types::PreparedPredicates;
 use ryo_execution_domain::domain::operator::contract::views::types::PredicateProgram;
-use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_operators::domain::contract::types::PredicateOutcome;
+use ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers;
 use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::files::types::SourceView;

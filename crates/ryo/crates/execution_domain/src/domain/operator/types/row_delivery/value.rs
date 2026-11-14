@@ -8,8 +8,6 @@ use crate::domain::operator::contract::types::{
     FoundRows, PrimitiveLease, PrimitiveResources, PrimitiveWorkspace, RowSink,
 };
 use crate::domain::table_model::types::RepresentationInput;
-use ryo_operators::domain::table_texts::service::datum;
-use ryo_operators::domain::table_texts::types::{Datum, Texts};
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -18,6 +16,8 @@ use ryo_operators::domain::contract::types::{
     FirstOccurrence, GroupSummary, PredicateOutcome, RenderKind, RowRead, TextFound, TextScratch,
     VertexPlace,
 };
+use ryo_operators::domain::table_texts::service::datum;
+use ryo_operators::domain::table_texts::types::{Datum, Texts};
 use ryo_relations::domain::relations::types::{Count, Integer, NodeId, Value};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::InputNumber;

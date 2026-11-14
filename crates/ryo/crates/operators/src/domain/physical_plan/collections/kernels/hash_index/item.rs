@@ -6,12 +6,12 @@ use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, rows_of};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::contract::types::PredicateOutcome;
-use crate::domain::physical_plan::types::{KeyedRowAt, KeyedSide};
 #[cfg(test)]
 use crate::domain::physical_plan::types::Lowering;
 use crate::domain::physical_plan::types::file_buffers::value::{
-    IndexedRow, IndexKeyHash, KeyedRows, KeyedRun, NO_ROW,
+    IndexKeyHash, IndexedRow, KeyedRows, KeyedRun, NO_ROW,
 };
+use crate::domain::physical_plan::types::{KeyedRowAt, KeyedSide};
 use crate::domain::table_texts::types::Texts;
 use ryo_language::domain::symbols::service::hash_in;
 use ryo_relations::domain::relations::service::from_bits;
@@ -45,7 +45,12 @@ fn cleared(rows: &mut KeyedRows, count: RowCount) {
 }
 
 /// Adds `row` to the key `same` finds under `hash`, or as a key of its own.
-fn insert(rows: &mut KeyedRows, hash: IndexKeyHash, row: IndexedRow, same: impl Fn(&KeyedRun) -> PredicateOutcome) {
+fn insert(
+    rows: &mut KeyedRows,
+    hash: IndexKeyHash,
+    row: IndexedRow,
+    same: impl Fn(&KeyedRun) -> PredicateOutcome,
+) {
     match rows
         .keys
         .find_mut(hash.0, |run| same(run) == PredicateOutcome::Holds)
@@ -151,7 +156,10 @@ pub(crate) fn indexed(row: IndexedRow) -> RowIndex {
 /// # Errors
 ///
 /// `NoSuchColumn` for a key column past a row.
-pub(crate) fn cells(side: KeyedSide<'_>, rows: &mut KeyedRows) -> Result<(), PortableOperatorFault> {
+pub(crate) fn cells(
+    side: KeyedSide<'_>,
+    rows: &mut KeyedRows,
+) -> Result<(), PortableOperatorFault> {
     let count = count_of(side.rows);
     cleared(rows, count);
     for at in 0..count.0 {

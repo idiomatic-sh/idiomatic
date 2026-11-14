@@ -65,8 +65,6 @@ fn numbers() -> Table {
 enum Release {
     /// The production exit: `RelationOwner::release_derived_producer`, as cancellation runs it.
     Production,
-    /// A fake exit that releases nothing; the control that proves a leak is detected.
-    Forgetful,
 }
 /// Runs one acquisition family's departure through the production exit and answers what it observed.
 ///
@@ -76,16 +74,6 @@ enum Release {
 /// with what the route observed.
 pub fn exercise(kind: DerivedKind, departure: Departure) -> Result<Departed, Refused> {
     drive(kind, departure, Release::Production)
-}
-/// The negative control: the same exit with a release that never happens, which the ledger must
-/// observe as a leak before the fixture retires the generation. `leaked` is none when the exit was
-/// not reached (a departure that retires the generation first) or nothing stayed charged.
-///
-/// # Errors
-///
-/// As [`exercise`].
-pub fn exercise_forgetful(kind: DerivedKind, departure: Departure) -> Result<Departed, Refused> {
-    drive(kind, departure, Release::Forgetful)
 }
 fn drive(kind: DerivedKind, departure: Departure, release: Release) -> Result<Departed, Refused> {
     let port: Arc<dyn crate::outbound::derived::interface::DerivedPort> =

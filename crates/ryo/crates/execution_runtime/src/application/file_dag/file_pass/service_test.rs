@@ -2,9 +2,11 @@
 //! reader of the tree with no root kind from every node, and a kind the file does not name from none.
 
 use super::service::{file_roots, fill_roots, roots_of};
-use ryo_execution_domain::domain::fused_program::service::{assemble, logical};
-use ryo_execution_domain::domain::fused_program::types::program_inputs::value::ProgramInputs;
-use ryo_execution_domain::domain::fused_program::types::{RuleBindings, RuleInput, RuleObservations};
+use ryo_execution_domain::domain::executable_program::service::{assemble, logical};
+use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
+use ryo_execution_domain::domain::executable_program::types::{
+    RuleBindings, RuleInput, RuleObservations,
+};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
@@ -20,8 +22,8 @@ use ryo_relations::domain::terms::types::NameText;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, Input as StepInput, LiteralText, Operand, PlanComparison, QueryLiteral,
-    RepeatedRows, StepId, StepScope, Test,
+    ColumnIndex, ComparisonOrigin, Input as StepInput, LiteralText, Operand, PlanComparison,
+    QueryLiteral, RepeatedRows, StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use std::borrow::Cow;
@@ -55,7 +57,12 @@ fn tree() -> (Elements, Symbols) {
     let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"abc"));
     enter_node(&mut builder, KindBits(1), Offset(0));
     for (bits, start) in [(2, 0), (3, 1), (2, 2)] {
-        token(&mut builder, KindBits(bits), Offset(start), Offset(start + 1));
+        token(
+            &mut builder,
+            KindBits(bits),
+            Offset(start),
+            Offset(start + 1),
+        );
     }
     leave_node(&mut builder, Offset(3));
     for (bits, name) in [(1, "file"), (2, "word"), (3, "other")] {
@@ -121,7 +128,13 @@ fn subject(kind: Input) -> Result<Value, Failure> {
     };
     let mut roots = file_roots(&program);
     fill_roots(&mut roots, &elements, &texts, FileId(0));
-    let at = |node| -> Vec<u32> { roots_of(&roots, PlanNodeId(node)).0.iter().map(|id| node_position(*id).0).collect() };
+    let at = |node| -> Vec<u32> {
+        roots_of(&roots, PlanNodeId(node))
+            .0
+            .iter()
+            .map(|id| node_position(*id).0)
+            .collect()
+    };
     Ok(Cow::Owned(format!("{:?} {:?}", at(0), at(1))))
 }
 

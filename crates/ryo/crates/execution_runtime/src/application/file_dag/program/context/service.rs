@@ -12,8 +12,8 @@ use std::sync::Arc;
 use {
     ryo_execution_domain::domain::coverage::types::RuleIndex,
     ryo_execution_domain::domain::operating::errors::OperatingError,
-    ryo_operators::domain::table_scratch::types::Memo,
     ryo_execution_domain::domain::operator::types::OperatorContext,
+    ryo_operators::domain::table_scratch::types::Memo,
     ryo_operators::domain::table_scratch::types::OperatorScratch,
     ryo_values::domain::files::types::SourceView,
 };
@@ -33,34 +33,6 @@ pub(crate) struct RunContext<'a> {
 }
 
 impl<'a> RunContext<'a> {
-    /// Whether the caller lends the original symbol pool again.
-    pub(crate) fn validate(&self, symbols: &mut Symbols) -> Result<(), OperatingError> {
-        if same_transport_generation(&self.symbols, &transport_permit(symbols))
-            == ryo_language::domain::symbols::types::Generation::Different
-        {
-            return Err(OperatingError::NotRead);
-        }
-        Ok(())
-    }
-    pub(crate) fn file(
-        services: &ProgramServices,
-        source: SourceView<'a>,
-        symbols: &mut Symbols,
-        semantic: Option<&'a dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
-        kinds: Option<Arc<ryo_execution_domain::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>>,
-    ) -> Self {
-        Self {
-            request: Arc::clone(services.request()),
-            source,
-            symbols: transport_permit(symbols),
-            semantic,
-            kinds,
-            phase: ryo_execution_domain::domain::operating::types::AfterTheFiles::Before,
-            arenas: &[],
-            memo: Vec::new(),
-            scratch: Default::default(),
-        }
-    }
     pub(crate) fn project(
         services: &ProgramServices,
         symbols: TransportPermit,

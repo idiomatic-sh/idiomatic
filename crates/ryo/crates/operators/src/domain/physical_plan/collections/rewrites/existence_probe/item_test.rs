@@ -55,7 +55,10 @@ fn subject(kind: Input) -> Result<Value, Failure> {
         _ => None,
     };
     // An inner probe reads every right row of its key: the rewrite leaves it.
-    match (nodes.first().and_then(existence), nodes.get(1).and_then(existence)) {
+    match (
+        nodes.first().and_then(existence),
+        nodes.get(1).and_then(existence),
+    ) {
         (Some(rewritten), Some(Existence::Every)) => Ok(rewritten),
         _ => Err(()),
     }

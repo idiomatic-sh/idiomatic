@@ -21,9 +21,7 @@ pub(crate) struct ExtendItem;
 #[cfg(test)]
 impl KernelsItem for ExtendItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = {
-            matches!(lowering, Lowering::Extend { .. })
-        };
+        let runs = { matches!(lowering, Lowering::Extend { .. }) };
         if runs { Reach::Runs } else { Reach::Skips }
     }
 }
@@ -84,7 +82,12 @@ pub(crate) fn kind_of(value: Value) -> CellKind {
 }
 
 /// Appends `row` followed by `appended` to `output`, written through the extension's one meaning into `written`.
-pub(crate) fn extended(row: &[Value], appended: &[Value], written: &mut Vec<Value>, output: &mut Table) {
+pub(crate) fn extended(
+    row: &[Value],
+    appended: &[Value],
+    written: &mut Vec<Value>,
+    output: &mut Table,
+) {
     crate::domain::append::service::append(row, appended, written);
     output.cells.extend_from_slice(written);
     output.count = RowCount(output.count.0 + 1);

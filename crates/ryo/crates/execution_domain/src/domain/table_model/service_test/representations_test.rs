@@ -1,6 +1,5 @@
 //! The registry of physical representations, through its production routes and every item.
 use crate::domain::operating::errors::OperatingError;
-use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::collections::representations::types::*;
 use crate::domain::table_model::service::{borrowed, kind, registered};
 use crate::domain::table_model::service_test::{check_rows, column, compact, number};
@@ -10,6 +9,7 @@ use crate::domain::table_model::types::{PhysicalShape, RepresentationKind};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_relations::domain::relations::constants::NO_SYMBOL;
 use ryo_relations::domain::relations::service::{node_id, to_bits};
 use ryo_relations::domain::relations::types::{

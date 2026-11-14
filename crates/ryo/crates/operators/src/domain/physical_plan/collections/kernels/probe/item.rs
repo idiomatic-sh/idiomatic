@@ -2,17 +2,17 @@
 //! An inner probe answers the left row with each right row of its key, ascending; a semi probe keeps the left row when its key
 //! has a right row, an anti probe when it has none.
 
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use super::super::distinct::item::counted;
 use super::super::filter::item::{filter, keep};
 use super::super::hash_index::item::{cells, find_cells, indexed, next_of};
+#[cfg(test)]
+use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of, row_of};
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::types::file_buffers::value::{KeyedRows, NO_ROW, NodeDecisions};
+use crate::domain::equality_join::types::{EmptyRight, Existence, ProbeKey, ProbeMode, ProbeParts};
 #[cfg(test)]
 use crate::domain::physical_plan::types::Lowering;
-use crate::domain::equality_join::types::{EmptyRight, Existence, ProbeKey, ProbeMode, ProbeParts};
+use crate::domain::physical_plan::types::file_buffers::value::{KeyedRows, NO_ROW, NodeDecisions};
 use crate::domain::physical_plan::types::{CellStart, InputRows, KernelRun, KeyedRowAt, KeyedSide};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Side};
@@ -25,9 +25,7 @@ pub(crate) struct ProbeItem;
 #[cfg(test)]
 impl KernelsItem for ProbeItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = {
-            matches!(lowering, Lowering::Probe { .. })
-        };
+        let runs = { matches!(lowering, Lowering::Probe { .. }) };
         if runs { Reach::Runs } else { Reach::Skips }
     }
 }
@@ -97,14 +95,26 @@ pub(crate) fn probed(
         right
     } else {
         let kinds = kinds_of(right);
-        let kernel = filter(&probe.filter, kinds, run.resources.texts(), scratch.decisions);
+        let kernel = filter(
+            &probe.filter,
+            kinds,
+            run.resources.texts(),
+            scratch.decisions,
+        );
         let mut kept = Table {
             kinds: kinds.to_vec(),
             ..Table::default()
         };
         for at in 0..count_of(right).0 {
             let row = row_of(right, RowIndex(at), scratch.row);
-            if let Err(fault) = keep(kernel, run.matcher, row, scratch.decisions, scratch.written, &mut kept) {
+            if let Err(fault) = keep(
+                kernel,
+                run.matcher,
+                row,
+                scratch.decisions,
+                scratch.written,
+                &mut kept,
+            ) {
                 return Ok(Some(fault));
             }
         }
@@ -131,7 +141,9 @@ pub(crate) fn probed(
         let at = RowIndex(at);
         if probe.mode == ProbeMode::Anti && probe.empty_right == EmptyRight::EveryLeftRow && empty {
             let start = CellStart(output.cells.len());
-            output.cells.extend_from_slice(row_of(left, at, scratch.row));
+            output
+                .cells
+                .extend_from_slice(row_of(left, at, scratch.row));
             counted(output, start, probe.repeated, scratch.seen);
             continue;
         }
@@ -186,7 +198,9 @@ pub(crate) fn probed(
         };
         if exists == (probe.mode == ProbeMode::Semi) {
             let start = CellStart(output.cells.len());
-            output.cells.extend_from_slice(row_of(left, at, scratch.row));
+            output
+                .cells
+                .extend_from_slice(row_of(left, at, scratch.row));
             counted(output, start, probe.repeated, scratch.seen);
         }
     }

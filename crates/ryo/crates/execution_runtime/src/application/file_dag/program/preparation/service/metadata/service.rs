@@ -3,8 +3,8 @@ use crate::application::file_dag::program::preparation::types::{
     ObservationMetadata, RootMetadata, RuleMetadata,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::types::{
-    InputSource, executable_program::value::ExecutableProgram,
+use ryo_execution_domain::domain::interpreted_program::types::{
+    InputSource, interpreted_program::value::InterpretedProgram,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
@@ -15,7 +15,7 @@ use ryo_values::domain::plans::types::{Operation, Plan};
 
 /// One entry per plan, in rule order.
 pub(crate) fn rules(
-    program: &ExecutableProgram,
+    program: &InterpretedProgram,
     named: Option<&ObservationMetadata>,
     plans: &[Plan],
     observation_frontiers: &[Vec<FrontierPurpose>],
@@ -103,7 +103,7 @@ pub(crate) fn rules(
     Ok(metadata)
 }
 fn source(
-    program: &ExecutableProgram,
+    program: &InterpretedProgram,
     observations: Option<&ObservationMetadata>,
     rule: RuleIndex,
     source: Input,
@@ -134,7 +134,9 @@ fn source(
             })
             .map(|slot| {
                 InputSource::Observation(
-                    ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+                    ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(
+                        slot,
+                    ),
                 )
             })
             .ok_or(OperatingError::NotRun),

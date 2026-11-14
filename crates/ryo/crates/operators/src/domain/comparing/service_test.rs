@@ -8,16 +8,13 @@ use ryo_relations::domain::relations::types::{
     CellKind, Name, Offset, PlaceNumber, Relation, TextHash, Value as Cell,
 };
 
+use crate::domain::comparing::{errors::ComparingError, types::NameCount};
 use crate::domain::comparing::{
     service::holds_bound,
     types::{DecisionWorkspace, RowShape},
 };
-use crate::domain::patterns::types::PatternMatcher;
-use crate::domain::comparing::{
-    errors::ComparingError,
-    types::NameCount,
-};
 use crate::domain::contract::types::PredicateOutcome;
+use crate::domain::patterns::types::PatternMatcher;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::Texts;
 use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
@@ -145,9 +142,8 @@ fn refuses_a_parameter_bound_to_sets_of_text() -> Result<Value, ComparingError> 
         paths: &[],
         arenas: &[],
     };
-    let bindings = [ryo_values::domain::query_bindings::types::ParameterBinding::TextSets(
-        Vec::new(),
-    )];
+    let bindings =
+        [ryo_values::domain::query_bindings::types::ParameterBinding::TextSets(Vec::new())];
     let mut scratch = OperatorScratch::default();
     let work = DecisionWorkspace {
         select: &mut scratch.select_scratch,
@@ -173,7 +169,12 @@ fn refuses_a_parameter_bound_to_sets_of_text() -> Result<Value, ComparingError> 
 fn fails_on_a_pattern_that_does_not_compile() -> Result<Value, ComparingError> {
     let source = b"[";
     let mut symbols = Symbols::default();
-    let pattern = Cell::Symbol(intern(&mut symbols, ByteSlice(source), Offset(0), Offset(1)));
+    let pattern = Cell::Symbol(intern(
+        &mut symbols,
+        ByteSlice(source),
+        Offset(0),
+        Offset(1),
+    ));
     let comparison = PlanComparison {
         test: Test::Matches,
         left: Operand::Column(column(0)),

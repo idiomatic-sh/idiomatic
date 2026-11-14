@@ -4,7 +4,7 @@ use super::fixtures::{
     class, compile, emit_region, equal, extended, keep, logical, plan_of, producer, region_len,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_execution_domain::domain::executable_program::fusion::types::{
+use ryo_execution_domain::domain::interpreted_program::fusion::types::{
     Barrier, Fusibility, Ineligible,
 };
 use ryo_relations::domain::relations::service::kinds;

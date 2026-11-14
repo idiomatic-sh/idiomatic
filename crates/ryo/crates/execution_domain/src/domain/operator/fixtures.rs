@@ -8,10 +8,10 @@ use super::contract::types::{
 use super::contract::views::types::{ClosureViews, NativeJoin, PredicateProgram, PreparedAxis};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{AfterTheFiles, PrimitiveSemantics};
-use ryo_operators::domain::contract::types::PredicateOutcome;
 use crate::domain::table_reach::borrowed::types::IndexedRows;
 use ryo_language::domain::symbols::types::{QuerySymbols, Symbols};
 use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_operators::inbound::use_cases::operators::types::{OperatorAnswer, OperatorCall};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::files::types::SourceView;
@@ -68,7 +68,11 @@ impl PrimitiveResources for Resources {
 pub(crate) struct Judge(pub(crate) PredicateOutcome);
 
 impl PredicateProgram for Judge {
-    fn holds(&mut self, _row: &[Value], _symbols: &Symbols) -> Result<PredicateOutcome, OperatingError> {
+    fn holds(
+        &mut self,
+        _row: &[Value],
+        _symbols: &Symbols,
+    ) -> Result<PredicateOutcome, OperatingError> {
         Ok(self.0)
     }
 }

@@ -8,8 +8,7 @@ use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
 use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
 use ryo_execution_domain::domain::{
-    executable_program::types::instruction::value::Instruction,
-    operating::errors::OperatingError,
+    interpreted_program::types::instruction::value::Instruction, operating::errors::OperatingError,
     table_model::types::Rows,
 };
 use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
@@ -26,21 +25,6 @@ pub(crate) struct KernelSession<'a, 'facts> {
 }
 
 impl<'a, 'facts> KernelSession<'a, 'facts> {
-    pub(crate) fn file(
-        kernels: &'a dyn PrimitiveExecutor,
-        prepared: &'a crate::application::file_dag::program::preparation::types::PreparedProgram,
-        owner: Rc<RelationOwner>,
-        read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
-        walk: &'a super::super::native_walk::service::FileWalk,
-    ) -> Self {
-        Self {
-            kernels,
-            prepared,
-            owner,
-            read,
-            walk: super::super::native_walk::service::project::service::WalkPartition::File(walk),
-        }
-    }
     pub(crate) fn project(
         kernels: &'a dyn PrimitiveExecutor,
         prepared: &'a crate::application::file_dag::program::preparation::types::PreparedProgram,
@@ -72,7 +56,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
     }
     fn ordered(
         &self,
-        shape: &ryo_execution_domain::domain::executable_program::types::OrderedExistence,
+        shape: &ryo_execution_domain::domain::interpreted_program::types::OrderedExistence,
         permit: &KernelPermit<'_>,
         input: &super::super::admission::service::AdmittedInput,
         context: &mut OperatorContext<'_>,

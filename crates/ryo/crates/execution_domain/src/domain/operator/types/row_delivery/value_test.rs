@@ -25,19 +25,24 @@ fn subject(case: Input) -> Result<Value, Failure> {
     let operation = extend();
     let row = [Cell::Number(Integer(1))];
     let mut sink = Kept::default();
-    let answer = with_lease(&resources, PredicateOutcome::Fails, &mut workspace, |lease| {
-        let mut rows = RowDelivery::new(
-            lease,
-            &mut sink,
-            &operation,
-            PreparedInputs::Row {
-                input: InputPlace(0),
-                row: &row,
-                sides: &[],
-            },
-        );
-        case(&mut rows).map_err(|()| rows.take_failure())
-    });
+    let answer = with_lease(
+        &resources,
+        PredicateOutcome::Fails,
+        &mut workspace,
+        |lease| {
+            let mut rows = RowDelivery::new(
+                lease,
+                &mut sink,
+                &operation,
+                PreparedInputs::Row {
+                    input: InputPlace(0),
+                    row: &row,
+                    sides: &[],
+                },
+            );
+            case(&mut rows).map_err(|()| rows.take_failure())
+        },
+    );
     answer.map(|outcome| (sink.0.len(), outcome))
 }
 

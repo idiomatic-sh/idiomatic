@@ -3,9 +3,9 @@
 
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
-use crate::domain::physical_plan::types::{PlanInputs, PlanNodeId, TreeRead};
 #[cfg(test)]
 use crate::domain::physical_plan::types::{Lowering, RowSource};
+use crate::domain::physical_plan::types::{PlanInputs, PlanNodeId, TreeRead};
 use crate::domain::tree_cells::service::{native_form, tree_value};
 use crate::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_language::domain::elements::types::Elements;
@@ -76,6 +76,10 @@ pub(crate) fn tree_cell(tree: &TreeRead<'_>, row: RowIndex, column: ColumnIndex)
 pub(crate) fn tree_row(tree: &TreeRead<'_>, row: RowIndex, into: &mut Vec<Value>) {
     into.clear();
     into.extend((0..tree.kinds.len()).map_while(|column| {
-        tree_cell(tree, row, ColumnIndex(u32::try_from(column).unwrap_or(u32::MAX)))
+        tree_cell(
+            tree,
+            row,
+            ColumnIndex(u32::try_from(column).unwrap_or(u32::MAX)),
+        )
     }));
 }

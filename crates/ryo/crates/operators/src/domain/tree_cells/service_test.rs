@@ -36,32 +36,54 @@ fn tree() -> Elements {
 
 /// The rows of the tree in `form`.
 fn rows(elements: &Elements, form: TreeForm) -> TreeRows<'_> {
-    TreeRows { form, elements, file: FileId(3) }
+    TreeRows {
+        form,
+        elements,
+        file: FileId(3),
+    }
 }
 
 /// The element row of the second token.
 fn an_element_row_is_the_node_kind_text_file_and_span() -> Value {
     let elements = tree();
-    Cow::Owned(format!("{:?}", element_of(&rows(&elements, TreeForm::Elements), Position(2))))
+    Cow::Owned(format!(
+        "{:?}",
+        element_of(&rows(&elements, TreeForm::Elements), Position(2))
+    ))
 }
 
 /// The edge to the second token.
 fn an_edge_row_is_the_parent_child_place_role_and_file() -> Value {
     let elements = tree();
-    Cow::Owned(format!("{:?}", edge_of(&rows(&elements, TreeForm::Edges), Position(2))))
+    Cow::Owned(format!(
+        "{:?}",
+        edge_of(&rows(&elements, TreeForm::Edges), Position(2))
+    ))
 }
 
 /// A column past a tree row's five.
 fn a_column_past_the_row_is_the_lowered_flag() -> Value {
     let elements = tree();
-    Cow::Owned(format!("{:?}", tree_value(&rows(&elements, TreeForm::Elements), Position(0), ColumnIndex(5))))
+    Cow::Owned(format!(
+        "{:?}",
+        tree_value(
+            &rows(&elements, TreeForm::Elements),
+            Position(0),
+            ColumnIndex(5)
+        )
+    ))
 }
 
 /// The forms of the relations the tree answers, and of one it does not.
 fn only_the_tree_relations_have_a_form() -> Value {
     Cow::Owned(format!(
         "{:?}",
-        [Relation::SyntaxTree, Relation::SyntaxChild, Relation::Function].map(native_form)
+        [
+            Relation::SyntaxTree,
+            Relation::SyntaxChild,
+            Relation::Function
+        ]
+        .map(native_form)
     ))
 }
 
@@ -71,13 +93,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an_element_row_is_the_node_kind_text_file_and_span"),
         word: Word::Succeeds,
         input: || || Ok(an_element_row_is_the_node_kind_text_file_and_span()),
-        expect: Expect::Value(Cow::Borrowed("[Node(NodeId(12884901890)), Symbol(Symbol(4)), Symbol(Symbol(1)), File(FileId(3)), Span(Span { start: Offset(1), end: Offset(2) })]")),
+        expect: Expect::Value(Cow::Borrowed(
+            "[Node(NodeId(12884901890)), Symbol(Symbol(4)), Symbol(Symbol(1)), File(FileId(3)), Span(Span { start: Offset(1), end: Offset(2) })]",
+        )),
     },
     Case {
         name: CaseName("an_edge_row_is_the_parent_child_place_role_and_file"),
         word: Word::Succeeds,
         input: || || Ok(an_edge_row_is_the_parent_child_place_role_and_file()),
-        expect: Expect::Value(Cow::Borrowed("[Node(NodeId(12884901888)), Node(NodeId(12884901890)), Number(Integer(1)), Symbol(Symbol(4294967295)), File(FileId(3))]")),
+        expect: Expect::Value(Cow::Borrowed(
+            "[Node(NodeId(12884901888)), Node(NodeId(12884901890)), Number(Integer(1)), Symbol(Symbol(4294967295)), File(FileId(3))]",
+        )),
     },
     Case {
         name: CaseName("a_column_past_the_row_is_the_lowered_flag"),

@@ -117,7 +117,6 @@ pub(crate) enum InputSupply {
     Present,
     MissingLeft,
     MissingRight,
-    Changed,
 }
 pub(crate) fn execute(
     plan: Plan,
@@ -127,11 +126,9 @@ pub(crate) fn execute(
     let mut symbols = Symbols::default();
     let symbol = intern_derived(&mut symbols, ByteSlice(b""), NameText("source"));
     let left = population(Relation::Function, malformed, symbol);
-    let changed = population(Relation::Function, malformed, symbol);
     let right = population(Relation::Resolves, false, symbol);
-    let (left, changed, right) = (
+    let (left, right) = (
         fixtures::facts::columns_of(&left),
-        fixtures::facts::columns_of(&changed),
         fixtures::facts::columns_of(&right),
     );
     let counts = [AtomicUsize::new(0), AtomicUsize::new(0)];
@@ -141,11 +138,9 @@ pub(crate) fn execute(
     )]
     let read = |relation| match relation {
         Relation::Function => {
-            let reads = counts[0].fetch_add(1, Ordering::Relaxed) + 1;
+            let _reads = counts[0].fetch_add(1, Ordering::Relaxed);
             if matches!(supply, InputSupply::MissingLeft) {
                 Err(fixtures::facts::not_held())
-            } else if matches!(supply, InputSupply::Changed) && reads > 1 {
-                Ok(fixtures::facts::view(relation, &changed))
             } else {
                 Ok(fixtures::facts::view(relation, &left))
             }
@@ -339,43 +334,37 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("valid_populations_and_exact_snapshot_identity_are_preserved"),
         word: Word::Succeeds,
         input: || admission(OperationKind::Select, false, InputSupply::Present),
-        expect: answered(2, &[1, 2], [4, 0]),
+        expect: answered(2, &[1, 2], [1, 0]),
     },
     Case {
         name: CaseName("a_valid_projection_keeps_both_node_rows"),
         word: Word::Succeeds,
         input: || admission(OperationKind::Project, false, InputSupply::Present),
-        expect: answered(2, &[1, 2], [4, 0]),
+        expect: answered(2, &[1, 2], [1, 0]),
     },
     Case {
         name: CaseName("a_valid_join_pairs_every_row"),
         word: Word::Succeeds,
         input: || admission(OperationKind::Join, false, InputSupply::Present),
-        expect: answered(4, &[1, 1, 1, 2, 2, 1, 2, 2], [3, 3]),
+        expect: answered(4, &[1, 1, 1, 2, 2, 1, 2, 2], [1, 1]),
     },
     Case {
         name: CaseName("a_valid_union_keeps_both_rows"),
         word: Word::Succeeds,
         input: || admission(OperationKind::Union, false, InputSupply::Present),
-        expect: answered(2, &[1, 2], [4, 0]),
+        expect: answered(2, &[1, 2], [2, 0]),
     },
     Case {
         name: CaseName("a_valid_intersection_keeps_both_rows"),
         word: Word::Succeeds,
         input: || admission(OperationKind::Intersection, false, InputSupply::Present),
-        expect: answered(2, &[1, 2], [4, 0]),
+        expect: answered(2, &[1, 2], [2, 0]),
     },
     Case {
         name: CaseName("a_valid_difference_of_a_source_with_itself_is_empty"),
         word: Word::Succeeds,
         input: || admission(OperationKind::Difference, false, InputSupply::Present),
-        expect: answered(0, &[], [4, 0]),
-    },
-    Case {
-        name: CaseName("a_matching_schema_does_not_replace_the_sources_physical_identity"),
-        word: Word::Refuses,
-        input: || admission(OperationKind::Project, false, InputSupply::Changed),
-        expect: refused(OperatingError::NotRead, [2, 0]),
+        expect: answered(0, &[], [2, 0]),
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {

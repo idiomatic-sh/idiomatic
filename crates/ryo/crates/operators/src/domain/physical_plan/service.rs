@@ -164,11 +164,13 @@ pub(crate) fn lowered(
     let first = inputs.first().and_then(source_of);
     let both = || first.zip(inputs.get(1).and_then(source_of));
     let set = |kind: SetKind, left_on, right_on| {
-        both().map(|(left, right)| match crate::domain::set_rows::service::lower(kind, left_on, right_on) {
-            SetLowering::Distinct => Lowering::Distinct {
-                sources: [left, right],
-            },
-            SetLowering::Probe(probe) => Lowering::Probe { left, right, probe },
+        both().map(|(left, right)| {
+            match crate::domain::set_rows::service::lower(kind, left_on, right_on) {
+                SetLowering::Distinct => Lowering::Distinct {
+                    sources: [left, right],
+                },
+                SetLowering::Probe(probe) => Lowering::Probe { left, right, probe },
+            }
         })
     };
     let lowering = match operation {

@@ -56,6 +56,10 @@ impl ComparisonsItem for AffixItem {
             | Test::NotGlobAny
             | Test::Matches => return Err(ComparingError::WrongTest),
         };
-        Ok(if held { PredicateOutcome::Holds } else { PredicateOutcome::Fails })
+        Ok(if held {
+            PredicateOutcome::Holds
+        } else {
+            PredicateOutcome::Fails
+        })
     }
 }

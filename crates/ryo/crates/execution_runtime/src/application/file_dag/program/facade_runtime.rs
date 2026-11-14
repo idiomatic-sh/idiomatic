@@ -7,6 +7,4 @@ mod source_admission;
 pub(crate) mod types;
 
 #[cfg(test)]
-mod service_test;
-#[cfg(test)]
 mod walk_coverage;

@@ -1,13 +1,13 @@
 //! The `project` item of the `kernels` collection: a row's columns in order, duplicates kept, through the projection's one
 //! meaning; a repeated row dropped by `distinct` when asked.
 
+use super::super::distinct::item::counted;
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
-use super::super::distinct::item::counted;
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::types::CellStart;
 #[cfg(test)]
 use crate::domain::equality_join::types::ProbeMode;
+use crate::domain::physical_plan::types::CellStart;
 #[cfg(test)]
 use crate::domain::physical_plan::types::Lowering;
 use ryo_relations::domain::relations::types::Value;

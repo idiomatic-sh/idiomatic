@@ -2,7 +2,7 @@
 use crate::application::file_dag::program::admission::types::ProducerRoot;
 use crate::application::file_dag::program::admission::types::RequiredPartitions;
 use ryo_execution_domain::domain::completion::types::CoverageState;
-use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
+use ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram;
 use ryo_relations::domain::relations::types::CellKind;
 use std::sync::Arc;
 
@@ -14,7 +14,7 @@ use std::sync::Arc;
 /// ```
 #[derive(Clone)]
 pub(crate) struct ValidatedFrontier {
-    pub(super) program: Arc<ExecutableProgram>,
+    pub(super) program: Arc<InterpretedProgram>,
     pub(super) generation: ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
     pub(super) root: ProducerRoot,
     pub(super) partition: RequiredPartitions,

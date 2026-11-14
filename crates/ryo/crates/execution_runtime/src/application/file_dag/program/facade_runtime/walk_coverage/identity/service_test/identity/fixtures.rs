@@ -1,8 +1,8 @@
 //! The support of the `identity` cases.
 use super::super::super::super::fixtures::operations::{corpus::compile_program, heads::FUNCTION};
-use ryo_execution_domain::domain::executable_program::{
+use ryo_execution_domain::domain::interpreted_program::{
     fusion::types::Fusibility,
-    types::{LogicalInstruction, executable_program::value::ExecutableProgram},
+    types::{LogicalInstruction, interpreted_program::value::InterpretedProgram},
 };
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::{
@@ -68,26 +68,30 @@ pub(super) fn extended(step: u32, number: i64) -> Operation {
     }
 }
 
-pub(super) fn logical(program: &ExecutableProgram, rule: usize, step: usize) -> LogicalInstruction {
+pub(super) fn logical(
+    program: &InterpretedProgram,
+    rule: usize,
+    step: usize,
+) -> LogicalInstruction {
     program.rules()[rule].original_steps[step]
         .as_ref()
         .unwrap()
         .logical
 }
 
-pub(super) fn class(program: &ExecutableProgram, step: usize) -> Fusibility {
+pub(super) fn class(program: &InterpretedProgram, step: usize) -> Fusibility {
     program.fusibility(logical(program, 0, step)).unwrap()
 }
 
-pub(super) fn region_len(program: &ExecutableProgram, step: usize) -> usize {
+pub(super) fn region_len(program: &InterpretedProgram, step: usize) -> usize {
     let region = program.logical_regions()[logical(program, 0, step).0];
     program.regions()[region.0].instructions().len()
 }
 
-pub(super) fn compile(plan: Plan) -> ExecutableProgram {
+pub(super) fn compile(plan: Plan) -> InterpretedProgram {
     compile_program(&[plan], &[vec![]])
 }
 
-pub(super) fn emit_region(program: &ExecutableProgram, rule: usize) -> usize {
+pub(super) fn emit_region(program: &InterpretedProgram, rule: usize) -> usize {
     program.rules()[rule].emit.as_ref().unwrap().0
 }

@@ -56,7 +56,7 @@ impl ProgramExecution {
         let id = call.id;
         let region = call.region;
         let root = call.state.absent.borrow().presence(id);
-        if root == ryo_execution_domain::domain::executable_program::presence::types::RegionPresence::Present && call.inputs.presence(id) == ryo_execution_domain::domain::executable_program::presence::types::RegionPresence::Present {
+        if root == ryo_execution_domain::domain::interpreted_program::presence::types::RegionPresence::Present && call.inputs.presence(id) == ryo_execution_domain::domain::interpreted_program::presence::types::RegionPresence::Present {
             return Ok(None);
         }
         let needs = region
@@ -100,7 +100,7 @@ impl ProgramExecution {
             .as_ref()
             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
         if let Some(shape) =
-            ryo_execution_domain::domain::executable_program::service::ordered_existence(
+            ryo_execution_domain::domain::interpreted_program::service::ordered_existence(
                 &region.route(),
             )
             .filter(|_| progress.ordered_done == StageProgress::Pending)
@@ -108,7 +108,7 @@ impl ProgramExecution {
             progress
                 .supply(
                     inputs,
-                    ryo_execution_domain::domain::executable_program::types::InputSource::Region(
+                    ryo_execution_domain::domain::interpreted_program::types::InputSource::Region(
                         shape.source,
                     ),
                     &self.partition,
@@ -121,7 +121,7 @@ impl ProgramExecution {
             let source = progress
                 .admit(
                     inputs,
-                    ryo_execution_domain::domain::executable_program::types::InputSource::Region(
+                    ryo_execution_domain::domain::interpreted_program::types::InputSource::Region(
                         shape.source,
                     ),
                     &self.partition,

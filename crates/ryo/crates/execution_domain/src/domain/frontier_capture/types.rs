@@ -2,19 +2,6 @@
 use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::Words;
 
-/// Where a captured frontier is kept: the file and worker it is captured in, what is retained of it and the words it is packed into.
-pub struct CaptureScope<'a> {
-    /// The file the frontier is captured in.
-    pub file: ryo_relations::domain::relations::types::FileId,
-    /// Current rule identity validated by the store before warm replay.
-    pub rule_digest: ryo_values::domain::stored_facts::types::Digest,
-    /// The worker capturing it.
-    pub worker: ryo_relations::domain::relations::types::WorkerNumber,
-    /// What is retained of the file's rows.
-    pub retained: crate::domain::finish::types::Retained<'a>,
-    /// The words the frontier is packed into.
-    pub words: &'a mut Words,
-}
 /// The outcome of capturing one frontier input.
 pub struct FrontierCapture {
     /// The frontier input.

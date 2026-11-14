@@ -2,14 +2,12 @@
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::FileId;
-use ryo_relations::domain::relations::types::Offset;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::types::Table;
-use std::cell::Cell;
 
 /// Assemble explicit step data; the production compiler owns dependencies and schemas.
 ///

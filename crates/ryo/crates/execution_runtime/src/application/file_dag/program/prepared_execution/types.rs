@@ -32,8 +32,8 @@ pub(crate) struct ProgramParts {
         Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
     /// What names the content of packed words, for every request of the program.
     pub(crate) digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
-    /// What the file pass's program is made of, when the differential asks for it. Branch only: until the switch.
-    pub(crate) fused: Option<Arc<crate::application::file_dag::file_pass::types::PassSource>>,
+    /// The program the file pass runs every file of the program's requests through, planned once.
+    pub(crate) pass: Arc<crate::application::file_dag::file_pass::types::PassProgram>,
 }
 /// Whether a rule is wanted by the request, directly or through a named observation.
 ///

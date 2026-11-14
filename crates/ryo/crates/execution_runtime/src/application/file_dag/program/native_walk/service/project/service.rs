@@ -5,8 +5,8 @@ use crate::application::file_dag::executor::{
 use crate::application::file_dag::program::admission::service::AdmittedInput;
 use crate::application::file_dag::program::native_walk::lease::service::PermittedWalk;
 use crate::application::file_dag::program::native_walk::{
-    service::FileWalk, service::Owed, service::SourceWork, service::WalkResult,
-    service::WalkSourceIdentity, types::Deliveries, types::Fate, types::WalkDelivery,
+    service::Owed, service::SourceWork, service::WalkResult, service::WalkSourceIdentity,
+    service::summed, types::Deliveries, types::Fate, types::WalkDelivery,
 };
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::{KernelPermit, ReadySelection};
@@ -32,13 +32,11 @@ use std::{
 /// The production invocation is explicitly bound to a file owner or project stage.
 /// An invocation of either partition cannot opt out of its shared-walk owner.
 pub(crate) enum WalkPartition<'a> {
-    File(&'a FileWalk),
     Project(&'a ProjectWalk),
 }
 impl WalkPartition<'_> {
     pub(crate) fn validate(&self, permit: &KernelPermit<'_>) -> Result<(), OperatingError> {
         match self {
-            Self::File(walk) => permit.require_file_walk(&walk.generation),
             Self::Project(_) => permit.require_project_walk(),
         }
     }
@@ -61,7 +59,6 @@ impl WalkPartition<'_> {
         let rows = input.rows(owner, read)?;
         let relation = relation_of(prepared, permit)?;
         let submitted = match self {
-            Self::File(walk) => walk.submit(prepared, ready, relation, &rows)?,
             Self::Project(walk) => walk.submit(prepared, ready, relation, &rows)?,
         };
         if submitted == Submission::Declined {
@@ -90,7 +87,6 @@ impl WalkPartition<'_> {
         let WalkDelivery::Rows = delivery;
         let relation = relation_of(prepared, permit)?;
         let prepared_batch = match self {
-            Self::File(walk) => walk.prepare(prepared, permit, relation, rows, context, kernels)?,
             Self::Project(walk) => {
                 walk.prepare(prepared, permit, relation, rows, context, kernels)?
             }
@@ -324,26 +320,9 @@ impl ProjectWalk {
             if matches!(release(identity, source), Fate::Keep) {
                 return true;
             }
-            retired = FileWalk::sum(retired, source.batch.counts());
+            retired = summed(retired, source.batch.counts());
             false
         });
         self.retired.set(retired);
-    }
-    #[cfg(test)]
-    pub(crate) fn retained(
-        &self,
-    ) -> crate::application::file_dag::program::native_walk::types::RetainedBatches {
-        crate::application::file_dag::program::native_walk::types::RetainedBatches(
-            self.batches.borrow().len(),
-        )
-    }
-    #[cfg(test)]
-    pub(crate) fn counts(&self) -> WalkCounts {
-        self.batches
-            .borrow()
-            .values()
-            .fold(self.retired.get(), |total, source| {
-                FileWalk::sum(total, source.batch.counts())
-            })
     }
 }

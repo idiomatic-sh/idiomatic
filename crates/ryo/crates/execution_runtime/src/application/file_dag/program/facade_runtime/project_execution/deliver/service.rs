@@ -24,7 +24,7 @@ impl ProjectRun<'_> {
         state: &crate::application::file_dag::program::runtime::service::RuntimeState,
         rule: RuleIndex,
         demand: RuleDemand,
-        roots: &[ryo_execution_domain::domain::executable_program::types::RegionId],
+        roots: &[ryo_execution_domain::domain::interpreted_program::types::RegionId],
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
     ) -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
         let completion = self.completion(rule)?;

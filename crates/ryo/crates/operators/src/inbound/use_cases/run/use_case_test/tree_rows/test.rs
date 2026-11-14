@@ -9,8 +9,8 @@ use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::fixtures::node_id;
 use ryo_relations::domain::relations::types::{FileId, Position, Relation};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, Input as StepInput, LiteralText, Operand, PlanComparison, QueryLiteral,
-    RepeatedRows, Test,
+    ColumnIndex, ComparisonOrigin, Input as StepInput, LiteralText, Operand, PlanComparison,
+    QueryLiteral, RepeatedRows, Test,
 };
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::{RowCount, Table};
@@ -51,7 +51,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// The rows `step` emits over the small tree, its readers starting from the nodes at positions `at`.
 fn from(step: &Step, at: &[u32]) -> Result<Vec<Table>, Failure> {
     let mut resources = TextResources::small_tree();
-    let roots = at.iter().map(|at| node_id(FileId(0), Position(*at))).collect();
+    let roots = at
+        .iter()
+        .map(|at| node_id(FileId(0), Position(*at)))
+        .collect();
     let inputs = TableInputs::new(&[]).with_roots(roots);
     emitted(
         std::slice::from_ref(step),

@@ -2,7 +2,7 @@
 use super::super::fixtures::{self, DeclaredFileProducers, Fixture, FrontierSlots, Names};
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
-    executable_program::{service::compile, types::InputSource},
+    interpreted_program::{service::compile, types::InputSource},
     observation_schedule::types::ResolvedObservationProducer,
     operating::errors::OperatingError,
 };

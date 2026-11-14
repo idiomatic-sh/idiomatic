@@ -143,7 +143,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("readable_stored_prefix_preserves_schema_precedence_and_actual_rows"),
         word: Word::Succeeds,
         input: || Precedence::StoredPrefix { bad_layout: false },
-        expect: rows(1, &[1], [4, 0]),
+        expect: rows(1, &[1], [1, 0]),
     },
     Case {
         name: CaseName("a_stored_prefix_layout_refusal_commits_no_provider_reread"),

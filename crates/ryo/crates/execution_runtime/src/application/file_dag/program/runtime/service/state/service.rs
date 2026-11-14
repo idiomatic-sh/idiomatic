@@ -7,9 +7,9 @@ use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::runtime::types::CallCount;
 #[cfg(test)]
 use crate::application::file_dag::program::runtime::types::ReaderInitializations;
-use crate::application::file_dag::program::runtime::types::{Dependencies, ReaderCount, Touch};
-use ryo_execution_domain::domain::executable_program::types::RegionId;
-use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
+use crate::application::file_dag::program::runtime::types::{Dependencies, ReaderCount};
+use ryo_execution_domain::domain::interpreted_program::types::RegionId;
+use ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use std::cell::RefCell;
@@ -19,7 +19,7 @@ impl Slot {
     pub(crate) fn touched<'a>(
         state: &RuntimeState,
         slots: &'a mut rustc_hash::FxHashMap<RegionId, Slot>,
-        program: &ExecutableProgram,
+        program: &InterpretedProgram,
         id: RegionId,
     ) -> Result<&'a mut Slot, OperatingError> {
         let region = program
@@ -37,7 +37,7 @@ impl Slot {
         };
         let cancelled = remaining.0 == 0;
         // An absent root owes no input: the walk never counted its edges, so nothing is released when it publishes.
-        let absent = state.absent.borrow().presence(id) == ryo_execution_domain::domain::executable_program::presence::types::RegionPresence::Absent;
+        let absent = state.absent.borrow().presence(id) == ryo_execution_domain::domain::interpreted_program::presence::types::RegionPresence::Absent;
         // Compiled obligations include roots in other project populations. They
         // remain a conservative upper bound until phase finish; no bank may
         // retire another population's publication or claim exact last use.
@@ -110,12 +110,12 @@ impl RuntimeState {
     pub(crate) fn presence(
         &self,
         id: RegionId,
-    ) -> ryo_execution_domain::domain::executable_program::presence::types::RegionPresence {
+    ) -> ryo_execution_domain::domain::interpreted_program::presence::types::RegionPresence {
         self.interior.borrow().presence(id)
     }
     pub(crate) fn initial_remaining(
         &self,
-        program: &ExecutableProgram,
+        program: &InterpretedProgram,
         id: RegionId,
     ) -> Result<ReaderCount, OperatingError> {
         #[cfg(test)]
@@ -128,10 +128,6 @@ impl RuntimeState {
                 .get(id.0)
                 .map(|region| ReaderCount(region.consumers().0))
                 .ok_or_else(|| OperatingError::NotRun),
-            RootReaders::Selected(selected) => {
-                ryo_execution_domain::domain::executable_program::file_demand::service::reader_count(selected, id)
-                    .map(|count| ReaderCount(count.0))
-            }
         }
     }
     pub(crate) fn population_scope(
@@ -162,7 +158,7 @@ impl RuntimeState {
 /// another scope or choose a scheduler.
 impl ProgramExecution {
     pub(crate) fn open(
-        program: Arc<ExecutableProgram>,
+        program: Arc<InterpretedProgram>,
         partition: Partition,
         owner: std::rc::Rc<
             ryo_execution_store::application::file_dag::relations::service::RelationOwner,
@@ -182,87 +178,7 @@ impl ProgramExecution {
             project_states: RefCell::new(Vec::new()),
             cleanup_failure: RefCell::new(None),
             readiness_counts: RefCell::new(Default::default()),
-            #[cfg(test)]
-            producer_lease_probe: RefCell::new(None),
         }
-    }
-    /// Bind the immutable declared file intents before any region is touched: the reader counts of one walk from the
-    /// admitted roots that stops at the absent ones.
-    pub(crate) fn activate_file_roots(
-        &self,
-        readers: &[RegionId],
-        absent: ryo_execution_domain::domain::executable_program::types::absent_roots::value::AbsentRoots,
-    ) -> Result<(), OperatingError> {
-        if !matches!(self.partition, Partition::File(_)) || self.touched() == Touch::Touched {
-            return Err(OperatingError::NotRun);
-        }
-        let mut counted = rustc_hash::FxHashMap::<RegionId, usize>::default();
-        for &root in readers {
-            if !self.program.file_readers().roots.contains(&root) {
-                return Err(OperatingError::NotRun);
-            }
-            *counted.entry(root).or_default() += 1;
-        }
-        let selected: Vec<_> = counted
-            .into_iter()
-            .map(|(region, count)| {
-                ryo_execution_domain::domain::executable_program::file_demand::types::SelectedRoot {
-                    region,
-                    readers: ryo_execution_domain::domain::operator::types::ReaderMultiplicity(
-                        count,
-                    ),
-                }
-            })
-            .collect();
-        let table = ryo_execution_domain::domain::executable_program::file_demand::service::table(
-            self.program.regions(),
-            &selected,
-            &absent,
-        )?;
-        *self.file_state.roots.borrow_mut() = RootReaders::Selected(Arc::new(table));
-        *self.file_state.absent.borrow_mut() = absent;
-        Ok(())
-    }
-    /// Whether the file scope has touched a region: before it has, its reader counts may be bound again.
-    pub(crate) fn touched(&self) -> Touch {
-        if self.file_state.slots.borrow().is_empty() && self.file_state.dormant.borrow().is_empty()
-        {
-            Touch::Untouched
-        } else {
-            Touch::Touched
-        }
-    }
-    /// The regions the file's walk counted a reader for: what its admitted roots can reach, and its absent roots.
-    pub(crate) fn reached(&self) -> Vec<RegionId> {
-        match &*self.file_state.roots.borrow() {
-            RootReaders::Selected(table) => {
-                let mut reached = Vec::with_capacity(table.counts.len());
-                reached.extend(
-                    table
-                        .counts
-                        .iter()
-                        .enumerate()
-                        .filter(|(_, count)| count.0 > 0)
-                        .map(|(at, _)| RegionId(at)),
-                );
-                reached
-            }
-            RootReaders::Declared => Vec::new(),
-        }
-    }
-    /// The regions found absent at admission: interior regions of admitted rules whose skip formula fails on the file.
-    pub(crate) fn mark_interior(
-        &self,
-        interior: ryo_execution_domain::domain::executable_program::types::absent_regions::value::AbsentRegions,
-    ) {
-        *self.file_state.interior.borrow_mut() = interior;
-    }
-    /// The file's presence read met this source refused: its refusal is the file's refusal for the source.
-    pub(crate) fn refuse_source(
-        &self,
-        refusal: crate::application::file_dag::program::runtime::types::SourceRefusal,
-    ) {
-        self.file_state.refused.borrow_mut().push(refusal);
     }
     pub(crate) fn validate_state(&self, state: &RuntimeState) -> Result<(), OperatingError> {
         if self.generation.same(&state.generation).is_ok() && self.generation.live().is_ok() {
@@ -270,9 +186,6 @@ impl ProgramExecution {
         } else {
             Err(OperatingError::NotRead)
         }
-    }
-    pub(crate) fn file_state(&self) -> &RuntimeState {
-        &self.file_state
     }
     pub(crate) fn project_state(
         &self,
@@ -301,7 +214,7 @@ impl ProgramExecution {
         &self,
         root: crate::application::file_dag::program::admission::types::ProducerRoot,
     ) -> Result<Partition, OperatingError> {
-        use ryo_execution_domain::domain::executable_program::types::InputSource;
+        use ryo_execution_domain::domain::interpreted_program::types::InputSource;
         use ryo_execution_domain::domain::source_partitions::types::PartitionRequirement;
         if self.owner.generation().same(&self.generation).is_err()
             || self.generation.live().is_err()
@@ -319,9 +232,6 @@ impl ProgramExecution {
         let declaration = self.program.source_partition(source)?;
         match (declaration, &self.partition) {
             (PartitionRequirement::RequestInvariant, _) => Ok(Partition::RequestInvariant),
-            (PartitionRequirement::CurrentFile, Partition::File(file)) => {
-                Ok(Partition::File(file.clone()))
-            }
             (PartitionRequirement::Project, Partition::Project(project)) => {
                 Ok(Partition::Project(project.clone()))
             }
@@ -331,7 +241,7 @@ impl ProgramExecution {
     }
     pub(crate) fn validate_project(
         &self,
-        program: &Arc<ExecutableProgram>,
+        program: &Arc<InterpretedProgram>,
         required: &crate::application::file_dag::program::admission::types::RequiredPartitions,
     ) -> Result<(), OperatingError> {
         if Arc::ptr_eq(&self.program, program)

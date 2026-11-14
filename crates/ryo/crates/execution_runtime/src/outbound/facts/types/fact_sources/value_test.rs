@@ -16,7 +16,10 @@ type Failure = FactsError;
 
 fn subject((tree, others): Input) -> Result<Value, Failure> {
     let mut tree = SourceFake::serving(tree);
-    let mut further: Vec<SourceFake> = others.iter().map(|each| SourceFake::serving(each)).collect();
+    let mut further: Vec<SourceFake> = others
+        .iter()
+        .map(|each| SourceFake::serving(each))
+        .collect();
     let mut others: Vec<&mut dyn FactSource> = further
         .iter_mut()
         .map(|each| -> &mut dyn FactSource { each })
@@ -41,7 +44,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("two_sources_serving_one_relation_are_refused"),
         word: Word::Refuses,
-        input: || (&[Relation::Comment, Relation::Function], &[&[Relation::Function, Relation::Comment]]),
+        input: || {
+            (
+                &[Relation::Comment, Relation::Function],
+                &[&[Relation::Function, Relation::Comment]],
+            )
+        },
         expect: Expect::Error(FactsError::Overlap {
             relation: Relation::Function,
         }),

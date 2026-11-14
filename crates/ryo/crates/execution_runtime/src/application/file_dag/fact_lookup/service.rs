@@ -5,8 +5,8 @@
 use super::types::{FileWants, RowsRead};
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsWorker;
-use crate::outbound::facts::types::fact_sources::value::FactSources;
 use crate::outbound::facts::types::WordsToKeep;
+use crate::outbound::facts::types::fact_sources::value::FactSources;
 use ryo_execution_domain::domain::coverage::service::partial_of;
 use ryo_execution_domain::domain::coverage::types::Partial;
 use ryo_language::domain::elements::types::Elements;

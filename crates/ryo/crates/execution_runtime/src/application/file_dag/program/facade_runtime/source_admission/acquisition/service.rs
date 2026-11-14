@@ -1,6 +1,8 @@
 //! Demand-triggered source supply for one region input.
-use crate::application::file_dag::file_pass::constants::{SOURCE_FACTS_INCOMPLETE, PRODUCER_COVERAGE_INCOMPLETE};
 use super::super::service::SourceInputs;
+use crate::application::file_dag::file_pass::constants::{
+    PRODUCER_COVERAGE_INCOMPLETE, SOURCE_FACTS_INCOMPLETE,
+};
 use crate::application::file_dag::program::admission::service::AdmittedInput;
 use crate::application::file_dag::program::admission::service::AvailableInput;
 use crate::application::file_dag::program::admission::service::Inputs;
@@ -8,8 +10,8 @@ use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::admission::service::ReadProof;
 use crate::application::file_dag::program::admission::types::ProducerRoot;
 use crate::application::file_dag::program::constants::{
-    OBSERVATION_UNAVAILABLE, PRODUCER_ROOT_INCOMPLETE,
-    PRODUCER_WITHOUT_QUERY, };
+    OBSERVATION_UNAVAILABLE, PRODUCER_ROOT_INCOMPLETE, PRODUCER_WITHOUT_QUERY,
+};
 use crate::application::file_dag::program::facade_runtime::types::ObservationKey;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
@@ -21,11 +23,11 @@ use std::rc::Rc;
 impl SourceInputs<'_, '_> {
     pub(crate) fn supply_source(
         &mut self,
-        source: ryo_execution_domain::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::interpreted_program::types::InputSource,
         partition: &Partition,
         context: &mut OperatorContext<'_>,
     ) -> Result<AvailableInput, OperatingError> {
-        use ryo_execution_domain::domain::executable_program::types::InputSource;
+        use ryo_execution_domain::domain::interpreted_program::types::InputSource;
         if let Some(project) = &mut self.project {
             if let Some(provided) = project.supply(source, partition, context, &self.owner) {
                 return provided.map(|input| match source {
@@ -90,7 +92,7 @@ impl SourceInputs<'_, '_> {
                 .published(self.state, id)?
                 .ok_or_else(|| OperatingError::NotRun),
             InputSource::Observation(
-                ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+                ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(slot),
             ) => {
                 if let Some(input) = self.observations.get(&ObservationKey(slot)) {
                     return Ok(AvailableInput::published(input.clone()));
@@ -119,7 +121,7 @@ impl SourceInputs<'_, '_> {
                 Ok(admitted)
             }
             InputSource::EmptyObservation(
-                ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+                ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(slot),
             ) => {
                 let named = self
                     .program
@@ -160,9 +162,9 @@ impl SourceInputs<'_, '_> {
             }
             InputSource::ObservationMember {
                 slot:
-                    ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+                    ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(slot),
                 member:
-                    ryo_execution_domain::domain::executable_program::types::ProducerMember(member),
+                    ryo_execution_domain::domain::interpreted_program::types::ProducerMember(member),
             } => {
                 let outputs =
                     self.file_outputs
@@ -256,7 +258,7 @@ impl SourceInputs<'_, '_> {
 pub(crate) fn admit_published(
     owner: &Rc<RelationOwner>,
     publication: Publication,
-    source: ryo_execution_domain::domain::executable_program::types::InputSource,
+    source: ryo_execution_domain::domain::interpreted_program::types::InputSource,
     partition: &Partition,
 ) -> Result<AdmittedInput, OperatingError> {
     let unavailable = |_| Err(OperatingError::NotRead);
@@ -270,7 +272,7 @@ pub(crate) fn admit_published(
         publication.clone(),
         &checked,
         match source {
-            ryo_execution_domain::domain::executable_program::types::InputSource::Region(id) => {
+            ryo_execution_domain::domain::interpreted_program::types::InputSource::Region(id) => {
                 ProducerRoot::Region(id)
             }
             _ => ProducerRoot::Input(source),

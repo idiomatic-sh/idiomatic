@@ -1,9 +1,9 @@
 //! Finite matcher slots retain exact identity, laziness and concurrent initialization.
 use super::value::PreparedMatchers;
 use crate::domain::{
-    patterns::service::matches_prepared,
-    patterns::errors::PatternsError,
     contract::types::PredicateOutcome,
+    patterns::errors::PatternsError,
+    patterns::service::matches_prepared,
     table_scratch::types::Patterns,
     table_texts::types::{Datum, TextView},
 };

@@ -6,10 +6,7 @@ use crate::application::file_dag::relations::types::CheckCount;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::table_model::types::PublishedRelation;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_execution_domain::domain::{
-    operating::errors::OperatingError,
-    table_model::types::Rows,
-};
+use ryo_execution_domain::domain::{operating::errors::OperatingError, table_model::types::Rows};
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::{ColumnsView, Relation};
 

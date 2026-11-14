@@ -47,10 +47,7 @@ use ryo_values::domain::rows::types::RowIndex;
 
 /// The physical column of the tree a view's logical column reads: a view names only the columns it moves,
 /// so a column it does not name is the tree's own.
-pub(crate) fn source_column(
-    view: &[ColumnIndex],
-    column: ColumnIndex,
-) -> ColumnIndex {
+pub(crate) fn source_column(view: &[ColumnIndex], column: ColumnIndex) -> ColumnIndex {
     match view.get(usize::try_from(column.0).unwrap_or(usize::MAX)) {
         Some(moved) => *moved,
         None => column,
@@ -121,7 +118,14 @@ pub(crate) fn find_native(
     {
         found.extend(
             ryo_language::domain::elements::service::positions(tree.elements).filter(|at| {
-                let element = tree_value(&TreeRows { form: TreeForm::Elements, ..*tree }, *at, ColumnIndex(4));
+                let element = tree_value(
+                    &TreeRows {
+                        form: TreeForm::Elements,
+                        ..*tree
+                    },
+                    *at,
+                    ColumnIndex(4),
+                );
                 element == Value::Span(span)
             }),
         );

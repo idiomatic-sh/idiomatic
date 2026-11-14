@@ -303,6 +303,10 @@ impl ProjectPhase<'_> {
         occurrence: &PhaseOccurrence<'o>,
         symbols: &mut Symbols,
     ) -> Result<PreparedOccurrence<'o>, PhaseStop<E>> {
+        crate::application::file_dag::file_pass::service::served_after_the_files(
+            &self.request.pass,
+        )
+        .map_err(PhaseStop::Operating)?;
         let rule = occurrence.rule;
         let first = *phase
             .first

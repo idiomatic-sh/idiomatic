@@ -150,7 +150,9 @@ pub(crate) fn lower(
     left_on: &[ColumnIndex],
     right_on: &[ColumnIndex],
 ) -> crate::domain::set_rows::types::SetLowering {
-    use crate::domain::equality_join::types::{EmptyRight, Existence, ProbeKey, ProbeMode, ProbeParts};
+    use crate::domain::equality_join::types::{
+        EmptyRight, Existence, ProbeKey, ProbeMode, ProbeParts,
+    };
     use crate::domain::set_rows::types::SetLowering;
     use ryo_values::domain::plan_parts::types::RepeatedRows;
     let probe = |mode, key, repeated, empty_right| {
@@ -166,8 +168,18 @@ pub(crate) fn lower(
     };
     match kind {
         SetKind::Union => SetLowering::Distinct,
-        SetKind::Intersection => probe(ProbeMode::Semi, ProbeKey::Whole, RepeatedRows::Dropped, EmptyRight::KeyRead),
-        SetKind::Difference => probe(ProbeMode::Anti, ProbeKey::Whole, RepeatedRows::Dropped, EmptyRight::KeyRead),
+        SetKind::Intersection => probe(
+            ProbeMode::Semi,
+            ProbeKey::Whole,
+            RepeatedRows::Dropped,
+            EmptyRight::KeyRead,
+        ),
+        SetKind::Difference => probe(
+            ProbeMode::Anti,
+            ProbeKey::Whole,
+            RepeatedRows::Dropped,
+            EmptyRight::KeyRead,
+        ),
         SetKind::Antijoin => probe(
             ProbeMode::Anti,
             ProbeKey::Columns {

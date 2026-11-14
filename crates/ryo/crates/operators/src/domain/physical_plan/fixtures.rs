@@ -50,7 +50,12 @@ fn defines() -> (StepInput, PlanInput) {
 }
 
 /// A join of `left` with `right` on one key each, answering a left and a right column, its right rows kept by `filter`.
-fn join(left: (StepInput, PlanInput), right: (StepInput, PlanInput), on: [u32; 2], filter: Vec<PlanComparison>) -> Step {
+fn join(
+    left: (StepInput, PlanInput),
+    right: (StepInput, PlanInput),
+    on: [u32; 2],
+    filter: Vec<PlanComparison>,
+) -> Step {
     step(
         Operation::Join {
             left: left.0,
@@ -77,7 +82,10 @@ fn join(left: (StepInput, PlanInput), right: (StepInput, PlanInput), on: [u32; 2
 
 /// The case vocabulary: every kind of this stage over `DEFINES` and over nodes, two selects keyed on one name column, and
 /// the groupings, then a select of the tree, last.
-#[expect(clippy::too_many_lines, reason = "one program naming each kind of the stage once, in node order")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one program naming each kind of the stage once, in node order"
+)]
 pub fn case_program() -> Vec<Step> {
     let select = |name: &str| {
         step(
@@ -110,7 +118,10 @@ pub fn case_program() -> Vec<Step> {
         project(0, RepeatedRows::Kept),
         project(1, RepeatedRows::Dropped),
         set(|left, right| Operation::Union { left, right }, [2, 3]),
-        set(|left, right| Operation::Intersection { left, right }, [2, 4]),
+        set(
+            |left, right| Operation::Intersection { left, right },
+            [2, 4],
+        ),
         set(|left, right| Operation::Difference { left, right }, [4, 2]),
         step(
             Operation::Antijoin {

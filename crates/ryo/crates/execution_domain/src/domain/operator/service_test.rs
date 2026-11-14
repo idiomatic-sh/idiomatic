@@ -5,10 +5,7 @@ use super::service::prepare_operator;
 
 const PER_FILE: ryo_values::domain::plan_parts::types::StepScope =
     ryo_values::domain::plan_parts::types::StepScope::PerFile;
-use crate::domain::{
-    operating::errors::OperatingError,
-    operation_schema::types::InputShape,
-};
+use crate::domain::{operating::errors::OperatingError, operation_schema::types::InputShape};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::{

@@ -142,6 +142,3 @@ mod admission_order_precedence;
 
 #[cfg(test)]
 mod errored_rule;
-
-#[cfg(test)]
-mod interpreter;

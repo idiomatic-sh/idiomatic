@@ -1,6 +1,5 @@
 //! The `source_admission` application operation.
 
-use crate::application::file_dag::file_pass::constants::PRODUCER_COVERAGE_INCOMPLETE;
 use super::types::ProjectSources;
 use crate::application::file_dag::program::admission::service::AdmittedInput;
 use crate::application::file_dag::program::admission::service::AvailableInput;
@@ -45,7 +44,7 @@ pub(crate) struct SourceInputs<'a, 'facts> {
 impl SourceInputs<'_, '_> {
     pub(crate) fn admit_source(
         &mut self,
-        source: ryo_execution_domain::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::interpreted_program::types::InputSource,
         partition: &Partition,
         context: &mut OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError> {
@@ -67,18 +66,18 @@ impl Inputs for SourceInputs<'_, '_> {
     }
     fn presence(
         &mut self,
-        region: ryo_execution_domain::domain::executable_program::types::RegionId,
-    ) -> ryo_execution_domain::domain::executable_program::presence::types::RegionPresence {
+        region: ryo_execution_domain::domain::interpreted_program::types::RegionId,
+    ) -> ryo_execution_domain::domain::interpreted_program::presence::types::RegionPresence {
         self.state.presence(region)
     }
     fn dependency(
         &self,
-        source: ryo_execution_domain::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::interpreted_program::types::InputSource,
     ) -> Result<
-        Option<ryo_execution_domain::domain::executable_program::types::RegionId>,
+        Option<ryo_execution_domain::domain::interpreted_program::types::RegionId>,
         OperatingError,
     > {
-        use ryo_execution_domain::domain::executable_program::types::InputSource;
+        use ryo_execution_domain::domain::interpreted_program::types::InputSource;
         if self
             .project
             .as_ref()
@@ -87,7 +86,7 @@ impl Inputs for SourceInputs<'_, '_> {
             return Ok(None);
         }
         if let InputSource::Observation(
-            ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+            ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(slot),
         ) = source
         {
             if self.observations.contains_key(&ObservationKey(slot)) {
@@ -97,7 +96,7 @@ impl Inputs for SourceInputs<'_, '_> {
         let region = match source {
             InputSource::Region(id) => Some(id),
             InputSource::Observation(
-                ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+                ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(slot),
             ) => Some(
                 *self
                     .program
@@ -110,9 +109,9 @@ impl Inputs for SourceInputs<'_, '_> {
             ),
             InputSource::ObservationMember {
                 slot:
-                    ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+                    ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(slot),
                 member:
-                    ryo_execution_domain::domain::executable_program::types::ProducerMember(member),
+                    ryo_execution_domain::domain::interpreted_program::types::ProducerMember(member),
             } => {
                 let named = self
                     .program
@@ -168,7 +167,7 @@ impl Inputs for SourceInputs<'_, '_> {
                             .map_err(Clone::clone)?
                         {
                             InputSource::Region(id) => Some(*id),
-                            InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot)) => Some(
+                            InputSource::Observation(ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(slot)) => Some(
                                 *self
                                     .program
                                     .program()
@@ -200,7 +199,7 @@ impl Inputs for SourceInputs<'_, '_> {
     }
     fn supply(
         &mut self,
-        source: ryo_execution_domain::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::interpreted_program::types::InputSource,
         partition: &Partition,
         context: &mut OperatorContext<'_>,
     ) -> Result<AvailableInput, OperatingError> {
@@ -241,14 +240,6 @@ impl Inputs for SourceInputs<'_, '_> {
     ) -> Result<AdmittedInput, OperatingError> {
         self.publish_source(root, partition, inputs, representation)
     }
-    fn replay(
-        &self,
-        input: &AdmittedInput,
-        context: &mut OperatorContext<'_>,
-        output: &mut dyn ryo_execution_domain::domain::operator::types::Emit,
-    ) -> Result<(), OperatingError> {
-        self.replay_source(input, context, output)
-    }
 }
 
 pub(crate) fn table_of<'facts>(
@@ -260,21 +251,6 @@ pub(crate) fn table_of<'facts>(
     let mut table = Table::default();
     materialize(&rows, &mut table, &mut Vec::new());
     Ok(table)
-}
-
-pub(crate) fn observation_table<'facts>(
-    owner: &Rc<RelationOwner>,
-    input: &AdmittedInput,
-    read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
-) -> Result<Table, OperatingError> {
-    if input.observation_ready()?
-        == crate::application::file_dag::program::admission::types::ObservationReadiness::Waiting
-    {
-        return Err(OperatingError::ObservationIncomplete {
-            reason: PRODUCER_COVERAGE_INCOMPLETE.into(),
-        });
-    }
-    table_of(owner, input, read)
 }
 
 pub(crate) fn observation_slot(

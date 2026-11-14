@@ -51,7 +51,6 @@ pub struct Frontier {
 
 /// The hash of the cells that make a key.
 
-
 /// Whether a row was put into a table by the call that looked for it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Addition {
@@ -60,7 +59,6 @@ pub(crate) enum Addition {
     /// It was there already.
     Existing,
 }
-
 
 /// Opaque immutable publication crossing the engine's domain port. A foreign
 /// implementation carries no authority: the application verifies its private
@@ -141,4 +139,3 @@ pub struct RelationContract<'a> {
     /// Captured metadata refusals are interpreted only at the existing demand gate.
     pub metadata: Result<(), crate::domain::operating::errors::OperatingError>,
 }
-

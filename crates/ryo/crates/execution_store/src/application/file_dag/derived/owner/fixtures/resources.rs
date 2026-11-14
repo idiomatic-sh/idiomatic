@@ -15,10 +15,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 #[cfg(test)]
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 #[cfg(test)]
-use ryo_execution_domain::domain::{
-    coverage::types::Partial,
-    table_model::types::Rows,
-};
+use ryo_execution_domain::domain::{coverage::types::Partial, table_model::types::Rows};
 #[cfg(test)]
 use ryo_relations::domain::relations::types::Relation;
 #[cfg(test)]
@@ -30,9 +27,6 @@ use std::sync::{Arc, Weak};
 /// What a resource fixture's owner holds and counted.
 #[derive(Clone, Copy, Debug)]
 pub struct Snapshot {
-    pub graph_builds: u64,
-    pub graph_reuses: u64,
-    pub graph_early_stops: u64,
 }
 /// A relation owner over a recording port, with the resource acquisitions a proof drives.
 #[cfg(test)]

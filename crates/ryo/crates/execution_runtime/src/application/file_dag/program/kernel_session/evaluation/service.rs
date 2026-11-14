@@ -7,7 +7,7 @@ use crate::application::file_dag::program::runtime::types::KernelScratch;
 use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
-    executable_program::types::instruction::value::Instruction,
+    interpreted_program::types::instruction::value::Instruction,
     operating::{errors::OperatingError, types::InputPlace},
     operator::contract::{primitive::types::PreparedInputs, types::InputMode},
     table_model::service::{count_of, read_row},
@@ -72,7 +72,7 @@ impl super::super::service::KernelSession<'_, '_> {
                 permit: permit.semantics(),
                 failure: &setup_failure,
                 binding:
-                    ryo_execution_domain::domain::executable_program::physical::types::PhysicalBinding {
+                    ryo_execution_domain::domain::interpreted_program::physical::types::PhysicalBinding {
                         bindings: context.bindings,
                         regex_identity: None,
                         source_len: ryo_operators::domain::contract::types::SourceByteLength(
@@ -288,18 +288,17 @@ impl super::super::service::KernelSession<'_, '_> {
                                             )
                                         })?;
                                     ryo_execution_domain::domain::operator::contract::lease::service::add_found(workspace.work(), ryo_values::domain::plan_parts::types::InputNumber(input), ryo_execution_domain::domain::operator::contract::types::FoundRows(1));
-                                    let texts =
-                                        ryo_operators::domain::table_texts::types::Texts {
-                                            symbols: context.symbols.as_ref(),
-                                            source: context.source,
-                                            paths: context.paths,
-                                            arenas: context.arenas,
-                                        };
-                                    if ryo_execution_domain::domain::executable_program::kernel::service::row_admissible(
+                                    let texts = ryo_operators::domain::table_texts::types::Texts {
+                                        symbols: context.symbols.as_ref(),
+                                        source: context.source,
+                                        paths: context.paths,
+                                        arenas: context.arenas,
+                                    };
+                                    if ryo_execution_domain::domain::interpreted_program::kernel::service::row_admissible(
                                         contract, row, &texts,
                                     )
                                     .map_err(InvocationFailure::Semantic)?
-                                        == ryo_execution_domain::domain::executable_program::types::RowGate::Withheld
+                                        == ryo_execution_domain::domain::interpreted_program::types::RowGate::Withheld
                                     {
                                         continue;
                                     }

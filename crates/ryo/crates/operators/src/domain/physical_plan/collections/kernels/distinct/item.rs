@@ -3,9 +3,9 @@
 
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
+use crate::domain::physical_plan::types::CellStart;
 #[cfg(test)]
 use crate::domain::physical_plan::types::Lowering;
-use crate::domain::physical_plan::types::CellStart;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::rows::types::{RowCount, Table};
 

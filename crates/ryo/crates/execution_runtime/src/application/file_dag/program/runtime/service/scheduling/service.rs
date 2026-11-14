@@ -5,7 +5,7 @@ use crate::application::file_dag::program::admission::service::Inputs;
 use crate::application::file_dag::program::constants::EXECUTION_TARGET;
 use crate::application::file_dag::program::constants::READINESS_QUEUE;
 use crate::application::file_dag::program::runtime::types::{PollMode, ReaderCount};
-use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::interpreted_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
 
@@ -23,7 +23,7 @@ impl ProgramExecution {
         context: &mut OperatorContext<'_>,
     ) -> Result<(), OperatingError> {
         self.validate_state(state)?;
-        use ryo_execution_domain::domain::executable_program::types::RegionCount;
+        use ryo_execution_domain::domain::interpreted_program::types::RegionCount;
         use ryo_execution_domain::domain::readiness::types::{
             ReadinessAction, ReadinessOutcome, ready_queue::value::ReadyQueue,
         };
@@ -123,7 +123,7 @@ impl ProgramExecution {
         &self,
         state: &RuntimeState,
         rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
-        source: ryo_execution_domain::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::interpreted_program::types::InputSource,
         inputs: &mut dyn Inputs,
         kernels: &dyn KernelInvocation,
         completion: &ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy,

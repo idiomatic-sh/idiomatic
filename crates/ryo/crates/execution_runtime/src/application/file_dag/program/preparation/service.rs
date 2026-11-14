@@ -4,7 +4,7 @@ use crate::application::file_dag::program::prepared_execution::types::{
     NamedLayout, ObservationContract,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
+use ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::prepared_request::types::Compiled;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
@@ -29,15 +29,6 @@ mod replay;
 mod schedule;
 
 impl PreparedProgram {
-    pub(crate) fn file_demand(
-        &self,
-        rule: RuleIndex,
-    ) -> Result<
-        &ryo_execution_domain::domain::executable_program::types::file_rule_demand::value::FileRuleDemand,
-        OperatingError,
-    >{
-        self.file_demands.get(rule.0).ok_or(OperatingError::NotRun)
-    }
     pub(crate) fn file_frontier_outputs(
         &self,
         rule: RuleIndex,
@@ -59,7 +50,7 @@ impl PreparedProgram {
     }
     pub(crate) fn walk_class(
         &self,
-        instruction: &ryo_execution_domain::domain::executable_program::types::instruction::value::Instruction,
+        instruction: &ryo_execution_domain::domain::interpreted_program::types::instruction::value::Instruction,
     ) -> Option<ryo_execution_domain::domain::step_classes::types::ClassPlace> {
         self.walk.class_for(instruction)
     }
@@ -87,18 +78,12 @@ impl PreparedProgram {
             .copied()
             .ok_or(OperatingError::NotRun)
     }
-    pub(crate) fn program(&self) -> &Arc<ExecutableProgram> {
+    pub(crate) fn program(&self) -> &Arc<InterpretedProgram> {
         &self.program
     }
     /// The relations each file's sources are asked for: those the request's plans read.
     pub(crate) fn demanded(&self) -> &[ryo_relations::domain::relations::types::Relation] {
         &self.demanded
-    }
-    pub(crate) fn derived(
-        &self,
-    ) -> &ryo_execution_store::application::file_dag::derived::prepared::service::RequestDerived
-    {
-        &self.derived
     }
     pub(crate) fn hosted(&self) -> &[HostRelation] {
         &self.hosted
@@ -201,8 +186,8 @@ pub(crate) fn compile_program(
     graph: ryo_execution_domain::domain::file_program::types::RequestGraph,
     partitions: &dyn ryo_execution_domain::domain::source_partitions::types::ProducerPartitions,
     operators: &ryo_execution_domain::domain::file_program::types::RequestOperators,
-) -> Result<ExecutableProgram, OperatingError> {
-    ryo_execution_domain::domain::executable_program::service::compile(
+) -> Result<InterpretedProgram, OperatingError> {
+    ryo_execution_domain::domain::interpreted_program::service::compile(
         plans,
         graph,
         partitions,
@@ -300,15 +285,10 @@ pub(crate) fn prepare(
     let program = Arc::new(compile_program(&plans, graph, &partitions, &operators)?);
     walk.retain_program_consumers(&program)?;
     census::service::trace(rules, &walk, &program);
-    let derived =
-        ryo_execution_store::application::file_dag::derived::prepared::service::RequestDerived::new(
-            demands::service::derived_needs(&program)?,
-        );
     let metadata =
         metadata::service::rules(&program, named.as_ref(), &plans, &observation_frontiers)?;
     // The program's own pattern slots: its presence fold compiled the source searches' patterns into them.
     let matchers = Arc::clone(program.matchers());
-    let file_demands = demands::service::file_demands(&program, &metadata)?;
     let file_frontier_outputs = demands::service::frontier_outputs(&metadata, named.as_ref());
     let semantic_needed = if metadata
         .iter()
@@ -326,14 +306,12 @@ pub(crate) fn prepare(
         bindings: bindings.into_iter().map(Vec::into_boxed_slice).collect(),
         rules: metadata.into_boxed_slice(),
         semantic_needed,
-        file_demands,
         file_frontier_outputs,
         observations: named,
         schedule,
         semantic_metadata: ryo_values::domain::run_metadata::service::from_plans(&plans),
         hosted: hosted.to_vec().into_boxed_slice(),
         matchers,
-        derived,
         walk,
         demanded: crate::application::file_dag::file_pass::service::demanded(&plans),
     }))

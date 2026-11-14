@@ -27,12 +27,18 @@ fn subject(case: Input) -> Result<Value, Failure> {
     };
     let operation = extend();
     let mut sink = Kept::default();
-    let answer = with_lease(&resources, PredicateOutcome::Holds, &mut workspace, |lease| {
-        let mut driver = LeaseDriver::new(lease, &mut sink, &operation, PreparedInputs::Views(&[]));
-        let answer = case(&mut driver).map_err(|()| driver.take_failure());
-        let _lease = driver.finish();
-        answer
-    });
+    let answer = with_lease(
+        &resources,
+        PredicateOutcome::Holds,
+        &mut workspace,
+        |lease| {
+            let mut driver =
+                LeaseDriver::new(lease, &mut sink, &operation, PreparedInputs::Views(&[]));
+            let answer = case(&mut driver).map_err(|()| driver.take_failure());
+            let _lease = driver.finish();
+            answer
+        },
+    );
     answer.map(|()| (sink.0.len(), workspace.positions.len()))
 }
 

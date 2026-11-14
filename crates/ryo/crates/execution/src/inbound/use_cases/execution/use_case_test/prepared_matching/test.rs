@@ -3,12 +3,12 @@
 use super::super::super::fixtures;
 use super::super::super::fixtures::requests::run_prepared;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use ryo_operators::domain::table_texts::types::TextView;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_operators::domain::table_texts::types::TextView;
 use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};

@@ -8,8 +8,7 @@ use crate::application::file_dag::relations::types::{CheckCount, Sameness};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
-    operating::errors::OperatingError,
-    table_model::types::PhysicalShape,
+    operating::errors::OperatingError, table_model::types::PhysicalShape,
 };
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as CellValue};
 use std::borrow::Cow;

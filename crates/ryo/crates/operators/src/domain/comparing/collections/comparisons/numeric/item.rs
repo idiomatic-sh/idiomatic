@@ -1,12 +1,12 @@
 //! Numeric ordering and exact integer successor accept normalized text and integer cells.
 
 use super::super::interface::ComparisonsItem;
+use crate::domain::comparing::errors::ComparingError;
+use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::numeric_values::{
     service::{compare, integer_successor, read},
     types::{NumberText, Numeric, Succession},
 };
-use crate::domain::comparing::errors::ComparingError;
-use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::table_texts::types::Datum;
 use ryo_values::domain::plan_parts::types::Test;
 use std::cmp::Ordering;

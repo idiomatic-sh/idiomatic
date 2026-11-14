@@ -4,7 +4,7 @@ use super::super::fixtures::plan;
 use super::{service::expected, service::supported_head};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
+use ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram;
 use ryo_execution_domain::domain::shared_walk::types::{
     prepared_walk::value::PreparedWalk,
     walk_route::value::{WalkBarrier, WalkRoute},
@@ -25,7 +25,7 @@ enum Refusal {
     ErroredOriginDropped,
     SiblingRefused,
 }
-fn verify(program: &ExecutableProgram, walk: &PreparedWalk) -> Result<(), Refusal> {
+fn verify(program: &InterpretedProgram, walk: &PreparedWalk) -> Result<(), Refusal> {
     let expected = expected(program);
     let actual = program
         .regions()

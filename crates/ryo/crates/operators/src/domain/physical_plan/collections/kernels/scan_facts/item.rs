@@ -3,8 +3,8 @@
 
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
-use crate::domain::contract::types::PortableOperatorFault;
 use super::super::scan_roots::item::{tree_cell, tree_count, tree_kinds, tree_row};
+use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::{FactRows, InputRows, PlanInputs};
 #[cfg(test)]
 use crate::domain::physical_plan::types::{Lowering, RowSource};
@@ -47,7 +47,13 @@ pub(crate) fn facts(
 /// How many rows a relation's columns hold.
 pub(crate) fn rows_of(view: &ColumnsView<'_>) -> RowCount {
     // The readable prefix: a column shorter than the others ends the rows every column holds.
-    RowCount(view.columns.iter().map(|column| column.0.len()).min().unwrap_or(0))
+    RowCount(
+        view.columns
+            .iter()
+            .map(|column| column.0.len())
+            .min()
+            .unwrap_or(0),
+    )
 }
 
 /// Row `row` of the columns, decoded into `into` one cell per column: the facts are read in place, never into a table.

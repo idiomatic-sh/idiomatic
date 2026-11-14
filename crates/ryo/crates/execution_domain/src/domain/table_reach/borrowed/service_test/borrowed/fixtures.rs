@@ -2,7 +2,6 @@
 use super::super::super::service::*;
 use super::super::super::types::*;
 use crate::domain::table_model::types::RepresentationInput;
-use ryo_operators::domain::table_scratch::types::SetMembership;
 use crate::domain::table_reach::types::Walk;
 use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::contract::types::BuildOutcome;
@@ -13,6 +12,7 @@ use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_derived::domain::row_cells::types::BulkRows;
 use ryo_derived::domain::row_cells::types::RowCells;
+use ryo_operators::domain::table_scratch::types::SetMembership;
 use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
 use ryo_values::domain::plan_parts::types::ColumnIndex;

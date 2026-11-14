@@ -2,7 +2,9 @@
 use super::item::KeyedSelectItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem as _;
-use crate::domain::physical_plan::types::{Lowering, NodeReaders, PhysicalNode, Retention, RowSource};
+use crate::domain::physical_plan::types::{
+    Lowering, NodeReaders, PhysicalNode, Retention, RowSource,
+};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, LiteralText, Operand, PlanComparison, QueryLiteral, Test,

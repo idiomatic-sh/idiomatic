@@ -65,7 +65,9 @@ pub fn prepare<'s>(
                     Ok(match input {
                         Input::Relation(relation) => InputShape {
                             kinds: relation_kinds(*relation),
-                            tree: ryo_operators::domain::tree_cells::service::native_form(*relation),
+                            tree: ryo_operators::domain::tree_cells::service::native_form(
+                                *relation,
+                            ),
                         },
                         Input::BoundObservation(id) => InputShape {
                             kinds: observed_kinds

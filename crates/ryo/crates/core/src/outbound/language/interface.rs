@@ -41,8 +41,12 @@ pub trait LanguagePort: Send + Sync {
     /// Reads one file with the language that reads it: the tree goes into `table`, the worker's own, completed for what the readers
     /// of `file.wanted` look at; no row is written, `walk` writes them. A file no language reads is `Unsupported`; a file a language
     /// fails on is `Failed`, not an error: the run goes on and lists it as unread.
-    fn parse(&self, file: FileToRead<'_>, table: &mut Elements, symbols: &mut Symbols)
-    -> FileReading;
+    fn parse(
+        &self,
+        file: FileToRead<'_>,
+        table: &mut Elements,
+        symbols: &mut Symbols,
+    ) -> FileReading;
 
     /// Writes the rows of `file.wanted` into `out` for a file the language numbered `language` already parsed into `table`. A
     /// language past the ones linked writes none.

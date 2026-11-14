@@ -24,11 +24,17 @@ fn subject(case: Input) -> Result<Value, Failure> {
     let mut workspace = PrimitiveWorkspace::default();
     let operation = extend();
     let mut sink = Kept::default();
-    with_lease(&resources, PredicateOutcome::Holds, &mut workspace, |lease| {
-        let mut candidates = JoinCandidates::new(&resources, &operation, &[], Vec::new());
-        let mut rows = RowDelivery::new(lease, &mut sink, &operation, PreparedInputs::Views(&[]));
-        case(&mut candidates, &mut rows).map_err(|()| rows.take_failure())
-    })
+    with_lease(
+        &resources,
+        PredicateOutcome::Holds,
+        &mut workspace,
+        |lease| {
+            let mut candidates = JoinCandidates::new(&resources, &operation, &[], Vec::new());
+            let mut rows =
+                RowDelivery::new(lease, &mut sink, &operation, PreparedInputs::Views(&[]));
+            case(&mut candidates, &mut rows).map_err(|()| rows.take_failure())
+        },
+    )
 }
 
 fn key() -> [Cell; 1] {

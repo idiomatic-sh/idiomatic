@@ -7,11 +7,11 @@ use crate::domain::comparing::service::holds_bound;
 use crate::domain::comparing::types::{DecisionWorkspace, NameCount, RowShape};
 use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
 use crate::domain::patterns::types::PatternMatcher;
-use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
 use crate::domain::physical_plan::types::FilterKernel;
-use crate::domain::select::types::SelectParts;
 #[cfg(test)]
 use crate::domain::physical_plan::types::Lowering;
+use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
+use crate::domain::select::types::SelectParts;
 use crate::domain::table_scratch::types::Memo;
 use crate::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::types::{CellKind, Value};

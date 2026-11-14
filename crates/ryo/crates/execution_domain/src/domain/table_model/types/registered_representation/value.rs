@@ -1,6 +1,5 @@
 //! A classified physical catalog handle; implementer storage never crosses this value.
 use crate::domain::operating::errors::OperatingError;
-use ryo_operators::domain::tree_cells::types::TreeForm;
 use crate::domain::table_model::collections::representations::{
     compact::item::CompactItem,
     computed::item::ComputedItem,
@@ -11,6 +10,7 @@ use crate::domain::table_model::collections::representations::{
 };
 use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::table_model::types::{PhysicalShape, RelationContract, RepresentationKind};
+use ryo_operators::domain::tree_cells::types::TreeForm;
 use ryo_relations::domain::relations::types::{CellKind, Relation, Value};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,

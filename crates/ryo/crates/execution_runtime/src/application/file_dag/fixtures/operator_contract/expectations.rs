@@ -6,8 +6,7 @@ use ryo_values::domain::query_bindings::types::ParameterBinding;
 use {
     ryo_operators::domain::table_texts::service::datum,
     ryo_operators::domain::table_texts::types::Datum,
-    ryo_operators::domain::table_texts::types::Texts,
-    ryo_values::domain::files::types::SourceView,
+    ryo_operators::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
 };
 /// The source text every conformance fixture reads its names from.
 pub const SOURCE: &[u8] = b"a a";

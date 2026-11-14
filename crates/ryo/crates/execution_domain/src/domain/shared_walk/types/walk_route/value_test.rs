@@ -1,7 +1,7 @@
 //! A selection's barrier follows the kind of its input.
 
 use super::value::{WalkBarrier, source_barrier};
-use crate::domain::executable_program::types::InputSource;
+use crate::domain::interpreted_program::types::InputSource;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::{
     plan_parts::types::{Input, StepId},
@@ -32,7 +32,7 @@ fn a_selection_barrier_follows_the_kind_of_its_input() {
         source_barrier(
             &step,
             &[InputSource::Observation(
-                crate::domain::executable_program::types::ObservationPlace(0)
+                crate::domain::interpreted_program::types::ObservationPlace(0)
             )]
         ),
         WalkBarrier::Observation

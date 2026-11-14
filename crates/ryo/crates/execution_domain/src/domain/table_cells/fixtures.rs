@@ -1,11 +1,11 @@
 //! The small tree the engine's tests read elements from, and the rows they run their steps over.
 
-use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::index_kinds;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_relations::domain::relations::types::{FileId, KindBits, Offset};
 use ryo_relations::domain::terms::types::NameText;
 
@@ -44,13 +44,4 @@ pub fn small_tree() -> SmallTree {
     }
     index_kinds(&mut elements);
     SmallTree { elements, symbols }
-}
-
-/// The tree, as the rows the steps are run over.
-pub fn rows_over(elements: &Elements) -> TreeRows<'_> {
-    TreeRows {
-        elements,
-        file: FileId(0),
-        form: TreeForm::Elements,
-    }
 }

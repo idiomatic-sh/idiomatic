@@ -6,12 +6,9 @@ use crate::application::file_dag::program::prepared_execution::types::{
     PreparedExecutionProgram, ProgramParts,
 };
 use crate::outbound::operators::interface::OperatorsPort;
-use ryo_execution_domain::domain::coverage::types::{Partial, RuleIndex};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::prepared_request::types::{Compiled, ObservationIdentity};
 use ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess;
-use ryo_execution_store::application::file_dag::derived::prepared::service::RequestDerived;
-use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::stored_facts::types::Digest;
@@ -56,15 +53,15 @@ pub fn prepare(
     digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
 ) -> Result<PreparedExecutionProgram, OperatingError> {
     let derived = ProgramDerived::from(derived);
-    // Branch only, until the switch: the differential runs every file through the file pass.
-    #[cfg(feature = "fused-differential")]
-    let fused = Some(Arc::new(crate::application::file_dag::file_pass::types::PassSource {
-        plans: compiled.plans.clone(),
-        bindings: compiled.bindings.clone(),
-        operators: Arc::clone(&operators),
-    }));
-    #[cfg(not(feature = "fused-differential"))]
-    let fused = None;
+    // Every file runs through the file pass, over the compiled plans the compilation shares: its program is planned here, once,
+    // with each rule's stage, so a rule no stage serves yet is refused where it would run.
+    let pass = crate::application::file_dag::file_pass::service::pass_program(
+        &crate::application::file_dag::file_pass::types::PassSource {
+            plans: compiled.plans.clone(),
+            bindings: compiled.bindings.clone(),
+            operators: Arc::clone(&operators),
+        },
+    )?;
     let inner = crate::application::file_dag::program::preparation::service::prepare(
         compiled,
         rules,
@@ -79,20 +76,7 @@ pub fn prepare(
             kernels: Arc::new(CommonOperatorEngine::new(operators)),
             derived,
             digest,
-            fused,
+            pass: Arc::new(pass),
         },
     })
-}
-
-
-/// Prepares the file owner's derived views for the rules the file demands, over the request's prepared derived needs.
-pub(crate) fn prepare_file(
-    owner: &RelationOwner,
-    prepared: &RequestDerived,
-    demanded: &[RuleIndex],
-    partial: &[Partial],
-) -> Result<(), OperatingError> {
-    owner
-        .derived()
-        .prepare_program_file(prepared, demanded, partial)
 }

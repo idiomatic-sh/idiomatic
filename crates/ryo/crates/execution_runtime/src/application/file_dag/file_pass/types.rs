@@ -42,7 +42,7 @@ pub(crate) enum TreeStart {
 #[derive(Debug)]
 pub(crate) struct PassProgram {
     /// The planned program.
-    pub(crate) program: ryo_execution_domain::domain::fused_program::types::fused_program::value::FusedProgram,
+    pub(crate) program: ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
     /// The operators that run its nodes.
     pub(crate) operators: std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>,
     /// Each rule's compiled plan, shared with the compilation, in rule order.
@@ -59,7 +59,8 @@ pub(crate) struct PassProgram {
 #[derive(Debug, Default)]
 pub(crate) struct PassScratch {
     /// The nodes' rows.
-    pub(crate) buffers: ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers,
+    pub(crate) buffers:
+        ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers,
     /// The tree nodes each node starts from.
     pub(crate) roots: FileRoots,
     /// Each rule's named outputs, in rule order.
@@ -130,7 +131,8 @@ pub(crate) struct PassFile<'f, 'p, 'a, 's> {
     /// The rows the nodes read besides each other's.
     pub(crate) inputs: PassInputs<'p, 'a, 's>,
     /// The nodes' rows in this file.
-    pub(crate) buffers: ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers,
+    pub(crate) buffers:
+        ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers,
     /// The file.
     pub(crate) file: ryo_relations::domain::relations::types::FileId,
     /// What the rules are evaluated with as partial.
@@ -161,9 +163,11 @@ pub(crate) struct CaptureAt<'a> {
 #[derive(Clone)]
 pub(crate) struct PassRequest<'r> {
     /// The prepared program: its rules' order, intents, frontiers and named outputs.
-    pub(crate) program: &'r crate::application::file_dag::program::preparation::types::PreparedProgram,
+    pub(crate) program:
+        &'r crate::application::file_dag::program::preparation::types::PreparedProgram,
     /// Whether the program runs the file: its intents pair with the rules and the file is the request's, or why not.
-    pub(crate) admission: Result<(), ryo_execution_domain::domain::operating::errors::OperatingError>,
+    pub(crate) admission:
+        Result<(), ryo_execution_domain::domain::operating::errors::OperatingError>,
     /// The path of each file of the run.
     pub(crate) paths: &'r [ryo_language::domain::files::types::FilePath],
     /// Where each rule's steps are reported, when the request has an observer.
@@ -180,7 +184,6 @@ pub(crate) struct NodeAnswer {
 }
 
 /// What the file pass's program is made of, kept by the prepared program: the rules' plans and bindings and the operators.
-/// Branch only: the differential's, until the switch makes the program at preparation.
 #[derive(Debug)]
 pub(crate) struct PassSource {
     /// Each rule's compiled plan, shared with the compilation, in rule order.
@@ -189,4 +192,22 @@ pub(crate) struct PassSource {
     pub(crate) bindings: Vec<Vec<ryo_values::domain::query_bindings::types::ParameterBinding>>,
     /// The operators that plan and run the program.
     pub(crate) operators: std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>,
+}
+
+/// Whether a request holds any rule.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RulesHeld {
+    /// It holds none.
+    None,
+    /// It holds one or more.
+    Some,
+}
+
+/// The latest stage among a request's rules that no stage serves yet, and whether it holds a rule at all.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Stages {
+    /// The latest unserved stage, when a rule is not served.
+    pub(crate) latest: Option<ryo_operators::domain::physical_plan::types::ServedAt>,
+    /// Whether the request holds any rule.
+    pub(crate) held: RulesHeld,
 }

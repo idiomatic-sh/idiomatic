@@ -11,12 +11,12 @@ use ryo_execution_domain::domain::operator::contract::{
     context::service::with_primitive_context, primitive::types::PreparedInputs, types::*,
 };
 use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
+use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort;
+use ryo_language::domain::symbols::service::query_reborrow;
 use ryo_operators::domain::table_texts::{
     service::datum,
     types::{Datum, Texts},
 };
-use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort;
-use ryo_language::domain::symbols::service::query_reborrow;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::rows::service::cell;
 
@@ -235,10 +235,10 @@ pub(super) fn evaluate_once(
         #[cfg(feature = "diagnostic-row-progress")]
         progress: &routes,
         binding:
-            ryo_execution_domain::domain::executable_program::physical::types::PhysicalBinding {
+            ryo_execution_domain::domain::interpreted_program::physical::types::PhysicalBinding {
                 bindings: context.bindings,
                 regex_identity: regex.map(|compiled| {
-                    ryo_execution_domain::domain::executable_program::types::RegexIdentity(
+                    ryo_execution_domain::domain::interpreted_program::types::RegexIdentity(
                         compiled as *const _ as usize,
                     )
                 }),

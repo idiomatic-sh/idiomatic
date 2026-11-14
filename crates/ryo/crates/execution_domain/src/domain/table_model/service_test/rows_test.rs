@@ -1,6 +1,5 @@
 //! The `table_model` service's cases for reading rows of stored, tree and computed tables, on values alone.
 
-use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::service::{count_of, kinds_of, read_row};
 use crate::domain::table_model::service_test::pairs;
 use crate::domain::table_model::types::Rows;
@@ -9,6 +8,7 @@ use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::service::kind_names;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_relations::domain::relations::constants::NO_SYMBOL;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{

@@ -1,9 +1,9 @@
 //! Executable acceptance steps for running a planned node.
 use crate::Behavior;
 use cucumber::{given, then, when};
+use ryo_operators::domain::physical_plan::fixtures::Step;
 use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId};
-use ryo_operators::domain::physical_plan::fixtures::Step;
 use ryo_operators::inbound::use_cases::run::fixtures::{TableInputs, TextResources, emitted};
 use ryo_relations::domain::relations::fixtures::{kinds, node_id};
 use ryo_relations::domain::relations::types::{FileId, Offset, Position, Relation, Span, Value};

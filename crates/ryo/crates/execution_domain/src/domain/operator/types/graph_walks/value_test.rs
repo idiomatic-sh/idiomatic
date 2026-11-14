@@ -7,8 +7,8 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::primitive::types::PreparedInputs;
 use crate::domain::operator::contract::types::PrimitiveWorkspace;
 use crate::domain::operator::fixtures::{Kept, Resources, extend, with_lease};
-use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_operators::domain::closure::types::PartitionPlace;
+use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_relations::domain::relations::types::{Count, Integer, Value as Cell};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
@@ -24,11 +24,17 @@ fn subject(case: Input) -> Result<Value, Failure> {
     let mut workspace = PrimitiveWorkspace::default();
     let operation = extend();
     let mut sink = Kept::default();
-    with_lease(&resources, PredicateOutcome::Holds, &mut workspace, |lease| {
-        let mut walks = GraphWalks::default();
-        let mut rows = RowDelivery::new(lease, &mut sink, &operation, PreparedInputs::Views(&[]));
-        case(&mut walks, &mut rows).map_err(|()| rows.take_failure())
-    })
+    with_lease(
+        &resources,
+        PredicateOutcome::Holds,
+        &mut workspace,
+        |lease| {
+            let mut walks = GraphWalks::default();
+            let mut rows =
+                RowDelivery::new(lease, &mut sink, &operation, PreparedInputs::Views(&[]));
+            case(&mut walks, &mut rows).map_err(|()| rows.take_failure())
+        },
+    )
 }
 
 /// The rows of this value's cases.

@@ -4,13 +4,11 @@ use super::super::errors::FileAnalysisError;
 use super::super::semantic::service::SemanticState;
 use super::super::service::FileAnalysis;
 use super::super::types::{EngineSource, FileRead, FileVisit, LanguageSource, RuleGate, Worker};
-use crate::outbound::language::types::{FileToRead, SourceSelection};
-use ryo_relations::domain::relations::service::{all, provenance_of};
-use ryo_relations::domain::relations::types::Provenance;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
 use crate::domain::workers::service::governs_rule;
 use crate::domain::workers::types::Tables;
+use crate::outbound::language::types::{FileToRead, SourceSelection};
 use ryo_execution::inbound::use_cases::execution::interface::Demand;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort as _;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort as _;
@@ -23,14 +21,16 @@ use ryo_execution::inbound::use_cases::execution::interface::{
     CaptureContext, EmittedRoot, FileEnd, FileRunInput, FileStop, FinishedReadiness, KindSupport,
     Partiality, RanRule, RuleAfter, SemanticSupport, SourceLanguage,
 };
-use ryo_execution_runtime::outbound::facts::types::fact_sources::value::{FactSource, FactSources};
 use ryo_execution::inbound::use_cases::metadata::interface::{
     FileObservationReadiness, Governing, Message, RuleIndex, Unknown,
 };
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
+use ryo_execution_runtime::outbound::facts::types::fact_sources::value::{FactSource, FactSources};
 use ryo_language::domain::elements::service::syntax_acceptance;
 use ryo_language::domain::elements::types::SyntaxAcceptance;
+use ryo_relations::domain::relations::service::{all, provenance_of};
 use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::Provenance;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::runs::types::ApplicabilityRefusal;
 use ryo_values::domain::runs::types::{RuleApplicability, RuleNumber};

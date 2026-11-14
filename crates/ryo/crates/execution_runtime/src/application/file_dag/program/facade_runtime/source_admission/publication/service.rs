@@ -5,7 +5,6 @@ use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::admission::service::Representation;
 use crate::application::file_dag::program::admission::types::ProducerRoot;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use std::rc::Rc;
 
@@ -40,7 +39,7 @@ impl SourceInputs<'_, '_> {
                 .get(region.0)
                 .ok_or_else(|| OperatingError::NotRun)?;
             let ordered =
-                ryo_execution_domain::domain::executable_program::service::ordered_existence(
+                ryo_execution_domain::domain::interpreted_program::service::ordered_existence(
                     &code.route(),
                 )
                 .filter(|shape| {
@@ -145,14 +144,5 @@ impl SourceInputs<'_, '_> {
             root,
             read,
         )
-    }
-    pub(crate) fn replay_source(
-        &self,
-        input: &AdmittedInput,
-        context: &mut OperatorContext<'_>,
-        output: &mut dyn ryo_execution_domain::domain::operator::types::Emit,
-    ) -> Result<(), OperatingError> {
-        let rows = input.rows(&self.owner, self.read)?;
-        crate::application::file_dag::execution::output::service::replay(&rows, context, output)
     }
 }

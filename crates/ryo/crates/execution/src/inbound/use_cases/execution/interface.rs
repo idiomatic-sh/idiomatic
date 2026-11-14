@@ -3,16 +3,11 @@ use ryo_values::domain::files::types::CorpusInput;
 
 // The application handles and protocol traits the contract is made of.
 pub use ryo_execution_runtime::application::file_dag::frontiers::errors::FrontiersError;
-pub use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::EmittedRoot;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileEnd;
-pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileFinished;
-#[cfg(any(test, feature = "fixtures"))]
-pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileRules;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileRunInput;
-pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileSession;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileStop;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FinishedReadiness;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FrontierCaptures;
@@ -22,8 +17,6 @@ pub use ryo_execution_runtime::application::file_dag::program::file_session::typ
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::RuleAfter;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-#[cfg(any(test, feature = "fixtures"))]
-pub use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ProgramObservationStagePort;
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::types::AdmittedOutput;
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::types::BatchNumber;

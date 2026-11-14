@@ -1,28 +1,20 @@
 //! The run use case through `plan` and `run` only: what a planned program answers, how often it reads its facts, what it holds
 //! and which fault it reports, each against the same rows run another way.
+use super::fixtures::cases::{DEFINES, defines, input_of, named, select, self_matching};
 use super::fixtures::{TableInputs, TextResources, emitted, rewritten};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::ProbeMode;
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem;
 use crate::domain::physical_plan::fixtures::{Step, case_program};
 use crate::domain::physical_plan::service::REWRITES;
-use crate::domain::physical_plan::types::{KeyedIndex, Lowering, PhysicalNode};
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
+use crate::domain::physical_plan::types::{KeyedIndex, Lowering, PhysicalNode};
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
-use ryo_relations::domain::relations::fixtures::{kinds, node_id};
-use ryo_relations::domain::relations::types::{
-    FileId, Offset, Position, Relation, Span, Value as Cell,
-};
-use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, Input as StepInput, LiteralText, Operand, PlanComparison,
-    QueryLiteral, RepeatedRows, Test,
-};
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as StepInput, RepeatedRows};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::{RowCount, Table};
-
-/// The relation the cases read: its refinement (column 2) and name (column 3) are texts.
-const DEFINES: Relation = Relation::Defines;
 
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -125,7 +117,13 @@ impl RewritesItem for AntiAsSemi {
 
 /// Whether the case program answers the same rows planned with every rewrite of `rewrites` and with each left out.
 fn rewrites_keep_rows(rewrites: &[&dyn RewritesItem]) -> Result<Value, Failure> {
-    let pairs = [("kind", "alpha"), ("kind", "beta"), ("other", "alpha"), ("kind", "gamma"), ("other", "beta")];
+    let pairs = [
+        ("kind", "alpha"),
+        ("kind", "beta"),
+        ("other", "alpha"),
+        ("kind", "gamma"),
+        ("other", "beta"),
+    ];
     let mut resources = TextResources::new(&["kind", "other", "alpha", "beta", "gamma"]);
     let table = defines(&pairs, &resources);
     let inputs = TableInputs::new(&[(DEFINES, &table)]);
@@ -141,88 +139,6 @@ fn rewrites_keep_rows(rewrites: &[&dyn RewritesItem]) -> Result<Value, Failure> 
         }
     }
     Ok(Observation::Same(true))
-}
-
-/// The rows of `DEFINES`, one per (refinement, name) pair, each a node of file 0, with `texts` the file's symbols.
-fn defines(pairs: &[(&str, &str)], texts: &TextResources) -> Table {
-    let mut cells = Vec::with_capacity(pairs.len() * kinds(DEFINES).len());
-    for (at, (refinement, name)) in pairs.iter().enumerate() {
-        let node = Cell::Node(node_id(
-            FileId(0),
-            Position(u32::try_from(at).unwrap_or(u32::MAX)),
-        ));
-        cells.extend([
-            node,
-            texts.symbol("kind"),
-            texts.symbol(refinement),
-            texts.symbol(name),
-            node,
-            Cell::File(FileId(0)),
-            Cell::Span(Span {
-                start: Offset(0),
-                end: Offset(0),
-            }),
-        ]);
-    }
-    Table {
-        kinds: kinds(DEFINES).to_vec(),
-        cells,
-        count: RowCount(pairs.len()),
-    }
-}
-
-/// A comparison of two operands.
-fn compared(test: Test, left: Operand, right: Operand) -> PlanComparison {
-    PlanComparison {
-        test,
-        left,
-        right,
-        origin: ComparisonOrigin::Unrecorded,
-    }
-}
-
-/// Whether a column's text matches the pattern its own text is: a regex made from the row, which fails on a text that is no
-/// pattern.
-fn self_matching(column: u32) -> PlanComparison {
-    compared(
-        Test::Matches,
-        Operand::Column(ColumnIndex(column)),
-        Operand::Column(ColumnIndex(column)),
-    )
-}
-
-/// Whether the name is `text`.
-fn named(text: &str) -> PlanComparison {
-    compared(
-        Test::Equal,
-        Operand::Column(ColumnIndex(3)),
-        Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-    )
-}
-
-/// A select of every column of what `from` reads, kept where `comparisons` hold.
-fn select(from: PlanInput, comparisons: Vec<PlanComparison>) -> Step {
-    Step {
-        operation: Operation::Select {
-            from: input_of(from),
-            comparisons,
-            kept: Vec::new(),
-        },
-        inputs: vec![from],
-    }
-}
-
-/// The plan's input as the operation names it.
-fn input_of(from: PlanInput) -> StepInput {
-    match from {
-        PlanInput::Node(PlanNodeId(at)) => {
-            StepInput::Step(ryo_values::domain::plan_parts::types::StepId(at))
-        }
-        PlanInput::Relation(relation) => StepInput::Relation(relation),
-        PlanInput::Bound(_) | PlanInput::Observation(_) => StepInput::BoundObservation(
-            ryo_values::domain::plan_parts::types::ObservationBindingId(0),
-        ),
-    }
 }
 
 /// The emitted rows of `steps`, every step a rule's emit when `all` is set, else only the last, over `pairs`.
@@ -325,7 +241,9 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
             // What a select answers when nothing of it ran: its relation is not held. The regex's fault is another.
             let unheld = select(PlanInput::Relation(Relation::Comment), Vec::new());
             let unrun = answered(&[unheld], true, &pairs, TEXTS).0;
-            Ok(Observation::Same(keyed == Err(alone.clone()) && unrun != Err(alone)))
+            Ok(Observation::Same(
+                keyed == Err(alone.clone()) && unrun != Err(alone),
+            ))
         }
         Scenario::PipelineHolds => {
             let mut resources = TextResources::new(TEXTS);

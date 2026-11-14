@@ -2,8 +2,6 @@
 use crate::application::file_dag::executor::service::PrimitiveExecutor;
 use crate::application::file_dag::program::admission::service::AvailableInput;
 use crate::application::file_dag::program::admission::types::RequiredPartitions;
-use crate::application::file_dag::program::facade_runtime::types::PresenceGate;
-use crate::application::file_dag::program::facade_runtime::types::Truth;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::request_identity::service::RequestIdentity;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
@@ -69,24 +67,6 @@ pub(crate) fn required_partitions(
     )
 }
 
-/// One file's presence memo: what each test and formula of the program answered on the file, filled lazily, each
-/// relation's pending tests decided together in one pass over its rows.
-pub(crate) struct FilePresence {
-    /// Off once a read of the file's rows fails: no further row is read, and every formula holds.
-    pub(super) gate: PresenceGate,
-    pub(super) tests: Vec<Truth>,
-    pub(super) formulas: Vec<Truth>,
-    /// The relations the file has read, by presence or by a probe.
-    pub(super) read: Vec<ryo_relations::domain::relations::types::Relation>,
-    /// Room for one relation row, the tests still open on a relation, and a comparison memo, kept for the file.
-    pub(super) cells: Vec<ryo_relations::domain::relations::types::Value>,
-    pub(super) open: Vec<ryo_execution_domain::domain::executable_program::presence::types::TestId>,
-    pub(super) memo: Vec<ryo_operators::domain::table_scratch::types::Memo>,
-    pub(super) scratch: ryo_operators::domain::table_scratch::types::LazyScratch<
-        ryo_operators::domain::table_scratch::types::SelectScratch,
-    >,
-}
-
 pub(crate) struct ProgramServices {
     pub(super) request: Arc<RequestIdentity>,
     pub(super) kernels: Arc<dyn PrimitiveExecutor + Send>,
@@ -144,7 +124,7 @@ pub(crate) struct ProjectFrontiers<'a> {
 /// A named project phase and its bound inputs must use the very same owner.
 pub(crate) struct PublicationScope {
     pub(super) request: Arc<RequestIdentity>,
-    pub(super) program: Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,
+    pub(super) program: Arc<ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram>,
     pub(super) owner: Rc<RelationOwner>,
     pub(super) execution: std::cell::OnceCell<ProgramExecution>,
     /// The scope's project-stage walk: every cohort of the scope leases from its batches.
@@ -173,22 +153,6 @@ impl PublicationScope {
             .map_or_else(Default::default, ProgramExecution::readiness_counts)
     }
 
-    /// The project-stage walk's totals, retired batches included.
-    #[cfg(test)]
-    pub(crate) fn walk_counts(
-        &self,
-    ) -> ryo_execution_domain::domain::shared_walk::types::WalkCounts {
-        self.walk.counts()
-    }
-
-    /// How many packed frontiers the scope decoded.
-    #[cfg(test)]
-    pub(crate) fn frontier_decodes(
-        &self,
-    ) -> crate::application::file_dag::frontiers::types::DecodeCount {
-        self.decodes.count()
-    }
-
     #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn state_counts(
         &self,
@@ -208,7 +172,7 @@ impl PublicationScope {
     }
     pub(crate) fn program(
         &self,
-    ) -> &Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>{
+    ) -> &Arc<ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram>{
         &self.program
     }
     pub(crate) fn owner(&self) -> &Rc<RelationOwner> {

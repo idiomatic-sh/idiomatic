@@ -134,8 +134,8 @@ impl PreparedWalk {
     /// an errored origin shares nothing; that rule is refused on its own roots by metadata.
     fn resolve_class(
         &self,
-        program: &crate::domain::executable_program::types::executable_program::value::ExecutableProgram,
-        instruction: &crate::domain::executable_program::types::instruction::value::Instruction,
+        program: &crate::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram,
+        instruction: &crate::domain::interpreted_program::types::instruction::value::Instruction,
     ) -> Option<ClassPlace> {
         let region = program.logical_regions().get(instruction.logical().0)?;
         let first = program
@@ -186,7 +186,7 @@ impl PreparedWalk {
     /// program.
     pub fn retain_program_consumers(
         &mut self,
-        program: &crate::domain::executable_program::types::executable_program::value::ExecutableProgram,
+        program: &crate::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram,
     ) -> Result<(), OperatingError> {
         let mut retained = Vec::with_capacity(self.classes.classes.len());
         let mut dropped = Vec::new();
@@ -325,7 +325,7 @@ impl PreparedWalk {
     /// Direct lookup in the immutable physical program, prepared once per request.
     pub fn class_for(
         &self,
-        instruction: &crate::domain::executable_program::types::instruction::value::Instruction,
+        instruction: &crate::domain::interpreted_program::types::instruction::value::Instruction,
     ) -> Option<ClassPlace> {
         match self.physical.get(instruction.logical().0)?.as_ref()? {
             WalkRoute::Shared(class) => Some(*class),
@@ -336,7 +336,7 @@ impl PreparedWalk {
     /// The route bound to a physical instruction, if it was bound.
     pub fn route_of(
         &self,
-        instruction: &crate::domain::executable_program::types::instruction::value::Instruction,
+        instruction: &crate::domain::interpreted_program::types::instruction::value::Instruction,
     ) -> Option<WalkRoute> {
         *self.physical.get(instruction.logical().0)?
     }

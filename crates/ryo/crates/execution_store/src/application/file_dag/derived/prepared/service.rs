@@ -3,10 +3,7 @@
 use super::types::RuleDerivedNeeds;
 use crate::application::file_dag::derived::constants as activation;
 use crate::application::file_dag::derived::owner::cache::types::GraphAdmission;
-use ryo_execution_domain::domain::{
-    coverage::types::RuleIndex,
-    operating::errors::OperatingError,
-};
+use ryo_execution_domain::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
 use ryo_relations::domain::relations::types::Relation;
 
 /// The derived needs of a compiled request: the relations each rule reads and the rules that walk a graph.

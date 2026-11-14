@@ -95,36 +95,6 @@ impl RelationOwner {
             self.derived.pin(backing);
         }
     }
-    /// Read-only evidence for the actual producer in the actual population.
-    ///
-    /// # Errors
-    ///
-    /// [`OperatingError::WrongOperation`] when more than one retained view of `kind` matches the producer's
-    /// populations.
-    #[cfg(any(test, feature = "fixtures"))]
-    pub fn producer_view_witness(
-        &self,
-        scope: ProducerScope,
-        node: crate::application::file_dag::relations::types::ProducerId,
-        kind: ryo_derived::domain::request::types::DerivedKind,
-    ) -> Result<
-        Option<crate::application::file_dag::derived::owner::witness::service::BackingWitness>,
-        OperatingError,
-    > {
-        let Some(known) = self
-            .producer_populations
-            .borrow()
-            .get(&ProducerKey {
-                scope,
-                producer: node,
-            })
-            .copied()
-        else {
-            return Ok(None);
-        };
-        self.derived
-            .population_view_witness(&[known.population, known.backing], kind)
-    }
     /// Global consumer cancellation need not retain the producer payload.
     /// A generation clear has already released all pins and removed this map.
     pub(crate) fn release_derived_producer(

@@ -28,10 +28,7 @@ impl PrimitiveSemantics for TestOperators {
 
 use ryo_values::domain::rows::service::push_row;
 
-use crate::domain::{
-    table_cells::service_test::prepared_order,
-    table_model::types::Rows,
-};
+use crate::domain::{table_cells::service_test::prepared_order, table_model::types::Rows};
 use ryo_derived::domain::key::types::On;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 

@@ -1,7 +1,2 @@
-//! The session of one file.
-pub mod interface;
-pub mod service;
+//! What one file's run is given and answers.
 pub mod types;
-
-#[cfg(test)]
-mod service_test;

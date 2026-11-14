@@ -297,7 +297,10 @@ pub(crate) fn lower(
 ) -> super::types::ProbeParts {
     use super::types::{EmptyRight, Existence, ProbeKey, ProbeMode, ProbeParts};
     // No view names every column of the right rows: a column is where it is.
-    let placed = |column: &ColumnIndex| match shape.view.get(usize::try_from(column.0).unwrap_or(usize::MAX)) {
+    let placed = |column: &ColumnIndex| match shape
+        .view
+        .get(usize::try_from(column.0).unwrap_or(usize::MAX))
+    {
         Some(physical) => *physical,
         None => *column,
     };

@@ -1,13 +1,10 @@
 //! The support of the `boundary_fixture` cases and of the groups nested in it.
-use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
-use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
 use ryo_execution::inbound::use_cases::execution::interface::RuleOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::{
     CaptureContext, FactsWorker, FileRuleIntent, FileRules, FileStop, KindSupport, Partial,
@@ -144,13 +141,6 @@ pub(crate) fn source() -> Table {
                 CellKind::Flag => Value::Flag(Flag::Lowered),
             })
             .collect(),
-    }
-}
-
-pub(crate) fn demand() -> RuleDemand {
-    RuleDemand {
-        emit: EmitDemand::Enabled,
-        observations: ObservationDemand::NotRequired,
     }
 }
 
@@ -361,7 +351,8 @@ pub(crate) fn run_file_into(
             file: run.file,
             intents: run.intents,
             source: ryo_values::domain::files::types::SourceView(run.source),
-            sources: FactSources::unread(run.elements, &mut []).expect("a file with no further source"),
+            sources: FactSources::unread(run.elements, &mut [])
+                .expect("a file with no further source"),
             active: &[],
             said: &said,
             recovery: ryo_execution::inbound::use_cases::metadata::interface::Recovery::Whole,

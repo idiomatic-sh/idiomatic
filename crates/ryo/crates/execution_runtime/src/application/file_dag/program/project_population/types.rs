@@ -1,7 +1,7 @@
 //! Structural source and invocation records have no facade or evaluation dependency.
 use ryo_execution_domain::domain::{
     completion::types::{CoverageState, completion_policy::value::CompletionPolicy},
-    executable_program::types::InputSource,
+    interpreted_program::types::InputSource,
     operating::errors::OperatingError,
 };
 use ryo_execution_store::application::file_dag::derived::population::service::PopulationId;

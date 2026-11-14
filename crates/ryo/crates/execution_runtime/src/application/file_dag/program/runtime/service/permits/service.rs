@@ -3,10 +3,10 @@ use super::super::{BoundInputs, KernelAdmission, KernelPermit, ProgramExecution,
 use crate::application::file_dag::program::admission::service::AdmittedInput;
 use crate::application::file_dag::program::admission::types::ProducerRoot;
 use crate::application::file_dag::program::runtime::types::InstructionIndex;
-use ryo_execution_domain::domain::executable_program::types::InputId;
-use ryo_execution_domain::domain::executable_program::types::InputSource;
-use ryo_execution_domain::domain::executable_program::types::RegionId;
-use ryo_execution_domain::domain::executable_program::types::RouteKind;
+use ryo_execution_domain::domain::interpreted_program::types::InputId;
+use ryo_execution_domain::domain::interpreted_program::types::InputSource;
+use ryo_execution_domain::domain::interpreted_program::types::RegionId;
+use ryo_execution_domain::domain::interpreted_program::types::RouteKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 
@@ -15,7 +15,7 @@ impl<'scope> KernelPermit<'scope> {
         execution: &ProgramExecution,
         region: RegionId,
     ) -> Result<
-        &ryo_execution_domain::domain::executable_program::types::region::value::Region,
+        &ryo_execution_domain::domain::interpreted_program::types::region::value::Region,
         OperatingError,
     > {
         if execution
@@ -76,7 +76,7 @@ impl<'scope> KernelPermit<'scope> {
         let execution = authority.execution();
         let region = authority.region();
         let code = Self::code(execution, region)?;
-        let shape = ryo_execution_domain::domain::executable_program::service::ordered_existence(
+        let shape = ryo_execution_domain::domain::interpreted_program::service::ordered_existence(
             &code.route(),
         )
         .ok_or_else(|| OperatingError::WrongOperation)?;
@@ -120,7 +120,7 @@ impl<'scope> KernelPermit<'scope> {
     }
     pub(crate) fn validate_program(
         &self,
-        program: &ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
+        program: &ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram,
     ) -> Result<(), OperatingError> {
         self.validate_live()?;
         if std::ptr::eq(self.program, program) {
@@ -135,7 +135,7 @@ impl<'scope> KernelPermit<'scope> {
     }
     pub(crate) fn descriptor(
         &self,
-    ) -> &ryo_execution_domain::domain::executable_program::types::instruction::value::Instruction
+    ) -> &ryo_execution_domain::domain::interpreted_program::types::instruction::value::Instruction
     {
         &self.program.regions()[self.region.0].instructions()[self.instruction.0]
     }

@@ -2,10 +2,10 @@
 //! concept.
 
 use super::super::interface::ComparisonsItem;
-use crate::domain::patterns::types::PatternMatcher;
-use crate::domain::patterns::types::prepared::value::PreparedMatchers;
 use crate::domain::comparing::errors::ComparingError;
 use crate::domain::contract::types::PredicateOutcome;
+use crate::domain::patterns::types::PatternMatcher;
+use crate::domain::patterns::types::prepared::value::PreparedMatchers;
 use crate::domain::table_scratch::types::ComparisonSlot;
 use crate::domain::table_texts::types::Datum;
 use ryo_matching::inbound::use_cases::matching::types::{

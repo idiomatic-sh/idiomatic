@@ -1,29 +1,29 @@
 //! The `kind_sets` service: the comparisons that name a kind, as sets of kinds, with no IO and no ports.
 
-use ryo_operators::domain::table_scratch::types::SetMembership;
 use ryo_language::domain::elements::service::{kind_names, kind_vocabulary};
 use ryo_language::domain::symbols::service::text_of;
 use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_operators::domain::table_scratch::types::SetMembership;
 use ryo_relations::domain::relations::constants::NO_SYMBOL;
 use ryo_relations::domain::relations::types::KindBits;
 
 use super::constants::{NO_NAME, SET_OF_TEST};
 use super::types::vocabulary::value::{PreparedKindTest, PreparedVocabulary};
 use super::types::{ComparisonOrdinal, KindScratch, ListAddress};
+use crate::domain::operating::types::KindNaming;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::comparing::collections::comparisons::affix::item::AffixItem;
 use ryo_operators::domain::comparing::collections::comparisons::equality::item::EqualityItem;
 use ryo_operators::domain::comparing::collections::comparisons::glob::item::GlobItem;
 use ryo_operators::domain::comparing::collections::comparisons::interface::ComparisonsItem as _;
-use ryo_operators::domain::patterns::types::PatternMatcher;
-use crate::domain::operating::types::KindNaming;
-use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_operators::domain::contract::types::PredicateOutcome;
+use ryo_operators::domain::patterns::types::PatternMatcher;
 use ryo_operators::domain::table_scratch::service::kind_has;
 use ryo_operators::domain::table_scratch::types::{
     KindSet, KindSetPlace, KindTest, NamingPlace, NamingTest,
 };
 use ryo_operators::domain::table_texts::types::{Datum, TextView};
-use ryo_language::domain::symbols::types::Symbols;
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_values::domain::descriptions::types::KindWord;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
@@ -272,7 +272,8 @@ fn make_set(
     made.bits.0.resize(names.len().div_ceil(64), 0);
     for (bits, name) in names.iter().enumerate() {
         if name.as_ref().is_some_and(|name| {
-            satisfies(test, TextView(&name.0), TextView(&literal.0), matcher) == PredicateOutcome::Holds
+            satisfies(test, TextView(&name.0), TextView(&literal.0), matcher)
+                == PredicateOutcome::Holds
         }) {
             if let Some(word) = made.bits.0.get_mut(bits / 64) {
                 *word |= 1 << (bits % 64);

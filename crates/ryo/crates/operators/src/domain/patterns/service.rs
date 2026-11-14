@@ -2,8 +2,8 @@
 
 use super::types::PatternMatcher;
 use super::types::prepared::value::{PreparedMatchers, compile_regex};
-use crate::domain::patterns::errors::PatternsError;
 use crate::domain::contract::types::PredicateOutcome;
+use crate::domain::patterns::errors::PatternsError;
 use crate::domain::table_scratch::types::Patterns;
 use crate::domain::table_texts::types::Datum;
 use crate::domain::table_texts::types::{RegexPattern, TextView};

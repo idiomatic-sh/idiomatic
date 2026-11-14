@@ -13,7 +13,7 @@ use std::rc::Rc;
 impl super::super::service::KernelSession<'_, '_> {
     pub(crate) fn ordered_session(
         &self,
-        shape: &ryo_execution_domain::domain::executable_program::types::OrderedExistence,
+        shape: &ryo_execution_domain::domain::interpreted_program::types::OrderedExistence,
         permit: &KernelPermit<'_>,
         input: &crate::application::file_dag::program::admission::service::AdmittedInput,
         context: &mut OperatorContext<'_>,
@@ -82,7 +82,7 @@ impl super::super::service::KernelSession<'_, '_> {
             permit: permit.semantics(),
             failure: &failure,
             binding:
-                ryo_execution_domain::domain::executable_program::physical::types::PhysicalBinding {
+                ryo_execution_domain::domain::interpreted_program::physical::types::PhysicalBinding {
                     bindings: context.bindings,
                     regex_identity: None,
                     source_len: ryo_operators::domain::contract::types::SourceByteLength(

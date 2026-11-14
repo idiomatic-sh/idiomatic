@@ -1,11 +1,7 @@
 //! What a request execution offers a caller.
 use crate::application::file_dag::program::file_session::types::CaptureContext;
-#[cfg(any(test, feature = "fixtures"))]
-use crate::application::file_dag::program::file_session::types::FileInput;
 use crate::application::file_dag::program::file_session::types::FileRules;
 use crate::application::file_dag::program::file_session::types::FileRunInput;
-#[cfg(any(test, feature = "fixtures"))]
-use crate::application::file_dag::program::file_session::types::FileSession;
 use crate::application::file_dag::program::observation_stage::types::ObservationStage;
 use crate::application::file_dag::program::project_phase::types::ProjectPhase;
 use crate::outbound::facts::interface::FactsWorker;
@@ -33,18 +29,6 @@ pub trait ProgramRequestExecutionPort {
     fn finish(self)
     where
         Self: Sized;
-    /// Opens one file's session for a caller that drives its rules itself: the engine's own tests and harnesses only.
-    /// Outside the engine a file runs through `run_file`, its one per-file route.
-    ///
-    /// # Errors
-    ///
-    /// The refusal of opening the file's session: its source, intents or partials do not fit the program.
-    #[cfg(any(test, feature = "fixtures"))]
-    fn open_file<'a, 'facts: 'a>(
-        &'a self,
-        input: FileInput<'a, 'facts>,
-        symbols: &mut Symbols,
-    ) -> Result<FileSession<'a, 'facts>, OperatingError>;
     /// Runs every rule of one file in rule order in one session: first the file's sources write its rows into `facts` and are
     /// admitted, which settles the file's partiality; then each rule's emitted root, its frontiers captured, kept in `facts` and
     /// committed, its counts, then the session finished.

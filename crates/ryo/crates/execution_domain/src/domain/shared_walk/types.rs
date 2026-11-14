@@ -1,12 +1,11 @@
 //! File-local scratch for one borrowed relation pass.
 
-use ryo_operators::domain::table_scratch::types::Memo;
 use crate::domain::{
-    operating::errors::OperatingError,
-    step_classes::types::ClassPlace,
+    operating::errors::OperatingError, step_classes::types::ClassPlace,
     table_cells::types::ColumnPlaces,
 };
 use ryo_operators::domain::contract::types::PredicateOutcome;
+use ryo_operators::domain::table_scratch::types::Memo;
 use ryo_relations::domain::relations::types::Value;
 
 pub mod native_batch;

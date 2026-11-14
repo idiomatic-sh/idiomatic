@@ -21,10 +21,6 @@ pub trait SemanticLookup: std::fmt::Debug {
     ) -> Result<Vec<RenderOutcome>, OperatingError>;
 }
 
-
-
-
-
 /// One of the inputs of a step, by its place among them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct InputPlace(pub usize);

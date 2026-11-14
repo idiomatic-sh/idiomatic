@@ -9,13 +9,13 @@ use crate::domain::shared_walk::types::WalkWork;
 use crate::domain::shared_walk::types::native_batch::value::NativeBatch;
 use crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk;
 use crate::domain::step_classes::types::ClassPlace;
-use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
-use ryo_operators::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::index_kinds;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_operators::domain::table_scratch::types::OperatorScratch;
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_relations::domain::relations::types::{FileId, KindBits, Offset, Relation};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -92,7 +92,9 @@ fn first_source_row() -> NativeBatch {
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
-        matcher: ryo_operators::domain::patterns::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+        matcher: ryo_operators::domain::patterns::types::PatternMatcher(
+            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+        ),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(source),

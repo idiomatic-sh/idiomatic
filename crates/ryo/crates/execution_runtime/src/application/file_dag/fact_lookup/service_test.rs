@@ -3,8 +3,8 @@
 //! worker holds it once ensured, a refusal stopping the file, and the partiality `partial_of` gives.
 
 use super::service::FactLookup;
-use crate::application::file_dag::file_pass::service::rules::service::opened;
 use super::types::FileWants;
+use crate::application::file_dag::file_pass::service::rules::service::opened;
 use crate::application::file_dag::program::file_session::types::FileStop;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::fixtures::fake::FactsFake;
@@ -278,7 +278,11 @@ fn only_demanded_active_relations_are_admitted() -> Result<Value, Failure> {
 fn unserved_comment_after(demanded: &[Relation]) -> Result<Value, Failure> {
     let mut worker = FactsFake::default().open_worker()?;
     let mut source = SourceFake::serving(&[Relation::Function]);
-    let mut lookup = FactLookup::new(FactSources::read(&mut source, &mut [])?, worker.as_mut(), WHOLE);
+    let mut lookup = FactLookup::new(
+        FactSources::read(&mut source, &mut [])?,
+        worker.as_mut(),
+        WHOLE,
+    );
     lookup.ensure(&mut Symbols::default(), demanded)?;
     rows_of(&lookup, Relation::Comment)
 }

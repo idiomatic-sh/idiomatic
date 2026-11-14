@@ -4,8 +4,8 @@ use super::types::{IndexedRows, KeyProbe};
 #[cfg(feature = "diagnostic-row-progress")]
 use crate::domain::operating::types::{ProgressAmount, ProgressCounter};
 use crate::domain::table_reach::types::Walk;
-use ryo_operators::domain::table_scratch::types::SetMembership;
 use ryo_operators::domain::set_rows::types::RightMembership;
+use ryo_operators::domain::table_scratch::types::SetMembership;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowIndex;

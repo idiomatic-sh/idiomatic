@@ -84,9 +84,7 @@ fn planned_and_run(adapter: &impl OperatorsPort) -> Result<usize, PortableOperat
     use ryo_operators::domain::physical_plan::types::{
         LogicalNode, NodeBindings, NodeRows, PlanInput, PlanInputList, PlanNodeId, RuleOrdinal,
     };
-    use ryo_operators::inbound::use_cases::run::fixtures::{
-        TableInputs, TextResources,
-    };
+    use ryo_operators::inbound::use_cases::run::fixtures::{TableInputs, TextResources};
     use ryo_relations::domain::relations::types::Relation;
     let operation = ryo_values::domain::plans::types::Operation::Select {
         from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::Function),

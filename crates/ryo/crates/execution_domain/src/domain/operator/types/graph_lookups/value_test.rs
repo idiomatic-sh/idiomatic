@@ -24,16 +24,21 @@ fn subject(case: Input) -> Result<Value, Failure> {
     let mut workspace = PrimitiveWorkspace::default();
     let operation = extend();
     let mut sink = Kept::default();
-    with_lease(&resources, PredicateOutcome::Holds, &mut workspace, |lease| {
-        let mut lookups = GraphLookups::default();
-        let inputs = PreparedInputs::Row {
-            input: InputPlace(0),
-            row: &[],
-            sides: &[],
-        };
-        let mut rows = RowDelivery::new(lease, &mut sink, &operation, inputs);
-        case(&mut lookups, &mut rows).map_err(|()| rows.take_failure())
-    })
+    with_lease(
+        &resources,
+        PredicateOutcome::Holds,
+        &mut workspace,
+        |lease| {
+            let mut lookups = GraphLookups::default();
+            let inputs = PreparedInputs::Row {
+                input: InputPlace(0),
+                row: &[],
+                sides: &[],
+            };
+            let mut rows = RowDelivery::new(lease, &mut sink, &operation, inputs);
+            case(&mut lookups, &mut rows).map_err(|()| rows.take_failure())
+        },
+    )
 }
 
 /// The rows of this value's cases.

@@ -7,9 +7,7 @@ use ryo_language::domain::elements::service::{
 };
 use ryo_language::domain::elements::types::Elements;
 use ryo_relations::domain::relations::service::node_id;
-use ryo_relations::domain::relations::types::{
-    Flag, Integer, Position, Relation, Span, Value,
-};
+use ryo_relations::domain::relations::types::{Flag, Integer, Position, Relation, Span, Value};
 use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -73,7 +71,16 @@ fn ordinal_number_at(elements: &Elements, at: Position) -> Integer {
 /// ```
 #[must_use]
 pub fn element_of(tree: &TreeRows<'_>, at: Position) -> [Value; 5] {
-    [0, 1, 2, 3, 4].map(|column| tree_value(&TreeRows { form: TreeForm::Elements, ..*tree }, at, ColumnIndex(column)))
+    [0, 1, 2, 3, 4].map(|column| {
+        tree_value(
+            &TreeRows {
+                form: TreeForm::Elements,
+                ..*tree
+            },
+            at,
+            ColumnIndex(column),
+        )
+    })
 }
 
 /// The edge to the element at `child`: its parent, itself, its place under the parent, its role, the file.
@@ -103,7 +110,16 @@ pub fn element_of(tree: &TreeRows<'_>, at: Position) -> [Value; 5] {
 /// ```
 #[must_use]
 pub fn edge_of(tree: &TreeRows<'_>, child: Position) -> [Value; 5] {
-    [0, 1, 2, 3, 4].map(|column| tree_value(&TreeRows { form: TreeForm::Edges, ..*tree }, child, ColumnIndex(column)))
+    [0, 1, 2, 3, 4].map(|column| {
+        tree_value(
+            &TreeRows {
+                form: TreeForm::Edges,
+                ..*tree
+            },
+            child,
+            ColumnIndex(column),
+        )
+    })
 }
 
 /// The tree form a relation's rows are read in, for a relation the native tree answers.

@@ -7,7 +7,7 @@ use super::super::super::super::fixtures::{
     },
 };
 use super::super::super::super::heads::service::expected;
-use ryo_execution_domain::domain::executable_program::types::{InputSource, LogicalInstruction};
+use ryo_execution_domain::domain::interpreted_program::types::{InputSource, LogicalInstruction};
 use ryo_execution_domain::domain::shared_walk::types::walk_route::value::{
     WalkBarrier, WalkRoute, source_barrier,
 };
@@ -149,7 +149,7 @@ pub(super) fn verify_classifier() -> Result<Covered, RouteRefusal> {
         ]
     };
     let observed = [InputSource::Observation(
-        ryo_execution_domain::domain::executable_program::types::ObservationPlace(0),
+        ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(0),
     )];
     for operation in selecting(Source::Step(StepId(0))) {
         if barrier(source_barrier(&operation, &[])) != Route::Dependent

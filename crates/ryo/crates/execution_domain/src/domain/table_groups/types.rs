@@ -1,12 +1,12 @@
 //! The types of the `table_groups` concept: plain data, public fields and derives, with no
 //! constructor and no inherent impl.
 
+use ryo_operators::domain::reduction::types::{
+    DigestDatum, DigestValues, GroupDigest, GroupOutput,
+};
 use ryo_operators::domain::table_texts::{
     service::datum,
     types::{Datum, Texts},
-};
-use ryo_operators::domain::reduction::types::{
-    DigestDatum, DigestValues, GroupDigest, GroupOutput,
 };
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::row_texts::types::CellText;

@@ -1,17 +1,16 @@
 //! The types of the `predicates` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::contract::types::PreparedPredicates;
 use ryo_execution_domain::domain::operator::contract::views::types::PredicateProgram;
-use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_operators::domain::contract::types::PredicateOutcome;
+use ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 use {
-    ryo_operators::domain::table_texts::types::Texts,
-    ryo_values::domain::files::types::SourceView,
+    ryo_operators::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
 };
 
 pub(crate) struct BoundPredicate<'a> {
@@ -32,7 +31,11 @@ pub(crate) struct BoundPredicate<'a> {
 }
 
 impl PredicateProgram for BoundPredicate<'_> {
-    fn holds(&mut self, row: &[Value], symbols: &Symbols) -> Result<PredicateOutcome, OperatingError> {
+    fn holds(
+        &mut self,
+        row: &[Value],
+        symbols: &Symbols,
+    ) -> Result<PredicateOutcome, OperatingError> {
         #[cfg(feature = "diagnostic-row-progress")]
         ryo_execution_domain::domain::operating::types::ProgressObserver::observe(
             self.progress,

@@ -1,8 +1,7 @@
 //! The `prepare` application operation.
 
 use ryo_execution_domain::domain::{
-    operating::errors::OperatingError,
-    operation_schema::types::InputShape,
+    operating::errors::OperatingError, operation_schema::types::InputShape,
 };
 
 /// All preparation routes delegate semantic metadata to the injected capability.

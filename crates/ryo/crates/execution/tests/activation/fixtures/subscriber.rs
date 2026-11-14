@@ -4,9 +4,6 @@ use std::sync::{Arc, Mutex};
 pub(crate) struct Sample {
     /// Rule-relation lookup, relation visit, graph probe.
     pub work: [u64; 3],
-    /// Actual visited rule indices in relation and graph lookups.
-    pub rule_sums: [u64; 2],
-    pub graph_hits: u64,
     pub blocks: u64,
     pub bytes: u64,
 }
@@ -51,10 +48,7 @@ impl Window {
 }
 /// Equal work, graph hits and allocations: dormant roots added and grew nothing.
 pub(crate) fn same_cost(left: Sample, right: Sample) -> bool {
-    left.work == right.work
-        && left.graph_hits == right.graph_hits
-        && left.blocks == right.blocks
-        && left.bytes == right.bytes
+    left.work == right.work && left.blocks == right.blocks && left.bytes == right.bytes
 }
 /// Equal counted accesses, work and allocations: nothing but the demanded roots was touched.
 pub(crate) fn project_cost_matches(left: (Sample, Access), right: (Sample, Access)) -> bool {
@@ -141,15 +135,8 @@ impl tracing::Subscriber for Activation {
         } else if state.active && fields.event == 7 {
             state.access.reads += 1;
             state.access.read_rules += fields.rule;
-        } else if state.active && fields.event == 6 {
-            state.sample.graph_hits += 1;
         } else if state.active && (3..=5).contains(&fields.event) {
             state.sample.work[usize::from(fields.event - 3)] += 1;
-            match fields.event {
-                3 => state.sample.rule_sums[0] += fields.rule,
-                5 => state.sample.rule_sums[1] += fields.rule,
-                _ => {}
-            }
         }
     }
     fn enter(&self, _: &tracing::span::Id) {}

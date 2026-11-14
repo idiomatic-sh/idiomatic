@@ -30,7 +30,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_union_does_not_run_it"),
         word: Word::Succeeds,
         input: || Lowering::Distinct {
-            sources: [RowSource::Node(PlanNodeId(0)), RowSource::Node(PlanNodeId(1))],
+            sources: [
+                RowSource::Node(PlanNodeId(0)),
+                RowSource::Node(PlanNodeId(1)),
+            ],
         },
         expect: Expect::Value(Reach::Skips),
     },

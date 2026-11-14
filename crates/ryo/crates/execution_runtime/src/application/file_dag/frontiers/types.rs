@@ -30,7 +30,7 @@ pub(crate) struct BoundInput {
 pub(crate) struct FrontierSource {
     pub input: ryo_values::domain::plan_parts::types::Input,
     pub root: Result<
-        ryo_execution_domain::domain::executable_program::types::InputSource,
+        ryo_execution_domain::domain::interpreted_program::types::InputSource,
         ryo_execution_domain::domain::operating::errors::OperatingError,
     >,
 }
@@ -42,7 +42,7 @@ pub(crate) struct PreparedFrontiers {
     pub(in crate::application::file_dag::frontiers) sources: std::sync::Arc<[FrontierSource]>,
     pub(in crate::application::file_dag::frontiers) rows: std::sync::Arc<[FrontierInput]>,
     pub(in crate::application::file_dag::frontiers) program:
-        std::sync::Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,
+        std::sync::Arc<ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram>,
     pub(in crate::application::file_dag::frontiers) required:
         crate::application::file_dag::program::admission::types::RequiredPartitions,
     pub(in crate::application::file_dag::frontiers) refused:

@@ -13,7 +13,6 @@ use crate::inbound::use_cases::execution::interface::{
 };
 use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
-use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, RuleDemand};
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs::table_inputs;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
@@ -59,7 +58,9 @@ pub(crate) fn published_file(
     let mut facts = TableFacts::new(&[]);
     // Request-only and tree fixtures have no catalog provider: a run that demanded one answers the read's refusal,
     // even when it went on to publish.
-    let result = published_from(plan, bindings, hosted, source, elements, symbols, &mut facts);
+    let result = published_from(
+        plan, bindings, hosted, source, elements, symbols, &mut facts,
+    );
     if facts.reads() > 0 {
         return Err(result.err().unwrap_or(OperatingError::NotRead));
     }
@@ -178,13 +179,6 @@ pub(crate) fn prepared_many(
         observations: ObservationIdentity::Independent,
     })?;
     Ok((engine, prepared))
-}
-/// The demand of a rule's emitted root alone, its observations not required.
-pub(crate) const fn emitted() -> RuleDemand {
-    RuleDemand {
-        emit: EmitDemand::Enabled,
-        observations: ObservationDemand::NotRequired,
-    }
 }
 /// Repeat the supported public owner protocol over the same immutable compiled request.
 pub(crate) fn run_prepared(

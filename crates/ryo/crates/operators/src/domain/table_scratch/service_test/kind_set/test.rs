@@ -1,7 +1,7 @@
 //! The `table_scratch` service's cases, on values alone.
 use super::fixtures::set;
-use crate::domain::table_scratch::types::SetMembership;
 use crate::domain::table_scratch::service::kind_has;
+use crate::domain::table_scratch::types::SetMembership;
 use ryo_relations::domain::relations::types::KindBits;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 

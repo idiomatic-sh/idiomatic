@@ -3,7 +3,9 @@
 //! faults first, so the earliest row's fault wins whatever the pipeline (D15).
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::distinct::item::counted;
-use crate::domain::physical_plan::collections::kernels::extend::item::{extended, kind_of, resolved};
+use crate::domain::physical_plan::collections::kernels::extend::item::{
+    extended, kind_of, resolved,
+};
 use crate::domain::physical_plan::collections::kernels::filter::item::{filter, keep, kept_kinds};
 use crate::domain::physical_plan::collections::kernels::group::item::{GroupScratch, grouped};
 use crate::domain::physical_plan::collections::kernels::lookup::item::lookups;
@@ -12,10 +14,10 @@ use crate::domain::physical_plan::collections::kernels::project::item::projected
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
     count_of, facts, kinds_of, row_of,
 };
-use crate::domain::physical_plan::collections::kernels::scan_roots::item::roots;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::{
     give_back, hold, sources_of, take,
 };
+use crate::domain::physical_plan::collections::kernels::scan_roots::item::roots;
 use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, NodeDecisions};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
@@ -142,7 +144,9 @@ fn materialize(
         | Lowering::Distinct { .. } => {}
     }
     let mut sources = sources_of(lowering);
-    let first = sources.next().ok_or(PortableOperatorFault::WrongOperation)?;
+    let first = sources
+        .next()
+        .ok_or(PortableOperatorFault::WrongOperation)?;
     let second = sources.next();
     ready(plan, run, first, buffers)?;
     if let Some(second) = second {
@@ -150,9 +154,13 @@ fn materialize(
     }
     // An extension's values are made before its rows are read: making a name changes the file's names, and reading reads them.
     let resolution = match lowering {
-        Lowering::Extend { extension, .. } => {
-            resolved(&extension.values, &extension.bindings, run.resources, &mut buffers.values).err()
-        }
+        Lowering::Extend { extension, .. } => resolved(
+            &extension.values,
+            &extension.bindings,
+            run.resources,
+            &mut buffers.values,
+        )
+        .err(),
         Lowering::Filter { .. }
         | Lowering::Project { .. }
         | Lowering::Group { .. }
@@ -206,7 +214,15 @@ fn materialize(
                 input: rows_in(&left),
                 other: right_rows,
             };
-            kernels(lowering, run, node, inputs, resolution, buffers, &mut output)
+            kernels(
+                lowering,
+                run,
+                node,
+                inputs,
+                resolution,
+                buffers,
+                &mut output,
+            )
         }
     };
     returned(plan, buffers, left, NodeReaders(if shared { 2 } else { 1 }));
@@ -214,7 +230,13 @@ fn materialize(
         returned(plan, buffers, right, NodeReaders(1));
     }
     let fault = made?;
-    hold(plan, buffers, node, output, fault.or(left_fault).or(right_fault));
+    hold(
+        plan,
+        buffers,
+        node,
+        output,
+        fault.or(left_fault).or(right_fault),
+    );
     Ok(())
 }
 
@@ -254,7 +276,14 @@ fn kernels(
             let kernel = filter(select, kinds, texts, decisions);
             for row in 0..rows {
                 let cells = row_of(input, RowIndex(row), &mut buffers.row);
-                if let Err(fault) = keep(kernel, run.matcher, cells, decisions, &mut buffers.written, output) {
+                if let Err(fault) = keep(
+                    kernel,
+                    run.matcher,
+                    cells,
+                    decisions,
+                    &mut buffers.written,
+                    output,
+                ) {
                     return Ok(Some(fault));
                 }
             }
@@ -274,7 +303,13 @@ fn kernels(
             buffers.seen.clear();
             for row in 0..rows {
                 let cells = row_of(input, RowIndex(row), &mut buffers.row);
-                if let Err(fault) = projected(cells, &project.columns, project.distinct, &mut buffers.seen, output) {
+                if let Err(fault) = projected(
+                    cells,
+                    &project.columns,
+                    project.distinct,
+                    &mut buffers.seen,
+                    output,
+                ) {
                     return Ok(Some(fault));
                 }
             }
@@ -283,7 +318,11 @@ fn kernels(
             if let Some(fault) = resolution {
                 return Ok(Some(fault));
             }
-            output.kinds = kinds.iter().copied().chain(buffers.values.iter().map(|value| kind_of(*value))).collect();
+            output.kinds = kinds
+                .iter()
+                .copied()
+                .chain(buffers.values.iter().map(|value| kind_of(*value)))
+                .collect();
             for row in 0..rows {
                 let cells = row_of(input, RowIndex(row), &mut buffers.row);
                 extended(cells, &buffers.values, &mut buffers.written, output);
@@ -298,8 +337,15 @@ fn kernels(
                 }
                 for row in 0..count_of(source).0 {
                     let start = CellStart(output.cells.len());
-                    output.cells.extend_from_slice(row_of(source, RowIndex(row), &mut buffers.row));
-                    counted(output, start, ryo_values::domain::plan_parts::types::RepeatedRows::Dropped, &mut buffers.seen);
+                    output
+                        .cells
+                        .extend_from_slice(row_of(source, RowIndex(row), &mut buffers.row));
+                    counted(
+                        output,
+                        start,
+                        ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
+                        &mut buffers.seen,
+                    );
                 }
             }
         }

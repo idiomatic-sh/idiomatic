@@ -1,30 +1,34 @@
 //! A rule's node in the open file: run by the operators, its rows answered with their coverage, and every node's rows
 //! released when the file ends.
 
-use ryo_operators::domain::physical_plan::types::{FactRows, PlanInputs as _};
-use ryo_operators::domain::tree_cells::service::native_form;
+use crate::application::file_dag::file_pass::types::{
+    NodeAnswer, NodeReads, PassFile, PassProgram, PassResources,
+};
 use crate::application::file_dag::program::facade_runtime::file_execution::service::classify;
-use crate::application::file_dag::file_pass::types::{NodeAnswer, NodeReads, PassFile, PassProgram, PassResources};
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
-use ryo_execution_domain::domain::completion::types::RegionAdmission;
-use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::frontier_coverage::service::affected_files;
 use ryo_execution_domain::domain::completion::service::partial_any;
 use ryo_execution_domain::domain::completion::types::CoverageState;
-use ryo_execution_domain::domain::fused_program::service::{consumers, physical, rule as fused_rule, schema};
+use ryo_execution_domain::domain::completion::types::RegionAdmission;
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::executable_program::service::{
+    consumers, physical, rule as fused_rule, schema,
+};
+use ryo_execution_domain::domain::frontier_coverage::service::affected_files;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operating::service::portable_fault;
 use ryo_execution_domain::domain::output_coverage::service::output_coverage;
 use ryo_execution_domain::domain::output_coverage::types::{InputCoverage, OperandOrdinal};
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_operators::domain::physical_plan::types::{FactRows, PlanInputs as _};
+use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
+use ryo_operators::domain::tree_cells::service::native_form;
 use ryo_relations::domain::relations::service::kinds as relation_kinds;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::lineage::service::{of_step, one_file};
 use ryo_values::domain::lineage::types::Lineage;
 use ryo_values::domain::plan_parts::types::{Input, StepId};
 use ryo_values::domain::plans::service::{inputs_of, named};
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::service::portable_fault;
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
 use ryo_values::domain::rows::service::reset;
 use ryo_values::domain::rows::types::Table;
 
@@ -121,9 +125,16 @@ fn step_coverage(
             .map(|input| match *input {
                 Input::Relation(relation) => {
                     let kinds = relation_kinds(relation);
-                    Ok((kinds.to_vec(), completion.relation_coverage(relation), one_file(kinds)))
+                    Ok((
+                        kinds.to_vec(),
+                        completion.relation_coverage(relation),
+                        one_file(kinds),
+                    ))
                 }
-                Input::Step(id) => merged.get(id.0 as usize).cloned().ok_or(OperatingError::NotRun),
+                Input::Step(id) => merged
+                    .get(id.0 as usize)
+                    .cloned()
+                    .ok_or(OperatingError::NotRun),
                 Input::BoundObservation(_) => Err(OperatingError::NotRun),
             })
             .collect::<Result<Vec<StepCoverage>, OperatingError>>()?;
@@ -150,7 +161,10 @@ fn step_coverage(
             // No lineage is certified from a refused schema.
             Err(_) => (Vec::new(), partial_any(vec![None])),
         };
-        let lineages: Vec<Lineage> = operands.into_iter().map(|(_, _, lineage)| lineage).collect();
+        let lineages: Vec<Lineage> = operands
+            .into_iter()
+            .map(|(_, _, lineage)| lineage)
+            .collect();
         let lineage = of_step(&each.operation, &lineages, &kinds);
         merged.push((kinds, coverage, lineage));
     }

@@ -1,5 +1,4 @@
 //! The operators fakes the execution use case's `shared_walk` boundary scenarios inject.
-use crate::outbound::operators::interface::OperatorsPort as _;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;

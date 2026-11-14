@@ -4,15 +4,13 @@ use crate::application::file_dag::program::prepared_execution::interface::Prepar
 use crate::application::file_dag::program::prepared_execution::interface::ProgramPreparedExecutionPort;
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use crate::application::file_dag::program::prepared_execution::types::{
-    Demand, NamedLayout, ObservationContract, ReplayClosure,
+    Demand, ObservationContract, ReplayClosure,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
-use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_values::domain::stored_facts::types::{Bucket, Digest};
-use std::sync::Arc;
 impl ProgramPreparedExecutionPort for PreparedExecutionProgram {
     fn observation_batches(
         &self,
@@ -107,7 +105,7 @@ impl PreparedExecutionProgram {
     #[must_use]
     pub fn matchers(
         &self,
-    ) -> &Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers>
+    ) -> &std::sync::Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers>
     {
         self.parts.inner.matchers()
     }

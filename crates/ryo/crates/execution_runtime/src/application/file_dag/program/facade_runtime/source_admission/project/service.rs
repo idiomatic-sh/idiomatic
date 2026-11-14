@@ -14,7 +14,7 @@ use std::rc::Rc;
 impl ProjectSources<'_> {
     pub(crate) fn ordinary_place(
         &self,
-        source: ryo_execution_domain::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::interpreted_program::types::InputSource,
     ) -> Option<OrdinaryPlace> {
         self.ordinary
             .iter()
@@ -24,11 +24,11 @@ impl ProjectSources<'_> {
 
     pub(crate) fn provides(
         &self,
-        source: ryo_execution_domain::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::interpreted_program::types::InputSource,
     ) -> Provision {
         if matches!(
             source,
-            ryo_execution_domain::domain::executable_program::types::InputSource::ObservationMember { .. }
+            ryo_execution_domain::domain::interpreted_program::types::InputSource::ObservationMember { .. }
         ) || self.cache.iter().any(|cached| cached.source == source)
             || self.ordinary_place(source).is_some()
             || self.refused.iter().any(|refused| {
@@ -47,12 +47,12 @@ impl ProjectSources<'_> {
     /// errors remain untouched when a branch does not demand them.
     pub(crate) fn supply(
         &mut self,
-        source: ryo_execution_domain::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::interpreted_program::types::InputSource,
         partition: &Partition,
         context: &mut OperatorContext<'_>,
         owner: &Rc<RelationOwner>,
     ) -> Option<Result<AvailableInput, OperatingError>> {
-        use ryo_execution_domain::domain::executable_program::types::InputSource;
+        use ryo_execution_domain::domain::interpreted_program::types::InputSource;
         if let Some(cached) = self.cache.iter().find(|cached| cached.source == source) {
             return Some(Ok(cached.input.clone()));
         }
@@ -84,8 +84,8 @@ impl ProjectSources<'_> {
             }
         }
         if let InputSource::ObservationMember {
-            slot: ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
-            member: ryo_execution_domain::domain::executable_program::types::ProducerMember(member),
+            slot: ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(slot),
+            member: ryo_execution_domain::domain::interpreted_program::types::ProducerMember(member),
         } = source
         {
             for bound in &mut *self.bound {

@@ -1,8 +1,8 @@
 //! The types of the `views` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::domain::operating::errors::OperatingError;
-use ryo_operators::domain::contract::types::PredicateOutcome;
 use crate::domain::table_reach::borrowed::types::IndexedRows;
+use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_operators::domain::cycles::types::{CycleDriver, EdgePlace, NodeCount, NodeNumber};
 use ryo_operators::domain::source_matches::types::{BaseLine, SourceBase};
 use ryo_relations::domain::relations::types::Value;

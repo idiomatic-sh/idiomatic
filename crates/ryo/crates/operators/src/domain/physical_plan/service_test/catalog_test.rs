@@ -2,12 +2,12 @@
 //! each check is shown failing on a planted counter-example.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::physical_plan::collections::kernels::interface::Reach;
 use crate::domain::physical_plan::fixtures::{Step, case_program};
 use crate::domain::physical_plan::service::{Kernel, REWRITES, lowered, plan_with, stage_of_kind};
-use crate::domain::physical_plan::collections::kernels::interface::Reach;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::{
-    Lowering, LogicalNode, NodeBindings, PlanInput, PlanInputList, RuleOrdinal, ServedAt,
+    LogicalNode, Lowering, NodeBindings, PlanInput, PlanInputList, RuleOrdinal, ServedAt,
 };
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::service::kind_of;

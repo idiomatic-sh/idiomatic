@@ -1,322 +1,382 @@
-//! Lower the temporary canonical analysis graph; erase internal continuation cuts.
-#[cfg(any(test, feature = "fixtures"))]
-use super::fusion::types::Ineligible;
-use super::fusion::types::{Fusibility, RegionSharing};
-use super::merge::service::merge_equivalent;
-use super::types::demand_program::value::DemandProgram;
-use super::types::executable_program::value::ExecutableProgram;
-use super::types::instruction::value::Instruction;
-use super::types::region::value::Region;
-use super::types::*;
-use crate::domain::operator::types::ReaderMultiplicity;
-use crate::domain::source_partitions::types::{PartitionRequirement, ProducerPartitions};
-use crate::domain::{
-    file_program::types::{NodeInput, RequestGraph},
-    operating::errors::OperatingError,
-};
-use ryo_values::domain::plans::types::{Operation, Plan};
+//! The `executable_program` service: the request's rules merged into one logical program, and the planned program assembled from
+//! it and the operators' physical plan.
 
-/// The analysis graph is consumed. Its native regions, layouts, cuts, liveness
-/// tables and original-plan execution copies do not survive into this program.
-pub fn compile(
-    plans: &[Plan],
-    graph: RequestGraph,
-    partitions: &dyn ProducerPartitions,
-    prepared: &crate::domain::file_program::types::RequestOperators,
-    matcher: ryo_operators::domain::patterns::types::PatternMatcher<'_>,
-) -> Result<ExecutableProgram, OperatingError> {
-    let count = graph.nodes.len();
-    let mut origins = vec![None; count];
-    for (rule, nodes) in graph.program_nodes.iter().enumerate() {
-        for node in nodes.iter().flatten() {
-            origins[node.0].get_or_insert(crate::domain::coverage::types::RuleIndex(rule));
-        }
-    }
-    let ordered_alternatives = graph.ordered_existence.clone();
-    let classification = super::fusion::service::classify(plans, &graph);
-    let mut drafts: Vec<Option<DraftRegion<Instruction>>> = Vec::new();
-    let mut mapping = vec![DraftIndex(usize::MAX); count];
-    // A step's own schema fault, kept for its origin before the analysis graph is consumed.
-    let faults: Vec<Option<OperatingError>> = graph
-        .nodes
-        .iter()
-        .map(|node| node.contract.schema.as_ref().err().cloned())
-        .collect();
-    // The request's literal pattern slots, declared from every operation before the graph is consumed: the fold compiles
-    // the source searches' patterns into them, and the run reads the same slots.
-    let matchers = std::sync::Arc::new(
-        ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers::from_operations(
-            graph.nodes.iter().map(|node| &node.operation),
-        ),
-    );
-    // Each node's presence and skip formula, folded once before the analysis graph is consumed.
-    let presence = crate::domain::executable_program::presence::service::of_graph(
-        &graph,
-        &|relation| {
-            if partitions.relation(relation) == PartitionRequirement::CurrentFile {
-                crate::domain::executable_program::presence::types::RelationScope::CurrentFile
-            } else {
-                crate::domain::executable_program::presence::types::RelationScope::Shared
+use crate::domain::coverage::types::RuleIndex;
+use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
+use crate::domain::executable_program::types::logical_build::value::LogicalBuild;
+use crate::domain::executable_program::types::program_inputs::value::ProgramInputs;
+use crate::domain::executable_program::types::{
+    Consumers, Draft, DraftInputs, RootKind, RuleInput, RuleNodes, Serving,
+};
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::operation_schema::service::schema_of;
+use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
+use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+use ryo_operators::domain::physical_plan::types::{
+    LogicalNode, NodeBindings, PlanInput, PlanInputList, PlanNodeId, RuleOrdinal,
+};
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::plan_parts::types::{Input, LiteralText, StepScope};
+use ryo_values::domain::plans::service::{inputs_of, named};
+use ryo_values::domain::plans::types::{Operation, Plan};
+use std::hash::{Hash, Hasher};
+
+pub(crate) mod logical;
+use crate::domain::executable_program::constants::BOUND_STAGE;
+use logical::service::{derived_roots, read_inputs};
+
+/// The request's rules as one logical program: equal steps over equal inputs, in the same scope and with the same bindings,
+/// are one node; each rule's emitted node and the nodes its frontier and named roots keep are recorded; each node's schema
+/// is checked from the catalog's columns before any row is read; the root kinds come from each tree select's infallible prefix; and
+/// each rule's step after the files or bound input marks it not served until the fourth stage. `inputs` holds the nodes'
+/// input lists for as long as the program borrows them.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::service::{assemble, logical, rule};
+/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
+/// let program = assemble(logical(&[], &mut ProgramInputs::default()).unwrap(), Default::default());
+/// assert!(rule(&program, ryo_execution_domain::domain::coverage::types::RuleIndex(0)).is_err());
+/// ```
+///
+/// # Errors
+///
+/// `ShapeMismatch` when the request has more rules or nodes than a plan can number.
+pub fn logical<'p>(
+    rules: &'p [RuleInput<'p>],
+    inputs: &'p mut ProgramInputs,
+) -> Result<LogicalBuild<'p>, OperatingError> {
+    inputs.lists.clear();
+    let mut drafts: Vec<Draft<'p>> = Vec::new();
+    let mut buckets = hashbrown::HashMap::<u64, Vec<usize>>::new();
+    let mut nodes = Vec::with_capacity(rules.len());
+    let mut serving = Vec::with_capacity(rules.len());
+    for (rule, input) in rules.iter().enumerate() {
+        let plan: &'p Plan = input.plan;
+        let mut steps: Vec<Result<PlanNodeId, OperatingError>> =
+            Vec::with_capacity(plan.steps.len());
+        let mut stage = None;
+        let observed: Vec<Vec<CellKind>> = input
+            .observations
+            .0
+            .iter()
+            .map(|bound| bound.columns.iter().map(|column| column.kind).collect())
+            .collect();
+        for step in &plan.steps {
+            if step.scope == StepScope::CrossFile
+                || matches!(
+                    step.operation,
+                    Operation::Rows { .. } | Operation::Hosted { .. }
+                )
+            {
+                stage = Some(BOUND_STAGE);
             }
-        },
-        matcher,
-        &matchers,
-    );
-    for (logical, node) in graph.nodes.into_iter().enumerate() {
-        let fuse = match (classification.fusibility[logical], node.inputs.first()) {
-            (Fusibility::Fusable, Some(NodeInput::Node(child))) => {
-                let DraftIndex(region) = mapping[child.0];
-                if drafts.get(region).is_none_or(Option::is_none) {
-                    return Err(OperatingError::NotRun);
-                }
-                Some(region)
-            }
-            _ => None,
-        };
-        let sharing = super::fusion::service::region_sharing(&node, classification.held[logical]);
-        let rule = origins[logical].ok_or(OperatingError::NotRun)?;
-        let partition = match &node.operation {
-            Operation::Hosted { relation } => partitions.hosted(rule, *relation)?,
-            Operation::Rows { parameter, .. } => partitions.parameter(rule, *parameter)?,
-            _ => PartitionRequirement::InputLineage,
-        };
-        let mut actions =
-            DemandProgram::admissions(node.contract.semantics, node.contract.inputs.used);
-        if matches!(node.operation, Operation::Hosted { .. }) {
-            actions.insert(0, DemandAction::Admit(InputId(0)));
-        }
-        let instruction = Instruction::new(
-            LogicalInstruction(logical),
-            rule,
-            node.operation,
-            node.contract,
-            DemandProgram::new(actions.into_boxed_slice()),
-            partition,
-        );
-        let region = if let Some(region) = fuse {
-            let region_body = drafts[region].as_mut().ok_or(OperatingError::NotRun)?;
-            region_body.nodes.push(LogicalInstruction(logical));
-            region_body.instructions.push(instruction);
-            region_body.needs = node.needs;
-            if sharing == RegionSharing::RuleScoped {
-                region_body.sharing = RegionSharing::RuleScoped;
-            }
-            region
-        } else {
-            let region = drafts.len();
-            drafts.push(Some(DraftRegion {
-                phase: node.phase,
-                nodes: vec![LogicalInstruction(logical)],
-                instructions: vec![instruction],
-                inputs: node.inputs,
-                needs: node.needs,
-                sharing,
-            }));
-            region
-        };
-        mapping[logical] = DraftIndex(region);
-    }
-    // Equivalent regions of different rules compute once; their readers add up.
-    let mut readers: Vec<ReaderMultiplicity> = drafts
-        .iter()
-        .map(|draft| {
-            draft
-                .as_ref()
-                .and_then(|draft| draft.nodes.last())
-                .map_or_else(ReaderMultiplicity::default, |last| {
-                    classification.readers[last.0]
+            let read = inputs_of(&step.operation);
+            let Some(DraftInputs {
+                list,
+                shapes,
+                fault,
+                stage: bound,
+            }) = read_inputs(named(&read), &steps, &drafts, &observed)
+            else {
+                steps.push(Err(OperatingError::NotRun));
+                continue;
+            };
+            stage = stage.or(bound);
+            let schema = match fault {
+                Some(error) => Err(error),
+                None => schema_of(&step.operation, &shapes, input.bindings.0),
+            };
+            let hash = {
+                let mut hasher = rustc_hash::FxHasher::default();
+                step.operation.hash(&mut hasher);
+                list.hash(&mut hasher);
+                step.scope.hash(&mut hasher);
+                hasher.finish()
+            };
+            let found = buckets.get(&hash).and_then(|bucket| {
+                bucket.iter().copied().find(|at| {
+                    let draft = &drafts[*at];
+                    draft.operation == &step.operation
+                        && draft.scope == step.scope
+                        && inputs.lists[*at] == list
+                        && rules[draft.rule.0].bindings.0 == input.bindings.0
                 })
-        })
-        .collect();
-    // A merged node is served by its twin's instruction at the same place in the region.
-    let mut representative: Vec<LogicalInstruction> = (0..count).map(LogicalInstruction).collect();
-    merge_equivalent(&mut drafts, &mut mapping, &mut representative, &mut readers);
-    let mut dense = vec![usize::MAX; drafts.len()];
-    let mut next = 0;
-    for (at, region) in drafts.iter().enumerate() {
-        if region.is_some() {
-            dense[at] = next;
-            next += 1;
-        }
-    }
-    let logical_regions: Vec<RegionId> = mapping
-        .iter()
-        .map(|DraftIndex(draft)| RegionId(dense[*draft]))
-        .collect();
-    let source = |input: NodeInput| -> InputSource {
-        match input {
-            NodeInput::Relation(relation) => InputSource::Relation(relation),
-            NodeInput::Node(id) => InputSource::Region(logical_regions[id.0]),
-            NodeInput::Observation(id) => InputSource::Observation(ObservationPlace(id.0)),
-        }
-    };
-    let mut regions = Vec::with_capacity(next);
-    for (at, draft) in drafts.into_iter().enumerate() {
-        let Some(draft) = draft else { continue };
-        let mut inputs: Vec<_> = draft.inputs.into_iter().map(source).collect();
-        if let Some(first) = draft.instructions.first()
-            && let Operation::Hosted { relation } = first.operation()
-        {
-            inputs.push(InputSource::Hosted {
-                rule: first.producer(),
-                relation: *relation,
             });
+            let at = found.unwrap_or_else(|| {
+                let at = drafts.len();
+                drafts.push(Draft {
+                    operation: &step.operation,
+                    rule: RuleIndex(rule),
+                    scope: step.scope,
+                    schema,
+                });
+                inputs.lists.push(list);
+                buckets.entry(hash).or_default().push(at);
+                at
+            });
+            steps.push(Ok(PlanNodeId(
+                u32::try_from(at).map_err(|_| OperatingError::ShapeMismatch)?,
+            )));
         }
-        let producer = draft
-            .instructions
-            .last()
-            .ok_or(OperatingError::NotRun)?
-            .producer();
-        regions.push(Region::new(
-            producer,
-            draft.needs.map(Vec::into_boxed_slice),
-            draft.phase,
-            draft.instructions.into_boxed_slice(),
-            inputs.into_boxed_slice(),
-            readers[at],
-        ));
-    }
-    // The ordered-existence replacement of a self-join anti-join select is the one implementation of
-    // the regions the recogniser resolved; every other region is evaluated by its registered operators.
-    let mut ordered: Vec<Option<OrderedExistence>> = vec![None; regions.len()];
-    for alternative in ordered_alternatives.into_iter().flatten() {
-        let crate::domain::file_program::types::ResolvedAlternative::Eligible(resolved) =
-            alternative
-        else {
-            continue;
+        // A rule with an authoring error in any of its steps answers that error, in step order, before any row: its emit may be
+        // sound while a step after it is not.
+        let authored = steps.iter().find_map(|step| match step {
+            Ok(node) => drafts[node.0 as usize].schema.as_ref().err().cloned(),
+            Err(error) => Some(error.clone()),
+        });
+        let emit = match (authored, steps.get(plan.emit.step.0 as usize)) {
+            (Some(error), _) => Err(error),
+            (None, Some(Ok(node))) => Ok(*node),
+            (None, Some(Err(error))) => Err(error.clone()),
+            (None, None) => Err(OperatingError::NotRun),
         };
-        let select = logical_regions[resolved.select.0];
-        let source = logical_regions[resolved.source.0];
-        let join = logical_regions[resolved.join.0];
-        if select == join || select == source || regions[select.0].instructions().len() != 1 {
-            return Err(OperatingError::WrongOperation);
-        }
-        ordered[select.0] = Some(OrderedExistence {
-            source,
-            number: resolved.shape.number,
-            partition: resolved.shape.partition.into_boxed_slice(),
-            order: resolved.shape.order,
-            extremum: resolved.shape.extremum,
-            output: resolved.output.into_boxed_slice(),
+        serving.push(stage.map_or(Serving::Served, Serving::NotServedUntil));
+        nodes.push(RuleNodes { steps, emit });
+    }
+    let inputs: &'p ProgramInputs = inputs;
+    let mut program = LogicalProgram::new();
+    for (draft, list) in drafts.iter().zip(&inputs.lists) {
+        let _node: PlanNodeId = program.node(LogicalNode {
+            operation: draft.operation,
+            inputs: PlanInputList(list),
+            bindings: NodeBindings(rules[draft.rule.0].bindings.0),
+            scope: draft.scope,
         });
     }
-    let RulePrograms {
-        mut rules,
-        observed_roots,
-    } = super::origins::service::rule_programs(
-        plans,
-        graph.program_nodes,
-        graph.observations.as_ref(),
-        &representative,
-        &logical_regions,
-        &faults,
-    );
-    #[cfg(any(test, feature = "fixtures"))]
-    let synthesized = regions.len();
-    let observation_regions = super::observed::service::compile_unions(
-        &mut regions,
-        graph.observations.as_ref(),
-        partitions,
-        LogicalInstruction(count),
-    )?;
-    // Named distinct-set unions are synthesized instructions: two members, never a continuation.
-    // Only the controls read the table back, so only the test build keeps it.
-    #[cfg(any(test, feature = "fixtures"))]
-    let fusibility = {
-        let mut fusibility = classification.fusibility;
-        for instruction in regions[synthesized..]
-            .iter()
-            .flat_map(|region| region.instructions().iter())
-        {
-            if fusibility.len() <= instruction.logical().0 {
-                fusibility.resize(
-                    instruction.logical().0 + 1,
-                    Fusibility::Excluded(Ineligible::MultiInput),
-                );
-            }
+    let mut consumers = vec![Consumers(0); drafts.len()];
+    let count = |consumers: &mut Vec<Consumers>, node: PlanNodeId| {
+        if let Some(each) = consumers.get_mut(node.0 as usize) {
+            each.0 = each.0.saturating_add(1);
         }
-        fusibility
     };
-    for (at, shape) in ordered.into_iter().enumerate() {
-        let route = shape.map_or(Route::Generic, |shape| {
-            regions[shape.source.0].add_consumer();
-            Route::OrderedExistence(shape)
-        });
-        regions[at].set_route(route);
-    }
-    super::aliases::service::resolve(&mut regions, &mut rules, &observation_regions, partitions);
-    super::aliases::service::resolve_lineage(
-        &mut regions,
-        &observation_regions,
-        graph.observations.as_ref(),
-        &observed_roots,
-    );
-    // Merged twins compute the same rows from the same inputs, so they have the same formula.
-    debug_assert!(
-        representative
-            .iter()
-            .enumerate()
-            .all(|(node, served)| { presence.nodes.get(node) == presence.nodes.get(served.0) })
-    );
-    // An ordered-existence route certifies its source's numbers from the relations the source's lineage read in this
-    // file, so every region upstream of a route source runs whenever it is reached: an empty publication reads no relation.
-    let mut certified = vec![false; regions.len()];
-    let mut pending: Vec<RegionId> = regions
-        .iter()
-        .filter_map(|region| ordered_existence(region.route()).map(|shape| shape.source))
-        .collect();
-    while let Some(id) = pending.pop() {
-        if let Some(seen) = certified.get_mut(id.0)
-            && !*seen
-        {
-            *seen = true;
-            pending.extend(
-                regions
-                    .get(id.0)
-                    .map_or(&[][..], Region::dependencies)
-                    .iter()
-                    .copied(),
-            );
+    for list in &inputs.lists {
+        for input in list {
+            if let PlanInput::Node(read) = input {
+                count(&mut consumers, *read);
+            }
         }
     }
-    let presence = crate::domain::executable_program::presence::service::for_regions(
-        presence,
-        regions.iter().zip(&certified).map(|(region, certified)| {
-            crate::domain::executable_program::presence::types::RegionNode {
-                node: region
-                    .instructions()
-                    .last()
-                    .map(|instruction| instruction.logical().0)
-                    .filter(|logical| *logical < count)
-                    .map(crate::domain::executable_program::presence::types::FoldedNode),
-                certified: if *certified {
-                    crate::domain::executable_program::presence::types::Certification::Certifying
-                } else {
-                    crate::domain::executable_program::presence::types::Certification::Free
-                },
+    for (rule, (input, rule_nodes)) in rules.iter().zip(&nodes).enumerate() {
+        let ordinal = RuleOrdinal(u32::try_from(rule).map_err(|_| OperatingError::ShapeMismatch)?);
+        if let Some(Ok(node)) = rule_nodes.steps.get(input.plan.emit.step.0 as usize) {
+            program.emit(ordinal, *node);
+            count(&mut consumers, *node);
+        }
+        let kept = input.plan.frontier.iter().chain(
+            input
+                .plan
+                .observations
+                .iter()
+                .map(|observation| &observation.source),
+        );
+        for each in kept {
+            if let Input::Step(id) = each
+                && let Some(Ok(node)) = rule_nodes.steps.get(id.0 as usize)
+            {
+                program.hold(*node);
+                count(&mut consumers, *node);
             }
-        }),
-    );
-    super::origins::service::place_steps(&mut rules, &logical_regions, &regions);
-    let file_readers = super::file_demand::service::readers(&regions, &rules)?;
-    let program = ExecutableProgram::new(
-        regions.into_boxed_slice(),
-        file_readers,
-        rules.into_boxed_slice(),
-        logical_regions.into_boxed_slice(),
-        observation_regions.into_boxed_slice(),
-    )
-    .with_presence(presence)
-    .with_matchers(matchers);
-    #[cfg(any(test, feature = "fixtures"))]
-    let program = program.with_fusibility(fusibility.into_boxed_slice());
-    Ok(program)
+        }
+    }
+    let roots = derived_roots(&drafts, &inputs.lists);
+    let schemas = drafts.iter().map(|draft| draft.schema.clone()).collect();
+    Ok(LogicalBuild {
+        program,
+        rules: nodes,
+        serving,
+        consumers,
+        roots,
+        schemas,
+    })
 }
 
-/// The ordered existence a route evaluates, when it is one.
-pub fn ordered_existence(route: &Route) -> Option<&OrderedExistence> {
-    match route {
-        Route::OrderedExistence(shape) => Some(shape),
-        _ => None,
+/// The planned program: the logical build's rules, consumers and root kinds with the operators' plan of it; each rule that
+/// reads a node of a kind with no lowering at this stage is not served until the latest stage among them.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::service::{assemble, logical, physical};
+/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
+/// let program = assemble(logical(&[], &mut ProgramInputs::default()).unwrap(), Default::default());
+/// let _plan = physical(&program);
+/// ```
+#[must_use]
+pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgram {
+    let LogicalBuild {
+        rules,
+        mut serving,
+        consumers,
+        roots,
+        schemas,
+        ..
+    } = build;
+    for unserved in plan.unserved() {
+        for (nodes, served) in rules.iter().zip(serving.iter_mut()) {
+            if nodes
+                .steps
+                .iter()
+                .any(|step| step.as_ref() == Ok(&unserved.node))
+            {
+                *served = match *served {
+                    Serving::NotServedUntil(stage) if stage >= unserved.until => {
+                        Serving::NotServedUntil(stage)
+                    }
+                    Serving::Served | Serving::NotServedUntil(_) => {
+                        Serving::NotServedUntil(unserved.until)
+                    }
+                };
+            }
+        }
     }
+    ExecutableProgram {
+        plan,
+        rules,
+        serving,
+        consumers,
+        roots,
+        schemas,
+    }
+}
+
+/// Whether `rule` runs at this stage.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::service::{assemble, logical, serving};
+/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
+/// let program = assemble(logical(&[], &mut ProgramInputs::default()).unwrap(), Default::default());
+/// assert!(serving(&program, ryo_execution_domain::domain::coverage::types::RuleIndex(0)).is_err());
+/// ```
+///
+/// # Errors
+///
+/// `NotRun` for a rule the program does not have.
+pub fn serving(program: &ExecutableProgram, rule: RuleIndex) -> Result<Serving, OperatingError> {
+    program
+        .serving
+        .get(rule.0)
+        .copied()
+        .ok_or(OperatingError::NotRun)
+}
+
+/// The nodes that start from the tree nodes of the kind the plans write as `kind`, in node order.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::service::{assemble, logical, roots};
+/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
+/// let program = assemble(logical(&[], &mut ProgramInputs::default()).unwrap(), Default::default());
+/// assert!(roots(&program, &ryo_values::domain::plan_parts::types::LiteralText("function_definition".into())).is_empty());
+/// ```
+#[must_use]
+pub fn roots<'a>(program: &'a ExecutableProgram, kind: &LiteralText) -> &'a [PlanNodeId] {
+    program.roots.get(kind).map_or(&[], Vec::as_slice)
+}
+
+/// Each kind text the plans write for a root kind, with the nodes that start from the tree nodes of that kind; in no order.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::service::{assemble, logical, root_kinds};
+/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
+/// let program = assemble(logical(&[], &mut ProgramInputs::default()).unwrap(), Default::default());
+/// assert_eq!(root_kinds(&program).count(), 0);
+/// ```
+pub fn root_kinds(program: &ExecutableProgram) -> impl Iterator<Item = RootKind<'_>> {
+    program
+        .roots
+        .iter()
+        .map(|(kind, nodes)| RootKind { kind, nodes })
+}
+
+/// The nodes of `rule`.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::service::{assemble, logical, rule};
+/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
+/// let program = assemble(logical(&[], &mut ProgramInputs::default()).unwrap(), Default::default());
+/// assert!(rule(&program, ryo_execution_domain::domain::coverage::types::RuleIndex(0)).is_err());
+/// ```
+///
+/// # Errors
+///
+/// `NotRun` for a rule the program does not have.
+pub fn rule(program: &ExecutableProgram, rule: RuleIndex) -> Result<&RuleNodes, OperatingError> {
+    program.rules.get(rule.0).ok_or(OperatingError::NotRun)
+}
+
+/// How many consumers `node` has.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::service::{assemble, logical, consumers};
+/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
+/// let program = assemble(logical(&[], &mut ProgramInputs::default()).unwrap(), Default::default());
+/// assert!(consumers(&program, ryo_operators::domain::physical_plan::types::PlanNodeId(0)).is_err());
+/// ```
+///
+/// # Errors
+///
+/// `NotRun` for a node the program does not have.
+pub fn consumers(
+    program: &ExecutableProgram,
+    node: PlanNodeId,
+) -> Result<Consumers, OperatingError> {
+    program
+        .consumers
+        .get(node.0 as usize)
+        .copied()
+        .ok_or(OperatingError::NotRun)
+}
+
+/// The output columns of `node`.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::service::{assemble, logical, schema};
+/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
+/// use ryo_operators::domain::physical_plan::types::PlanNodeId;
+/// use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+/// let mut inputs = ProgramInputs::default();
+/// let program = assemble(logical(&[], &mut inputs).unwrap(), PhysicalPlan::default());
+/// assert!(schema(&program, PlanNodeId(0)).is_err());
+/// ```
+///
+/// # Errors
+///
+/// The schema fault of the node or of a node it reads; `NotRun` for a node the program does not have.
+pub fn schema(
+    program: &ExecutableProgram,
+    node: PlanNodeId,
+) -> Result<&[CellKind], OperatingError> {
+    match program.schemas.get(node.0 as usize) {
+        Some(Ok(kinds)) => Ok(kinds),
+        Some(Err(error)) => Err(error.clone()),
+        None => Err(OperatingError::NotRun),
+    }
+}
+
+/// The operators' plan of the program.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::service::{assemble, logical, physical};
+/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
+/// let program = assemble(logical(&[], &mut ProgramInputs::default()).unwrap(), Default::default());
+/// let _plan = physical(&program);
+/// ```
+#[must_use]
+pub fn physical(program: &ExecutableProgram) -> &PhysicalPlan {
+    &program.plan
 }

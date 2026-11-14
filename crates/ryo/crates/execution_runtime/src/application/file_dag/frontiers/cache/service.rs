@@ -102,7 +102,7 @@ impl PreparedFrontiers {
     }
     pub(crate) fn validate_scope(
         &self,
-        program: &std::sync::Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,
+        program: &std::sync::Arc<ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram>,
         required: &crate::application::file_dag::program::admission::types::RequiredPartitions,
     ) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
         if !std::sync::Arc::ptr_eq(&self.program, program)

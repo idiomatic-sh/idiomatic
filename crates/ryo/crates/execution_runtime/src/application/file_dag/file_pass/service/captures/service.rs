@@ -1,17 +1,22 @@
 //! What a rule does after its emitted node: its frontiers captured, kept and committed, and its steps reported to the
 //! observer.
 
+use crate::application::file_dag::file_pass::service::nodes::service::{node_rows, ran_node};
 use crate::application::file_dag::file_pass::service::roots_of;
-use crate::application::file_dag::file_pass::types::{CaptureAt, NodeAnswer, OutputCommit, OutputState, PassFile};
-use crate::application::file_dag::program::file_session::types::{CaptureContext, FileStop, RuleAfter};
+use crate::application::file_dag::file_pass::types::{
+    CaptureAt, NodeAnswer, OutputCommit, OutputState, PassFile,
+};
+use crate::application::file_dag::program::file_session::types::{
+    CaptureContext, FileStop, RuleAfter,
+};
 use crate::outbound::facts::types::WordsToKeep;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::executable_program::service::rule as fused_rule;
+use ryo_execution_domain::domain::executable_program::types::RuleNodes;
 use ryo_execution_domain::domain::finish::service::escape_frame;
 use ryo_execution_domain::domain::finish::types::{Arena, Leaves, Leaving};
 use ryo_execution_domain::domain::frontier_capture::types::{CapturedFrontier, FrontierCapture};
 use ryo_execution_domain::domain::frontier_coverage::service::file_frontier_coverage;
-use ryo_execution_domain::domain::fused_program::service::rule as fused_rule;
-use ryo_execution_domain::domain::fused_program::types::RuleNodes;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::{LogicalCounts, RowsFed};
 use ryo_execution_domain::domain::rule_intent::types::{CaptureIntent, FrontierPurpose};
@@ -26,7 +31,6 @@ use ryo_values::domain::stored_facts::service::frontier_bucket;
 use ryo_values::domain::table_words::service::{encode_table, pack};
 use ryo_values::domain::table_words::types::WordSlice;
 use std::sync::Arc;
-use crate::application::file_dag::file_pass::service::nodes::service::{node_rows, ran_node};
 
 /// What a rule does after its emitted node: its frontiers captured, each one captured kept in the facts and committed, and its
 /// steps reported to the observer, if any. A capture the engine could not make is answered as it is, for the caller to note.
@@ -71,8 +75,15 @@ pub(crate) fn captured_rule(
         }
         let outcome = (|| {
             let step = step.ok_or(OperatingError::NotRun)?;
-            let node = nodes.steps.get(step.0 as usize).ok_or(OperatingError::NotRun).and_then(Clone::clone);
-            let NodeAnswer { mut table, coverage } = node_rows(at, symbols, rule, node, step)?;
+            let node = nodes
+                .steps
+                .get(step.0 as usize)
+                .ok_or(OperatingError::NotRun)
+                .and_then(Clone::clone);
+            let NodeAnswer {
+                mut table,
+                coverage,
+            } = node_rows(at, symbols, rule, node, step)?;
             let coverage = file_frontier_coverage(coverage, at.file)?;
             let frame_places = escape_frame(
                 &mut table,
@@ -95,8 +106,12 @@ pub(crate) fn captured_rule(
                 input,
                 bucket: frontier_bucket(first, input),
                 proof: FrontierProof {
-                    rule: ProducerRule(u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?),
-                    input: FrontierOrdinal(u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?),
+                    rule: ProducerRule(
+                        u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?,
+                    ),
+                    input: FrontierOrdinal(
+                        u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?,
+                    ),
                     rule_digest: digest,
                     coverage,
                 },
@@ -165,13 +180,19 @@ pub(crate) fn observed(
                     let node = node.clone()?;
                     roots_of(at.inputs.roots, node).0.len() as u64
                 }
-                Input::Relation(relation) => at
-                    .inputs
-                    .lookup
-                    .columns(*relation)
-                    .map_or(0, |view| view.columns.first().map_or(0, |column| column.0.len() as u64)),
+                Input::Relation(relation) => {
+                    at.inputs.lookup.columns(*relation).map_or(0, |view| {
+                        view.columns
+                            .first()
+                            .map_or(0, |column| column.0.len() as u64)
+                    })
+                }
                 Input::Step(id) => {
-                    let read = nodes.steps.get(id.0 as usize).ok_or(OperatingError::NotRun)?.clone()?;
+                    let read = nodes
+                        .steps
+                        .get(id.0 as usize)
+                        .ok_or(OperatingError::NotRun)?
+                        .clone()?;
                     ran_node(at, symbols, read)?;
                     match at.buffers.rows(read) {
                         NodeRows::Materialized(table) => table.count.0 as u64,
@@ -183,5 +204,10 @@ pub(crate) fn observed(
         }
         fed.push(RowsFed(counts));
     }
-    observer.fed(rule, LogicalCounts { fed: fed.into_boxed_slice() })
+    observer.fed(
+        rule,
+        LogicalCounts {
+            fed: fed.into_boxed_slice(),
+        },
+    )
 }

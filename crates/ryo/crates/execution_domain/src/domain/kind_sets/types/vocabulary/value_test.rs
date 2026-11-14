@@ -3,13 +3,13 @@
 use crate::domain::kind_sets::service::{kind_tests, passes, prepare_vocabulary};
 use crate::domain::kind_sets::types::KindScratch;
 use crate::domain::operator::types::OperatorContext;
-use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
-use ryo_operators::domain::contract::types::PredicateOutcome;
-use ryo_operators::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_operators::domain::contract::types::PredicateOutcome;
+use ryo_operators::domain::table_scratch::types::OperatorScratch;
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_relations::domain::relations::types::{FileId, KindBits, Offset};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::files::types::SourceView;

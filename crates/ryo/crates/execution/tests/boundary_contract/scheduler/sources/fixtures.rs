@@ -1,6 +1,5 @@
 //! The support of the `sources` cases, which the interpreter's twin cases also read.
 use crate::boundary_fixture::fixtures::authored_request;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_relations::domain::relations::types::*;

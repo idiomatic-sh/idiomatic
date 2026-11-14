@@ -1,13 +1,9 @@
 //! The support of the `workspace` cases.
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::{
-    derived_views::types::contract::value::PreparedViewUse,
-    operator::types::OperatorContext,
+    derived_views::types::contract::value::PreparedViewUse, operator::types::OperatorContext,
 };
-use ryo_execution_domain::domain::{
-    derived_views::types::*,
-    operation_schema::types::InputShape,
-};
+use ryo_execution_domain::domain::{derived_views::types::*, operation_schema::types::InputShape};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::rows::types::RowCount;

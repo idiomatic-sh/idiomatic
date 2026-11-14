@@ -31,7 +31,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-
 fn subject(read: Input) -> Result<Value, Failure> {
     let operation = Operation::Select {
         from: StepInput::Relation(Relation::Function),

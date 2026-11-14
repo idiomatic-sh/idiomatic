@@ -6,8 +6,8 @@ use crate::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution_domain::domain::kind_check::service::{
     first_unknown, kinds_asked, unknown_message,
 };
-use ryo_operators::domain::patterns::types::PatternMatcher;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
+use ryo_operators::domain::patterns::types::PatternMatcher;
 use std::sync::Arc;
 
 /// Compiles rules over the query compiler and digest it is given, keeping their plans in a bounded cache.

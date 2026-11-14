@@ -1,10 +1,10 @@
 //! The `lookup` item of the `kernels` collection: the rows of a shared `hash_index` whose key is a constant text, in source row
 //! order, each then kept by all its select's comparisons: what the plain `filter` keeps.
 
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use super::super::filter::item::{filter, keep, kept_kinds};
 use super::super::hash_index::item::{find_text, next_of, texts};
+#[cfg(test)]
+use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{decode, facts};
 use super::super::scan_node::item::hold;
 use crate::domain::contract::types::PortableOperatorFault;
@@ -20,9 +20,7 @@ pub(crate) struct LookupItem;
 #[cfg(test)]
 impl KernelsItem for LookupItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = {
-            matches!(lowering, Lowering::Lookup { .. })
-        };
+        let runs = { matches!(lowering, Lowering::Lookup { .. }) };
         if runs { Reach::Runs } else { Reach::Skips }
     }
 }
@@ -64,7 +62,8 @@ pub(crate) fn lookups(
         };
         let kernel = filter(select, view.kinds, texts_of, decisions);
         let mut fault = None;
-        let mut row = find_text(&buffers.index, IndexKeyHash(key.0)).map_or(NO_ROW, |run| run.first);
+        let mut row =
+            find_text(&buffers.index, IndexKeyHash(key.0)).map_or(NO_ROW, |run| run.first);
         while row != NO_ROW {
             let at = usize::try_from(row.0).unwrap_or(usize::MAX);
             decode(&view, RowIndex(at), &mut buffers.row);
