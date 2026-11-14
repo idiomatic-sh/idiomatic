@@ -102,3 +102,58 @@ expected = []
 name = "bool-items"
 files = { "src/lib.rs" = "#[rustfmt::skip(a(true, true))]\npub fn f() {}\n" }
 expected = []
+
+[[cases]]
+name = "number-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = 1, a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 26, end = 27 }]
+
+[[cases]]
+name = "bool-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = true, a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 30 }]
+
+[[cases]]
+name = "char-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = 'x', a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 28, end = 29 }]
+
+[[cases]]
+name = "byte-string-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = b\"x\", a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 30 }]
+
+[[cases]]
+name = "c-string-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = c\"x\", a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 30 }]
+
+[[cases]]
+name = "raw-string-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = r\"x\", a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 30 }]
+
+[[cases]]
+name = "range-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = 1..2, a, a)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "first-level-true"
+files = { "src/lib.rs" = "#[rustfmt::skip(true, true)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "first-level-false"
+files = { "src/lib.rs" = "#[rustfmt::skip(false, false)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "second-level-false"
+files = { "src/lib.rs" = "#[rustfmt::skip(a(false, false))]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "bare-char-item"
+files = { "src/lib.rs" = "#[rustfmt::skip(a, a, '=')]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 20 }]
