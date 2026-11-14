@@ -1,12 +1,15 @@
 //! A measured run executes only a request without declared observations and covers exactly its files.
-use super::fixtures::{Empty, Pinned, history_len, last_environment, request, succeeding};
+use super::fixtures::{
+    Empty, ObservingLinter, Pinned, Refused, RefusingContext, history_len, last_environment,
+    request, sealed_manifest, succeeding,
+};
 use super::service::{run as measure, run_with};
 use super::types::Pinning;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::linter::fixtures::fake::LinterFake;
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration;
+use ryo_benchmark_contracts::domain::requests::types::{ContextSeal, FileMetadataDeclaration};
 
 /// Which measured request a row runs.
 #[derive(Clone, Copy)]
@@ -16,6 +19,7 @@ enum Scenario {
     OmittedInput,
     Pinned(Pinning),
     AdapterPin(Pinning),
+    Bracket(Refused),
 }
 
 /// What a refused run states.
@@ -23,6 +27,8 @@ enum Scenario {
 enum Refusal {
     VerificationRequired,
     InputCoverage,
+    Seal,
+    Receipt,
     Unexpected,
 }
 
@@ -77,6 +83,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::AdapterPin(Pinning::Untimed),
         expect: Expect::Value(0),
     },
+    Case {
+        name: CaseName("a refused seal launches nothing"),
+        word: Word::Refuses,
+        input: || Scenario::Bracket(Refused::Seal),
+        expect: Expect::Error(Refusal::Seal),
+    },
+    Case {
+        name: CaseName("a refused receipt fails the measurement"),
+        word: Word::Refuses,
+        input: || Scenario::Bracket(Refused::Receipt),
+        expect: Expect::Error(Refusal::Receipt),
+    },
 ];
 
 fn category(error: &Error) -> Refusal {
@@ -85,6 +103,10 @@ fn category(error: &Error) -> Refusal {
         Refusal::VerificationRequired
     } else if message == crate::domain::diagnostics::constants::INPUT_COVERAGE {
         Refusal::InputCoverage
+    } else if message.ends_with("fixture seal refusal") {
+        Refusal::Seal
+    } else if message.ends_with("fixture receipt refusal") {
+        Refusal::Receipt
     } else {
         Refusal::Unexpected
     }
@@ -97,6 +119,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::OmittedInput => omitted_input(),
         Scenario::Pinned(pinning) => pinned(pinning),
         Scenario::AdapterPin(pinning) => adapter_pin(pinning),
+        Scenario::Bracket(refused) => bracket(refused),
     }
     .map_err(|error| category(&error))
 }
@@ -216,4 +239,26 @@ fn adapter_pin(pinning: Pinning) -> Result<Value, Error> {
     Ok(usize::from(names.split(',').any(|name| {
         name == ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN
     })))
+}
+
+/// The measured route refuses a sealed run through the context port on either side of the launch.
+fn bracket(refused: Refused) -> Result<Value, Error> {
+    let execution = succeeding();
+    let mut request = request();
+    request.context_manifest = ContextSeal::Sealed(sealed_manifest());
+    let result = measure(
+        &RefusingContext(refused),
+        &ObservingLinter::default(),
+        &execution,
+        &request,
+    );
+    assert_eq!(
+        history_len(&execution),
+        Some(match refused {
+            Refused::Seal => 0,
+            Refused::Receipt => 1,
+        }),
+        "a refused seal launches nothing; a refused receipt comes after the one launch"
+    );
+    result.map(|_| 0)
 }

@@ -150,49 +150,23 @@ fn observed_missing_cannot_hide_present_untracked_or_symlinked_paths() -> Result
             state: ryo::linter::ProjectDependencyState::Missing,
         }]
     };
+    let verified = |path: &str| {
+        receipt(&manifest, root, missing(path))
+            .and_then(|observed| verify_receipt(&manifest, root, &observed))
+    };
     std::fs::write(root.join("untracked.py"), b"present")?;
-    assert!(matches!(
-        receipt(&manifest, root, missing("untracked.py")),
-        Err(_refused)
-    ));
-    assert!(matches!(
-        receipt(&manifest, root, missing("source.py")),
-        Err(_refused)
-    ));
-    assert!(matches!(
-        receipt(&manifest, root, missing("pkg/../source.py")),
-        Err(_refused)
-    ));
-    assert!(matches!(
-        receipt(&manifest, root, missing("source.py/../new.py")),
-        Err(_refused)
-    ));
-    assert!(matches!(
-        receipt(&manifest, root, missing("absent/../new.py")),
-        Err(_refused)
-    ));
-    assert!(matches!(
-        receipt(&manifest, root, missing("../escape.py")),
-        Err(_refused)
-    ));
-    assert!(matches!(
-        receipt(&manifest, root, missing("untracked.py/child")),
-        Err(_refused)
-    ));
+    assert!(matches!(verified("untracked.py"), Err(_refused)));
+    assert!(matches!(verified("source.py"), Err(_refused)));
+    assert!(matches!(verified("pkg/../source.py"), Err(_refused)));
+    assert!(matches!(verified("source.py/../new.py"), Err(_refused)));
+    assert!(matches!(verified("absent/../new.py"), Err(_refused)));
+    assert!(matches!(verified("../escape.py"), Err(_refused)));
+    assert!(matches!(verified("untracked.py/child"), Err(_refused)));
     link(root, &root.join("linked"))?;
-    assert!(matches!(
-        receipt(&manifest, root, missing("linked/absent.py")),
-        Err(_refused)
-    ));
-    assert!(matches!(
-        receipt(&manifest, root, missing("linked/../new.py")),
-        Err(_refused)
-    ));
+    assert!(matches!(verified("linked/absent.py"), Err(_refused)));
+    assert!(matches!(verified("linked/../new.py"), Err(_refused)));
     link(&root.join("absent-target"), &root.join("dangling"))?;
-    assert!(matches!(
-        receipt(&manifest, root, missing("dangling")),
-        Err(_refused)
-    ));
+    assert!(matches!(verified("dangling"), Err(_refused)));
     Ok(())
 }
 fn path_roles_and_symlinked_context_are_not_accepted() -> Result<(), Error> {
@@ -211,6 +185,62 @@ fn path_roles_and_symlinked_context_are_not_accepted() -> Result<(), Error> {
     std::fs::remove_file(root.join("__init__.py"))?;
     link(&root.join("mod.py"), &root.join("__init__.py"))?;
     let _verified_7 = validate(&manifest, &root).expect_err("expected refusal");
+    Ok(())
+}
+fn verify_refuses_a_snapshot_edited_or_removed_after_the_receipt() -> Result<(), Error> {
+    let scratch = tempfile::tempdir()?;
+    let manifest = fixture(scratch.path())?;
+    let root = manifest.boundary.join("pkg");
+    let observations = || {
+        vec![
+            ryo::linter::ProjectDependency {
+                path: ryo::linter::RelativePath("__init__.py".into()),
+                state: ryo::linter::ProjectDependencyState::Present(
+                    ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes(b"")),
+                ),
+            },
+            ryo::linter::ProjectDependency {
+                path: ryo::linter::RelativePath("../__init__.py".into()),
+                state: ryo::linter::ProjectDependencyState::Missing,
+            },
+        ]
+    };
+    let observed = receipt(&manifest, &root, observations())?;
+    std::fs::write(root.join("__init__.py"), b"x")?;
+    let edited =
+        verify_receipt(&manifest, &root, &observed).expect_err("an edited byte is refused");
+    assert_eq!(edited.to_string(), "context bytes changed: pkg/__init__.py");
+    std::fs::write(root.join("__init__.py"), b"")?;
+    verify_receipt(&manifest, &root, &observed)?;
+    std::fs::remove_dir_all(&manifest.boundary)?;
+    assert_eq!(receipt(&manifest, &root, observations())?, observed);
+    let removed =
+        verify_receipt(&manifest, &root, &observed).expect_err("a removed snapshot is refused");
+    assert!(
+        matches!(&removed, Error::Io(error) if error.kind() == std::io::ErrorKind::NotFound),
+        "{removed}"
+    );
+    Ok(())
+}
+fn verify_refuses_a_present_dependency_whose_bytes_disagree() -> Result<(), Error> {
+    let scratch = tempfile::tempdir()?;
+    let manifest = fixture(scratch.path())?;
+    let root = manifest.boundary.join("pkg");
+    let observed = receipt(
+        &manifest,
+        &root,
+        vec![ryo::linter::ProjectDependency {
+            path: ryo::linter::RelativePath("__init__.py".into()),
+            state: ryo::linter::ProjectDependencyState::Present(
+                ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes(b"other")),
+            ),
+        }],
+    )?;
+    let refused = verify_receipt(&manifest, &root, &observed).expect_err("other bytes are refused");
+    assert!(
+        matches!(&refused, Error::Invalid(message) if message == super::constants::PROJECT_DEPENDENCY_FINGERPRINT_DISAGREES),
+        "{refused}"
+    );
     Ok(())
 }
 
@@ -241,6 +271,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("path_roles_and_symlinked_context_are_not_accepted"),
         word: Word::Succeeds,
         input: || path_roles_and_symlinked_context_are_not_accepted,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("verify_refuses_a_snapshot_edited_or_removed_after_the_receipt"),
+        word: Word::Succeeds,
+        input: || verify_refuses_a_snapshot_edited_or_removed_after_the_receipt,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("verify_refuses_a_present_dependency_whose_bytes_disagree"),
+        word: Word::Succeeds,
+        input: || verify_refuses_a_present_dependency_whose_bytes_disagree,
         expect: Expect::Value(()),
     },
 ];

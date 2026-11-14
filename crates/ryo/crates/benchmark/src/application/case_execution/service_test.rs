@@ -1,4 +1,5 @@
 //! The shared preparation boundary rejects physical drift before linter preparation.
+use super::fixtures::{ObservingLinter, Refused, RefusingContext, sealed_manifest};
 use super::service::{candidate, run as run_case};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::{execution::fixtures::fake::ExecutionFake, linter::interface::LinterPort};
@@ -23,6 +24,7 @@ enum Scenario {
     #[cfg(unix)]
     ModeDrift,
     DeclaredMissing,
+    Bracket(Refused),
 }
 
 /// What a row is given.
@@ -48,6 +50,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::DeclaredMissing,
         expect: Expect::Value("true; true; 2; false; false; 0; true; true; 2; true"),
     },
+    Case {
+        name: CaseName("a refused seal launches no candidate"),
+        word: Word::Succeeds,
+        input: || Scenario::Bracket(Refused::Seal),
+        expect: Expect::Value("fixture seal refusal; 0"),
+    },
+    Case {
+        name: CaseName("a refused receipt fails the candidate after its launch"),
+        word: Word::Succeeds,
+        input: || Scenario::Bracket(Refused::Receipt),
+        expect: Expect::Value("fixture receipt refusal; 1"),
+    },
 ];
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -55,6 +69,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         #[cfg(unix)]
         Scenario::ModeDrift => metadata_drift_blocks_each_attempt(),
         Scenario::DeclaredMissing => declared_missing_primary_is_reverified(),
+        Scenario::Bracket(refused) => bracket(refused),
     };
     Ok(Box::leak(observed.into_boxed_str()))
 }
@@ -304,4 +319,35 @@ fn declared_missing_primary_is_reverified() -> String {
         execution.history.lock().unwrap().is_empty()
     ));
     seen.join("; ")
+}
+
+/// The candidate's refusal and its launch count when the context port refuses either side of the launch.
+fn bracket(refused: Refused) -> String {
+    let execution = ExecutionFake {
+        status: 0,
+        ..Default::default()
+    };
+    let request = RunRequest {
+        performance: Default::default(),
+        selected_rules: CohortSelection::Frozen,
+        rule_observations: InputDeclaration::Undeclared,
+        rule_context: RuleContextPreparation::Unconfigured,
+        project_search_roots: SearchRoots::Undeclared,
+        given_project_inventory: Default::default(),
+        staged_sources: StagedSources::Unlisted,
+        file_metadata: FileMetadataDeclaration::Undeclared,
+        context_manifest: ContextSeal::Sealed(sealed_manifest()),
+        root: ".".into(),
+        files: vec![ryo::linter::RelativePath("input.py".into())],
+        state: "cache".into(),
+    };
+    let refusal = candidate(
+        &crate::outbound::suite::factory::local(),
+        &RefusingContext(refused),
+        &ObservingLinter::default(),
+        &execution,
+        &request,
+    )
+    .unwrap_err();
+    format!("{refusal}; {}", execution.history.lock().unwrap().len())
 }
