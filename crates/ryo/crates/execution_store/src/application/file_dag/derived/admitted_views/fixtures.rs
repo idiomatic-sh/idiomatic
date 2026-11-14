@@ -58,15 +58,15 @@ pub(crate) fn use_(request: &ViewRequest, width: usize, len: u8) -> PreparedView
 /// An operator context over no source.
 pub(crate) fn context<'a>(
     symbols: &'a mut Symbols,
-    scratch: &'a mut ryo_execution_domain::domain::table_scratch::types::OperatorScratch,
-    memo: &'a mut Vec<ryo_execution_domain::domain::operating::types::Memo>,
+    scratch: &'a mut ryo_operators::domain::table_scratch::types::OperatorScratch,
+    memo: &'a mut Vec<ryo_operators::domain::table_scratch::types::Memo>,
 ) -> OperatorContext<'a> {
     OperatorContext {
         phase: ryo_execution_domain::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
-        matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(
+        matcher: ryo_operators::domain::patterns::types::PatternMatcher(
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
         ),
         bindings: &[],

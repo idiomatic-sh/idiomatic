@@ -253,7 +253,7 @@ fn subject(input: Held) -> Result<Answered, OperatingError> {
                     RepresentationInput::from(&left),
                     RepresentationInput::from(&right),
                 ];
-                let texts = ryo_execution_domain::domain::table_texts::types::Texts {
+                let texts = ryo_operators::domain::table_texts::types::Texts {
                     symbols: context.symbols.as_ref(),
                     source: context.source,
                     paths: &[],
@@ -286,7 +286,7 @@ fn subject(input: Held) -> Result<Answered, OperatingError> {
                 RepresentationInput::from(&left),
                 RepresentationInput::Computed(&wrong),
             ];
-            let texts = ryo_execution_domain::domain::table_texts::types::Texts {
+            let texts = ryo_operators::domain::table_texts::types::Texts {
                 symbols: context.symbols.as_ref(),
                 source: context.source,
                 paths: &[],

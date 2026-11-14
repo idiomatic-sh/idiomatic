@@ -7,9 +7,9 @@ use crate::domain::operator::contract::primitive::types::PreparedInputs;
 use crate::domain::operator::contract::types::{
     FoundRows, PrimitiveLease, PrimitiveResources, PrimitiveWorkspace, RowSink,
 };
-use crate::domain::table_model::types::{RepresentationInput, Verdict};
-use crate::domain::table_texts::service::datum;
-use crate::domain::table_texts::types::{Datum, Texts};
+use crate::domain::table_model::types::RepresentationInput;
+use ryo_operators::domain::table_texts::service::datum;
+use ryo_operators::domain::table_texts::types::{Datum, Texts};
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -104,7 +104,7 @@ impl<'a, 'f> RowDelivery<'a, 'f> {
     }
 
     /// The bound predicate's verdict on a row.
-    pub(crate) fn verdict(&mut self, row: &[Value]) -> Result<Verdict, OperatingError> {
+    pub(crate) fn verdict(&mut self, row: &[Value]) -> Result<PredicateOutcome, OperatingError> {
         crate::domain::operator::contract::lease::service::holds(self.lease, row)
     }
 
@@ -148,7 +148,7 @@ impl<'a, 'f> RowDelivery<'a, 'f> {
         }
         let verdict = self.verdict(row);
         self.hold(verdict).map(|verdict| {
-            if verdict == Verdict::Fails {
+            if verdict == PredicateOutcome::Fails {
                 PredicateOutcome::Fails
             } else {
                 PredicateOutcome::Holds

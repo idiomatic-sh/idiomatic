@@ -4,7 +4,8 @@ use ryo_execution_domain::domain::operating::service::portable_fault;
 use ryo_execution_domain::domain::operator::contract::failure::types::FailureLatch;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
-    operating::errors::OperatingError, self_join_recogniser::types::Extremum,
+    operating::errors::OperatingError,
+    self_join_recogniser::types::Extremum,
 };
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_operators::domain::ordered_existence::types::OrderedExistenceDriver;

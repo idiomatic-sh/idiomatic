@@ -1,22 +1,23 @@
 //! One borrowed relation pass for active selection classes. No publication,
 //! provider demand, fallback, or owner lifetime is decided in this domain.
 
+use ryo_operators::domain::comparing::types::NameCount;
+use ryo_operators::domain::comparing::{
+        service::holds_bound,
+        types::{DecisionWorkspace, RowShape},
+    };
 use super::types::{
     ClassCount, ClassWork, CohortPlace, Eligibility, KindCount, PredicateMemo, PredicatePlace,
     WalkWork, native_batch::value::NativeBatch, prepared_walk::value::PreparedWalk,
 };
 use crate::domain::operator::types::OperatorContext;
-use crate::domain::table_texts::types::Texts;
+use ryo_operators::domain::table_texts::types::Texts;
 use crate::domain::{
-    comparing::{
-        service::holds_bound,
-        types::{DecisionWorkspace, RowShape},
-    },
     kind_sets::{
         service::{kind_tests, named_kinds, names_a_kind, passes},
         types::KindScratch,
     },
-    operating::types::{KindNaming, NameCount},
+    operating::types::KindNaming,
     shared_walk::types::Slots,
     step_classes::types::ClassPlace,
     step_classes::types::StepClass,
@@ -26,9 +27,10 @@ use crate::domain::{
     },
     table_model::{
         service::{count_of, kinds_of, read_row},
-        types::{Rows, Verdict},
+        types::Rows,
     },
 };
+use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_language::domain::elements::service::{kind_at, kind_names};
 use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::{CellKind, Flag, Position, Relation, Value};
@@ -51,7 +53,7 @@ fn needed_together(union: &mut ColumnPlaces, work: &[ClassWork], places: &[Cohor
 fn memo_slot(
     memo: &mut PredicateMemo,
     predicate: PredicatePlace,
-) -> &mut Option<Result<Verdict, crate::domain::operating::errors::OperatingError>> {
+) -> &mut Option<Result<PredicateOutcome, crate::domain::operating::errors::OperatingError>> {
     if memo.slots.len() <= predicate.0 {
         memo.slots.resize_with(predicate.0 + 1, || None);
     }
@@ -99,7 +101,7 @@ fn consider(
         paths: context.paths,
         arenas: context.arenas,
     };
-    let mut verdict = Ok(Verdict::Holds);
+    let mut verdict = Ok(PredicateOutcome::Holds);
     for &predicate in program.prefixes(place) {
         let mut tested = false;
         let decision = memo_slot(predicates, predicate).get_or_insert_with(|| {
@@ -121,22 +123,23 @@ fn consider(
                     memo: &mut each.memo,
                 },
             )
+            .map_err(crate::domain::operating::errors::OperatingError::from)
         });
         if !tested {
             batch.record_predicate_reuse();
         }
-        if *decision != Ok(Verdict::Holds) {
+        if *decision != Ok(PredicateOutcome::Holds) {
             verdict = decision.clone();
             break;
         }
     }
     match verdict {
-        Ok(Verdict::Holds) => {
+        Ok(PredicateOutcome::Holds) => {
             if let Some(result) = &mut each.result {
                 result.positions.0.push(position.0);
             }
         }
-        Ok(Verdict::Fails) => {}
+        Ok(PredicateOutcome::Fails) => {}
         Err(error) => {
             each.eligible = Eligibility::Declined;
             if let Some(result) = &mut each.result {
@@ -278,7 +281,7 @@ pub fn evaluate(
         // Matcher compilation and keyed verdict reuse already live in shared scratch.
         if let Some(named) = tree.and_then(|_| named_kinds(&kinds)) {
             for kind in named {
-                if passes(&kinds, *kind) == Verdict::Holds
+                if passes(&kinds, *kind) == PredicateOutcome::Holds
                     && let Some(group) = by_kind.get_mut(usize::from(kind.0))
                 {
                     group.push(CohortPlace(at));

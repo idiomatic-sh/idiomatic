@@ -1,6 +1,7 @@
 //! Pure operator plan workspace and terminal access.
 use crate::domain::{
-    operating::errors::OperatingError, operation_schema::types::InputShape,
+    operating::errors::OperatingError,
+    operation_schema::types::InputShape,
     operator::contract::types::OperatorContract,
 };
 use ryo_values::domain::plans::types::Operation;

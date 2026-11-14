@@ -1,5 +1,4 @@
 //! Pure request declarations and executable-program contracts.
-pub mod comparing;
 pub mod coverage;
 pub mod derived_views;
 pub mod executable_program;
@@ -7,10 +6,7 @@ pub mod features;
 pub mod file_program;
 pub mod kind_check;
 pub mod kind_sets;
-pub mod matching;
-pub(crate) mod numeric_values;
 pub mod observation_schedule;
-pub(crate) mod operands;
 pub mod operating;
 pub mod operation_schema;
 pub mod operator;
@@ -23,15 +19,12 @@ pub(crate) mod table_dedup;
 pub mod table_groups;
 pub mod table_model;
 pub mod table_reach;
-pub mod table_scratch;
-pub mod table_texts;
 
 pub mod trust;
 
 pub(crate) mod describing;
 pub mod finish;
 pub mod frontiers;
-pub(crate) mod functions;
 pub mod hosted;
 pub mod replay;
 pub mod rules;

@@ -32,7 +32,7 @@ impl MetadataUseCase for MetadataUseCaseImpl {
         super::types::KindRefusalFound(ryo_execution_domain::domain::kind_check::service::refusal(
             plan,
             vocabularies,
-            ryo_execution_domain::domain::matching::types::PatternMatcher(matching),
+            ryo_operators::domain::patterns::types::PatternMatcher(matching),
         ))
     }
     fn kinds_asked(&self, plan: &Plan, bound: &[ParameterBinding]) -> super::types::AskedKinds {
@@ -52,7 +52,7 @@ impl MetadataUseCase for MetadataUseCaseImpl {
                 plans,
                 bindings.0,
                 vocabularies,
-                ryo_execution_domain::domain::matching::types::PatternMatcher(matching),
+                ryo_operators::domain::patterns::types::PatternMatcher(matching),
             ),
         )
     }

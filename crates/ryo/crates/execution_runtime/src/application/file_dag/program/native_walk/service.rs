@@ -10,7 +10,10 @@ use super::types::{Deliveries, Fate};
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::KernelPermit;
 use rustc_hash::FxHashMap;
-use ryo_execution_domain::domain::{coverage::types::RuleIndex, shared_walk::types::WalkCounts};
+use ryo_execution_domain::domain::{
+    coverage::types::RuleIndex,
+    shared_walk::types::WalkCounts,
+};
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     operator::types::OperatorContext,

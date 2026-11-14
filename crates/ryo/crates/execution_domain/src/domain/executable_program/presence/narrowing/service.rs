@@ -4,12 +4,12 @@ use super::super::types::{
     ColumnOrigin, ComparisonGroup, FormulaId, LocatedId, OriginComparison, PresenceFormula,
     PresenceTables, PresenceTest, SpanColumn, TestBucket, TestId,
 };
-use crate::domain::matching::types::PatternMatcher;
-use crate::domain::matching::types::prepared::value::PreparedMatchers;
+use ryo_operators::domain::patterns::types::PatternMatcher;
+use ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers;
 use crate::domain::operation_schema::projection::service::output_origins;
 use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::contract::presence::types::InputMask;
-use crate::domain::table_texts::types::TextView;
+use ryo_operators::domain::table_texts::types::TextView;
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Operand, PlanComparison, QueryLiteral};
 use ryo_values::domain::plans::types::Operation;
@@ -96,7 +96,7 @@ pub(crate) fn invalid_patterns(
     prepared: &PreparedMatchers,
 ) -> Option<InputMask> {
     let invalid = |pattern: &ryo_values::domain::plan_parts::types::LiteralText| {
-        crate::domain::matching::types::prepared::value::compile_regex(
+        ryo_operators::domain::patterns::types::prepared::value::compile_regex(
             TextView(&pattern.0),
             matcher,
         )

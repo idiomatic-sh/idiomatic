@@ -1,4 +1,5 @@
 //! The workspace entry: families acquired through `InputAdmissions` of an invocation workspace.
+use ryo_operators::domain::table_texts::types::Texts;
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::request::{
     observed, request,
 };
@@ -23,7 +24,6 @@ use ryo_execution_domain::domain::{
     operation_schema::types::InputShape,
     table_cells::types::{TreeForm, TreeRows},
     table_model::types::Rows,
-    table_texts::types::Texts,
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId, NodeId, Relation, Value};

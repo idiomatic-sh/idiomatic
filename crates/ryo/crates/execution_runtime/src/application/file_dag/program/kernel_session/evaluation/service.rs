@@ -289,7 +289,7 @@ impl super::super::service::KernelSession<'_, '_> {
                                         })?;
                                     ryo_execution_domain::domain::operator::contract::lease::service::add_found(workspace.work(), ryo_values::domain::plan_parts::types::InputNumber(input), ryo_execution_domain::domain::operator::contract::types::FoundRows(1));
                                     let texts =
-                                        ryo_execution_domain::domain::table_texts::types::Texts {
+                                        ryo_operators::domain::table_texts::types::Texts {
                                             symbols: context.symbols.as_ref(),
                                             source: context.source,
                                             paths: context.paths,

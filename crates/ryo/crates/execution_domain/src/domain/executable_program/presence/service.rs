@@ -103,8 +103,8 @@ fn masked(mask: InputMask, presences: &[FormulaId]) -> Vec<FormulaId> {
 pub fn of_graph(
     graph: &RequestGraph,
     scope: &dyn Fn(Relation) -> RelationScope,
-    matcher: crate::domain::matching::types::PatternMatcher<'_>,
-    prepared: &crate::domain::matching::types::prepared::value::PreparedMatchers,
+    matcher: ryo_operators::domain::patterns::types::PatternMatcher<'_>,
+    prepared: &ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers,
 ) -> GraphPresence {
     let mut tables = tables();
     let mut facts: Vec<NodeFacts> = Vec::with_capacity(graph.nodes.len());

@@ -7,7 +7,7 @@ use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_domain::domain::table_groups::types::Group;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_execution_domain::domain::table_texts::types::Texts;
+use ryo_operators::domain::table_texts::types::Texts;
 use ryo_execution_store::application::file_dag::derived::admitted_views::interface::DerivedAdmittedViewsPort;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowIndex;

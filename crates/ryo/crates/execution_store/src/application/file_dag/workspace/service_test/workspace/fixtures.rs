@@ -1,9 +1,13 @@
 //! The support of the `workspace` cases.
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::{
-    derived_views::types::contract::value::PreparedViewUse, operator::types::OperatorContext,
+    derived_views::types::contract::value::PreparedViewUse,
+    operator::types::OperatorContext,
 };
-use ryo_execution_domain::domain::{derived_views::types::*, operation_schema::types::InputShape};
+use ryo_execution_domain::domain::{
+    derived_views::types::*,
+    operation_schema::types::InputShape,
+};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::rows::types::RowCount;
@@ -45,15 +49,15 @@ pub(super) fn use_(request: ViewRequest, schemas: &[&[CellKind]], len: u8) -> Pr
 
 pub(super) fn context<'a>(
     symbols: &'a mut Symbols,
-    scratch: &'a mut ryo_execution_domain::domain::table_scratch::types::OperatorScratch,
-    memo: &'a mut Vec<ryo_execution_domain::domain::operating::types::Memo>,
+    scratch: &'a mut ryo_operators::domain::table_scratch::types::OperatorScratch,
+    memo: &'a mut Vec<ryo_operators::domain::table_scratch::types::Memo>,
 ) -> OperatorContext<'a> {
     OperatorContext {
         phase: ryo_execution_domain::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
-        matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(
+        matcher: ryo_operators::domain::patterns::types::PatternMatcher(
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
         ),
         bindings: &[],

@@ -107,7 +107,7 @@ impl PreparedExecutionProgram {
     #[must_use]
     pub fn matchers(
         &self,
-    ) -> &Arc<ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers>
+    ) -> &Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers>
     {
         self.parts.inner.matchers()
     }

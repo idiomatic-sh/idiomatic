@@ -1,7 +1,7 @@
 //! The types of the `table_groups` concept: plain data, public fields and derives, with no
 //! constructor and no inherent impl.
 
-use crate::domain::table_texts::{
+use ryo_operators::domain::table_texts::{
     service::datum,
     types::{Datum, Texts},
 };

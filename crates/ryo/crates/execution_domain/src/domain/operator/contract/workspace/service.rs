@@ -1,7 +1,10 @@
 //! The `workspace` service: free functions named by verb over the domain's types, with no IO and no ports.
 
 use super::super::types::{PrimitiveWorkspace, WorkspaceLifetime as Lifetime, WorkspaceProgram};
-use crate::domain::{operating::errors::OperatingError, operation_schema::types::InputShape};
+use crate::domain::{
+    operating::errors::OperatingError,
+    operation_schema::types::InputShape,
+};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::{
     plan_parts::types::RepeatedRows, plans::types::Operation, query_operators::types::OperationKind,

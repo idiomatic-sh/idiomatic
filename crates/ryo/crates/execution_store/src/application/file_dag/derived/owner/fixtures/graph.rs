@@ -19,7 +19,10 @@ use ryo_derived::domain::vertices::types::VertexId;
 #[cfg(test)]
 use ryo_execution_domain::domain::stored_graph::types::{GraphWalk, Orientation};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_execution_domain::domain::{coverage::types::Partial, table_model::types::Rows};
+use ryo_execution_domain::domain::{
+    coverage::types::Partial,
+    table_model::types::Rows,
+};
 use ryo_execution_domain::domain::{
     derived_views::types::{contract::value::DerivedContract, *},
     operating::errors::OperatingError,

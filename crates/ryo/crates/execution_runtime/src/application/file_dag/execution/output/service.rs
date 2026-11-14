@@ -2,7 +2,7 @@
 
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
-use ryo_execution_domain::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers;
+use ryo_operators::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers;
 use ryo_language::domain::symbols::{service::query_reborrow, types::QuerySymbols};
 use ryo_relations::domain::relations::types::Value;
 
@@ -10,7 +10,7 @@ pub(crate) struct Headers<'a> {
     phase: ryo_execution_domain::domain::operating::types::AfterTheFiles,
     semantic: Option<&'a dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
     pub(crate) prepared_matchers: Option<
-        &'a ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers,
+        &'a ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers,
     >,
     pub(crate) prepared_kinds: Option<
         &'a ryo_execution_domain::domain::kind_sets::types::vocabulary::value::PreparedVocabulary,
@@ -46,7 +46,7 @@ impl<'a> Headers<'a> {
                 phase: self.phase,
                 semantic: self.semantic,
                 prepared_matchers: self.prepared_matchers,
-                matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(
+                matcher: ryo_operators::domain::patterns::types::PatternMatcher(
                     &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
                 ),
                 prepared_kinds: self.prepared_kinds,

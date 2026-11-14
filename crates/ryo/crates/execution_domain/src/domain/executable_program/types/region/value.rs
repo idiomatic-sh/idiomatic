@@ -3,7 +3,9 @@ use super::super::instruction::value::Instruction;
 use super::super::{InputSource, RegionId, Route, SourcePartition};
 use crate::domain::operator::types::ReaderMultiplicity;
 use crate::domain::{
-    coverage::types::RuleIndex, operating::errors::OperatingError, trust::types::RelationRead,
+    coverage::types::RuleIndex,
+    operating::errors::OperatingError,
+    trust::types::RelationRead,
 };
 use ryo_values::domain::lineage::types::Lineage;
 use ryo_values::domain::{plan_parts::types::StepScope, plans::types::Operation};

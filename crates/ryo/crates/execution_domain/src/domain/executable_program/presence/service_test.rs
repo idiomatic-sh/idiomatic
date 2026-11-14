@@ -83,10 +83,10 @@ fn fold(plans: &[Plan]) -> GraphPresence {
     of_graph(
         &graph(plans).0,
         &|_| super::types::RelationScope::CurrentFile,
-        crate::domain::matching::types::PatternMatcher(
+        ryo_operators::domain::patterns::types::PatternMatcher(
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
         ),
-        &crate::domain::matching::types::prepared::value::PreparedMatchers::default(),
+        &ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers::default(),
     )
 }
 /// The skip formula of the last step of the first plan.
@@ -152,7 +152,7 @@ fn project(from: Source, columns: &[u32]) -> PlanStep {
 /// The fold with `shared` read as a relation of the project, not the file, and the request's slots declared from the
 /// plans, as the program compiler declares them.
 fn fold_sharing(plans: &[Plan], shared: Option<Relation>) -> GraphPresence {
-    let prepared = crate::domain::matching::types::prepared::value::PreparedMatchers::new(plans);
+    let prepared = ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers::new(plans);
     of_graph(
         &graph(plans).0,
         &|relation| {
@@ -162,7 +162,7 @@ fn fold_sharing(plans: &[Plan], shared: Option<Relation>) -> GraphPresence {
                 super::types::RelationScope::CurrentFile
             }
         },
-        crate::domain::matching::types::PatternMatcher(
+        ryo_operators::domain::patterns::types::PatternMatcher(
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
         ),
         &prepared,
@@ -1136,10 +1136,10 @@ fn declared(raiser: Raiser, raised: Raised<'_>) -> bool {
         Raiser::Pattern(_) => {
             rows || super::narrowing::service::invalid_patterns(
                 &operation,
-                crate::domain::matching::types::PatternMatcher(
+                ryo_operators::domain::patterns::types::PatternMatcher(
                     &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
                 ),
-                &crate::domain::matching::types::prepared::value::PreparedMatchers::default(),
+                &ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers::default(),
             )
             .is_some()
         }
@@ -1257,10 +1257,10 @@ fn verdicts() -> Verdicts {
         proven: Cow::Owned(proven),
         oversized: super::narrowing::service::invalid_patterns(
             &oversized,
-            crate::domain::matching::types::PatternMatcher(
+            ryo_operators::domain::patterns::types::PatternMatcher(
                 &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
             ),
-            &crate::domain::matching::types::prepared::value::PreparedMatchers::default(),
+            &ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers::default(),
         ),
         not_run: operating(&OperatingError::NotRun),
         missing_capture: portable(&PortableOperatorFault::MissingCapture),

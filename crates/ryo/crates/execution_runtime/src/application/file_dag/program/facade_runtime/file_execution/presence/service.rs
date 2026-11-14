@@ -23,8 +23,8 @@ struct PresenceRead<'r, 'facts> {
     read: &'r dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
     owner: &'r ryo_execution_store::application::file_dag::relations::service::RelationOwner,
     execution: &'r crate::application::file_dag::program::runtime::service::ProgramExecution,
-    texts: &'r ryo_execution_domain::domain::table_texts::types::Texts<'r>,
-    matchers: &'r ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers,
+    texts: &'r ryo_operators::domain::table_texts::types::Texts<'r>,
+    matchers: &'r ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers,
     /// The provider span columns a source search that declares no failure relies on.
     spans: &'r [SpanCheck],
 }
@@ -78,7 +78,7 @@ impl FileRun<'_> {
         }
         let table = program.presence();
         self.presence.reset(table);
-        let texts = ryo_execution_domain::domain::table_texts::types::Texts {
+        let texts = ryo_operators::domain::table_texts::types::Texts {
             symbols,
             source,
             paths: self.services.request().paths(),
@@ -125,7 +125,7 @@ impl FileRun<'_> {
         let mut interior = AbsentRegions::none(RegionCount(program.regions().len()));
         if gate == PresenceGate::On {
             let table = program.presence();
-            let texts = ryo_execution_domain::domain::table_texts::types::Texts {
+            let texts = ryo_operators::domain::table_texts::types::Texts {
                 symbols,
                 source,
                 paths: self.services.request().paths(),
@@ -314,26 +314,26 @@ impl FilePresence {
                     let Some(presence) = table.tests.get(each.0) else {
                         return false;
                     };
-                    let verdict = ryo_execution_domain::domain::comparing::service::holds_bound(
+                    let verdict = ryo_operators::domain::comparing::service::holds_bound(
                         &presence.comparisons,
                         row,
-                        ryo_execution_domain::domain::comparing::types::RowShape {
+                        ryo_operators::domain::comparing::types::RowShape {
                             kinds: &presence.kinds,
-                            names: ryo_execution_domain::domain::operating::types::NameCount(0),
+                            names: ryo_operators::domain::comparing::types::NameCount(0),
                         },
                         tested.texts,
                         &[],
                         Some(tested.matchers),
-                        ryo_execution_domain::domain::matching::types::PatternMatcher(
+                        ryo_operators::domain::patterns::types::PatternMatcher(
                             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
                         ),
-                        ryo_execution_domain::domain::comparing::types::DecisionWorkspace {
+                        ryo_operators::domain::comparing::types::DecisionWorkspace {
                             select: &mut *scratch,
                             memo: &mut memo,
                         },
                     );
                     // An error holds the test: the region runs and reports it as the full run would.
-                    if matches!(verdict, Ok(ryo_execution_domain::domain::table_model::types::Verdict::Fails)) {
+                    if matches!(verdict, Ok(ryo_operators::domain::contract::types::PredicateOutcome::Fails)) {
                         true
                     } else {
                         if let Some(slot) = tests.get_mut(each.0) {

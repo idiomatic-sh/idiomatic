@@ -7,7 +7,6 @@ use crate::domain::operating::types::InputPlace;
 use crate::domain::operator::contract::primitive::types::PreparedInputs;
 use crate::domain::operator::contract::types::PrimitiveWorkspace;
 use crate::domain::operator::fixtures::{Kept, Resources, extend, with_lease};
-use crate::domain::table_model::types::Verdict;
 use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -26,7 +25,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
     let operation = extend();
     let row = [Cell::Number(Integer(1))];
     let mut sink = Kept::default();
-    let answer = with_lease(&resources, Verdict::Fails, &mut workspace, |lease| {
+    let answer = with_lease(&resources, PredicateOutcome::Fails, &mut workspace, |lease| {
         let mut rows = RowDelivery::new(
             lease,
             &mut sink,

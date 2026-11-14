@@ -196,7 +196,7 @@ fn bound(plans: &[ryo_values::domain::plans::types::Plan]) -> PreparedWalk {
         graph,
         &partitions,
         &operators,
-        crate::domain::matching::types::PatternMatcher(
+        ryo_operators::domain::patterns::types::PatternMatcher(
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
         ),
     )

@@ -21,45 +21,9 @@ pub trait SemanticLookup: std::fmt::Debug {
     ) -> Result<Vec<RenderOutcome>, OperatingError>;
 }
 
-/// The families of comparison a `select` tests with.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) enum Family {
-    /// Equal and not equal.
-    Equality,
-    /// Less, greater, and their or-equal.
-    Ordering,
-    /// Numbers written as text.
-    FloatText,
-    /// Exact canonical numeric text and whole numbers.
-    Numeric,
-    /// In and not in.
-    Membership,
-    /// Glob matches.
-    Glob,
-    /// Starts with and ends with.
-    Affix,
-    /// Regular expression searches.
-    Regex,
-}
 
-/// What a comparison decided about a name of the file.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Memo {
-    /// Not decided yet.
-    Unknown,
-    /// The comparison fails for the name.
-    Fails,
-    /// The comparison holds for the name.
-    Holds,
-}
 
-/// How many names a file has: the length of a comparison's run of the memo.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct NameCount(pub usize);
 
-/// A comparison of a `select`, by its place among the select's comparisons.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ComparisonNumber(pub usize);
 
 /// One of the inputs of a step, by its place among them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

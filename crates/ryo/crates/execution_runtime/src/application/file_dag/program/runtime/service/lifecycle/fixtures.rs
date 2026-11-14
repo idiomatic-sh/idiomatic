@@ -21,7 +21,7 @@ use std::{
 };
 use {
     ryo_execution_domain::domain::coverage::types::RuleIndex,
-    ryo_execution_domain::domain::table_scratch::types::OperatorScratch,
+    ryo_operators::domain::table_scratch::types::OperatorScratch,
     ryo_values::domain::files::types::SourceView,
 };
 
@@ -222,13 +222,13 @@ impl Emit for Sink {
 pub(super) fn context<'a>(
     symbols: &'a mut Symbols,
     scratch: &'a mut OperatorScratch,
-    memo: &'a mut Vec<ryo_execution_domain::domain::operating::types::Memo>,
+    memo: &'a mut Vec<ryo_operators::domain::table_scratch::types::Memo>,
 ) -> OperatorContext<'a> {
     OperatorContext {
         phase: ryo_execution_domain::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_matchers: None,
-        matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(
+        matcher: ryo_operators::domain::patterns::types::PatternMatcher(
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
         ),
         prepared_kinds: None,

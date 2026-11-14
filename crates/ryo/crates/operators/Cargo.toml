@@ -18,6 +18,10 @@ name = "ryo_operators"
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.4" }
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.4" }
 rustc-hash.workspace = true
+hashbrown.workspace = true
+heck.workspace = true
+num-bigint.workspace = true
+ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.1.4" }
 thiserror.workspace = true
 unicode-width.workspace = true
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.4" }

@@ -19,7 +19,9 @@ use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 #[cfg(test)]
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_domain::domain::{
-    completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
+    completion::types::CoverageState,
+    coverage::types::Partials,
+    table_model::types::Frontier,
 };
 use ryo_execution_store::application::file_dag::derived::relation_owner::types::ScopePartials;
 use ryo_language::domain::symbols::types::Symbols;

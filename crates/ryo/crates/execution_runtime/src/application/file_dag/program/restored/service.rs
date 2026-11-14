@@ -11,8 +11,10 @@ use crate::application::file_dag::program::observed_publication::service::Observ
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
-    completion::types::CoverageState, coverage::types::RuleIndex,
-    executable_program::types::InputSource, operating::errors::OperatingError,
+    completion::types::CoverageState,
+    coverage::types::RuleIndex,
+    executable_program::types::InputSource,
+    operating::errors::OperatingError,
     operator::types::OperatorContext,
 };
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;

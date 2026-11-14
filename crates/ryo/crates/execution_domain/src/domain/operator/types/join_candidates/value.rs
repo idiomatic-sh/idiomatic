@@ -8,7 +8,7 @@ use crate::domain::operator::contract::resources::types::Filtering;
 use crate::domain::operator::contract::types::PrimitiveResources;
 use crate::domain::operator::contract::views::types::{NativeCursor, NativeJoin, Started};
 use crate::domain::table_cells::service::{find_native, tree_value};
-use crate::domain::table_model::types::Verdict;
+use ryo_operators::domain::contract::types::PredicateOutcome;
 use crate::domain::table_reach::borrowed::types::{IndexedRows, KeyProbe};
 use ryo_operators::domain::contract::types::RightColumns;
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
@@ -98,7 +98,7 @@ impl<'a, 'f> JoinCandidates<'a, 'f> {
                             ColumnIndex(u32::try_from(at).unwrap_or(u32::MAX)),
                         )
                     });
-                    if rows.verdict(&row)? == Verdict::Fails {
+                    if rows.verdict(&row)? == PredicateOutcome::Fails {
                         continue;
                     }
                 }

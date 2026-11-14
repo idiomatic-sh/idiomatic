@@ -2,7 +2,10 @@
 
 use crate::application::file_dag::derived::constants as activation;
 use crate::application::file_dag::derived::owner::cache::types::GraphAdmission;
-use ryo_execution_domain::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
+use ryo_execution_domain::domain::{
+    coverage::types::RuleIndex,
+    operating::errors::OperatingError,
+};
 use ryo_relations::domain::relations::types::Relation;
 
 /// What one rule of a request needs of the derived views: the relations it reads per file, each once in the order first read, and

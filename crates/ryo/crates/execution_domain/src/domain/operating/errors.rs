@@ -85,3 +85,25 @@ pub enum OperatingError {
     #[error(transparent)]
     Table(#[from] RowsError),
 }
+
+impl From<ryo_operators::domain::comparing::errors::ComparingError> for OperatingError {
+    fn from(fault: ryo_operators::domain::comparing::errors::ComparingError) -> Self {
+        use ryo_operators::domain::comparing::errors::ComparingError as Fault;
+        match fault {
+            Fault::WrongTest => Self::WrongTest,
+            Fault::Unbound => Self::Unbound,
+            Fault::WrongBinding => Self::WrongBinding,
+            Fault::InvalidRegex { reason } => Self::InvalidRegex { reason },
+            Fault::Rows(error) => Self::Table(error),
+        }
+    }
+}
+
+impl From<ryo_operators::domain::patterns::errors::PatternsError> for OperatingError {
+    fn from(fault: ryo_operators::domain::patterns::errors::PatternsError) -> Self {
+        use ryo_operators::domain::patterns::errors::PatternsError as Fault;
+        match fault {
+            Fault::InvalidRegex { reason } => Self::InvalidRegex { reason },
+        }
+    }
+}

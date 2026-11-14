@@ -4,7 +4,8 @@ use crate::application::file_dag::program::admission::{
     types::PartitionSupply, types::RequiredPartitions,
 };
 use ryo_execution_domain::domain::{
-    coverage::types::RuleIndex, operating::errors::OperatingError,
+    coverage::types::RuleIndex,
+    operating::errors::OperatingError,
     rule_intent::types::ApplicabilityReason,
 };
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;

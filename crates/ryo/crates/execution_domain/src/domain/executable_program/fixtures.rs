@@ -12,7 +12,8 @@ use crate::domain::file_program::types::{NodeInput, ProgramNodeId};
 use crate::domain::operator::types::ReaderMultiplicity;
 use crate::domain::source_partitions::types::PartitionRequirement;
 use crate::domain::{
-    operation_schema::types::InputShape, operator::contract::service::prepare_for,
+    operation_schema::types::InputShape,
+    operator::contract::service::prepare_for,
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::query_operators::types::OperationKind;

@@ -5,10 +5,10 @@ use crate::application::file_dag::predicates::constants::{
 };
 use crate::application::file_dag::predicates::types::BoundPredicate;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers;
+use ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers;
 use ryo_execution_domain::domain::operator::contract::types::PreparedPredicates;
 use ryo_execution_domain::domain::operator::contract::views::types::PredicateProgram;
-use ryo_execution_domain::domain::table_model::types::Verdict;
+use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
@@ -25,7 +25,7 @@ use std::sync::atomic::Ordering;
 /// The verdict on the row's text, and how many regexes the prepared matchers built for it.
 #[derive(Debug, PartialEq)]
 struct Held {
-    verdict: Verdict,
+    verdict: PredicateOutcome,
     builds: usize,
 }
 
@@ -48,7 +48,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || STOP,
         expect: Expect::Value(Held {
-            verdict: Verdict::Fails,
+            verdict: PredicateOutcome::Fails,
             builds: 0,
         }),
     },

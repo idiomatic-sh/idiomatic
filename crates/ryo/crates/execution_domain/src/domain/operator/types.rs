@@ -1,8 +1,9 @@
 //! Immutable plan layouts, shared execution accounting vocabulary and what an operator reads.
 
+use ryo_operators::domain::table_scratch::types::Memo;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::{AfterTheFiles, Memo, SemanticLookup};
-use crate::domain::table_scratch::types::OperatorScratch;
+use crate::domain::operating::types::{AfterTheFiles, SemanticLookup};
+use ryo_operators::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::Value;
@@ -49,10 +50,10 @@ pub struct OperatorContext<'a> {
     /// The current file's application-owned semantic session, when available.
     pub semantic: Option<&'a dyn SemanticLookup>,
     /// The matching semantics the parent supplies for regular expressions and globs.
-    pub matcher: crate::domain::matching::types::PatternMatcher<'a>,
+    pub matcher: ryo_operators::domain::patterns::types::PatternMatcher<'a>,
     /// Finite authored literal matchers owned by this worker's prepared request.
     pub prepared_matchers:
-        Option<&'a crate::domain::matching::types::prepared::value::PreparedMatchers>,
+        Option<&'a ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers>,
     /// Finite prepared literal-kind metadata for the current exact vocabulary.
     pub prepared_kinds:
         Option<&'a crate::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>,

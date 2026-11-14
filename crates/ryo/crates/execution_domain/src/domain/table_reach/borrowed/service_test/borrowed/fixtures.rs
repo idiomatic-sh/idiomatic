@@ -2,7 +2,7 @@
 use super::super::super::service::*;
 use super::super::super::types::*;
 use crate::domain::table_model::types::RepresentationInput;
-use crate::domain::table_model::types::SetMembership;
+use ryo_operators::domain::table_scratch::types::SetMembership;
 use crate::domain::table_reach::types::Walk;
 use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::contract::types::BuildOutcome;

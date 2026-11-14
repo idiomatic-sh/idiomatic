@@ -1,7 +1,7 @@
 //! The `text_gate` service: the columns the comparisons of a select read, with no IO and no ports.
 
 use crate::domain::table_cells::types::ColumnPlaces;
-use crate::domain::table_scratch::types::ComparisonNumbers;
+use ryo_operators::domain::table_scratch::types::ComparisonNumbers;
 use ryo_values::domain::plan_parts::service::each_column;
 use ryo_values::domain::plan_parts::types::PlanComparison;
 

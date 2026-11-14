@@ -7,7 +7,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::primitive::types::PreparedInputs;
 use crate::domain::operator::contract::types::PrimitiveWorkspace;
 use crate::domain::operator::fixtures::{Kept, Resources, extend, with_lease};
-use crate::domain::table_model::types::Verdict;
+use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_operators::domain::contract::types::RightColumns;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -24,7 +24,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
     let mut workspace = PrimitiveWorkspace::default();
     let operation = extend();
     let mut sink = Kept::default();
-    with_lease(&resources, Verdict::Holds, &mut workspace, |lease| {
+    with_lease(&resources, PredicateOutcome::Holds, &mut workspace, |lease| {
         let mut candidates = JoinCandidates::new(&resources, &operation, &[], Vec::new());
         let mut rows = RowDelivery::new(lease, &mut sink, &operation, PreparedInputs::Views(&[]));
         case(&mut candidates, &mut rows).map_err(|()| rows.take_failure())

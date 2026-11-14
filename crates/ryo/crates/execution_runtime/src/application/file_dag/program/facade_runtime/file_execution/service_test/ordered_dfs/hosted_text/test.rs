@@ -232,7 +232,7 @@ fn text_walk(roots: &[[&str; 2]], edges: &[(&str, &str, i64)]) -> Result<Observe
         &mut observed,
     )?;
     let out = ran.answer?;
-    let texts = ryo_execution_domain::domain::table_texts::types::Texts {
+    let texts = ryo_operators::domain::table_texts::types::Texts {
         symbols: &symbols,
         source: ryo_values::domain::files::types::SourceView(b""),
         paths: &[],
@@ -243,8 +243,8 @@ fn text_walk(roots: &[[&str; 2]], edges: &[(&str, &str, i64)]) -> Result<Observe
         let strings = row[..5]
             .iter()
             .map(|cell| {
-                let ryo_execution_domain::domain::table_texts::types::Datum::Text(text) =
-                    ryo_execution_domain::domain::table_texts::service::datum(*cell, &texts)
+                let ryo_operators::domain::table_texts::types::Datum::Text(text) =
+                    ryo_operators::domain::table_texts::service::datum(*cell, &texts)
                 else {
                     panic!("owned text")
                 };

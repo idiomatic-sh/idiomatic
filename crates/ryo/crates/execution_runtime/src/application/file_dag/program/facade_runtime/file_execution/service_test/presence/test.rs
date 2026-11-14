@@ -1432,10 +1432,10 @@ fn consumers_of_a_bound_observation_are_never_absent() -> Seen {
         &|_| {
             ryo_execution_domain::domain::executable_program::presence::types::RelationScope::CurrentFile
         },
-        ryo_execution_domain::domain::matching::types::PatternMatcher(
+        ryo_operators::domain::patterns::types::PatternMatcher(
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
         ),
-        &ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers::default(
+        &ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers::default(
         ),
     );
     let consumer = graph.program_nodes[1]

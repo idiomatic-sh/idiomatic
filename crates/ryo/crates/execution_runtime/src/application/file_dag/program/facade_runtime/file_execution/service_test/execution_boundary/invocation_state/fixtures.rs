@@ -5,7 +5,7 @@ use super::super::super::scratch_owner::fixtures::{Left, execute, hosted};
 use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::types::Memo;
+use ryo_operators::domain::table_scratch::types::Memo;
 use ryo_execution_domain::domain::operator::types::Emit as RowSink;
 #[cfg(test)]
 use ryo_execution_domain::domain::operator::types::OperatorContext;

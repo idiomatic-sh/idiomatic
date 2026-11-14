@@ -1,5 +1,6 @@
 //! The `kind_sets` service: the comparisons that name a kind, as sets of kinds, with no IO and no ports.
 
+use ryo_operators::domain::table_scratch::types::SetMembership;
 use ryo_language::domain::elements::service::{kind_names, kind_vocabulary};
 use ryo_language::domain::symbols::service::text_of;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -9,19 +10,19 @@ use ryo_relations::domain::relations::types::KindBits;
 use super::constants::{NO_NAME, SET_OF_TEST};
 use super::types::vocabulary::value::{PreparedKindTest, PreparedVocabulary};
 use super::types::{ComparisonOrdinal, KindScratch, ListAddress};
-use crate::domain::comparing::collections::comparisons::affix::item::AffixItem;
-use crate::domain::comparing::collections::comparisons::equality::item::EqualityItem;
-use crate::domain::comparing::collections::comparisons::glob::item::GlobItem;
-use crate::domain::comparing::collections::comparisons::interface::ComparisonsItem as _;
-use crate::domain::matching::types::PatternMatcher;
+use ryo_operators::domain::comparing::collections::comparisons::affix::item::AffixItem;
+use ryo_operators::domain::comparing::collections::comparisons::equality::item::EqualityItem;
+use ryo_operators::domain::comparing::collections::comparisons::glob::item::GlobItem;
+use ryo_operators::domain::comparing::collections::comparisons::interface::ComparisonsItem as _;
+use ryo_operators::domain::patterns::types::PatternMatcher;
 use crate::domain::operating::types::KindNaming;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::types::{SetMembership, Verdict};
-use crate::domain::table_scratch::service::kind_has;
-use crate::domain::table_scratch::types::{
+use ryo_operators::domain::contract::types::PredicateOutcome;
+use ryo_operators::domain::table_scratch::service::kind_has;
+use ryo_operators::domain::table_scratch::types::{
     KindSet, KindSetPlace, KindTest, NamingPlace, NamingTest,
 };
-use crate::domain::table_texts::types::{Datum, TextView};
+use ryo_operators::domain::table_texts::types::{Datum, TextView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::descriptions::types::KindWord;
 use ryo_values::domain::files::types::SourceView;
@@ -75,17 +76,18 @@ pub fn satisfies(
     name: TextView<'_>,
     wanted: TextView<'_>,
     matcher: PatternMatcher<'_>,
-) -> Verdict {
+) -> PredicateOutcome {
     let (left, right) = (Datum::Text(name), Datum::Text(wanted));
     match test {
         Test::Equal | Test::NotEqual => EqualityItem.holds(test, &left, &right),
         Test::StartsWith | Test::EndsWith => AffixItem.holds(test, &left, &right),
-        Test::Matches => crate::domain::matching::service::matches(
+        Test::Matches => ryo_operators::domain::patterns::service::matches(
             &left,
             &right,
-            &mut crate::domain::table_scratch::types::Patterns::default(),
+            &mut ryo_operators::domain::table_scratch::types::Patterns::default(),
             matcher,
-        ),
+        )
+        .map_err(ryo_operators::domain::comparing::errors::ComparingError::from),
         Test::LessThan
         | Test::LessThanOrEqual
         | Test::GreaterThan
@@ -99,7 +101,7 @@ pub fn satisfies(
         | Test::GlobAny
         | Test::NotGlobAny => GlobItem(matcher).holds(test, &left, &right),
     }
-    .unwrap_or(Verdict::Fails)
+    .unwrap_or(PredicateOutcome::Fails)
 }
 
 /// Reads the comparisons of a filter that name a kind into `tests`, each as the set of kinds that
@@ -190,16 +192,16 @@ fn set_at(scratch: &KindScratch, place: KindSetPlace) -> &KindSet {
 }
 
 /// Whether an element of this kind passes every comparison that names a kind.
-pub(crate) fn passes(scratch: &KindScratch, kind: KindBits) -> Verdict {
+pub(crate) fn passes(scratch: &KindScratch, kind: KindBits) -> PredicateOutcome {
     if scratch
         .tests
         .0
         .iter()
         .all(|set| kind_has(set_at(scratch, KindSetPlace(*set)), kind) == SetMembership::In)
     {
-        Verdict::Holds
+        PredicateOutcome::Holds
     } else {
-        Verdict::Fails
+        PredicateOutcome::Fails
     }
 }
 
@@ -270,7 +272,7 @@ fn make_set(
     made.bits.0.resize(names.len().div_ceil(64), 0);
     for (bits, name) in names.iter().enumerate() {
         if name.as_ref().is_some_and(|name| {
-            satisfies(test, TextView(&name.0), TextView(&literal.0), matcher) == Verdict::Holds
+            satisfies(test, TextView(&name.0), TextView(&literal.0), matcher) == PredicateOutcome::Holds
         }) {
             if let Some(word) = made.bits.0.get_mut(bits / 64) {
                 *word |= 1 << (bits % 64);

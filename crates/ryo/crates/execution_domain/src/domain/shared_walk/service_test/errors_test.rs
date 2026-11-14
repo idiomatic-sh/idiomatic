@@ -10,7 +10,7 @@ use crate::domain::shared_walk::types::native_batch::value::NativeBatch;
 use crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk;
 use crate::domain::step_classes::types::ClassPlace;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_scratch::types::OperatorScratch;
+use ryo_operators::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
@@ -92,7 +92,7 @@ fn first_source_row() -> NativeBatch {
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
-        matcher: crate::domain::matching::service_test::matcher(),
+        matcher: ryo_operators::domain::patterns::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(source),

@@ -6,7 +6,7 @@ use crate::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution_domain::domain::kind_check::service::{
     first_unknown, kinds_asked, unknown_message,
 };
-use ryo_execution_domain::domain::matching::types::PatternMatcher;
+use ryo_operators::domain::patterns::types::PatternMatcher;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use std::sync::Arc;
 

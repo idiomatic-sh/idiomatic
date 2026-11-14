@@ -1,11 +1,12 @@
 //! File-local scratch for one borrowed relation pass.
 
+use ryo_operators::domain::table_scratch::types::Memo;
 use crate::domain::{
-    operating::{errors::OperatingError, types::Memo},
+    operating::errors::OperatingError,
     step_classes::types::ClassPlace,
     table_cells::types::ColumnPlaces,
-    table_model::types::Verdict,
 };
+use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_relations::domain::relations::types::Value;
 
 pub mod native_batch;
@@ -95,7 +96,7 @@ pub struct WalkWork {
 #[derive(Debug, Default)]
 pub struct PredicateMemo {
     /// The decision of each predicate, by its place, once made.
-    pub slots: Vec<Option<Result<Verdict, OperatingError>>>,
+    pub slots: Vec<Option<Result<PredicateOutcome, OperatingError>>>,
     /// The places filled for the current row.
     pub filled: Vec<PredicatePlace>,
 }

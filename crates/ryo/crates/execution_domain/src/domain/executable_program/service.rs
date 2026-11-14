@@ -23,7 +23,7 @@ pub fn compile(
     graph: RequestGraph,
     partitions: &dyn ProducerPartitions,
     prepared: &crate::domain::file_program::types::RequestOperators,
-    matcher: crate::domain::matching::types::PatternMatcher<'_>,
+    matcher: ryo_operators::domain::patterns::types::PatternMatcher<'_>,
 ) -> Result<ExecutableProgram, OperatingError> {
     let count = graph.nodes.len();
     let mut origins = vec![None; count];
@@ -45,7 +45,7 @@ pub fn compile(
     // The request's literal pattern slots, declared from every operation before the graph is consumed: the fold compiles
     // the source searches' patterns into them, and the run reads the same slots.
     let matchers = std::sync::Arc::new(
-        crate::domain::matching::types::prepared::value::PreparedMatchers::from_operations(
+        ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers::from_operations(
             graph.nodes.iter().map(|node| &node.operation),
         ),
     );

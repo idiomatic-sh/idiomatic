@@ -81,9 +81,9 @@ pub(crate) struct FilePresence {
     /// Room for one relation row, the tests still open on a relation, and a comparison memo, kept for the file.
     pub(super) cells: Vec<ryo_relations::domain::relations::types::Value>,
     pub(super) open: Vec<ryo_execution_domain::domain::executable_program::presence::types::TestId>,
-    pub(super) memo: Vec<ryo_execution_domain::domain::operating::types::Memo>,
-    pub(super) scratch: ryo_execution_domain::domain::table_scratch::types::LazyScratch<
-        ryo_execution_domain::domain::table_scratch::types::SelectScratch,
+    pub(super) memo: Vec<ryo_operators::domain::table_scratch::types::Memo>,
+    pub(super) scratch: ryo_operators::domain::table_scratch::types::LazyScratch<
+        ryo_operators::domain::table_scratch::types::SelectScratch,
     >,
 }
 

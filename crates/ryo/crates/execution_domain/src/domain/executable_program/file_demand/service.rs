@@ -9,7 +9,10 @@ use crate::domain::executable_program::types::absent_roots::value::AbsentRoots;
 use crate::domain::executable_program::types::file_rule_demand::value::FileRuleDemand;
 use crate::domain::operator::types::ReaderMultiplicity;
 use crate::domain::rule_intent::types::FrontierPurpose;
-use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
+use crate::domain::{
+    coverage::types::RuleIndex,
+    operating::errors::OperatingError,
+};
 use ryo_values::domain::{plan_parts::types::StepScope, records::types::ObservationIndex};
 
 fn region(

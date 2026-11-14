@@ -7,7 +7,9 @@ use crate::application::file_dag::program::facade_runtime::service::ProjectFront
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::{
-    completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
+    completion::types::CoverageState,
+    coverage::types::Partials,
+    table_model::types::Frontier,
 };
 use ryo_execution_store::application::file_dag::derived::relation_owner::types::ScopePartials;
 use ryo_language::domain::symbols::types::Symbols;

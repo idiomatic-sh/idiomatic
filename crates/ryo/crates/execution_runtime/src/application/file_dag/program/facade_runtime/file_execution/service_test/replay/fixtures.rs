@@ -20,7 +20,7 @@ use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 #[cfg(test)]
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_execution_domain::domain::table_scratch::types::OperatorScratch;
+use ryo_operators::domain::table_scratch::types::OperatorScratch;
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
     operator::types::Emit as RowSink,
@@ -66,7 +66,7 @@ pub(super) fn context<T>(run: impl FnOnce(&mut OperatorContext<'_>) -> T) -> T {
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
-        matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(
+        matcher: ryo_operators::domain::patterns::types::PatternMatcher(
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
         ),
         bindings: &[],

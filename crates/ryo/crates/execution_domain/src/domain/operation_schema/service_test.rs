@@ -2,7 +2,10 @@
 use std::borrow::Cow;
 
 use super::{fixtures::*, service::schema_of, types::InputShape};
-use crate::domain::{features::service::catalog, operating::errors::OperatingError};
+use crate::domain::{
+    features::service::catalog,
+    operating::errors::OperatingError,
+};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};

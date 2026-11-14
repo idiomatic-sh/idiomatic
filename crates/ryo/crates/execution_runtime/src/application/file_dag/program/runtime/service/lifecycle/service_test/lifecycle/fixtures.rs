@@ -1,4 +1,5 @@
 //! The support of the `lifecycle` cases: one compiled program run through each lifecycle path.
+use ryo_operators::domain::table_scratch::types::OperatorScratch;
 use super::super::super::fixtures::{
     Reentry, RuntimeProbe, RuntimeProbeMode, Seen, Sink, SinkMode, context,
 };
@@ -11,7 +12,7 @@ use crate::application::file_dag::program::runtime::types::DependencyCheckpoint;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::{
-    coverage::types::RuleIndex, table_scratch::types::OperatorScratch,
+    coverage::types::RuleIndex,
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::FileId;

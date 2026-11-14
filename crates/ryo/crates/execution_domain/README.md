@@ -4,10 +4,6 @@ Holds the execution engine's domain, the bottom of its crates: the compiled prog
 
 ## Domains
 
-### comparing
-
-Evaluates typed selection comparisons against borrowed rows and bindings.
-
 ### completion
 
 Decides physical completeness independent of execution scheduling.
@@ -56,10 +52,6 @@ Carries a coverage of files to the file-frontier boundary and restores it.
 
 Describes the retained rows and project facts read by cross-file steps.
 
-### functions
-
-Computes comparison function text from typed operand values.
-
 ### hosted
 
 Describes host-provided relations and their declared row shapes.
@@ -72,21 +64,9 @@ Checks query kind names against the linked language vocabulary.
 
 Prepares named kind comparisons as sets of admitted kinds.
 
-### matching
-
-Evaluates compiled text patterns over borrowed query values.
-
-### numeric_values
-
-Orders canonical decimal and binary numeric values consistently.
-
 ### observation_schedule
 
 Schedules the rules that read named observations and links the plans beneath them.
-
-### operands
-
-Reads typed comparison operands from rows, parameters and literals.
 
 ### operating
 
@@ -175,14 +155,6 @@ Defines table representations and their physical row access.
 ### table_reach
 
 Traverses reachable table nodes in source order.
-
-### table_scratch
-
-Holds per-invocation table workspace and work counters.
-
-### table_texts
-
-Resolves table text cells through their retained name sources.
 
 ### text_gate
 

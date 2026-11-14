@@ -12,8 +12,8 @@ pub fn real_derived_port()
 }
 
 /// The matching semantics the proofs hand to the domain: the portable matching use case.
-pub fn pattern_matcher() -> ryo_execution_domain::domain::matching::types::PatternMatcher<'static> {
-    ryo_execution_domain::domain::matching::types::PatternMatcher(
+pub fn pattern_matcher() -> ryo_operators::domain::patterns::types::PatternMatcher<'static> {
+    ryo_operators::domain::patterns::types::PatternMatcher(
         &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
     )
 }

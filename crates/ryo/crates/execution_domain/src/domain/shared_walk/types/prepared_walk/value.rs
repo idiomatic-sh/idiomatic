@@ -94,7 +94,7 @@ impl PreparedWalk {
             let mut needed = crate::domain::table_cells::types::ColumnPlaces::default();
             crate::domain::text_gate::service::needed_of_rest(
                 &class.comparisons,
-                &crate::domain::table_scratch::types::ComparisonNumbers(
+                &ryo_operators::domain::table_scratch::types::ComparisonNumbers(
                     (0..class.comparisons.len()).collect(),
                 ),
                 &mut needed,

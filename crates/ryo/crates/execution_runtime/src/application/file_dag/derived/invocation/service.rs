@@ -11,9 +11,10 @@ use ryo_execution_domain::domain::operator::contract::{
     views::types::NativeJoin,
 };
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_execution_domain::domain::table_texts::types::Texts;
+use ryo_operators::domain::table_texts::types::Texts;
 use ryo_execution_domain::domain::{
-    operating::errors::OperatingError, operator::types::OperatorContext,
+    operating::errors::OperatingError,
+    operator::types::OperatorContext,
 };
 use ryo_execution_store::application::file_dag::derived::admitted_views::interface::DerivedAdmittedViewsPort;
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;

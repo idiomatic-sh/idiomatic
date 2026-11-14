@@ -3,7 +3,7 @@
 use super::super::super::fixtures;
 use super::super::super::fixtures::requests::run_prepared;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_domain::domain::table_texts::types::TextView;
+use ryo_operators::domain::table_texts::types::TextView;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_language::domain::elements::types::Elements;

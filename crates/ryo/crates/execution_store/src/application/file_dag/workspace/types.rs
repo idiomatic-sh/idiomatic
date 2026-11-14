@@ -1,8 +1,9 @@
 //! The borrowed parts of one invocation's workspace a kernel works in, lent together so one evaluation can hold them at once.
-use ryo_execution_domain::domain::operating::types::{Memo, NameCount};
+use ryo_operators::domain::table_scratch::types::Memo;
+use ryo_operators::domain::comparing::types::NameCount;
 use ryo_execution_domain::domain::operator::contract::types::{PrimitiveWorkspace, WorkCounters};
-use ryo_execution_domain::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers;
-use ryo_execution_domain::domain::table_scratch::types::{LazyScratch, SelectScratch};
+use ryo_operators::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers;
+use ryo_operators::domain::table_scratch::types::{LazyScratch, SelectScratch};
 use ryo_matching::inbound::use_cases::matching::types::CompiledRegex;
 
 /// The working allocations of one invocation, each borrowed apart from the others: a view of the workspace, never
@@ -40,7 +41,7 @@ pub enum ViewInputs<'a, 's> {
     MembershipValues,
     MembershipNative,
     /// Text cells, read through the texts.
-    Text(&'a ryo_execution_domain::domain::table_texts::types::Texts<'a>),
+    Text(&'a ryo_operators::domain::table_texts::types::Texts<'a>),
     Dfs {
         symbols: &'a mut ryo_language::domain::symbols::types::QuerySymbols<'s>,
         source: ryo_values::domain::files::types::SourceView<'a>,

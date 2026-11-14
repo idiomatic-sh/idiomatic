@@ -16,7 +16,8 @@ use crate::application::file_dag::derived::population::service::PopulationId;
 use crate::application::file_dag::route_counts;
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::{
-    derived_views::types::contract::value::DerivedContract, operating::errors::OperatingError,
+    derived_views::types::contract::value::DerivedContract,
+    operating::errors::OperatingError,
 };
 use std::sync::Arc;
 

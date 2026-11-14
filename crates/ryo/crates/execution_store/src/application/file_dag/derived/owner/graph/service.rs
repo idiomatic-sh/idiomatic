@@ -8,7 +8,8 @@ use std::sync::Arc;
 use crate::application::file_dag::accounting::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use ryo_execution_domain::domain::{
-    derived_views::types::contract::value::DerivedContract, operating::errors::OperatingError,
+    derived_views::types::contract::value::DerivedContract,
+    operating::errors::OperatingError,
 };
 
 use super::super::service::*;

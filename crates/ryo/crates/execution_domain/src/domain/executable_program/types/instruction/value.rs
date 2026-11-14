@@ -1,7 +1,10 @@
 //! A compiled instruction: fields private, made only by the executable-program compiler, read through accessors.
 use super::super::demand_program::value::DemandProgram;
 use super::super::{LogicalInstruction, PartitionRequirement};
-use crate::domain::{coverage::types::RuleIndex, operator::contract::types::OperatorContract};
+use crate::domain::{
+    coverage::types::RuleIndex,
+    operator::contract::types::OperatorContract,
+};
 use ryo_values::domain::plans::types::Operation;
 use std::sync::Arc;
 

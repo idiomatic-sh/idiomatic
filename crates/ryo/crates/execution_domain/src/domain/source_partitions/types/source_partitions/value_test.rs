@@ -3,7 +3,8 @@
 use super::fixtures::{Binding, Producer, Query, World, ask, bound, incomplete, observing};
 use super::value::relation_partition;
 use crate::domain::{
-    coverage::types::RuleIndex, operating::errors::OperatingError,
+    coverage::types::RuleIndex,
+    operating::errors::OperatingError,
     source_partitions::types::PartitionRequirement,
 };
 use ryo_relations::domain::catalog::service::scope_of;

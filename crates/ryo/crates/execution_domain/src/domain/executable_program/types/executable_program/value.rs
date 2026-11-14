@@ -24,7 +24,7 @@ pub struct ExecutableProgram {
     presence: crate::domain::executable_program::presence::types::PresenceTable,
     /// The request's literal pattern slots, declared from the program's operations; the presence fold compiled its source
     /// searches' patterns into them.
-    matchers: std::sync::Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
+    matchers: std::sync::Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers>,
     /// The fusion classification of every instruction, indexed by its logical number.
     #[cfg(any(test, feature = "fixtures"))]
     fusibility: Box<[crate::domain::executable_program::fusion::types::Fusibility]>,
@@ -83,7 +83,7 @@ impl ExecutableProgram {
     /// The same program with the literal pattern slots its presence fold compiled into.
     pub(in crate::domain::executable_program) fn with_matchers(
         mut self,
-        matchers: std::sync::Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
+        matchers: std::sync::Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers>,
     ) -> Self {
         self.matchers = matchers;
         self
@@ -95,7 +95,7 @@ impl ExecutableProgram {
     /// ```
     /// // A program is built only by compiling a request, and this crate has no fixture path to one: the call's types, checked.
     /// use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
-    /// use ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers;
+    /// use ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers;
     /// use std::sync::Arc;
     /// fn slots(program: &ExecutableProgram) -> &Arc<PreparedMatchers> {
     ///     program.matchers()
@@ -103,7 +103,7 @@ impl ExecutableProgram {
     /// ```
     pub fn matchers(
         &self,
-    ) -> &std::sync::Arc<crate::domain::matching::types::prepared::value::PreparedMatchers> {
+    ) -> &std::sync::Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers> {
         &self.matchers
     }
     /// What a file must hold for each region to have a row or a row error there.

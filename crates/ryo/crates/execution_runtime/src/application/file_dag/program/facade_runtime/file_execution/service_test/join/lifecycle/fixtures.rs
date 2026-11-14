@@ -12,8 +12,8 @@ use fixtures::execution::*;
 use fixtures::provider::*;
 use rustc_hash::FxHashMap;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
-use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::operating::{errors::OperatingError, types::Memo};
+use ryo_execution_domain::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
+use ryo_operators::domain::table_scratch::types::Memo;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_domain::domain::rule_intent::types::{
     CaptureIntent, DiagnosticDelivery, FileRuleIntent, ObservationDemand,

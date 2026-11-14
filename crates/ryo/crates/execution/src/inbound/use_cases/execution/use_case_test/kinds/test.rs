@@ -6,7 +6,7 @@ use super::fixtures::{
 };
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_domain::domain::operating::types::KindNaming;
-use ryo_execution_domain::domain::table_model::types::Verdict;
+use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::Test;
@@ -103,10 +103,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Observed::Naming {
             naming: [KindNaming::Names, KindNaming::Silent, KindNaming::Silent],
             verdicts: [
-                Verdict::Holds,
-                Verdict::Fails,
-                Verdict::Holds,
-                Verdict::Holds,
+                PredicateOutcome::Holds,
+                PredicateOutcome::Fails,
+                PredicateOutcome::Holds,
+                PredicateOutcome::Holds,
             ],
         }),
     },

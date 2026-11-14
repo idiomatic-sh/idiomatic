@@ -14,7 +14,7 @@
 /// use ryo_execution_domain::domain::executable_program::kernel::service::row_admissible;
 /// use ryo_execution_domain::domain::executable_program::types::RowGate;
 /// use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
-/// use ryo_execution_domain::domain::table_texts::types::Texts;
+/// use ryo_operators::domain::table_texts::types::Texts;
 /// use ryo_relations::domain::relations::types::Value;
 /// fn gate(contract: &OperatorContract, row: &[Value], texts: &Texts<'_>) -> Option<RowGate> {
 ///     row_admissible(contract, row, texts).ok()
@@ -23,7 +23,7 @@
 pub fn row_admissible(
     contract: &crate::domain::operator::contract::types::OperatorContract,
     row: &[ryo_relations::domain::relations::types::Value],
-    texts: &crate::domain::table_texts::types::Texts<'_>,
+    texts: &ryo_operators::domain::table_texts::types::Texts<'_>,
 ) -> Result<
     crate::domain::executable_program::types::RowGate,
     crate::domain::operating::errors::OperatingError,
@@ -31,7 +31,7 @@ pub fn row_admissible(
     use {
         crate::domain::executable_program::types::RowGate,
         crate::domain::operator::contract::types::SourceGate,
-        crate::domain::table_texts::service::datum, crate::domain::table_texts::types::Datum,
+        ryo_operators::domain::table_texts::service::datum, ryo_operators::domain::table_texts::types::Datum,
         ryo_values::domain::rows::service::cell,
     };
     if let Some(error) = &contract.row_error {

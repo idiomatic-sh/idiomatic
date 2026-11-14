@@ -101,7 +101,7 @@ impl PreparedProgram {
     }
     pub(crate) fn matchers(
         &self,
-    ) -> &Arc<ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers>
+    ) -> &Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers>
     {
         &self.matchers
     }
@@ -204,7 +204,7 @@ pub(crate) fn compile_program(
         graph,
         partitions,
         operators,
-        ryo_execution_domain::domain::matching::types::PatternMatcher(
+        ryo_operators::domain::patterns::types::PatternMatcher(
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
         ),
     )

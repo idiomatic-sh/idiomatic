@@ -11,7 +11,7 @@ use ryo_execution_domain::domain::operator::contract::{
     context::service::with_primitive_context, primitive::types::PreparedInputs, types::*,
 };
 use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
-use ryo_execution_domain::domain::table_texts::{
+use ryo_operators::domain::table_texts::{
     service::datum,
     types::{Datum, Texts},
 };
@@ -150,7 +150,7 @@ pub(super) fn evaluate_once(
     let regex = if let Some(pattern) = &contract.literal_pattern {
         if let Some(prepared) = context.prepared_matchers.and_then(|prepared| {
             prepared.regex(
-                ryo_execution_domain::domain::table_texts::types::TextView(&pattern.0),
+                ryo_operators::domain::table_texts::types::TextView(&pattern.0),
                 context.matcher,
             )
         }) {
@@ -158,8 +158,8 @@ pub(super) fn evaluate_once(
         } else {
             if parts.literal_regex.is_none() {
                 *parts.literal_regex = Some(
-                    ryo_execution_domain::domain::matching::types::prepared::value::compile_regex(
-                        ryo_execution_domain::domain::table_texts::types::TextView(&pattern.0),
+                    ryo_operators::domain::patterns::types::prepared::value::compile_regex(
+                        ryo_operators::domain::table_texts::types::TextView(&pattern.0),
                         context.matcher,
                     )?,
                 );
@@ -285,7 +285,7 @@ pub(super) fn evaluate_once(
 pub(super) struct OutputBridge<'a> {
     emit: &'a mut dyn Emit,
     headers: super::super::output::service::Headers<'a>,
-    downstream: &'a mut ryo_execution_domain::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers,
+    downstream: &'a mut ryo_operators::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers,
 }
 
 impl RowSink for OutputBridge<'_> {

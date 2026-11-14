@@ -4,8 +4,8 @@ use crate::domain::kind_sets::service::{kind_tests, passes, prepare_vocabulary};
 use crate::domain::kind_sets::types::KindScratch;
 use crate::domain::operator::types::OperatorContext;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::types::Verdict;
-use crate::domain::table_scratch::types::OperatorScratch;
+use ryo_operators::domain::contract::types::PredicateOutcome;
+use ryo_operators::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
@@ -78,7 +78,7 @@ fn prepared_masks_reuse_exact_vocabulary_without_per_row_setup() {
             semantic: None,
             prepared_kinds: Some(&prepared),
             prepared_matchers: None,
-            matcher: crate::domain::matching::types::PatternMatcher(
+            matcher: ryo_operators::domain::patterns::types::PatternMatcher(
                 &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
             ),
             bindings: &[],
@@ -100,8 +100,8 @@ fn prepared_masks_reuse_exact_vocabulary_without_per_row_setup() {
         );
         let lookups = prepared.lookups.load(Ordering::Relaxed);
         for _row in 0..1000 {
-            assert_eq!(passes(&kinds, KindBits(1)), Verdict::Holds);
-            assert_eq!(passes(&kinds, KindBits(0)), Verdict::Fails);
+            assert_eq!(passes(&kinds, KindBits(1)), PredicateOutcome::Holds);
+            assert_eq!(passes(&kinds, KindBits(0)), PredicateOutcome::Fails);
         }
         kind_tests(
             &tree,
@@ -151,7 +151,7 @@ fn prepared_vocabulary_replacement_preserves_live_old_masks_and_test_identity() 
             semantic: None,
             prepared_kinds: Some(&prepared),
             prepared_matchers: None,
-            matcher: crate::domain::matching::types::PatternMatcher(
+            matcher: ryo_operators::domain::patterns::types::PatternMatcher(
                 &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
             ),
             bindings: &[],
@@ -177,8 +177,8 @@ fn prepared_vocabulary_replacement_preserves_live_old_masks_and_test_identity() 
         );
         assert_eq!(prepared.masks.lock().unwrap().len(), 2);
         // Equal and not-equal cannot alias merely because their literal text is the same.
-        assert_eq!(passes(&kinds, KindBits(0)), Verdict::Fails);
-        assert_eq!(passes(&kinds, KindBits(1)), Verdict::Fails);
+        assert_eq!(passes(&kinds, KindBits(0)), PredicateOutcome::Fails);
+        assert_eq!(passes(&kinds, KindBits(1)), PredicateOutcome::Fails);
         if first.is_none() {
             first = Some((prepared).clone());
         }
@@ -251,7 +251,7 @@ fn dynamic_kind_patterns_do_not_enter_prepared_metadata() {
         semantic: None,
         prepared_kinds: Some(&prepared),
         prepared_matchers: None,
-        matcher: crate::domain::matching::types::PatternMatcher(
+        matcher: ryo_operators::domain::patterns::types::PatternMatcher(
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
         ),
         bindings: &[],

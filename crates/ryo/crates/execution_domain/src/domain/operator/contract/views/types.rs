@@ -1,7 +1,7 @@
 //! The types of the `views` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_model::types::Verdict;
+use ryo_operators::domain::contract::types::PredicateOutcome;
 use crate::domain::table_reach::borrowed::types::IndexedRows;
 use ryo_operators::domain::cycles::types::{CycleDriver, EdgePlace, NodeCount, NodeNumber};
 use ryo_operators::domain::source_matches::types::{BaseLine, SourceBase};
@@ -92,7 +92,7 @@ pub trait PredicateProgram {
         &mut self,
         row: &[Value],
         symbols: &ryo_language::domain::symbols::types::Symbols,
-    ) -> Result<Verdict, OperatingError>;
+    ) -> Result<PredicateOutcome, OperatingError>;
 }
 
 /// The checked physical text of a source-matching span, with where it starts and the line it begins on.

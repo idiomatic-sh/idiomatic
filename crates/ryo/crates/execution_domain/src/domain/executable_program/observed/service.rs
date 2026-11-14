@@ -6,7 +6,10 @@ use super::super::types::region::value::Region;
 use super::super::types::*;
 use crate::domain::operator::types::ReaderMultiplicity;
 use crate::domain::source_partitions::types::ProducerPartitions;
-use crate::domain::{file_program::types::GraphObservations, operating::errors::OperatingError};
+use crate::domain::{
+    file_program::types::GraphObservations,
+    operating::errors::OperatingError,
+};
 use std::sync::Arc;
 
 pub(crate) fn compile_unions(

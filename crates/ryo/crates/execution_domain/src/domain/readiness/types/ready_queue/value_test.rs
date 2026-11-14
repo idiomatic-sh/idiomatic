@@ -4,8 +4,10 @@ use super::fixtures::{
     prepare, session,
 };
 use crate::domain::{
-    executable_program::types::RegionId, operating::errors::OperatingError,
-    readiness::types::ReadinessEntryCount, readiness::types::ReadinessOutcome as Outcome,
+    executable_program::types::RegionId,
+    operating::errors::OperatingError,
+    readiness::types::ReadinessEntryCount,
+    readiness::types::ReadinessOutcome as Outcome,
 };
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use std::borrow::Cow;

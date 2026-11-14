@@ -6,8 +6,10 @@ use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::membership::types::MembershipView;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
-    operating::errors::OperatingError, operator::contract::resources::types::AxisResources,
-    table_cells::types::TreeForm, table_model::service::check_columns,
+    operating::errors::OperatingError,
+    operator::contract::resources::types::AxisResources,
+    table_cells::types::TreeForm,
+    table_model::service::check_columns,
     tree_walk::service::entity_of,
 };
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;

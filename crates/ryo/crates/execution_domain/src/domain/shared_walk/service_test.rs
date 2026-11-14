@@ -11,7 +11,7 @@ use crate::domain::step_classes::types::ClassPlace;
 use crate::domain::table_cells::fixtures::{SMALL_SOURCE, SmallTree, small_tree};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::Rows;
-use crate::domain::table_scratch::types::OperatorScratch;
+use ryo_operators::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Integer, Relation};
@@ -106,7 +106,7 @@ pub(crate) fn with_small_tree<T>(run: impl FnOnce(&Elements, &mut OperatorContex
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
-        matcher: crate::domain::matching::service_test::matcher(),
+        matcher: ryo_operators::domain::patterns::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(SMALL_SOURCE),
@@ -280,7 +280,7 @@ pub(crate) fn with_context<T>(
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
-        matcher: crate::domain::matching::service_test::matcher(),
+        matcher: ryo_operators::domain::patterns::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[],
         symbols: symbols.into(),
         source: SourceView(b""),

@@ -4,7 +4,7 @@ use std::borrow::Cow;
 
 use super::service::needed_of_rest;
 use crate::domain::table_cells::types::ColumnPlaces;
-use crate::domain::table_scratch::types::ComparisonNumbers;
+use ryo_operators::domain::table_scratch::types::ComparisonNumbers;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{

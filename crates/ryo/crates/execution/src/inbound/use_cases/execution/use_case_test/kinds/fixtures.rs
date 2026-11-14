@@ -18,8 +18,8 @@ use std::borrow::Cow;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_domain::domain::kind_sets::service::{names_a_kind, satisfies};
 use ryo_execution_domain::domain::operating::types::KindNaming;
-use ryo_execution_domain::domain::table_model::types::Verdict;
-use ryo_execution_domain::domain::table_texts::types::TextView;
+use ryo_operators::domain::contract::types::PredicateOutcome;
+use ryo_operators::domain::table_texts::types::TextView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::LiteralText;
@@ -54,7 +54,7 @@ pub(super) enum Observed {
     /// What a test on the name, on the text and by order names; then four verdicts of a name against a test.
     Naming {
         naming: [KindNaming; 3],
-        verdicts: [Verdict; 4],
+        verdicts: [PredicateOutcome; 4],
     },
     /// The schema, the rows, the node positions and the kept name of a masked selection.
     Masked {

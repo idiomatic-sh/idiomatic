@@ -114,9 +114,9 @@ pub(crate) fn source_rows<'a, 'facts: 'a>(
     relation: ryo_relations::domain::relations::types::Relation,
 ) -> Result<ryo_execution_domain::domain::table_model::types::Rows<'a>, OperatingError> {
     use ryo_execution_domain::domain::{
-        table_cells::{service::native_form, types::TreeRows},
-        table_model::types::Rows,
-    };
+    table_cells::{service::native_form, types::TreeRows},
+    table_model::types::Rows,
+};
     if let Some(form) = native_form(relation) {
         return Ok(Rows::Tree(TreeRows {
             form,

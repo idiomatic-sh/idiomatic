@@ -8,7 +8,8 @@ use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
 use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
 use ryo_execution_domain::domain::{
-    executable_program::types::instruction::value::Instruction, operating::errors::OperatingError,
+    executable_program::types::instruction::value::Instruction,
+    operating::errors::OperatingError,
     table_model::types::Rows,
 };
 use ryo_execution_store::application::file_dag::relations::service::RelationOwner;

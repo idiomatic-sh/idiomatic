@@ -3,7 +3,10 @@ use super::super::super::super::service::RelationOwner;
 use super::super::fixtures::{columns, read, row};
 use crate::application::file_dag::relations::types::{CheckCount, Liveness, Sameness};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_execution_domain::domain::{operating::errors::OperatingError, table_model::types::Rows};
+use ryo_execution_domain::domain::{
+    operating::errors::OperatingError,
+    table_model::types::Rows,
+};
 use ryo_relations::domain::relations::{
     service::kinds,
     types::{CellKind, ColumnsView, Integer, Relation, Value as CellValue},

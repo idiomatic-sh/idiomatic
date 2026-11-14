@@ -1,4 +1,5 @@
 //! One acquisition of a family from admitted rows; every scenario issues its demands here.
+use ryo_operators::domain::table_texts::types::Texts;
 use super::super::super::admission::service::{AcquiredView, AdmittedViewInputs};
 use crate::application::file_dag::relations::service::RelationOwner;
 use ryo_derived::domain::request::types::DerivedKind;
@@ -9,7 +10,6 @@ use ryo_execution_domain::domain::{
     },
     operating::errors::OperatingError,
     table_cells::fixtures::SMALL_SOURCE,
-    table_texts::types::Texts,
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::files::types::SourceView;

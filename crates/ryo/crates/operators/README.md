@@ -24,6 +24,10 @@ Enumerates nonempty path-slot matches over UTF-8 character boundaries with expli
 
 Emits the partition key, the source and each vertex the engine's reachability walk reaches from every source of every partition.
 
+### comparing
+
+Evaluates typed selection comparisons against borrowed rows and bindings.
+
 ### contract
 
 Defines borrowed semantic requests, answers, and finite engine-provided drivers exposed through the inbound interface.
@@ -44,6 +48,18 @@ Evaluates one plan operation of any kind over the engine's driver port: one arm 
 
 Measures the physical line width of a source prefix and an already rendered candidate, with tab stops and Unicode width.
 
+### functions
+
+Computes comparison function text from typed operand values.
+
+### numeric_values
+
+Orders canonical decimal and binary numeric values consistently.
+
+### operands
+
+Reads typed comparison operands from rows, parameters and literals.
+
 ### ordered_dfs
 
 Emits each edge an ordered depth-first visit reaches from every distinct root, with the root's keys and the visit's ordinal.
@@ -55,6 +71,10 @@ Flags strict partition extrema over engine-admitted whole-number inputs and engi
 ### ordered_match
 
 Pairs ordered keys in FIFO order and projects each accepted pair before downstream delivery.
+
+### patterns
+
+Evaluates compiled text patterns over borrowed query values.
 
 ### physical_plan
 
@@ -103,6 +123,14 @@ Extracts checked physical endpoints from a declared span column.
 ### table_rows
 
 Delivers, for each binding table, the texts under the requested keys, refusing a table that lacks a key before its row.
+
+### table_scratch
+
+Holds per-invocation table workspace and work counters.
+
+### table_texts
+
+Resolves table text cells through their retained name sources.
 
 ### words
 

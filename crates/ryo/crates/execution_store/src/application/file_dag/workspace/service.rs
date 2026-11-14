@@ -59,12 +59,12 @@ pub struct InvocationWorkspace {
     relation_owner: std::rc::Rc<super::super::relations::service::RelationOwner>,
     pub(super) publications:
         Vec<Option<crate::application::file_dag::relations::handle::service::Publication>>,
-    downstream: ryo_execution_domain::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers,
-    predicates: ryo_execution_domain::domain::table_scratch::types::LazyScratch<
-        ryo_execution_domain::domain::table_scratch::types::SelectScratch,
+    downstream: ryo_operators::domain::table_scratch::types::downstream_buffers::value::DownstreamBuffers,
+    predicates: ryo_operators::domain::table_scratch::types::LazyScratch<
+        ryo_operators::domain::table_scratch::types::SelectScratch,
     >,
-    predicate_memo: Vec<ryo_execution_domain::domain::operating::types::Memo>,
-    predicate_names: Option<ryo_execution_domain::domain::operating::types::NameCount>,
+    predicate_memo: Vec<ryo_operators::domain::table_scratch::types::Memo>,
+    predicate_names: Option<ryo_operators::domain::comparing::types::NameCount>,
     literal_regex: Option<ryo_matching::inbound::use_cases::matching::types::CompiledRegex>,
     primitive: ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace,
 }

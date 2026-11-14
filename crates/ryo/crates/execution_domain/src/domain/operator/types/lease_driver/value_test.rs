@@ -6,7 +6,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::primitive::types::PreparedInputs;
 use crate::domain::operator::contract::types::PrimitiveWorkspace;
 use crate::domain::operator::fixtures::{Kept, Resources, extend, with_lease};
-use crate::domain::table_model::types::Verdict;
+use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_operators::domain::contract::types::RowDriver;
 use ryo_operators::domain::equality_join::types::JoinEvaluation;
 use ryo_relations::domain::relations::types::{Integer, Position, Value as Cell};
@@ -27,7 +27,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
     };
     let operation = extend();
     let mut sink = Kept::default();
-    let answer = with_lease(&resources, Verdict::Holds, &mut workspace, |lease| {
+    let answer = with_lease(&resources, PredicateOutcome::Holds, &mut workspace, |lease| {
         let mut driver = LeaseDriver::new(lease, &mut sink, &operation, PreparedInputs::Views(&[]));
         let answer = case(&mut driver).map_err(|()| driver.take_failure());
         let _lease = driver.finish();

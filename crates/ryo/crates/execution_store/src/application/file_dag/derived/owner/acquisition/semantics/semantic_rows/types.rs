@@ -3,8 +3,8 @@
 use ryo_derived::domain::row_cells::types::RowCells;
 use ryo_execution_domain::domain::operator::contract::failure::types::FailureLatch;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_execution_domain::domain::table_texts::service::{name_text, symbol_text};
-use ryo_execution_domain::domain::table_texts::types::Texts;
+use ryo_operators::domain::table_texts::service::{name_text, symbol_text};
+use ryo_operators::domain::table_texts::types::Texts;
 use ryo_language::domain::symbols::{
     service::query_intern_derived,
     types::{ByteSlice, QuerySymbols},

@@ -6,7 +6,8 @@ use super::{
     types::{DemandAction, Route, RouteKind, RowGate, demand_program::value::DemandProgram},
 };
 use crate::domain::{
-    operation_schema::types::InputShape, operator::contract::service::prepare_for,
+    operation_schema::types::InputShape,
+    operator::contract::service::prepare_for,
     operator::contract::types::DemandOrder,
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
@@ -254,7 +255,7 @@ fn a_name_without_text() -> Result<RowGate, Failure> {
         StepScope::PerFile,
     )?;
     let symbols = ryo_language::domain::symbols::types::Symbols::default();
-    let texts = crate::domain::table_texts::types::Texts {
+    let texts = ryo_operators::domain::table_texts::types::Texts {
         symbols: &symbols,
         source: ryo_values::domain::files::types::SourceView(&[]),
         paths: &[],
@@ -357,7 +358,7 @@ fn step_origins() -> Result<Origins, Failure> {
         graph,
         &partitions,
         &operators,
-        crate::domain::matching::types::PatternMatcher(
+        ryo_operators::domain::patterns::types::PatternMatcher(
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
         ),
     )?;

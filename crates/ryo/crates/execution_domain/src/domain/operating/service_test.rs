@@ -1,9 +1,6 @@
 //! Comparison-family classification and project text identity are pure operating contracts.
-use super::{
-    errors::OperatingError,
-    service::{family_of, minted},
-    types::{AfterTheFiles, Family},
-};
+use super::{errors::OperatingError, service::minted, types::AfterTheFiles};
+use ryo_operators::domain::comparing::{service::family_of, types::Family};
 use crate::domain::operating::service::derived_fault;
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_language::domain::symbols::{
@@ -92,7 +89,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn minted_of(text: &'static str, after: AfterTheFiles) -> Minted {
-    use crate::domain::table_texts::types::{Datum, TextView, Texts};
+    use ryo_operators::domain::table_texts::types::{Datum, TextView, Texts};
     let mut symbols = Symbols::default();
     let symbol = intern_derived(&mut symbols, ByteSlice(b""), NameText(text));
     match minted(&symbols, symbol, after) {
@@ -107,7 +104,7 @@ fn minted_of(text: &'static str, after: AfterTheFiles) -> Minted {
             Minted::Name {
                 hashed: Some(name.hash) == hash_in(&symbols, symbol),
                 origin: place_of(name, &[], &symbols).map(|place| place.origin),
-                text: match crate::domain::table_texts::service::datum(Cell::Name(name), &texts) {
+                text: match ryo_operators::domain::table_texts::service::datum(Cell::Name(name), &texts) {
                     Datum::Text(TextView(read)) => Some(Cow::Owned(read.into())),
                     Datum::Unlocated
                     | Datum::Number(_)

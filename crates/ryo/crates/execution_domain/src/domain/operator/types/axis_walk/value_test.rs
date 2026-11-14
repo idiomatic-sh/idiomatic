@@ -8,7 +8,7 @@ use crate::domain::operator::contract::primitive::types::PreparedInputs;
 use crate::domain::operator::contract::types::{AxisWorkspace, PrimitiveWorkspace};
 use crate::domain::operator::contract::views::types::PreparedAxis;
 use crate::domain::operator::fixtures::{Kept, Resources, extend, with_lease};
-use crate::domain::table_model::types::Verdict;
+use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_operators::domain::axis::types::AxisCandidates;
 use ryo_operators::domain::contract::types::VertexPlace;
 use ryo_relations::domain::relations::types::{Count, Integer, Value as Cell};
@@ -32,7 +32,7 @@ fn subject((axis, case): Input) -> Result<Value, Failure> {
     };
     let operation = extend();
     let mut sink = Kept::default();
-    with_lease(&resources, Verdict::Holds, &mut workspace, |lease| {
+    with_lease(&resources, PredicateOutcome::Holds, &mut workspace, |lease| {
         let mut walk = AxisWalk::default();
         let mut rows = RowDelivery::new(lease, &mut sink, &operation, PreparedInputs::Views(&[]));
         case(&mut walk, &mut rows).map_err(|()| rows.take_failure())
