@@ -82,3 +82,23 @@ expected = []
 name = "literal-value"
 files = { "src/lib.rs" = "#[allow(dead_code, dead_code, reason = \"x = y\")]\nfn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 19, end = 28 }]
+
+[[cases]]
+name = "bare-literal-item"
+files = { "src/lib.rs" = "#[rustfmt::skip(a, a, \"x = y\")]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 20 }]
+
+[[cases]]
+name = "closure-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = |s| s, a, a)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "negative-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = -1, a, a)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "bool-items"
+files = { "src/lib.rs" = "#[rustfmt::skip(a(true, true))]\npub fn f() {}\n" }
+expected = []

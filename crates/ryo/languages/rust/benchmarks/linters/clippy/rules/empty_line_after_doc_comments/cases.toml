@@ -77,3 +77,13 @@ expected = []
 name = "derive-gap-only"
 files = { "src/lib.rs" = "/// Docs.\n\n#[must_use]\n\n#[derive(Clone)]\npub struct S;\n" }
 expected = [{ file = "src/lib.rs", start = 0, end = 10 }]
+
+[[cases]]
+name = "derive-before-gap"
+files = { "src/lib.rs" = "/// Docs.\n#[derive(Clone)]\n\npub struct S;\n" }
+expected = []
+
+[[cases]]
+name = "derive-before-stop"
+files = { "src/lib.rs" = "#[derive(Clone)]\n/// Docs.\n\npub struct S;\n" }
+expected = [{ file = "src/lib.rs", start = 17, end = 27 }]
