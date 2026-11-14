@@ -12,7 +12,6 @@ use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 /// Project rules are collected only; no row callback delivery exists on this route.
 /// ```compile_fail,E0599
-/// use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort;
 /// use ryo_execution_runtime::application::file_dag::program::project_phase::{
 ///     interface::{ProjectRootExecution, ProgramProjectPhasePort},
 ///     types::ProjectPhase,
