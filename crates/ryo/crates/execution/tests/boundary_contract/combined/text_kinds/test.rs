@@ -1,7 +1,14 @@
 //! Combined cases of the text kinds: a resource a kind acquires at its first row, the order of two failing inputs of an ordered
 //! match, and the source gate before the pattern, each answer recorded from the interpreter on the stack's base.
-use super::super::fixtures::{SpanCell, answered_over, functions};
-use crate::boundary_fixture::fixtures::authored_request;
+use super::super::fixtures::{
+    COLLECTED, SpanCell, answered, answered_over, functions, over_a_shared_node,
+};
+use crate::boundary_fixture::fixtures::{FileRun, authored_request, corpus, run_file, source};
+use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase as _;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort as _;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId, StepScope};
 use ryo_values::domain::plans::types::{Operation, PlanStep};
@@ -136,5 +143,63 @@ fn source_matches_absent_span_with_an_invalid_pattern() {
         shown,
         "Absent: rule 0: complete Table { kinds: [Node, Symbol, File, Span, Span], cells: [], count: RowCount(0) }; ran, 0 captures\nfile: finished\nFirstByte: rule 0: failed InvalidRegex { reason: \"regex parse error:\\n    [\\n    ^\\nerror: unclosed character class\" }; unreached\nfile: unfinished\n",
         "the answers main gave"
+    );
+}
+
+/// Two rules share one render node, and the semantic session cannot render its syntax: each rule is refused with the engine's
+/// reason, the second too, which reads the node the first one ran.
+#[test]
+fn a_shared_render_refuses_every_rule_with_the_engine_s_reason() {
+    use ryo_execution::inbound::use_cases::execution::interface::{
+        OperatingError, SemanticLookup, SemanticSupport,
+    };
+    use ryo_language::domain::semantics::types::{RenderContext, RenderOutcome, RenderRequest};
+    #[derive(Debug)]
+    struct Unrenderable;
+    impl SemanticLookup for Unrenderable {
+        fn render_batch(
+            &self,
+            requests: &[RenderRequest],
+            _: ryo_values::domain::files::types::SourceView<'_>,
+        ) -> Result<Vec<RenderOutcome>, OperatingError> {
+            Ok(requests
+                .iter()
+                .map(|_| {
+                    RenderOutcome::Unsupported(ryo_relations::domain::terms::types::UnknownReason(
+                        24,
+                    ))
+                })
+                .collect())
+        }
+    }
+    let render = Operation::RenderSyntax {
+        from: Input::Step(StepId(0)),
+        node: ColumnIndex(0),
+        context: RenderContext::PositionalArgument,
+    };
+    let program = over_a_shared_node(&[Some(render.clone()), Some(render)]);
+    let corpus = corpus();
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
+    let table = source();
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let rules = run_file(
+        &request,
+        FileRun {
+            semantic: SemanticSupport::Supplied(&Unrenderable),
+            ..FileRun::of(&[COLLECTED, COLLECTED], &elements)
+        },
+        &mut Symbols::default(),
+        &mut facts,
+    );
+    request.finish();
+    let shown = answered(rules);
+    assert_eq!(
+        shown
+            .lines()
+            .filter(|line| line.contains("cannot render this syntax (reason 24)"))
+            .count(),
+        2,
+        "both rules answer the engine's reason: {shown}"
     );
 }

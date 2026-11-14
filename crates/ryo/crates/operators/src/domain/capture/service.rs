@@ -1,7 +1,7 @@
 //! Enumerate path captures without allocating or splitting UTF-8 characters.
 use crate::domain::capture::constants::CROSSING_OPEN;
 use crate::domain::capture::types::{
-    CaptureOutput, CaptureSlots, CaptureSpans, SlotCount, SlotPattern, SlotSubject,
+    CaptureOutput, CaptureSlotCount, CaptureSlots, CaptureSpans, SlotPattern, SlotSubject,
 };
 
 /// How many slots `pattern` has, each a `{name}` or `{*name}`: the columns a capture appends to each row.
@@ -10,12 +10,12 @@ use crate::domain::capture::types::{
 ///
 /// ```
 /// use ryo_operators::domain::capture::service::slot_count;
-/// use ryo_operators::domain::capture::types::{SlotCount, SlotPattern};
-/// assert_eq!(slot_count(SlotPattern("src/{crate}/{*rest}")), SlotCount(2));
+/// use ryo_operators::domain::capture::types::{CaptureSlotCount, SlotPattern};
+/// assert_eq!(slot_count(SlotPattern("src/{crate}/{*rest}")), CaptureSlotCount(2));
 /// ```
 #[must_use]
-pub fn slot_count(pattern: SlotPattern<'_>) -> SlotCount {
-    SlotCount(pattern.0.bytes().filter(|byte| *byte == b'{').count())
+pub fn slot_count(pattern: SlotPattern<'_>) -> CaptureSlotCount {
+    CaptureSlotCount(pattern.0.bytes().filter(|byte| *byte == b'{').count())
 }
 
 pub(crate) fn matches(

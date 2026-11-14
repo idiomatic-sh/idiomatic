@@ -20,11 +20,11 @@ pub struct CaptureSlots<'a>(pub &'a mut Vec<std::ops::Range<usize>>);
 /// # Examples
 ///
 /// ```
-/// use ryo_operators::domain::capture::types::SlotCount;
-/// assert_eq!(SlotCount(2).0, 2);
+/// use ryo_operators::domain::capture::types::CaptureSlotCount;
+/// assert_eq!(CaptureSlotCount(2).0, 2);
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct SlotCount(pub usize);
+pub struct CaptureSlotCount(pub usize);
 
 /// The ranges of every slot of one complete match, in slot order.
 #[derive(Clone, Copy, Debug)]
