@@ -8,9 +8,10 @@ use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
     LogicalNode, Lowering, NodeBindings, NodeRows, PlanInput, PlanInputList, PlanNodeId,
-    ProbeIndex, RowSource, RuleOrdinal,
+    RowSource, RuleOrdinal,
 };
 use crate::inbound::use_cases::run::fixtures::texts::span;
+use crate::inbound::use_cases::run::fixtures::unshared::unshared;
 use crate::inbound::use_cases::run::fixtures::{TableInputs, TextResources, planned, ran};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, Input as StepInput, JoinColumn, LiteralText, Operand,
@@ -150,16 +151,6 @@ fn plan_of(steps: &[Step]) -> Result<PhysicalPlan, Failure> {
         program.emit(rule, node);
     }
     planned(&program)
-}
-
-/// `plan` with every probe on its own index: what the plan answers with no index shared.
-fn unshared(mut plan: PhysicalPlan) -> PhysicalPlan {
-    for node in &mut plan.nodes {
-        if let Lowering::Probe { index, .. } = &mut node.lowering {
-            *index = ProbeIndex::Own;
-        }
-    }
-    plan
 }
 
 /// `plan` with the last probe reading the select's rows on its right, its index unchanged.

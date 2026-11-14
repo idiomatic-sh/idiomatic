@@ -33,6 +33,7 @@ pub mod allocating;
 pub(crate) mod cases;
 pub mod counting;
 pub mod texts;
+pub mod unshared;
 
 /// The rows of relations, held as a worker's columns, lent to a run and counted per read.
 #[derive(Debug, Default)]
