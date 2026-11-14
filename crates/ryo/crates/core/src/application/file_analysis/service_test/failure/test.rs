@@ -145,6 +145,7 @@ fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes
                 &ids,
                 &needs,
                 Mask(vec![1]),
+                &[],
             )
             .unwrap();
             seen.push(format!("{:?}", replayed.failure.is_none()));
@@ -173,6 +174,7 @@ fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes
                 &ids,
                 &needs,
                 Mask(vec![2]),
+                &[],
             )
             .unwrap();
             seen.push(format!("{:?}", fresh.failure.is_none()));

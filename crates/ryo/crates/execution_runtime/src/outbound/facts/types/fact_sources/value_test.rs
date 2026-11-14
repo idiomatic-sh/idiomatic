@@ -17,13 +17,11 @@ type Failure = FactsError;
 fn subject((tree, others): Input) -> Result<Value, Failure> {
     let mut tree = SourceFake::serving(tree);
     let mut further: Vec<SourceFake> = others.iter().map(|each| SourceFake::serving(each)).collect();
-    let mut sources = FactSources::read(
-        &mut tree,
-        further
-            .iter_mut()
-            .map(|each| -> &mut dyn FactSource { each })
-            .collect(),
-    )?;
+    let mut others: Vec<&mut dyn FactSource> = further
+        .iter_mut()
+        .map(|each| -> &mut dyn FactSource { each })
+        .collect();
+    let mut sources = FactSources::read(&mut tree, &mut others)?;
     Ok(sources.each().count())
 }
 
@@ -54,7 +52,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
     let elements = Elements::default();
-    assert_eq!(FactSources::unread(&elements).each().count(), 0);
+    assert_eq!(
+        FactSources::unread(&elements, &mut []).map(|mut sources| sources.each().count()),
+        Ok(0)
+    );
 }
 
 #[test]

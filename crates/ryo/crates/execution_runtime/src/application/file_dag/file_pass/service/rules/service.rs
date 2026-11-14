@@ -26,6 +26,7 @@ use ryo_operators::domain::table_texts::types::Texts;
 use ryo_values::domain::observations::service::{new_frontiers, set_frontier};
 use ryo_values::domain::plan_parts::types::{Input, StepScope};
 use ryo_values::domain::records::types::{ObservationReadinessCount, ObservationReadinessSlot, ProducerReadiness};
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::rows::types::Table;
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -46,12 +47,11 @@ pub(crate) fn run_rules(
 ) -> FileRules {
     let (file, intents) = (input.file, input.intents);
     let wants = FileWants {
-        wanted: input.wanted,
         active: input.active,
         said: input.said,
         recovery: input.recovery,
     };
-    let lookup = match opened(input.sources, facts, wants, symbols) {
+    let lookup = match opened(input.sources, facts, wants, symbols, request.program.demanded()) {
         Ok(lookup) => lookup,
         Err(stop) => {
             return FileRules {
@@ -300,7 +300,8 @@ pub(crate) fn finished_readiness(at: &PassFile<'_, '_, '_, '_>) -> FinishedReadi
     FinishedReadiness::Observed(Arc::new(map))
 }
 
-/// Opens one file: every wanted relation read and admitted. Any failure releases the rows written and stops the file.
+/// Opens one file: every relation of `demanded` read, the active ones admitted. Any failure releases the rows written and stops
+/// the file.
 ///
 /// # Errors
 ///
@@ -310,9 +311,10 @@ pub(crate) fn opened<'a, 's>(
     facts: &'a mut dyn FactsWorker,
     wants: FileWants<'a>,
     symbols: &mut Symbols,
+    demanded: &[Relation],
 ) -> Result<FactLookup<'a, 's>, FileStop> {
     let mut lookup = FactLookup::new(sources, facts, wants);
-    match lookup.ensure(symbols, wants.wanted) {
+    match lookup.ensure(symbols, demanded) {
         Ok(()) => Ok(lookup),
         Err(FactsError::Refused) => Err(FileStop::Reader),
         Err(other) => Err(FileStop::Facts(other)),

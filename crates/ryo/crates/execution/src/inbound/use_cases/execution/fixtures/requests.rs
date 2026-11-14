@@ -272,10 +272,7 @@ pub(crate) fn run_file(
             file: FileId(0),
             intents: file.intents,
             source: ryo_values::domain::files::types::SourceView(file.source),
-            sources: ryo_execution_runtime::outbound::facts::types::fact_sources::value::FactSources::unread(
-                file.elements,
-            ),
-            wanted: &[],
+            sources: ryo_execution_runtime::outbound::facts::types::fact_sources::value::FactSources::unread(file.elements, &mut []).expect("a file with no further source"),
             active: &[],
             said: &[],
             recovery: crate::inbound::use_cases::metadata::interface::Recovery::Whole,

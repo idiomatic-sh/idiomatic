@@ -1,10 +1,9 @@
-//! The read of a file the run has not kept: the language parses it, what it wrote is admitted, and the engine's own rows are written.
+//! The read of a file the run has not kept: the language parses it, and the run reads what it wrote and the engine's own rows.
 use super::super::errors::FileAnalysisError;
 use super::super::semantic::service::SemanticState;
 use super::super::service::FileAnalysis;
-use super::super::types::{FileCompleteness, FileRead, FileVisit, Worker};
+use super::super::types::{EngineFile, FileCompleteness, FileRead, FileVisit, Worker};
 use crate::application::file_analysis::constants::EXECUTION_DIAGNOSTIC;
-use crate::application::file_analysis::constants::INPUT_EDGE_DID_NOT_SUPPLY_EXECUTABLE;
 use crate::application::file_analysis::constants::PROVIDER_PARSE;
 use crate::domain::reading::service::begin;
 use crate::domain::reading::service::engine_asked;
@@ -18,8 +17,6 @@ use crate::domain::reading::types::ObservedFile;
 use crate::domain::reading::types::PrimaryFailureKind;
 use crate::domain::recording::service::cover;
 use crate::domain::render::types::Answering;
-use crate::domain::visit::service::lines_in;
-use crate::domain::visit::types::BorrowedBytes;
 use crate::domain::workers::types::Gating;
 use crate::outbound::language::types::FileReading;
 use crate::outbound::language::types::FileToRead;
@@ -36,21 +33,12 @@ use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::kind_index::service::index_kinds;
 use ryo_language::domain::symbols::service::clear_symbols;
-use ryo_relations::domain::relations::collections::relations::filesystem_executable::item::FilesystemExecutableRow;
-use ryo_relations::domain::relations::collections::relations::filesystem_file::item::FilesystemFileRow;
-use ryo_relations::domain::relations::collections::relations::filesystem_line_count::item::FilesystemLineCountRow;
 use ryo_relations::domain::relations::types::FileId;
-use ryo_relations::domain::relations::types::Integer;
-use ryo_relations::domain::relations::types::Relation;
-use ryo_relations::domain::relations::types::Rows as _;
 use ryo_values::domain::files::types::CorpusEntry;
 use ryo_values::domain::files::types::ExecutablePermission;
 use ryo_values::domain::records::types::FileOutcome;
 use ryo_values::domain::records::types::Unread;
 use ryo_values::domain::records::types::Unreadable;
-use ryo_values::domain::stored_facts::types::PartialAt;
-use ryo_values::domain::stored_facts::types::PartialCause;
-use ryo_values::domain::stored_facts::types::PartialScope;
 use ryo_values::domain::stored_facts::types::ReadFailure;
 use ryo_values::domain::stored_facts::types::ReadInPart;
 use std::time::Instant;
@@ -68,12 +56,6 @@ impl FileAnalysis {
         kind: PrimaryFailureKind,
         observed_file: ObservedFile,
     ) -> Result<(), FileAnalysisError> {
-        use ryo_language::domain::symbols::service::intern_derived;
-        use ryo_language::domain::symbols::types::ByteSlice;
-        use ryo_relations::domain::relations::collections::relations::filesystem_read_failure::item::FilesystemReadFailureRow;
-        use ryo_relations::domain::relations::types::{Offset, Span};
-        use ryo_relations::domain::terms::types::NameText;
-
         let setting = &visit.setting;
         worker.tables.bytes.0.clear();
         prepare(&mut worker.tables);
@@ -81,37 +63,7 @@ impl FileAnalysis {
         worker.tables.language = None;
         worker.facts.release()?;
         let asked = engine_asked(setting.wanted);
-        let mut said = failure_partials(setting.wanted, number, detail, observed_file);
-        Self::write_engine_rows(
-            worker,
-            EngineAsked {
-                file: if observed_file == ObservedFile::Observed {
-                    asked.file
-                } else {
-                    EngineRows::NotAsked
-                },
-                lines: EngineRows::NotAsked,
-                ..asked
-            },
-            number,
-            executable,
-            &mut said,
-        )?;
-        if asked.read_failure == EngineRows::Asked && kind == PrimaryFailureKind::Disk {
-            let detail = intern_derived(
-                &mut worker.tables.symbols,
-                ByteSlice(&[]),
-                NameText(detail.0),
-            );
-            worker.facts.columns_mut()?.write(FilesystemReadFailureRow {
-                path: number,
-                detail,
-                span: Span {
-                    start: Offset(0),
-                    end: Offset(0),
-                },
-            });
-        }
+        let said = failure_partials(setting.wanted, number, detail, observed_file);
         worker.tables.unread.push(Unread {
             path: path.clone(),
             reason: Unreadable::Failed(ReadFailure(detail.0.into())),
@@ -132,6 +84,19 @@ impl FileAnalysis {
                     said: &said,
                     recovery: Recovery::Whole,
                     active: setting.wanted,
+                    engine: EngineFile {
+                        asked: EngineAsked {
+                            file: if observed_file == ObservedFile::Observed {
+                                asked.file
+                            } else {
+                                EngineRows::NotAsked
+                            },
+                            lines: EngineRows::NotAsked,
+                            ..asked
+                        },
+                        executable,
+                        failure: (kind == PrimaryFailureKind::Disk).then_some(detail),
+                    },
                 },
             )?;
         } else {
@@ -202,8 +167,8 @@ impl FileAnalysis {
         {
             tracing::trace!(target: EXECUTION_DIAGNOSTIC, phase = PROVIDER_PARSE, file = number.0, elapsed_ns);
         }
-        // What the readers say is read in part is the run's: they walk the file inside it. Core says only of its own rows.
-        let mut said: Vec<ReadInPart> = Vec::new();
+        // What the readers and the engine's own rows say is read in part is the run's: they are read inside it. Core says nothing.
+        let said: &[ReadInPart] = &[];
         let acceptance = syntax_acceptance(&worker.tables.elements);
         let active_wanted = Self::active_wanted(&worker.tables, setting, acceptance);
         // The language that read the file is kept with what it noted of it.
@@ -216,7 +181,6 @@ impl FileAnalysis {
             worker.facts.release()?;
         }
         let asked = engine_asked(active_wanted.as_ref());
-        Self::write_engine_rows(worker, asked, number, file.executable, &mut said)?;
         // The relations this file is read in part: those a reader said so of, and all of code if what was read is a recovery.
         let everything = recovery_of(&reading, &worker.tables.elements);
         let semantic_needed = setting.program.semantic_needed();
@@ -244,9 +208,14 @@ impl FileAnalysis {
         let read = FileRead {
             language: &*self.language,
             path: &file.path,
-            said: &said,
+            said,
             recovery: everything,
             active: active_wanted.as_ref(),
+            engine: EngineFile {
+                asked,
+                executable: file.executable,
+                failure: None,
+            },
         };
         Ok(match reading {
             FileReading::Read(_) | FileReading::Manifest => {
@@ -280,7 +249,7 @@ impl FileAnalysis {
                     start_partials(
                         &MetadataUseCaseImpl,
                         &mut worker.tables,
-                        &said,
+                        said,
                         everything,
                         active_wanted.as_ref(),
                     );
@@ -314,52 +283,6 @@ impl FileAnalysis {
                 }
             }
         })
-    }
-
-    /// Writes the rows the engine writes of every file, for the rules that ask for them.
-    pub(in crate::application::file_analysis) fn write_engine_rows(
-        worker: &mut Worker,
-        asked: EngineAsked,
-        number: FileId,
-        executable: ExecutablePermission,
-        said: &mut Vec<ReadInPart>,
-    ) -> Result<(), FileAnalysisError> {
-        if asked.executable == EngineRows::Asked {
-            match executable {
-                posix @ (ExecutablePermission::PosixExecutable
-                | ExecutablePermission::PosixNotExecutable) => {
-                    worker.facts.columns_mut()?.write(FilesystemExecutableRow {
-                        path: number,
-                        executable: if posix == ExecutablePermission::PosixExecutable {
-                            ryo_relations::domain::relations::types::Flag::Raised
-                        } else {
-                            ryo_relations::domain::relations::types::Flag::Lowered
-                        },
-                    })
-                }
-                ExecutablePermission::Unsupported => {}
-                ExecutablePermission::Unknown => said.push(ReadInPart {
-                    relation: Relation::FilesystemExecutable,
-                    cause: PartialCause(INPUT_EDGE_DID_NOT_SUPPLY_EXECUTABLE.into()),
-                    lacking: ryo_relations::domain::relations::types::Missing::Any,
-                    at: PartialScope::OneFile(PartialAt(number.0)),
-                }),
-            }
-        }
-        if asked.file == EngineRows::Asked {
-            worker
-                .facts
-                .columns_mut()?
-                .write(FilesystemFileRow { path: number });
-        }
-        if asked.lines == EngineRows::Asked {
-            let lines = Integer(lines_in(BorrowedBytes(&worker.tables.bytes.0)).0);
-            worker.facts.columns_mut()?.write(FilesystemLineCountRow {
-                path: number,
-                lines,
-            });
-        }
-        Ok(())
     }
 }
 

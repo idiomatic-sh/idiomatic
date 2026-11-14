@@ -3,7 +3,7 @@
 use super::super::errors::FileAnalysisError;
 use super::super::semantic::service::SemanticState;
 use super::super::service::FileAnalysis;
-use super::super::types::{FileRead, FileVisit, LanguageSource, RuleGate, Worker};
+use super::super::types::{EngineSource, FileRead, FileVisit, LanguageSource, RuleGate, Worker};
 use crate::outbound::language::types::{FileToRead, SourceSelection};
 use ryo_relations::domain::relations::service::{all, provenance_of};
 use ryo_relations::domain::relations::types::Provenance;
@@ -23,7 +23,7 @@ use ryo_execution::inbound::use_cases::execution::interface::{
     CaptureContext, EmittedRoot, FileEnd, FileRunInput, FileStop, FinishedReadiness, KindSupport,
     Partiality, RanRule, RuleAfter, SemanticSupport, SourceLanguage,
 };
-use ryo_execution_runtime::outbound::facts::types::fact_sources::value::FactSources;
+use ryo_execution_runtime::outbound::facts::types::fact_sources::value::{FactSource, FactSources};
 use ryo_execution::inbound::use_cases::metadata::interface::{
     FileObservationReadiness, Governing, Message, RuleIndex, Unknown,
 };
@@ -70,7 +70,16 @@ impl FileAnalysis {
         let serves = catalog.get(..engine).unwrap_or(catalog);
         let mut refused = None;
         let mut reader;
-        // The one place a file's sources are listed: the language that read it, if one did.
+        let mut own = EngineSource {
+            serves: catalog.get(engine..).unwrap_or_default(),
+            asked: read.engine.asked,
+            file,
+            bytes: &tables.bytes,
+            executable: read.engine.executable,
+            failure: read.engine.failure,
+        };
+        let mut others: [&mut dyn FactSource; 1] = [&mut own];
+        // The one place a file's sources are listed: the language that read it, if one did, then the engine's own rows.
         let sources = match tables.language {
             Some(number) => {
                 reader = LanguageSource {
@@ -92,9 +101,9 @@ impl FileAnalysis {
                     serves,
                     refused: &mut refused,
                 };
-                FactSources::read(&mut reader, Vec::new())?
+                FactSources::read(&mut reader, &mut others)?
             }
-            None => FactSources::unread(&tables.elements),
+            None => FactSources::unread(&tables.elements, &mut others)?,
         };
         let ran = visit.setting.services.run_file(
             FileRunInput {
@@ -102,7 +111,6 @@ impl FileAnalysis {
                 intents: &intents,
                 source: SourceView(&tables.bytes.0),
                 sources,
-                wanted: visit.setting.wanted,
                 active: read.active,
                 said: read.said,
                 recovery: read.recovery,

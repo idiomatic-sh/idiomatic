@@ -1,6 +1,7 @@
 //! The `file_analysis` application operation.
 pub mod constants;
 pub mod errors;
+pub(crate) mod engine_source;
 pub(crate) mod evaluation;
 #[cfg(test)]
 mod fixtures;

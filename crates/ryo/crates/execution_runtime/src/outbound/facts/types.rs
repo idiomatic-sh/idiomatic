@@ -20,15 +20,6 @@ pub enum ResidentStability {
     Unstable,
 }
 
-/// Whether a source of the open file serves a relation: one no source serves is core's own, written to the worker by core.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum SourceServes {
-    /// A source of the file makes its rows.
-    Served,
-    /// No source of the file makes them.
-    Unserved,
-}
-
 /// One physical file's packed frontier, with the identity and coverage issued
 /// by the owner that captured it. The proof is required even for empty rows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

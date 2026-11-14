@@ -89,4 +89,6 @@ pub(crate) struct PreparedProgram {
         ryo_execution_store::application::file_dag::derived::prepared::service::RequestDerived,
     pub(super) walk:
         ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
+    /// The relations the request's plans read, each once, in the order first read: what each file's sources are asked for.
+    pub(super) demanded: Box<[ryo_relations::domain::relations::types::Relation]>,
 }

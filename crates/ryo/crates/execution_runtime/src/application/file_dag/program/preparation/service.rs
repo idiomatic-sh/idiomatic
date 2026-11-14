@@ -90,6 +90,10 @@ impl PreparedProgram {
     pub(crate) fn program(&self) -> &Arc<ExecutableProgram> {
         &self.program
     }
+    /// The relations each file's sources are asked for: those the request's plans read.
+    pub(crate) fn demanded(&self) -> &[ryo_relations::domain::relations::types::Relation] {
+        &self.demanded
+    }
     pub(crate) fn derived(
         &self,
     ) -> &ryo_execution_store::application::file_dag::derived::prepared::service::RequestDerived
@@ -331,5 +335,6 @@ pub(crate) fn prepare(
         matchers,
         derived,
         walk,
+        demanded: crate::application::file_dag::file_pass::service::demanded(&plans),
     }))
 }

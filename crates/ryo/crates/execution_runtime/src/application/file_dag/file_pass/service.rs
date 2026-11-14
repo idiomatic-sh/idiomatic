@@ -35,6 +35,22 @@ pub(crate) mod captures;
 pub(crate) mod nodes;
 pub(crate) mod rules;
 
+/// The relations `plans` read, each once, in the order they are first read: what each file's sources are asked for, so a file
+/// reads exactly what its request's rules can read.
+pub(crate) fn demanded<P: std::borrow::Borrow<Plan>>(plans: &[P]) -> Box<[Relation]> {
+    let mut demanded: Vec<Relation> = Vec::new();
+    for step in plans.iter().flat_map(|plan| &plan.borrow().steps) {
+        for input in named(&inputs_of(&step.operation)) {
+            if let Input::Relation(relation) = *input
+                && !demanded.contains(&relation)
+            {
+                demanded.push(relation);
+            }
+        }
+    }
+    demanded.into_boxed_slice()
+}
+
 /// The roots of `program`, before any file.
 pub(crate) fn file_roots(program: &FusedProgram) -> FileRoots {
     let kinds: Vec<RootKindNodes> = root_kinds(program)

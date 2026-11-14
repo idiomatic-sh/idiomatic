@@ -81,8 +81,6 @@ pub struct FileRunInput<'a> {
     pub source: ryo_values::domain::files::types::SourceView<'a>,
     /// The sources the file's rows come from, the file's tree among them.
     pub sources: crate::outbound::facts::types::fact_sources::value::FactSources<'a>,
-    /// What the sources are asked for.
-    pub wanted: &'a [ryo_relations::domain::relations::types::Relation],
     /// What is admitted and counts towards the file's partiality.
     pub active: &'a [ryo_relations::domain::relations::types::Relation],
     /// What core said is read in part of its own rows: the engine's rows and a failure's.

@@ -130,6 +130,7 @@ pub(crate) fn visited_inputs(
         &[],
         &[],
         Mask(vec![1]),
+        &[],
     )
 }
 
@@ -147,6 +148,7 @@ pub(crate) fn visited_inputs_with_rule_demands(
     ids: &[RuleId],
     needs: &[ryo_execution::inbound::use_cases::metadata::interface::Needs],
     always: Mask,
+    applicability: &[ryo_values::domain::runs::types::RuleApplicability],
 ) -> Result<(super::super::types::Worker, Arc<LanguageFake>), FileAnalysisError> {
     use super::super::types::{FileVisit, Worker};
     use crate::domain::visit::types::{Noting, RoleRead};
@@ -209,7 +211,7 @@ pub(crate) fn visited_inputs_with_rule_demands(
                 paths: &[],
                 first_bucket: &[],
                 ids,
-                applicability: &[],
+                applicability,
                 applicability_can_gate: Gating::MayGate,
                 placed: &placed,
                 records: &records,

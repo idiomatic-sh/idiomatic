@@ -1,6 +1,6 @@
 //! The fact lookup of one file, through its own methods only: exactly the demanded relations read, each once by the source that
-//! serves it, a served relation refused until ensured, outside what was ensured or after release, core's own read in place, a
-//! refusal stopping the file, and the partiality `partial_of` gives.
+//! serves it, any relation refused until ensured, outside what was ensured or after release, one no source serves read as the
+//! worker holds it once ensured, a refusal stopping the file, and the partiality `partial_of` gives.
 
 use super::service::FactLookup;
 use crate::application::file_dag::file_pass::service::rules::service::opened;
@@ -9,7 +9,7 @@ use crate::application::file_dag::program::file_session::types::FileStop;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::fixtures::fake::FactsFake;
 use crate::outbound::facts::fixtures::sources::SourceFake;
-use crate::outbound::facts::types::fact_sources::value::{FactSource as _, FactSources};
+use crate::outbound::facts::types::fact_sources::value::{FactSource, FactSources};
 use ryo_execution_domain::domain::coverage::service::partial_of;
 use ryo_execution_domain::domain::coverage::types::Recovery;
 use ryo_language::domain::symbols::types::Symbols;
@@ -23,9 +23,11 @@ type Input = fn() -> Result<Value, Failure>;
 type Value = usize;
 type Failure = FactsError;
 
-/// What a scenario reads its file for: `function`, then `comment`, both admitted, core saying nothing, the file whole.
+/// What a scenario demands of its file: `function`, then `comment`.
+const DEMANDED: &[Relation] = &[Relation::Function, Relation::Comment];
+
+/// What a scenario reads its file for: `function` and `comment` admitted, core saying nothing, the file whole.
 const WHOLE: FileWants<'static> = FileWants {
-    wanted: &[Relation::Function, Relation::Comment],
     active: &[Relation::Function, Relation::Comment],
     said: &[],
     recovery: Recovery::Whole,
@@ -59,7 +61,7 @@ fn rows_after_ensure_equal_what_the_source_writes() -> Result<Value, Failure> {
     let mut worker = fake.open_worker()?;
     let mut source = SourceFake::serving(&[Relation::Function]);
     let mut lookup = FactLookup::new(
-        FactSources::read(&mut source, Vec::new())?,
+        FactSources::read(&mut source, &mut [])?,
         worker.as_mut(),
         WHOLE,
     );
@@ -79,7 +81,7 @@ fn each_relation_is_read_once_per_file() -> Result<Value, Failure> {
     let mut source = SourceFake::serving(&[Relation::Function]);
     {
         let mut lookup = FactLookup::new(
-            FactSources::read(&mut source, Vec::new())?,
+            FactSources::read(&mut source, &mut [])?,
             worker.as_mut(),
             WHOLE,
         );
@@ -97,12 +99,13 @@ fn each_relation_comes_from_the_source_that_serves_it() -> Result<Value, Failure
     let mut tree = SourceFake::serving(&[Relation::Function]);
     let mut further = SourceFake::serving(&[Relation::Comment]);
     let comments = {
+        let mut others: [&mut dyn FactSource; 1] = [&mut further];
         let mut lookup = FactLookup::new(
-            FactSources::read(&mut tree, vec![&mut further])?,
+            FactSources::read(&mut tree, &mut others)?,
             worker.as_mut(),
             WHOLE,
         );
-        lookup.ensure(&mut Symbols::default(), WHOLE.wanted)?;
+        lookup.ensure(&mut Symbols::default(), DEMANDED)?;
         rows_of(&lookup, Relation::Comment)?
     };
     Ok(usize::from(
@@ -131,11 +134,11 @@ fn partials_follow_partial_of() -> Result<Value, Failure> {
         ..WHOLE
     };
     let mut lookup = FactLookup::new(
-        FactSources::read(&mut source, Vec::new())?,
+        FactSources::read(&mut source, &mut [])?,
         worker.as_mut(),
         wants,
     );
-    lookup.ensure(&mut Symbols::default(), WHOLE.wanted)?;
+    lookup.ensure(&mut Symbols::default(), DEMANDED)?;
     let said: Vec<ReadInPart> = reader.iter().chain(&core).cloned().collect();
     Ok(usize::from(
         lookup.partials() == partial_of(&said, Recovery::SyntaxErrors, WHOLE.active).as_slice(),
@@ -148,10 +151,11 @@ fn a_refused_file_leaves_no_row() -> Result<Value, Failure> {
     let mut source = SourceFake::serving(&[Relation::Function]);
     source.refuses = Some(Relation::Function);
     let refused = opened(
-        FactSources::read(&mut source, Vec::new())?,
+        FactSources::read(&mut source, &mut [])?,
         worker.as_mut(),
         WHOLE,
         &mut Symbols::default(),
+        DEMANDED,
     )
     .err();
     if refused != Some(FileStop::Reader) {
@@ -169,7 +173,7 @@ fn a_relation_not_ensured_is_refused() -> Result<Value, Failure> {
     let mut worker = FactsFake::default().open_worker()?;
     let mut source = SourceFake::serving(&[Relation::Function]);
     let lookup = FactLookup::new(
-        FactSources::read(&mut source, Vec::new())?,
+        FactSources::read(&mut source, &mut [])?,
         worker.as_mut(),
         WHOLE,
     );
@@ -182,7 +186,7 @@ fn a_refused_relation_stops_with_refused() -> Result<Value, Failure> {
     let mut source = SourceFake::serving(&[Relation::Function]);
     source.refuses = Some(Relation::Function);
     let mut lookup = FactLookup::new(
-        FactSources::read(&mut source, Vec::new())?,
+        FactSources::read(&mut source, &mut [])?,
         worker.as_mut(),
         WHOLE,
     );
@@ -195,7 +199,7 @@ fn release_leaves_nothing_readable() -> Result<Value, Failure> {
     let mut worker = FactsFake::default().open_worker()?;
     let mut source = SourceFake::serving(&[Relation::Function]);
     let mut lookup = FactLookup::new(
-        FactSources::read(&mut source, Vec::new())?,
+        FactSources::read(&mut source, &mut [])?,
         worker.as_mut(),
         WHOLE,
     );
@@ -211,8 +215,9 @@ fn only_the_demanded_relations_are_read() -> Result<Value, Failure> {
     let mut tree = SourceFake::serving(&[Relation::Function]);
     let mut further = SourceFake::serving(&[Relation::Comment]);
     {
+        let mut others: [&mut dyn FactSource; 1] = [&mut further];
         let mut lookup = FactLookup::new(
-            FactSources::read(&mut tree, vec![&mut further])?,
+            FactSources::read(&mut tree, &mut others)?,
             worker.as_mut(),
             WHOLE,
         );
@@ -228,8 +233,9 @@ fn a_relation_outside_what_was_ensured_is_refused() -> Result<Value, Failure> {
     let mut worker = FactsFake::default().open_worker()?;
     let mut tree = SourceFake::serving(&[Relation::Function]);
     let mut further = SourceFake::serving(&[Relation::Comment]);
+    let mut others: [&mut dyn FactSource; 1] = [&mut further];
     let mut lookup = FactLookup::new(
-        FactSources::read(&mut tree, vec![&mut further])?,
+        FactSources::read(&mut tree, &mut others)?,
         worker.as_mut(),
         WHOLE,
     );
@@ -242,8 +248,9 @@ fn a_later_ensure_beyond_the_first_is_refused() -> Result<Value, Failure> {
     let mut worker = FactsFake::default().open_worker()?;
     let mut tree = SourceFake::serving(&[Relation::Function]);
     let mut further = SourceFake::serving(&[Relation::Comment]);
+    let mut others: [&mut dyn FactSource; 1] = [&mut further];
     let mut lookup = FactLookup::new(
-        FactSources::read(&mut tree, vec![&mut further])?,
+        FactSources::read(&mut tree, &mut others)?,
         worker.as_mut(),
         WHOLE,
     );
@@ -258,7 +265,7 @@ fn only_demanded_active_relations_are_admitted() -> Result<Value, Failure> {
     let mut source = SourceFake::serving(&[Relation::Function, Relation::Comment]);
     {
         let mut lookup = FactLookup::new(
-            FactSources::read(&mut source, Vec::new())?,
+            FactSources::read(&mut source, &mut [])?,
             worker.as_mut(),
             WHOLE,
         );
@@ -267,17 +274,12 @@ fn only_demanded_active_relations_are_admitted() -> Result<Value, Failure> {
     Ok(source.admitted.len())
 }
 
-/// How many rows `comment`, which no source of the file serves and core wrote none of, reads from the worker once only `function`
-/// was ensured: none, read rather than refused.
-fn a_relation_no_source_serves_reads_the_worker() -> Result<Value, Failure> {
+/// The rows of `comment`, which no source of the file serves and nothing wrote, once `demanded` is ensured.
+fn unserved_comment_after(demanded: &[Relation]) -> Result<Value, Failure> {
     let mut worker = FactsFake::default().open_worker()?;
     let mut source = SourceFake::serving(&[Relation::Function]);
-    let mut lookup = FactLookup::new(
-        FactSources::read(&mut source, Vec::new())?,
-        worker.as_mut(),
-        WHOLE,
-    );
-    lookup.ensure(&mut Symbols::default(), &[Relation::Function])?;
+    let mut lookup = FactLookup::new(FactSources::read(&mut source, &mut [])?, worker.as_mut(), WHOLE);
+    lookup.ensure(&mut Symbols::default(), demanded)?;
     rows_of(&lookup, Relation::Comment)
 }
 
@@ -329,10 +331,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("a_relation_no_source_serves_reads_the_worker"),
+        name: CaseName("a_relation_no_source_serves_reads_the_worker_once_ensured"),
         word: Word::Succeeds,
-        input: || a_relation_no_source_serves_reads_the_worker,
+        input: || || unserved_comment_after(DEMANDED),
         expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("a_relation_no_source_serves_is_refused_until_ensured"),
+        word: Word::Refuses,
+        input: || || unserved_comment_after(&[Relation::Function]),
+        expect: Expect::Error(FactsError::NotEnsured {
+            relation: Relation::Comment,
+        }),
     },
     Case {
         name: CaseName("a_relation_not_ensured_is_refused"),

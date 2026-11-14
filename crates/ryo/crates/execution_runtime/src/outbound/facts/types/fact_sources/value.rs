@@ -1,7 +1,6 @@
 //! The sources one file's rows come from, and the one check that no two of them serve one relation.
 
 use crate::outbound::facts::errors::FactsError;
-use crate::outbound::facts::types::SourceServes;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::service::all;
@@ -76,8 +75,8 @@ enum Tree<'a> {
 /// use ryo_execution_runtime::outbound::facts::types::fact_sources::value::FactSources;
 /// use ryo_language::domain::elements::types::Elements;
 /// let elements = Elements::default();
-/// let sources = FactSources::unread(&elements);
-/// let _ = sources;
+/// let sources = FactSources::unread(&elements, &mut []);
+/// assert!(sources.is_ok());
 /// ```
 #[expect(
     missing_debug_implementations,
@@ -86,8 +85,8 @@ enum Tree<'a> {
 pub struct FactSources<'a> {
     /// The tree and, for a file a language read, the source that read it.
     tree: Tree<'a>,
-    /// The further sources, after the tree's.
-    others: Vec<&'a mut dyn FactSource>,
+    /// The further sources, after the tree's: core's own rows among them.
+    others: &'a mut [&'a mut dyn FactSource],
 }
 
 impl<'a> FactSources<'a> {
@@ -98,7 +97,7 @@ impl<'a> FactSources<'a> {
     /// ```
     /// use ryo_execution_runtime::outbound::facts::types::fact_sources::value::{FactSources, TreeSource};
     /// fn sources(tree: &mut dyn TreeSource) -> bool {
-    ///     FactSources::read(tree, Vec::new()).is_ok()
+    ///     FactSources::read(tree, &mut []).is_ok()
     /// }
     /// ```
     ///
@@ -107,30 +106,16 @@ impl<'a> FactSources<'a> {
     /// `Overlap` naming the first relation, in catalog order, that two of the sources both serve.
     pub fn read(
         tree: &'a mut dyn TreeSource,
-        others: Vec<&'a mut dyn FactSource>,
+        others: &'a mut [&'a mut dyn FactSource],
     ) -> Result<Self, FactsError> {
-        if !others.is_empty() {
-            let first = all().iter().find(|relation| {
-                let by_tree = usize::from(tree.serves().contains(relation));
-                let by_others = others
-                    .iter()
-                    .filter(|source| source.serves().contains(relation))
-                    .count();
-                by_tree + by_others > 1
-            });
-            if let Some(relation) = first {
-                return Err(FactsError::Overlap {
-                    relation: *relation,
-                });
-            }
-        }
+        overlap(Some(&*tree), others)?;
         Ok(Self {
             tree: Tree::Read(tree),
             others,
         })
     }
 
-    /// A file no language read (failed, unsupported): core's empty table and no source.
+    /// A file no language read (failed, unsupported): core's empty table, and any further sources.
     ///
     /// # Examples
     ///
@@ -138,14 +123,21 @@ impl<'a> FactSources<'a> {
     /// use ryo_execution_runtime::outbound::facts::types::fact_sources::value::FactSources;
     /// use ryo_language::domain::elements::types::Elements;
     /// let elements = Elements::default();
-    /// let _ = FactSources::unread(&elements);
+    /// assert!(FactSources::unread(&elements, &mut []).is_ok());
     /// ```
-    #[must_use]
-    pub fn unread(elements: &'a Elements) -> Self {
-        Self {
+    ///
+    /// # Errors
+    ///
+    /// `Overlap` naming the first relation, in catalog order, that two of the sources both serve.
+    pub fn unread(
+        elements: &'a Elements,
+        others: &'a mut [&'a mut dyn FactSource],
+    ) -> Result<Self, FactsError> {
+        overlap(None, others)?;
+        Ok(Self {
             tree: Tree::Unread(elements),
-            others: Vec::new(),
-        }
+            others,
+        })
     }
 
     /// The file's tree: the reader's for a read file, core's empty table for one no language read.
@@ -153,23 +145,6 @@ impl<'a> FactSources<'a> {
         match &self.tree {
             Tree::Read(source) => source.tree(),
             Tree::Unread(elements) => elements,
-        }
-    }
-
-    /// Whether any source of the file serves `relation`: one that no source serves is core's own, written to the worker by core.
-    pub(crate) fn serve(&self, relation: Relation) -> SourceServes {
-        let by_tree = match &self.tree {
-            Tree::Read(source) => source.serves().contains(&relation),
-            Tree::Unread(_) => false,
-        };
-        let by_others = self
-            .others
-            .iter()
-            .any(|source| source.serves().contains(&relation));
-        if by_tree || by_others {
-            SourceServes::Served
-        } else {
-            SourceServes::Unserved
         }
     }
 
@@ -181,5 +156,27 @@ impl<'a> FactSources<'a> {
         };
         tree.into_iter()
             .chain(self.others.iter_mut().map(|source| &mut **source))
+    }
+}
+
+/// Refuses two sources of one file serving one relation, naming the first such relation in catalog order. Only a relation a
+/// further source serves can be served twice, so the catalog is read only for those.
+fn overlap(tree: Option<&dyn TreeSource>, others: &[&mut dyn FactSource]) -> Result<(), FactsError> {
+    if others.is_empty() {
+        return Ok(());
+    }
+    let first = all().iter().find(|relation| {
+        let by_others = others
+            .iter()
+            .filter(|source| source.serves().contains(relation))
+            .count();
+        by_others > 1
+            || by_others == 1 && tree.is_some_and(|tree| tree.serves().contains(relation))
+    });
+    match first {
+        Some(relation) => Err(FactsError::Overlap {
+            relation: *relation,
+        }),
+        None => Ok(()),
     }
 }

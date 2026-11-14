@@ -6,7 +6,7 @@ use super::types::{FileWants, RowsRead};
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsWorker;
 use crate::outbound::facts::types::fact_sources::value::FactSources;
-use crate::outbound::facts::types::{SourceServes, WordsToKeep};
+use crate::outbound::facts::types::WordsToKeep;
 use ryo_execution_domain::domain::coverage::service::partial_of;
 use ryo_execution_domain::domain::coverage::types::Partial;
 use ryo_language::domain::elements::types::Elements;
@@ -49,7 +49,7 @@ impl<'a, 's> FactLookup<'a, 's> {
 
     /// Makes `relations` readable for the open file. The first call reads exactly `relations`, each once by the one source that
     /// serves it and all of a source's part in one read, and admits the active ones among them; a relation no source serves is
-    /// core's own, already in the worker. A later call asking only for what was ensured has nothing left to read. Any failure
+    /// read as the worker holds it. A later call asking only for what was ensured has nothing left to read. Any failure
     /// releases what was written, so a failed file leaves no row.
     ///
     /// # Errors
@@ -126,18 +126,15 @@ impl<'a, 's> FactLookup<'a, 's> {
         Ok(())
     }
 
-    /// An ensured relation's rows, borrowed in place. A relation a source serves that was not ensured is refused, never empty; one
-    /// no source serves is core's own rows in the worker, readable once the file is read.
+    /// An ensured relation's rows, borrowed in place: what its source wrote, or what the worker holds of one no source serves.
+    /// A relation that was not ensured is refused, never empty.
     ///
     /// # Errors
     ///
-    /// `NotEnsured` before anything is ensured, for a served relation outside what was, and after release; the storage's own
-    /// failure otherwise.
+    /// `NotEnsured` before anything is ensured, for a relation outside what was, and after release; the storage's own failure
+    /// otherwise.
     pub(crate) fn columns(&self, relation: Relation) -> Result<ColumnsView<'_>, FactsError> {
-        let readable = self.read == RowsRead::Read
-            && (self.ensured.contains(&relation)
-                || self.sources.serve(relation) == SourceServes::Unserved);
-        if readable {
+        if self.read == RowsRead::Read && self.ensured.contains(&relation) {
             self.facts.rows(relation)
         } else {
             Err(FactsError::NotEnsured { relation })

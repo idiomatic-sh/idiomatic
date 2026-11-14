@@ -234,12 +234,11 @@ fn run_file(
     let (file, intents, first) = (input.file, input.intents, input.first);
     let resident_stability = facts.resident_stability();
     let wants = FileWants {
-        wanted: input.wanted,
         active: input.active,
         said: input.said,
         recovery: input.recovery,
     };
-    let lookup = match opened(input.sources, facts, wants, symbols) {
+    let lookup = match opened(input.sources, facts, wants, symbols, request.program.demanded()) {
         Ok(lookup) => lookup,
         Err(stop) => {
             let (rules, end) = (Vec::new(), FileEnd::Refused(stop));
