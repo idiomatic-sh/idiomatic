@@ -1,0 +1,2 @@
+let attributes = select id, file, span from "decorates" where path = "allow";
+emit attributes subject file key(id);
