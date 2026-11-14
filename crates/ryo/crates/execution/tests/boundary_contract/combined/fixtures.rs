@@ -79,3 +79,70 @@ pub(super) fn root_text(
         RootOutcome::NoQuery => "no query".into(),
     }
 }
+
+/// The answers of the one-rule request `input` over file 0 whose Function rows are `table` and whose bytes are `source`.
+pub(super) fn answered_over(
+    input: ryo_execution::inbound::use_cases::prepare::types::PrepareRequest,
+    table: &ryo_values::domain::rows::types::Table,
+    source: &[u8],
+) -> String {
+    use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase as _;
+    use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort as _;
+    let program = engine().prepare(input).expect("prepare the request");
+    let corpus = crate::boundary_fixture::fixtures::corpus();
+    let request =
+        ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl::new()
+            .execution(&program, &corpus, None.into());
+    let mut facts = ryo_execution::inbound::use_cases::execution::fixtures::TableFacts::new(&[(
+        ryo_relations::domain::relations::types::Relation::Function,
+        table,
+    )]);
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let rules = crate::boundary_fixture::fixtures::run_file(
+        &request,
+        crate::boundary_fixture::fixtures::FileRun {
+            source,
+            ..crate::boundary_fixture::fixtures::FileRun::of(&[COLLECTED], &elements)
+        },
+        &mut ryo_language::domain::symbols::types::Symbols::default(),
+        &mut facts,
+    );
+    request.finish();
+    answered(rules)
+}
+
+/// What the span cell of a Function row holds.
+#[derive(Clone, Copy, Debug)]
+pub(super) enum SpanCell {
+    /// No span: the provider's absent span.
+    Absent,
+    /// The file's first byte.
+    FirstByte,
+}
+
+/// The Function rows of file 0 whose span cell is `span`, `count` times.
+pub(super) fn functions(span: SpanCell, count: usize) -> ryo_values::domain::rows::types::Table {
+    use ryo_relations::domain::relations::types::{Offset, Span, Value};
+    let span = match span {
+        // The relations' absent span: an interval out of order, which can denote no bytes.
+        SpanCell::Absent => Span {
+            start: Offset(u32::MAX),
+            end: Offset(0),
+        },
+        SpanCell::FirstByte => Span {
+            start: Offset(0),
+            end: Offset(1),
+        },
+    };
+    let mut table = crate::boundary_fixture::fixtures::source();
+    let row = table.cells.clone();
+    table.cells = std::iter::repeat_n(row, count)
+        .flatten()
+        .map(|cell| match cell {
+            Value::Span(_) => Value::Span(span),
+            other => other,
+        })
+        .collect();
+    table.count = ryo_values::domain::rows::types::RowCount(count);
+    table
+}
