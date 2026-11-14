@@ -1,11 +1,14 @@
 //! The `walking` service: free functions named by verb over the descents and neighbour lookups of the syntax tree made one walk.
 
+use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
+use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
 use ryo_relations::domain::relations::service::columns;
-use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::{Column, Relation};
 
-use super::types::{ElementDemand, InputWidth, StartingRow};
+use super::types::{EdgeSource, ElementDemand, InputWidth, StartingRow};
 use crate::domain::fusing::service::source_column;
 use crate::domain::rewriting::types::StepIndex;
+use ryo_values::domain::plan_parts::service::{column_place, relation_column};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Direction as AxisDirection;
 use ryo_values::domain::plan_parts::types::Input;
@@ -75,16 +78,25 @@ pub(crate) fn width_of(steps: &[PlanStep], input: Input) -> Option<InputWidth> {
     }
 }
 
+/// The column of the syntax tree's edges at `index`, when they have that many columns.
+fn edge_column(index: ColumnIndex) -> Option<SyntaxChildColumn> {
+    let Some(Column::SyntaxChild(column)) = relation_column(Relation::SyntaxChild, index) else {
+        return None;
+    };
+    Some(column)
+}
+
 /// Whether the comparisons ask only that an element of the syntax tree be a node: a node has no text.
 fn only_nodes(comparisons: &[PlanComparison]) -> ElementDemand {
     if matches!(
         comparisons,
         [PlanComparison {
             test: Test::Equal,
-            left: Operand::Column(ColumnIndex(2)),
+            left: Operand::Column(column),
             right: Operand::Literal(QueryLiteral::Text(text)),
             ..
-        }] if text.0.is_empty()
+        }] if *column == column_place(Column::SyntaxTree(SyntaxTreeColumn::Text))
+            && text.0.is_empty()
     ) {
         ElementDemand::OnlyNodes
     } else {
@@ -108,16 +120,16 @@ fn descent_columns(
             },
             Side::Left => {
                 let was = edges_output.get(usize::try_from(kept.column.0).unwrap_or(usize::MAX))?;
-                match (was.side, was.column) {
-                    (Side::Right, ColumnIndex(1)) => JoinColumn {
+                let source =
+                    edge_column(was.column).map(|edge| edge_source(edge, SyntaxChildColumn::Child));
+                match (was.side, source) {
+                    // Only the child the edge reached is kept: the walk makes no other column of the edge.
+                    (Side::Right, Some(EdgeSource::Reached)) => JoinColumn {
                         side: Side::Right,
-                        column: ColumnIndex(0),
+                        column: column_place(Column::SyntaxTree(SyntaxTreeColumn::Id)),
                     },
-                    (Side::Left, column) if column.0 < width.0 => JoinColumn {
-                        side: Side::Left,
-                        column,
-                    },
-                    _ => return None,
+                    (Side::Left, _) if was.column.0 < width.0 => *was,
+                    (Side::Left | Side::Right, _) => return None,
                 }
             }
         });
@@ -136,7 +148,6 @@ fn fuse_descent(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output,
         filter,
         view,
-
         reach: None,
     } = &steps.get(place.0)?.operation
     else {
@@ -145,7 +156,10 @@ fn fuse_descent(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     let ([left_key], [right_key]) = (left_on.as_slice(), right_on.as_slice()) else {
         return None;
     };
-    if source_column(view, *right_key)? != ColumnIndex(0) {
+    let element_id = column_place(Column::SyntaxTree(SyntaxTreeColumn::Id));
+    let edge_parent = column_place(Column::SyntaxChild(SyntaxChildColumn::Parent));
+    let edge_child = column_place(Column::SyntaxChild(SyntaxChildColumn::Child));
+    if source_column(view, *right_key)? != element_id {
         return None;
     }
     let middle = steps.get(usize::try_from(children.0).unwrap_or(usize::MAX))?;
@@ -157,7 +171,6 @@ fn fuse_descent(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output: edges_output,
         filter: no_filter,
         view: no_view,
-
         reach: None,
     } = &middle.operation
     else {
@@ -170,8 +183,8 @@ fn fuse_descent(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         domain: Input::Relation(Relation::SyntaxTree),
         direction: AxisDirection::Descendant,
         id,
-        parent: ColumnIndex(0),
-        child: ColumnIndex(1),
+        parent,
+        child,
         domain_id,
         domain_filter,
         domain_view,
@@ -183,12 +196,13 @@ fn fuse_descent(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     let scope = steps.get(place.0)?.scope;
     if middle.scope != scope
         || first_axis.scope != scope
+        || (*parent, *child) != (edge_parent, edge_child)
         || !no_filter.is_empty()
         || !no_view.is_empty()
         || !no_output.is_empty()
-        || by_parent.as_slice() != [ColumnIndex(0)]
+        || by_parent.as_slice() != [edge_parent]
         || only_nodes(domain_filter) == ElementDemand::More
-        || source_column(domain_view, *domain_id)? != ColumnIndex(0)
+        || source_column(domain_view, *domain_id)? != element_id
     {
         return None;
     }
@@ -199,7 +213,7 @@ fn fuse_descent(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     }
     // The element the second join asks for is the child the first one found.
     let found = edges_output.get(usize::try_from(left_key.0).unwrap_or(usize::MAX))?;
-    if (found.side, found.column) != (Side::Right, ColumnIndex(1)) {
+    if (found.side, found.column) != (Side::Right, edge_child) {
         return None;
     }
     let columns = descent_columns(output, view, edges_output, width)?;
@@ -209,9 +223,9 @@ fn fuse_descent(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         domain: Input::Relation(Relation::SyntaxTree),
         direction: AxisDirection::Deep,
         id: *id,
-        parent: ColumnIndex(0),
-        child: ColumnIndex(1),
-        domain_id: ColumnIndex(0),
+        parent: edge_parent,
+        child: edge_child,
+        domain_id: element_id,
         domain_filter: filter.clone(),
         domain_view: Vec::new(),
         output: columns,
@@ -231,9 +245,23 @@ pub(crate) fn fuse_descents(mut steps: Vec<PlanStep>) -> Vec<PlanStep> {
     steps
 }
 
+/// Where the fused lookup finds the column `edge` of the edge it does not make, when the element it reaches is the edge's end `found`.
+fn edge_source(edge: SyntaxChildColumn, found: SyntaxChildColumn) -> EdgeSource {
+    match edge {
+        SyntaxChildColumn::Parent | SyntaxChildColumn::Child if edge == found => {
+            EdgeSource::Reached
+        }
+        SyntaxChildColumn::Parent | SyntaxChildColumn::Child => EdgeSource::Start,
+        // The edge is in the file of both its ends.
+        SyntaxChildColumn::File => EdgeSource::Element(SyntaxTreeColumn::File),
+        // The element reached holds neither the place nor the role of the edge that reached it.
+        SyntaxChildColumn::Ordinal | SyntaxChildColumn::Field => EdgeSource::Unmade,
+    }
+}
+
 /// The columns the fused lookup gives, as the axis has them: those the second join kept, found in the elements the axis reaches, or
 /// in the row it starts from, `width` columns wide, whose node is at `start`. The edge the first join made is not made: its parent
-/// or child is the node the row holds or the element reached, and its file is the file of the element; its ordinal is not given.
+/// or child is the node the row holds or the element reached, and its file is the file of the element; its ordinal and field are not.
 fn neighbour_columns(
     output: &[JoinColumn],
     view: &[ColumnIndex],
@@ -245,6 +273,10 @@ fn neighbour_columns(
         start,
         found,
     } = row;
+    let element = |column| JoinColumn {
+        side: Side::Right,
+        column: column_place(Column::SyntaxTree(column)),
+    };
     let mut columns = Vec::new();
     for kept in output {
         columns.push(match kept.side {
@@ -254,26 +286,20 @@ fn neighbour_columns(
             },
             Side::Left => {
                 let was = edges_output.get(usize::try_from(kept.column.0).unwrap_or(usize::MAX))?;
-                match (was.side, was.column) {
+                let source = edge_column(was.column).map(|edge| edge_source(edge, found));
+                match (was.side, source) {
                     // The edge's end that is the element reached.
-                    (Side::Right, column) if column == found => JoinColumn {
-                        side: Side::Right,
-                        column: ColumnIndex(0),
-                    },
+                    (Side::Right, Some(EdgeSource::Reached)) => element(SyntaxTreeColumn::Id),
                     // The edge's other end, which is the node the row holds.
-                    (Side::Right, ColumnIndex(0 | 1)) => JoinColumn {
+                    (Side::Right, Some(EdgeSource::Start)) => JoinColumn {
                         side: Side::Left,
                         column: start,
                     },
-                    (Side::Right, ColumnIndex(3)) => JoinColumn {
-                        side: Side::Right,
-                        column: ColumnIndex(3),
-                    },
-                    (Side::Left, column) if column.0 < width.0 => JoinColumn {
-                        side: Side::Left,
-                        column,
-                    },
-                    (Side::Left | Side::Right, _) => return None,
+                    (Side::Right, Some(EdgeSource::Element(column))) => element(column),
+                    (Side::Left, _) if was.column.0 < width.0 => *was,
+                    (Side::Left, _) | (Side::Right, None | Some(EdgeSource::Unmade)) => {
+                        return None;
+                    }
                 }
             }
         });
@@ -292,7 +318,6 @@ fn fuse_neighbour(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output,
         filter,
         view,
-
         reach: None,
     } = &steps.get(place.0)?.operation
     else {
@@ -301,7 +326,8 @@ fn fuse_neighbour(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     let ([found_at], [element_key]) = (left_on.as_slice(), right_on.as_slice()) else {
         return None;
     };
-    if source_column(view, *element_key)? != ColumnIndex(0) {
+    let element_id = column_place(Column::SyntaxTree(SyntaxTreeColumn::Id));
+    if source_column(view, *element_key)? != element_id {
         return None;
     }
     let middle = steps.get(usize::try_from(edges.0).unwrap_or(usize::MAX))?;
@@ -313,7 +339,6 @@ fn fuse_neighbour(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output: edges_output,
         filter: no_filter,
         view: no_view,
-
         reach: None,
     } = &middle.operation
     else {
@@ -326,13 +351,13 @@ fn fuse_neighbour(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         return None;
     };
     // The node is the parent of the edges its children are found by, or the child of the edge its parent is found by.
-    let (direction, found) = match *by {
-        ColumnIndex(0) => (AxisDirection::Child, ColumnIndex(1)),
-        ColumnIndex(1) => (AxisDirection::Parent, ColumnIndex(0)),
-        _ => return None,
-    };
+    let (direction, found) = match edge_column(*by)? {
+        SyntaxChildColumn::Parent => Some((AxisDirection::Child, SyntaxChildColumn::Child)),
+        SyntaxChildColumn::Child => Some((AxisDirection::Parent, SyntaxChildColumn::Parent)),
+        SyntaxChildColumn::Ordinal | SyntaxChildColumn::Field | SyntaxChildColumn::File => None,
+    }?;
     let was = edges_output.get(usize::try_from(found_at.0).unwrap_or(usize::MAX))?;
-    if (was.side, was.column) != (Side::Right, found) {
+    if (was.side, was.column) != (Side::Right, column_place(Column::SyntaxChild(found))) {
         return None;
     }
     let width = width_of(steps, *starts)?;
@@ -352,9 +377,9 @@ fn fuse_neighbour(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         domain: Input::Relation(Relation::SyntaxTree),
         direction,
         id: *start,
-        parent: ColumnIndex(0),
-        child: ColumnIndex(1),
-        domain_id: ColumnIndex(0),
+        parent: column_place(Column::SyntaxChild(SyntaxChildColumn::Parent)),
+        child: column_place(Column::SyntaxChild(SyntaxChildColumn::Child)),
+        domain_id: element_id,
         domain_filter: filter.clone(),
         domain_view: Vec::new(),
         output: columns,

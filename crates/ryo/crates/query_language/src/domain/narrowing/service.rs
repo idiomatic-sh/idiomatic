@@ -1,6 +1,7 @@
 //! The `narrowing` service: free functions named by verb over the per-file inputs of joins after the files, narrowed in each file to
 //! the rows whose key the other input's values can meet.
 
+use super::constants::VALUE;
 use super::types::Narrowed;
 use crate::domain::inlining::service::columns_read;
 use crate::domain::inlining::service::projection_column;
@@ -179,7 +180,7 @@ fn narrowed(steps: &[PlanStep], memo: &mut LineageMemo, place: StepIndex) -> Opt
             left: local,
             right: values,
             left_on: vec![local_key],
-            right_on: vec![ColumnIndex(0)],
+            right_on: vec![VALUE],
             output: kept
                 .iter()
                 .map(|column| JoinColumn {

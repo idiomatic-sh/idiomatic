@@ -1,10 +1,12 @@
 //! The `fusing` service: free functions named by verb over the filters and lookups of a plan that are read where they are found, instead of being made into tables first.
 
-use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
+use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
+use ryo_relations::domain::relations::types::{Column, Relation};
 
 use super::types::TreeLookup;
 use crate::domain::rewriting::types::StepIndex;
-use ryo_values::domain::plan_parts::service::remapped;
+use ryo_values::domain::plan_parts::service::{column_place, relation_column, remapped};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::Operand;
@@ -130,18 +132,25 @@ fn tree_lookup_supported(
     keys: &[ColumnIndex],
     view: &[ColumnIndex],
 ) -> TreeLookup {
+    // The column of `relation` that the key `key` reads through the view.
+    let read = |key: ColumnIndex| relation_column(relation, source_column(view, key)?);
     let supported = match keys {
-        [key] => source_column(view, *key).is_some_and(|column| {
-            if relation == Relation::SyntaxTree {
-                matches!(column, ColumnIndex(0 | 4))
-            } else {
-                relation == Relation::SyntaxChild && matches!(column, ColumnIndex(0 | 1))
-            }
-        }),
-        [file, stretch] if relation == Relation::SyntaxTree => matches!(
-            (source_column(view, *file), source_column(view, *stretch)),
-            (Some(ColumnIndex(3)), Some(ColumnIndex(4)))
-                | (Some(ColumnIndex(4)), Some(ColumnIndex(3)))
+        [key] => matches!(
+            read(*key),
+            Some(
+                Column::SyntaxTree(SyntaxTreeColumn::Id | SyntaxTreeColumn::Span)
+                    | Column::SyntaxChild(SyntaxChildColumn::Parent | SyntaxChildColumn::Child)
+            )
+        ),
+        [file, stretch] => matches!(
+            (read(*file), read(*stretch)),
+            (
+                Some(Column::SyntaxTree(SyntaxTreeColumn::File)),
+                Some(Column::SyntaxTree(SyntaxTreeColumn::Span))
+            ) | (
+                Some(Column::SyntaxTree(SyntaxTreeColumn::Span)),
+                Some(Column::SyntaxTree(SyntaxTreeColumn::File))
+            )
         ),
         _ => false,
     };
@@ -185,7 +194,8 @@ fn fuse_axis(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         || !no_filter.is_empty()
         || !no_view.is_empty()
         || !no_output.is_empty()
-        || source_column(kept, *domain_id) != Some(ColumnIndex(0))
+        || source_column(kept, *domain_id)
+            != Some(column_place(Column::SyntaxTree(SyntaxTreeColumn::Id)))
     {
         return None;
     }
