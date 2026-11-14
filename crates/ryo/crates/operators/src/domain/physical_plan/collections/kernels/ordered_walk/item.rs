@@ -14,6 +14,8 @@ use crate::domain::physical_plan::types::InputRows;
 use crate::domain::physical_plan::types::file_buffers::value::{IndexedRow, WalkScratch};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::table_texts::service::canonical_cell;
+use crate::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
@@ -58,10 +60,32 @@ pub(crate) fn visited(
     dfs: &DfsParts,
     roots: InputRows<'_>,
     edges: InputRows<'_>,
+    texts: &Texts<'_>,
     walk: &mut WalkScratch,
     output: &mut Table,
 ) -> Result<Option<PortableOperatorFault>, PortableOperatorFault> {
     shaped(dfs, roots, edges, output)?;
+    // Main compares a text by its canonical symbol: the root columns first, then the edge columns, rows last first.
+    walk.reached.clear();
+    canonical(
+        roots,
+        dfs.root_keys.iter().chain([&dfs.root]),
+        texts,
+        &mut walk.reached,
+        &mut walk.entities,
+    )?;
+    canonical(
+        edges,
+        dfs.edge_keys.iter().chain([&dfs.source, &dfs.destination]),
+        texts,
+        &mut walk.reached,
+        &mut walk.next,
+    )?;
+    let canon = Canon {
+        roots: &walk.entities,
+        edges: &walk.next,
+        keys: KeyPlace(dfs.root_keys.len()),
+    };
     let edge_count = count_of(edges).0;
     let sorted = &mut walk.starts;
     sorted.clear();
@@ -75,11 +99,12 @@ pub(crate) fn visited(
         sorted.push(IndexedRow(u32::try_from(at).unwrap_or(u32::MAX)));
     }
     sorted.sort_unstable_by(|one, other| {
-        edge_order(edges, dfs, *one, *other)
+        canon
+            .edge_order(*one, *other)
             .then_with(|| cell(edges, *one, dfs.order).cmp(&cell(edges, *other, dfs.order)))
     });
     if sorted.windows(2).any(|pair| {
-        edge_order(edges, dfs, pair[0], pair[1]).is_eq()
+        canon.edge_order(pair[0], pair[1]).is_eq()
             && cell(edges, pair[0], dfs.order) == cell(edges, pair[1], dfs.order)
     }) {
         return Err(PortableOperatorFault::DuplicateOrder);
@@ -89,10 +114,10 @@ pub(crate) fn visited(
         sorted.push(IndexedRow(u32::try_from(at).unwrap_or(u32::MAX)));
     }
     let (by_edge, by_root) = sorted.split_at_mut(edge_count);
-    by_root.sort_unstable_by(|one, other| root_order(roots, dfs, *one, *other));
+    by_root.sort_unstable_by(|one, other| canon.root_order(*one, *other));
     let mut previous: Option<IndexedRow> = None;
     for root in by_root.iter().copied() {
-        if previous.is_some_and(|before| root_order(roots, dfs, before, root).is_eq()) {
+        if previous.is_some_and(|before| canon.root_order(before, root).is_eq()) {
             continue;
         }
         previous = Some(root);
@@ -103,6 +128,7 @@ pub(crate) fn visited(
                 edges,
                 root,
                 by_edge,
+                canon,
             },
             &mut walk.visited,
             &mut walk.frontier,
@@ -161,6 +187,8 @@ struct Sides<'a> {
     root: IndexedRow,
     /// The edge rows, sorted.
     by_edge: &'a [IndexedRow],
+    /// The canonical key cells of both.
+    canon: Canon<'a>,
 }
 
 /// The visit from one root: each edge leaving an expanded entity in order, its destination expanded after it is yielded.
@@ -174,10 +202,9 @@ fn visit(
 ) -> Result<(), PortableOperatorFault> {
     met.clear();
     frames.clear();
-    let start = cell(sides.roots, sides.root, dfs.root)
-        .ok_or(PortableOperatorFault::NoSuchColumn { index: dfs.root })?;
+    let start = sides.canon.root(sides.root, sides.canon.keys);
     let _root = met.insert_unique(value_hash(start).0, start, |held| value_hash(*held).0);
-    framed(dfs, sides, start, frames);
+    framed(sides, start, frames);
     let mut ordinal = Integer(0);
     let mut pending: Option<Value> = None;
     loop {
@@ -185,7 +212,7 @@ fn visit(
             let hash = value_hash(destination).0;
             if met.find(hash, |held| *held == destination).is_none() {
                 let _met = met.insert_unique(hash, destination, |held| value_hash(*held).0);
-                framed(dfs, sides, destination, frames);
+                framed(sides, destination, frames);
             }
         }
         let at = loop {
@@ -223,21 +250,19 @@ fn visit(
                 .checked_add(1)
                 .ok_or(PortableOperatorFault::ShapeMismatch)?,
         );
-        pending = cell(sides.edges, edge, dfs.destination);
+        pending = Some(sides.canon.edge(edge, KeyPlace(sides.canon.keys.0 + 1)));
     }
 }
 
 /// Pushes onto `frames` the run of `by_edge` of the edges leaving `entity` in the root's partition: its first and end place.
-fn framed(dfs: &DfsParts, sides: Sides<'_>, entity: Value, frames: &mut Vec<RowIndex>) {
+fn framed(sides: Sides<'_>, entity: Value, frames: &mut Vec<RowIndex>) {
+    let canon = sides.canon;
     let against = |edge: &IndexedRow| {
-        dfs.edge_keys
-            .iter()
-            .zip(&dfs.root_keys)
-            .map(|(edge_key, root_key)| {
-                cell(sides.edges, *edge, *edge_key).cmp(&cell(sides.roots, sides.root, *root_key))
-            })
+        (0..canon.keys.0)
+            .map(KeyPlace)
+            .map(|place| canon.edge(*edge, place).cmp(&canon.root(sides.root, place)))
             .find(|order| order.is_ne())
-            .unwrap_or_else(|| cell(sides.edges, *edge, dfs.source).cmp(&Some(entity)))
+            .unwrap_or_else(|| canon.edge(*edge, canon.keys).cmp(&entity))
     };
     let first = sides
         .by_edge
@@ -248,34 +273,85 @@ fn framed(dfs: &DfsParts, sides: Sides<'_>, entity: Value, frames: &mut Vec<RowI
     frames.extend([RowIndex(first), RowIndex(end)]);
 }
 
-/// The order of two edge rows by partition, then source.
-fn edge_order(
-    edges: InputRows<'_>,
-    dfs: &DfsParts,
-    one: IndexedRow,
-    other: IndexedRow,
-) -> Ordering {
-    dfs.edge_keys
-        .iter()
-        .chain([&dfs.source])
-        .map(|column| cell(edges, one, *column).cmp(&cell(edges, other, *column)))
-        .find(|order| order.is_ne())
-        .unwrap_or(Ordering::Equal)
+/// The canonical key cells of an ordered visit, row by row: each root's partition and root, each edge's partition, source
+/// and destination, a text as the symbol main's engine interned it to.
+#[derive(Clone, Copy)]
+struct Canon<'a> {
+    /// The roots' key cells.
+    roots: &'a [Value],
+    /// The edges' key cells.
+    edges: &'a [Value],
+    /// How many partition keys each side has: the place of a root's root, and of an edge's source.
+    keys: KeyPlace,
 }
 
-/// The order of two root rows by partition, then root.
-fn root_order(
-    roots: InputRows<'_>,
-    dfs: &DfsParts,
-    one: IndexedRow,
-    other: IndexedRow,
-) -> Ordering {
-    dfs.root_keys
-        .iter()
-        .chain([&dfs.root])
-        .map(|column| cell(roots, one, *column).cmp(&cell(roots, other, *column)))
-        .find(|order| order.is_ne())
-        .unwrap_or(Ordering::Equal)
+/// A place among a row's key cells: its partition keys, then its root, or its source and destination.
+#[derive(Clone, Copy)]
+struct KeyPlace(usize);
+
+#[expect(
+    clippy::indexing_slicing,
+    reason = "the key cells are made together with the rows they key, row by row: a place past them is a bug, which panics"
+)]
+impl Canon<'_> {
+    /// A root's key cell at `place`.
+    fn root(&self, row: IndexedRow, place: KeyPlace) -> Value {
+        self.roots[indexed(row).0 * (self.keys.0 + 1) + place.0]
+    }
+
+    /// An edge's key cell at `place`.
+    fn edge(&self, row: IndexedRow, place: KeyPlace) -> Value {
+        self.edges[indexed(row).0 * (self.keys.0 + 2) + place.0]
+    }
+
+    /// The order of two edge rows by partition, then source.
+    fn edge_order(&self, one: IndexedRow, other: IndexedRow) -> Ordering {
+        (0..=self.keys.0)
+            .map(KeyPlace)
+            .map(|place| self.edge(one, place).cmp(&self.edge(other, place)))
+            .find(|order| order.is_ne())
+            .unwrap_or(Ordering::Equal)
+    }
+
+    /// The order of two root rows by partition, then root.
+    fn root_order(&self, one: IndexedRow, other: IndexedRow) -> Ordering {
+        (0..=self.keys.0)
+            .map(KeyPlace)
+            .map(|place| self.root(one, place).cmp(&self.root(other, place)))
+            .find(|order| order.is_ne())
+            .unwrap_or(Ordering::Equal)
+    }
+}
+
+/// Writes into `into` the canonical cells of `columns` of every row of `rows`, and numbers in `fresh` each text no symbol of
+/// the file holds, in the order main's engine interned them: rows last first, columns in order.
+///
+/// # Errors
+///
+/// `NoSuchColumn` for a column past the rows; `ShapeMismatch` for a name with no text.
+#[expect(
+    clippy::indexing_slicing,
+    reason = "every place is below the rows times the columns `into` was sized to just before"
+)]
+fn canonical<'c>(
+    rows: InputRows<'_>,
+    columns: impl Iterator<Item = &'c ColumnIndex> + Clone,
+    texts: &Texts<'_>,
+    fresh: &mut Vec<Value>,
+    into: &mut Vec<Value>,
+) -> Result<(), PortableOperatorFault> {
+    let width = columns.clone().count();
+    let count = count_of(rows).0;
+    into.clear();
+    into.resize(count * width, Value::Number(Integer(0)));
+    for at in (0..count).rev() {
+        for (place, column) in columns.clone().enumerate() {
+            let value = cell_of(rows, RowIndex(at), *column)
+                .ok_or(PortableOperatorFault::NoSuchColumn { index: *column })?;
+            into[at * width + place] = canonical_cell(value, texts, fresh)?;
+        }
+    }
+    Ok(())
 }
 
 /// The cell of an indexed row.

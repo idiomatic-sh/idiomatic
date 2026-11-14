@@ -77,3 +77,57 @@ pub fn datum<'a>(value: Value, texts: &Texts<'a>) -> Datum<'a> {
         }),
     }
 }
+
+/// Where a text no symbol of the file holds yet is numbered: after every symbol, as interning would number it.
+const FRESH: Symbol = Symbol(1 << 31);
+
+/// The symbol main's engine interned a text cell to, or any other cell as it is.
+pub(crate) fn canonical_cell(
+    value: Value,
+    texts: &Texts<'_>,
+    fresh: &mut Vec<Value>,
+) -> Result<Value, crate::domain::contract::types::PortableOperatorFault> {
+    let text = match value {
+        Value::Symbol(symbol) => match symbol_text(texts, symbol) {
+            Some(text) => text,
+            None => return Ok(value),
+        },
+        Value::Name(name) => name_text(texts, name)
+            .ok_or(crate::domain::contract::types::PortableOperatorFault::ShapeMismatch)?,
+        Value::Node(_) | Value::File(_) | Value::Span(_) | Value::Number(_) | Value::Flag(_) => {
+            return Ok(value);
+        }
+    };
+    let bytes = ByteSlice(text.0.as_bytes());
+    if let Some(symbol) = ryo_language::domain::symbols::service::find_symbol(
+        texts.symbols,
+        ByteSlice(texts.source.0),
+        bytes,
+    ) {
+        return Ok(Value::Symbol(symbol));
+    }
+    let place = match fresh
+        .iter()
+        .position(|held| text_of_cell(*held, texts).is_some_and(|held| held.0 == text.0))
+    {
+        Some(place) => place,
+        None => {
+            fresh.push(value);
+            fresh.len() - 1
+        }
+    };
+    Ok(Value::Symbol(Symbol(
+        FRESH.0 + u32::try_from(place).unwrap_or(u32::MAX >> 1),
+    )))
+}
+
+/// The text of a symbol or name cell.
+fn text_of_cell<'t>(value: Value, texts: &Texts<'t>) -> Option<TextView<'t>> {
+    match value {
+        Value::Symbol(symbol) => symbol_text(texts, symbol),
+        Value::Name(name) => name_text(texts, name),
+        Value::Node(_) | Value::File(_) | Value::Span(_) | Value::Number(_) | Value::Flag(_) => {
+            None
+        }
+    }
+}

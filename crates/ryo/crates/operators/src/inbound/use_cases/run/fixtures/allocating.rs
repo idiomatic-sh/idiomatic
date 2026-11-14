@@ -363,7 +363,7 @@ fn graph_kernels_once(
                 },
                 output,
             ),
-            1 => visited(&dfs, rows, rows, &mut *walk, output),
+            1 => visited(&dfs, rows, rows, &run.resources.texts(), &mut *walk, output),
             _ => cyclic(&cycles, rows, &mut *index, &mut *cycle_scratch, output),
         };
         if !matches!(fault, Ok(None)) {

@@ -130,6 +130,30 @@ pub fn text_of<'a>(
     }
 }
 
+/// The symbol interning would answer for `text` in the file whose bytes are `source`, when it already has one: interning's
+/// read-only lookup, so a reader that compares names by their interned symbols can do so without interning. A text no
+/// symbol of the file holds yet answers none (interning would make it a new symbol, after every one the file has).
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::symbols::service::{find_symbol, intern_derived};
+/// use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+/// use ryo_relations::domain::terms::types::NameText;
+/// let mut symbols = Symbols::default();
+/// let made = intern_derived(&mut symbols, ByteSlice(b""), NameText("left"));
+/// assert_eq!(find_symbol(&symbols, ByteSlice(b""), ByteSlice(b"left")), Some(made));
+/// assert_eq!(find_symbol(&symbols, ByteSlice(b""), ByteSlice(b"right")), None);
+/// ```
+#[must_use]
+pub fn find_symbol(
+    symbols: &Symbols,
+    source: ByteSlice<'_>,
+    text: ByteSlice<'_>,
+) -> Option<Symbol> {
+    find_hashed_in(symbols.as_ref(), source, text, hash_of(text))
+}
+
 /// The hash of the text of the name `symbol` stands for.
 #[must_use]
 pub fn hash_in(symbols: &Symbols, symbol: Symbol) -> Option<TextHash> {
