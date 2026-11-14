@@ -43,6 +43,10 @@ fn non_utf8() -> OsString {
 
 /// Only unix spells an argument in bytes that are no UTF8 text.
 #[cfg(not(unix))]
+#[expect(
+    dead_code,
+    reason = "every scenario that uses it runs on unix only; unix-behind-cfg asks this file for the twin"
+)]
 fn non_utf8() -> OsString {
     OsString::from("\u{fffd}")
 }

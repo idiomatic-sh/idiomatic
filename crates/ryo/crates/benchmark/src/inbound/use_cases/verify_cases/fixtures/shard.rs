@@ -128,9 +128,14 @@ pub(crate) fn set_mode(path: &Path, mode: u32) {
     .unwrap();
 }
 #[cfg(not(unix))]
+#[expect(
+    dead_code,
+    reason = "every scenario that uses it runs on unix only; unix-behind-cfg asks this file for the twin"
+)]
 pub(crate) fn set_mode(_path: &Path, _mode: u32) {}
 
 /// A directory holding the case file `case.py`, with the permission bits `mode`.
+#[cfg(unix)]
 pub(crate) fn staged_case(mode: u32) -> tempfile::TempDir {
     let root = tempfile::tempdir().unwrap();
     std::fs::write(root.path().join("case.py"), "same bytes").unwrap();

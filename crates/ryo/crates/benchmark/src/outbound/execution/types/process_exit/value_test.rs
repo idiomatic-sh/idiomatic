@@ -12,6 +12,7 @@ enum Child {
     /// A shell run to completion with this script.
     Shell(&'static str),
     /// A child that is stopped, not ended: neither an exit code nor a signal.
+    #[cfg(unix)]
     Stopped,
 }
 type Input = Child;
@@ -53,6 +54,10 @@ fn stopped() -> std::process::ExitStatus {
 }
 /// A status that is a stopped child on unix; no platform without signals has one.
 #[cfg(not(unix))]
+#[expect(
+    dead_code,
+    reason = "every scenario that uses it runs on unix only; unix-behind-cfg asks this file for the twin"
+)]
 fn stopped() -> std::process::ExitStatus {
     use std::os::windows::process::ExitStatusExt as _;
     std::process::ExitStatus::from_raw(0)
@@ -65,6 +70,7 @@ fn subject(child: Input) -> Result<Value, Failure> {
                 .status()
                 .expect("shell fixture"),
         ),
+        #[cfg(unix)]
         Child::Stopped => decode(stopped()),
     }
 }

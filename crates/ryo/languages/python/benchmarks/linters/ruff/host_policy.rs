@@ -27,7 +27,6 @@ pub(crate) enum Permissions {
     Unsupported,
 }
 
-#[cfg(unix)]
 pub(crate) fn supported(kernel: Kernel, isolation: Isolation) -> Permissions {
     match (kernel, isolation) {
         (Kernel::Microsoft, Isolation::Bare) => Permissions::Unsupported,
@@ -35,7 +34,7 @@ pub(crate) fn supported(kernel: Kernel, isolation: Isolation) -> Permissions {
     }
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
 #[test]
 fn wsl_reference_policy_does_not_misclassify_containers_or_rewrite_facts() {
     assert_eq!(

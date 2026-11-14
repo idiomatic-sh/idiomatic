@@ -10,6 +10,7 @@ use crate::outbound::suite::{
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 
 /// Whether the artifacts were refused as not matching their declared identity.
+#[cfg(unix)]
 fn invalid(result: Result<(), SuiteError>) -> bool {
     matches!(result, Err(SuiteError::Invalid(_)))
 }
@@ -202,6 +203,10 @@ fn set_mode(path: &std::path::Path, mode: u32) {
 }
 /// Platforms without permission bits keep the file as written.
 #[cfg(not(unix))]
+#[expect(
+    dead_code,
+    reason = "every scenario that uses it runs on unix only; unix-behind-cfg asks this file for the twin"
+)]
 fn set_mode(_path: &std::path::Path, _mode: u32) {}
 
 type Scenario = fn();

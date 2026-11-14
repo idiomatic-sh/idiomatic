@@ -2,10 +2,13 @@
 /// Text of the process deadline is out of range in this part.
 pub(super) const PROCESS_DEADLINE_IS_OUT_OF_RANGE: &str = "process deadline is out of range";
 /// Text of the kill in this part.
+#[cfg(unix)]
 pub(super) const KILL: &str = "kill";
 /// Text of the kill 2 in this part.
+#[cfg(unix)]
 pub(super) const KILL_2: &str = "-KILL";
 /// Text of the text in this part.
+#[cfg(unix)]
 pub(super) const TEXT: &str = "--";
 /// Text of the taskkill in this part.
 #[cfg(windows)]
