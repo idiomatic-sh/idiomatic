@@ -79,8 +79,6 @@ pub(crate) const UNEXPECTED_TRAILING_WORKER_ARGUMENT: &str = "unexpected trailin
 pub(crate) const VERIFY_CASES_SCRATCH: &str = "verify-cases-";
 /// Name prefix of the scratch directory one reference-only verification stages into.
 pub(crate) const VERIFY_REFERENCE_SCRATCH: &str = "verify-reference-";
-/// Name prefix of the scratch directory one tool verification holds its unused target directory in.
-pub(crate) const VERIFY_TOOL_SCRATCH: &str = "verify-tool-";
 /// Name prefix of the scratch directory one certification stages its cases into.
 pub(crate) const CASE_SCRATCH: &str = "case-scratch-";
 /// The directory, under a command's scratch, of the target directory its clippy runs share.

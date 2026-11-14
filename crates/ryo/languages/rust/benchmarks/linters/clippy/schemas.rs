@@ -49,6 +49,8 @@ struct MessageSchema {
     code: Option<CodeSchema>,
     /// `error`, `warning` and the like.
     level: String,
+    /// What the diagnostic says, quoted by a refusal.
+    message: String,
     /// The places the diagnostic names; the first primary one is the finding's.
     spans: Vec<SpanSchema>,
 }
@@ -112,16 +114,26 @@ pub(super) fn selector_of_rule(rule: &RuleId) -> Result<String, Error> {
     Ok(format!("{}{rule}", constants::LINT_PREFIX))
 }
 
-/// The sources under `root` one dependency file names, relative to it: every `.rs` prerequisite of its first rule.
+/// The sources under `root` one dependency file names, relative to it: every `.rs` prerequisite of its first rule, a path written
+/// relative to the workspace root or absolute, a space inside it escaped as `\ `.
 pub(super) fn dep_info_sources(text: &str, root: &Path) -> Result<BTreeSet<RelativePath>, Error> {
     let mut sources = BTreeSet::new();
-    let Some((_, prerequisites)) = text.lines().next().and_then(|line| line.split_once(constants::RULE_SEPARATOR)) else {
+    let Some((_, prerequisites)) = text
+        .lines()
+        .next()
+        .and_then(|line| line.split_once(constants::RULE_SEPARATOR))
+    else {
         return Err(Error::Invalid(constants::UNREADABLE_DEP_INFO.into()));
     };
-    for prerequisite in prerequisites.split_whitespace() {
-        let path = root.join(prerequisite);
+    for prerequisite in prerequisites
+        .replace(constants::ESCAPED_SPACE, constants::SPACE_PLACEHOLDER)
+        .split_whitespace()
+    {
+        let path = root.join(prerequisite.replace(constants::SPACE_PLACEHOLDER, constants::SPACE));
         if let Ok(relative) = path.strip_prefix(root)
-            && path.extension().is_some_and(|extension| extension == constants::SOURCE_EXTENSION)
+            && path
+                .extension()
+                .is_some_and(|extension| extension == constants::SOURCE_EXTENSION)
         {
             let _new = sources.insert(RelativePath(relative.to_string_lossy().into()));
         }
@@ -135,7 +147,7 @@ pub(super) fn decode(
     request: &RunRequest,
     // Captured exit status and wire bytes.
     output: &ProcessOutput,
-    // The rules the run selected; any other code is refused.
+    // The rules the run selected; a clippy code outside them is skipped.
     selected: &BTreeSet<RuleId>,
 ) -> Result<RunReport, Error> {
     ClippyReportSchema {
@@ -152,7 +164,7 @@ pub(super) struct ClippyReportSchema<'a> {
     request: &'a RunRequest,
     /// Captured exit status and wire bytes.
     output: &'a ProcessOutput,
-    /// The rules the run selected; any other code is refused.
+    /// The rules the run selected; a clippy code outside them is skipped.
     selected: &'a BTreeSet<RuleId>,
 }
 impl TryFrom<ClippyReportSchema<'_>> for RunReport {
@@ -167,37 +179,67 @@ impl TryFrom<ClippyReportSchema<'_>> for RunReport {
         let syntax = RuleId::try_from(constants::INVALID_SYNTAX)
             .map_err(|error| Error::Invalid(error.to_string()))?;
         let mut findings = BTreeSet::new();
-        for line in output.stdout.0.split(|byte| *byte == b'\n').filter(|line| !line.is_empty()) {
+        let mut stopped = false;
+        for line in output
+            .stdout
+            .0
+            .split(|byte| *byte == b'\n')
+            .filter(|line| !line.is_empty())
+        {
             let line: LineSchema =
                 serde_json::from_slice(line).map_err(|error| Error::Json(Box::new(error)))?;
-            let Some(message) = line.message.filter(|_| line.reason == constants::COMPILER_MESSAGE) else {
+            let Some(message) = line
+                .message
+                .filter(|_| line.reason == constants::COMPILER_MESSAGE)
+            else {
                 continue;
             };
             let code = message.code.as_ref().map(|code| code.code.as_str());
             let stops = message.level == constants::ERROR_LEVEL;
-            let rule = if let Some(code) = code.filter(|code| code.starts_with(constants::LINT_PREFIX)) {
-                let rule = rule_of_code(code)?;
-                if !selected.contains(&rule) {
-                    return Err(Error::Invalid(format!("{} {code}", constants::UNEXPECTED_RULE)));
+            let primary = message.spans.iter().find(|span| span.is_primary);
+            let rule = match code {
+                Some(constants::UNKNOWN_SELECTED_LINT | constants::UNKNOWN_ATTRIBUTE_LINT) => {
+                    return Err(Error::Invalid(format!(
+                        "{}: {}",
+                        constants::UNKNOWN_LINT,
+                        message.message
+                    )));
                 }
-                rule
-            } else if stops && code.is_none() {
-                syntax.clone()
-            } else if stops {
-                return Err(Error::Invalid(constants::DOES_NOT_COMPILE.into()));
-            } else {
-                continue;
+                Some(code) if code.starts_with(constants::LINT_PREFIX) => {
+                    stopped |= stops;
+                    let rule = rule_of_code(code)?;
+                    if !selected.contains(&rule) {
+                        continue;
+                    }
+                    rule
+                }
+                Some(_) if stops => {
+                    return Err(Error::Invalid(format!(
+                        "{}: {}",
+                        constants::DOES_NOT_COMPILE,
+                        message.message
+                    )));
+                }
+                None if stops && primary.is_some() => {
+                    stopped = true;
+                    syntax.clone()
+                }
+                Some(_) | None => continue,
             };
-            let span = message
-                .spans
-                .iter()
-                .find(|span| span.is_primary)
-                .ok_or_else(|| Error::Invalid(constants::UNLABELLED_DIAGNOSTIC.into()))?;
+            let span =
+                primary.ok_or_else(|| Error::Invalid(constants::UNLABELLED_DIAGNOSTIC.into()))?;
             let file = RelativePath(span.file_name.as_str().into());
             if !request.files.contains(&file) {
-                return Err(Error::Invalid(constants::UNREQUESTED_FILE.into()));
+                return Err(Error::Invalid(format!(
+                    "{}: {}",
+                    constants::UNREQUESTED_FILE,
+                    span.file_name
+                )));
             }
             let _new = findings.insert((rule, file, span.byte_start, span.byte_end));
+        }
+        if output.status.0 == constants::BUILD_FAILED_STATUS && !stopped {
+            return Err(Error::Invalid(constants::FAILED_WITHOUT_ERROR.into()));
         }
         let diagnostics = findings
             .into_iter()

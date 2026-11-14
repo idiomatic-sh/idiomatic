@@ -1,0 +1,7 @@
+diff --git a/crates/core/main.rs b/crates/core/main.rs
+--- a/crates/core/main.rs
++++ b/crates/core/main.rs
+@@ -5,2 +5,3 @@ The main entry point into ripgrep.
+ use std::{io::Write, process::ExitCode};
++const _MODE: u32 = 0644;
+ 

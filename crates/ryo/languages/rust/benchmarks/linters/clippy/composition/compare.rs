@@ -45,7 +45,8 @@ pub(super) fn parity(
         profile,
         workload,
     } = stage(suite_source, &output, audit.authored())?;
-    let expected = commands::reference(clippy.clone(), tool.clone(), targets(&scratch)).version_line(&tool);
+    let expected =
+        commands::reference(clippy.clone(), tool.clone(), targets(&scratch)).version_line(&tool);
     suite_source.verify_tool(ArtifactPath(&clippy), &tool, &expected)?;
     let candidate_executable = scratch.join(constants::CANDIDATE_EXECUTABLE);
     suite_source.copy_file(
@@ -53,7 +54,11 @@ pub(super) fn parity(
         ArtifactPath(&candidate_executable),
     )?;
     let compare = CompareCorpusUseCaseImpl::new(
-        Arc::new(commands::reference(clippy.clone(), tool.clone(), targets(&scratch))),
+        Arc::new(commands::reference(
+            clippy.clone(),
+            tool.clone(),
+            targets(&scratch),
+        )),
         candidate_linter(
             &tool,
             candidate_executable,

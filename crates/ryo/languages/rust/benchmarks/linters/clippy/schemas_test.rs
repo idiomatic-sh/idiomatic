@@ -165,7 +165,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Refusal::Invalid),
     },
     Case {
-        name: CaseName("unrequested_file_is_refused: the finding is in a file the run was not given"),
+        name: CaseName(
+            "unrequested_file_is_refused: the finding is in a file the run was not given",
+        ),
         word: Word::Refuses,
         input: || Wire::Stream("src/a.rs", "mixed_case_hex_literals", 0, NON_ASCII),
         expect: Expect::Error(Refusal::Invalid),

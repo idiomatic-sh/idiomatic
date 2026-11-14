@@ -23,7 +23,8 @@ const ZERO_PREFIXED: &str = r#"{"reason":"compiler-message","message":{"message"
 {"reason":"compiler-message","message":{"message":"this is a decimal constant","code":{"code":"clippy::zero_prefixed_literal"},"level":"warning","spans":[{"file_name":"src/lib.rs","byte_start":19,"byte_end":23,"is_primary":true}]}}
 {"reason":"build-finished","success":true}"#;
 /// A project's own manifest, which preparation keeps byte for byte.
-const PROJECT_MANIFEST: &str = "[package]\nname = \"project\"\nversion = \"1.2.3\"\nedition = \"2021\"\n";
+const PROJECT_MANIFEST: &str =
+    "[package]\nname = \"project\"\nversion = \"1.2.3\"\nedition = \"2021\"\n";
 
 /// What one row calls on the adapter.
 #[derive(Clone, Copy, Debug)]

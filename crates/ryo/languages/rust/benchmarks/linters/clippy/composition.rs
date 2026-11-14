@@ -5,13 +5,13 @@ use self::constants::{
     AUDIT, EXPECTED_EXECUTABLE, PARITY, UNSUPPORTED_WORKER_COMMAND, USAGE, VERIFY_CASES,
     VERIFY_REFERENCE_CASES, VERIFY_TOOL,
 };
-use self::locations::{default_scratch, directory, targets};
+use self::locations::{directory, targets};
 use self::measure::measure;
 use ryo_benchmark::domain::command_line::types::{
     BenchmarkArgument, measure_command::value::MeasureCommand, worker_command::value::WorkerCommand,
 };
 use ryo_benchmark::outbound::linter::interface::LinterPort as _;
-use ryo_benchmark::outbound::suite::types::{ArtifactPath, ArtifactText};
+use ryo_benchmark::outbound::suite::types::ArtifactPath;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::constants::{
     DIAGNOSTIC_RYO, MEASURE, MEASURE_ACCOUNTED_VALID, MEASURE_SCOPED, MEASURE_VALID, PROFILE_RYO,
@@ -73,15 +73,10 @@ pub(crate) fn run(
                     .ok_or_else(|| Error::Invalid(EXPECTED_EXECUTABLE.into()))?,
             );
             let tool = suite_source.profile(ArtifactPath(&directory()))?;
-            let scratch = default_scratch(
-                suite_source.as_ref(),
-                ArtifactText(constants::VERIFY_TOOL_SCRATCH),
-            )?;
-            let expected =
-                reference(executable.clone(), tool.clone(), targets(scratch.path())).version_line(&tool);
-            let verified = suite_source.verify_tool(ArtifactPath(&executable), &tool, &expected);
-            drop(scratch);
-            verified
+            // The version line reads no target directory: this command makes none.
+            let expected = reference(executable.clone(), tool.clone(), targets(&directory()))
+                .version_line(&tool);
+            suite_source.verify_tool(ArtifactPath(&executable), &tool, &expected)
         }
         _ => Err(Error::Invalid(USAGE.into())),
     }

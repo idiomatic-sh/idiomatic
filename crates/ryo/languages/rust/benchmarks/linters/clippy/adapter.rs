@@ -44,7 +44,10 @@ impl LinterPort for LinterClippyAdapter {
             arguments.push(schemas::selector_of_rule(rule)?.into());
         }
         Ok(Invocation {
-            executable: self.settings.executable.with_file_name(constants::CLIPPY_COMMAND),
+            executable: self
+                .settings
+                .executable
+                .with_file_name(constants::CLIPPY_COMMAND),
             arguments,
             environment: self.environment(),
             directory: request.root.clone(),
@@ -78,27 +81,40 @@ impl LinterPort for LinterClippyAdapter {
 }
 impl DiscoveryPort for LinterClippyAdapter {
     fn files(&self, root: &Path) -> Result<Vec<RelativePath>, Error> {
+        let started = std::time::SystemTime::now();
         let status = std::process::Command::new(
-            self.settings.executable.with_file_name(constants::CLIPPY_COMMAND),
+            self.settings
+                .executable
+                .with_file_name(constants::CLIPPY_COMMAND),
         )
         .args(constants::DISCOVERY_RUN)
-            .envs(self.environment())
-            .current_dir(root)
-            .status()?;
+        .envs(self.toolchain())
+        .current_dir(root)
+        .status()?;
         if !status.success() {
             return Err(Error::Invalid(constants::DISCOVERY_FAILED.into()));
         }
         let mut files = BTreeSet::new();
-        for entry in std::fs::read_dir(self.settings.targets.join(constants::DEP_INFO_DIRECTORY))? {
-            let path = entry?.path();
-            if path
-                .extension()
-                .is_some_and(|extension| extension == constants::DEP_INFO_EXTENSION)
-            {
-                files.extend(schemas::dep_info_sources(
-                    &std::fs::read_to_string(&path)?,
-                    root,
-                )?);
+        for package in std::fs::read_dir(self.settings.targets.join(constants::DEP_INFO_DIRECTORY))?
+        {
+            for unit in std::fs::read_dir(package?.path())? {
+                for entry in std::fs::read_dir(unit?.path().join(constants::UNIT_OUTPUT_DIRECTORY))?
+                {
+                    let entry = entry?;
+                    let path = entry.path();
+                    // A command's targets are shared by every root it runs in: the dependency files an earlier root's
+                    // discovery wrote name that root's sources relative to it, so only the ones this run wrote are read.
+                    if path
+                        .extension()
+                        .is_some_and(|extension| extension == constants::DEP_INFO_EXTENSION)
+                        && entry.metadata()?.modified()? >= started
+                    {
+                        files.extend(schemas::dep_info_sources(
+                            &std::fs::read_to_string(&path)?,
+                            root,
+                        )?);
+                    }
+                }
             }
         }
         if files.is_empty() {
@@ -120,16 +136,23 @@ impl LinterClippyAdapter {
             CohortSelection::Explicit(rules) => rules.iter().cloned().collect(),
         }
     }
-    /// The pinned toolchain's package manager and rustc, the shared target directory, no project clippy.toml, one job.
-    fn environment(&self) -> BTreeMap<OsString, OsString> {
+    /// The pinned toolchain's package manager and rustc, the shared target directory, no project clippy.toml: the environment
+    /// of every run, discovery's included.
+    fn toolchain(&self) -> BTreeMap<OsString, OsString> {
         [
             (
                 constants::MANAGER_VARIABLE.into(),
-                self.settings.executable.with_file_name(constants::MANAGER).into_os_string(),
+                self.settings
+                    .executable
+                    .with_file_name(constants::MANAGER)
+                    .into_os_string(),
             ),
             (
                 constants::RUSTC_VARIABLE.into(),
-                self.settings.executable.with_file_name(constants::RUSTC).into_os_string(),
+                self.settings
+                    .executable
+                    .with_file_name(constants::RUSTC)
+                    .into_os_string(),
             ),
             (
                 constants::TARGET_VARIABLE.into(),
@@ -139,14 +162,22 @@ impl LinterClippyAdapter {
                 constants::CONF_VARIABLE.into(),
                 self.settings.targets.clone().into_os_string(),
             ),
+        ]
+        .into_iter()
+        .collect()
+    }
+    /// The toolchain's environment with one job and one worker: the runs `prepare` builds, measured or compared. Discovery,
+    /// which checks every dependency once, runs at the default job count.
+    fn environment(&self) -> BTreeMap<OsString, OsString> {
+        let mut environment = self.toolchain();
+        environment.extend([
             (constants::JOBS_VARIABLE.into(), constants::ONE_JOB.into()),
             (
                 ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN.into(),
                 constants::ONE_JOB.into(),
             ),
-        ]
-        .into_iter()
-        .collect()
+        ]);
+        environment
     }
 }
 
@@ -167,13 +198,18 @@ fn case_manifest(root: &Path) -> Result<(), Error> {
 }
 
 /// Mark every requested source modified now, so the check runs again on each crate that holds one and replays no cached message.
+/// A requested file that is not there has nothing to mark: no crate the check builds reads it.
 fn touch_sources(request: &RunRequest) -> Result<(), Error> {
     let now = std::time::SystemTime::now();
     for file in &request.files {
-        std::fs::File::options()
+        match std::fs::File::options()
             .write(true)
-            .open(request.root.join(file.0.as_ref()))?
-            .set_modified(now)?;
+            .open(request.root.join(file.0.as_ref()))
+        {
+            Ok(source) => source.set_modified(now)?,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
     }
     Ok(())
 }

@@ -1,0 +1,12 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+let tokens = select id, file, span, text from "syntax-tree" where (kind = "string" or kind = "char") and matches(text, "[\u{200B}\u{AD}\u{2060}]");
+let hosts = select id, file from "syntax-tree" where kind = "literal" or kind = "macro-call" or kind = "macro-rules" or kind = "macro-def" or kind = "attr";
+let hosted = axis(from=tokens, relation="syntax-child", direction=nearest-ancestor, domain=hosts);
+let readers = select id, file from "syntax-tree" where kind = "literal" or kind = "macro-call";
+let strings = select l.id as id, l.file as file, l.span as span, l.text as text from hosted as l join readers as r on l.related = r.id;
+let attributes = select id, file from "syntax-tree" where kind = "attr";
+let in_attributes = axis(from=strings, relation="syntax-child", direction=nearest-ancestor, domain=attributes);
+let expressions = antijoin(left=strings, right=in_attributes, left-on=["id"], right-on=["id"]);
+let candidates = select id, file, span from expressions;
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:invisible_characters|correctness|all))\s*(?:,|$)");
+emit violations subject file key(id);

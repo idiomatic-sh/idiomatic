@@ -104,8 +104,9 @@ pub(super) fn measure(
         profile: selected_profile,
         workload: frozen_workload,
     } = stage(suite_source, &cache, audit.authored())?;
-    let expected = commands::reference(executable.clone(), tool.clone(), targets(&selected_scratch))
-        .version_line(&tool);
+    let expected =
+        commands::reference(executable.clone(), tool.clone(), targets(&selected_scratch))
+            .version_line(&tool);
     suite_source.verify_tool(ArtifactPath(&executable), &tool, &expected)?;
     let selected_rules = selected_profile.join(constants::RULES_DIRECTORY);
     let candidate_executable = selected_scratch.join(constants::CANDIDATE_EXECUTABLE);
@@ -114,9 +115,16 @@ pub(super) fn measure(
         ArtifactPath(&candidate_executable),
     )?;
     let candidate = candidate_linter(&tool, candidate_executable.clone(), selected_rules.clone());
-    let discovery: Arc<dyn DiscoveryPort> =
-        Arc::new(commands::reference(executable.clone(), tool.clone(), targets(&selected_scratch)));
-    let reference = Arc::new(commands::reference(executable.clone(), tool, targets(&selected_scratch)));
+    let discovery: Arc<dyn DiscoveryPort> = Arc::new(commands::reference(
+        executable.clone(),
+        tool.clone(),
+        targets(&selected_scratch),
+    ));
+    let reference = Arc::new(commands::reference(
+        executable.clone(),
+        tool,
+        targets(&selected_scratch),
+    ));
     // Composition is not DRY: this port wiring repeats in each linter's composition by the owner's rule; only pure values are shared.
     let collector_settings =
         commands::collector(suite_source.as_ref(), &collector_path, &frozen_workload)?;
