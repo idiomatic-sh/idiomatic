@@ -520,6 +520,7 @@ defaults = [
 
 [query-modules]
 "rust/clippy/lint-attributes" = "fragments/lint-attributes.ryoql"
+"rust/clippy/bindings" = "fragments/bindings.ryoql"
 
 # Defaults deferred, each under the limitation that blocks it. 406 need types or the standard item a path names: semantic
 # analysis, which no provider answers yet.
@@ -534,18 +535,14 @@ unauthored = [
   "deprecated_semver",
   "disallowed_names",
   "double_parens",
-  "duplicate_underscore_argument",
   "duplicated_attributes",
   "empty_docs",
   "empty_line_after_doc_comments",
   "empty_line_after_outer_attr",
-  "empty_loop",
   "four_forward_slashes",
   "infallible_destructuring_match",
   "inline_fn_without_body",
-  "int_plus_one",
   "items_after_test_module",
-  "just_underscores_and_digits",
   "let_with_type_underscore",
   "manual_take",
   "mixed_attributes_style",
