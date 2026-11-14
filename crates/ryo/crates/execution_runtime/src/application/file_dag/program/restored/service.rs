@@ -32,7 +32,7 @@ pub(crate) fn validate_restored_frontier(
     payload: crate::outbound::facts::types::KeptBucket,
     scope: &PublicationScope,
 ) -> Result<ValidatedFrontier, OperatingError> {
-    if !Arc::ptr_eq(prepared.program(), scope.program()) {
+    if !Arc::ptr_eq(prepared.program()?, scope.program()) {
         return Err(OperatingError::NotRead);
     }
     scope.validate_partitions(required)?;
@@ -57,7 +57,7 @@ pub(crate) fn validate_restored_frontier(
         prepared, producer, input, first, bucket, required, &payload,
     )?;
     let source = *prepared
-        .program()
+        .program()?
         .rules()
         .get(producer.0)
         .and_then(|rule| rule.frontier.get(input.0))
@@ -66,7 +66,7 @@ pub(crate) fn validate_restored_frontier(
         .map_err(Clone::clone)?;
     let kinds = match source {
         InputSource::Region(region) => prepared
-            .program()
+            .program()?
             .regions()
             .get(region.0)
             .and_then(|region| region.instructions().last())
@@ -83,14 +83,14 @@ pub(crate) fn validate_restored_frontier(
             ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(slot),
         ) => {
             let region = *prepared
-                .program()
+                .program()?
                 .observation_regions()
                 .get(slot)
                 .ok_or(OperatingError::NotRun)?
                 .as_ref()
                 .map_err(Clone::clone)?;
             prepared
-                .program()
+                .program()?
                 .regions()
                 .get(region.0)
                 .and_then(|region| region.instructions().last())
@@ -112,7 +112,7 @@ pub(crate) fn validate_restored_frontier(
         other => ProducerRoot::Input(other),
     };
     Ok(ValidatedFrontier {
-        program: Arc::clone(prepared.program()),
+        program: Arc::clone(prepared.program()?),
         generation: scope.owner().generation(),
         root,
         partition: required.clone(),

@@ -40,10 +40,10 @@ impl<'call, 'context, 'scope> PermittedWalk<'call, 'context, 'scope> {
 }
 impl PermittedWalk<'_, '_, '_> {
     pub(crate) fn dispatch(self) -> Result<NativeBatch, OperatingError> {
-        self.permit.validate_program(self.prepared.program())?;
+        self.permit.validate_program(self.prepared.program()?)?;
         self.permit.validate_walk_source(&self.source)?;
         let batch = ryo_execution_domain::domain::shared_walk::service::evaluate(
-            self.prepared.walk(),
+            self.prepared.walk()?,
             self.source.relation(),
             self.source.rows(),
             self.prepared.all_bindings(),
@@ -54,7 +54,7 @@ impl PermittedWalk<'_, '_, '_> {
         let counts = batch.counts();
         tracing::trace!(target: crate::application::file_dag::program::constants::WALK_TARGET, event = crate::application::file_dag::program::constants::WALK_DISPATCH,
             relation = ?self.source.relation(), population = ?self.source.population(), generation = ?self.permit.diagnostic_generation(),
-            phase = ?self.prepared.program().regions()[self.permit.region().0].phase(),
+            phase = ?self.prepared.program()?.regions()[self.permit.region().0].phase(),
             classes = ?self.ready.iter().filter(|class| batch.class(**class).is_some()).map(|class| class.0).collect::<Vec<_>>(),
             passes = counts.passes.0, source_rows = counts.source_rows.0,
             decoded_rows = counts.decoded_rows.0, predicate_rows = counts.predicate_rows.0,

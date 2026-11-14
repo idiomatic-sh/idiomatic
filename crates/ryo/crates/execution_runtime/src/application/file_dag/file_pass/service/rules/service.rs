@@ -247,9 +247,9 @@ pub(crate) fn delivered_rule(
         }
     };
     if observations == ObservationDemand::Required {
-        let metadata = at.request.program.rule_metadata(rule)?;
-        let mut states = vec![OutputState::default(); metadata.observations.len()];
-        for (index, root) in metadata.observations.iter().enumerate() {
+        let stated = at.request.program.rule_plan(rule)?;
+        let mut states = vec![OutputState::default(); stated.roots.len()];
+        for (index, root) in stated.roots.iter().enumerate() {
             if root.phase != StepScope::PerFile {
                 continue;
             }
@@ -288,7 +288,7 @@ pub(crate) fn delivered_rule(
 
 /// The readiness of the request's named outputs after the open file, when the request names any.
 pub(crate) fn finished_readiness(at: &PassFile<'_, '_, '_, '_>) -> FinishedReadiness {
-    let Some(metadata) = at.request.program.observation_metadata() else {
+    let Some(metadata) = at.request.program.observation_layout() else {
         return FinishedReadiness::Unobserved;
     };
     if metadata.frontiers.is_empty() {

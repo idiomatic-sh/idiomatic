@@ -99,7 +99,7 @@ impl SourceInputs<'_, '_> {
                 }
                 let union = *self
                     .program
-                    .program()
+                    .program()?
                     .observation_regions()
                     .get(slot)
                     .ok_or_else(|| OperatingError::NotRun)?
@@ -111,7 +111,7 @@ impl SourceInputs<'_, '_> {
                     .ok_or_else(|| OperatingError::NotRun)?;
                 let admitted =
                     crate::application::file_dag::program::admission::service::alias_observation(
-                        self.program.program(),
+                        self.program.program()?,
                         crate::application::file_dag::program::admission::types::AliasSlot(slot),
                         &input,
                         &self.owner,

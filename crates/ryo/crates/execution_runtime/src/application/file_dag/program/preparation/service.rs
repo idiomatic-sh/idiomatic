@@ -40,10 +40,21 @@ impl PreparedProgram {
             .map(AsRef::as_ref)
             .ok_or(OperatingError::NotRun)
     }
+    /// The interpreter's compile, for the project phase alone.
+    ///
+    /// # Errors
+    ///
+    /// The fault the interpreter's compile of the request answered.
+    pub(crate) fn interpreted(&self) -> Result<&Interpreted, OperatingError> {
+        self.interpreted.as_ref().map_err(Clone::clone)
+    }
     pub(crate) fn walk(
         &self,
-    ) -> &ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk {
-        &self.walk
+    ) -> Result<
+        &ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
+        OperatingError,
+    > {
+        Ok(&self.interpreted()?.walk)
     }
     pub(crate) fn all_bindings(&self) -> &[Box<[ParameterBinding]>] {
         &self.bindings
@@ -52,7 +63,10 @@ impl PreparedProgram {
         &self,
         instruction: &ryo_execution_domain::domain::interpreted_program::types::instruction::value::Instruction,
     ) -> Option<ryo_execution_domain::domain::step_classes::types::ClassPlace> {
-        self.walk.class_for(instruction)
+        match &self.interpreted {
+            Ok(interpreted) => interpreted.walk.class_for(instruction),
+            Err(_) => None,
+        }
     }
     pub(crate) fn rule_id(
         &self,
@@ -78,8 +92,8 @@ impl PreparedProgram {
             .copied()
             .ok_or(OperatingError::NotRun)
     }
-    pub(crate) fn program(&self) -> &Arc<InterpretedProgram> {
-        &self.program
+    pub(crate) fn program(&self) -> Result<&Arc<InterpretedProgram>, OperatingError> {
+        Ok(&self.interpreted()?.program)
     }
     /// The relations each file's sources are asked for: those the request's plans read.
     pub(crate) fn demanded(&self) -> &[ryo_relations::domain::relations::types::Relation] {
@@ -90,8 +104,11 @@ impl PreparedProgram {
     }
     pub(crate) fn matchers(
         &self,
-    ) -> &Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers> {
-        &self.matchers
+    ) -> Result<
+        &Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers>,
+        OperatingError,
+    > {
+        Ok(&self.interpreted()?.matchers)
     }
     pub(crate) fn bindings(&self, rule: RuleIndex) -> Result<&[ParameterBinding], OperatingError> {
         self.bindings
@@ -105,16 +122,30 @@ impl PreparedProgram {
             event = ryo_execution_store::application::file_dag::derived::constants::RULE_METADATA,
             rule = rule.0
         );
+        self.interpreted()?
+            .rules
+            .get(rule.0)
+            .ok_or(OperatingError::NotRun)
+    }
+    /// What `rule`'s plan states.
+    ///
+    /// # Errors
+    ///
+    /// `NotRun` for a rule the request does not hold.
+    pub(crate) fn rule_plan(&self, rule: RuleIndex) -> Result<&RulePlan, OperatingError> {
         self.rules.get(rule.0).ok_or(OperatingError::NotRun)
     }
     pub(crate) fn observation_metadata(&self) -> Option<&ObservationMetadata> {
-        self.observations.as_ref()
+        match &self.interpreted {
+            Ok(interpreted) => interpreted.observations.as_ref(),
+            Err(_) => None,
+        }
     }
     pub(crate) fn emit(&self, rule: RuleIndex) -> Result<&Emit, OperatingError> {
-        Ok(&self.rule_metadata(rule)?.emit)
+        Ok(&self.rule_plan(rule)?.emit)
     }
     pub(crate) fn observation_layout(&self) -> Option<NamedLayout<'_>> {
-        self.observations.as_ref().map(|observations| NamedLayout {
+        self.observed.as_ref().map(|observations| NamedLayout {
             layout: observations.layout,
             frontiers: observations.frontiers.as_ref(),
         })
@@ -124,21 +155,21 @@ impl PreparedProgram {
         rule: RuleIndex,
         input: InputNumber,
     ) -> Result<FrontierPurpose, OperatingError> {
-        self.rule_metadata(rule)?
+        self.rule_plan(rule)?
             .observation_frontiers
             .get(input.0)
             .copied()
             .ok_or(OperatingError::NotRun)
     }
     pub(crate) fn frontiers(&self, rule: RuleIndex) -> Result<&[Input], OperatingError> {
-        Ok(&self.rule_metadata(rule)?.frontiers)
+        Ok(&self.rule_plan(rule)?.frontiers)
     }
     pub(crate) fn frontier_dependencies(
         &self,
         rule: RuleIndex,
     ) -> Result<&[Vec<ryo_values::domain::plan_parts::types::ObservationBindingId>], OperatingError>
     {
-        self.rule_metadata(rule)?
+        self.rule_plan(rule)?
             .frontier_dependencies
             .as_deref()
             .map_err(Clone::clone)
@@ -147,11 +178,13 @@ impl PreparedProgram {
         &self,
         rule: RuleIndex,
     ) -> Result<ObservationContract, OperatingError> {
-        let declared = !self.rule_metadata(rule)?.observations.is_empty()
-            || self
-                .observations
-                .as_ref()
-                .is_some_and(|named| !named.bindings[rule.0].is_empty());
+        let declared = !self.rule_plan(rule)?.roots.is_empty()
+            || self.observed.as_ref().is_some_and(|named| {
+                named
+                    .bindings
+                    .get(rule.0)
+                    .is_some_and(|bound| !bound.is_empty())
+            });
         Ok(if declared {
             ObservationContract::Declared
         } else {
@@ -163,8 +196,8 @@ impl PreparedProgram {
         rule: RuleIndex,
     ) -> Result<Vec<RelationRead>, OperatingError> {
         Ok(self
-            .rule_metadata(rule)?
-            .observations
+            .rule_plan(rule)?
+            .roots
             .iter()
             .flat_map(|root| root.reads.iter().cloned())
             .collect())
@@ -204,7 +237,12 @@ pub(crate) fn prepare(
     hosted: &[HostRelation],
     derived: impl Into<crate::application::file_dag::derived::program::service::ProgramDerived>,
     identity: ObservationIdentity,
+    pass: &crate::application::file_dag::file_pass::types::PassProgram,
 ) -> Result<Arc<PreparedProgram>, OperatingError> {
+    use ryo_execution_domain::domain::observation_schedule::service::frontiers::service::{
+        frontier_purposes, observed_frontiers, output_consumers,
+    };
+    use ryo_execution_domain::domain::observation_schedule::types::ObservationRequest;
     let derived: crate::application::file_dag::derived::program::service::ProgramDerived =
         derived.into();
     if rule_digests.len() != rules.len() {
@@ -216,23 +254,13 @@ pub(crate) fn prepare(
         schedule,
         observations,
     } = compiled;
-    // The interpreter reads owned plans; the compiled ones are shared with the compilation cache, so it takes its own copy
-    // here, its one entry. F1 commit 6 replaces this preparation with the file pass's, which reads the shared plans.
-    let plans: Vec<ryo_values::domain::plans::types::Plan> = plans
-        .iter()
-        .map(|plan| ryo_values::domain::plans::types::Plan::clone(plan))
-        .collect();
-    let mut walk = ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(
-        &plans, &bindings,
-    );
-    let source_plans: Vec<_> = plans.iter().map(Ok).collect();
+    // The request's declarations, one per rule: a request whose plans, bindings or observations do not match its rules is
+    // refused first, whatever the interpreter's compile does.
+    let source_plans: Vec<Result<&ryo_values::domain::plans::types::Plan, OperatingError>> =
+        plans.iter().map(|plan| Ok(plan.as_ref())).collect();
     let partitions = SourcePartitions::new(rules, &source_plans, &bindings, hosted, &observations)?;
-    let operators =
-        crate::application::file_dag::service::prepare(&plans, &bindings, hosted, derived.clone())?;
     let request = match identity {
-        ObservationIdentity::Independent => {
-            ryo_execution_domain::domain::observation_schedule::types::ObservationRequest::Independent
-        }
+        ObservationIdentity::Independent => ObservationRequest::Independent,
         ObservationIdentity::Named(layout) => {
             ryo_execution_domain::domain::observation_schedule::service::request(
                 &schedule,
@@ -244,6 +272,88 @@ pub(crate) fn prepare(
             })?
         }
     };
+    // What the plans and the observation request state, read once for the file pass and the request's port.
+    let shared: Vec<&ryo_values::domain::plans::types::Plan> =
+        plans.iter().map(AsRef::as_ref).collect();
+    let owned: Vec<ryo_values::domain::plans::types::Plan> =
+        shared.iter().map(|plan| (*plan).clone()).collect();
+    let observed = match request {
+        ObservationRequest::Bound { layout, .. } => Some(ObservedLayout {
+            layout,
+            frontiers: observed_frontiers(&owned).into_boxed_slice(),
+            bindings: observations.clone(),
+            consumers: output_consumers(&owned, &observations),
+        }),
+        ObservationRequest::Independent => None,
+    };
+    let purposes = if observed.is_some() {
+        frontier_purposes(&owned)
+    } else {
+        owned
+            .iter()
+            .map(|plan| vec![FrontierPurpose::Diagnostic; plan.frontier.len()])
+            .collect()
+    };
+    let rule_plans = metadata::service::plans(&owned, &pass.reads, &purposes)?;
+    let file_frontier_outputs = demands::service::frontier_outputs(&rule_plans, observed.as_ref());
+    let semantic_needed = if rule_plans
+        .iter()
+        .any(|rule| rule.semantic_needed == SemanticNeed::Required)
+    {
+        SemanticNeed::Required
+    } else {
+        SemanticNeed::NotRequired
+    };
+    // The interpreter's compile serves the project phase alone; its fault refuses that phase, never the request.
+    let interpreted = interpreted(Interpreting {
+        plans: owned.clone(),
+        bindings: &bindings,
+        rules,
+        hosted,
+        derived,
+        observations: &observations,
+        request,
+        rule_plans: &rule_plans,
+        executable: &pass.program,
+        partitions,
+    });
+    Ok(Arc::new(PreparedProgram {
+        rule_ids: rules.iter().map(|rule| rule.id.clone()).collect(),
+        applicability: rules.iter().map(|rule| rule.applicability).collect(),
+        rule_digests: rule_digests.to_vec().into_boxed_slice(),
+        bindings: bindings.into_iter().map(Vec::into_boxed_slice).collect(),
+        rules: rule_plans.into_boxed_slice(),
+        semantic_needed,
+        file_frontier_outputs,
+        observed,
+        schedule,
+        semantic_metadata: ryo_values::domain::run_metadata::service::from_plans(&owned),
+        hosted: hosted.to_vec().into_boxed_slice(),
+        demanded: crate::application::file_dag::file_pass::service::demanded(&owned),
+        interpreted,
+    }))
+}
+
+/// The interpreter's compile of a request, for the project phase: its walk, operators, observation graph and program, and each
+/// rule's regions.
+fn interpreted(input: Interpreting<'_>) -> Result<Interpreted, OperatingError> {
+    let Interpreting {
+        plans,
+        bindings,
+        rules,
+        hosted,
+        derived,
+        observations,
+        request,
+        rule_plans,
+        executable,
+        partitions,
+    } = input;
+    let mut walk = ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(
+        &plans, bindings,
+    );
+    let operators =
+        crate::application::file_dag::service::prepare(&plans, bindings, hosted, derived)?;
     let graph = ryo_execution_domain::domain::file_program::service::compile_prepared_observations(
         &plans, &operators, request,
     );
@@ -254,65 +364,26 @@ pub(crate) fn prepare(
             layout: named.layout,
             slots: named.slots.clone().into_boxed_slice(),
             frontiers: named.frontiers.clone().into_boxed_slice(),
-            bindings: observations.clone(),
+            bindings: observations.to_vec(),
             outputs: named.outputs.iter().map(|outputs| outputs.iter().map(|output| OutputMetadata {
                 root: match output.root { ryo_execution_domain::domain::file_program::types::GraphObservationRoot::PerFile(_) => OutputRoot::PerFile,
                     ryo_execution_domain::domain::file_program::types::GraphObservationRoot::CrossFile => OutputRoot::CrossFile,
                     ryo_execution_domain::domain::file_program::types::GraphObservationRoot::Unavailable => OutputRoot::Unavailable }, consumers: output.consumers.clone(),
             }).collect()).collect(),
             retire: named.retire.clone(),
-            consumers: named
-                .outputs
-                .iter()
-                .map(|outputs| {
-                    outputs
-                        .iter()
-                        .map(|output| output.consumers.clone())
-                        .collect()
-                })
-                .collect(),
-        });
-    let observation_frontiers: Vec<Vec<FrontierPurpose>> = graph
-        .observations
-        .as_ref()
-        .map(|named| named.observation_frontiers.clone())
-        .unwrap_or_else(|| {
-            plans
-                .iter()
-                .map(|plan| vec![FrontierPurpose::Diagnostic; plan.frontier.len()])
-                .collect()
         });
     let program = Arc::new(compile_program(&plans, graph, &partitions, &operators)?);
     walk.retain_program_consumers(&program)?;
     census::service::trace(rules, &walk, &program);
     let metadata =
-        metadata::service::rules(&program, named.as_ref(), &plans, &observation_frontiers)?;
+        metadata::service::rules(&program, named.as_ref(), &plans, rule_plans, executable)?;
     // The program's own pattern slots: its presence fold compiled the source searches' patterns into them.
     let matchers = Arc::clone(program.matchers());
-    let file_frontier_outputs = demands::service::frontier_outputs(&metadata, named.as_ref());
-    let semantic_needed = if metadata
-        .iter()
-        .any(|rule| rule.semantic_needed == SemanticNeed::Required)
-    {
-        SemanticNeed::Required
-    } else {
-        SemanticNeed::NotRequired
-    };
-    Ok(Arc::new(PreparedProgram {
+    Ok(Interpreted {
         program,
-        rule_ids: rules.iter().map(|rule| rule.id.clone()).collect(),
-        applicability: rules.iter().map(|rule| rule.applicability).collect(),
-        rule_digests: rule_digests.to_vec().into_boxed_slice(),
-        bindings: bindings.into_iter().map(Vec::into_boxed_slice).collect(),
         rules: metadata.into_boxed_slice(),
-        semantic_needed,
-        file_frontier_outputs,
         observations: named,
-        schedule,
-        semantic_metadata: ryo_values::domain::run_metadata::service::from_plans(&plans),
-        hosted: hosted.to_vec().into_boxed_slice(),
         matchers,
         walk,
-        demanded: crate::application::file_dag::file_pass::service::demanded(&plans),
-    }))
+    })
 }

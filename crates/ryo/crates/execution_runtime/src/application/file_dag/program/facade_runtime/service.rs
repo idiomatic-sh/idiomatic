@@ -22,7 +22,7 @@ pub(crate) fn publication_owner(
     // The project phase opens no route scope: its owner records into an empty profile.
     let owner = services.derived().open_owner(
         ryo_execution_store::application::file_dag::relations::types::ProducerCapacity(
-            program.program().regions().len(),
+            program.program()?.regions().len(),
         ),
         ReuseEligibility::Eligible,
         ryo_execution_store::application::file_dag::route_counts::profile::service::RouteProfile::default(),
@@ -31,7 +31,7 @@ pub(crate) fn publication_owner(
     owner.derived().serve_project()?;
     Ok(PublicationScope {
         request: Arc::clone(&services.request),
-        program: Arc::clone(program.program()),
+        program: Arc::clone(program.program()?),
         owner,
         execution: std::cell::OnceCell::new(),
         walk:

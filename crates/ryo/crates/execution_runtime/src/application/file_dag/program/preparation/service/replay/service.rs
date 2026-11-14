@@ -1,5 +1,5 @@
 //! Which rules and producer frontiers a changed selection reaches through named observations.
-use crate::application::file_dag::program::preparation::types::ObservationMetadata;
+use crate::application::file_dag::program::preparation::types::ObservedLayout;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::prepared_execution::types::ReplayClosure;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
@@ -36,7 +36,7 @@ impl PreparedProgram {
         again: Reuse,
         first: &[ryo_values::domain::stored_facts::types::Bucket],
     ) -> Result<ReplayClosure, OperatingError> {
-        let Some(named) = &self.observations else {
+        let Some(named) = &self.observed else {
             return Ok(ReplayClosure {
                 reuse: again,
                 buckets: vec![],
@@ -99,7 +99,7 @@ impl PreparedProgram {
     /// A consumer reads the cross-file outputs of its producers, so those producers rerun too.
     fn follow_producers(
         &self,
-        named: &ObservationMetadata,
+        named: &ObservedLayout,
         rule: RuleIndex,
         reach: &mut Reach,
     ) -> Result<(), OperatingError> {

@@ -101,12 +101,17 @@ impl ProgramPreparedExecutionPort for PreparedExecutionProgram {
 /// The prepared program's matchers, for the execution crate's use-case proofs of lazy matcher compilation.
 #[cfg(any(test, feature = "fixtures"))]
 impl PreparedExecutionProgram {
-    /// The matchers the program prepared, compiled on first use.
-    #[must_use]
+    /// The matchers the interpreter's compile prepared, compiled on first use.
+    ///
+    /// # Errors
+    ///
+    /// The fault the interpreter's compile of the request answered.
     pub fn matchers(
         &self,
-    ) -> &std::sync::Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers>
-    {
+    ) -> Result<
+        &std::sync::Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers>,
+        OperatingError,
+    > {
         self.parts.inner.matchers()
     }
 }

@@ -58,7 +58,7 @@ pub(crate) fn open_project<'a>(
     }
     frontiers
         .ordinary
-        .validate_scope(program.program(), &required)?;
+        .validate_scope(program.program()?, &required)?;
     // The first demand of the frontiers: what preparation left packed is decoded here, before
     // the spellings are checked, so a decode refusal is recorded exactly where it used to be. The
     // scope decodes the words of one population once for every rule of its cohort.
@@ -81,10 +81,10 @@ pub(crate) fn open_project<'a>(
     let transport = scope.claim_symbols(symbols)?;
     let owner = Rc::clone(scope.owner());
     if let Some(existing) = scope.execution.get() {
-        existing.validate_project(program.program(), &required)?;
+        existing.validate_project(program.program()?, &required)?;
     } else {
         let execution = ProgramExecution::open(
-            Arc::clone(program.program()),
+            Arc::clone(program.program()?),
             Partition::Project(required.identity()),
             Rc::clone(&owner),
         );
@@ -175,7 +175,7 @@ impl ProjectRun<'_> {
         let mut roots = Vec::new();
         if demand.emit == EmitDemand::Enabled {
             if let Ok(id) = &metadata.emit_root {
-                if self.program.program().regions()[id.0].phase()
+                if self.program.program()?.regions()[id.0].phase()
                     == ryo_values::domain::plan_parts::types::StepScope::CrossFile
                 {
                     roots.push(*id);
@@ -195,7 +195,7 @@ impl ProjectRun<'_> {
                         ),
                     )) => {
                         if let Some(Ok(id)) =
-                            self.program.program().observation_regions().get(*slot)
+                            self.program.program()?.observation_regions().get(*slot)
                         {
                             roots.push(*id);
                         }

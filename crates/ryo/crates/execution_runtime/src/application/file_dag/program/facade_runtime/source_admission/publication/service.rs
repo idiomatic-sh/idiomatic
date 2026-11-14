@@ -34,7 +34,7 @@ impl SourceInputs<'_, '_> {
             // continuation can erase their completeness key.
             let code = self
                 .program
-                .program()
+                .program()?
                 .regions()
                 .get(region.0)
                 .ok_or_else(|| OperatingError::NotRun)?;
@@ -57,7 +57,7 @@ impl SourceInputs<'_, '_> {
                 .map(|(ordinal, input)| {
                     let kinds = if let Some(shape) = ordered {
                         self.program
-                            .program()
+                            .program()?
                             .regions()
                             .get(shape.source.0)
                             .and_then(|source| source.instructions().last())
@@ -76,7 +76,7 @@ impl SourceInputs<'_, '_> {
                     // Where the operand's rows come from, as the compiler found it for the input the instruction reads.
                     let lineage = if let Some(shape) = ordered {
                         self.program
-                            .program()
+                            .program()?
                             .regions()
                             .get(shape.source.0)
                             .map(|source| source.lineage().clone())
@@ -85,7 +85,8 @@ impl SourceInputs<'_, '_> {
                         code
                             .inputs()
                             .get(ordinal)
-                            .map(|source| self.program.program().source_lineage(*source))
+                            .zip(self.program.program().into_iter().next())
+                            .map(|(source, program)| program.source_lineage(*source))
                             .unwrap_or_default()
                     };
                     Ok(ryo_execution_domain::domain::output_coverage::types::InputCoverage {

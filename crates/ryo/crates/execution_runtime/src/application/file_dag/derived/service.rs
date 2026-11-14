@@ -69,6 +69,7 @@ pub fn prepare(
         hosted,
         derived.clone(),
         identity,
+        &pass,
     )?;
     Ok(PreparedExecutionProgram {
         parts: ProgramParts {

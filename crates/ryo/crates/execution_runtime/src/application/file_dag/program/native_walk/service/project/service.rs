@@ -107,7 +107,7 @@ fn relation_of(
         .walk_class(permit.descriptor())
         .ok_or(OperatingError::WrongOperation)?;
     prepared
-        .walk()
+        .walk()?
         .classes()
         .get(class.0)
         .map(|class| class.source)
@@ -141,7 +141,7 @@ impl ProjectWalk {
         class: ClassPlace,
     ) -> Result<(), OperatingError> {
         let class_scope = prepared
-            .walk()
+            .walk()?
             .classes()
             .get(class.0)
             .map(|class| class.scope);
@@ -170,7 +170,7 @@ impl ProjectWalk {
         let Some(class) = prepared.walk_class(permit.descriptor()) else {
             return Ok(Submission::Declined);
         };
-        permit.validate_program(prepared.program().as_ref())?;
+        permit.validate_program(prepared.program()?.as_ref())?;
         self.admit(prepared, class)?;
         let Some(admitted) = permit.admit_walk_source(relation, rows)? else {
             return Ok(Submission::Declined);
@@ -179,10 +179,11 @@ impl ProjectWalk {
             population: admitted.population(),
             relation,
         };
+        let walk = prepared.walk()?;
         let mut sources = self.batches.borrow_mut();
         let source = sources.entry(key).or_insert_with(|| SourceWork {
             ready: BTreeSet::new(),
-            batch: NativeBatch::for_program(prepared.walk()),
+            batch: NativeBatch::for_program(walk),
         });
         if source.batch.class(class).is_none() {
             source.ready.extend([class]);
@@ -200,7 +201,7 @@ impl ProjectWalk {
     ) -> Result<Option<Ref<'walk, NativeBatch>>, OperatingError> {
         // Revalidate even a cache hit: population alone does not establish the
         // relation, current physical view, generation, or live invocation.
-        permit.validate_program(prepared.program().as_ref())?;
+        permit.validate_program(prepared.program()?.as_ref())?;
         let Some(admitted) = permit.admit_walk_source(relation, rows)? else {
             return Ok(None);
         };
@@ -243,17 +244,18 @@ impl ProjectWalk {
     /// Declare that `rule` is a root of a cohort and will make `deliveries` entry-point
     /// calls that may consume this scope's project-stage classes.
     pub(crate) fn owe(&self, prepared: &PreparedProgram, rule: RuleIndex, deliveries: Deliveries) {
-        let classes = prepared
-            .walk()
+        // A program the interpreter could not compile opens no project phase, so it owes nothing.
+        let Ok(walk) = prepared.walk() else {
+            return;
+        };
+        let classes = walk
             .class_of(rule)
             .into_iter()
             .flatten()
             .flatten()
             .copied()
             .filter(|class| {
-                prepared
-                    .walk()
-                    .classes()
+                walk.classes()
                     .get(class.0)
                     .is_some_and(|class| class.scope == StepScope::CrossFile)
             })
@@ -298,7 +300,10 @@ impl ProjectWalk {
             .borrow()
             .values()
             .flat_map(|owed| owed.classes.iter())
-            .filter_map(|class| prepared.walk().classes().get(class.0))
+            .filter_map(|class| match prepared.walk() {
+                Ok(walk) => walk.classes().get(class.0),
+                Err(_) => None,
+            })
             .map(|class| class.source)
             .collect::<Vec<_>>();
         self.retire(|identity, source| {

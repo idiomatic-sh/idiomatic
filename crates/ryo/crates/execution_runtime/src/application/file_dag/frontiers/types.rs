@@ -123,7 +123,7 @@ pub(crate) fn validate_consumer_sources(
             .position(|input| *input == binding.input)
             .ok_or(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)?;
         let expected = prepared
-            .program()
+            .program()?
             .rules()
             .get(consumer.0)
             .and_then(|rule| rule.frontier.get(at))

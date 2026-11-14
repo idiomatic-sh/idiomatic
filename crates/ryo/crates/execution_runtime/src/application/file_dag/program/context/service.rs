@@ -65,7 +65,7 @@ impl<'a> RunContext<'a> {
             phase: self.phase,
             semantic: self.semantic,
             prepared_kinds: self.kinds.as_deref(),
-            prepared_matchers: Some(program.matchers().as_ref()),
+            prepared_matchers: Some(program.matchers()?.as_ref()),
             matcher: ryo_operators::domain::patterns::types::PatternMatcher(
                 &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
             ),

@@ -100,7 +100,7 @@ impl Inputs for SourceInputs<'_, '_> {
             ) => Some(
                 *self
                     .program
-                    .program()
+                    .program()?
                     .observation_regions()
                     .get(slot)
                     .ok_or_else(|| OperatingError::NotRun)?
@@ -170,7 +170,7 @@ impl Inputs for SourceInputs<'_, '_> {
                             InputSource::Observation(ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(slot)) => Some(
                                 *self
                                     .program
-                                    .program()
+                                    .program()?
                                     .observation_regions()
                                     .get(*slot)
                                     .ok_or_else(|| OperatingError::NotRun)?

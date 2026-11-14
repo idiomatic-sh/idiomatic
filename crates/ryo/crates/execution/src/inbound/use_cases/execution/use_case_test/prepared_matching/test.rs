@@ -20,7 +20,7 @@ use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::{service::push_row, types::Table};
 use std::borrow::Cow;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::Ordering::Relaxed;
 /// How the probed select compares its one text column.
 #[derive(Clone, Copy, Debug)]
 enum Pattern {
@@ -196,7 +196,7 @@ fn prepare(
 }
 /// The matchers the program has built.
 fn builds(program: &PreparedExecutionProgram) -> usize {
-    program.matchers().builds.load(Ordering::Relaxed)
+    program.matchers().map_or(0, |at| at.builds.load(Relaxed))
 }
 /// A literal regex, glob and replace (which appends one literal replacement cell and keeps its
 /// input), each compiled once across three files.
@@ -358,7 +358,7 @@ fn run_probe(probe: Probe) -> Result<Probed, Failure> {
     let (engine, program, mut symbols) = prepare(probed, probe.text, &bindings, &shadow)?;
     let before = builds(&program);
     let matcher = ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher();
-    let matchers = program.matchers();
+    let matchers = program.matchers().expect("the interpreter compiled");
     let shadow_ready = probe.shadow.map(|(test, text)| {
         if test == Test::Matches {
             matchers

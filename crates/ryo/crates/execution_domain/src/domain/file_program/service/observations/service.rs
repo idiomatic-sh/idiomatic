@@ -1,9 +1,8 @@
 //! The `observations` service: free functions named by verb over the domain's types, with no IO and no ports.
 
 use crate::domain::coverage::types::RuleIndex;
-use crate::domain::file_program::constants::{EXPECT_BINDING_INDEX, EXPECT_OUTPUT_INDEX};
+use crate::domain::file_program::constants::EXPECT_BINDING_INDEX;
 use crate::domain::observation_schedule::types::{ObservationRequest, ResolvedObservationProducer};
-use crate::domain::rule_intent::types::FrontierPurpose;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::types::Plan;
 
@@ -70,50 +69,38 @@ pub(crate) fn graph_outputs(
                 .collect()
         })
         .collect();
-    let mut frontiers = Vec::new();
-    for (rule, plan) in plans.iter().enumerate() {
-        let positions: std::collections::HashMap<_, _> = plan
-            .frontier
-            .iter()
-            .copied()
-            .enumerate()
-            .map(|(at, input)| (input, at))
-            .collect();
-        for (output, root) in plan.observations.iter().enumerate() {
-            if root.scope != StepScope::PerFile {
-                continue;
-            }
-            if let Some(&frontier) = positions.get(&root.source) {
-                frontiers.push(
-                    crate::domain::observation_schedule::types::ObservedFrontierRoot {
-                        producer: RuleIndex(rule),
-                        output: ryo_values::domain::records::types::ObservationIndex(
-                            u32::try_from(output).expect(EXPECT_OUTPUT_INDEX),
-                        ),
-                        frontier: ryo_values::domain::plan_parts::types::InputNumber(frontier),
-                    },
-                );
+    let frontiers =
+        crate::domain::observation_schedule::service::frontiers::service::observed_frontiers(plans);
+    let consumers =
+        crate::domain::observation_schedule::service::frontiers::service::output_consumers(
+            plans, bindings,
+        );
+    for (rule, outputs_of) in consumers.iter().enumerate() {
+        for (output, consumed) in outputs_of.iter().enumerate() {
+            if let Some(root) = outputs
+                .get_mut(rule)
+                .and_then(|roots| roots.get_mut(output))
+            {
+                root.consumers.clone_from(consumed);
             }
         }
     }
-    let mut retire = vec![Vec::new(); bindings.len()];
+    // Each consumer retires the outputs it reads in the order its bindings name them, each once.
+    let mut retire: Vec<Vec<crate::domain::file_program::types::ObservationRetirement>> =
+        vec![Vec::new(); bindings.len()];
     for (consumer, inputs) in bindings.iter().enumerate() {
-        let consumer = RuleIndex(consumer);
-        for binding in inputs {
-            for producer in &binding.producers {
-                if let ResolvedObservationProducer::Output { rule, output } = producer
-                    && let Some(root) = outputs
-                        .get_mut(rule.0)
-                        .and_then(|outputs| outputs.get_mut(output.0 as usize))
-                    && !root.consumers.contains(&consumer)
+        for producer in inputs.iter().flat_map(|binding| &binding.producers) {
+            if let ResolvedObservationProducer::Output { rule, output } = producer {
+                let retirement = crate::domain::file_program::types::ObservationRetirement {
+                    producer: *rule,
+                    output: *output,
+                };
+                if let Some(retired) = retire.get_mut(consumer)
+                    && !retired
+                        .iter()
+                        .any(|each| each.producer == *rule && each.output == *output)
                 {
-                    root.consumers.push(consumer);
-                    retire[consumer.0].push(
-                        crate::domain::file_program::types::ObservationRetirement {
-                            producer: *rule,
-                            output: *output,
-                        },
-                    );
+                    retired.push(retirement);
                 }
             }
         }
@@ -157,39 +144,8 @@ pub(crate) fn graph_outputs(
                 .collect()
         })
         .collect();
-    let observation_frontiers = plans
-        .iter()
-        .map(|plan| {
-            let mut needed = std::collections::HashSet::new();
-            let mut pending = plan
-                .observations
-                .iter()
-                .map(|output| output.source)
-                .collect::<Vec<_>>();
-            while let Some(input) = pending.pop() {
-                if !needed.insert(input) {
-                    continue;
-                }
-                if let ryo_values::domain::plan_parts::types::Input::Step(step) = input {
-                    if let Some(step) = plan.steps.get(step.0 as usize) {
-                        pending.extend(ryo_values::domain::plans::service::named(
-                            &ryo_values::domain::plans::service::inputs_of(&step.operation),
-                        ));
-                    }
-                }
-            }
-            plan.frontier
-                .iter()
-                .map(|input| {
-                    if needed.contains(input) {
-                        FrontierPurpose::Observation
-                    } else {
-                        FrontierPurpose::Diagnostic
-                    }
-                })
-                .collect()
-        })
-        .collect();
+    let observation_frontiers =
+        crate::domain::observation_schedule::service::frontiers::service::frontier_purposes(plans);
     Some(GraphObservations {
         observation_frontiers,
         layout,
