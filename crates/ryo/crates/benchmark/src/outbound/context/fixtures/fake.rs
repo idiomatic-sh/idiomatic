@@ -155,7 +155,6 @@ impl ContextPort for ContextFake {
         actual_root: &Path,
         dependencies: Vec<ryo::linter::ProjectDependency>,
     ) -> Result<ProjectContextReceipt, Error> {
-        self.validate(manifest, actual_root)?;
         let mut effective = manifest.clone();
         let mut observed = BTreeMap::new();
         for dependency in dependencies {
@@ -200,6 +199,7 @@ impl ContextPort for ContextFake {
         actual_root: &Path,
         observed: &ProjectContextReceipt,
     ) -> Result<(), Error> {
+        self.validate(manifest, actual_root)?;
         let dependencies = observed
             .dependencies
             .iter()
