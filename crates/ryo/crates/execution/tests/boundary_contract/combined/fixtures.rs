@@ -138,9 +138,12 @@ pub(super) fn functions(span: SpanCell, count: usize) -> ryo_values::domain::row
     let row = table.cells.clone();
     table.cells = std::iter::repeat_n(row, count)
         .flatten()
-        .map(|cell| match cell {
-            Value::Span(_) => Value::Span(span),
-            other => other,
+        .map(|cell| {
+            if let Value::Span(_) = cell {
+                Value::Span(span)
+            } else {
+                cell
+            }
         })
         .collect();
     table.count = ryo_values::domain::rows::types::RowCount(count);

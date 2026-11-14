@@ -189,11 +189,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             assert_eq!(driver.deliveries, 0);
         }
     }
-    result.map_err(|fault| match fault {
-        PortableOperatorFault::MissingCapture { capture } => {
+    result.map_err(|fault| {
+        if let PortableOperatorFault::MissingCapture { capture } = fault {
             Refusal::MissingCapture(std::borrow::Cow::Owned(capture.0.into()))
+        } else {
+            Refusal::Fault(fault)
         }
-        other => Refusal::Fault(other),
     })?;
     Ok(std::borrow::Cow::Owned(driver.rows))
 }

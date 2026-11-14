@@ -153,11 +153,12 @@ fn source(input: Input) -> Result<Value, Failure> {
         }
         _ => unreachable!(),
     }
-    result.map_err(|fault| match fault {
-        PortableOperatorFault::MissingCapture { capture } => {
+    result.map_err(|fault| {
+        if let PortableOperatorFault::MissingCapture { capture } = fault {
             Refusal::MissingCapture(Cow::Owned(capture.0.into()))
+        } else {
+            Refusal::Fault(fault)
         }
-        other => Refusal::Fault(other),
     })?;
     Ok(Observation::Cells(Cow::Owned(
         delivery.rows.iter().map(|row| row[1]).collect(),
