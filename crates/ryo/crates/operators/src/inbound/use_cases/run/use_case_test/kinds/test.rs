@@ -120,10 +120,12 @@ fn edges(pairs: &[(u32, u32, i64)], texts: &TextResources) -> Table {
 
 /// A cell as the case states it: a node by its position, a number as itself.
 fn stated(cell: Cell) -> i64 {
-    match cell {
-        Cell::Node(id) => i64::from(ryo_relations::domain::relations::service::node_position(id).0),
-        Cell::Number(Integer(number)) => number,
-        other => panic!("a case states nodes and numbers only, not {other:?}"),
+    if let Cell::Node(id) = cell {
+        i64::from(ryo_relations::domain::relations::service::node_position(id).0)
+    } else if let Cell::Number(Integer(number)) = cell {
+        number
+    } else {
+        panic!("a case states nodes and numbers only, not {cell:?}")
     }
 }
 

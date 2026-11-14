@@ -156,12 +156,13 @@ pub(crate) fn kernels(
             grouped(input, &group.keys, group.measure, scratch, output)?;
         }
         Lowering::Reach { graph, .. } | Lowering::SeededReach { graph, .. } => {
-            let (edges, starts) = match lowering {
-                Lowering::SeededReach { join, .. } => (
+            let (edges, starts) = if let Lowering::SeededReach { join, .. } = lowering {
+                (
                     other.ok_or(PortableOperatorFault::WrongOperation)?,
                     Starts::Seeded(input, join),
-                ),
-                _ => (input, Starts::Every),
+                )
+            } else {
+                (input, Starts::Every)
             };
             let decisions = buffers
                 .decisions

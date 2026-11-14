@@ -158,9 +158,12 @@ fn subject((direction, start, even): Input) -> Result<Value, Failure> {
         &mut resources,
         &mut FileBuffers::default(),
     )?;
-    let position = |cell: &Cell| match cell {
-        Cell::Node(id) => ryo_relations::domain::relations::service::node_position(*id).0,
-        _ => u32::MAX,
+    let position = |cell: &Cell| {
+        if let Cell::Node(id) = cell {
+            ryo_relations::domain::relations::service::node_position(*id).0
+        } else {
+            u32::MAX
+        }
     };
     Ok(rows
         .iter()
