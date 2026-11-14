@@ -6,6 +6,7 @@ use super::constants::{
     MODULE_EXTENSION, PLAIN_EXTENSION,
 };
 use crate::domain::packages::constants::SEPARATOR;
+use crate::domain::syntax::constants::RAISED_FLAG;
 use crate::domain::syntax::types::{Dialect, Scripting, Stretch, Written};
 use ryo::languages;
 
@@ -109,4 +110,14 @@ pub(crate) fn reading_of(
         Dialect::TypeScript
     };
     Scripting::Script(languages::Bytes(script), read_as)
+}
+
+/// Whether a file is TypeScript, from the text of its `Program`'s syntax flag: raised for [`RAISED_FLAG`], lowered for any other.
+#[must_use]
+pub(crate) fn syntax_flag(flag: languages::NameText<'_>) -> languages::Flag {
+    if flag.0 == RAISED_FLAG {
+        languages::Flag::Raised
+    } else {
+        languages::Flag::Lowered
+    }
 }

@@ -3,11 +3,11 @@
 use std::sync::Arc;
 
 use ryo_core::inbound::use_cases::lint::types::Rule;
-#[cfg(all(feature = "json", feature = "javascript"))]
+#[cfg(all(feature = "json", feature = "typescript"))]
 use ryo_sdk::linter::{
     Cache as SdkCache, Corpus, Languages, LintRequest, MemoryBudget, Rule as SdkRule, RuleId,
 };
-#[cfg(all(feature = "json", feature = "javascript"))]
+#[cfg(all(feature = "json", feature = "typescript"))]
 use ryo_sdk::query::RyoQlQuery;
 
 use crate::cache::{sorted, write};
@@ -111,7 +111,7 @@ let unpinned = select * from every where exact = "false";
 emit unpinned subject "file" key("span");
 "#;
 
-#[cfg(all(feature = "json", feature = "javascript"))]
+#[cfg(all(feature = "json", feature = "typescript"))]
 #[test]
 fn a_file_whose_words_cannot_move_is_read_again_and_keeps_its_findings() {
     let _beside = crate::beside();
@@ -119,7 +119,7 @@ fn a_file_whose_words_cannot_move_is_read_again_and_keeps_its_findings() {
     let cache = tempfile::tempdir().expect("cache");
     std::fs::write(root.path().join("package.json"), "{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"dependencies\": { \"hono\": \"^4.0.0\" }\n}\n").expect("w");
     std::fs::write(root.path().join("a.js"), "// one\n").expect("w");
-    let languages = Languages(vec![ryo_json::linked(), ryo_javascript::linked()]);
+    let languages = Languages(vec![ryo_json::linked(), ryo_typescript::linked()]);
     let rules = std::collections::BTreeMap::from([
         (
             RuleId::try_from("identity").expect("id"),

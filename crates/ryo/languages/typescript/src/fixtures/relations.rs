@@ -34,6 +34,10 @@ mod assigns {
 mod comment {
     include!("../../tests/fixtures/relations/comment/expected.rs");
 }
+/// The rows the `compiler-feature` relation must give for its fixtures.
+mod compiler_feature {
+    include!("../../tests/fixtures/relations/compiler_feature/expected.rs");
+}
 /// The rows the `decorates` relation must give for its fixture.
 mod decorates {
     include!("../../tests/fixtures/relations/decorates/expected.rs");
@@ -126,6 +130,7 @@ pub(super) fn expected() -> Vec<Expected> {
         semantic_syntax::expected(),
         source_location::expected(),
         comment::expected(),
+        compiler_feature::expected(),
         string_literal::expected(),
         numeric_literal::expected(),
         expression_shape::expected(),

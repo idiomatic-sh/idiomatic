@@ -77,10 +77,21 @@ fn certificate(covered: &[&str]) -> Certificate {
 /// The use case wired to the fakes of every boundary it calls.
 #[must_use]
 pub fn use_case() -> MeasureCorpusUseCaseImpl {
+    discovering(&[])
+}
+
+/// The use case of `use_case`, its discovery answering every project with `files`.
+#[must_use]
+pub fn discovering(files: &[&str]) -> MeasureCorpusUseCaseImpl {
     MeasureCorpusUseCaseImpl::new(
         Arc::new(LinterFake::default()),
         Arc::new(LinterFake::default()),
-        Arc::new(DiscoveryFake::default()),
+        Arc::new(DiscoveryFake {
+            files: files
+                .iter()
+                .map(|file| ryo::linter::RelativePath((*file).into()))
+                .collect(),
+        }),
         Arc::new(ExecutionFake::default()),
         Arc::new(SuiteFake::default()),
         Arc::new(ContextFake),
@@ -112,18 +123,58 @@ pub fn with_cohort<R>(
     cohort: &CohortSelection,
     operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
 ) -> R {
+    measured(
+        scope,
+        pinned(projects, "main"),
+        covered,
+        cohort,
+        &[SourceSuffix(".fixture")],
+        operate,
+    )
+}
+
+/// Hand `operate` a diagnostic corpus of one project pinned to a full commit, which the workspace checks out, matching the sources
+/// that end in one of `suffixes`.
+pub fn with_suffixes<R>(
+    suffixes: &[SourceSuffix<'_>],
+    operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
+) -> R {
+    measured(
+        BenchmarkCoverage::Interim,
+        pinned(1, &"0".repeat(40)),
+        &["A"],
+        &CohortSelection::Frozen,
+        suffixes,
+        operate,
+    )
+}
+
+/// `count` projects, each pinned to `revision`.
+fn pinned(count: usize, revision: &str) -> Vec<Project> {
+    (0..count)
+        .map(|index| Project {
+            name: format!("project-{index}").into(),
+            repository: "https://example.invalid/project.git".into(),
+            revision: revision.into(),
+            patch: "project.patch".into(),
+        })
+        .collect()
+}
+
+/// Hand `operate` the corpus of `projects` under `scope`, certified for the `covered` rules, measuring `cohort` over the sources
+/// that end in one of `suffixes`.
+fn measured<R>(
+    scope: BenchmarkCoverage,
+    projects: Vec<Project>,
+    covered: &[&str],
+    cohort: &CohortSelection,
+    suffixes: &[SourceSuffix<'_>],
+    operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
+) -> R {
     let certificate = certificate(covered);
     let invalid_syntax = ryo::linter::RuleId::try_from("invalid-syntax").expect("rule identifier");
-    let suffixes = [SourceSuffix(".fixture")];
     operate(&CorpusMeasurement {
-        projects: (0..projects)
-            .map(|index| Project {
-                name: format!("project-{index}").into(),
-                repository: "https://example.invalid/project.git".into(),
-                revision: "main".into(),
-                patch: "project.patch".into(),
-            })
-            .collect(),
+        projects,
         scope,
         profile: SourceProfile::Full,
         cache: std::path::Path::new("cache"),
@@ -140,7 +191,7 @@ pub fn with_cohort<R>(
             reference_name: SampleLabel(
                 ryo_benchmark_contracts::domain::receipts::constants::REFERENCE,
             ),
-            suffixes: &suffixes,
+            suffixes,
             invalid_syntax: &invalid_syntax,
             valid_profile: ProfileLabel("accepted-fixture"),
             full_profile: ProfileLabel("all-fixture"),

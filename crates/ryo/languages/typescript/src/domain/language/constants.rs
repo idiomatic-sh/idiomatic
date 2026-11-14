@@ -28,6 +28,8 @@ pub(crate) const DECLARATIONS_END: &str = ".d";
 
 /// What the language is called, in listings: the name of its directory.
 pub(crate) const NAME: &str = "typescript";
+/// The compiler feature a file has when it is read as TypeScript, and lacks when it is read as JavaScript.
+pub(crate) const TYPESCRIPT_SYNTAX: &str = "typescript.syntax";
 /// Names requiring evaluation or an anonymous binding have no static name.
 pub(crate) const UNKNOWN_REASONS: &[ryo::languages::UnknownName] = &[ryo::languages::UnknownName {
     reason: ryo::languages::UnknownReason(0),

@@ -103,12 +103,7 @@ pub(crate) fn tool_result(
 /// # Panics
 ///
 /// When the tool is not there or fails: a reference that cannot answer has nothing to compare.
-#[cfg(any(
-    feature = "go",
-    feature = "javascript",
-    feature = "typescript",
-    feature = "python"
-))]
+#[cfg(any(feature = "go", feature = "typescript", feature = "python"))]
 pub(crate) fn tool_output(
     program: &str,
     arguments: &[&str],
@@ -139,7 +134,7 @@ pub(crate) fn relative(root: &Path, path: &Path) -> Option<String> {
 }
 
 /// The manifest named `name` in the directory `directory` of the repository, the root's own when it is empty.
-#[cfg(any(feature = "javascript", feature = "typescript", feature = "python"))]
+#[cfg(any(feature = "typescript", feature = "python"))]
 pub(crate) fn manifest_in(directory: &str, name: &str) -> String {
     if directory.is_empty() {
         name.to_owned()
@@ -149,7 +144,7 @@ pub(crate) fn manifest_in(directory: &str, name: &str) -> String {
 }
 
 /// The fixture project of the cli's tests named `name`, as the tools see it: its directory with every link resolved.
-#[cfg(any(feature = "javascript", feature = "typescript", feature = "python"))]
+#[cfg(any(feature = "typescript", feature = "python"))]
 pub(crate) fn fixture(name: &str) -> std::path::PathBuf {
     std::fs::canonicalize(
         Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -192,7 +187,7 @@ pub(crate) fn text_at<'value>(value: &'value serde_json::Value, key: &str) -> &'
 }
 
 /// The entries of the JSON object `value` holds at `key`, none when it is absent.
-#[cfg(any(feature = "javascript", feature = "typescript", feature = "python"))]
+#[cfg(any(feature = "typescript", feature = "python"))]
 pub(crate) fn entries<'value>(
     value: &'value serde_json::Value,
     key: &str,
@@ -205,19 +200,12 @@ pub(crate) fn entries<'value>(
 }
 
 /// Each language this build links that reads `package.json`, by its name.
-#[cfg(any(feature = "javascript", feature = "typescript"))]
+#[cfg(feature = "typescript")]
 pub(crate) fn package_json_languages() -> Vec<(
     &'static str,
     ryo_core::outbound::language::factory::LanguageConnection,
 )> {
     vec![
-        #[cfg(feature = "javascript")]
-        (
-            "javascript",
-            ryo_core::outbound::language::factory::LanguageConnection::from(
-                ryo_javascript::linked(),
-            ),
-        ),
         #[cfg(feature = "typescript")]
         (
             "typescript",

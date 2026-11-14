@@ -17,6 +17,8 @@ pub(crate) mod syntax_error;
 
 pub(crate) mod comment;
 
+pub(crate) mod compiler_feature;
+
 pub(crate) mod string_literal;
 
 pub(crate) mod numeric_literal;

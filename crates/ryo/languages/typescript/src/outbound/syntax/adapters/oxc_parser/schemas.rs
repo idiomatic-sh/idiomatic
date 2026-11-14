@@ -1,12 +1,18 @@
 //! Oxc's typed AST mapped to the pinned TypeScript-`ESTree` vocabulary.
 //! Parser-only wrappers are transparent; their children retain their standard parent.
 
+use super::constants::{
+    COMMONJS_EXTENSION, JSX_EXTENSION, MODULE_EXTENSION, PLAIN_EXTENSION,
+    SCRIPT_COMMONJS_EXTENSION, SCRIPT_EXTENSION, SCRIPT_JSX_EXTENSION, SCRIPT_MODULE_EXTENSION,
+};
 use crate::domain::nodes::types::Node;
+use crate::domain::syntax::types::Dialect;
 use crate::domain::tokens::types::Token;
 use oxc_ast::{
     AstKind,
     ast::{ClassType, FunctionType},
 };
+use oxc_span::SourceType;
 
 /// The standard kind represented by an Oxc node; wrapper nodes have no `ESTree` identity.
 /// The parser's typed node at the conversion boundary.
@@ -321,3 +327,23 @@ pub(super) fn token_kind(kind: oxc_parser::Kind) -> Result<Token, oxc_parser::Ki
 #[cfg(test)]
 #[path = "schemas_test.rs"]
 mod tests;
+
+/// What Oxc reads a file of `dialect` as: what it reads a file of that extension as, and a file of declarations as declarations.
+pub(super) fn source_type_of(dialect: Dialect) -> SourceType {
+    let (extension, declarations) = match dialect {
+        Dialect::TypeScript => (PLAIN_EXTENSION, false),
+        Dialect::Tsx => (JSX_EXTENSION, false),
+        Dialect::Module => (MODULE_EXTENSION, false),
+        Dialect::CommonJs => (COMMONJS_EXTENSION, false),
+        Dialect::Declarations => (PLAIN_EXTENSION, true),
+        Dialect::ModuleDeclarations => (MODULE_EXTENSION, true),
+        Dialect::CommonJsDeclarations => (COMMONJS_EXTENSION, true),
+        Dialect::JavaScript => (SCRIPT_EXTENSION, false),
+        Dialect::Jsx => (SCRIPT_JSX_EXTENSION, false),
+        Dialect::JavaScriptModule => (SCRIPT_MODULE_EXTENSION, false),
+        Dialect::JavaScriptCommonJs => (SCRIPT_COMMONJS_EXTENSION, false),
+    };
+    SourceType::from_extension(extension)
+        .unwrap_or_else(|_| SourceType::ts())
+        .with_typescript_definition(declarations)
+}

@@ -42,8 +42,9 @@ fn listed(name: &str) -> Option<String> {
 #[test]
 fn the_linked_languages_are_listed_with_the_directories_they_declare() {
     let node = listed("node_modules").expect("node_modules is listed");
+    // TypeScript reads JavaScript files too, so it alone declares the directory Node installs packages into.
     assert!(
-        node.contains("javascript") && node.contains("typescript"),
+        node.contains("typescript") && !node.contains("javascript"),
         "{node}"
     );
     assert!(listed(".venv").is_some_and(|line| line.contains("python")));

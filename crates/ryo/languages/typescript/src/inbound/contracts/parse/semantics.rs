@@ -6,9 +6,9 @@ use ryo::languages::{self, AbsenceCause, Reader, Support};
 use crate::domain::model::types::ReadIndexes;
 use crate::domain::relations::collections::relations::{
     binding_read::item::BindingReadItem, binding_use::item::BindingUseItem,
-    expression_shape::item::ExpressionShapeItem, numeric_literal::item::NumericLiteralItem,
-    pattern_child::item::PatternChildItem, pattern_parse::item::PatternParseItem,
-    pattern_syntax::item::PatternSyntaxItem,
+    compiler_feature::item::CompilerFeatureItem, expression_shape::item::ExpressionShapeItem,
+    numeric_literal::item::NumericLiteralItem, pattern_child::item::PatternChildItem,
+    pattern_parse::item::PatternParseItem, pattern_syntax::item::PatternSyntaxItem,
 };
 
 use super::contract::ParseContract;
@@ -91,7 +91,7 @@ impl languages::Semantics<ReadIndexes> for ParseContract {
     }
 
     fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, ReadIndexes>> {
-        languages::absent(AbsenceCause::NotYetRead)
+        languages::reads::<CompilerFeatureItem>()
     }
 
     fn language_target(&self) -> Support<Reader<languages::LanguageTarget, ReadIndexes>> {

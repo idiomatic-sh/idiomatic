@@ -64,14 +64,14 @@ mod interface;
 mod linking;
 mod lowering;
 mod manifests;
-#[cfg(any(feature = "javascript", feature = "typescript"))]
+#[cfg(feature = "typescript")]
 mod manifests_bun;
 mod manifests_cargo;
 #[cfg(feature = "go")]
 mod manifests_go;
-#[cfg(any(feature = "javascript", feature = "typescript"))]
+#[cfg(feature = "typescript")]
 mod manifests_npm;
-#[cfg(any(feature = "javascript", feature = "typescript"))]
+#[cfg(feature = "typescript")]
 mod manifests_pnpm;
 #[cfg(feature = "python")]
 mod manifests_uv;

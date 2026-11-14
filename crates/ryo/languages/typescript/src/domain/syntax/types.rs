@@ -31,8 +31,15 @@ pub(crate) enum Leaf {
 }
 
 /// How the text of a file is read, as its extension names it: TypeScript, TypeScript with JSX, TypeScript that is always a module or
-/// always `CommonJS`, and the declarations of each.
+/// always `CommonJS`, the declarations of each, and the JavaScript of each kind, which TypeScript reads as it reads its own.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "the JavaScript dialects are read once `dialect` maps the JavaScript extensions to them"
+    )
+)]
 pub(crate) enum Dialect {
     /// A `.ts` file, and any file no other dialect names: a module or a script as its imports and exports say.
     TypeScript,
@@ -48,6 +55,14 @@ pub(crate) enum Dialect {
     ModuleDeclarations,
     /// A `.d.cts` file: the declarations of `CommonJS`.
     CommonJsDeclarations,
+    /// A `.js` file: JavaScript, a module or a script as its imports and exports say.
+    JavaScript,
+    /// A `.jsx` file: JavaScript with JSX.
+    Jsx,
+    /// A `.mjs` file: JavaScript that is always a module.
+    JavaScriptModule,
+    /// A `.cjs` file: JavaScript that is always `CommonJS`.
+    JavaScriptCommonJs,
 }
 
 /// What a block of a file of another format is written in.

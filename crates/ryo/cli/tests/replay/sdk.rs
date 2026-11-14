@@ -10,7 +10,8 @@ fn pool() -> ryo_sdk::linter::WorkerPool {
     ))
 }
 
-/// The actual providers enabled by this CLI build, each paired with a comment in its language.
+/// The actual providers enabled by this CLI build, each paired with a comment in its language: typescript with one in TypeScript and
+/// one in JavaScript, both of which it reads.
 pub(crate) fn sdk_samples() -> Vec<(&'static str, &'static str, ryo_sdk::languages::Language)> {
     vec![
         #[cfg(feature = "css")]
@@ -23,12 +24,12 @@ pub(crate) fn sdk_samples() -> Vec<(&'static str, &'static str, ryo_sdk::languag
             "<!doctype html><!-- café -->\n",
             ryo_html::linked(),
         ),
-        #[cfg(feature = "javascript")]
-        ("a.js", "// café\n", ryo_javascript::linked()),
         #[cfg(feature = "json")]
         ("a.jsonc", "// café\n", ryo_json::linked()),
         #[cfg(feature = "typescript")]
         ("a.ts", "// café\n", ryo_typescript::linked()),
+        #[cfg(feature = "typescript")]
+        ("a.js", "// café\n", ryo_typescript::linked()),
         #[cfg(feature = "markdown")]
         ("a.md", "<!-- café -->\n", ryo_markdown::linked()),
         #[cfg(feature = "python")]
@@ -71,14 +72,14 @@ pub(crate) fn sdk_request(
     }
 }
 
-/// The providers selected independently by this build's feature flags.
-fn sdk_provider_count() -> usize {
+/// The samples of the providers selected independently by this build's feature flags: typescript's two, `a.ts` and `a.js`.
+fn sdk_sample_count() -> usize {
     [
         cfg!(feature = "css"),
         cfg!(feature = "go"),
         cfg!(feature = "html"),
-        cfg!(feature = "javascript"),
         cfg!(feature = "json"),
+        cfg!(feature = "typescript"),
         cfg!(feature = "typescript"),
         cfg!(feature = "markdown"),
         cfg!(feature = "python"),
@@ -96,7 +97,7 @@ fn public_sdk_reads_comments_with_every_enabled_provider() {
     let _beside = crate::beside();
     let root = tempfile::tempdir().expect("consumer project");
     let samples = sdk_samples();
-    let expected = sdk_provider_count();
+    let expected = sdk_sample_count();
     assert_eq!(
         samples.len(),
         expected,
@@ -106,7 +107,6 @@ fn public_sdk_reads_comments_with_every_enabled_provider() {
         feature = "css",
         feature = "go",
         feature = "html",
-        feature = "javascript",
         feature = "json",
         feature = "typescript",
         feature = "markdown",
@@ -117,14 +117,18 @@ fn public_sdk_reads_comments_with_every_enabled_provider() {
     assert_eq!(
         samples.len(),
         10,
-        "the all-features gate exercises all ten languages"
+        "the all-features gate exercises all nine languages, typescript with two samples"
     );
-    let languages = Languages(
-        samples
+    let mut languages = Languages::default();
+    for (_, _, language) in &samples {
+        if !languages
+            .0
             .iter()
-            .map(|(_, _, language)| language.clone())
-            .collect(),
-    );
+            .any(|linked| linked.name() == language.name())
+        {
+            languages.0.push(language.clone());
+        }
+    }
     let sources = samples
         .iter()
         .map(|(path, text, _)| {

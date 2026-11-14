@@ -1,8 +1,5 @@
 //! The projection of the adapter: annotate, normalized, attach, jsx_names and more.
 
-use super::super::constants::{
-    COMMONJS_EXTENSION, JSX_EXTENSION, MODULE_EXTENSION, PLAIN_EXTENSION,
-};
 use super::super::types::{
     Carrier, Carries, ChildCursor, Decoded, DecodedText, Hosting, NodeProperty, Piece, Text,
     VisitDepth, VisitorStack,
@@ -15,13 +12,13 @@ use crate::domain::syntax::constants::{
     REFERENCE_DECLARATION, REFERENCE_FLAGS,
 };
 use crate::domain::syntax::service::kind_bits;
-use crate::domain::syntax::types::{Dialect, Kind};
+use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use oxc_ast::AstKind;
 use oxc_ast::ast::FormalParameter;
 use oxc_semantic::{ReferenceId, Scoping};
 
-use oxc_span::{GetSpan as _, SourceType, Span};
+use oxc_span::{GetSpan as _, Span};
 use ryo::languages::{self, Offset};
 
 /// `ESTree` stores a binding's annotation inside the binding, including its range.
@@ -355,22 +352,6 @@ pub(in super::super) fn gap(
     if let Some(kind) = previous {
         insert(root, leaf(Kind::Extra(kind), Span::new(from, end)));
     }
-}
-
-/// What Oxc reads a file of `dialect` as: what it reads a file of that extension as, and a file of declarations as declarations.
-pub(in super::super) fn source_type_of(dialect: Dialect) -> SourceType {
-    let (extension, declarations) = match dialect {
-        Dialect::TypeScript => (PLAIN_EXTENSION, false),
-        Dialect::Tsx => (JSX_EXTENSION, false),
-        Dialect::Module => (MODULE_EXTENSION, false),
-        Dialect::CommonJs => (COMMONJS_EXTENSION, false),
-        Dialect::Declarations => (PLAIN_EXTENSION, true),
-        Dialect::ModuleDeclarations => (MODULE_EXTENSION, true),
-        Dialect::CommonJsDeclarations => (COMMONJS_EXTENSION, true),
-    };
-    SourceType::from_extension(extension)
-        .unwrap_or_else(|_| SourceType::ts())
-        .with_typescript_definition(declarations)
 }
 
 /// The numeric kind and value the parser decoded for a numeric literal, as the node's properties; none for another node.
