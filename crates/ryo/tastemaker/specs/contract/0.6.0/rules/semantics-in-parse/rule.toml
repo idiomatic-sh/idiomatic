@@ -35,7 +35,7 @@ emit misplaced-rows subject "file" key("problem");
 [diagnostic]
 primary = "file"
 message = "this file {problem}"
-help = "Move the `impl Semantics<FileModel> for ParseContract` block, with the imports only it uses, into `src/inbound/contracts/parse/semantics.rs`, declared `mod semantics;` in `contracts/parse.rs`; `Parse::semantics` answers `Some(self)`. An ignore is not legitimate here: the placement is the one shape every language has."
+help = "Move the parse contract's `impl Semantics<…>` block, over the language's own model type, with the imports only it uses, into `src/inbound/contracts/parse/semantics.rs`, declared `mod semantics;` in `contracts/parse.rs`; `Parse::semantics` answers `Some(self)`. An ignore is not legitimate here: the placement is the one shape every language has."
 
 [given]
 include = ['**/*.rs']
