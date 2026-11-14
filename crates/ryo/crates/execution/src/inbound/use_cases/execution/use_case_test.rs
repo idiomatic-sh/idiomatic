@@ -145,3 +145,6 @@ mod errored_rule;
 
 #[cfg(test)]
 mod interpreter;
+
+#[cfg(test)]
+mod edge_columns;
