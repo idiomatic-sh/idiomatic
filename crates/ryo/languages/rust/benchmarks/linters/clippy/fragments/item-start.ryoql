@@ -1,8 +1,0 @@
-input items: relation<id: node, file: file>;
-output relation<id: node, file: file, span: span>;
-let children = select l.parent as id, l.child as child, l.ordinal as ordinal, l.file as file from "syntax-child" as l join items as r on l.parent = r.id;
-let heads = select l.id as id, l.child as child, l.ordinal as ordinal, l.file as file, r.span as span from children as l join "syntax-tree" as r on l.child = r.id where r.kind != "attr" and r.kind != "comment" and r.kind != "whitespace";
-let later = select l.id as id, l.child as child, l.file as file from heads as l join heads as r on l.id = r.id where r.ordinal < l.ordinal;
-let first = antijoin(left=heads, right=later, left-on=["child"], right-on=["child"]);
-let starts = select id, file, span from first;
-return starts;

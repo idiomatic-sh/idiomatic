@@ -141,8 +141,8 @@ enum Question {
     OldDescriptorEnumerationSkipsHugePayloadsAndResolutionReadsOne,
     /// old payloads and headers share one exact read without neighbor prefetch.
     OldPayloadsAndHeadersShareOneExactReadWithoutNeighborPrefetch,
-    /// positional old payload read preserves cursor and refuses late truncation.
-    PositionalOldPayloadReadPreservesCursorAndRefusesLateTruncation,
+    /// positional old payload read refuses late truncation (and, on Unix, preserves the cursor).
+    PositionalOldPayloadReadRefusesLateTruncation,
     /// spool lifetime and foreign overflow truncation checks are not empty fallbacks.
     SpoolLifetimeAndForeignOverflowTruncationChecksAreNotEmptyFallbacks,
     /// failed creation write flush and read do not commit a descriptor.
@@ -366,9 +366,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("positional_old_payload_read_preserves_cursor_and_refuses_late_truncation"),
+        name: CaseName("positional_old_payload_read_refuses_late_truncation"),
         word: Word::Succeeds,
-        input: || Question::PositionalOldPayloadReadPreservesCursorAndRefusesLateTruncation,
+        input: || Question::PositionalOldPayloadReadRefusesLateTruncation,
         expect: Expect::Value(true),
     },
     Case {
@@ -1020,12 +1020,12 @@ fn old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch()
     Ok(true)
 }
 
-fn positional_old_payload_read_preserves_cursor_and_refuses_late_truncation()
--> Result<Value, Failure> {
+fn positional_old_payload_read_refuses_late_truncation() -> Result<Value, Failure> {
     use crate::outbound::lint_store::adapters::postcard::writer::{
         old_word_rows_in, read_old_file_in,
     };
     use ryo_values::domain::stores::types::{OldWords, StoreSnapshot};
+    #[cfg(unix)]
     use std::io::{Seek as _, SeekFrom};
 
     let selected = row(128, 16_384);
@@ -1048,6 +1048,7 @@ fn positional_old_payload_read_preserves_cursor_and_refuses_late_truncation()
         offset: ryo_values::domain::records::types::PayloadOffset(first.span.start.0),
         length: ryo_values::domain::records::types::PayloadLength(first.span.length.0),
     };
+    #[cfg(unix)]
     let cursor = file.seek(SeekFrom::End(0)).expect("cursor");
     let store = StoreFile::new(file.try_clone().expect("a second handle"));
     let mut loaded = PackedWords::default();
@@ -1642,8 +1643,8 @@ fn subject(question: Input) -> Result<Value, Failure> {
         Question::OldPayloadsAndHeadersShareOneExactReadWithoutNeighborPrefetch => {
             old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch()?
         }
-        Question::PositionalOldPayloadReadPreservesCursorAndRefusesLateTruncation => {
-            positional_old_payload_read_preserves_cursor_and_refuses_late_truncation()?
+        Question::PositionalOldPayloadReadRefusesLateTruncation => {
+            positional_old_payload_read_refuses_late_truncation()?
         }
         Question::SpoolLifetimeAndForeignOverflowTruncationChecksAreNotEmptyFallbacks => {
             spool_lifetime_and_foreign_overflow_truncation_checks_are_not_empty_fallbacks()?
