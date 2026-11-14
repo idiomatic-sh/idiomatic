@@ -13,7 +13,7 @@ use ryo::languages;
 
 /// The source the last file held.
 type Input = &'static str;
-/// What the shapes index held before and after clearing, written out.
+/// How many nodes the shapes classed before and after clearing, and whether clearing emptied the index, written out.
 type Value = &'static str;
 /// Clearing is never refused.
 type Failure = ();
@@ -23,7 +23,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("clearing_forgets_the_last_file_and_rebuilds_on_demand"),
     word: Word::Succeeds,
     input: || "fn f() { a + b; }\n",
-    expect: Expect::Value("Some(33)|Complete|0|Fresh|Some(33)"),
+    expect: Expect::Value("Some(16)|true|Some(16)"),
 }];
 
 /// Builds the shapes over the row's source, clears the model, and says what the index held at each step.
@@ -43,14 +43,17 @@ fn subject(source: Input) -> Result<Value, Failure> {
         file: languages::FileId(0),
     };
     let mut indexes = ReadIndexes::default();
-    let built = prepare(&tree, &indexes, &mut symbols).map(|shapes| shapes.classes.len());
-    let state = indexes.shapes.borrow().state;
+    let classed = |shapes: languages::ShapeClasses<'_>| {
+        languages::positions(tree.elements)
+            .filter_map(|at| languages::shape_class_at(&shapes, at))
+            .count()
+    };
+    let built = prepare(&tree, &indexes, &mut symbols).map(classed);
     clear(&mut indexes);
-    let cleared = indexes.shapes.borrow().classes.len();
-    let after = indexes.shapes.borrow().state;
-    let rebuilt = prepare(&tree, &indexes, &mut symbols).map(|shapes| shapes.classes.len());
+    let cleared = indexes.shapes == languages::ShapeIndex::default();
+    let rebuilt = prepare(&tree, &indexes, &mut symbols).map(classed);
     Ok(Box::leak(
-        format!("{built:?}|{state:?}|{cleared}|{after:?}|{rebuilt:?}").into_boxed_str(),
+        format!("{built:?}|{cleared}|{rebuilt:?}").into_boxed_str(),
     ))
 }
 
