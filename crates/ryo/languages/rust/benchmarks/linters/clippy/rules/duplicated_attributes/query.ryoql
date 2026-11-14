@@ -1,5 +1,6 @@
 import lint_attributes from "rust/clippy/lint-attributes";
 import attribute_owners from "rust/clippy/attribute-owners";
+import next_token from "rust/clippy/next-token";
 let attributes = select id, file, span from "syntax-tree" where kind = "attr";
 let attribute_ids = select id, file from attributes;
 let owned_rows = attribute_owners(elements=attribute_ids);
@@ -24,10 +25,17 @@ let top_bounded = span-bounds(from=top_attributes, span="span", start-output="be
 let top_later = select l.attribute as attribute, l.file as file, l.span as span from top_bounded as l join top_bounded as r on l.owner = r.owner and l.key = r.key where r.begin < l.begin;
 let lists = select l.attribute as attribute, l.owner as owner, l.name as parent, r.child as child, l.file as file from checked as l join "syntax-child" as r on l.meta = r.parent where l.kind = "token-tree-meta";
 let list_trees = select l.attribute as attribute, l.owner as owner, l.parent as parent, r.span as span, l.file as file from lists as l join "syntax-tree" as r on l.child = r.id where r.kind = "token-tree";
-let tree_values = source-matches(from=list_trees, span="span", pattern="(?P<value>b?\x27(?:[^\x27\\]|\\.)\x27|(?:b|c|br|cr|r)?\x22(?:[^\x22\\]|\\.)*\x22|=\s*(?:(?:(?:b|c|br|cr|r)?\x22(?:[^\x22\\]|\\.)*\x22|b?\x27(?:[^\x27\\]|\\.)\x27|[0-9](?:[eE][+-]|[0-9A-Za-z_]|\.[0-9])*|true|false)\s*[,)]|[^,)]?))", output="found", capture="value", capture-output="value_span", capture-text-output="value_text");
-let name_values = select attribute, value_span from tree_values where matches(value_text, "^=");
-let literal_values = select attribute, value_span from tree_values where matches(value_text, "^=\s*(?:(?:b|c|br|cr|r)?\x22(?:[^\x22\\]|\\.)*\x22|b?\x27(?:[^\x27\\]|\\.)\x27|[0-9](?:[eE][+-]|[0-9A-Za-z_]|\.[0-9])*|true|false)\s*[,)]");
-let non_meta_trees = antijoin(left=name_values, right=literal_values, left-on=["attribute", "value_span"], right-on=["attribute", "value_span"]);
+let eq_tokens = select id, file from "syntax-tree" where kind = "eq";
+let attribute_eqs = axis(from=eq_tokens, relation="syntax-child", direction=nearest-ancestor, domain=attribute_ids);
+let eq_rows = select id, file from attribute_eqs;
+let values = next_token(tokens=eq_rows);
+let literal_values = select id as eq, next as id, file from values where kind = "string" or kind = "byte-string" or kind = "c-string" or kind = "char" or kind = "byte" or kind = "int-number" or kind = "float-number" or kind = "true-kw" or kind = "false-kw";
+let literal_ids = select id, file from literal_values;
+let after_literals = next_token(tokens=literal_ids);
+let ended = select id from after_literals where kind = "comma" or kind = "r-paren";
+let meta_eqs = select l.eq as id from literal_values as l join ended as r on l.id = r.id;
+let non_meta_eqs = antijoin(left=attribute_eqs, right=meta_eqs, left-on=["id"], right-on=["id"]);
+let non_meta_trees = select related as attribute from non_meta_eqs;
 let meta_trees = antijoin(left=list_trees, right=non_meta_trees, left-on=["attribute"], right-on=["attribute"]);
 let first_items = source-matches(from=meta_trees, span="span", pattern="[(,]\s*(?P<item>(?:r#)?[A-Za-z_][A-Za-z0-9_]*(?:\s*::\s*(?:r#)?[A-Za-z_][A-Za-z0-9_]*)*(?:\s*=\s*(?:\x22(?:[^\x22\\]|\\.)*\x22|[^,()\s]+)|\s*\((?:[^()\x22]|\x22(?:[^\x22\\]|\\.)*\x22|\((?:[^()\x22]|\x22(?:[^\x22\\]|\\.)*\x22)*\))*\))?)", output="found", capture="item", capture-output="item_span", capture-text-output="item_text");
 let first_written = source-matches(from=first_items, span="item_span", pattern="\A(?P<key>(?:r#)?[A-Za-z_][A-Za-z0-9_]*(?:\s*::\s*(?:r#)?[A-Za-z_][A-Za-z0-9_]*)*(?:\s*=\s*\x22(?:[^\x22\\]|\\.)*\x22)?)", output="head", capture="key", capture-output="key_span", capture-text-output="key_written");
