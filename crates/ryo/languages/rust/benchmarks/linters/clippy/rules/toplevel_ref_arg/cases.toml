@@ -1,0 +1,59 @@
+[[cases]]
+name = "parameters"
+files = { "src/lib.rs" = "pub fn f(ref x: u8, ref mut y: u8, z: u8) -> u8 {\n    *y += 1;\n    *x + *y + z\n}\n" }
+expected = [{ file = "src/lib.rs", start = 9, end = 14 }, { file = "src/lib.rs", start = 20, end = 29 }]
+
+[[cases]]
+name = "let-bindings"
+files = { "src/lib.rs" = "pub fn f() -> u8 {\n    let ref x = 1u8;\n    let ref mut y = 2u8;\n    let ref z: u8 = 3;\n    *y += 1;\n    *x + *y + *z\n}\n" }
+expected = [{ file = "src/lib.rs", start = 27, end = 32 }, { file = "src/lib.rs", start = 48, end = 57 }, { file = "src/lib.rs", start = 73, end = 78 }]
+
+[[cases]]
+name = "let-without-value"
+files = { "src/lib.rs" = "pub fn f() -> u8 {\n    let ref x;\n    x = &1u8;\n    *x\n}\n" }
+expected = []
+
+[[cases]]
+name = "with-subpattern"
+files = { "src/lib.rs" = "pub fn f(ref a @ _: u8) -> u8 {\n    let ref b @ _ = 1u8;\n    *a + *b\n}\n" }
+expected = [{ file = "src/lib.rs", start = 9, end = 18 }]
+
+[[cases]]
+name = "nested-patterns"
+files = { "src/lib.rs" = "pub fn f((ref a, b): (u8, u8)) -> u8 {\n    let (ref c, d) = (1u8, 2u8);\n    let &x = &3u8;\n    *a + b + *c + d + x\n}\n" }
+expected = []
+
+[[cases]]
+name = "closure"
+files = { "src/lib.rs" = "pub fn f() -> u8 {\n    let g = |ref x: u8| *x + 1;\n    g(1)\n}\n" }
+expected = []
+
+[[cases]]
+name = "methods"
+files = { "src/lib.rs" = "pub trait T {\n    fn m(&self, x: u8) -> u8;\n    fn p(&self, ref x: u8) -> u8 {\n        *x\n    }\n}\npub struct S;\nimpl S {\n    pub fn n(&self, ref x: u8) -> u8 {\n        *x\n    }\n}\nimpl T for S {\n    fn m(&self, ref x: u8) -> u8 {\n        *x\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 60, end = 65 }, { file = "src/lib.rs", start = 141, end = 146 }, { file = "src/lib.rs", start = 210, end = 215 }]
+
+[[cases]]
+name = "async-function"
+files = { "src/lib.rs" = "pub async fn f(ref x: u8) -> u8 {\n    *x\n}\n" }
+expected = [{ file = "src/lib.rs", start = 15, end = 20 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::toplevel_ref_arg)]\npub fn f(ref x: u8) -> u8 {\n    let ref y = 1u8;\n    *x + *y\n}\npub fn g(#[allow(clippy::toplevel_ref_arg)] ref x: u8) -> u8 {\n    #[allow(clippy::toplevel_ref_arg)]\n    let ref y = 1u8;\n    *x + *y\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::style)]\npub fn f(ref x: u8) -> u8 {\n    let ref y = 1u8;\n    *x + *y\n}\n#[allow(clippy::all)]\npub fn g(ref x: u8) -> u8 {\n    let ref y = 1u8;\n    *x + *y\n}\n#[expect(warnings)]\npub fn h(ref x: u8) -> u8 {\n    let ref y = 1u8;\n    *x + *y\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::toplevel_ref_arg)]\npub fn f(ref x: u8) -> u8 {\n    let ref y = 1u8;\n    *x + *y\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::all)]\n#[warn(clippy::toplevel_ref_arg)]\npub fn f(ref x: u8) -> u8 {\n    let ref y = 1u8;\n    *x + *y\n}\npub fn g(ref x: u8) -> u8 {\n    let ref y = 1u8;\n    *x + *y\n}\n" }
+expected = [{ file = "src/lib.rs", start = 66, end = 71 }, { file = "src/lib.rs", start = 93, end = 98 }]

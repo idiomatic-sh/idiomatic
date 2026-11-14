@@ -520,6 +520,8 @@ defaults = [
 
 [query-modules]
 "rust/clippy/lint-attributes" = "fragments/lint-attributes.ryoql"
+"rust/clippy/item-start" = "fragments/item-start.ryoql"
+"rust/clippy/cfg-test" = "fragments/cfg-test.ryoql"
 
 # Defaults deferred, each under the limitation that blocks it. 406 need types or the standard item a path names: semantic
 # analysis, which no provider answers yet.
@@ -529,13 +531,11 @@ unauthored = [
   "almost_complete_range",
   "blanket_clippy_restriction_lints",
   "block_scrutinee",
-  "blocks_in_conditions",
   "builtin_type_shadow",
   "crate_in_macro_def",
   "deprecated_cfg_attr",
   "deprecated_clippy_cfg_attr",
   "deprecated_semver",
-  "disallowed_names",
   "double_parens",
   "duplicate_underscore_argument",
   "duplicated_attributes",
@@ -547,17 +547,14 @@ unauthored = [
   "infallible_destructuring_match",
   "inline_fn_without_body",
   "int_plus_one",
-  "items_after_test_module",
   "just_underscores_and_digits",
   "let_with_type_underscore",
-  "manual_take",
   "mixed_attributes_style",
   "multi_assignments",
   "multiple_bound_locations",
   "needless_arbitrary_self_type",
   "needless_borrowed_reference",
   "needless_else",
-  "needless_ifs",
   "needless_parens_on_range_literals",
   "needless_pub_self",
   "non_minimal_cfg",
@@ -570,22 +567,17 @@ unauthored = [
   "redundant_field_names",
   "redundant_pattern",
   "redundant_static_lifetimes",
-  "repr_packed_without_abi",
-  "single_element_loop",
   "suspicious_assignment_formatting",
   "suspicious_doc_comments",
   "suspicious_else_formatting",
   "suspicious_unary_op_formatting",
   "tabs_in_doc_comments",
   "temporary_assignment",
-  "too_many_arguments",
-  "toplevel_ref_arg",
   "unnecessary_clippy_cfg",
   "unneeded_wildcard_pattern",
   "unsafe_removed_from_name",
   "unused_unit",
   "useless_attribute",
-  "wildcard_in_or_patterns",
 ]
 # Rules that compare a literal's value or two expressions' shapes: the Rust provider answers neither `numeric_literal` nor
 # `expression_shape` yet.
@@ -613,6 +605,9 @@ types = [
   "await_holding_refcell_ref",
   "bad_bit_mask",
   "bind_instead_of_map",
+  # blocks_in_conditions: a braced condition `if { x } {}` is reported only when it leaves no temporary with a significant drop
+  # (blocks_in_conditions.rs:99, leaks_droppable_temporary reads each temporary's type).
+  "blocks_in_conditions",
   "bool_assert_comparison",
   "bool_comparison",
   "borrow_deref_ref",
@@ -980,6 +975,9 @@ types = [
   "while_immutable_condition",
   "while_let_loop",
   "while_let_on_iterator",
+  # wildcard_in_or_patterns: skipped when the scrutinee's type is a `#[non_exhaustive]` enum (matches/wild_in_or_pats.rs:11-15,
+  # typeck_results().expr_ty).
+  "wildcard_in_or_patterns",
   "write_literal",
   "write_with_newline",
   "writeln_empty_string",

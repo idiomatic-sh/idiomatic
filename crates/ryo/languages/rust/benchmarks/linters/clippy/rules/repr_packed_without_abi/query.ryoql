@@ -1,0 +1,13 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+import item_start from "rust/clippy/item-start";
+let reprs = select declaration, arguments, file from "decorates" where target = "repr";
+let packed = select declaration as id, file from reprs where matches(arguments, "(?:^|,)\s*packed\s*(?:\(|,|$)");
+let qualified = select declaration as id, file from reprs where matches(arguments, "(?:^|,)\s*(?:C|Rust)\s*(?:,|$)");
+let unqualified = antijoin(left=packed, right=qualified, left-on=["id"], right-on=["id"]);
+let items = select l.id as id, l.file as file from unqualified as l join "syntax-tree" as r on l.id = r.id where r.kind = "struct" or r.kind = "union";
+let starts = item_start(items=items);
+let located = select l.id as id, l.file as file, l.span as start, r.span as whole from starts as l join "syntax-tree" as r on l.id = r.id;
+let spanned = span-between(from=located, start="start", end="whole", output="span");
+let candidates = select r.child as id, l.file as file, l.span as span from spanned as l join "syntax-child" as r on l.id = r.parent where r.field = "name";
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:repr_packed_without_abi|suspicious|all))\s*(?:,|$)");
+emit violations subject file key(span);

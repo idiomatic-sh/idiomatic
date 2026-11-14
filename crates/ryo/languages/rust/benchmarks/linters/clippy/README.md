@@ -17,7 +17,9 @@ These clippy findings have no query yet:
 - a literal inside a `macro_rules!` body, which clippy reports where a call expands it;
 - a string a macro other than the standard formatting macros passes to `format_args!` (`anyhow!`, `log::info!`), which
   `octal_escapes` does not read as an expression;
-- an outer `#[allow]` on a `mod` item, which clippy applies to the module's own file.
+- an outer `#[allow]` on a `mod` item, which clippy applies to the module's own file;
+- an `if` or a `let` written inside a `macro_rules!` body (`manual_take`, `toplevel_ref_arg`) and a binding a local macro's
+  argument names (`disallowed_names`), which clippy reports where a call expands them.
 
 The reference runs, in each root, the toolchain's `cargo-clippy` beside the verified driver:
 
