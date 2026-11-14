@@ -2,8 +2,8 @@
 # changes: the `tag` job runs `ci/tag/command.py --push`, which names each product whose workspace version in crates/<product>/Cargo.toml
 # differs from the parent commit's and whose tag (`idiomatic-sh-<product>-v<version>`) does not exist yet, and creates that tag at
 # the commit; the build and publish jobs then run for those products alone, each product's builds beside the others', its publish
-# in a concurrency group of its own, one product's publish at a time, ryo's first. A push runs no check: every commit to main comes through a pull request, whose `gate` (check.yml)
-# ran the same check fan-out over the same tree. A maintainer's hand run releases ONE product, the `product` input, and checks
+# in a concurrency group of its own, one product's publish at a time, ryo's first. A push runs no check: every commit to main comes through a pull request merged only after its
+# `gate` (check.yml) passed, by process, over the same check fan-out on the same tree. A maintainer's hand run releases ONE product, the `product` input, and checks
 # it first: `asymptote check --root crates/<product> --groups <group>` runs each of that product's groups (its tests and packaging
 # tests, one job per group and machine, lint from the repository's root). Tastemaker depends on ryo's crates, so a ryo version
 # it needs is on crates.io before tastemaker's publish. The `build` job builds each product's wheel (Ryo's only for
