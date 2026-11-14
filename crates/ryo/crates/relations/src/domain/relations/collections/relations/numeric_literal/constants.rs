@@ -21,6 +21,7 @@ pub fn column_name(column: NumericLiteralColumn) -> &'static str {
         NumericLiteralColumn::Id => "id",
         NumericLiteralColumn::Kind => "kind",
         NumericLiteralColumn::Value => "value",
+        NumericLiteralColumn::ExactDigits => "exact-digits",
         NumericLiteralColumn::File => "file",
         NumericLiteralColumn::Span => "span",
     }

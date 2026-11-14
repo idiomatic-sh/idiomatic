@@ -3,8 +3,8 @@
 The TypeScript provider against oxlint 1.76.0, the standalone executable of the GitHub release `apps_v1.76.0`, which is built on
 `oxc_parser` 0.142.0, the parser both ryo providers link. `uv run --script tools/install.py` installs it as `oxlint`.
 
-`benchmark.toml` pins the 96 rules a plain run of oxlint 1.76.0 enables. Of them, 88 have a query, each in `rules/<plugin>.<rule>/`
-with its cases; the other 8 are `deferred`, each under the limitation that blocks it: a relation or column the TypeScript provider
+`benchmark.toml` pins the 96 rules a plain run of oxlint 1.76.0 enables. Of them, 89 have a query, each in `rules/<plugin>.<rule>/`
+with its cases; the other 7 are `deferred`, each under the limitation that blocks it: a relation or column the TypeScript provider
 does not answer yet, or, for `typescript_silent`, a rule oxlint never reports on a TypeScript file.
 `fragments/eslint-directives.ryoql` holds the `eslint-` and `oxlint-` disable directives every query honors, as oxlint reads them;
 `fragments/parenthesized.ryoql` gives the parentheses written around an expression, which the tree keeps as punctuators only;

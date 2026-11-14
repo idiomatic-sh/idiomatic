@@ -13,7 +13,7 @@ ryo::reads! {
  given kind = languages::property_at(tree.elements, at, NUMERIC_KIND)?;
  given value = languages::property_at(tree.elements, at, NUMERIC_VALUE)?;
 
- row { id: node(at), kind: value(languages::intern_derived(symbols, tree.source, kind)), value: value(languages::intern_derived(symbols, tree.source, value)), file: file, span: span(at) }
+ row { id: node(at), kind: value(languages::intern_derived(symbols, tree.source, kind)), value: value(languages::intern_derived(symbols, tree.source, value)), exact_digits: value(crate::domain::syntax::service::exactness(tree, at)), file: file, span: span(at) }
 
  }
 }

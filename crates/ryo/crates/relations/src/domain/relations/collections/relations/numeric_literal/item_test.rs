@@ -3,11 +3,13 @@
 use super::super::interface::RelationsItem as _;
 use super::item::{NumericLiteral, NumericLiteralRow};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::relations::types::{Bits, FileId, NodeId, Offset, Span, Value as CellValue};
+use crate::domain::relations::types::{
+    Bits, FileId, Flag, NodeId, Offset, Span, Value as CellValue,
+};
 use crate::domain::terms::types::Symbol;
 
 type Input = ();
-type Value = ([Bits; 5], usize);
+type Value = ([Bits; 6], usize);
 type Failure = ();
 
 /// The size in bytes of one stored cell value.
@@ -18,7 +20,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     word: Word::Succeeds,
     input: || (),
     expect: Expect::Value((
-        [Bits(3), Bits(17), Bits(23), Bits(7), Bits(47_244_640_269)],
+        [Bits(3), Bits(17), Bits(23), Bits(1), Bits(7), Bits(47_244_640_269)],
         CELL_VALUE_BYTES,
     )),
 }];
@@ -29,6 +31,7 @@ fn subject(_: Input) -> Result<Value, Failure> {
             id: NodeId(3),
             kind: Symbol(17),
             value: Symbol(23),
+            exact_digits: Flag::Raised,
             file: FileId(7),
             span: Span {
                 start: Offset(11),

@@ -10,6 +10,7 @@ const ROWS: &[NumericLiteralExpectedRow] = &[
         id: node(10),
         kind: name("float"),
         value: name("16.0"),
+        exact_digits: true,
         file: file("numeric_literal/input.ts"),
         span: span((1, 11), (1, 15)),
     },
@@ -17,6 +18,7 @@ const ROWS: &[NumericLiteralExpectedRow] = &[
         id: node(23),
         kind: name("float"),
         value: name("1500.0"),
+        exact_digits: true,
         file: file("numeric_literal/input.ts"),
         span: span((2, 11), (2, 16)),
     },
@@ -24,8 +26,17 @@ const ROWS: &[NumericLiteralExpectedRow] = &[
         id: node(36),
         kind: name("integer"),
         value: name("10"),
+        exact_digits: true,
         file: file("numeric_literal/input.ts"),
         span: span((3, 11), (3, 14)),
+    },
+    NumericLiteralExpectedRow {
+        id: node(49),
+        kind: name("float"),
+        value: name("9007199254740992.0"),
+        exact_digits: false,
+        file: file("numeric_literal/input.ts"),
+        span: span((4, 11), (4, 27)),
     },
 ];
 

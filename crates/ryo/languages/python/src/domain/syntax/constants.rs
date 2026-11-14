@@ -127,3 +127,6 @@ pub(crate) const ABSENT: &str = "absent";
 
 /// The separator of a dotted module path.
 pub(crate) const DOT: &str = ".";
+/// Room for a numeric literal's significant spelling: binary64's widest whole value has 1024 bits, so no exact literal writes more
+/// digits than this.
+pub(crate) const WRITTEN_DIGITS_BYTES: usize = 1026;

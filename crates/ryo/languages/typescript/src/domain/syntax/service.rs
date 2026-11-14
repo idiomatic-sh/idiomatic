@@ -4,7 +4,9 @@
 
 use ryo::languages::{self, Tree};
 
-use super::constants::{DOC_OPEN, EMPTY_BLOCK, RECEIVER};
+use super::constants::{
+    DOC_OPEN, EMPTY_BLOCK, FLOAT_NUMBER, LEGACY_OCTAL_PREFIX, NUMERIC_KIND, NUMERIC_VALUE, RECEIVER, WRITTEN_DIGITS_BYTES,
+};
 use super::types::{Kind, Leaf, PatternNode};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
@@ -83,6 +85,56 @@ pub(crate) fn documentation(tree: &Tree<'_>, at: languages::Position) -> languag
         languages::Flag::Raised
     } else {
         languages::Flag::Lowered
+    }
+}
+
+/// Whether the numeric literal at `at` writes digits its value gives back, the `exact-digits` cell: a BigInt is exact at any
+/// size. A Number's digits are its spelling without `_` and leading zeros, copied to the stack: a `0x`, `0o` or `0b` prefix in
+/// lower case and the digits after it, a legacy octal `017` as `0o17`, or else the decimal digits before the exponent.
+#[must_use]
+pub(crate) fn exactness(tree: &Tree<'_>, at: languages::Position) -> languages::Flag {
+    if languages::property_at(tree.elements, at, NUMERIC_KIND).map(|kind| kind.0) != Some(FLOAT_NUMBER) {
+        return languages::Flag::Raised;
+    }
+    let Some(value) = languages::property_at(tree.elements, at, NUMERIC_VALUE)
+        .and_then(|value| match value.0.parse::<f64>() {
+            Ok(parsed) => Some(parsed),
+            Err(_) => None,
+        })
+    else {
+        // a Number without its decoded value has no digits to give back
+        return languages::Flag::Lowered;
+    };
+    let raw = written(tree, at).0.as_bytes();
+    let (prefix, rest) = match raw {
+        [b'0', prefix @ (b'x' | b'X' | b'o' | b'O' | b'b' | b'B'), rest @ ..] => {
+            (Some([b'0', prefix.to_ascii_lowercase()]), rest)
+        }
+        [b'0', rest @ ..] if !rest.is_empty() && rest.iter().all(|byte| matches!(byte, b'0'..=b'7')) => {
+            (Some(LEGACY_OCTAL_PREFIX), rest)
+        }
+        decimal => (None, decimal),
+    };
+    let decimal = prefix.is_none();
+    let mut digits = [0_u8; WRITTEN_DIGITS_BYTES];
+    let mut length = 0;
+    let significant = rest
+        .iter()
+        .take_while(|byte| !decimal || !matches!(byte, b'e' | b'E'))
+        .filter(|byte| **byte != b'_')
+        .skip_while(|byte| **byte == b'0');
+    for byte in prefix.iter().flatten().chain(significant) {
+        let Some(slot) = digits.get_mut(length) else {
+            // more digits than binary64's widest whole value has bits: never exact
+            return languages::Flag::Lowered;
+        };
+        *slot = *byte;
+        length += 1;
+    }
+    match digits.get(..length).map(std::str::from_utf8) {
+        Some(Ok(text)) => languages::exact_digits(languages::NameText(text), languages::FloatBits(value.to_bits())),
+        // digits copied from a numeric literal are ASCII; a cut that is not text writes no digits to give back
+        Some(Err(_)) | None => languages::Flag::Lowered,
     }
 }
 

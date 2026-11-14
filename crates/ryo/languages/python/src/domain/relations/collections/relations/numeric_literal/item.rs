@@ -5,7 +5,7 @@ use crate::domain::{
     model::types::Declarations,
     nodes::types::Node,
     numeric_literals::{
-        service::{classify, intern_value},
+        service::{classify, exactness, intern_value},
         types::NumericClassification,
     },
     semantic_syntax::types::Visibility,
@@ -29,7 +29,7 @@ ryo::reads! {
                 NumericClassification::Known(numeric) => {
                     given kind = languages::intern_derived(symbols, tree.source, numeric.kind);
                     given value = intern_value(symbols, tree.source, &numeric);
-                    row { id: node(expression), kind: value(kind), value: value(value), file: file, span: span(expression), }
+                    row { id: node(expression), kind: value(kind), value: value(value), exact_digits: value(exactness(tree, expression, &numeric)), file: file, span: span(expression), }
                 }
             }
         }
