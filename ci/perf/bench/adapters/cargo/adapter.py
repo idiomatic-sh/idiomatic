@@ -51,7 +51,7 @@ def tastemaker_fixture(head: Path, tree: Path):
     effective = source.encode("utf-8")
     previous_helper = helper.read_bytes() if helper.exists() else None
     provenance = {
-        "policy": "scratch-tool-pin-only/v1",
+        "policy": "scratch-tool-pin-only/v2",
         "execution": "audited-benchmark-setup-overlay",
         "original_driver_sha256": hashlib.sha256(original).hexdigest(),
         "effective_driver_sha256": hashlib.sha256(effective).hexdigest(),
