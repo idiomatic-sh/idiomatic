@@ -1,12 +1,15 @@
 //! The `decoded` service: free functions named by verb that read the text the language's library decoded for an element, with no IO
 //! and no ports.
 
-use super::constants::{ASCII_ONLY, FLOAT_SUFFIX, FLOAT_TEXT_BYTES};
+use super::constants::{
+    ASCII_ONLY, BINARY_DIGIT_BITS, EXPONENT_BIAS, EXPONENT_MASK, FLOAT_SUFFIX, FLOAT_TEXT_BYTES,
+    HEX_DIGIT_BITS, MANTISSA_BITS, MANTISSA_MASK, OCTAL_DIGIT_BITS, PRINTED_DIGITS_LIMIT,
+};
 use super::types::{FloatBits, FloatBuffer};
 use crate::domain::elements::service::engine;
 use crate::domain::elements::types::Elements;
-use ryo_relations::domain::relations::types::Position;
 use ryo_relations::domain::relations::types::PropertyId;
+use ryo_relations::domain::relations::types::{Flag, Position};
 use ryo_relations::domain::terms::types::NameText;
 
 /// The text the token at `at` stands for, when the language's library decoded it.
@@ -85,4 +88,146 @@ pub fn binary64_text(bits: FloatBits, buffer: &mut FloatBuffer) -> NameText<'_> 
         written = FLOAT_TEXT_BYTES - rest.len();
     }
     NameText(std::str::from_utf8(&buffer.0[..written]).expect(ASCII_ONLY))
+}
+
+/// Whether `bits`, printed to as many significant digits as `written` holds, gives those digits back: the literal loses no
+/// precision to binary64. `written` is the literal's digits with the language's own syntax taken out (digit separators, the
+/// exponent, suffixes). A `0x`, `0o` or `0b` prefix keeps the base, and the value is printed in it; otherwise the digits are
+/// decimal, and zeros after the last non-zero digit are significant only when a `.` is written. A decimal literal writing more
+/// than 100 significant digits is never given back, as `Number.prototype.toPrecision` prints at most 100.
+///
+/// # Examples
+/// ```
+/// use ryo_language::domain::decoded::service::exact_digits;
+/// use ryo_language::domain::decoded::types::FloatBits;
+/// use ryo_relations::domain::relations::types::Flag;
+/// use ryo_relations::domain::terms::types::NameText;
+/// let exact = exact_digits(NameText("0.1"), FloatBits(0.1_f64.to_bits()));
+/// assert_eq!(exact, Flag::Raised);
+/// let rounded = exact_digits(NameText("9007199254740993"), FloatBits(9_007_199_254_740_992_f64.to_bits()));
+/// assert_eq!(rounded, Flag::Lowered);
+/// ```
+#[must_use]
+pub fn exact_digits(written: NameText<'_>, bits: FloatBits) -> Flag {
+    match written.0.as_bytes() {
+        [b'0', b'x' | b'o' | b'b', ..] => prefixed_exact(written, bits),
+        _ => decimal_exact(written, bits),
+    }
+}
+
+/// Whether the decimal `written` is the significant digits of `bits` printed to as many of them as it writes.
+fn decimal_exact(written: NameText<'_>, bits: FloatBits) -> Flag {
+    let value = f64::from_bits(bits.0).abs();
+    let written = written.0.as_bytes();
+    if !written
+        .iter()
+        .all(|byte| byte.is_ascii_digit() || *byte == b'.')
+    {
+        return Flag::Lowered;
+    }
+    let digits = || written.iter().filter(|byte| byte.is_ascii_digit());
+    let Some(first) = digits().position(|byte| *byte != b'0') else {
+        return if value == 0.0 {
+            Flag::Raised
+        } else {
+            Flag::Lowered
+        };
+    };
+    let end = if written.contains(&b'.') {
+        digits().count()
+    } else {
+        digits()
+            .enumerate()
+            .filter(|(_, byte)| **byte != b'0')
+            .last()
+            .map_or(first, |(at, _)| at)
+            + 1
+    };
+    let significant = end - first;
+    if significant > PRINTED_DIGITS_LIMIT || !value.is_finite() || value == 0.0 {
+        return Flag::Lowered;
+    }
+    let mut buffer = FloatBuffer([0; FLOAT_TEXT_BYTES]);
+    let mut rest: &mut [u8] = &mut buffer.0[..];
+    assert!(
+        std::io::Write::write_fmt(&mut rest, format_args!("{value:.0$e}", significant - 1)).is_ok(),
+        "at most 100 significant digits fit the fixed buffer"
+    );
+    let printed = FLOAT_TEXT_BYTES - rest.len();
+    let printed = buffer.0[..printed]
+        .iter()
+        .take_while(|byte| **byte != b'e')
+        .filter(|byte| byte.is_ascii_digit());
+    if printed.eq(digits().skip(first).take(significant)) {
+        Flag::Raised
+    } else {
+        Flag::Lowered
+    }
+}
+
+/// Whether the integer a `0x`, `0o` or `0b` literal writes is `bits` exactly: its significant bits, then zeros.
+fn prefixed_exact(written: NameText<'_>, bits: FloatBits) -> Flag {
+    let value = f64::from_bits(bits.0).abs();
+    let (width, digits) = match written.0.as_bytes() {
+        [b'0', b'x', digits @ ..] => (HEX_DIGIT_BITS, digits),
+        [b'0', b'o', digits @ ..] => (OCTAL_DIGIT_BITS, digits),
+        [b'0', b'b', digits @ ..] => (BINARY_DIGIT_BITS, digits),
+        _ => return Flag::Lowered,
+    };
+    let mut length: i64 = 0;
+    for byte in digits {
+        let Some(digit) = char::from(*byte).to_digit(1 << width) else {
+            return Flag::Lowered;
+        };
+        length = if length > 0 {
+            length + i64::from(width)
+        } else {
+            i64::from(u32::BITS - digit.leading_zeros())
+        };
+    }
+    if length == 0 {
+        return if value == 0.0 {
+            Flag::Raised
+        } else {
+            Flag::Lowered
+        };
+    }
+    if !value.is_finite() || value == 0.0 || value.fract() != 0.0 {
+        return Flag::Lowered;
+    }
+    let raw = value.to_bits();
+    let mantissa = (raw & MANTISSA_MASK) | (1 << MANTISSA_BITS);
+    let zeros = mantissa.trailing_zeros();
+    let significant = mantissa >> zeros;
+    let significant_bits = u64::BITS - significant.leading_zeros();
+    // A whole binary64 of at least one is normal: its biased exponent places `significant` this many bits above the point.
+    let exponent = i64::try_from((raw >> MANTISSA_BITS) & EXPONENT_MASK).unwrap_or_default();
+    let trailing = exponent - EXPONENT_BIAS - i64::from(MANTISSA_BITS) + i64::from(zeros);
+    if length != i64::from(significant_bits) + trailing {
+        return Flag::Lowered;
+    }
+    let mut at: u32 = 0;
+    let mut started = false;
+    for byte in digits {
+        let digit = char::from(*byte).to_digit(1 << width).unwrap_or_default();
+        if !started && digit == 0 {
+            continue;
+        }
+        let count = if started {
+            width
+        } else {
+            u32::BITS - digit.leading_zeros()
+        };
+        started = true;
+        for shift in (0..count).rev() {
+            let wanted = significant_bits
+                .checked_sub(at + 1)
+                .map_or(0, |below| (significant >> below) & 1);
+            if u64::from((digit >> shift) & 1) != wanted {
+                return Flag::Lowered;
+            }
+            at += 1;
+        }
+    }
+    Flag::Raised
 }

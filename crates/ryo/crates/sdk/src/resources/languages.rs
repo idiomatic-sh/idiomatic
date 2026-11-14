@@ -320,8 +320,9 @@ pub use ryo_language::inbound::use_cases::project::types::Refused;
 pub use ryo_language::domain::builders::service::{
     enter_implied_node, node_property, node_property_fmt,
 };
-pub use ryo_language::domain::decoded::constants::FLOAT_TEXT_BYTES;
+pub use ryo_language::domain::decoded::constants::{FLOAT_TEXT_BYTES, WRITTEN_DIGITS_BYTES};
 pub use ryo_language::domain::decoded::service::binary64_text;
+pub use ryo_language::domain::decoded::service::exact_digits;
 pub use ryo_language::domain::decoded::service::property_at;
 pub use ryo_language::domain::decoded::types::{FloatBits, FloatBuffer};
 pub use ryo_language::domain::elements::service::source_order;

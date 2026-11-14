@@ -342,6 +342,7 @@ pub use ryo::languages::Visibility
 pub use ryo::languages::VisibilityColumn
 pub use ryo::languages::VisibilityRow
 pub use ryo::languages::Visiting
+pub use ryo::languages::WRITTEN_DIGITS_BYTES
 pub use ryo::languages::Why
 pub use ryo::languages::WorkspaceMember
 pub use ryo::languages::WorkspaceMemberColumn
@@ -374,6 +375,7 @@ pub use ryo::languages::end_of
 pub use ryo::languages::enter_implied_node
 pub use ryo::languages::enter_node
 pub use ryo::languages::entry_state
+pub use ryo::languages::exact_digits
 pub use ryo::languages::field_at
 pub use ryo::languages::field_name_at
 pub use ryo::languages::fill_to

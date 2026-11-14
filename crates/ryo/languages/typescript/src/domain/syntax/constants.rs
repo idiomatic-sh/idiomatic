@@ -50,3 +50,5 @@ pub(crate) const PATTERN_VALUE: ryo::languages::PropertyId = ryo::languages::Pro
 
 /// An expression whose children could not all be read has no class a query could compare.
 pub(crate) const SHAPES_INCOMPLETE: &str = "expression shapes require a complete syntax tree";
+/// The prefix a legacy octal literal (`017`) is written with, as the shared reader takes it.
+pub(crate) const LEGACY_OCTAL_PREFIX: [u8; 2] = *b"0o";
