@@ -27,3 +27,6 @@ pub(crate) const F64_SUFFIX: &str = "f64";
 
 /// The prefixes of the integer literals in another base than ten, each with its base.
 pub(crate) const BASES: [(&str, u32); 3] = [("0x", 16), ("0o", 8), ("0b", 2)];
+
+/// The base of an integer literal written without a prefix.
+pub(crate) const DECIMAL: super::types::Radix = super::types::Radix(10);

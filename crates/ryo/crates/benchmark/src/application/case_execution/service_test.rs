@@ -1,10 +1,8 @@
 //! The shared preparation boundary rejects physical drift before linter preparation.
 use super::service::{candidate, run as run_case};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::context::fixtures::{
-    data::sealed_manifest,
-    fake::{Refused, RefusingContext},
-};
+use crate::outbound::context::fixtures::data::sealed_manifest;
+use crate::outbound::context::fixtures::fake::{Refused, RefusingContext};
 use crate::outbound::linter::fixtures::fake::ObservingLinter;
 use crate::outbound::{execution::fixtures::fake::ExecutionFake, linter::interface::LinterPort};
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
