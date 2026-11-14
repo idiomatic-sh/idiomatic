@@ -22,7 +22,7 @@ pub enum ResidentStability {
 
 /// Whether a source of the open file serves a relation: one no source serves is core's own, written to the worker by core.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SourceServes {
+pub(crate) enum SourceServes {
     /// A source of the file makes its rows.
     Served,
     /// No source of the file makes them.
