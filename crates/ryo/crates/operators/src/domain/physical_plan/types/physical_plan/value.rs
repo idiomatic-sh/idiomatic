@@ -25,6 +25,13 @@ pub struct PhysicalPlan {
 impl PhysicalPlan {
     /// The nodes whose kind has no lowering yet, in node order, each with the stage that lowers it. `plan` records them and
     /// never fails for them; `assemble` turns them into per-rule refusals. Branch only: deleted in F5.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+    /// assert!(PhysicalPlan::default().unserved().is_empty());
+    /// ```
     #[must_use]
     pub fn unserved(&self) -> &[Unserved] {
         &self.unserved

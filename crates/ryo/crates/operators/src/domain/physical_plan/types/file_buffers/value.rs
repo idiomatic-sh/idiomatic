@@ -84,6 +84,14 @@ pub(crate) const NO_ROW: IndexedRow = IndexedRow(u32::MAX);
 
 impl FileBuffers {
     /// A node's rows, borrowed (cardinality included).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    /// use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
+    /// assert!(matches!(FileBuffers::default().rows(PlanNodeId(0)), NodeRows::Absent));
+    /// ```
     #[must_use]
     pub fn rows(&self, node: PlanNodeId) -> NodeRows<'_> {
         usize::try_from(node.0).map_or(NodeRows::Absent, |at| {
@@ -105,6 +113,16 @@ impl FileBuffers {
     }
 
     /// The node's last consumer is done: its buffer returns to the worker's pool.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    /// use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
+    /// let mut buffers = FileBuffers::default();
+    /// buffers.release(PlanNodeId(0));
+    /// assert!(matches!(buffers.rows(PlanNodeId(0)), NodeRows::Absent));
+    /// ```
     pub fn release(&mut self, node: PlanNodeId) {
         if let Ok(at) = usize::try_from(node.0)
             && let Some(held) = self.nodes.get_mut(at)
