@@ -6,9 +6,10 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+use crate::domain::equality_join::types::ProbeKey;
 use crate::domain::physical_plan::types::{
-    Lowering, NodeReaders, PhysicalNode, PlanInput, PlanNodeId, Retention, RowMap, RowSource,
-    ServedAt, Unserved,
+    IndexKey, IndexPlace, KeyedIndex, Lowering, NodeReaders, PhysicalNode, PlanInput, PlanNodeId,
+    ProbeIndex, Retention, RowMap, RowSource, ServedAt, Unserved,
 };
 use crate::domain::set_rows::types::{SetKind, SetLowering};
 use ryo_values::domain::plans::service::kind_of;
@@ -132,6 +133,7 @@ pub(crate) fn plan_with(
         }
     }
     let mut indexes = Vec::new();
+    shared_indexes(&mut nodes, &mut indexes);
     for rewrite in rewrites {
         rewrite.rewrite(&mut nodes, &mut indexes);
     }
@@ -140,6 +142,36 @@ pub(crate) fn plan_with(
         indexes,
         unserved,
     })
+}
+
+/// Shares one `hash_index` between the probes of one right source and key: a planning step, not a rewrite, since an unshared
+/// plan answers the same rows. A probe that filters its right rows indexes rows of its own and keeps its own index, as does a
+/// probe alone on its right source and key.
+fn shared_indexes(nodes: &mut [PhysicalNode], indexes: &mut Vec<KeyedIndex>) {
+    let mut keyed: Vec<KeyedIndex> = Vec::new();
+    for (node, id) in nodes.iter().zip((0..).map(PlanNodeId)) {
+        if let Lowering::Probe { right, probe, .. } = &node.lowering
+            && let ProbeKey::Columns { right: on, .. } = &probe.key
+            && probe.filter.comparisons.is_empty()
+        {
+            let key = IndexKey::Cells(on.clone());
+            match keyed.iter_mut().find(|index| index.source == *right && index.key == key) {
+                Some(index) => index.readers.push(id),
+                None => keyed.push(KeyedIndex { source: *right, key, readers: vec![id] }),
+            }
+        }
+    }
+    for index in keyed.into_iter().filter(|index| index.readers.len() > 1) {
+        let at = IndexPlace(indexes.len());
+        for reader in &index.readers {
+            if let Some(Lowering::Probe { index: shared, .. }) =
+                place(nodes, *reader).map(|node| &mut node.lowering)
+            {
+                *shared = ProbeIndex::Shared(at);
+            }
+        }
+        indexes.push(index);
+    }
 }
 
 /// The node at `id`, to change.
@@ -175,7 +207,7 @@ pub(crate) fn lowered(
                 SetLowering::Distinct => Lowering::Distinct {
                     sources: [left, right],
                 },
-                SetLowering::Probe(probe) => Lowering::Probe { left, right, probe },
+                SetLowering::Probe(probe) => Lowering::Probe { left, right, probe, index: ProbeIndex::Own },
             }
         })
     };
@@ -219,6 +251,7 @@ pub(crate) fn lowered(
                 filter,
                 bindings,
             ),
+            index: ProbeIndex::Own,
         }),
         Operation::Union { .. } => set(SetKind::Union, &[], &[]),
         Operation::Intersection { .. } => set(SetKind::Intersection, &[], &[]),

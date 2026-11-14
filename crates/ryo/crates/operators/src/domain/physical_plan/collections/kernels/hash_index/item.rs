@@ -6,18 +6,18 @@ use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, rows_of};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::contract::types::PredicateOutcome;
+use crate::domain::physical_plan::types::{CellStart, KeyedRowAt, KeyedSide};
 #[cfg(test)]
 use crate::domain::physical_plan::types::Lowering;
 use crate::domain::physical_plan::types::file_buffers::value::{
     IndexKeyHash, IndexedRow, KeyedRows, KeyedRun, NO_ROW,
 };
-use crate::domain::physical_plan::types::{KeyedRowAt, KeyedSide};
 use crate::domain::table_texts::types::Texts;
 use ryo_language::domain::symbols::service::hash_in;
 use ryo_relations::domain::relations::service::from_bits;
 use ryo_relations::domain::relations::types::{Bits, CellKind, ColumnsView, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::rows::types::{RowCount, RowIndex};
+use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 use std::hash::{Hash as _, Hasher as _};
 
 /// `hash_index`, one item of the `kernels` collection.
@@ -42,6 +42,11 @@ fn cleared(rows: &mut KeyedRows, count: RowCount) {
     rows.keys.clear();
     rows.next.clear();
     rows.next.resize(count.0, NO_ROW);
+}
+
+/// Empties `rows` of every key and row, keeping its capacity.
+pub(crate) fn emptied(rows: &mut KeyedRows) {
+    cleared(rows, RowCount(0));
 }
 
 /// Adds `row` to the key `same` finds under `hash`, or as a key of its own.
@@ -217,6 +222,35 @@ pub(crate) fn find_cells(
                 ) == PredicateOutcome::Holds
         })
         .copied())
+}
+
+/// Keys the row `table` holds from cell `start`, by all its cells, into `rows`, which keys the table's rows before it in
+/// order: `Holds` when no row before it holds the same cells, which then keeps it; `Fails` for a repeat, which it does not
+/// key. Rows of equal cells are compared from the table's own cells, with no row copied out.
+pub(crate) fn first_of_row(rows: &mut KeyedRows, table: &Table, start: CellStart) -> PredicateOutcome {
+    let width = table.kinds.len();
+    let held = &table.cells;
+    let new = held.get(start.0..).unwrap_or_default();
+    let mut hasher = rustc_hash::FxHasher::default();
+    for cell in new {
+        cell.hash(&mut hasher);
+    }
+    let hash = IndexKeyHash(hasher.finish());
+    let row_at = |row: IndexedRow| {
+        let at = indexed(row).0.saturating_mul(width);
+        held.get(at..at.saturating_add(width)).unwrap_or_default()
+    };
+    if rows
+        .keys
+        .find(hash.0, |run| run.hash == hash && row_at(run.first) == new)
+        .is_some()
+    {
+        return PredicateOutcome::Fails;
+    }
+    let row = IndexedRow(u32::try_from(rows.next.len()).unwrap_or(u32::MAX));
+    rows.next.push(NO_ROW);
+    insert(rows, hash, row, |_| PredicateOutcome::Fails);
+    PredicateOutcome::Holds
 }
 
 /// The row after `row` of the same key, or `NO_ROW` after its last.

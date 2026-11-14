@@ -1,11 +1,14 @@
-//! The `distinct` item of the `kernels` collection: a row kept the first time only, its repeats found through the places of
-//! the rows kept, so no row is copied out.
+//! The `distinct` item of the `kernels` collection: a row kept the first time only, its repeats found by keying the rows kept
+//! in `hash_index`'s table, so no row is copied out.
 
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use crate::domain::physical_plan::types::CellStart;
 #[cfg(test)]
 use crate::domain::physical_plan::types::Lowering;
+use super::super::hash_index::item::first_of_row;
+use crate::domain::contract::types::PredicateOutcome;
+use crate::domain::physical_plan::types::file_buffers::value::KeyedRows;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::rows::types::{RowCount, Table};
 
@@ -36,32 +39,11 @@ impl KernelsItem for DistinctItem {
 }
 
 /// Counts the row `output` holds from cell `start` as one of its rows, unless `repeated` drops it as a repeat of a row it
-/// holds, when it is cut off. `seen` holds the place of each row of `output` kept so far.
-pub(crate) fn counted(
-    output: &mut Table,
-    start: CellStart,
-    repeated: RepeatedRows,
-    seen: &mut hashbrown::HashTable<RowCount>,
-) {
-    if repeated == RepeatedRows::Dropped {
-        let width = output.kinds.len();
-        let hasher = rustc_hash::FxBuildHasher;
-        let cells = &output.cells;
-        let row_at = |at: RowCount| {
-            cells
-                .get(at.0 * width..at.0 * width + width)
-                .unwrap_or_default()
-        };
-        let new = cells.get(start.0..).unwrap_or_default();
-        let hash = std::hash::BuildHasher::hash_one(&hasher, new);
-        if seen.find(hash, |earlier| row_at(*earlier) == new).is_some() {
-            output.cells.truncate(start.0);
-            return;
-        }
-        let _: hashbrown::hash_table::OccupiedEntry<'_, RowCount> =
-            seen.insert_unique(hash, output.count, |earlier| {
-                std::hash::BuildHasher::hash_one(&hasher, row_at(*earlier))
-            });
+/// holds, when it is cut off. `repeats` keys the rows of `output` kept so far, in `hash_index`'s table.
+pub(crate) fn counted(output: &mut Table, start: CellStart, repeated: RepeatedRows, repeats: &mut KeyedRows) {
+    if repeated == RepeatedRows::Dropped && first_of_row(repeats, output, start) == PredicateOutcome::Fails {
+        output.cells.truncate(start.0);
+        return;
     }
     output.count = RowCount(output.count.0 + 1);
 }

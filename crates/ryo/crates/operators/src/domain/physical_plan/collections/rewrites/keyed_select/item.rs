@@ -5,7 +5,7 @@
 use super::super::interface::RewritesItem;
 use crate::domain::comparing::service::fixed_prefix;
 use crate::domain::physical_plan::types::{
-    IndexPlace, KeyedIndex, Lowering, PhysicalNode, PlanNodeId, RowSource, SelectKey,
+    IndexKey, IndexPlace, KeyedIndex, Lowering, PhysicalNode, PlanNodeId, RowSource, SelectKey,
 };
 use ryo_language::domain::symbols::service::hash_of;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -62,32 +62,33 @@ fn keyed_selects(nodes: &mut [PhysicalNode], indexes: &mut Vec<KeyedIndex>) {
         let Some(key) = key_of(*source, &select.comparisons) else {
             continue;
         };
+        let indexed = (RowSource::Facts(key.relation), IndexKey::Text(key.column));
         match keyed
             .iter()
-            .position(|index| index.relation == key.relation && index.column == key.column)
+            .position(|index| (index.source, &index.key) == (indexed.0, &indexed.1))
         {
             Some(at) => {
                 if let (Some(index), Some(held)) = (keyed.get_mut(at), keys.get_mut(at)) {
-                    index.lookups.push(id);
+                    index.readers.push(id);
                     held.push(key);
                 }
             }
             None => {
                 keyed.push(KeyedIndex {
-                    relation: key.relation,
-                    column: key.column,
-                    lookups: vec![id],
+                    source: indexed.0,
+                    key: indexed.1,
+                    readers: vec![id],
                 });
                 keys.push(vec![key]);
             }
         }
     }
     for (index, held) in keyed.into_iter().zip(keys) {
-        if index.lookups.len() < 2 {
+        if index.readers.len() < 2 {
             continue;
         }
         let shared = IndexPlace(indexes.len());
-        for (lookup, key) in index.lookups.iter().zip(&held) {
+        for (lookup, key) in index.readers.iter().zip(&held) {
             if let Some(node) = nodes.get_mut(usize::try_from(lookup.0).unwrap_or(usize::MAX))
                 && let Lowering::Filter { select, .. } =
                     std::mem::replace(&mut node.lowering, Lowering::Unlowered)

@@ -12,7 +12,8 @@ use crate::domain::physical_plan::types::CellStart;
 use crate::domain::physical_plan::types::Lowering;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, RepeatedRows};
-use ryo_values::domain::rows::types::{RowCount, Table};
+use crate::domain::physical_plan::types::file_buffers::value::KeyedRows;
+use ryo_values::domain::rows::types::Table;
 
 /// `project`, one item of the `kernels` collection.
 #[cfg(test)]
@@ -49,11 +50,11 @@ pub(crate) fn projected(
     row: &[Value],
     columns: &[ColumnIndex],
     distinct: RepeatedRows,
-    seen: &mut hashbrown::HashTable<RowCount>,
+    repeats: &mut KeyedRows,
     output: &mut Table,
 ) -> Result<(), PortableOperatorFault> {
     let start = CellStart(output.cells.len());
     crate::domain::project::service::project(row, columns, &mut output.cells)?;
-    counted(output, start, distinct, seen);
+    counted(output, start, distinct, repeats);
     Ok(())
 }

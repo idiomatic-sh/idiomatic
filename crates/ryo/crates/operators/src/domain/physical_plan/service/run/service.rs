@@ -10,7 +10,10 @@ use crate::domain::physical_plan::collections::kernels::filter::item::{filter, k
 use crate::domain::physical_plan::collections::kernels::group::item::{GroupScratch, grouped};
 use crate::domain::physical_plan::collections::kernels::lookup::item::lookups;
 use crate::domain::physical_plan::collections::kernels::ordered_match::item::matched;
-use crate::domain::physical_plan::collections::kernels::probe::item::{ProbeScratch, probed};
+use crate::domain::physical_plan::collections::kernels::hash_index::item::emptied;
+use crate::domain::physical_plan::collections::kernels::probe::item::{
+    IndexBuild, ProbeScratch, probed,
+};
 use crate::domain::physical_plan::collections::kernels::project::item::projected;
 use crate::domain::physical_plan::collections::kernels::render::item::rendered;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
@@ -22,10 +25,13 @@ use crate::domain::physical_plan::collections::kernels::scan_node::item::{
 use crate::domain::physical_plan::collections::kernels::scan_roots::item::{copied, roots};
 use crate::domain::physical_plan::collections::kernels::text_map::item::{RowMapRun, mapped};
 use crate::domain::physical_plan::service::run::types::{KernelInputs, Reading};
-use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, NodeDecisions};
+use crate::domain::physical_plan::types::file_buffers::value::{
+    FileBuffers, NodeDecisions, SharedIndex,
+};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    CellStart, InputRows, KernelRun, Lowering, NodeReaders, NodeRows, PlanNodeId, RowSource,
+    CellStart, InputRows, KernelRun, Lowering, NodeReaders, NodeRows, PlanNodeId, ProbeIndex,
+    RowSource,
 };
 use ryo_values::domain::rows::types::{RowIndex, Table};
 
@@ -63,6 +69,13 @@ fn sized(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
         buffers.pending.resize_with(count, || None);
         buffers.remaining.resize(count, NodeReaders(0));
         buffers.decisions.resize_with(count, NodeDecisions::default);
+    }
+    if buffers.shared.len() < plan.indexes.len() {
+        buffers.shared = plan
+            .indexes
+            .iter()
+            .map(|index| SharedIndex::new(index.readers.last().copied().unwrap_or(PlanNodeId(0))))
+            .collect();
     }
 }
 
@@ -123,7 +136,8 @@ fn returned(
     }
 }
 
-/// Runs `node`'s kernels and holds its rows and pending fault; a lookup's build answers every lookup of its index.
+/// Runs `node`'s kernels and holds its rows and pending fault; a lookup's build answers every lookup of its index. A probe of
+/// a shared index counts down its probes in the file whatever it answers, and the last empties the index.
 fn materialize(
     plan: &PhysicalPlan,
     run: &mut KernelRun<'_>,
@@ -137,6 +151,36 @@ fn materialize(
         .get(place)
         .ok_or(PortableOperatorFault::WrongOperation)?
         .lowering;
+    let Lowering::Probe {
+        index: ProbeIndex::Shared(at),
+        ..
+    } = lowering
+    else {
+        return made(plan, run, node, lowering, buffers);
+    };
+    if let (Some(shared), Some(index)) = (buffers.shared.get_mut(at.0), plan.indexes.get(at.0))
+        && shared.remaining == NodeReaders(0)
+    {
+        shared.remaining = NodeReaders(u32::try_from(index.readers.len()).unwrap_or(u32::MAX));
+    }
+    let answered = made(plan, run, node, lowering, buffers);
+    if let Some(shared) = buffers.shared.get_mut(at.0) {
+        shared.remaining = NodeReaders(shared.remaining.0.saturating_sub(1));
+        if shared.remaining == NodeReaders(0) {
+            shared.emptied();
+        }
+    }
+    answered
+}
+
+/// Runs the kernels of `node`, lowered to `lowering`, over its inputs, and holds its rows and pending fault.
+fn made(
+    plan: &PhysicalPlan,
+    run: &mut KernelRun<'_>,
+    node: PlanNodeId,
+    lowering: &Lowering,
+    buffers: &mut FileBuffers,
+) -> Result<(), PortableOperatorFault> {
     match lowering {
         Lowering::Lookup { index, .. } => return lookups(plan, run, *index, buffers),
         Lowering::Unlowered => return Err(PortableOperatorFault::NotRun),
@@ -315,14 +359,14 @@ fn kernels(
                         .ok_or(PortableOperatorFault::NoSuchColumn { index: *column })
                 })
                 .collect::<Result<_, _>>()?;
-            buffers.seen.clear();
+            emptied(&mut buffers.repeats);
             for row in 0..rows {
                 let cells = row_of(input, RowIndex(row), &mut buffers.row);
                 if let Err(fault) = projected(
                     cells,
                     &project.columns,
                     project.distinct,
-                    &mut buffers.seen,
+                    &mut buffers.repeats,
                     output,
                 ) {
                     return Ok(Some(fault));
@@ -345,36 +389,50 @@ fn kernels(
         }
         Lowering::Distinct { .. } => {
             output.kinds = kinds.to_vec();
-            buffers.seen.clear();
+            emptied(&mut buffers.repeats);
             for source in std::iter::once(input).chain(other) {
                 if kinds_of(source) != kinds {
                     return Err(PortableOperatorFault::ShapeMismatch);
                 }
                 for row in 0..count_of(source).0 {
                     let start = CellStart(output.cells.len());
-                    output
-                        .cells
-                        .extend_from_slice(row_of(source, RowIndex(row), &mut buffers.row));
-                    counted(
-                        output,
-                        start,
-                        ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
-                        &mut buffers.seen,
-                    );
+                    output.cells.extend_from_slice(row_of(source, RowIndex(row), &mut buffers.row));
+                    counted(output, start, ryo_values::domain::plan_parts::types::RepeatedRows::Dropped, &mut buffers.repeats);
                 }
             }
         }
-        Lowering::Probe { probe, .. } => {
+        Lowering::Probe { probe, index, .. } => {
             let right = other.ok_or(PortableOperatorFault::WrongOperation)?;
             let decisions = buffers
                 .decisions
                 .get_mut(place)
                 .ok_or(PortableOperatorFault::WrongOperation)?;
+            let (index, build) = match index {
+                ProbeIndex::Own => (&mut buffers.index, IndexBuild::Builds),
+                ProbeIndex::Shared(at) => {
+                    let shared = buffers
+                        .shared
+                        .get_mut(at.0)
+                        .ok_or(PortableOperatorFault::WrongOperation)?;
+                    // An index of no row is built again at no cost: an empty chain is an index not built in this file.
+                    let build = if shared.rows.next.is_empty() {
+                        IndexBuild::Builds
+                    } else {
+                        IndexBuild::Built
+                    };
+                    (&mut shared.rows, build)
+                }
+            };
+            #[cfg(test)]
+            if build == IndexBuild::Builds {
+                buffers.builds.0 += 1;
+            }
             let scratch = ProbeScratch {
-                index: &mut buffers.index,
+                index,
+                build,
                 row: &mut buffers.row,
                 written: &mut buffers.written,
-                seen: &mut buffers.seen,
+                repeats: &mut buffers.repeats,
                 decisions,
             };
             return probed(probe, input, right, run, scratch, output);

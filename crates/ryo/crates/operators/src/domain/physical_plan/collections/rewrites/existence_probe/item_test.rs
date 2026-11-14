@@ -4,7 +4,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::equality_join::types::{Existence, ProbeMode};
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem as _;
 use crate::domain::physical_plan::types::{
-    Lowering, NodeReaders, PhysicalNode, PlanNodeId, Retention, RowSource,
+    Lowering, NodeReaders, PhysicalNode, PlanNodeId, ProbeIndex, Retention, RowSource,
 };
 use crate::domain::set_rows::types::{SetKind, SetLowering};
 
@@ -44,6 +44,7 @@ fn subject(kind: Input) -> Result<Value, Failure> {
                 left: RowSource::Node(PlanNodeId(0)),
                 right: RowSource::Node(PlanNodeId(1)),
                 probe,
+                index: ProbeIndex::Own,
             },
             readers: NodeReaders(0),
             retained: Retention::Retained,

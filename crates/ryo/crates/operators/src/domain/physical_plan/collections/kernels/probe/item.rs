@@ -4,7 +4,7 @@
 
 use super::super::distinct::item::counted;
 use super::super::filter::item::{filter, keep};
-use super::super::hash_index::item::{cells, find_cells, indexed, next_of};
+use super::super::hash_index::item::{cells, emptied, find_cells, indexed, next_of};
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of, row_of};
@@ -30,16 +30,27 @@ impl KernelsItem for ProbeItem {
     }
 }
 
+/// Whether a probe builds the index it reads, or reads one a probe of the same right rows and key built in this file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum IndexBuild {
+    /// It builds the index.
+    Builds,
+    /// The index is built.
+    Built,
+}
+
 /// The scratch a probe writes through.
 pub(crate) struct ProbeScratch<'s> {
-    /// The worker's one keyed-row table.
+    /// The index it reads: the worker's own keyed-row table, or a shared index.
     pub(crate) index: &'s mut KeyedRows,
+    /// Whether it builds that index.
+    pub(crate) build: IndexBuild,
     /// The row read, decoded from the facts.
     pub(crate) row: &'s mut Vec<Value>,
     /// The row a filter writes.
     pub(crate) written: &'s mut Vec<Value>,
-    /// The places of the answers kept, when repeats are dropped.
-    pub(crate) seen: &'s mut hashbrown::HashTable<RowCount>,
+    /// The answers kept, keyed by their cells, when repeats are dropped.
+    pub(crate) repeats: &'s mut KeyedRows,
     /// The right filter's decisions.
     pub(crate) decisions: &'s mut NodeDecisions,
 }
@@ -134,17 +145,21 @@ pub(crate) fn probed(
         rows: right,
         on: right_on,
     };
-    cells(indexed_side, scratch.index)?;
+    if scratch.build == IndexBuild::Builds
+        && let Err(fault) = cells(indexed_side, scratch.index)
+    {
+        // A partial index is no index: the next probe of a shared one builds it again.
+        emptied(scratch.index);
+        return Err(fault);
+    }
     let empty = count_of(right).0 == 0;
-    scratch.seen.clear();
+    emptied(scratch.repeats);
     for at in 0..count_of(left).0 {
         let at = RowIndex(at);
         if probe.mode == ProbeMode::Anti && probe.empty_right == EmptyRight::EveryLeftRow && empty {
             let start = CellStart(output.cells.len());
-            output
-                .cells
-                .extend_from_slice(row_of(left, at, scratch.row));
-            counted(output, start, probe.repeated, scratch.seen);
+            output.cells.extend_from_slice(row_of(left, at, scratch.row));
+            counted(output, start, probe.repeated, scratch.repeats);
             continue;
         }
         let found = match find_cells(
@@ -178,7 +193,7 @@ pub(crate) fn probed(
                     };
                     output.cells.push(cell);
                 }
-                counted(output, start, probe.repeated, scratch.seen);
+                counted(output, start, probe.repeated, scratch.repeats);
                 matched = next_of(scratch.index, matched);
             }
             continue;
@@ -198,10 +213,8 @@ pub(crate) fn probed(
         };
         if exists == (probe.mode == ProbeMode::Semi) {
             let start = CellStart(output.cells.len());
-            output
-                .cells
-                .extend_from_slice(row_of(left, at, scratch.row));
-            counted(output, start, probe.repeated, scratch.seen);
+            output.cells.extend_from_slice(row_of(left, at, scratch.row));
+            counted(output, start, probe.repeated, scratch.repeats);
         }
     }
     Ok(None)

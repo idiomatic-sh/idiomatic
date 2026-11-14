@@ -16,7 +16,7 @@ use crate::domain::physical_plan::types::{KeyedIndex, PhysicalNode, Unserved};
 pub struct PhysicalPlan {
     /// Each node's kernels and readers, by node id.
     pub(crate) nodes: Vec<PhysicalNode>,
-    /// The shared indexes, each built once per file for all its lookups.
+    /// The shared indexes, each built once per file for all its readers: a relation's lookups, or one right side's probes.
     pub(crate) indexes: Vec<KeyedIndex>,
     /// The nodes whose kind has no lowering yet, in node order.
     pub(crate) unserved: Vec<Unserved>,

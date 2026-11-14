@@ -121,8 +121,7 @@ pub trait PlanInputs {
 
 /// What a kernel borrows from the engine besides rows: the complete inventory.
 pub trait Resources {
-    /// Where the texts of the open file's cells are: its symbols, its bytes, the paths of the run's files and the workers'
-    /// texts, which the moved comparisons decide over unchanged.
+    /// Where the texts of the open file's cells are: its symbols, its bytes, the run's paths and the workers' texts.
     fn texts(&self) -> Texts<'_>;
     /// The cell of a text, interned in the open file's symbols.
     fn intern(&mut self, text: CellText<'_>) -> Value;
@@ -177,8 +176,7 @@ pub(crate) enum Lowering {
         /// The comparisons, the kept columns and the bindings.
         select: SelectParts,
     },
-    /// `lookup` of a constant in the shared `hash_index` of a relation's column, then `filter` of all the select's
-    /// comparisons: the rows whose key's text is the constant, in source row order.
+    /// `lookup` of a constant in a relation's shared `hash_index`, then `filter` of all the select's comparisons.
     Lookup {
         /// The index it reads.
         index: IndexPlace,
@@ -209,6 +207,8 @@ pub(crate) enum Lowering {
         right: RowSource,
         /// What the probe keeps.
         probe: ProbeParts,
+        /// The index it probes: its own, or the one every probe of its right rows and key shares.
+        index: ProbeIndex,
     },
     /// `distinct` over the rows of each source in turn: a row the first time only.
     Distinct {
@@ -277,15 +277,33 @@ pub(crate) enum Retention {
     Retained,
 }
 
-/// A `hash_index` shared by every lookup of one relation's column.
+/// A `hash_index` shared by every reader of one source's key: built once per file for all of them.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct KeyedIndex {
-    /// The relation it indexes.
-    pub(crate) relation: Relation,
-    /// The key column.
-    pub(crate) column: ColumnIndex,
-    /// The lookup nodes that read it, in node order: one build answers all of them.
-    pub(crate) lookups: Vec<PlanNodeId>,
+    /// The rows it indexes.
+    pub(crate) source: RowSource,
+    /// What it keys them by.
+    pub(crate) key: IndexKey,
+    /// The nodes that read it, in node order.
+    pub(crate) readers: Vec<PlanNodeId>,
+}
+
+/// What a shared index keys its rows by: a name column's text for lookups, key columns' cells for probes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum IndexKey {
+    /// One name column's text.
+    Text(ColumnIndex),
+    /// The cells of the key columns.
+    Cells(Vec<ColumnIndex>),
+}
+
+/// The index a probe reads: built by each of its runs, or shared with every probe of its right rows and key.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ProbeIndex {
+    /// Its own.
+    Own,
+    /// The shared index at this place.
+    Shared(IndexPlace),
 }
 
 /// The key a select fixes in its infallible prefix: a name column of a relation equal to a written text.

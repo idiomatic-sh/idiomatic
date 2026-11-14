@@ -1,5 +1,6 @@
-//! The allocation row of the shared hash index, measured: the blocks a file's keyed selects allocate once the worker's buffers
-//! are warm, which the allocation test compares for a thousand rows and a hundred thousand.
+//! The allocation rows of the kernels, measured: the blocks a file's nodes allocate once the worker's buffers are warm, which
+//! the allocation test compares for a thousand rows and a hundred thousand. Each row is a program over `Defines`: two
+//! selects sharing one index of its name, and the nodes that drop repeated rows through `hash_index`'s keyed rows.
 
 use super::{TableInputs, TextResources, emitted};
 use crate::domain::physical_plan::fixtures::Step;
@@ -8,27 +9,40 @@ use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::fixtures::{kinds, node_id};
 use ryo_relations::domain::relations::types::{FileId, Offset, Position, Relation, Span, Value};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, Input, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
+    ColumnIndex, ComparisonOrigin, Input, LiteralText, Operand, PlanComparison, QueryLiteral,
+    RepeatedRows, Test,
 };
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::{RowCount, Table};
 
-/// Two selects of `Defines` keyed on its name, so the planner shares one index of the name between them.
+/// The programs of the kernels' allocation rows, each answering little or answering more for more rows.
 #[derive(Clone, Copy, Debug)]
-pub struct KeyedSelects {
-    /// Whether the key is a name every fourth row has, so the selects' answer grows with the rows; else no row has it, and
-    /// only the index and the lookups allocate.
+pub struct Kernels {
+    /// Whether each program's answer grows with the rows: the selects key on a name every fourth row has, and every row is
+    /// its own node, so no row repeats; else no row has the key, the rows repeat four rows, and only the index, the lookups
+    /// and the keyed rows of what is kept allocate.
     pub answering: bool,
 }
 
-/// Whether the row holds for `selects`: a file of a hundred thousand rows allocates the same blocks as a file of a thousand,
-/// each measured with buffers warm from a file of the same rows. Selects that do not run do not hold it.
+/// One allocation row of the kernels.
+#[derive(Clone, Copy, Debug)]
+enum KernelRow {
+    /// Two selects keyed on one column, sharing one index of it.
+    KeyedSelects,
+    /// A union, an intersection (a probe dropping repeated answers) and a projection dropping repeats.
+    RepeatsDropped,
+}
+
+/// Whether every row holds for `kernels`: a file of a hundred thousand rows allocates the same blocks as a file of a
+/// thousand, each measured with buffers warm from a file of the same rows. Programs that do not run do not hold it.
 #[must_use]
-pub fn held(selects: &KeyedSelects) -> bool {
-    match (blocks(selects, 1_000), blocks(selects, 100_000)) {
-        (Some(few), Some(many)) => few == many,
-        (None, _) | (_, None) => false,
-    }
+pub fn held(kernels: &Kernels) -> bool {
+    [KernelRow::KeyedSelects, KernelRow::RepeatsDropped]
+        .into_iter()
+        .all(|row| match (blocks(row, kernels, 1_000), blocks(row, kernels, 100_000)) {
+            (Some(few), Some(many)) => few == many,
+            (None, _) | (_, None) => false,
+        })
 }
 
 /// The two keyed selects, keyed on `name`.
@@ -79,23 +93,73 @@ fn defines(rows: usize, resources: &TextResources) -> Table {
     }
 }
 
-/// The blocks one file of `rows` rows allocates in the two keyed selects, its buffers warm from a file of the same rows, or
-/// nothing when the selects do not run. The caller's global allocator is `dhat`'s.
-fn blocks(selects: &KeyedSelects, rows: usize) -> Option<u64> {
+/// The blocks one file of `rows` rows allocates in `row`'s program, its buffers warm from a file of the same rows, or nothing
+/// when the program does not run. The caller's global allocator is `dhat`'s.
+fn blocks(row: KernelRow, kernels: &Kernels, rows: usize) -> Option<u64> {
     let _profiler = dhat::Profiler::builder().testing().build();
     let mut resources = TextResources::new(&["kind", "n0", "n1", "n2", "n3", "absent"]);
-    let table = defines(rows, &resources);
+    let mut table = defines(rows, &resources);
+    let steps = match row {
+        KernelRow::KeyedSelects => keyed_selects(if kernels.answering { "n1" } else { "absent" }),
+        KernelRow::RepeatsDropped => {
+            if !kernels.answering {
+                repeated(&mut table);
+            }
+            repeats_dropped()
+        }
+    };
     let inputs = TableInputs::new(&[(Relation::Defines, &table)]);
-    let steps = keyed_selects(if selects.answering { "n1" } else { "absent" });
-    let emits = [PlanNodeId(0), PlanNodeId(1)];
+    let emits: Vec<PlanNodeId> = (0..u32::try_from(steps.len()).unwrap_or(u32::MAX))
+        .map(PlanNodeId)
+        .collect();
     let mut buffers = FileBuffers::default();
-    emitted(&steps, &emits, &inputs, &mut resources, &mut buffers).ok()?;
+    let _warm = emitted(&steps, &emits, &inputs, &mut resources, &mut buffers).ok()?;
     // The warm file ends: the engine releases every node it kept, and the next file starts with their capacity.
-    for node in emits {
-        buffers.release(node);
+    for node in &emits {
+        buffers.release(*node);
     }
     let before = dhat::HeapStats::get().total_blocks;
     let measured = emitted(&steps, &emits, &inputs, &mut resources, &mut buffers);
     let after = dhat::HeapStats::get().total_blocks;
     measured.ok().map(|_| after - before)
+}
+
+/// Makes `table`'s rows four rows repeated: each row's node becomes the node of its name.
+fn repeated(table: &mut Table) {
+    let width = table.kinds.len();
+    for (row, at) in table.cells.chunks_mut(width).zip((0..4).cycle()) {
+        let node = Value::Node(node_id(FileId(0), Position(at)));
+        for column in [0, 4] {
+            if let Some(cell) = row.get_mut(column) {
+                *cell = node;
+            }
+        }
+    }
+}
+
+/// A union of `Defines` with itself, an intersection of it with itself, and its node and name with repeats dropped.
+fn repeats_dropped() -> Vec<Step> {
+    let defines = (Input::Relation(Relation::Defines), PlanInput::Relation(Relation::Defines));
+    let both = |operation: Operation| Step {
+        operation,
+        inputs: vec![defines.1, defines.1],
+    };
+    vec![
+        both(Operation::Union {
+            left: defines.0,
+            right: defines.0,
+        }),
+        both(Operation::Intersection {
+            left: defines.0,
+            right: defines.0,
+        }),
+        Step {
+            operation: Operation::Project {
+                from: defines.0,
+                columns: vec![ColumnIndex(0), ColumnIndex(3)],
+                distinct: RepeatedRows::Dropped,
+            },
+            inputs: vec![defines.1],
+        },
+    ]
 }
