@@ -94,19 +94,38 @@ pub(crate) fn written_result(
     }
 }
 
-/// A render demand of a file that admitted no semantic session: the rule is refused with the engine's reason.
+/// What the file's semantic session renders for `requests`, one answer each in request order: the engine's one call of the
+/// session, which the interpreter and the file pass both make.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_execution_domain::domain::operating::errors::OperatingError;
-/// use ryo_execution_domain::domain::operating::service::no_semantic_session;
-/// assert!(matches!(no_semantic_session(), OperatingError::SemanticIncomplete { .. }));
+/// use ryo_execution_domain::domain::operating::service::rendered_batch;
+/// use ryo_values::domain::files::types::SourceView;
+/// assert!(matches!(
+///     rendered_batch(None, &[], SourceView(b"")),
+///     Err(OperatingError::SemanticIncomplete { .. })
+/// ));
 /// ```
-#[must_use]
-pub fn no_semantic_session() -> OperatingError {
-    OperatingError::SemanticIncomplete {
+///
+/// # Errors
+///
+/// [`OperatingError::SemanticIncomplete`] when the file admitted no semantic session, the session's own refusal, and
+/// [`OperatingError::SemanticBatchShape`] for a batch of answers of another length than the requests'.
+pub fn rendered_batch(
+    semantic: Option<&dyn crate::domain::operating::types::SemanticLookup>,
+    requests: &[ryo_language::domain::semantics::types::RenderRequest],
+    source: ryo_values::domain::files::types::SourceView<'_>,
+) -> Result<Vec<ryo_language::domain::semantics::types::RenderOutcome>, OperatingError> {
+    let lookup = semantic.ok_or_else(|| OperatingError::SemanticIncomplete {
         reason: crate::domain::operating::constants::NO_SEMANTIC_SESSION.into(),
+    })?;
+    let answers = lookup.render_batch(requests, source)?;
+    if answers.len() == requests.len() {
+        Ok(answers)
+    } else {
+        Err(OperatingError::SemanticBatchShape)
     }
 }
 

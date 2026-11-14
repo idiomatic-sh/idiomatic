@@ -18,7 +18,7 @@ use ryo_execution_domain::domain::executable_program::types::{
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::{
-    no_semantic_session, portable_fault, unsupported_render,
+    portable_fault, rendered_batch, unsupported_render,
 };
 use ryo_execution_domain::domain::trust::service::{needs_of, physical_reads};
 use ryo_execution_domain::domain::trust::types::RelationRead;
@@ -315,18 +315,7 @@ impl Resources for PassResources<'_> {
     ) -> Result<RenderOutcomes, PortableOperatorFault> {
         // The engine's reason is kept for the run's error: no session, a refused batch, a batch of another length, or an
         // answer the language cannot render.
-        let answers = self
-            .semantic
-            .ok_or_else(no_semantic_session)
-            .and_then(|lookup| lookup.render_batch(requests.0, self.source))
-            .and_then(|answers| {
-                if answers.len() == requests.0.len() {
-                    Ok(answers)
-                } else {
-                    Err(OperatingError::SemanticBatchShape)
-                }
-            });
-        match answers {
+        match rendered_batch(self.semantic, requests.0, self.source) {
             Ok(answers) => {
                 if answers
                     .iter()

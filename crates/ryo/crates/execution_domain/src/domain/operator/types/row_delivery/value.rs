@@ -288,19 +288,11 @@ impl<'a, 'f> RowDelivery<'a, 'f> {
                 context: *context,
             })
             .collect();
-        let answers = self
-            .lease
-            .views
-            .semantic
-            .ok_or_else(crate::domain::operating::service::no_semantic_session)
-            .and_then(|lookup| lookup.render_batch(&requests, self.lease.views.source))
-            .and_then(|answers| {
-                if answers.len() == requests.len() {
-                    Ok(answers)
-                } else {
-                    Err(OperatingError::SemanticBatchShape)
-                }
-            });
+        let answers = crate::domain::operating::service::rendered_batch(
+            self.lease.views.semantic,
+            &requests,
+            self.lease.views.source,
+        );
         self.rendered = self.hold(answers)?;
         Ok(())
     }
