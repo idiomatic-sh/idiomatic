@@ -1,6 +1,10 @@
 //! The operator capability's acceptance runner: every use case's colocated feature, run through its steps over one world.
 #[path = "../src/inbound/use_cases/operators/acceptance.rs"]
 mod operators;
+#[path = "../src/inbound/use_cases/plan/acceptance.rs"]
+mod plan;
+#[path = "../src/inbound/use_cases/run/acceptance.rs"]
+mod run;
 
 /// What a scenario's steps share: the input a given step names and what a when step answers for a then step.
 #[derive(Debug, Default, cucumber::World)]

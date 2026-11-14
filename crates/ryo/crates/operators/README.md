@@ -56,6 +56,10 @@ Flags strict partition extrema over engine-admitted whole-number inputs and engi
 
 Pairs ordered keys in FIFO order and projects each accepted pair before downstream delivery.
 
+### physical_plan
+
+Plans a whole program into kernels, each kind lowered once, and runs a node's kernels over one file's lent facts and the worker's buffers.
+
 ### project
 
 Selects requested columns in authored order, preserving duplicates and the first missing-column error.

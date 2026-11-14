@@ -69,4 +69,52 @@ pub fn check(adapter: &impl OperatorsPort) {
     };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
+    assert_eq!(
+        planned_and_run(adapter),
+        Err(PortableOperatorFault::NotRun),
+        "a relation the facts refuse is a fault of the run, never empty rows"
+    );
+}
+
+/// Plans a select of `Function` through `adapter` and runs it over facts that hold no relation, answering how many rows it
+/// made, or the fault the port's `plan` or `run` answers.
+fn planned_and_run(adapter: &impl OperatorsPort) -> Result<usize, PortableOperatorFault> {
+    use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
+    use ryo_operators::domain::physical_plan::types::{
+        LogicalNode, NodeBindings, NodeRows, PlanInput, PlanInputList, PlanNodeId, RuleOrdinal,
+    };
+    use ryo_operators::inbound::use_cases::run::fixtures::{
+        TableInputs, TextResources, vocabulary,
+    };
+    use ryo_relations::domain::relations::types::Relation;
+    let vocabulary = vocabulary();
+    let operation = ryo_values::domain::plans::types::Operation::Select {
+        from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::Function),
+        comparisons: Vec::new(),
+        kept: Vec::new(),
+    };
+    let inputs = [PlanInput::Relation(Relation::Function)];
+    let mut program = LogicalProgram::new(&vocabulary);
+    let node = program.node(LogicalNode {
+        operation: &operation,
+        inputs: PlanInputList(&inputs),
+        bindings: NodeBindings(&[]),
+        scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
+    });
+    program.emit(RuleOrdinal(0), node);
+    let plan = adapter.plan(&program)?;
+    let facts = TableInputs::new(&[]);
+    let mut buffers = FileBuffers::default();
+    adapter.run(
+        &plan,
+        PlanNodeId(0),
+        &mut buffers,
+        &facts,
+        &mut TextResources::new(&[]),
+    )?;
+    Ok(match buffers.rows(node) {
+        NodeRows::Materialized(rows) => rows.count.0,
+        NodeRows::Absent => 0,
+    })
 }

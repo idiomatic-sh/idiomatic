@@ -26,5 +26,6 @@ pub mod cycles;
 pub mod evaluation;
 pub mod fits_rendered;
 pub mod ordered_dfs;
+pub mod physical_plan;
 pub mod render_batch;
 pub mod table_rows;

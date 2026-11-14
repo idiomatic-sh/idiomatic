@@ -1,11 +1,11 @@
 //! A request execution: its files, its project phase and its observation stage.
+use crate::application::file_dag::fact_lookup::service::opened;
+use crate::application::file_dag::fact_lookup::types::FileWants;
 use crate::application::file_dag::frontiers::errors::FrontiersError;
 use crate::application::file_dag::frontiers::service::PreparationPolicy;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::facade_runtime;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
-use crate::application::file_dag::program::fact_lookup::service::opened;
-use crate::application::file_dag::program::fact_lookup::types::FileWants;
 use crate::application::file_dag::program::file_session::interface::ProgramFileSessionPort as _;
 use crate::application::file_dag::program::file_session::service::{rest_of_rule, stopped};
 use crate::application::file_dag::program::file_session::types::CaptureContext;
@@ -240,7 +240,7 @@ fn run_file(
     let refused = RefCell::new(None);
     let read = |relation| {
         lookup
-            .rows(relation)
+            .columns(relation)
             .map(SourceRows::Stored)
             .map_err(|error| {
                 *refused.borrow_mut() = Some(error);

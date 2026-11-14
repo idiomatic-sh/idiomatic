@@ -169,6 +169,10 @@ pub(super) fn program(entry: Entry, rule_count: usize) -> PreparedExecutionProgr
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
                 Arc::new(ryo_operators::outbound::matching::factory::use_case()),
             ),
+            ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl::new(),
+            ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl::new(
+                std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
+            ),
         )),
         crate::application::file_dag::fixtures::real_derived_port().into(),
         Arc::new(crate::outbound::digest::factory::blake3()),
@@ -251,6 +255,10 @@ pub(super) fn producer_program() -> PreparedExecutionProgram {
         Arc::new(crate::outbound::operators::factory::use_case(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
                 Arc::new(ryo_operators::outbound::matching::factory::use_case()),
+            ),
+            ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl::new(),
+            ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl::new(
+                std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
             ),
         )),
         crate::application::file_dag::fixtures::real_derived_port().into(),

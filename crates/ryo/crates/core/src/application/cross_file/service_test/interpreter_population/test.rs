@@ -1,9 +1,9 @@
 //! Project populations stay separate by rule, payload and reached region.
 
 use super::super::super::fixtures::evaluation::evaluate_fixture;
-use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::frontier_rows;
+use crate::application::cross_file::fixtures::project_calls::ProjectCalls;
 use crate::application::cross_file::fixtures::todo;
 use crate::application::cross_file::fixtures::world_with;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;

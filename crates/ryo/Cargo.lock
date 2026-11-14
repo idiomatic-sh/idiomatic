@@ -1604,6 +1604,7 @@ version = "0.1.4"
 dependencies = [
  "cargo_metadata",
  "cucumber",
+ "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-relations",

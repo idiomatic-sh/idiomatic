@@ -32,7 +32,7 @@ const WHOLE: FileWants<'static> = FileWants {
 /// The length of the first column of `relation`'s rows.
 fn rows_of(lookup: &FactLookup<'_, '_>, relation: Relation) -> Result<Value, Failure> {
     Ok(lookup
-        .rows(relation)?
+        .columns(relation)?
         .columns
         .first()
         .map_or(0, |column| column.0.len()))
@@ -63,7 +63,7 @@ fn rows_after_ensure_equal_what_the_source_writes() -> Result<Value, Failure> {
     );
     lookup.ensure(&mut Symbols::default(), &[Relation::Function])?;
     let read: Vec<Vec<u64>> = lookup
-        .rows(Relation::Function)?
+        .columns(Relation::Function)?
         .columns
         .iter()
         .map(|column| column.0.clone())

@@ -1,10 +1,10 @@
 //! A set of project roots prepares once and delivers in order.
-use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::evaluation::completed_batch;
 use crate::application::cross_file::fixtures::evaluation::count_findings;
 use crate::application::cross_file::fixtures::evaluation::evaluate_rules;
 use crate::application::cross_file::fixtures::frontier_rows;
+use crate::application::cross_file::fixtures::project_calls::ProjectCalls;
 use crate::application::cross_file::fixtures::world_with;
 use crate::application::cross_file::fixtures::world_with_applicability;
 use crate::cases::{Case, CaseName, Expect, Word, run};

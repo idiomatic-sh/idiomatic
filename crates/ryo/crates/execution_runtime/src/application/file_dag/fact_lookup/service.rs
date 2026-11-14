@@ -89,7 +89,7 @@ impl<'a, 's> FactLookup<'a, 's> {
     /// # Errors
     ///
     /// `Refused` before anything is ensured; the storage's own failure otherwise.
-    pub(crate) fn rows(&self, relation: Relation) -> Result<ColumnsView<'_>, FactsError> {
+    pub(crate) fn columns(&self, relation: Relation) -> Result<ColumnsView<'_>, FactsError> {
         match self.read {
             RowsRead::Read => self.facts.rows(relation),
             RowsRead::Closed => Err(FactsError::Refused),
