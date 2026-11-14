@@ -2,6 +2,7 @@
 
 use crate::domain::bindings::service::{binding_of, parameters_of, spread};
 use crate::domain::bindings::types::Spread;
+use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::refinements::service::{positional_name, receiver_name, variadic_name};
 use crate::domain::relations::constants::SELF_VALUE;
@@ -15,7 +16,7 @@ use ryo::languages;
 pub(crate) struct ParameterItem;
 
 ryo::reads! {
-    ParameterItem => languages::Parameter |tree, at, symbols| {
+    ParameterItem => languages::Parameter, model(ReadIndexes) |tree, _model, at, symbols| {
         kinds: [Kind::Node(Node::Fn), Kind::Node(Node::ClosureExpr)] as kind_bits,
         require is_nameless_function(tree, at) == Namelessness::Named;
         given list = child(tree, at, Kind::Node(Node::ParamList))?;

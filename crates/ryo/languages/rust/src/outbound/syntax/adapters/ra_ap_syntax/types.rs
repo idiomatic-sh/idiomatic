@@ -1,7 +1,7 @@
 //! The types of the `ra_ap_syntax` adapter: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use ra_ap_syntax::SyntaxKind;
-use ryo::languages::{Count, Offset, Position};
+use ryo::languages::{Count, Flag, Offset, Position};
 
 /// Rust source text as the adapter reads it: the file's text, with a character the lexer reports in place of each byte that is not part
 /// of one.
@@ -64,6 +64,8 @@ pub(crate) struct Cursor {
     pub position: Offset,
     /// The place the next element has in the table.
     pub next: Position,
+    /// Whether the node last entered is a literal, whose numeric token gives it a value.
+    pub literal: Flag,
 }
 
 /// A direct child of a token tree: the bytes it spans, and its kind.
@@ -151,4 +153,26 @@ pub(crate) enum Triviality {
     Trivia,
     /// It is not.
     Significant,
+}
+
+/// The value of an integer literal: every Rust integer literal a compiler accepts fits 128 bits.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct IntegerValue(pub u128);
+
+/// What a numeric literal's digits stand for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum NumberValue {
+    /// An integer.
+    Integer(IntegerValue),
+    /// A float, as the binary64 value of its digits (an `f32` literal's value after rounding to `f32`).
+    Float(ryo::languages::FloatBits),
+}
+
+/// A numeric literal as Rust reads it: its value, and the type suffix written after its digits.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct DecodedNumber<'a> {
+    /// The value its digits stand for.
+    pub value: NumberValue,
+    /// The suffix written after the digits; none when no type is written.
+    pub suffix: Option<ryo::languages::NameText<'a>>,
 }
