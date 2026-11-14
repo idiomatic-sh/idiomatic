@@ -202,8 +202,7 @@ pub(crate) fn occurrences(
     Ok(())
 }
 
-/// Emits the occurrences of the acquired matcher inside the span text the engine validated before it
-/// acquired the matcher.
+/// Emits the occurrences of the acquired matcher inside the span text the engine validated before it acquired it.
 pub(crate) fn evaluate(
     row: &[Value],
     shape: super::types::SearchShape<'_>,
@@ -366,11 +365,13 @@ pub(crate) fn interned_captures(
 /// line output with no base line.
 pub(crate) fn refused(search: &SourceMatchesParts) -> Result<(), PortableOperatorFault> {
     let captures = matches!(search.capture, SearchedGroup::Group(_));
-    let outputs = search.capture_text == TextOutput::Appended || search.capture_line == LineOutput::Appended;
+    let outputs =
+        search.capture_text == TextOutput::Appended || search.capture_line == LineOutput::Appended;
     if outputs && !captures {
         return Err(PortableOperatorFault::WrongOperation);
     }
-    if search.capture_line == LineOutput::Appended && search.base_line == BaseLineColumn::Unnumbered {
+    if search.capture_line == LineOutput::Appended && search.base_line == BaseLineColumn::Unnumbered
+    {
         return Err(PortableOperatorFault::WrongOperation);
     }
     Ok(())
@@ -378,7 +379,9 @@ pub(crate) fn refused(search: &SourceMatchesParts) -> Result<(), PortableOperato
 
 /// The kinds of the columns a search appends to each row: the occurrence's span, its line when numbered, and the group's
 /// span, text and line as asked.
-pub(crate) fn appended_kinds(search: &SourceMatchesParts) -> Vec<ryo_relations::domain::relations::types::CellKind> {
+pub(crate) fn appended_kinds(
+    search: &SourceMatchesParts,
+) -> Vec<ryo_relations::domain::relations::types::CellKind> {
     use ryo_relations::domain::relations::types::CellKind;
     let mut kinds = vec![CellKind::Span];
     if matches!(search.base_line, BaseLineColumn::At(_)) {

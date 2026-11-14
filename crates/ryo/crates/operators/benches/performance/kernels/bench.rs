@@ -10,11 +10,10 @@
     reason = "a bench that cannot run its own program has nothing to measure: the panic is the failure"
 )]
 
+use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::domain::physical_plan::fixtures::Step;
 use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId};
-use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
-use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::domain::physical_plan::types::{PlanInputs, Resources};
 use ryo_operators::inbound::use_cases::run::fixtures::unshared::emitted_unshared;
 use ryo_operators::inbound::use_cases::run::fixtures::{TableInputs, TextResources, emitted};
@@ -27,6 +26,7 @@ use ryo_values::domain::plan_parts::types::{
     QueryLiteral, RepeatedRows, Side, StepId, Test,
 };
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
 use ryo_values::domain::rows::types::{RowCount, Table};
 
 /// The relation the workload reads: refinement (column 2) and name (column 3) are texts.
@@ -182,7 +182,12 @@ type Runner = fn(
 ) -> Result<Vec<Table>, PortableOperatorFault>;
 
 /// `steps` over `rows` rows of `DEFINES`, run by `runner`: every node emitted, its buffers released after.
-fn measured(bencher: divan::Bencher<'_, '_>, rows: usize, steps: &dyn Fn(&[String]) -> Vec<Step>, runner: Runner) {
+fn measured(
+    bencher: divan::Bencher<'_, '_>,
+    rows: usize,
+    steps: &dyn Fn(&[String]) -> Vec<Step>,
+    runner: Runner,
+) {
     let names: Vec<String> = (0..NAMES).map(|at| format!("name{at}")).collect();
     let texts: Vec<&str> = ["kind", "other"]
         .into_iter()

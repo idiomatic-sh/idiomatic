@@ -292,9 +292,7 @@ impl<'a, 'f> RowDelivery<'a, 'f> {
             .lease
             .views
             .semantic
-            .ok_or_else(|| OperatingError::SemanticIncomplete {
-                reason: crate::domain::operator::constants::NO_SEMANTIC_SESSION.into(),
-            })
+            .ok_or_else(crate::domain::operating::service::no_semantic_session)
             .and_then(|lookup| lookup.render_batch(&requests, self.lease.views.source))
             .and_then(|answers| {
                 if answers.len() == requests.len() {

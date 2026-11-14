@@ -158,7 +158,9 @@ pub(crate) fn probed(
         let at = RowIndex(at);
         if probe.mode == ProbeMode::Anti && probe.empty_right == EmptyRight::EveryLeftRow && empty {
             let start = CellStart(output.cells.len());
-            output.cells.extend_from_slice(row_of(left, at, scratch.row));
+            output
+                .cells
+                .extend_from_slice(row_of(left, at, scratch.row));
             counted(output, start, probe.repeated, scratch.repeats);
             continue;
         }
@@ -213,7 +215,9 @@ pub(crate) fn probed(
         };
         if exists == (probe.mode == ProbeMode::Semi) {
             let start = CellStart(output.cells.len());
-            output.cells.extend_from_slice(row_of(left, at, scratch.row));
+            output
+                .cells
+                .extend_from_slice(row_of(left, at, scratch.row));
             counted(output, start, probe.repeated, scratch.repeats);
         }
     }

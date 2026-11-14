@@ -5,7 +5,7 @@
 use super::super::interface::RewritesItem;
 use crate::domain::comparing::service::fixed_prefix;
 use crate::domain::physical_plan::types::{
-    IndexKey, IndexPlace, KeyedIndex, Lowering, PhysicalNode, PlanNodeId, RowSource, SelectKey,
+    IndexKey, IndexPlace, KeyedIndex, Lowering, PhysicalNode, PlanNodeId, RowSource,
 };
 use ryo_language::domain::symbols::service::hash_of;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -20,6 +20,17 @@ impl RewritesItem for KeyedSelectItem {
     fn rewrite(&self, nodes: &mut [PhysicalNode], indexes: &mut Vec<KeyedIndex>) {
         keyed_selects(nodes, indexes);
     }
+}
+
+/// The key a select fixes in its infallible prefix: a name column of a relation equal to a written text.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct SelectKey {
+    /// The relation.
+    relation: ryo_relations::domain::relations::types::Relation,
+    /// The name column.
+    column: ryo_values::domain::plan_parts::types::ColumnIndex,
+    /// The hash of the written text.
+    key: ryo_relations::domain::relations::types::TextHash,
 }
 
 /// The key a filter of a relation fixes in its infallible prefix: a name column equal to a written, non-empty text. A key

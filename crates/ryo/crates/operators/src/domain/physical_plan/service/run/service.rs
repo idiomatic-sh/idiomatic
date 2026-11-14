@@ -8,30 +8,26 @@ use crate::domain::physical_plan::collections::kernels::extend::item::{
 };
 use crate::domain::physical_plan::collections::kernels::filter::item::{filter, keep, kept_kinds};
 use crate::domain::physical_plan::collections::kernels::group::item::{GroupScratch, grouped};
+use crate::domain::physical_plan::collections::kernels::hash_index::item::emptied;
 use crate::domain::physical_plan::collections::kernels::lookup::item::lookups;
 use crate::domain::physical_plan::collections::kernels::ordered_match::item::matched;
-use crate::domain::physical_plan::collections::kernels::hash_index::item::emptied;
-use crate::domain::physical_plan::collections::kernels::probe::item::{
-    IndexBuild, ProbeScratch, probed,
-};
+use crate::domain::physical_plan::collections::kernels::probe::item::probed;
 use crate::domain::physical_plan::collections::kernels::project::item::projected;
-use crate::domain::physical_plan::collections::kernels::render::item::rendered;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
-    count_of, facts, kinds_of, row_of,
+    count_of, kinds_of, row_of,
 };
-use crate::domain::physical_plan::collections::kernels::scan_node::item::{
-    give_back, hold, sources_of, take,
+use crate::domain::physical_plan::collections::kernels::scan_node::item::{hold, sources_of};
+use crate::domain::physical_plan::service::indexes::service::{
+    closed, opened, probe_scratch, sized_shared,
 };
-use crate::domain::physical_plan::collections::kernels::scan_roots::item::{copied, roots};
-use crate::domain::physical_plan::collections::kernels::text_map::item::{RowMapRun, mapped};
-use crate::domain::physical_plan::service::run::types::{KernelInputs, Reading};
-use crate::domain::physical_plan::types::file_buffers::value::{
-    FileBuffers, NodeDecisions, SharedIndex,
+use crate::domain::physical_plan::service::run::reading::service::{
+    pending_of, reading, returned, rows_in,
 };
+use crate::domain::physical_plan::service::run::types::KernelInputs;
+use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, NodeDecisions};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    CellStart, InputRows, KernelRun, Lowering, NodeReaders, NodeRows, PlanNodeId, ProbeIndex,
-    RowSource,
+    CellStart, KernelRun, Lowering, NodeReaders, NodeRows, PlanNodeId, ProbeIndex, RowSource,
 };
 use ryo_values::domain::rows::types::{RowIndex, Table};
 
@@ -70,13 +66,7 @@ fn sized(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
         buffers.remaining.resize(count, NodeReaders(0));
         buffers.decisions.resize_with(count, NodeDecisions::default);
     }
-    if buffers.shared.len() < plan.indexes.len() {
-        buffers.shared = plan
-            .indexes
-            .iter()
-            .map(|index| SharedIndex::new(index.readers.last().copied().unwrap_or(PlanNodeId(0))))
-            .collect();
-    }
+    sized_shared(plan, buffers);
 }
 
 /// Runs an earlier node `source` reads when it holds no rows.
@@ -91,48 +81,6 @@ fn ready(
             materialize(plan, run, read, buffers)
         }
         RowSource::Node(_) | RowSource::Facts(_) | RowSource::Tree(_) => Ok(()),
-    }
-}
-
-/// What `source` reads, taken for its reader `node`: a relation's rows lent in place, a tree relation's rows at the tree nodes
-/// the engine names for the reader, or a ready node's rows.
-fn reading<'s>(
-    run: &'s KernelRun<'_>,
-    node: PlanNodeId,
-    source: RowSource,
-    buffers: &mut FileBuffers,
-) -> Result<Reading<'s>, PortableOperatorFault> {
-    match source {
-        RowSource::Facts(relation) => facts(run.inputs, relation).map(Reading::Facts),
-        RowSource::Tree(relation) => Ok(Reading::Tree(roots(
-            run.inputs,
-            run.resources.tree(),
-            node,
-            relation,
-        ))),
-        RowSource::Node(read) => take(buffers, read).map(|taken| Reading::Node(read, taken)),
-    }
-}
-
-/// The rows of a reading, read in place.
-fn rows_in<'r>(reading: &'r Reading<'_>) -> InputRows<'r> {
-    match reading {
-        Reading::Facts(view) => InputRows::Facts(view),
-        Reading::Tree(tree) => InputRows::Tree(tree),
-        Reading::Copied(rows) => InputRows::Table(rows),
-        Reading::Node(_, taken) => InputRows::Table(&taken.rows),
-    }
-}
-
-/// Gives a reading back after `readings` of its node's readers.
-fn returned(
-    plan: &PhysicalPlan,
-    buffers: &mut FileBuffers,
-    reading: Reading<'_>,
-    readings: NodeReaders,
-) {
-    if let Reading::Node(read, taken) = reading {
-        give_back(plan, buffers, read, taken, readings);
     }
 }
 
@@ -158,18 +106,9 @@ fn materialize(
     else {
         return made(plan, run, node, lowering, buffers);
     };
-    if let (Some(shared), Some(index)) = (buffers.shared.get_mut(at.0), plan.indexes.get(at.0))
-        && shared.remaining == NodeReaders(0)
-    {
-        shared.remaining = NodeReaders(u32::try_from(index.readers.len()).unwrap_or(u32::MAX));
-    }
+    opened(plan, buffers, *at);
     let answered = made(plan, run, node, lowering, buffers);
-    if let Some(shared) = buffers.shared.get_mut(at.0) {
-        shared.remaining = NodeReaders(shared.remaining.0.saturating_sub(1));
-        if shared.remaining == NodeReaders(0) {
-            shared.emptied();
-        }
-    }
+    closed(buffers, *at);
     answered
 }
 
@@ -204,7 +143,7 @@ fn made(
         ready(plan, run, second, buffers)?;
     }
     if let Lowering::TextMap { .. } | Lowering::Render { .. } = lowering {
-        return minted(plan, run, node, lowering, first, buffers);
+        return super::minted::service::minted(plan, run, node, lowering, first, buffers);
     }
     // An extension's values are made before its rows are read: making a name changes the file's names, and reading reads them.
     let resolution = match lowering {
@@ -299,14 +238,6 @@ fn made(
     Ok(())
 }
 
-/// The fault a read node raised after its rows.
-fn pending_of(reading: &Reading<'_>) -> Option<PortableOperatorFault> {
-    match reading {
-        Reading::Facts(_) | Reading::Tree(_) | Reading::Copied(_) => None,
-        Reading::Node(_, taken) => taken.pending.clone(),
-    }
-}
-
 /// Makes a node's rows from its inputs' rows into `output`, and answers the fault of the first row that raised one.
 ///
 /// # Errors
@@ -396,45 +327,21 @@ fn kernels(
                 }
                 for row in 0..count_of(source).0 {
                     let start = CellStart(output.cells.len());
-                    output.cells.extend_from_slice(row_of(source, RowIndex(row), &mut buffers.row));
-                    counted(output, start, ryo_values::domain::plan_parts::types::RepeatedRows::Dropped, &mut buffers.repeats);
+                    output
+                        .cells
+                        .extend_from_slice(row_of(source, RowIndex(row), &mut buffers.row));
+                    counted(
+                        output,
+                        start,
+                        ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
+                        &mut buffers.repeats,
+                    );
                 }
             }
         }
         Lowering::Probe { probe, index, .. } => {
             let right = other.ok_or(PortableOperatorFault::WrongOperation)?;
-            let decisions = buffers
-                .decisions
-                .get_mut(place)
-                .ok_or(PortableOperatorFault::WrongOperation)?;
-            let (index, build) = match index {
-                ProbeIndex::Own => (&mut buffers.index, IndexBuild::Builds),
-                ProbeIndex::Shared(at) => {
-                    let shared = buffers
-                        .shared
-                        .get_mut(at.0)
-                        .ok_or(PortableOperatorFault::WrongOperation)?;
-                    // An index of no row is built again at no cost: an empty chain is an index not built in this file.
-                    let build = if shared.rows.next.is_empty() {
-                        IndexBuild::Builds
-                    } else {
-                        IndexBuild::Built
-                    };
-                    (&mut shared.rows, build)
-                }
-            };
-            #[cfg(test)]
-            if build == IndexBuild::Builds {
-                buffers.builds.0 += 1;
-            }
-            let scratch = ProbeScratch {
-                index,
-                build,
-                row: &mut buffers.row,
-                written: &mut buffers.written,
-                repeats: &mut buffers.repeats,
-                decisions,
-            };
+            let scratch = probe_scratch(buffers, *index, node)?;
             return probed(probe, input, right, run, scratch, output);
         }
         Lowering::Group { group, .. } => {
@@ -459,63 +366,4 @@ fn kernels(
         | Lowering::Unlowered => {}
     }
     Ok(None)
-}
-
-/// Runs a node that mints or renders through the resources while it reads its rows (a `text_map` stage or a `render`) and
-/// holds its rows and pending fault. It holds the resources mutably, so it reads a tree relation's rows from a copy, never
-/// from the elements in place.
-fn minted(
-    plan: &PhysicalPlan,
-    run: &mut KernelRun<'_>,
-    node: PlanNodeId,
-    lowering: &Lowering,
-    source: RowSource,
-    buffers: &mut FileBuffers,
-) -> Result<(), PortableOperatorFault> {
-    let inputs = run.inputs;
-    let input = match source {
-        RowSource::Tree(relation) => Reading::Copied(copied(&roots(inputs, run.resources.tree(), node, relation))),
-        RowSource::Facts(relation) => Reading::Facts(facts(inputs, relation)?),
-        RowSource::Node(read) => Reading::Node(read, take(buffers, read)?),
-    };
-    let pending = pending_of(&input);
-    let mut output = Table::default();
-    let made = match lowering {
-        // A render reads every row before it answers one: its input's fault comes before any of its rows.
-        Lowering::Render { render, .. } => match &pending {
-            Some(fault) => Ok(Some(fault.clone())),
-            None => Ok(rendered(render, rows_in(&input), run.resources, &mut output).err()),
-        },
-        Lowering::TextMap { map, .. } => match buffers
-            .decisions
-            .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
-        {
-            Some(decisions) => mapped(
-                map,
-                rows_in(&input),
-                &mut RowMapRun {
-                    resources: &mut *run.resources,
-                    matcher: run.matcher,
-                    decisions,
-                    scratch: &mut buffers.scratch,
-                    places: &mut buffers.places,
-                    output: &mut output,
-                },
-            ),
-            None => Err(PortableOperatorFault::WrongOperation),
-        },
-        Lowering::Filter { .. }
-        | Lowering::Lookup { .. }
-        | Lowering::Project { .. }
-        | Lowering::Extend { .. }
-        | Lowering::Probe { .. }
-        | Lowering::Distinct { .. }
-        | Lowering::Group { .. }
-        | Lowering::OrderedMatch { .. }
-        | Lowering::Unlowered => Err(PortableOperatorFault::WrongOperation),
-    };
-    returned(plan, buffers, input, NodeReaders(1));
-    let fault = made?;
-    hold(plan, buffers, node, output, fault.or(pending));
-    Ok(())
 }

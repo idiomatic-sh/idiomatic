@@ -15,7 +15,7 @@ use crate::application::file_dag::program::facade_runtime::file_execution::servi
 };
 use crate::application::file_dag::program::file_session::types::{
     CaptureContext, EmittedRoot, FileEnd, FileRules, FileRunInput, FileStop, FinishedReadiness,
-    Partiality, RanRule, RuleAfter,
+    Partiality, RanRule, RuleAfter, SemanticSupport,
 };
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::outbound::facts::errors::FactsError;
@@ -118,6 +118,10 @@ pub(crate) fn run_rules(
         publication: &partials,
         source: input.source,
         paths,
+        semantic: match input.semantic {
+            SemanticSupport::Supplied(lookup) => Some(lookup),
+            SemanticSupport::Absent => None,
+        },
         outputs: std::mem::take(&mut scratch.outputs),
     };
     for outputs in &mut at.outputs {

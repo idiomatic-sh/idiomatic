@@ -306,17 +306,6 @@ pub(crate) enum ProbeIndex {
     Shared(IndexPlace),
 }
 
-/// The key a select fixes in its infallible prefix: a name column of a relation equal to a written text.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct SelectKey {
-    /// The relation.
-    pub(crate) relation: Relation,
-    /// The name column.
-    pub(crate) column: ColumnIndex,
-    /// The hash of the written text.
-    pub(crate) key: TextHash,
-}
-
 /// What a run lends its kernels: the engine's rows and resources, and the matching semantics.
 pub(crate) struct KernelRun<'r> {
     /// The rows the engine holds for the open file.
@@ -325,19 +314,6 @@ pub(crate) struct KernelRun<'r> {
     pub(crate) resources: &'r mut dyn Resources,
     /// The matching semantics the comparisons compile and match through.
     pub(crate) matcher: crate::domain::patterns::types::PatternMatcher<'r>,
-}
-
-/// One filter's comparisons over rows of one shape, against the open file's texts.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct FilterKernel<'f> {
-    /// The comparisons, the kept columns and the bindings.
-    pub(crate) select: &'f SelectParts,
-    /// What each column of a row holds.
-    pub(crate) kinds: &'f [ryo_relations::domain::relations::types::CellKind],
-    /// The open file's texts.
-    pub(crate) texts: Texts<'f>,
-    /// How many names the open file has.
-    pub(crate) names: crate::domain::comparing::types::NameCount,
 }
 
 /// A materialized input, taken out of the buffers while its reader reads it, with the fault it raised after its rows.

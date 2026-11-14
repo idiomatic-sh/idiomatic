@@ -41,12 +41,18 @@ enum KernelRow {
 /// thousand, each measured with buffers warm from a file of the same rows. Programs that do not run do not hold it.
 #[must_use]
 pub fn held(kernels: &Kernels) -> bool {
-    [KernelRow::KeyedSelects, KernelRow::RepeatsDropped, KernelRow::SpanKinds]
-        .into_iter()
-        .all(|row| match (blocks(row, kernels, 1_000), blocks(row, kernels, 100_000)) {
+    [
+        KernelRow::KeyedSelects,
+        KernelRow::RepeatsDropped,
+        KernelRow::SpanKinds,
+    ]
+    .into_iter()
+    .all(
+        |row| match (blocks(row, kernels, 1_000), blocks(row, kernels, 100_000)) {
             (Some(few), Some(many)) => few == many,
             (None, _) | (_, None) => false,
-        })
+        },
+    )
 }
 
 /// The two keyed selects, keyed on `name`.
@@ -144,7 +150,10 @@ fn repeated(table: &mut Table) {
 
 /// A union of `Defines` with itself, an intersection of it with itself, and its node and name with repeats dropped.
 fn repeats_dropped() -> Vec<Step> {
-    let defines = (Input::Relation(Relation::Defines), PlanInput::Relation(Relation::Defines));
+    let defines = (
+        Input::Relation(Relation::Defines),
+        PlanInput::Relation(Relation::Defines),
+    );
     let both = |operation: Operation| Step {
         operation,
         inputs: vec![defines.1, defines.1],
@@ -171,7 +180,10 @@ fn repeats_dropped() -> Vec<Step> {
 
 /// Span-bounds and span-between of each row's span; or, answering, the words of each row's name, minted one by one.
 fn span_kinds(answering: bool) -> Vec<Step> {
-    let defines = (Input::Relation(Relation::Defines), PlanInput::Relation(Relation::Defines));
+    let defines = (
+        Input::Relation(Relation::Defines),
+        PlanInput::Relation(Relation::Defines),
+    );
     let over = |operation: Operation| Step {
         operation,
         inputs: vec![defines.1],

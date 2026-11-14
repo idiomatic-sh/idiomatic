@@ -6,12 +6,12 @@ use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, rows_of};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::contract::types::PredicateOutcome;
-use crate::domain::physical_plan::types::{CellStart, KeyedRowAt, KeyedSide};
 #[cfg(test)]
 use crate::domain::physical_plan::types::Lowering;
 use crate::domain::physical_plan::types::file_buffers::value::{
     IndexKeyHash, IndexedRow, KeyedRows, KeyedRun, NO_ROW,
 };
+use crate::domain::physical_plan::types::{CellStart, KeyedRowAt, KeyedSide};
 use crate::domain::table_texts::types::Texts;
 use ryo_language::domain::symbols::service::hash_in;
 use ryo_relations::domain::relations::service::from_bits;
@@ -227,7 +227,11 @@ pub(crate) fn find_cells(
 /// Keys the row `table` holds from cell `start`, by all its cells, into `rows`, which keys the table's rows before it in
 /// order: `Holds` when no row before it holds the same cells, which then keeps it; `Fails` for a repeat, which it does not
 /// key. Rows of equal cells are compared from the table's own cells, with no row copied out.
-pub(crate) fn first_of_row(rows: &mut KeyedRows, table: &Table, start: CellStart) -> PredicateOutcome {
+pub(crate) fn first_of_row(
+    rows: &mut KeyedRows,
+    table: &Table,
+    start: CellStart,
+) -> PredicateOutcome {
     let width = table.kinds.len();
     let held = &table.cells;
     let new = held.get(start.0..).unwrap_or_default();

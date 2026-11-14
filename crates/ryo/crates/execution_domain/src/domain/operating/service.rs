@@ -94,6 +94,22 @@ pub(crate) fn written_result(
     }
 }
 
+/// A render demand of a file that admitted no semantic session: the rule is refused with the engine's reason.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operating::errors::OperatingError;
+/// use ryo_execution_domain::domain::operating::service::no_semantic_session;
+/// assert!(matches!(no_semantic_session(), OperatingError::SemanticIncomplete { .. }));
+/// ```
+#[must_use]
+pub fn no_semantic_session() -> OperatingError {
+    OperatingError::SemanticIncomplete {
+        reason: crate::domain::operating::constants::NO_SEMANTIC_SESSION.into(),
+    }
+}
+
 /// A provider's unsupported answer invalidates the consuming rule, with the provider's reason: the first unsupported answer of
 /// the batch.
 ///

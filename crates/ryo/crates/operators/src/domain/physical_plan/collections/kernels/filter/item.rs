@@ -7,7 +7,6 @@ use crate::domain::comparing::service::holds_bound;
 use crate::domain::comparing::types::{DecisionWorkspace, NameCount, RowShape};
 use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
 use crate::domain::patterns::types::PatternMatcher;
-use crate::domain::physical_plan::types::FilterKernel;
 #[cfg(test)]
 use crate::domain::physical_plan::types::Lowering;
 use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
@@ -41,6 +40,19 @@ impl KernelsItem for FilterItem {
         };
         if runs { Reach::Runs } else { Reach::Skips }
     }
+}
+
+/// One filter's comparisons over rows of one shape, against the open file's texts.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct FilterKernel<'f> {
+    /// The comparisons, the kept columns and the bindings.
+    pub(crate) select: &'f SelectParts,
+    /// What each column of a row holds.
+    pub(crate) kinds: &'f [CellKind],
+    /// The open file's texts.
+    pub(crate) texts: Texts<'f>,
+    /// How many names the open file has.
+    pub(crate) names: NameCount,
 }
 
 /// The filter of `select` over rows of `kinds`, its memo of each name's decisions readied for the open file.

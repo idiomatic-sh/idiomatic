@@ -188,17 +188,18 @@ pub(crate) fn ran_node(
         source: at.source,
         paths: at.paths,
         elements: at.inputs.lookup.tree(),
+        semantic: at.semantic,
+        refusal: None,
     };
-    at.pass
-        .operators
-        .run(
-            physical(&at.pass.program),
-            node,
-            &mut at.buffers,
-            &at.inputs,
-            &mut resources,
-        )
-        .map_err(portable_fault)
+    let ran = at.pass.operators.run(
+        physical(&at.pass.program),
+        node,
+        &mut at.buffers,
+        &at.inputs,
+        &mut resources,
+    );
+    // A rendering the engine refused reports the engine's reason, not the operators' fault.
+    ran.map_err(|fault| resources.refusal.unwrap_or_else(|| portable_fault(fault)))
 }
 
 /// Ends the file: every node's rows go back to the buffers.

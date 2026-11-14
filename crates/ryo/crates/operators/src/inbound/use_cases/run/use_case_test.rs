@@ -7,8 +7,8 @@ mod render;
 mod shared_index;
 #[cfg(test)]
 mod text_map;
-use super::fixtures::cases::{DEFINES, defines, input_of, named, select, self_matching};
-use super::fixtures::{TableInputs, TextResources, emitted, rewritten};
+use super::fixtures::cases::{DEFINES, defines, input_of, named, rewritten, select, self_matching};
+use super::fixtures::{TableInputs, TextResources, emitted};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::ProbeMode;

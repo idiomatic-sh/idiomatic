@@ -7,8 +7,8 @@ use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, Inde
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    LogicalNode, Lowering, NodeBindings, NodeRows, PlanInput, PlanInputList, PlanNodeId,
-    RowSource, RuleOrdinal,
+    LogicalNode, Lowering, NodeBindings, NodeRows, PlanInput, PlanInputList, PlanNodeId, RowSource,
+    RuleOrdinal,
 };
 use crate::inbound::use_cases::run::fixtures::texts::span;
 use crate::inbound::use_cases::run::fixtures::unshared::unshared;
@@ -67,7 +67,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Observation::Same(true)),
     },
     Case {
-        name: CaseName("an_index_shared_across_right_rows_fails_a_shared_index_answers_what_its_own_index_answers"),
+        name: CaseName(
+            "an_index_shared_across_right_rows_fails_a_shared_index_answers_what_its_own_index_answers",
+        ),
         word: Word::Succeeds,
         input: || Scenario::SharedAcrossRows,
         expect: Expect::Value(Observation::Same(false)),
@@ -132,7 +134,11 @@ fn steps() -> Vec<Step> {
         },
         probe_of(defines, 3, &[(Side::Left, 0), (Side::Right, 4)]),
         probe_of(node(0), 3, &[(Side::Right, 0)]),
-        probe_of(node(1), 0, &[(Side::Left, 1), (Side::Right, 6), (Side::Right, 0)]),
+        probe_of(
+            node(1),
+            0,
+            &[(Side::Left, 1), (Side::Right, 6), (Side::Right, 0)],
+        ),
     ]
 }
 
@@ -155,7 +161,9 @@ fn plan_of(steps: &[Step]) -> Result<PhysicalPlan, Failure> {
 
 /// `plan` with the last probe reading the select's rows on its right, its index unchanged.
 fn reread(mut plan: PhysicalPlan) -> PhysicalPlan {
-    if let Some(Lowering::Probe { right, .. }) = plan.nodes.get_mut(4).map(|node| &mut node.lowering) {
+    if let Some(Lowering::Probe { right, .. }) =
+        plan.nodes.get_mut(4).map(|node| &mut node.lowering)
+    {
         *right = RowSource::Node(PlanNodeId(0));
     }
     plan

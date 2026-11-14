@@ -1,13 +1,19 @@
 //! The rows and steps the run use case's cases are made of: the relation they read, its rows, and the selects and comparisons
 //! over it.
-use super::TextResources;
+use super::{TextResources, ran};
+use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::Step;
+use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
+use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
+use crate::domain::physical_plan::types::{
+    LogicalNode, NodeBindings, NodeRows, PlanInputList, PlanInputs, Resources, RuleOrdinal,
+};
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::fixtures::{kinds, node_id};
 use ryo_relations::domain::relations::types::{FileId, Offset, Position, Relation, Span, Value};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, Input as StepInput, LiteralText, Operand, PlanComparison,
-    QueryLiteral, Test,
+    QueryLiteral, StepScope, Test,
 };
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::{RowCount, Table};
@@ -95,4 +101,42 @@ pub(crate) fn input_of(from: PlanInput) -> StepInput {
             ryo_values::domain::plan_parts::types::ObservationBindingId(0),
         ),
     }
+}
+
+/// The rows every node of `steps` answers, each the emit of a rule of its own, planned with `rewrites` alone and run over
+/// `inputs` and `resources`: what a program answers with and without a rewrite.
+///
+/// # Errors
+///
+/// The fault the planner or the runner answers.
+pub(crate) fn rewritten(
+    steps: &[Step],
+    rewrites: &[&dyn crate::domain::physical_plan::collections::rewrites::interface::RewritesItem],
+    inputs: &dyn PlanInputs,
+    resources: &mut dyn Resources,
+) -> Result<Vec<Table>, PortableOperatorFault> {
+    let mut program = LogicalProgram::new();
+    let mut emits = Vec::with_capacity(steps.len());
+    for (rule, step) in (0..).map(RuleOrdinal).zip(steps) {
+        let id = program.node(LogicalNode {
+            operation: &step.operation,
+            inputs: PlanInputList(&step.inputs),
+            bindings: NodeBindings(&[]),
+            scope: StepScope::PerFile,
+        });
+        program.emit(rule, id);
+        emits.push(id);
+    }
+    let plan = crate::domain::physical_plan::service::plan_with(&program, rewrites)?;
+    let mut buffers = FileBuffers::default();
+    emits
+        .into_iter()
+        .map(|node| {
+            ran(&plan, node, &mut buffers, inputs, resources)?;
+            match buffers.rows(node) {
+                NodeRows::Materialized(table) => Ok(table.clone()),
+                NodeRows::Absent => Err(PortableOperatorFault::NotRun),
+            }
+        })
+        .collect()
 }

@@ -17,12 +17,15 @@ use ryo_execution_domain::domain::executable_program::types::{
     RuleBindings, RuleInput, RuleObservations, Serving,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::service::portable_fault;
+use ryo_execution_domain::domain::operating::service::{
+    no_semantic_session, portable_fault, unsupported_render,
+};
 use ryo_execution_domain::domain::trust::service::{needs_of, physical_reads};
 use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_language::domain::elements::service::{kind_at, kind_names, positions};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::of_kind;
+use ryo_language::domain::semantics::types::RenderOutcome;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
@@ -308,10 +311,36 @@ impl Resources for PassResources<'_> {
     }
     fn render(
         &mut self,
-        _requests: RenderRequests<'_>,
+        requests: RenderRequests<'_>,
     ) -> Result<RenderOutcomes, PortableOperatorFault> {
-        // Rendering is the second stage's: a rule that renders is refused before any file.
-        Err(PortableOperatorFault::UnsupportedRender)
+        // The engine's reason is kept for the run's error: no session, a refused batch, a batch of another length, or an
+        // answer the language cannot render.
+        let answers = self
+            .semantic
+            .ok_or_else(no_semantic_session)
+            .and_then(|lookup| lookup.render_batch(requests.0, self.source))
+            .and_then(|answers| {
+                if answers.len() == requests.0.len() {
+                    Ok(answers)
+                } else {
+                    Err(OperatingError::SemanticBatchShape)
+                }
+            });
+        match answers {
+            Ok(answers) => {
+                if answers
+                    .iter()
+                    .any(|answer| matches!(answer, RenderOutcome::Unsupported(_)))
+                {
+                    self.refusal = Some(unsupported_render(&answers));
+                }
+                Ok(RenderOutcomes(answers))
+            }
+            Err(error) => {
+                self.refusal = Some(error);
+                Err(PortableOperatorFault::UnsupportedRender)
+            }
+        }
     }
 }
 

@@ -74,7 +74,9 @@ pub(crate) fn mapped(
     run.output.kinds.extend(appended_kinds(map));
     let rows = count_of(input).0;
     if matches!(map, RowMap::SpanBounds(_) | RowMap::SpanBetween(_)) {
-        run.output.cells.reserve_exact(rows.saturating_mul(run.output.kinds.len()));
+        run.output
+            .cells
+            .reserve_exact(rows.saturating_mul(run.output.kinds.len()));
     }
     for row in 0..rows {
         let mut decode = std::mem::take(&mut run.scratch.other);
@@ -92,15 +94,8 @@ pub(crate) fn mapped(
 fn appended_kinds(map: &RowMap) -> Vec<CellKind> {
     match map {
         RowMap::Capture(capture) => {
-            vec![
-                CellKind::Symbol;
-                capture
-                    .pattern
-                    .0
-                    .bytes()
-                    .filter(|byte| *byte == b'{')
-                    .count()
-            ]
+            let slots = capture.pattern.0.bytes().filter(|byte| *byte == b'{');
+            vec![CellKind::Symbol; slots.count()]
         }
         RowMap::Replace(_) | RowMap::Words(_) => vec![CellKind::Symbol],
         RowMap::SourceMatches(search) => {

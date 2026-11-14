@@ -4,7 +4,9 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::interface::Reach;
 use crate::domain::physical_plan::fixtures::{Step, text_program};
-use crate::domain::physical_plan::service::{Kernel, REWRITES, SERVED, lowered, plan_with, stage_of_kind};
+use crate::domain::physical_plan::service::{
+    Kernel, REWRITES, SERVED, lowered, plan_with, stage_of_kind,
+};
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::{
     LogicalNode, Lowering, NodeBindings, PlanInput, PlanInputList, RuleOrdinal,

@@ -100,6 +100,10 @@ pub(crate) struct PassResources<'r> {
     pub(crate) paths: &'r [ryo_language::domain::files::types::FilePath],
     /// The file's tree.
     pub(crate) elements: &'r ryo_language::domain::elements::types::Elements,
+    /// The file's semantic session, when its language has one: what renders syntax.
+    pub(crate) semantic: Option<&'r dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
+    /// The engine's own reason for refusing a rendering, which the run's error reports in place of the operators' fault.
+    pub(crate) refusal: Option<ryo_execution_domain::domain::operating::errors::OperatingError>,
 }
 
 /// Whether a rule's named output was committed with its frontier in this file.
@@ -143,6 +147,8 @@ pub(crate) struct PassFile<'f, 'p, 'a, 's> {
     pub(crate) source: ryo_values::domain::files::types::SourceView<'f>,
     /// The path of each file of the run.
     pub(crate) paths: &'f [ryo_language::domain::files::types::FilePath],
+    /// The file's semantic session, when its language has one.
+    pub(crate) semantic: Option<&'f dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
     /// Each rule's named outputs in this file, in rule order.
     pub(crate) outputs: Vec<Vec<OutputState>>,
 }
