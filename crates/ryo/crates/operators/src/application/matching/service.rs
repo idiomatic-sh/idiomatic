@@ -38,3 +38,32 @@ impl<Matching: MatchingUseCase + ?Sized> PatternSemantics for Matching {
         MatchingUseCase::matches_text_glob(self, pattern, text)
     }
 }
+
+impl Sealed for super::types::PortSemantics<'_> {}
+
+impl PatternSemantics for super::types::PortSemantics<'_> {
+    fn compile_regex(&self, pattern: RegexSource<'_>) -> Result<CompiledRegex, MatchingError> {
+        self.0.compile_regex(pattern)
+    }
+    fn matches_regex(&self, regex: &CompiledRegex, text: SearchText<'_>) -> MatchOutcome {
+        self.0.matches_regex(regex, text)
+    }
+    fn visit_regex_captures(
+        &self,
+        regex: &CompiledRegex,
+        text: SearchText<'_>,
+        name: GroupName<'_>,
+        each: &mut dyn FnMut(TextSpan, TextSpan) -> std::ops::ControlFlow<()>,
+    ) -> Result<std::ops::ControlFlow<()>, MatchingError> {
+        self.0.visit_regex_captures(regex, text, name, each)
+    }
+    fn compile_text_globs(&self, patterns: &[GlobPattern<'_>]) -> CompiledTextGlobs {
+        self.0.compile_text_globs(patterns)
+    }
+    fn matches_text_globs(&self, globs: &CompiledTextGlobs, text: SearchText<'_>) -> MatchOutcome {
+        self.0.matches_text_globs(globs, text)
+    }
+    fn matches_text_glob(&self, pattern: GlobPattern<'_>, text: SearchText<'_>) -> MatchOutcome {
+        self.0.matches_text_glob(pattern, text)
+    }
+}

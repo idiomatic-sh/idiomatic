@@ -301,3 +301,5 @@ fn refuses() {
 
 #[cfg(test)]
 mod names_test;
+#[cfg(test)]
+mod prefix_test;

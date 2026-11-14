@@ -39,7 +39,18 @@ impl RunUseCase for RunUseCaseImpl {
         inputs: &dyn PlanInputs,
         resources: &mut dyn Resources,
     ) -> Result<(), PortableOperatorFault> {
-        crate::domain::physical_plan::service::run(plan, node, buffers, inputs, resources, self)
+        let semantics =
+            crate::application::matching::types::PortSemantics(self.matching.semantics());
+        crate::domain::physical_plan::service::run::service::run(
+            plan,
+            &mut crate::domain::physical_plan::types::KernelRun {
+                inputs,
+                resources,
+                matcher: crate::domain::patterns::types::PatternMatcher(&semantics),
+            },
+            node,
+            buffers,
+        )
     }
 }
 

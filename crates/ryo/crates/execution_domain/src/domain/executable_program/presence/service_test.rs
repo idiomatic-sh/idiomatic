@@ -152,7 +152,8 @@ fn project(from: Source, columns: &[u32]) -> PlanStep {
 /// The fold with `shared` read as a relation of the project, not the file, and the request's slots declared from the
 /// plans, as the program compiler declares them.
 fn fold_sharing(plans: &[Plan], shared: Option<Relation>) -> GraphPresence {
-    let prepared = ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers::new(plans);
+    let prepared =
+        ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers::new(plans);
     of_graph(
         &graph(plans).0,
         &|relation| {
@@ -879,6 +880,11 @@ fn portable(fault: &ryo_operators::domain::contract::types::PortableOperatorFaul
         // A named capture the matcher lacks, raised when a row first reaches the search.
         MissingCapture => Fault::RowFallible(CAPTURE),
         Interrupted | NotRun => Fault::Engine,
+        // A comparison's fault is the operating error it maps to, variant for variant.
+        WrongTest => operating(&OperatingError::WrongTest),
+        Pattern(_) => operating(&OperatingError::InvalidRegex {
+            reason: String::new(),
+        }),
     }
 }
 
@@ -1060,6 +1066,8 @@ fn located_proof(raised: Raised<'_>) -> Option<LocatedProof> {
             | P::Interrupted
             | P::NotRun,
         ) => None,
+        Raised::Portable(P::Pattern(_)) => Some(LocatedProof::MatcherSlot),
+        Raised::Portable(P::WrongTest) => None,
     }
 }
 
@@ -1110,6 +1118,8 @@ fn portable_position(
         WrongBinding => 10,
         Unbound => 11,
         NotRun => 12,
+        WrongTest => 13,
+        Pattern(_) => 14,
     }
 }
 
@@ -1139,7 +1149,8 @@ fn declared(raiser: Raiser, raised: Raised<'_>) -> bool {
                 ryo_operators::domain::patterns::types::PatternMatcher(
                     &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
                 ),
-                &ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers::default(),
+                &ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers::default(
+                ),
             )
             .is_some()
         }

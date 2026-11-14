@@ -7,16 +7,22 @@ use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::{
     Candidates, FactRows, LogicalNode, NodeBindings, NodeRows, OpenFileBytes, PlanInput,
     PlanInputList, PlanInputs, PlanNodeId, RenderOutcomes, RenderRequests, Resources, RuleOrdinal,
-    TextLookup,
 };
+use crate::domain::table_texts::types::Texts;
 use crate::inbound::use_cases::plan::interface::PlanUseCase as _;
 use crate::inbound::use_cases::plan::use_case::PlanUseCaseImpl;
 use crate::inbound::use_cases::run::interface::RunUseCase as _;
 use crate::inbound::use_cases::run::use_case::RunUseCaseImpl;
 use ryo_language::domain::elements::types::Elements;
+use ryo_language::domain::symbols::service::{intern, intern_derived, text_of};
+use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::Offset;
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn, Relation, Value};
+use ryo_relations::domain::terms::types::NameText;
 use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{ObservationBindingId, ParameterId, StepScope};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::row_texts::types::CellText;
@@ -112,21 +118,32 @@ pub fn columns_of(table: &Table) -> Vec<FactColumn> {
         .collect()
 }
 
-/// The resources of a file whose symbols are `texts`, in symbol order: a symbol's text is its place in them.
+/// The resources of a file whose bytes are `texts`, one after the other, each text one of its symbols.
 #[derive(Debug, Default)]
 pub struct TextResources {
-    /// The file's symbols' texts, in symbol order.
-    texts: Vec<Box<str>>,
+    /// The file's bytes: every text, in order.
+    source: Vec<u8>,
+    /// The file's symbols: one for each distinct text.
+    symbols: Symbols,
     /// The file's tree: no node.
     tree: Elements,
 }
 
 impl TextResources {
-    /// Resources whose symbols are `texts`.
+    /// Resources whose file is `texts`, one after the other, each a symbol of it.
     #[must_use]
     pub fn new(texts: &[&str]) -> Self {
+        let source: Vec<u8> = texts.iter().flat_map(|text| text.bytes()).collect();
+        let mut symbols = Symbols::default();
+        let mut start = 0_u32;
+        for text in texts {
+            let end = start.saturating_add(u32::try_from(text.len()).unwrap_or(u32::MAX));
+            let _symbol = intern(&mut symbols, ByteSlice(&source), Offset(start), Offset(end));
+            start = end;
+        }
         Self {
-            texts: texts.iter().map(|text| Box::from(*text)).collect(),
+            source,
+            symbols,
             tree: Elements::default(),
         }
     }
@@ -138,47 +155,38 @@ impl TextResources {
     /// When `text` is none of the symbols.
     #[must_use]
     pub fn symbol(&self, text: &str) -> Value {
-        let at = self
-            .texts
-            .iter()
-            .position(|held| &**held == text)
-            .and_then(|at| u32::try_from(at).ok());
+        let found = (0..u32::MAX)
+            .map(Symbol)
+            .map_while(|symbol| {
+                text_of(&self.symbols, ByteSlice(&self.source), symbol).map(|held| (symbol, held))
+            })
+            .find(|(_, held)| held.0 == text);
         #[expect(clippy::expect_used, reason = "a case names only the texts it gave")]
-        Value::Symbol(Symbol(at.expect("a text of the file")))
+        Value::Symbol(found.expect("a text of the file").0)
     }
 }
 
 impl Resources for TextResources {
-    fn text(&self, value: Value) -> TextLookup<'_> {
-        match value {
-            Value::Symbol(Symbol(at)) => usize::try_from(at)
-                .ok()
-                .and_then(|at| self.texts.get(at))
-                .map_or(TextLookup::NoText, |text| TextLookup::Found(CellText(text))),
-            Value::Node(_)
-            | Value::Name(_)
-            | Value::File(_)
-            | Value::Span(_)
-            | Value::Number(_)
-            | Value::Flag(_) => TextLookup::NoText,
+    fn texts(&self) -> Texts<'_> {
+        Texts {
+            symbols: &self.symbols,
+            source: SourceView(&self.source),
+            paths: &[],
+            arenas: &[],
         }
     }
     fn intern(&mut self, text: CellText<'_>) -> Value {
-        let at = self
-            .texts
-            .iter()
-            .position(|held| &**held == text.0)
-            .unwrap_or_else(|| {
-                self.texts.push(Box::from(text.0));
-                self.texts.len() - 1
-            });
-        Value::Symbol(Symbol(u32::try_from(at).unwrap_or(u32::MAX)))
+        Value::Symbol(intern_derived(
+            &mut self.symbols,
+            ByteSlice(&self.source),
+            NameText(text.0),
+        ))
     }
     fn mint(&mut self, text: CellText<'_>) -> Value {
         self.intern(text)
     }
     fn source(&self) -> OpenFileBytes<'_> {
-        OpenFileBytes(&[])
+        OpenFileBytes(&self.source)
     }
     fn tree(&self) -> &Elements {
         &self.tree

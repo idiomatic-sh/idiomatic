@@ -11,15 +11,15 @@ use crate::domain::comparing::collections::comparisons::glob::item::{GlobItem, c
 use crate::domain::comparing::collections::comparisons::interface::ComparisonsItem as _;
 use crate::domain::comparing::collections::comparisons::membership::item::MembershipItem;
 use crate::domain::comparing::collections::comparisons::ordering::item::OrderingItem;
-use crate::domain::comparing::types::{DecisionWorkspace, NumberedComparison, RowShape};
-use crate::domain::functions::types::MadeText;
-use crate::domain::patterns::types::PatternMatcher;
-use crate::domain::patterns::types::prepared::value::PreparedMatchers;
-use crate::domain::operands::service::resolve;
 use crate::domain::comparing::errors::ComparingError;
 use crate::domain::comparing::types::{ComparisonNumber, Family, NameCount};
-use crate::domain::table_scratch::types::Memo;
+use crate::domain::comparing::types::{DecisionWorkspace, NumberedComparison, RowShape};
 use crate::domain::contract::types::PredicateOutcome;
+use crate::domain::functions::types::MadeText;
+use crate::domain::operands::service::resolve;
+use crate::domain::patterns::types::PatternMatcher;
+use crate::domain::patterns::types::prepared::value::PreparedMatchers;
+use crate::domain::table_scratch::types::Memo;
 use crate::domain::table_scratch::types::{
     ComparisonNumbers, ComparisonSlot, GlobSubject, MemoPlace, MemoSlot, SelectScratch,
     SubjectHash, SubjectTag, VerdictKey,
@@ -33,7 +33,11 @@ use ryo_values::domain::rows::service::{cell, column_in};
 const VERDICTS: usize = 1 << 14;
 
 /// Whether a name of the file is equal, or not equal, to a text the query wrote, when the comparison is that.
-fn equal_to_text(comparison: &PlanComparison, row: &[Value], texts: &Texts<'_>) -> Option<PredicateOutcome> {
+fn equal_to_text(
+    comparison: &PlanComparison,
+    row: &[Value],
+    texts: &Texts<'_>,
+) -> Option<PredicateOutcome> {
     let equal = match comparison.test {
         Test::Equal => true,
         Test::NotEqual => false,
@@ -84,8 +88,10 @@ pub(crate) fn evaluate_comparison(
     matcher: PatternMatcher<'_>,
 ) -> Result<PredicateOutcome, ComparingError> {
     let (mut left_made, mut right_made) = (MadeText::default(), MadeText::default());
-    let left = resolve(&comparison.left, row, bindings, texts, &mut left_made).map_err(operand_fault)?;
-    let right = resolve(&comparison.right, row, bindings, texts, &mut right_made).map_err(operand_fault)?;
+    let left =
+        resolve(&comparison.left, row, bindings, texts, &mut left_made).map_err(operand_fault)?;
+    let right =
+        resolve(&comparison.right, row, bindings, texts, &mut right_made).map_err(operand_fault)?;
     match family_of(comparison.test) {
         Family::Equality => EqualityItem.holds(comparison.test, &left, &right),
         Family::Ordering => OrderingItem.holds(comparison.test, &left, &right),
@@ -348,4 +354,30 @@ pub(crate) fn operand_fault(
         OperandsError::WrongBinding => ComparingError::WrongBinding,
         OperandsError::Rows(rows) => ComparingError::Rows(rows),
     }
+}
+
+/// The leading comparisons of `comparisons` that cannot fail over a row whose columns are `kinds`: a column of the row
+/// compared with a written text by `=`, `!=`, `starts-with` or `ends-with`. The first comparison that may fail (a column past
+/// the row, a parameter, a function, a pattern compiled from the row) ends it, so a fault is never moved behind a test that
+/// decides without it. The one definition the keyed-select rewrite and the engine's root kinds stop at.
+#[must_use]
+pub fn fixed_prefix<'a>(
+    comparisons: &'a [PlanComparison],
+    kinds: &[CellKind],
+) -> crate::domain::comparing::types::FixedPrefix<'a> {
+    let infallible = |comparison: &PlanComparison| {
+        matches!(family_of(comparison.test), Family::Equality | Family::Affix)
+            && match (&comparison.left, &comparison.right) {
+                (Operand::Column(column), Operand::Literal(QueryLiteral::Text(_)))
+                | (Operand::Literal(QueryLiteral::Text(_)), Operand::Column(column)) => {
+                    usize::try_from(column.0).is_ok_and(|at| at < kinds.len())
+                }
+                _ => false,
+            }
+    };
+    let length = comparisons
+        .iter()
+        .position(|comparison| !infallible(comparison))
+        .unwrap_or(comparisons.len());
+    crate::domain::comparing::types::FixedPrefix(comparisons.get(..length).unwrap_or_default())
 }

@@ -54,7 +54,10 @@ fn defines(rows: usize, resources: &TextResources) -> Table {
     let names = ["n0", "n1", "n2", "n3"];
     let mut cells = Vec::with_capacity(rows * kinds(Relation::Defines).len());
     for (at, name) in (0..rows).zip(names.iter().cycle()) {
-        let node = Value::Node(node_id(FileId(0), Position(u32::try_from(at).unwrap_or(u32::MAX))));
+        let node = Value::Node(node_id(
+            FileId(0),
+            Position(u32::try_from(at).unwrap_or(u32::MAX)),
+        ));
         cells.extend([
             node,
             resources.symbol("kind"),
@@ -86,6 +89,10 @@ fn blocks(selects: &KeyedSelects, rows: usize) -> Option<u64> {
     let emits = [PlanNodeId(0), PlanNodeId(1)];
     let mut buffers = FileBuffers::default();
     emitted(&steps, &emits, &inputs, &mut resources, &mut buffers).ok()?;
+    // The warm file ends: the engine releases every node it kept, and the next file starts with their capacity.
+    for node in emits {
+        buffers.release(node);
+    }
     let before = dhat::HeapStats::get().total_blocks;
     let measured = emitted(&steps, &emits, &inputs, &mut resources, &mut buffers);
     let after = dhat::HeapStats::get().total_blocks;

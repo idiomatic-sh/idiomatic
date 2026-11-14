@@ -6,8 +6,10 @@ pub mod logical_program;
 pub mod physical_plan;
 
 use crate::domain::contract::types::{PortableOperatorFault, RenderKind};
+use crate::domain::table_texts::types::Texts;
 use ryo_language::domain::elements::types::Elements;
-use ryo_relations::domain::relations::types::{ColumnsView, NodeId, Relation, Value};
+use ryo_relations::domain::relations::types::{ColumnsView, NodeId, Relation, TextHash, Value};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison, RepeatedRows};
 use ryo_values::domain::plan_parts::types::{ObservationBindingId, ParameterId, StepScope};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -88,15 +90,6 @@ pub enum FactRows<'a> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Candidates<'a>(pub &'a [NodeId]);
 
-/// What a cell's text is.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TextLookup<'a> {
-    /// The cell is text.
-    Found(CellText<'a>),
-    /// The cell holds no text.
-    NoText,
-}
-
 /// The bytes of the open file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct OpenFileBytes<'a>(pub &'a [u8]);
@@ -123,8 +116,9 @@ pub trait PlanInputs {
 
 /// What a kernel borrows from the engine besides rows: the complete inventory.
 pub trait Resources {
-    /// A cell's text.
-    fn text(&self, value: Value) -> TextLookup<'_>;
+    /// Where the texts of the open file's cells are: its symbols, its bytes, the paths of the run's files and the workers'
+    /// texts, which the moved comparisons decide over unchanged.
+    fn texts(&self) -> Texts<'_>;
     /// The cell of a text, interned in the open file's symbols.
     fn intern(&mut self, text: CellText<'_>) -> Value;
     /// A text interned as a derived symbol of the open file.
@@ -155,4 +149,148 @@ pub struct Unserved {
     pub node: PlanNodeId,
     /// The stage that lowers its kind.
     pub until: ServedAt,
+}
+
+/// What a node of the physical plan reads its rows from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RowSource {
+    /// A relation's rows, lent by the facts.
+    Facts(Relation),
+    /// An earlier node's materialized rows.
+    Node(PlanNodeId),
+}
+
+/// The kernels one node is lowered to.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum Lowering {
+    /// `filter`: the rows of the source the comparisons hold for, with the kept columns.
+    Filter {
+        /// What it reads.
+        source: RowSource,
+        /// The comparisons, the kept columns and the bindings.
+        select: SelectParts,
+    },
+    /// `lookup` of a constant in the shared `hash_index` of a relation's column, then `filter` of all the select's
+    /// comparisons: the rows whose key's text is the constant, in source row order.
+    Lookup {
+        /// The index it reads.
+        index: IndexPlace,
+        /// The hash of the constant the key equals.
+        key: TextHash,
+        /// The comparisons, the kept columns and the bindings.
+        select: SelectParts,
+    },
+    /// `project`: the columns in order, repeated rows dropped when asked.
+    Project {
+        /// What it reads.
+        source: RowSource,
+        /// The columns, in order.
+        columns: Vec<ColumnIndex>,
+        /// Whether a repeated row is kept once.
+        distinct: RepeatedRows,
+    },
+    /// No kernel at this stage: the plan's `unserved` names the stage that lowers it.
+    Unlowered,
+}
+
+/// What a select keeps: its comparisons, its kept columns and what its parameters are bound to.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct SelectParts {
+    /// The comparisons, in their order.
+    pub(crate) comparisons: Vec<PlanComparison>,
+    /// The columns kept; none means every column.
+    pub(crate) kept: Vec<ColumnIndex>,
+    /// What the comparisons' parameters are bound to.
+    pub(crate) bindings: Vec<ParameterBinding>,
+}
+
+/// The place of a shared index among a plan's indexes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct IndexPlace(pub(crate) usize);
+
+/// How many node readers a node has, or has left in the open file.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct NodeReaders(pub(crate) u32);
+
+/// One node of the physical plan: its kernels and who reads its rows.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct PhysicalNode {
+    /// Its kernels.
+    pub(crate) lowering: Lowering,
+    /// How many nodes read its rows.
+    pub(crate) readers: NodeReaders,
+    /// Whether a consumer that reads no node keeps it past its readers.
+    pub(crate) retained: Retention,
+}
+
+/// Whether a node's rows outlive its node readers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Retention {
+    /// Released when its last reader is done.
+    Released,
+    /// Kept until the engine releases it: a rule's emit or a held node.
+    Retained,
+}
+
+/// A `hash_index` shared by every lookup of one relation's column.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct KeyedIndex {
+    /// The relation it indexes.
+    pub(crate) relation: Relation,
+    /// The key column.
+    pub(crate) column: ColumnIndex,
+    /// The lookup nodes that read it, in node order: one build answers all of them.
+    pub(crate) lookups: Vec<PlanNodeId>,
+}
+
+/// The key a select fixes in its infallible prefix: a name column of a relation equal to a written text.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SelectKey {
+    /// The relation.
+    pub(crate) relation: Relation,
+    /// The name column.
+    pub(crate) column: ColumnIndex,
+    /// The hash of the written text.
+    pub(crate) key: TextHash,
+}
+
+/// What a run lends its kernels: the engine's rows and resources, and the matching semantics.
+pub(crate) struct KernelRun<'r> {
+    /// The rows the engine holds for the open file.
+    pub(crate) inputs: &'r dyn PlanInputs,
+    /// What the kernels borrow besides rows.
+    pub(crate) resources: &'r mut dyn Resources,
+    /// The matching semantics the comparisons compile and match through.
+    pub(crate) matcher: crate::domain::patterns::types::PatternMatcher<'r>,
+}
+
+/// One filter's comparisons over rows of one shape, against the open file's texts.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct FilterKernel<'f> {
+    /// The comparisons, the kept columns and the bindings.
+    pub(crate) select: &'f SelectParts,
+    /// What each column of a row holds.
+    pub(crate) kinds: &'f [ryo_relations::domain::relations::types::CellKind],
+    /// The open file's texts.
+    pub(crate) texts: Texts<'f>,
+    /// How many names the open file has.
+    pub(crate) names: crate::domain::comparing::types::NameCount,
+}
+
+/// A materialized input, taken out of the buffers while its reader reads it, with the fault it raised after its rows.
+#[derive(Debug)]
+pub(crate) struct TakenRows {
+    /// The rows.
+    pub(crate) rows: Table,
+    /// The fault raised after them.
+    pub(crate) pending: Option<PortableOperatorFault>,
+}
+
+/// The rows a node's kernel reads: a relation's, lent in place, or an earlier node's, taken while it reads them.
+#[derive(Debug)]
+pub(crate) enum Reading<'a> {
+    /// A relation's columns.
+    Facts(ColumnsView<'a>),
+    /// An earlier node and its rows and pending fault.
+    Node(PlanNodeId, TakenRows),
 }

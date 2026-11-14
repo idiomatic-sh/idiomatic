@@ -33,3 +33,24 @@ impl From<PatternsError> for ComparingError {
         }
     }
 }
+
+impl From<ComparingError> for crate::domain::contract::types::PortableOperatorFault {
+    /// A comparison's fault as the run reports it, variant for variant, so the engine's text is unchanged.
+    fn from(error: ComparingError) -> Self {
+        match error {
+            ComparingError::WrongTest => Self::WrongTest,
+            ComparingError::Unbound => Self::Unbound,
+            ComparingError::WrongBinding => Self::WrongBinding,
+            ComparingError::Rows(ryo_values::domain::rows::errors::RowsError::NoSuchColumn {
+                index,
+            }) => Self::NoSuchColumn {
+                index: ryo_values::domain::plan_parts::types::ColumnIndex(index),
+            },
+            ComparingError::InvalidRegex { reason } => Self::Pattern(
+                ryo_matching::inbound::use_cases::matching::errors::MatchingError::InvalidRegex {
+                    reason,
+                },
+            ),
+        }
+    }
+}

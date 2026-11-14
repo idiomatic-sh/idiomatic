@@ -1,6 +1,6 @@
 //! What the planner made of a logical program: the kernels of each lowered node and the nodes it could not lower yet.
 
-use crate::domain::physical_plan::types::Unserved;
+use crate::domain::physical_plan::types::{KeyedIndex, PhysicalNode, Unserved};
 
 /// The physical plan of one program. Built only by `plan`, so the engine cannot write a kernel.
 ///
@@ -14,8 +14,12 @@ use crate::domain::physical_plan::types::Unserved;
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct PhysicalPlan {
+    /// Each node's kernels and readers, by node id.
+    pub(crate) nodes: Vec<PhysicalNode>,
+    /// The shared indexes, each built once per file for all its lookups.
+    pub(crate) indexes: Vec<KeyedIndex>,
     /// The nodes whose kind has no lowering yet, in node order.
-    unserved: Vec<Unserved>,
+    pub(crate) unserved: Vec<Unserved>,
 }
 
 impl PhysicalPlan {

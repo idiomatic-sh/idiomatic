@@ -3,7 +3,6 @@
 use crate::domain::operating::errors::OperatingError;
 use ryo_values::domain::plan_parts::types::Test;
 
-
 /// A name the steps made, as a value: when the steps run after the files were read (the text of the workers is
 /// given) it is a name that has left its file, which compares with the names the files handed over; before, a name of the file.
 #[must_use]
@@ -39,6 +38,16 @@ pub fn portable_fault(
         PortableOperatorFault::WrongBinding => OperatingError::WrongBinding,
         PortableOperatorFault::Unbound => OperatingError::Unbound,
         PortableOperatorFault::NotRun => OperatingError::NotRun,
+        PortableOperatorFault::WrongTest => OperatingError::WrongTest,
+        PortableOperatorFault::Pattern(
+            ryo_matching::inbound::use_cases::matching::errors::MatchingError::InvalidRegex {
+                reason,
+            }
+            | ryo_matching::inbound::use_cases::matching::errors::MatchingError::BadGlob {
+                reason,
+                ..
+            },
+        ) => OperatingError::InvalidRegex { reason },
         PortableOperatorFault::MissingCapture
         | PortableOperatorFault::WrongOperation
         | PortableOperatorFault::UnsupportedRender => OperatingError::WrongOperation,

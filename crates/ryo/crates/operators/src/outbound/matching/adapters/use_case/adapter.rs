@@ -42,4 +42,8 @@ where
     ) -> Result<std::ops::ControlFlow<()>, MatchingError> {
         self.semantics.visit_regex_captures(regex, text, name, each)
     }
+
+    fn semantics(&self) -> &dyn MatchingUseCase {
+        &self.semantics
+    }
 }

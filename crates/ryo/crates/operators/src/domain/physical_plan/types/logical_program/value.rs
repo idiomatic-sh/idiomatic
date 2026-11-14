@@ -23,7 +23,7 @@ pub struct LogicalProgram<'p> {
     /// The kinds the program's kind tests name.
     #[expect(
         dead_code,
-        reason = "read by the kind tests of the keyed-select rewrite, which lands with the kernels (F1 commit 5)"
+        reason = "read by the root kinds of the program, which the engine derives with its kind sets when the file pass lands (F1 commit 6)"
     )]
     vocabulary: &'p KindVocabulary,
     /// The nodes, each reading only earlier ones.
@@ -62,6 +62,21 @@ impl<'p> LogicalProgram<'p> {
     /// One more consumer that is not a node reader: frontier capture, observation root, publication.
     pub fn hold(&mut self, node: PlanNodeId) {
         self.holds.push(node);
+    }
+
+    /// The nodes, in node order.
+    pub(crate) fn nodes(&self) -> &[LogicalNode<'p>] {
+        &self.nodes
+    }
+
+    /// Each rule's emitted node, in rule order.
+    pub(crate) fn emitted(&self) -> impl Iterator<Item = PlanNodeId> + '_ {
+        self.emits.iter().map(|emitted| emitted.node)
+    }
+
+    /// The consumers that read no node.
+    pub(crate) fn held(&self) -> &[PlanNodeId] {
+        &self.holds
     }
 
     /// Checks the program's shape: every node reads only earlier nodes, and every emitted or held node is one of the program's.

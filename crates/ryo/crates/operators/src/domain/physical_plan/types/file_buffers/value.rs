@@ -1,7 +1,11 @@
 //! One worker's node buffers: the rows of each materialized node of the open file, kept until its last consumer is done, and
 //! their capacity kept across files.
 
-use crate::domain::physical_plan::types::{NodeRows, PlanNodeId};
+use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::physical_plan::types::{NodeReaders, NodeRows, PlanNodeId};
+use crate::domain::table_scratch::types::{LazyScratch, Memo, SelectScratch};
+use ryo_relations::domain::relations::types::TextHash;
+use ryo_relations::domain::relations::types::Value;
 
 /// The buffers of one worker, reused across files.
 ///
@@ -16,8 +20,57 @@ use crate::domain::physical_plan::types::{NodeRows, PlanNodeId};
 #[derive(Debug, Default)]
 pub struct FileBuffers {
     /// The rows of each node, by node id; a node not run or released holds none.
-    nodes: Vec<Option<ryo_values::domain::rows::types::Table>>,
+    pub(crate) nodes: Vec<Option<ryo_values::domain::rows::types::Table>>,
+    /// The fault each node raised after its rows, by node id: its readers raise it once they have read every row before it.
+    pub(crate) pending: Vec<Option<PortableOperatorFault>>,
+    /// How many of each node's readers have not read it yet in this file, by node id.
+    pub(crate) remaining: Vec<NodeReaders>,
+    /// Each filtering node's comparison scratch, by node id, kept across files.
+    pub(crate) decisions: Vec<NodeDecisions>,
+    /// The one keyed-row table of the shared indexes, its capacity kept across files.
+    pub(crate) index: KeyedRows,
+    /// The row a kernel is reading, decoded from the facts one row at a time.
+    pub(crate) row: Vec<Value>,
+    /// The row a kernel is writing.
+    pub(crate) written: Vec<Value>,
 }
+
+/// What a filter decided before, for one node: the verdicts by text, kept for the run, and each name's decision, for the file.
+#[derive(Debug, Default)]
+pub(crate) struct NodeDecisions {
+    /// The verdicts and compiled patterns of the node's comparisons.
+    pub(crate) select: LazyScratch<SelectScratch>,
+    /// What each comparison decided about each name of the open file.
+    pub(crate) memo: Vec<Memo>,
+}
+
+/// Rows keyed by the hash of one column's text, with no allocation per row: each key's first and last row in a hash table,
+/// and the next row of the same key in `next`, ascending, so a key's rows are read in source order.
+#[derive(Debug, Default)]
+pub(crate) struct KeyedRows {
+    /// Each key's hash, first row and last row.
+    pub(crate) keys: hashbrown::HashTable<KeyedRun>,
+    /// The next row of the same key after each row; `NO_ROW` after the last.
+    pub(crate) next: Vec<IndexedRow>,
+}
+
+/// One key of an index: its hash and the first and last of its rows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct KeyedRun {
+    /// The hash of the key's text.
+    pub(crate) hash: TextHash,
+    /// Its first row.
+    pub(crate) first: IndexedRow,
+    /// Its last row.
+    pub(crate) last: IndexedRow,
+}
+
+/// A row of an indexed relation, by its place in the relation's rows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct IndexedRow(pub(crate) u32);
+
+/// The row after a key's last row.
+pub(crate) const NO_ROW: IndexedRow = IndexedRow(u32::MAX);
 
 impl FileBuffers {
     /// A node's rows, borrowed (cardinality included).
@@ -47,6 +100,9 @@ impl FileBuffers {
             && let Some(held) = self.nodes.get_mut(at)
         {
             *held = None;
+            if let Some(pending) = self.pending.get_mut(at) {
+                *pending = None;
+            }
         }
     }
 }

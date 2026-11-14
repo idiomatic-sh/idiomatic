@@ -5,7 +5,7 @@
 pub struct SourceByteLength(pub usize);
 
 /// One portable semantic fault vocabulary for every borrowed operator call.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PortableOperatorFault {
     /// The engine stopped candidate acquisition or downstream delivery.
     Interrupted,
@@ -36,6 +36,10 @@ pub enum PortableOperatorFault {
     Unbound,
     /// A row the operation reads was not produced.
     NotRun,
+    /// A comparison's test is not one of its family's.
+    WrongTest,
+    /// A pattern a comparison compiled is no regular expression.
+    Pattern(ryo_matching::inbound::use_cases::matching::errors::MatchingError),
 }
 
 /// What the already evaluated predicate decided about the row.

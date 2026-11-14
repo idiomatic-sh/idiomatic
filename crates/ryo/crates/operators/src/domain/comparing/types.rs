@@ -61,3 +61,8 @@ pub struct NameCount(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ComparisonNumber(pub usize);
 
+/// The leading comparisons of a select that no row can make fail with an error: each tests a column the row has against a
+/// text the query wrote, by equality or by affix, so its cell's text alone decides it. The rest of the select's comparisons
+/// follow it in their order.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FixedPrefix<'a>(pub &'a [PlanComparison]);
