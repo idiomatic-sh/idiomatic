@@ -32,6 +32,10 @@ mod decorates {
 mod defines {
     include!("../../tests/fixtures/relations/defines/expected.rs");
 }
+/// The rows `expression_shape` read from its fixture's input must give.
+mod expression_shape {
+    include!("../../tests/fixtures/relations/expression_shape/expected.rs");
+}
 /// The rows `function` read from its fixture's input must give.
 mod function {
     include!("../../tests/fixtures/relations/function/expected.rs");
@@ -43,6 +47,10 @@ mod inherits {
 /// The rows `mention` read from its fixture's input must give.
 mod mention {
     include!("../../tests/fixtures/relations/mention/expected.rs");
+}
+/// The rows `numeric_literal` read from its fixture's input must give.
+mod numeric_literal {
+    include!("../../tests/fixtures/relations/numeric_literal/expected.rs");
 }
 /// The rows `parameter` read from its fixture's input must give.
 mod parameter {
@@ -103,9 +111,11 @@ pub(super) fn expected() -> Vec<Expected> {
         comment::expected(),
         decorates::expected(),
         defines::expected(),
+        expression_shape::expected(),
         function::expected(),
         inherits::expected(),
         mention::expected(),
+        numeric_literal::expected(),
         parameter::expected(),
         reference::expected(),
         resolves::expected(),

@@ -109,3 +109,9 @@ pub(crate) const UNSPECIFIED_CODE: &str = "unspecified";
 
 /// The configuration identity of a parse that takes no configuration.
 pub(crate) const NO_CONFIGURATION: &str = "";
+
+/// A tree the parser could not read completely has no structural class a query could compare.
+pub(crate) const SHAPES_INCOMPLETE: &str = "expression shapes require a complete syntax tree";
+
+/// A numeric literal a compiler refuses (a digit outside its base, past 128 bits, a suffix naming no numeric type) has no value.
+pub(crate) const NUMBER_UNREAD: &str = "a numeric literal the compiler refuses has no value";
