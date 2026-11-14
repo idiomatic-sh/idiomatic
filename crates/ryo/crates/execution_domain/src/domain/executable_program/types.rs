@@ -146,6 +146,4 @@ pub(crate) struct DraftInputs<'s> {
     pub(crate) shapes: Vec<InputShape<'s>>,
     /// The first schema fault of a node they read.
     pub(crate) fault: Option<OperatingError>,
-    /// The stage that serves a bound input among them, if one is.
-    pub(crate) stage: Option<ServedAt>,
 }

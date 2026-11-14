@@ -7,7 +7,6 @@ use crate::application::file_dag::file_pass::types::{
     RootKindNodes, RulesHeld, Stages, TreeStart,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::constants::BOUND_STAGE;
 use ryo_execution_domain::domain::executable_program::service::{
     assemble, logical, root_kinds, serving,
 };
@@ -26,6 +25,7 @@ use ryo_language::domain::kind_index::service::of_kind;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::domain::physical_plan::constants::BOUND_STAGE;
 use ryo_operators::domain::physical_plan::types::{
     Candidates, FactRows, OpenFileBytes, PlanInputs, PlanNodeId, RenderOutcomes, RenderRequests,
     Resources,

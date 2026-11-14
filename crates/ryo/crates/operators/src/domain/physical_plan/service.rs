@@ -4,6 +4,9 @@ pub(crate) mod run;
 
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem;
+use crate::domain::physical_plan::constants::{
+    BOUND_STAGE, GRAPH_STAGE, RELATIONAL_STAGE, TEXT_STAGE,
+};
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
@@ -245,9 +248,9 @@ pub(crate) fn lowered(
     lowering.unwrap_or(Lowering::Unlowered)
 }
 
-/// The stage of the swap whose kernels lower a kind: this stage's kinds are `ServedAt(1)`.
+/// The stage of the swap whose kernels lower a kind: this stage's kinds are `RELATIONAL_STAGE`.
 pub(crate) fn stage_of_kind(kind: OperationKind) -> ServedAt {
-    ServedAt(match kind {
+    match kind {
         OperationKind::Select
         | OperationKind::Project
         | OperationKind::Extend
@@ -256,7 +259,7 @@ pub(crate) fn stage_of_kind(kind: OperationKind) -> ServedAt {
         | OperationKind::Intersection
         | OperationKind::Difference
         | OperationKind::Antijoin
-        | OperationKind::GroupCount => 1,
+        | OperationKind::GroupCount => RELATIONAL_STAGE,
         OperationKind::Capture
         | OperationKind::Rank
         | OperationKind::Replace
@@ -266,22 +269,22 @@ pub(crate) fn stage_of_kind(kind: OperationKind) -> ServedAt {
         | OperationKind::SourceMatches
         | OperationKind::RenderSyntax
         | OperationKind::FitsRendered
-        | OperationKind::SpanBounds => 2,
+        | OperationKind::SpanBounds => TEXT_STAGE,
         OperationKind::GroupDigest
         | OperationKind::Axis
         | OperationKind::Closure
         | OperationKind::OrderedDfs
-        | OperationKind::Cycles => 3,
-        OperationKind::Rows | OperationKind::Hosted => 4,
-    })
+        | OperationKind::Cycles => GRAPH_STAGE,
+        OperationKind::Rows | OperationKind::Hosted => BOUND_STAGE,
+    }
 }
 
 /// The stage that lowers a node this stage does not: its kind's, or for one of this stage's kinds, the stage that reads what
 /// it reads: a join's closure demand at the third, a bound table or an observation at the fourth.
 fn stage_of(operation: &Operation) -> ServedAt {
     match (stage_of_kind(kind_of(operation)), operation) {
-        (ServedAt(1), Operation::Join { reach: Some(_), .. }) => ServedAt(3),
-        (ServedAt(1), _) => ServedAt(4),
+        (RELATIONAL_STAGE, Operation::Join { reach: Some(_), .. }) => GRAPH_STAGE,
+        (RELATIONAL_STAGE, _) => BOUND_STAGE,
         (stage, _) => stage,
     }
 }

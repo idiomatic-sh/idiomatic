@@ -1,7 +1,6 @@
 //! The parts of `logical`: the nodes and shapes a step's inputs read, and the nodes that start from the tree nodes of a kind.
 //! it and the operators' physical plan.
 
-use crate::domain::executable_program::constants::BOUND_STAGE;
 use crate::domain::executable_program::types::{Draft, DraftInputs};
 use crate::domain::kind_sets::service::names_a_kind;
 use crate::domain::operating::errors::OperatingError;
@@ -26,7 +25,6 @@ pub(in crate::domain::executable_program) fn read_inputs<'s>(
         list: Vec::with_capacity(named.len()),
         shapes: Vec::with_capacity(named.len()),
         fault: None,
-        stage: None,
     };
     for each in named {
         let (input, shape) = match each {
@@ -56,18 +54,15 @@ pub(in crate::domain::executable_program) fn read_inputs<'s>(
                     },
                 )
             }
-            Input::BoundObservation(id) => {
-                read.stage = Some(BOUND_STAGE);
-                (
-                    PlanInput::Observation(*id),
-                    InputShape {
-                        kinds: observed
-                            .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-                            .map_or(&[], Vec::as_slice),
-                        tree: None,
-                    },
-                )
-            }
+            Input::BoundObservation(id) => (
+                PlanInput::Observation(*id),
+                InputShape {
+                    kinds: observed
+                        .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+                        .map_or(&[], Vec::as_slice),
+                    tree: None,
+                },
+            ),
         };
         read.list.push(input);
         read.shapes.push(shape);

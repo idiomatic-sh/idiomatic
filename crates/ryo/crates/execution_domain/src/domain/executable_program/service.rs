@@ -18,17 +18,17 @@ use ryo_operators::domain::physical_plan::types::{
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{Input, LiteralText, StepScope};
 use ryo_values::domain::plans::service::{inputs_of, named};
-use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plans::types::Plan;
 use std::hash::{Hash, Hasher};
 
 pub(crate) mod logical;
-use crate::domain::executable_program::constants::BOUND_STAGE;
 use logical::service::{derived_roots, read_inputs};
+use ryo_operators::domain::physical_plan::constants::BOUND_STAGE;
 
 /// The request's rules as one logical program: equal steps over equal inputs, in the same scope and with the same bindings,
 /// are one node; each rule's emitted node and the nodes its frontier and named roots keep are recorded; each node's schema
 /// is checked from the catalog's columns before any row is read; the root kinds come from each tree select's infallible prefix; and
-/// each rule's step after the files or bound input marks it not served until the fourth stage. `inputs` holds the nodes'
+/// each rule's step after the files marks it not served until the fourth stage. `inputs` holds the nodes'
 /// input lists for as long as the program borrows them.
 ///
 /// # Examples
@@ -64,12 +64,9 @@ pub fn logical<'p>(
             .map(|bound| bound.columns.iter().map(|column| column.kind).collect())
             .collect();
         for step in &plan.steps {
-            if step.scope == StepScope::CrossFile
-                || matches!(
-                    step.operation,
-                    Operation::Rows { .. } | Operation::Hosted { .. }
-                )
-            {
+            // A step after the files is the one cause only the plan knows; the operators decide every kind's and input's
+            // stage when they plan (`PhysicalPlan::unserved`).
+            if step.scope == StepScope::CrossFile {
                 stage = Some(BOUND_STAGE);
             }
             let read = inputs_of(&step.operation);
@@ -77,13 +74,11 @@ pub fn logical<'p>(
                 list,
                 shapes,
                 fault,
-                stage: bound,
             }) = read_inputs(named(&read), &steps, &drafts, &observed)
             else {
                 steps.push(Err(OperatingError::NotRun));
                 continue;
             };
-            stage = stage.or(bound);
             let schema = match fault {
                 Some(error) => Err(error),
                 None => schema_of(&step.operation, &shapes, input.bindings.0),
