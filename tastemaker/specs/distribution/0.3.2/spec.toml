@@ -1433,7 +1433,7 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/npm/launcher.js' = '''
 #!/usr/bin/env node
@@ -1696,7 +1696,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -2030,7 +2030,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic_sh_tastemaker/__init__.py' = '''
 """The tastemaker command line, installed as a native executable by this wheel."""
@@ -4420,7 +4420,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -4753,7 +4753,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic_sh_tastemaker/__init__.py' = '''
 """The tastemaker command line, installed as a native executable by this wheel."""
@@ -6899,7 +6899,7 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/npm/launcher.js' = '''
 #!/usr/bin/env node
@@ -7162,7 +7162,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -7495,7 +7495,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic_sh_tastemaker/__init__.py' = '''
 """The tastemaker command line, installed as a native executable by this wheel."""
@@ -9641,7 +9641,7 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/npm/launcher.js' = '''
 #!/usr/bin/env node
@@ -9904,7 +9904,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -10237,7 +10237,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic_sh_tastemaker/__init__.py' = '''
 """The tastemaker command line, installed as a native executable by this wheel."""
@@ -12380,7 +12380,7 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/npm/launcher.js' = '''
 #!/usr/bin/env node
@@ -12649,7 +12649,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic_sh_tastemaker/__init__.py' = '''
 """The tastemaker command line, installed as a native executable by this wheel."""
@@ -14797,7 +14797,7 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/npm/launcher.js' = '''
 #!/usr/bin/env node
@@ -15060,7 +15060,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -15393,7 +15393,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic_sh_tastemaker/__init__.py' = '''
 """The tastemaker command line, installed as a native executable by this wheel."""
@@ -17541,7 +17541,7 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/npm/launcher.js' = '''
 #!/usr/bin/env node
@@ -17804,7 +17804,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -18137,7 +18137,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic_sh_tastemaker/__init__.py' = '''
 """The tastemaker command line, installed as a native executable by this wheel."""
@@ -20282,7 +20282,7 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/npm/launcher.js' = '''
 #!/usr/bin/env node
@@ -20545,7 +20545,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -20807,7 +20807,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic_sh_tastemaker/__init__.py' = '''
 """The tastemaker command line, installed as a native executable by this wheel."""
@@ -22952,7 +22952,7 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/npm/package.json' = '''
 {
@@ -23169,7 +23169,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -23502,7 +23502,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic_sh_tastemaker/__init__.py' = '''
 """The tastemaker command line, installed as a native executable by this wheel."""
@@ -25647,7 +25647,7 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/npm/launcher.js' = '''
 #!/usr/bin/env node
@@ -25730,7 +25730,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -26063,7 +26063,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic_sh_tastemaker/__init__.py' = '''
 """The tastemaker command line, installed as a native executable by this wheel."""
@@ -28209,7 +28209,7 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/npm/launcher.js' = '''
 #!/usr/bin/env node
@@ -28475,7 +28475,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -28808,7 +28808,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic_sh_tastemaker/__init__.py' = '''
 """The tastemaker command line, installed as a native executable by this wheel."""
@@ -30953,7 +30953,7 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/npm/launcher.js' = '''
 #!/usr/bin/env node
@@ -31216,7 +31216,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -31549,7 +31549,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic/__init__.py' = '''
 """A second package: the wheel holds only the product's own module."""
@@ -33697,7 +33697,7 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/npm/launcher.js' = '''
 #!/usr/bin/env node
@@ -33960,7 +33960,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -34293,7 +34293,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic_sh_tastemaker/__init__.py' = '''
 """The tastemaker command line, installed as a native executable by this wheel."""
@@ -36439,7 +36439,7 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/npm/launcher.js' = '''
 #!/usr/bin/env node
@@ -36702,7 +36702,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -37035,7 +37035,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic_sh_tastemaker/__init__.py' = '''
 """The tastemaker command line, installed as a native executable by this wheel."""
@@ -39159,7 +39159,7 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/npm/launcher.js' = '''
 #!/usr/bin/env node
@@ -39422,7 +39422,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -39754,7 +39754,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic_sh_tastemaker/__init__.py' = '''
 """The tastemaker command line, installed as a native executable by this wheel."""
@@ -41899,7 +41899,7 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/npm/launcher.js' = '''
 #!/usr/bin/env node
@@ -42162,7 +42162,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -42499,7 +42499,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic_sh_tastemaker/__init__.py' = '''
 """The tastemaker command line, installed as a native executable by this wheel."""
@@ -44644,7 +44644,7 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/npm/launcher.js' = '''
 #!/usr/bin/env node
@@ -44907,7 +44907,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -45243,7 +45243,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic_sh_tastemaker/__init__.py' = '''
 """The tastemaker command line, installed as a native executable by this wheel."""
@@ -47388,7 +47388,7 @@ unix-archive = ".tar.gz"
 windows-archive = ".zip"
 # The languages npm's build links: a language is added here, in this one place.
 default-features = false
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/npm/launcher.js' = '''
 #!/usr/bin/env node
@@ -47651,7 +47651,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -47979,7 +47979,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 given.files.'registries/pypi/python/idiomatic_sh_tastemaker/__init__.py' = '''
 """The tastemaker command line, installed as a native executable by this wheel."""
@@ -50106,7 +50106,6 @@ const FEATURES: &[&str] = &[
     "css",
     "go",
     "html",
-    "javascript",
     "json",
     "markdown",
     "python",

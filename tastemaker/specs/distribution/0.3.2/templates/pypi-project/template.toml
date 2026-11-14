@@ -23,7 +23,7 @@ profile = "dist"
 {%- if languages == "linked" %}
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 {%- endif %}
 '''
 
@@ -52,7 +52,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 
 [[scenarios]]
@@ -89,7 +89,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 then.findings = [
   { rule = 'pypi-project#template', path = 'registries/pypi/pyproject.toml' },
@@ -121,7 +121,7 @@ python-source = "python"
 profile = "dist"
 # The languages PyPI's build links: a language is added here, in this one place.
 no-default-features = true
-features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 '''
 then.findings = [
   { rule = 'pypi-project#template', path = 'registries/pypi/pyproject.toml' },

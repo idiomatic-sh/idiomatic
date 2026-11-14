@@ -22,7 +22,7 @@ const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s
 {%- if languages == "linked" %}
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 {%- endif %}
 
 /// What an installation leaves in its scratch directory.
@@ -401,7 +401,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -743,7 +743,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -1008,7 +1008,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -1330,7 +1330,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -1661,7 +1661,7 @@ const NPM_OS: &[&str] = &["linux", "darwin", "win32", "freebsd"];
 const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s390x"];
 
 /// The languages npm's build links, which `dist-workspace.toml` names as its `features`.
-const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
+const LANGUAGES: &[&str] = &["typescript", "markdown"];
 
 /// What an installation leaves in its scratch directory.
 struct Installation {

@@ -1,3 +1,9 @@
+# distribution 0.3.2
+
+No build links a `javascript` language: the TypeScript language reads `.js`, `.jsx`, `.mjs` and `.cjs` files, and the
+JavaScript language is no longer built. `dist-workspace` and `pypi-project` name `features` without `javascript`, and
+`npm-smoke-test` holds npm's install to `typescript` and `markdown`. Everything else is as in 0.3.1.
+
 # distribution 0.3.1
 
 Places the Python package's `registries/pypi/LICENSE` by role, `count = { min = 0 }`, where a product listed it in its manifest. Scenario `product-s-distribution-directory-npm-pypi-cargo` holds the file. Everything else is as in 0.3.0.
