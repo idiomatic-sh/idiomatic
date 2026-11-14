@@ -25,6 +25,9 @@ enum Scenario {
     SeededWalksOnlyBound,
     BoundWalkedOnce,
     GroupDigest,
+    Cycles,
+    OrderedWalk,
+    OrderedWalkOverATextOrder,
 }
 #[derive(Debug, PartialEq)]
 enum Observation {
@@ -90,6 +93,32 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             7_069_949_220_488_350_037,
             1,
         ]))),
+    },
+    Case {
+        name: CaseName("cycles_are_marked_by_tarjan"),
+        word: Word::Succeeds,
+        input: || Scenario::Cycles,
+        // The loop's 1 and 2, the self edge's 3 and the ring's 7, 8 and 9, ascending, each as source and destination; not the
+        // chain's 4, 5 and 6 nor the tail's 10.
+        expect: Expect::Value(Observation::Rows(std::borrow::Cow::Borrowed(&[1, 1, 2, 2, 3, 3, 7, 7, 8, 8, 9, 9]))),
+    },
+    Case {
+        name: CaseName("an_ordered_walk_follows_the_order_column"),
+        word: Word::Succeeds,
+        input: || Scenario::OrderedWalk,
+        // From roots 1, 2 and 3 (1 twice among the rows, visited once): root, source, destination, edge, ordinal. A source's
+        // edges in ascending order, an edge to a met entity yielded but not expanded, ordinals from 0 per root.
+        expect: Expect::Value(Observation::Rows(std::borrow::Cow::Borrowed(&[
+            1, 1, 2, 1, 0, 1, 2, 3, 0, 1, 1, 3, 1, 0, 2, 1, 1, 3, 2, 3, //
+            2, 2, 3, 0, 0, 2, 3, 1, 0, 1, 2, 1, 2, 1, 2, 2, 1, 3, 2, 3, //
+            3, 3, 1, 0, 0, 3, 1, 2, 1, 1, 3, 2, 3, 0, 2, 3, 1, 3, 2, 3,
+        ]))),
+    },
+    Case {
+        name: CaseName("an_ordered_walk_over_an_order_that_is_not_a_number_is_refused"),
+        word: Word::Refuses,
+        input: || Scenario::OrderedWalkOverATextOrder,
+        expect: Expect::Error(PortableOperatorFault::ShapeMismatch),
     },
 ];
 
@@ -216,8 +245,49 @@ fn walked(chains: u32, length: u32, bound: &[u32], repeats: usize) -> Result<Val
     Ok(Observation::Walked(buffers.walk.runs.len(), buffers.walk.reached.len()))
 }
 
+/// The rows `step` answers over `pairs` as the edges, each cell as the case states it.
+fn stated_rows(step: Step, pairs: &[(u32, u32, i64)]) -> Result<Value, Failure> {
+    let mut resources = TextResources::new(&["f"]);
+    let table = edges(pairs, &resources);
+    let inputs = TableInputs::new(&[(EDGES, &table)]);
+    let rows = emitted(&[step], &[PlanNodeId(0)], &inputs, &mut resources, &mut FileBuffers::default())?;
+    Ok(Observation::Rows(rows.iter().flat_map(|table| table.cells.iter().copied().map(stated)).collect()))
+}
+
+/// An ordered depth-first visit from every parent of the edges, the edges ordered by `order`, each visit naming its edge by
+/// its ordinal column.
+fn ordered_walk(order: ColumnIndex) -> Step {
+    Step {
+        operation: Operation::OrderedDfs {
+            from: StepInput::Relation(EDGES),
+            edges: StepInput::Relation(EDGES),
+            root: ColumnIndex(0),
+            source: ColumnIndex(0),
+            destination: ColumnIndex(1),
+            order,
+            edge: ColumnIndex(2),
+            root_keys: Vec::new(),
+            edge_keys: Vec::new(),
+        },
+        inputs: vec![PlanInput::Relation(EDGES), PlanInput::Relation(EDGES)],
+    }
+}
+
+/// The edges of the ordered walks: 1 leads to 3 (order 2) and to 2 (order 1), 2 to 3, 3 back to 1.
+const WALKED: &[(u32, u32, i64)] = &[(1, 3, 2), (1, 2, 1), (2, 3, 0), (3, 1, 0)];
+
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
+        Scenario::Cycles => stated_rows(
+            Step {
+                operation: Operation::Cycles { edges: StepInput::Relation(EDGES), source: ColumnIndex(0), destination: ColumnIndex(1) },
+                inputs: vec![PlanInput::Relation(EDGES)],
+            },
+            // A loop of two, a self edge, a chain, and a ring of three with a tail.
+            &[(1, 2, 0), (2, 1, 0), (3, 3, 0), (4, 5, 0), (5, 6, 0), (9, 7, 0), (7, 8, 0), (8, 9, 0), (9, 10, 0)],
+        ),
+        Scenario::OrderedWalk => stated_rows(ordered_walk(ColumnIndex(2)), WALKED),
+        Scenario::OrderedWalkOverATextOrder => stated_rows(ordered_walk(ColumnIndex(3)), WALKED),
         Scenario::WholeClosure => {
             let mut resources = TextResources::new(&["f"]);
             let table = edges(&[(3, 1, 0), (1, 2, 0), (2, 3, 0), (1, 4, 1), (5, 1, 0), (1, 2, 2)], &resources);
@@ -251,4 +321,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

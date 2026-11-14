@@ -192,18 +192,19 @@ pub fn case_program() -> Vec<Step> {
             &[node(0).1, defines().1, defines().1],
         ),
         step(
+            // Over the name counts of node 11: each name an edge to itself, ordered by its count, a number.
             Operation::OrderedDfs {
-                from: node(0).0,
-                edges: defines().0,
+                from: node(11).0,
+                edges: node(11).0,
                 root: ColumnIndex(0),
                 source: ColumnIndex(0),
-                destination: ColumnIndex(1),
+                destination: ColumnIndex(0),
                 order: ColumnIndex(1),
-                edge: ColumnIndex(0),
+                edge: ColumnIndex(1),
                 root_keys: Vec::new(),
                 edge_keys: Vec::new(),
             },
-            &[node(0).1, defines().1],
+            &[node(11).1, node(11).1],
         ),
         step(
             Operation::Cycles {

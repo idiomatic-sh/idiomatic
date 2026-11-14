@@ -288,7 +288,7 @@ fn seeded_rows(
 }
 
 /// The hash a walk keeps an entity it met under.
-fn value_hash(value: Value) -> IndexKeyHash {
+pub(crate) fn value_hash(value: Value) -> IndexKeyHash {
     use std::hash::{Hash as _, Hasher as _};
     let mut hasher = rustc_hash::FxHasher::default();
     value.hash(&mut hasher);

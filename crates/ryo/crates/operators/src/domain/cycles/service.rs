@@ -1,16 +1,41 @@
 //! Tarjan cycle semantics: the nodes of a component of more than one, or with an edge to themselves.
 use super::types::{
-    CycleDriver, CycleMark, CycleScratch, EdgePlace, MeetOrder, NodeNumber, WalkStep,
+    CycleDriver, CycleMark, CycleScratch, EdgePlace, MeetOrder, NodeCount, NodeNumber, WalkStep,
 };
+
+/// Marks in `scratch.found`, by node number, each node of `nodes` in a component of more than one or with an edge to itself,
+/// `edge` answering the node the edge at a place leaving a node leads to. Tarjan's strongly connected components, one pass.
+pub(crate) fn components(
+    nodes: NodeCount,
+    edge: impl Fn(NodeNumber, EdgePlace) -> Option<NodeNumber>,
+    scratch: &mut CycleScratch,
+) {
+    let count = nodes.0;
+    scratch.order.clear();
+    scratch.order.resize(count, UNMET);
+    scratch.low.clear();
+    scratch.low.resize(count, MeetOrder(0));
+    scratch.open.clear();
+    scratch.open.resize(count, CycleMark::Clear);
+    scratch.found.clear();
+    scratch.found.resize(count, CycleMark::Clear);
+    scratch.stack.clear();
+    scratch.walk.clear();
+    mark_components(nodes, edge, scratch);
+}
 
 const UNMET: MeetOrder = MeetOrder(usize::MAX);
 
-/// Walks every node once, and marks in `found` those of a component of more than one or with an edge to themselves.
+/// Tarjan's walk: every node once, marking in `found` those, and marks in `found` those of a component of more than one or with an edge to themselves.
 #[expect(
     clippy::indexing_slicing,
     reason = "every index is a node number below the node count, to which `order`, `low`, `open` and `found` were sized before the walk"
 )]
-fn mark_components(graph: &dyn CycleDriver, room: &mut CycleScratch) {
+fn mark_components(
+    nodes: NodeCount,
+    lead: impl Fn(NodeNumber, EdgePlace) -> Option<NodeNumber>,
+    room: &mut CycleScratch,
+) {
     let CycleScratch {
         order,
         low,
@@ -21,7 +46,7 @@ fn mark_components(graph: &dyn CycleDriver, room: &mut CycleScratch) {
         component,
         ..
     } = room;
-    let nodes = graph.nodes().0;
+    let nodes = nodes.0;
     let mut next = 0_usize;
     for root in 0..nodes {
         if order[root] != UNMET {
@@ -41,7 +66,7 @@ fn mark_components(graph: &dyn CycleDriver, room: &mut CycleScratch) {
             edge,
         }) = walk.last()
         {
-            if let Some(NodeNumber(to)) = graph.edge(NodeNumber(node), edge) {
+            if let Some(NodeNumber(to)) = lead(NodeNumber(node), edge) {
                 if let Some(top) = walk.last_mut() {
                     top.edge.0 += 1;
                 }
@@ -95,17 +120,7 @@ fn mark_components(graph: &dyn CycleDriver, room: &mut CycleScratch) {
 /// Marks the nodes on a cycle of `graph` and leaves their values ascending in `scratch.ordered`.
 pub(crate) fn cycles(graph: &dyn CycleDriver, scratch: &mut CycleScratch) {
     let nodes = graph.nodes().0;
-    scratch.order.clear();
-    scratch.order.resize(nodes, UNMET);
-    scratch.low.clear();
-    scratch.low.resize(nodes, MeetOrder(0));
-    scratch.open.clear();
-    scratch.open.resize(nodes, CycleMark::Clear);
-    scratch.found.clear();
-    scratch.found.resize(nodes, CycleMark::Clear);
-    scratch.stack.clear();
-    scratch.walk.clear();
-    mark_components(graph, scratch);
+    components(graph.nodes(), |node, place| graph.edge(node, place), scratch);
     scratch.ordered.clear();
     scratch.ordered.extend(
         (0..nodes)

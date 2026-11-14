@@ -447,7 +447,7 @@ fn kernels(
         }
         Lowering::OrderedWalk { dfs, .. } => {
             let edges = other.ok_or(PortableOperatorFault::WrongOperation)?;
-            return visited(dfs, input, edges, &mut buffers.index, &mut buffers.walk, output);
+            return visited(dfs, input, edges, &mut buffers.walk, output);
         }
         Lowering::Components { cycles, .. } => {
             return cyclic(cycles, input, &mut buffers.index, &mut buffers.cycles, output);

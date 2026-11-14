@@ -13,6 +13,18 @@ pub struct NodeCount(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct EdgePlace(pub usize);
 
+/// Where a node's edges start among the edges of every node, laid out node after node.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::cycles::types::EdgeStart;
+/// let start = EdgeStart(3);
+/// assert_eq!(start.0, 3);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EdgeStart(pub usize);
+
 /// The order a node was first met in, or `UNMET` before it was.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MeetOrder(pub usize);
@@ -65,6 +77,11 @@ pub struct CycleScratch {
     pub walk: Vec<WalkStep>,
     /// The values of the nodes on a cycle, ascending: the answer.
     pub ordered: Vec<Value>,
+    /// Where each node's edges start in `leaving`, by node number, and their end after the last node: the `components`
+    /// kernel's adjacency.
+    pub starts: Vec<EdgeStart>,
+    /// The node each edge leads to, the edges of a node together, in edge-row order.
+    pub leaving: Vec<NodeNumber>,
 }
 
 /// An engine driver that lends the prepared adjacency of a cycle search.
