@@ -51,11 +51,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::DeclaredMode("listed-disk"),
         expect: Expect::Value(2),
     },
+    #[cfg(unix)]
     Case {
         name: CaseName("a sealed missing request needs metadata only for observed sources"),
         word: Word::Succeeds,
         input: || Scenario::SealedMissing,
         expect: Expect::Value(2),
+    },
+    #[cfg(not(unix))]
+    Case {
+        name: CaseName("a host without execute bits refuses the executable observations"),
+        word: Word::Refuses,
+        input: || Scenario::SealedMissing,
+        expect: Expect::Error(Cow::Borrowed(
+            "POSIX executable observations are unsupported on this host",
+        )),
     },
     Case {
         name: CaseName("a decoded full-report case keeps its comparison"),
