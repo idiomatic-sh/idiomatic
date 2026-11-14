@@ -42,7 +42,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("clearing_forgets_the_last_file_and_rebuilds_on_demand"),
         word: Word::Succeeds,
         input: || (Index::Shapes, "a + b;\n"),
-        expect: Expect::Value("Some(12)|Complete|0|Fresh|Some(12)"),
+        expect: Expect::Value("Some(5)|true|Some(5)"),
     },
 ];
 
@@ -76,13 +76,16 @@ fn subject((index, source): Input) -> Result<Value, Failure> {
             )
         }
         Index::Shapes => {
-            let built = prepare(&tree, &indexes, &mut symbols).map(|shapes| shapes.classes.len());
-            let state = indexes.shapes.borrow().state;
+            let classed = |shapes: languages::ShapeClasses<'_>| {
+                (0..languages::end_of(tree.elements).0)
+                    .filter_map(|at| languages::shape_class_at(&shapes, languages::Position(at)))
+                    .count()
+            };
+            let built = prepare(&tree, &indexes, &mut symbols).map(classed);
             clear(&mut indexes);
-            let cleared = indexes.shapes.borrow().classes.len();
-            let after = indexes.shapes.borrow().state;
-            let rebuilt = prepare(&tree, &indexes, &mut symbols).map(|shapes| shapes.classes.len());
-            format!("{built:?}|{state:?}|{cleared}|{after:?}|{rebuilt:?}")
+            let cleared = indexes.shapes == languages::ShapeIndex::default();
+            let rebuilt = prepare(&tree, &indexes, &mut symbols).map(classed);
+            format!("{built:?}|{cleared}|{rebuilt:?}")
         }
     };
     Ok(Box::leak(written.into_boxed_str()))

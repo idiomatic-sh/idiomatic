@@ -72,6 +72,10 @@ The language domain's `relation_masks` concept: a set of relations, a bit for ea
 
 The language domain's `semantics` concept: typed requests and outcomes for provider-owned semantic rendering.
 
+### shapes
+
+The language domain's `shapes` concept: a file's expression-shape index, built once per file bottom-up over the `keys` interner; a language names only the words of one node's key.
+
 ### symbols
 
 The language domain's `symbols` concept: the names of a file.

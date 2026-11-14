@@ -10,7 +10,7 @@ use crate::domain::format_syntax::types::{
 use crate::domain::indentation::types::IndentationIndex;
 use crate::domain::read_scratch::types::ReadScratch;
 use crate::domain::terminal_flow::types::TerminalIndex;
-use ryo::languages::{Position, RetainedKeyIndex, ShapeWord, Symbol};
+use ryo::languages::{Position, RetainedKeyIndex, ShapeIndex, Symbol};
 use std::cell::RefCell;
 
 /// Where a scope says a name it assigns is bound instead of in itself.
@@ -57,7 +57,7 @@ pub(crate) struct Declarations {
     /// Configured language target, attached to every recognized source file.
     pub language_target: crate::domain::standard_library::types::TargetVersion,
     /// Lazy canonical expression classes, invalidated between source revisions.
-    pub expression_shapes: RefCell<RetainedKeyIndex<Position, ShapeWord>>,
+    pub expression_shapes: ShapeIndex,
     /// Lazy normalized constant-expression keys, invalidated between source revisions.
     pub constant_keys: RefCell<RetainedKeyIndex<KeyClass, KeyWord>>,
     /// Lazy decoded percent-format parses, invalidated between source revisions.

@@ -13,10 +13,12 @@ use crate::fixtures::reading::initialize_model;
 use crate::fixtures::reading::parsed;
 use ryo::languages;
 use ryo::languages::ByteSlice;
-use ryo::languages::KeyState;
+use ryo::languages::Position;
+use ryo::languages::ShapeClasses;
+use ryo::languages::ShapeIndex;
 use ryo::languages::Tree;
-use ryo::languages::clear_keys;
-use ryo::languages::key_class_at;
+use ryo::languages::clear_shapes;
+use ryo::languages::shape_class_at;
 type Input = (&'static str, &'static str, &'static str);
 type Value = bool;
 type Failure = ();
@@ -94,7 +96,7 @@ fn subject((source, left, right): Input) -> Result<Value, Failure> {
             ("", true),
             ("y\nx\n", true),
         ] {
-            clear_keys(model.expression_shapes.get_mut());
+            clear_shapes(&mut model.expression_shapes);
             let file = parsed(fixture_source.as_bytes()).expect("parser retains diagnostics");
             let tree = Tree {
                 elements: &file.elements,
@@ -104,10 +106,6 @@ fn subject((source, left, right): Input) -> Result<Value, Failure> {
             let mut symbols = file.symbols;
             initialize_model(&tree, &mut model);
             assert_eq!(prepare(&tree, &model, &mut symbols).is_some(), complete);
-            if !complete {
-                assert!(model.expression_shapes.borrow().classes.is_empty());
-                assert_eq!(model.expression_shapes.borrow().state, KeyState::Partial);
-            }
         }
         return Ok(true);
     }
@@ -121,8 +119,9 @@ fn subject((source, left, right): Input) -> Result<Value, Failure> {
     let mut symbols = file.symbols;
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    assert!(
-        model.expression_shapes.borrow().classes.is_empty(),
+    assert_eq!(
+        model.expression_shapes,
+        ShapeIndex::default(),
         "parsing alone performs no structural indexing"
     );
     let first = crate::domain::semantic_syntax::service::positions(&tree)
@@ -135,19 +134,19 @@ fn subject((source, left, right): Input) -> Result<Value, Failure> {
     let index = prepare(&tree, &model, &mut symbols).unwrap_or_else(|| {
         panic!("complete source has shapes: {source:?}; left={left:?}; right={right:?}")
     });
-    let left_shape = key_class_at(&index, first).expect("left shape");
-    let right_shape = key_class_at(&index, last).expect("right shape");
+    let left_shape = shape_class_at(&index, first).expect("left shape");
+    let right_shape = shape_class_at(&index, last).expect("right shape");
     let reentrant = prepare(&tree, &model, &mut symbols).expect("immutable read can reenter");
-    assert_eq!(Some(left_shape), key_class_at(&reentrant, first));
+    assert_eq!(Some(left_shape), shape_class_at(&reentrant, first));
     drop(reentrant);
     drop(index);
     let repeated = prepare(&tree, &model, &mut symbols).expect("repeat read is complete");
-    assert_eq!(Some(left_shape), key_class_at(&repeated, first));
+    assert_eq!(Some(left_shape), shape_class_at(&repeated, first));
     drop(repeated);
-    clear_keys(&mut model.expression_shapes.borrow_mut());
-    assert!(model.expression_shapes.borrow().classes.is_empty());
+    clear_shapes(&mut model.expression_shapes);
+    assert_eq!(model.expression_shapes, ShapeIndex::default());
     let reparsed = prepare(&tree, &model, &mut symbols).expect("cleared index rebuilds");
-    assert_eq!(Some(left_shape), key_class_at(&reparsed, first));
+    assert_eq!(Some(left_shape), shape_class_at(&reparsed, first));
     Ok(left_shape == right_shape)
 }
 
@@ -173,8 +172,9 @@ fn embedded_shapes() -> Value {
     let expected: Vec<_> = positions(&tree)
         .map(|at| (at, visibility(&tree, &model, at, &mut symbols)))
         .collect();
-    assert!(
-        model.expression_shapes.borrow().classes.is_empty(),
+    assert_eq!(
+        model.expression_shapes,
+        ShapeIndex::default(),
         "semantic reads do not build structural keys"
     );
     let first = prepare(&tree, &model, &mut symbols).expect("complete semantic shapes");
@@ -191,7 +191,7 @@ fn embedded_shapes() -> Value {
                 languages::property_at(tree.elements, *at, SCALAR_VALUE)
                     .expect("boolean payload")
                     .0,
-                key_class_at(&first, *at).expect("visible boolean shape"),
+                shape_class_at(&first, *at).expect("visible boolean shape"),
             ))
         })
         .collect();
@@ -211,15 +211,20 @@ fn embedded_shapes() -> Value {
     assert_ne!(truths.first(), falsehoods.first());
     for (at, visible) in &expected {
         if *visible == Visibility::Hidden {
-            assert!(key_class_at(&first, *at).is_none());
+            assert!(shape_class_at(&first, *at).is_none());
         }
     }
-    let classes = first.classes.clone();
+    let every = |read: &ShapeClasses<'_>| {
+        (0..languages::end_of(tree.elements).0)
+            .map(|at| shape_class_at(read, Position(at)))
+            .collect::<Vec<_>>()
+    };
+    let classes = every(&first);
     drop(first);
     initialize_model(&tree, &mut model);
     let shape_first = prepare(&tree, &model, &mut symbols)
         .expect("shape-first read initializes semantic visibility");
-    assert_eq!(classes, shape_first.classes);
+    assert_eq!(classes, every(&shape_first));
     true
 }
 

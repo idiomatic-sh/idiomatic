@@ -15,9 +15,9 @@ use crate::domain::{
     tokens::types::Token,
 };
 use ryo::languages::{
-    self, KeyState, NameText, Position, RetainedKeyIndex, ShapeWord, Symbols, Tree, intern_key,
+    self, KeptShapeWords, NameText, Position, ShapeClasses, ShapeExtent, ShapeKey, ShapeStep,
+    ShapeWord, Symbols, Tree, child_class, push_shape_word, rewrite_shape_words,
 };
-use std::cell::Ref;
 
 /// Concatenate only parser-decoded string token payloads; source spelling is never a fallback.
 fn decoded_string_value(
@@ -39,9 +39,9 @@ fn decoded_string_value(
     found.then(|| languages::end_name(symbols, tree.source, from))
 }
 /// Append one normalized child class and its semantic field.
-fn child(words: &mut Vec<ShapeWord>, classes: &[Option<Position>], field: Field, at: Position) {
-    if let Some(Some(class)) = classes.get(usize::try_from(at.0).unwrap_or(usize::MAX)) {
-        words.push(ShapeWord::Child(field_bits(field), *class));
+fn child(key: &mut ShapeKey<'_>, field: Field, at: Position) {
+    if let Some(class) = child_class(key, at) {
+        push_shape_word(key, ShapeWord::Child(field_bits(field), class));
     }
 }
 /// Operators are meaningful; separators, redundant parentheses and lexical trivia are not.
@@ -78,8 +78,7 @@ fn constant(
     tree: &Tree<'_>,
     at: Position,
     symbols: &mut Symbols,
-    classes: &[Option<Position>],
-    words: &mut Vec<ShapeWord>,
+    key: &mut ShapeKey<'_>,
 ) -> Option<()> {
     if languages::property_at(tree.elements, at, SCALAR_KIND)
         .is_some_and(|kind| kind.0 == BYTES_SCALAR)
@@ -96,10 +95,13 @@ fn constant(
             })
     {
         if interpolation(tree, at) == crate::domain::syntax::types::Interpolation::Static {
-            words.push(ShapeWord::Literal(decoded_string_value(tree, symbols, at)?));
+            push_shape_word(
+                key,
+                ShapeWord::Literal(decoded_string_value(tree, symbols, at)?),
+            );
         } else {
-            segments(tree, at, symbols, classes, words);
-            merge_literals(tree, symbols, words);
+            segments(tree, at, symbols, key);
+            rewrite_shape_words(key, |words| merge_literals(tree, symbols, words));
         }
     } else {
         // Scalars require the parser's typed payload, never physical carrier text.
@@ -108,35 +110,33 @@ fn constant(
     Some(())
 }
 /// Flatten only concatenation wrappers; expressions nested in interpolations remain child classes.
-fn segments(
-    tree: &Tree<'_>,
-    at: Position,
-    symbols: &mut Symbols,
-    classes: &[Option<Position>],
-    words: &mut Vec<ShapeWord>,
-) {
+fn segments(tree: &Tree<'_>, at: Position, symbols: &mut Symbols, key: &mut ShapeKey<'_>) {
     for each in languages::children(tree.elements, at) {
         match kind(tree, each) {
             Kind::Extra(Extra::FStringPart | Extra::TStringPart) => {
-                segments(tree, each, symbols, classes, words);
+                segments(tree, each, symbols, key);
             }
             Kind::Extra(Extra::StringPart) => {
                 if let Some(value) = decoded_string_value(tree, symbols, each) {
-                    words.push(ShapeWord::Literal(value));
+                    push_shape_word(key, ShapeWord::Literal(value));
                 }
             }
             Kind::Node(Node::Constant) => {
-                let _constant_result = constant(tree, each, symbols, classes, words);
+                let _constant_result = constant(tree, each, symbols, key);
             }
             Kind::Node(Node::FormattedValue | Node::Interpolation) => {
-                child(words, classes, Field::Values, each);
+                child(key, Field::Values, each);
             }
             Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => {}
         }
     }
 }
 /// Merge adjacent decoded segments once per run, avoiding repeated prefix copying.
-fn merge_literals(tree: &Tree<'_>, symbols: &mut Symbols, words: &mut Vec<ShapeWord>) {
+fn merge_literals(
+    tree: &Tree<'_>,
+    symbols: &mut Symbols,
+    words: &mut [ShapeWord],
+) -> KeptShapeWords {
     let mut read = 0;
     let mut write = 0;
     while read < words.len() {
@@ -168,19 +168,12 @@ fn merge_literals(tree: &Tree<'_>, symbols: &mut Symbols, words: &mut Vec<ShapeW
         write += 1;
         read = end;
     }
-    words.truncate(write);
+    KeptShapeWords(write)
 }
 /// Build one non-recursive key from already-interned children.
-fn key(
-    tree: &Tree<'_>,
-    at: Position,
-    symbols: &mut Symbols,
-    classes: &[Option<Position>],
-    words: &mut Vec<ShapeWord>,
-) -> Option<()> {
-    words.clear();
+fn key(tree: &Tree<'_>, at: Position, symbols: &mut Symbols, key: &mut ShapeKey<'_>) -> Option<()> {
     let node = kind(tree, at);
-    words.push(ShapeWord::Kind(kind_bits(node)));
+    push_shape_word(key, ShapeWord::Kind(kind_bits(node)));
     for property in [
         SCALAR_KIND,
         SCALAR_VALUE,
@@ -189,27 +182,33 @@ fn key(
         INTERPOLATION_CONVERSION,
     ] {
         if let Some(value) = languages::property_at(tree.elements, at, property) {
-            words.push(ShapeWord::Property(
-                property,
-                languages::intern_derived(symbols, tree.source, value),
-            ));
+            push_shape_word(
+                key,
+                ShapeWord::Property(
+                    property,
+                    languages::intern_derived(symbols, tree.source, value),
+                ),
+            );
         }
     }
     match node {
         Kind::Node(Node::Name) | Kind::Extra(Extra::Identifier) => {
-            words.push(ShapeWord::Identifier(languages::intern_derived(
-                symbols,
-                tree.source,
-                NameText(identifier_text(tree, at).0),
-            )));
+            push_shape_word(
+                key,
+                ShapeWord::Identifier(languages::intern_derived(
+                    symbols,
+                    tree.source,
+                    NameText(identifier_text(tree, at).0),
+                )),
+            );
             return Some(());
         }
         Kind::Node(Node::Constant) => {
-            return constant(tree, at, symbols, classes, words);
+            return constant(tree, at, symbols, key);
         }
         Kind::Node(Node::JoinedStr | Node::TemplateStr) => {
-            segments(tree, at, symbols, classes, words);
-            merge_literals(tree, symbols, words);
+            segments(tree, at, symbols, key);
+            rewrite_shape_words(key, |words| merge_literals(tree, symbols, words));
             return Some(());
         }
         Kind::Extra(Extra::CallArguments) => {
@@ -217,7 +216,7 @@ fn key(
                 for each in languages::children(tree.elements, at).filter(|each| {
                     is_token(tree, *each) == Leaf::Node && field_of(tree, *each) == wanted
                 }) {
-                    child(words, classes, wanted, each);
+                    child(key, wanted, each);
                 }
             }
             return Some(());
@@ -226,14 +225,17 @@ fn key(
     }
     for each in languages::children(tree.elements, at) {
         if is_token(tree, each) == Leaf::Node {
-            child(words, classes, field_of(tree, each), each);
+            child(key, field_of(tree, each), each);
         } else if let Kind::Token(token) = kind(tree, each)
             && significant(token).is_some()
         {
-            words.push(ShapeWord::Token(
-                kind_bits(kind(tree, each)),
-                languages::text_at(tree.elements, each),
-            ));
+            push_shape_word(
+                key,
+                ShapeWord::Token(
+                    kind_bits(kind(tree, each)),
+                    languages::text_at(tree.elements, each),
+                ),
+            );
         } else {
             // Delimiters and trivia do not contribute structural identity.
         }
@@ -245,60 +247,29 @@ pub(crate) fn prepare<'a>(
     tree: &Tree<'_>,
     model: &'a crate::domain::model::types::Declarations,
     symbols: &mut Symbols,
-) -> Option<Ref<'a, RetainedKeyIndex<Position, ShapeWord>>> {
-    let held = &model.expression_shapes;
-    if held.borrow().state == KeyState::Fresh {
-        let mut index = held.borrow_mut();
-        if languages::has_incomplete_syntax(tree.elements)
-            == languages::SyntaxCompleteness::Incomplete
-        {
-            index.state = KeyState::Partial;
-            return None;
-        }
-        let Ok(count) = usize::try_from(languages::end_of(tree.elements).0) else {
-            return None;
-        };
-        index.classes.resize(count, None);
-        for raw in (0..count).rev() {
-            let Ok(position) = u32::try_from(raw) else {
-                return None;
-            };
-            let at = Position(position);
-            if is_token(tree, at) == Leaf::Token
-                || crate::domain::semantic_syntax::service::visibility(tree, model, at, symbols)
-                    != crate::domain::semantic_syntax::types::Visibility::Visible
+) -> Option<ShapeClasses<'a>> {
+    languages::prepare_shapes(
+        &model.expression_shapes,
+        tree.elements,
+        ShapeExtent::Table,
+        |at, built| {
+            if crate::domain::semantic_syntax::service::visibility(tree, model, at, symbols)
+                != crate::domain::semantic_syntax::types::Visibility::Visible
             {
-                continue;
+                return ShapeStep::Skipped;
             }
             if kind(tree, at) == Kind::Extra(Extra::IpyEscapeCommand) {
-                index.state = KeyState::Partial;
-                continue;
+                return ShapeStep::Unbuilt;
             }
-            let RetainedKeyIndex {
-                classes, scratch, ..
-            } = &mut *index;
             if languages::children(tree.elements, at).any(|child| {
-                is_token(tree, child) == Leaf::Node
-                    && classes
-                        .get(usize::try_from(child.0).unwrap_or(usize::MAX))
-                        .is_none_or(Option::is_none)
+                is_token(tree, child) == Leaf::Node && child_class(built, child).is_none()
             }) {
-                index.state = KeyState::Partial;
-                continue;
+                return ShapeStep::Unbuilt;
             }
-            if key(tree, at, symbols, classes, scratch).is_none() {
-                index.state = KeyState::Partial;
-                continue;
+            match key(tree, at, symbols, built) {
+                Some(()) => ShapeStep::Built,
+                None => ShapeStep::Unbuilt,
             }
-            let class = intern_key(&mut index, at);
-            if let Some(slot) = index.classes.get_mut(raw) {
-                *slot = Some(class);
-            }
-        }
-        if index.state == KeyState::Fresh {
-            index.state = KeyState::Complete;
-        }
-    }
-    let index = held.borrow();
-    (index.state == KeyState::Complete).then_some(index)
+        },
+    )
 }

@@ -19,6 +19,7 @@ pub mod project_context;
 pub mod reasons;
 pub mod relation_masks;
 pub mod semantics;
+pub mod shapes;
 pub mod symbols;
 pub mod targets;
 pub mod trees;
