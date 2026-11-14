@@ -171,3 +171,135 @@ name="scope-module-and-class-import"
 comparison="full"
 files={"case.py"="import os\nclass C:\n import sys\n"}
 expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="submodule-used-through-module-alias"
+comparison="full"
+files={"case.py"="import pandas as pd\ntry:\n    import pandas.tseries.holiday\nexcept ImportError:\n    pass\nprint(pd)\n"}
+expected=[]
+
+[[cases]]
+name="submodule-bound-after-alias-read"
+comparison="full"
+files={"case.py"="import pandas as pd\nprint(pd)\nimport pandas.tseries\n"}
+expected=[{rule="F401", file="case.py", start=37, end=51}]
+
+[[cases]]
+name="submodule-alias-read-marks-only-its-scope"
+comparison="full"
+files={"case.py"="import pandas as pd\nimport pandas.tseries\n\n\ndef f():\n    import pandas.io\n    return pd\n"}
+expected=[{rule="F401", file="case.py", start=64, end=73}]
+
+[[cases]]
+name="submodule-alias-of-other-module"
+comparison="full"
+files={"case.py"="import numpy as pd\nimport pandas.io\nprint(pd)\n"}
+expected=[{rule="F401", file="case.py", start=26, end=35}]
+
+[[cases]]
+name="submodule-alias-tail-of-other-package"
+comparison="full"
+files={"case.py"="import x.pandas as pd\nimport pandas.io\nprint(pd)\n"}
+expected=[{rule="F401", file="case.py", start=29, end=38}]
+
+[[cases]]
+name="submodule-from-import-alias"
+comparison="full"
+files={"case.py"="from pandas import pandas as pd\nimport pandas.io\nprint(pd)\n"}
+expected=[{rule="F401", file="case.py", start=39, end=48}]
+
+[[cases]]
+name="submodule-aliased-submodule"
+comparison="full"
+files={"case.py"="import pandas as pd\nimport pandas.io as pio\nprint(pd)\n"}
+expected=[{rule="F401", file="case.py", start=40, end=43}]
+
+[[cases]]
+name="submodule-aliased-to-its-root"
+comparison="full"
+files={"case.py"="import pandas as pd\nimport pandas.io as pandas\nprint(pd)\n"}
+expected=[{rule="F401", file="case.py", start=40, end=46}]
+
+[[cases]]
+name="submodule-alias-deleted"
+comparison="full"
+files={"case.py"="import pandas as pd\nimport pandas.io\ndel pd\n"}
+expected=[{rule="F401", file="case.py", start=27, end=36}]
+
+[[cases]]
+name="submodule-repeated-segment-alias"
+comparison="full"
+files={"case.py"="import a.a as z\nimport a.b\nprint(z)\n"}
+expected=[]
+
+[[cases]]
+name="forward-reference-cast-prefers-module"
+comparison="full"
+files={"case.py"="from typing import TYPE_CHECKING, cast\n\nif TYPE_CHECKING:\n    from m import A\n\n\ndef f(x):\n    from m import A\n    return cast(\"A\", x), A\n"}
+expected=[]
+
+[[cases]]
+name="forward-reference-leaves-local-unused"
+comparison="full"
+files={"case.py"="from typing import cast\nfrom m import A\n\n\ndef f(x):\n    from m import A\n    return cast(\"A\", x)\n\n\nprint(A)\n"}
+expected=[{rule="F401", file="case.py", start=70, end=71}]
+
+[[cases]]
+name="forward-reference-after-module-delete"
+comparison="full"
+files={"case.py"="from typing import cast\nfrom m import A\n\n\ndef f(x):\n    from m import A\n    return cast(\"A\", x)\n\n\ndel A\n"}
+expected=[]
+
+[[cases]]
+name="future-annotation-in-class-prefers-module"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nfrom m import A\n\n\nclass C:\n    A = 1\n    x: A\n"}
+expected=[]
+
+[[cases]]
+name="future-annotation-in-function-prefers-module"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nfrom m import A\n\n\ndef f(x):\n    from m import A\n    y: A = x\n    return y, A\n"}
+expected=[]
+
+[[cases]]
+name="global-import-in-function"
+comparison="full"
+files={"case.py"="def f():\n    global A\n    import A\n"}
+expected=[]
+
+[[cases]]
+name="global-import-in-try"
+comparison="full"
+files={"case.py"="def f():\n    global A\n    try:\n        import A\n    except ImportError:\n        pass\n"}
+expected=[]
+
+[[cases]]
+name="module-level-global-import"
+comparison="full"
+files={"case.py"="global A\nimport A\n"}
+expected=[{rule="F401", file="case.py", start=16, end=17}]
+
+[[cases]]
+name="nonlocal-import"
+comparison="full"
+files={"case.py"="def outer():\n    A = 1\n\n    def inner():\n        nonlocal A\n        import A\n    return inner\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-without-enclosing-binding"
+comparison="full"
+files={"case.py"="def f():\n    nonlocal A\n    import A\n"}
+expected=[{rule="F401", file="case.py", start=35, end=36}]
+
+[[cases]]
+name="global-import-in-class-body"
+comparison="full"
+files={"case.py"="class C:\n    global A\n    import A\n"}
+expected=[]
+
+[[cases]]
+name="global-import-beside-module-import"
+comparison="full"
+files={"case.py"="import os\n\n\ndef f():\n    global os\n    import os\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
