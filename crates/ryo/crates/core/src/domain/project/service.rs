@@ -1,8 +1,8 @@
 //! The `project` service: free functions named by verb over what the rules read of the project, with no IO and no ports.
 
 use super::types::PlanReads;
-use ryo_relations::domain::relations::service::provenance_of;
-use ryo_relations::domain::relations::types::Provenance;
+use ryo_relations::domain::catalog::service::scope_of;
+use ryo_relations::domain::catalog::types::RowScope;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::Freshness;
@@ -16,7 +16,7 @@ pub(crate) fn reads_project(plan: &Plan) -> PlanReads {
     if plan
         .frontier
         .iter()
-        .any(|input| matches!(input, Input::Relation(relation) if provenance_of(*relation) == Provenance::Manifests))
+        .any(|input| matches!(input, Input::Relation(relation) if scope_of(*relation) == RowScope::Project))
     {
         PlanReads::Reads
     } else {
@@ -81,7 +81,7 @@ pub(crate) fn unread_manifest_partials(
 ) -> Vec<ryo_execution::inbound::use_cases::metadata::interface::Partial> {
     wanted
         .iter()
-        .filter(|relation| provenance_of(**relation) == Provenance::Manifests)
+        .filter(|relation| scope_of(**relation) == RowScope::Project)
         .map(
             |relation| ryo_execution::inbound::use_cases::metadata::interface::Partial {
                 relation: *relation,

@@ -1,7 +1,8 @@
 //! The `planning` service: a step is added to the plan under construction, and where it runs is
 //! decided: per file, or after the files.
 
-use ryo_relations::domain::relations::service::provenance_of;
+use ryo_relations::domain::catalog::service::scope_of as relation_scope;
+use ryo_relations::domain::catalog::types::RowScope;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Provenance;
 use ryo_values::domain::lineage::service::anchor_of;
@@ -205,7 +206,7 @@ pub(crate) fn planned_scope(
 ) -> Option<ryo_values::domain::plan_parts::types::StepScope> {
     match input {
         parts::Input::Relation(relation) => {
-            Some(if provenance_of(relation) == Provenance::Manifests {
+            Some(if relation_scope(relation) == RowScope::Project {
                 ryo_values::domain::plan_parts::types::StepScope::CrossFile
             } else {
                 ryo_values::domain::plan_parts::types::StepScope::PerFile
@@ -223,7 +224,7 @@ pub(crate) fn planned_scope(
 pub(crate) fn scoped(builder: &Builder<'_>, input: parts::Input) -> ScopedInput {
     match input {
         parts::Input::Relation(relation) => ScopedInput {
-            scope: if provenance_of(relation) == Provenance::Manifests {
+            scope: if relation_scope(relation) == RowScope::Project {
                 ryo_values::domain::plan_parts::types::StepScope::CrossFile
             } else {
                 ryo_values::domain::plan_parts::types::StepScope::PerFile
