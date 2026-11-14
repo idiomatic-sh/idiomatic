@@ -5,10 +5,9 @@ installs it with the toolchain's `clippy` component, and no other install is mad
 toolchain's own `clippy-driver` (`rustup which clippy-driver`), never the rustup proxy of the same name on the path.
 
 `benchmark.toml` pins the 495 lints a plain run of clippy 0.1.100 enables, `clippy::all`: its warn and deny lints. rustc's own warnings,
-which the same run prints, are the compiler's and are not compared. Of the 495, 14 have a query, each in `rules/<lint>/` with its cases;
-the other 481 are `deferred`, each under the limitation that blocks it. 407 of them read an expression's type or the standard item a
-path names, which is semantic analysis; `unauthored` holds the lints this round's batches author from the relations the Rust provider
-reads. `fragments/lint-attributes.ryoql` holds the `allow`, `expect`, `warn`, `deny` and
+which the same run prints, are the compiler's and are not compared. Of the 495, 70 have a query, each in `rules/<lint>/` with its cases;
+the other 425 are `deferred`, each under the limitation that blocks it. 410 of them read an expression's type or the standard item a
+path names, which is semantic analysis. `fragments/lint-attributes.ryoql` holds the `allow`, `expect`, `warn`, `deny` and
 `forbid` attributes every query honors, as rustc reads them: the nearest attribute naming the lint, its group or `clippy::all` decides,
 and an `allow(warnings)` nearer than a `warn(warnings)` silences every warning under it.
 
@@ -20,12 +19,19 @@ These clippy findings have no query yet:
 - an outer `#[allow]` on a `mod` item, which clippy applies to the module's own file;
 - an `if` or a `let` written inside a `macro_rules!` body (`manual_take`, `toplevel_ref_arg`) and a binding a local macro's
   argument names (`disallowed_names`), which clippy reports where a call expands them;
-- two expressions compared inside a macro's arguments (`assert!(a == b || a < b)`): `expression_shape` holds the file's own tree, not
-  the arguments read again from a call;
+- an expression inside the arguments of a standard macro (`println!`, `format!`, `write!`, `assert!(a == b || a < b)`, `vec!`), which
+  the Rust provider reads as a token tree, not as an expression, so a lint clippy reports there has nothing to match;
 - a pattern inside `matches!`, which is not read as a pattern;
 - two expressions clippy holds equal that differ beyond layout, comments inside them and a number's spelling: a type suffix inside a
   larger expression (`x + 1` and `x + 1u32`), and locals bound alike under other names (`let y = x * 2; y` and `let z = x * 2; z`);
-- a comparison's constant that is a named constant or a `char`, which clippy evaluates (`x < C && x > 10`, `c > 'z' && c < 'a'`).
+- a comparison's constant that is a named constant or a `char`, which clippy evaluates (`x < C && x > 10`, `c > 'z' && c < 'a'`);
+- a doc comment inside a `macro_rules!` body, which clippy reports at the definition when a call expands it (`tabs_in_doc_comments` and
+  the other doc-comment lints read no token tree);
+- an attribute a `cfg_attr` expands, which `duplicated_attributes` compares only when the condition holds, and an attribute list
+  nested deeper than two levels;
+- an attribute macro other than `derive` and `test`, which consumes its attribute before `empty_line_after_outer_attr` and
+  `empty_line_after_doc_comments` see it;
+- a struct literal with a `..` spread whose assigned field is reached through `DerefMut` (`temporary_assignment`).
 
 The reference runs, in each root, the toolchain's `cargo-clippy` beside the verified driver:
 

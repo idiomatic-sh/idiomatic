@@ -529,7 +529,6 @@ defaults = [
 "rust/clippy/operator-before-unary" = "fragments/operator-before-unary.ryoql"
 "rust/clippy/bindings" = "fragments/bindings.ryoql"
 "rust/clippy/next-token" = "fragments/next-token.ryoql"
-"rust/clippy/item-start" = "fragments/item-start.ryoql"
 "rust/clippy/cfg-test" = "fragments/cfg-test.ryoql"
 "rust/clippy/binary-operands" = "fragments/binary-operands.ryoql"
 "rust/clippy/spanless-eq" = "fragments/spanless-eq.ryoql"
@@ -538,7 +537,7 @@ defaults = [
 "rust/clippy/numeric-constants" = "fragments/numeric-constants.ryoql"
 "rust/clippy/constant-comparisons" = "fragments/constant-comparisons.ryoql"
 
-# Defaults deferred, each under the limitation that blocks it. 407 need types or the standard item a path names: semantic
+# Defaults deferred, each under the limitation that blocks it. 410 need types or the standard item a path names: semantic
 # analysis, which no provider answers yet.
 [deferred]
 # Rules whose decision reads the type of an expression, a trait implementation or a constant's value: semantic analysis, which
