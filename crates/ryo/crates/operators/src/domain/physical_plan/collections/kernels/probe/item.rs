@@ -11,7 +11,7 @@ use super::super::scan_facts::item::{cell_of, count_of, kinds_of, row_of};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::{EmptyRight, Existence, ProbeKey, ProbeMode, ProbeParts};
 #[cfg(test)]
-use crate::domain::physical_plan::types::Lowering;
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::file_buffers::value::{KeyedRows, NO_ROW, NodeDecisions};
 use crate::domain::physical_plan::types::{CellStart, InputRows, KernelRun, KeyedRowAt, KeyedSide};
 use ryo_relations::domain::relations::types::Value;

@@ -4,7 +4,7 @@
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 #[cfg(test)]
-use crate::domain::physical_plan::types::{Lowering, RowSource};
+use crate::domain::physical_plan::types::{RowSource, lowering::value::Lowering};
 use crate::domain::physical_plan::types::{PlanInputs, PlanNodeId, TreeRead};
 use crate::domain::tree_cells::service::{native_form, tree_value};
 use crate::domain::tree_cells::types::{TreeForm, TreeRows};
@@ -21,7 +21,8 @@ pub(crate) struct ScanRootsItem;
 #[cfg(test)]
 impl KernelsItem for ScanRootsItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = super::super::scan_node::item::sources_of(lowering)
+        let runs = lowering
+            .sources()
             .any(|source| matches!(source, RowSource::Tree(_)));
         if runs { Reach::Runs } else { Reach::Skips }
     }

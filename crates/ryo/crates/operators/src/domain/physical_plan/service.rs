@@ -6,10 +6,8 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-use crate::domain::physical_plan::types::{
-    Lowering, NodeReaders, PhysicalNode, PlanInput, PlanNodeId, Retention, RowSource, ServedAt,
-    Unserved,
-};
+use crate::domain::physical_plan::types::{NodeReaders, PhysicalNode, PlanInput, PlanNodeId, Retention, RowSource, ServedAt, Unserved};
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::set_rows::types::{SetKind, SetLowering};
 use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::plans::types::Operation;

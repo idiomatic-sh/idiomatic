@@ -7,7 +7,7 @@ use super::super::scan_roots::item::{tree_cell, tree_count, tree_kinds, tree_row
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::{FactRows, InputRows, PlanInputs};
 #[cfg(test)]
-use crate::domain::physical_plan::types::{Lowering, RowSource};
+use crate::domain::physical_plan::types::{RowSource, lowering::value::Lowering};
 use ryo_relations::domain::relations::service::from_bits;
 use ryo_relations::domain::relations::types::{Bits, CellKind, ColumnsView, Relation, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -22,7 +22,7 @@ impl KernelsItem for ScanFactsItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
         let runs = {
             matches!(lowering, Lowering::Lookup { .. })
-                || super::super::scan_node::item::sources_of(lowering)
+                || lowering.sources()
                     .any(|source| matches!(source, RowSource::Facts(_)))
         };
         if runs { Reach::Runs } else { Reach::Skips }

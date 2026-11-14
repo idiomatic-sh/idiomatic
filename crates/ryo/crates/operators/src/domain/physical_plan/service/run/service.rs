@@ -15,15 +15,16 @@ use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
     count_of, facts, kinds_of, row_of,
 };
 use crate::domain::physical_plan::collections::kernels::scan_node::item::{
-    give_back, hold, sources_of, take,
+    give_back, hold, take,
 };
 use crate::domain::physical_plan::collections::kernels::scan_roots::item::roots;
 use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, NodeDecisions};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+use super::types::{KernelInputs, Reading};
 use crate::domain::physical_plan::types::{
-    CellStart, InputRows, KernelInputs, KernelRun, Lowering, NodeReaders, NodeRows, PlanNodeId,
-    Reading, RowSource,
+    CellStart, InputRows, KernelRun, NodeReaders, NodeRows, PlanNodeId, RowSource,
 };
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use ryo_values::domain::rows::types::{RowIndex, Table};
 
 /// Makes `node`'s rows for the open file in `buffers`, and answers the fault it raised after them.
@@ -143,10 +144,8 @@ fn materialize(
         | Lowering::Probe { .. }
         | Lowering::Distinct { .. } => {}
     }
-    let mut sources = sources_of(lowering);
-    let first = sources
-        .next()
-        .ok_or(PortableOperatorFault::WrongOperation)?;
+    let mut sources = lowering.sources();
+    let first = sources.next().ok_or(PortableOperatorFault::WrongOperation)?;
     let second = sources.next();
     ready(plan, run, first, buffers)?;
     if let Some(second) = second {

@@ -3,17 +3,14 @@
 
 pub mod file_buffers;
 pub mod logical_program;
+pub mod lowering;
 pub mod physical_plan;
 
-use crate::domain::aggregate::types::GroupParts;
-use crate::domain::append::types::ExtendParts;
 use crate::domain::contract::types::{PortableOperatorFault, RenderKind};
-use crate::domain::equality_join::types::ProbeParts;
-use crate::domain::project::types::ProjectParts;
-use crate::domain::select::types::SelectParts;
 use crate::domain::table_texts::types::Texts;
 use ryo_language::domain::elements::types::Elements;
 use ryo_relations::domain::relations::types::{ColumnsView, NodeId, Relation, TextHash, Value};
+use crate::domain::select::types::SelectParts;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::{ObservationBindingId, ParameterId, StepScope};
 use ryo_values::domain::plans::types::Operation;
@@ -167,65 +164,6 @@ pub(crate) enum RowSource {
     Node(PlanNodeId),
 }
 
-/// The kernels one node is lowered to.
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) enum Lowering {
-    /// `filter`: the rows of the source the comparisons hold for, with the kept columns.
-    Filter {
-        /// What it reads.
-        source: RowSource,
-        /// The comparisons, the kept columns and the bindings.
-        select: SelectParts,
-    },
-    /// `lookup` of a constant in the shared `hash_index` of a relation's column, then `filter` of all the select's
-    /// comparisons: the rows whose key's text is the constant, in source row order.
-    Lookup {
-        /// The index it reads.
-        index: IndexPlace,
-        /// The hash of the constant the key equals.
-        key: TextHash,
-        /// The comparisons, the kept columns and the bindings.
-        select: SelectParts,
-    },
-    /// `project`: the columns in order, repeated rows dropped when asked.
-    Project {
-        /// What it reads.
-        source: RowSource,
-        /// The columns and whether a repeated row is kept once.
-        project: ProjectParts,
-    },
-    /// `extend`: each row followed by the values, resolved once per file.
-    Extend {
-        /// What it reads.
-        source: RowSource,
-        /// The values and what their parameters are bound to.
-        extension: ExtendParts,
-    },
-    /// `hash_index` of the right rows, then `probe` of it with each left row.
-    Probe {
-        /// The rows probed with, in their order.
-        left: RowSource,
-        /// The rows indexed.
-        right: RowSource,
-        /// What the probe keeps.
-        probe: ProbeParts,
-    },
-    /// `distinct` over the rows of each source in turn: a row the first time only.
-    Distinct {
-        /// What it reads, in order.
-        sources: [RowSource; 2],
-    },
-    /// `group`: the rows keyed through `hash_index`'s table, one row per group in the order of its first row, with its count.
-    Group {
-        /// What it reads.
-        source: RowSource,
-        /// The keys and what is counted.
-        group: GroupParts,
-    },
-    /// No kernel at this stage: the plan's `unserved` names the stage that lowers it.
-    Unlowered,
-}
-
 /// The place of a shared index among a plan's indexes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct IndexPlace(pub(crate) usize);
@@ -238,7 +176,7 @@ pub(crate) struct NodeReaders(pub(crate) u32);
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct PhysicalNode {
     /// Its kernels.
-    pub(crate) lowering: Lowering,
+    pub(crate) lowering: lowering::value::Lowering,
     /// How many nodes read its rows.
     pub(crate) readers: NodeReaders,
     /// Whether a consumer that reads no node keeps it past its readers.
@@ -319,15 +257,6 @@ pub(crate) enum InputRows<'a> {
     Table(&'a Table),
 }
 
-/// The rows a node's kernels read: its first input's, and its second's when it reads two.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct KernelInputs<'a> {
-    /// The first input's rows.
-    pub(crate) input: InputRows<'a>,
-    /// The second input's rows, when the node reads two.
-    pub(crate) other: Option<InputRows<'a>>,
-}
-
 /// Rows keyed by key columns: the rows and their key columns.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct KeyedSide<'a> {
@@ -349,17 +278,6 @@ pub(crate) struct KeyedRowAt<'a> {
 /// The place in a table's cells where the row being written starts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct CellStart(pub(crate) usize);
-
-/// The rows a node's kernel reads: a relation's, lent in place, or an earlier node's, taken while it reads them.
-#[derive(Debug)]
-pub(crate) enum Reading<'a> {
-    /// A relation's columns.
-    Facts(ColumnsView<'a>),
-    /// A tree relation's rows.
-    Tree(TreeRead<'a>),
-    /// An earlier node and its rows and pending fault.
-    Node(PlanNodeId, TakenRows),
-}
 
 /// A tree relation's rows as one node reads them: the open file's elements at the tree nodes the engine named, in tree order.
 #[derive(Clone, Copy, Debug)]

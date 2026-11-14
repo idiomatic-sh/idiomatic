@@ -1,6 +1,6 @@
 //! The shape every item of the `kernels` collection implements.
 
-use crate::domain::physical_plan::types::Lowering;
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 
 /// What every item of the `kernels` collection offers: whether a lowering runs it.
 pub(crate) trait KernelsItem {

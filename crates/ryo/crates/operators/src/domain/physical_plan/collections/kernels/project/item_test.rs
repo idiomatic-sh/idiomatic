@@ -2,7 +2,8 @@
 use super::item::ProjectItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
-use crate::domain::physical_plan::types::{Lowering, PlanNodeId, RowSource};
+use crate::domain::physical_plan::types::{PlanNodeId, RowSource};
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 
 /// The lowering a node was given.

@@ -5,7 +5,7 @@
 use super::super::interface::{KernelsItem, Reach};
 use crate::domain::contract::types::PortableOperatorFault;
 #[cfg(test)]
-use crate::domain::physical_plan::types::Lowering;
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::Resources;
 use ryo_relations::domain::relations::types::{CellKind, Flag, Integer, Value};
 use ryo_values::domain::plan_parts::service::parameter_in;

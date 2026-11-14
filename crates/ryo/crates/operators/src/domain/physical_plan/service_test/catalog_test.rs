@@ -7,8 +7,9 @@ use crate::domain::physical_plan::fixtures::{Step, case_program};
 use crate::domain::physical_plan::service::{Kernel, REWRITES, lowered, plan_with, stage_of_kind};
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::{
-    LogicalNode, Lowering, NodeBindings, PlanInput, PlanInputList, RuleOrdinal, ServedAt,
+    LogicalNode, NodeBindings, PlanInput, PlanInputList, RuleOrdinal, ServedAt,
 };
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::plans::types::Operation;

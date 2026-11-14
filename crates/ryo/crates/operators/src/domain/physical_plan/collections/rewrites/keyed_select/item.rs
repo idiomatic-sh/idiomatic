@@ -4,9 +4,8 @@
 
 use super::super::interface::RewritesItem;
 use crate::domain::comparing::service::fixed_prefix;
-use crate::domain::physical_plan::types::{
-    IndexPlace, KeyedIndex, Lowering, PhysicalNode, PlanNodeId, RowSource, SelectKey,
-};
+use crate::domain::physical_plan::types::{IndexPlace, KeyedIndex, PhysicalNode, PlanNodeId, RowSource, SelectKey};
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use ryo_language::domain::symbols::service::hash_of;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::service::kinds;

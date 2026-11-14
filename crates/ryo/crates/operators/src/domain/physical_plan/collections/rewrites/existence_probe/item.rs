@@ -3,7 +3,8 @@
 
 use super::super::interface::RewritesItem;
 use crate::domain::equality_join::types::{Existence, ProbeMode};
-use crate::domain::physical_plan::types::{KeyedIndex, Lowering, PhysicalNode};
+use crate::domain::physical_plan::types::{KeyedIndex, PhysicalNode};
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 
 /// `existence_probe`, one item of the `rewrites` collection.
 pub(crate) struct ExistenceProbeItem;

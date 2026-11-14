@@ -5,7 +5,7 @@
 use super::super::interface::{KernelsItem, Reach};
 use crate::domain::physical_plan::types::CellStart;
 #[cfg(test)]
-use crate::domain::physical_plan::types::Lowering;
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::rows::types::{RowCount, Table};
 

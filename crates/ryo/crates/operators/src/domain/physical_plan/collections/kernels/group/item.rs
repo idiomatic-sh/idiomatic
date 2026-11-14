@@ -7,7 +7,7 @@ use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of, row_of};
 use crate::domain::contract::types::PortableOperatorFault;
 #[cfg(test)]
-use crate::domain::physical_plan::types::Lowering;
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::file_buffers::value::{KeyedRows, NO_ROW};
 use crate::domain::physical_plan::types::{InputRows, KeyedRowAt, KeyedSide};
 use ryo_relations::domain::relations::types::{CellKind, Count, Value};

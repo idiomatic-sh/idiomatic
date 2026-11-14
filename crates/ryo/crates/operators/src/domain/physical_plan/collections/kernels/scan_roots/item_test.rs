@@ -2,7 +2,7 @@
 use super::item::ScanRootsItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
-use crate::domain::physical_plan::types::{Lowering, RowSource};
+use crate::domain::physical_plan::types::{RowSource, lowering::value::Lowering};
 use ryo_relations::domain::relations::types::Relation;
 
 /// The lowering a node was given.
