@@ -60,7 +60,6 @@ pub(crate) fn prepared_test_program(
             ),
         ),
         ryo_execution::derived(),
-        Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     let program = Arc::new(
         engine

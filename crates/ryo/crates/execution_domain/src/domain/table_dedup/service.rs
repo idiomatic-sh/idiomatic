@@ -98,3 +98,18 @@ pub(crate) fn distinct(table: &mut Table, seen: &mut HashTable<RowIndex>) {
 }
 
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
+
+/// Keeps each row of `table` once, the first of its kind, in order.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::table_dedup::service::kept_once;
+/// use ryo_values::domain::rows::types::Table;
+/// let mut table = Table::default();
+/// kept_once(&mut table);
+/// assert_eq!(table.count.0, 0);
+/// ```
+pub fn kept_once(table: &mut Table) {
+    distinct(table, &mut HashTable::new());
+}

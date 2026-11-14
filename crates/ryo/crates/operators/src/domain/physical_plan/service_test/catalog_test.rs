@@ -6,9 +6,8 @@ use crate::domain::physical_plan::collections::kernels::interface::Reach;
 use crate::domain::physical_plan::fixtures::{Step, case_program};
 use crate::domain::physical_plan::service::{Kernel, REWRITES, lowered, plan_with, stage_of_kind};
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
-use crate::domain::physical_plan::types::{
-    LogicalNode, Lowering, NodeBindings, PlanInput, PlanInputList, RuleOrdinal, ServedAt,
-};
+use crate::domain::physical_plan::types::{LogicalNode, Lowering, NodeBindings, PlanInput, PlanInputList, ServedAt};
+use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::plans::types::Operation;
@@ -42,7 +41,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_kind_lowers_once"),
         word: Word::Succeeds,
         input: || Scenario::KindsLower,
-        expect: Expect::Value(9),
+        expect: Expect::Value(11),
     },
     Case {
         name: CaseName("a_kind_left_unlowered_fails_every_kind_lowers_once"),
@@ -54,7 +53,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_kernel_is_reached"),
         word: Word::Succeeds,
         input: || Scenario::KernelsReached,
-        expect: Expect::Value(11),
+        expect: Expect::Value(12),
     },
     Case {
         name: CaseName("a_kernel_no_lowering_runs_fails_every_kernel_is_reached"),
@@ -80,12 +79,30 @@ fn extension_unlowered(
     }
 }
 
-/// Every kind of this stage has a node of the case program `lower` lowers; every other kind is a later stage's.
+/// The case program with a scan of the host's rows and a scan of a table parameter's rows: the kinds that read no input.
+fn with_bound_scans(mut steps: Vec<Step>) -> Vec<Step> {
+    steps.push(Step {
+        operation: Operation::Hosted {
+            relation: ryo_values::domain::plan_parts::types::HostedNumber(0),
+        },
+        inputs: Vec::new(),
+    });
+    steps.push(Step {
+        operation: Operation::Rows {
+            parameter: ryo_values::domain::plan_parts::types::ParameterId(0),
+            keys: Vec::new(),
+        },
+        inputs: Vec::new(),
+    });
+    steps
+}
+
+/// Every kind the stages so far serve has a node of the case program `lower` lowers; every other kind is a later stage's.
 fn kinds_lower(lower: Lower) -> Result<Value, Failure> {
-    let steps = case_program();
+    let steps = with_bound_scans(case_program());
     let mut held = 0;
     for kind in OperationKind::ALL {
-        if stage_of_kind(*kind) > ServedAt(1) {
+        if stage_of_kind(*kind) > ServedAt(1) && stage_of_kind(*kind) != ServedAt(4) {
             continue;
         }
         if !steps.iter().any(|step| {
@@ -128,9 +145,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::KindsLower => kinds_lower(lowered),
         Scenario::KindLeftUnlowered => kinds_lower(extension_unlowered),
-        Scenario::KernelsReached => kernels_reached(&case_program()),
+        Scenario::KernelsReached => kernels_reached(&with_bound_scans(case_program())),
         Scenario::KernelNoLoweringRuns => {
-            let steps: Vec<Step> = case_program()
+            let steps: Vec<Step> = with_bound_scans(case_program())
                 .into_iter()
                 .filter(|step| !matches!(step.operation, Operation::GroupCount { .. }))
                 .collect();

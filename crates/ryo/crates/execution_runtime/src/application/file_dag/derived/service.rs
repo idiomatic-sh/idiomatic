@@ -1,7 +1,6 @@
 //! The `derived` application operation: a request's program prepared over the derived access, and the file preparation
 //! of the derived owner.
 use super::program::service::ProgramDerived;
-use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::prepared_execution::types::{
     PreparedExecutionProgram, ProgramParts,
 };
@@ -29,7 +28,6 @@ use std::sync::Arc;
 /// use ryo_execution_domain::domain::prepared_request::types::{Compiled, ObservationIdentity};
 /// use ryo_execution_runtime::application::file_dag::derived::service::prepare;
 /// use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-/// use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 /// use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess;
 /// use std::sync::Arc;
@@ -37,9 +35,8 @@ use std::sync::Arc;
 ///     compiled: Compiled,
 ///     operators: Arc<dyn OperatorsPort>,
 ///     derived: DerivedAccess,
-///     digest: Arc<dyn DigestPort>,
 /// ) -> Result<PreparedExecutionProgram, OperatingError> {
-///     prepare(compiled, &[], &[], &[], ObservationIdentity::Independent, operators, derived, digest)
+///     prepare(compiled, &[], &[], &[], ObservationIdentity::Independent, operators, derived)
 /// }
 /// ```
 pub fn prepare(
@@ -50,7 +47,6 @@ pub fn prepare(
     identity: ObservationIdentity,
     operators: Arc<dyn OperatorsPort>,
     derived: DerivedAccess,
-    digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
 ) -> Result<PreparedExecutionProgram, OperatingError> {
     let derived = ProgramDerived::from(derived);
     // Every file runs through the file pass, over the compiled plans the compilation shares: its program is planned here, once,
@@ -60,6 +56,16 @@ pub fn prepare(
             plans: compiled.plans.clone(),
             bindings: compiled.bindings.clone(),
             operators: Arc::clone(&operators),
+            hosted: hosted
+                .iter()
+                .map(|relation| {
+                    relation
+                        .columns
+                        .iter()
+                        .map(|column| ryo_values::domain::hosted::service::kind_of(column.kind))
+                        .collect()
+                })
+                .collect(),
         },
     )?;
     let inner = crate::application::file_dag::program::preparation::service::prepare(
@@ -73,9 +79,6 @@ pub fn prepare(
     Ok(PreparedExecutionProgram {
         parts: ProgramParts {
             inner,
-            kernels: Arc::new(CommonOperatorEngine::new(operators)),
-            derived,
-            digest,
             pass: Arc::new(pass),
         },
     })

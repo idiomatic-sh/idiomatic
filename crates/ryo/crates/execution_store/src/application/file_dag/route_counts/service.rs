@@ -195,21 +195,6 @@ impl CapturedOrigin {
     pub fn profile(&self) -> &RouteProfile {
         &self.profile
     }
-    /// Records under the captured origin again until the returned scope ends.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::{CapturedOrigin, OriginScope};
-    /// fn resumed(origin: &CapturedOrigin) -> OriginScope { origin.resume() }
-    /// ```
-    pub fn resume(&self) -> OriginScope {
-        scope(&self.profile, |current| {
-            if let Some(origin) = self.origin {
-                *current = origin;
-            }
-        })
-    }
 }
 
 pub(crate) fn scope(profile: &RouteProfile, change: impl FnOnce(&mut RouteOrigin)) -> OriginScope {

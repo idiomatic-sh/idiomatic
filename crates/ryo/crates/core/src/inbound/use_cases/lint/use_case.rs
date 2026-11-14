@@ -242,11 +242,7 @@ impl LintUseCase for LintUseCaseImpl {
             Reuse::Whole,
         );
         let unknown = self.language.unknown_reasons();
-        let execution = Execution::new(
-            Arc::clone(&self.operators),
-            self.derived.clone(),
-            Arc::clone(&self.digest),
-        );
+        let execution = Execution::new(Arc::clone(&self.operators), self.derived.clone());
         let digests: Vec<_> = stored_rules.iter().map(|rule| rule.digest).collect();
         let request_failed = |error: &dyn std::fmt::Display| {
             ryo_values::domain::rule_requests::service::failed(

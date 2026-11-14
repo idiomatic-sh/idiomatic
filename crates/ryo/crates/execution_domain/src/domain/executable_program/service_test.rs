@@ -1,13 +1,16 @@
 //! Seam D: a request's rules merged into one logical program, and the planned program each rule is served from.
 
-use super::service::{assemble, consumers, logical, roots, rule, serving};
+use super::service::{assemble, consumers, logical, observation_reach, roots, rule, serving};
 use super::types::program_inputs::value::ProgramInputs;
 use super::types::{RuleBindings, RuleInput, RuleObservations};
 use crate::domain::coverage::types::RuleIndex;
 use ryo_operators::domain::physical_plan::types::PlanNodeId;
 use ryo_operators::inbound::use_cases::plan::interface::PlanUseCase as _;
 use ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl;
-use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::{CellKind, Relation};
+use ryo_values::domain::observations::types::{
+    BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
+};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, Input as StepInput, LiteralText, ObservationBindingId, Operand,
@@ -27,7 +30,7 @@ enum Request {
     FileAndProjectScope,
     /// The same select comparing with a parameter, bound to two values.
     DifferentParameterValues,
-    /// A rule that reads a bound input.
+    /// A rule that reads a bound input in each file.
     BoundInput,
     /// A rule with a kind no lowering serves yet, beside a served rule.
     UnservedKind,
@@ -37,6 +40,12 @@ enum Request {
     RootKinds,
     /// A select read by a project, both kept by the rule's frontier.
     SharedReads,
+    /// Two rules with the same select in each file, each projecting it after the files from its frontier.
+    TwoRulesFrontiers,
+    /// Two rules with the same select after the files of a bound observation fed after the files.
+    TwoRulesObservations,
+    /// A select after the files of a bound observation, a projection of it, and a projection of a frontier entry.
+    ObservationReach,
 }
 
 type Input = Request;
@@ -101,6 +110,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
+        name: CaseName("two_rules_frontier_entries_stay_apart"),
+        word: Word::Succeeds,
+        input: || Request::TwoRulesFrontiers,
+        expect: Expect::Value(Cow::Borrowed("")),
+    },
+    Case {
+        name: CaseName("observation_inputs_of_two_rules_stay_apart"),
+        word: Word::Succeeds,
+        input: || Request::TwoRulesObservations,
+        expect: Expect::Value(Cow::Borrowed("")),
+    },
+    Case {
+        name: CaseName("a_node_reading_an_observation_is_occurrence_bound"),
+        word: Word::Succeeds,
+        input: || Request::ObservationReach,
+        expect: Expect::Value(Cow::Borrowed("")),
+    },
+    Case {
         name: CaseName("consumers_count_readers_emits_and_holds"),
         word: Word::Succeeds,
         input: || Request::SharedReads,
@@ -136,8 +163,17 @@ fn select(from: StepInput, comparisons: Vec<PlanComparison>) -> Operation {
 
 /// A plan of `steps` that emits its last step and hands `frontier` to the steps after the files.
 fn plan(steps: Vec<PlanStep>, frontier: Vec<StepInput>) -> Arc<Plan> {
+    bound_plan(steps, frontier, Vec::new())
+}
+
+/// A plan of `steps` with `observation_inputs`, that emits its last step and hands `frontier` to the steps after the files.
+fn bound_plan(
+    steps: Vec<PlanStep>,
+    frontier: Vec<StepInput>,
+    observation_inputs: Vec<BoundObservationInput>,
+) -> Arc<Plan> {
     Arc::new(Plan {
-        observation_inputs: Vec::new(),
+        observation_inputs,
         parameters: Vec::new(),
         comparison_origins: Vec::new(),
         observations: Vec::new(),
@@ -157,6 +193,35 @@ fn per_file(operation: Operation) -> PlanStep {
     PlanStep {
         operation,
         scope: StepScope::PerFile,
+    }
+}
+
+/// A step after the files.
+fn after_files(operation: Operation) -> PlanStep {
+    PlanStep {
+        operation,
+        scope: StepScope::CrossFile,
+    }
+}
+
+/// A bound observation of one file column, fed after the files.
+fn fed_after() -> BoundObservationInput {
+    BoundObservationInput {
+        name: ObservationBindingName("files".into()),
+        columns: vec![ObservationColumn {
+            name: ObservationColumnName("file".into()),
+            kind: CellKind::File,
+        }],
+        scope: StepScope::CrossFile,
+    }
+}
+
+/// A projection of `from`'s first column, each row once.
+fn first_column(from: StepInput) -> Operation {
+    Operation::Project {
+        from,
+        columns: vec![ColumnIndex(0)],
+        distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
     }
 }
 
@@ -267,6 +332,42 @@ fn rules_of(request: Request) -> Vec<(Arc<Plan>, Vec<ParameterBinding>)> {
                 unbound(),
             ),
         ],
+        Request::TwoRulesFrontiers => (0..2)
+            .map(|_| {
+                (
+                    plan(
+                        vec![per_file(named()), after_files(first_column(StepInput::Step(StepId(0))))],
+                        vec![StepInput::Step(StepId(0))],
+                    ),
+                    unbound(),
+                )
+            })
+            .collect(),
+        Request::TwoRulesObservations => (0..2)
+            .map(|_| {
+                let bound = StepInput::BoundObservation(ObservationBindingId(0));
+                (
+                    bound_plan(vec![after_files(select(bound, Vec::new()))], vec![bound], vec![fed_after()]),
+                    unbound(),
+                )
+            })
+            .collect(),
+        Request::ObservationReach => {
+            let bound = StepInput::BoundObservation(ObservationBindingId(0));
+            vec![(
+                bound_plan(
+                    vec![
+                        per_file(named()),
+                        after_files(select(bound, Vec::new())),
+                        after_files(first_column(StepInput::Step(StepId(1)))),
+                        after_files(first_column(StepInput::Step(StepId(0)))),
+                    ],
+                    vec![bound, StepInput::Step(StepId(0))],
+                    vec![fed_after()],
+                ),
+                unbound(),
+            )]
+        }
         Request::SharedReads => vec![(
             plan(
                 vec![
@@ -293,7 +394,7 @@ fn subject(request: Input) -> Result<Value, Failure> {
         .map(|(plan, bindings)| RuleInput {
             plan,
             bindings: RuleBindings(bindings),
-            observations: RuleObservations(&[]),
+            observations: RuleObservations(&plan.observation_inputs),
         })
         .collect();
     let mut inputs = ProgramInputs::default();
@@ -318,6 +419,12 @@ fn subject(request: Input) -> Result<Value, Failure> {
         .collect::<Result<_, _>>()
         .map_err(|_| ())?;
     said.push_str(&format!(" consumers {counts:?};"));
+    said.push_str(&format!(" inputs {:?};", inputs.lists));
+    let reach: Vec<_> = (0..nodes)
+        .map(|node| observation_reach(&program, PlanNodeId(u32::try_from(node).unwrap_or(0))))
+        .collect::<Result<_, _>>()
+        .map_err(|_| ())?;
+    said.push_str(&format!(" reach {reach:?};"));
     for kind in ["word", "other"] {
         said.push_str(&format!(
             " roots {kind} {:?};",

@@ -1,22 +1,19 @@
 //! Per-rule root, read and frontier metadata taken from the compiled plans.
 use crate::application::file_dag::program::preparation::types::{
-    ObservationMetadata, RootMetadata, RuleMetadata,
+    RootMetadata, RuleMetadata,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::interpreted_program::types::{
-    InputSource, interpreted_program::value::InterpretedProgram,
-};
+use ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
 use ryo_execution_domain::domain::trust::types::RelationRead;
-use ryo_values::domain::plan_parts::types::{Input, StepId};
+use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::{Operation, Plan};
 
 /// One entry per plan, in rule order.
 pub(crate) fn rules(
     program: &InterpretedProgram,
-    named: Option<&ObservationMetadata>,
     plans: &[Plan],
     observation_frontiers: &[Vec<FrontierPurpose>],
 ) -> Result<Vec<RuleMetadata>, OperatingError> {
@@ -40,10 +37,6 @@ pub(crate) fn rules(
             .iter()
             .map(|output| {
                 Ok(RootMetadata {
-                    source: match &refusal {
-                        Some(error) => Err(error.clone()),
-                        None => source(program, named, rule, output.source),
-                    },
                     phase: output.scope,
                     reads: match output.source {
                         // A refused rule's named output reads nothing: it is refused on its root before any read.
@@ -66,15 +59,6 @@ pub(crate) fn rules(
             .collect::<Result<Vec<_>, OperatingError>>()?;
         metadata.push(RuleMetadata {
             emit: plan.emit.clone(),
-            emit_root: match &refusal {
-                Some(error) => Err(error.clone()),
-                None => program
-                    .rules()
-                    .get(rule.0)
-                    .ok_or(OperatingError::NotRun)?
-                    .emit
-                    .clone(),
-            },
             frontiers: plan.frontier.clone().into_boxed_slice(),
             observations: outputs.into_boxed_slice(),
             observation_frontiers: observation_frontiers
@@ -101,44 +85,4 @@ pub(crate) fn rules(
         });
     }
     Ok(metadata)
-}
-fn source(
-    program: &InterpretedProgram,
-    observations: Option<&ObservationMetadata>,
-    rule: RuleIndex,
-    source: Input,
-) -> Result<InputSource, OperatingError> {
-    match source {
-        Input::Relation(relation) => Ok(InputSource::Relation(relation)),
-        Input::Step(StepId(step)) => {
-            let origin = program
-                .rules()
-                .get(rule.0)
-                .and_then(|rule| rule.original_steps.get(step as usize))
-                .ok_or(OperatingError::NotRun)?
-                .as_ref()
-                .map_err(Clone::clone)?;
-            program
-                .logical_regions()
-                .get(origin.logical.0)
-                .copied()
-                .map(InputSource::Region)
-                .ok_or(OperatingError::NotRun)
-        }
-        Input::BoundObservation(input) => observations
-            .and_then(|observations| {
-                observations
-                    .slots
-                    .iter()
-                    .position(|slot| slot.rule == rule && slot.input == input)
-            })
-            .map(|slot| {
-                InputSource::Observation(
-                    ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(
-                        slot,
-                    ),
-                )
-            })
-            .ok_or(OperatingError::NotRun),
-    }
 }

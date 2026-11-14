@@ -17,12 +17,10 @@ use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::plans::types::Emit;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use std::sync::Arc;
 
-mod census;
 mod demands;
 mod metadata;
 mod replay;
@@ -39,20 +37,6 @@ impl PreparedProgram {
             .and_then(|inputs| inputs.get(input.0))
             .map(AsRef::as_ref)
             .ok_or(OperatingError::NotRun)
-    }
-    pub(crate) fn walk(
-        &self,
-    ) -> &ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk {
-        &self.walk
-    }
-    pub(crate) fn all_bindings(&self) -> &[Box<[ParameterBinding]>] {
-        &self.bindings
-    }
-    pub(crate) fn walk_class(
-        &self,
-        instruction: &ryo_execution_domain::domain::interpreted_program::types::instruction::value::Instruction,
-    ) -> Option<ryo_execution_domain::domain::step_classes::types::ClassPlace> {
-        self.walk.class_for(instruction)
     }
     pub(crate) fn rule_id(
         &self,
@@ -78,9 +62,6 @@ impl PreparedProgram {
             .copied()
             .ok_or(OperatingError::NotRun)
     }
-    pub(crate) fn program(&self) -> &Arc<InterpretedProgram> {
-        &self.program
-    }
     /// The relations each file's sources are asked for: those the request's plans read.
     pub(crate) fn demanded(&self) -> &[ryo_relations::domain::relations::types::Relation] {
         &self.demanded
@@ -92,12 +73,6 @@ impl PreparedProgram {
         &self,
     ) -> &Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers> {
         &self.matchers
-    }
-    pub(crate) fn bindings(&self, rule: RuleIndex) -> Result<&[ParameterBinding], OperatingError> {
-        self.bindings
-            .get(rule.0)
-            .map(Box::as_ref)
-            .ok_or(OperatingError::NotRun)
     }
     pub(crate) fn rule_metadata(&self, rule: RuleIndex) -> Result<&RuleMetadata, OperatingError> {
         tracing::trace!(
@@ -222,9 +197,6 @@ pub(crate) fn prepare(
         .iter()
         .map(|plan| ryo_values::domain::plans::types::Plan::clone(plan))
         .collect();
-    let mut walk = ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(
-        &plans, &bindings,
-    );
     let source_plans: Vec<_> = plans.iter().map(Ok).collect();
     let partitions = SourcePartitions::new(rules, &source_plans, &bindings, hosted, &observations)?;
     let operators =
@@ -252,7 +224,6 @@ pub(crate) fn prepare(
         .as_ref()
         .map(|named| ObservationMetadata {
             layout: named.layout,
-            slots: named.slots.clone().into_boxed_slice(),
             frontiers: named.frontiers.clone().into_boxed_slice(),
             bindings: observations.clone(),
             outputs: named.outputs.iter().map(|outputs| outputs.iter().map(|output| OutputMetadata {
@@ -282,11 +253,10 @@ pub(crate) fn prepare(
                 .map(|plan| vec![FrontierPurpose::Diagnostic; plan.frontier.len()])
                 .collect()
         });
-    let program = Arc::new(compile_program(&plans, graph, &partitions, &operators)?);
-    walk.retain_program_consumers(&program)?;
-    census::service::trace(rules, &walk, &program);
+    // The compiled program is read for its rules' authoring refusals and its pattern slots, and not kept.
+    let program = compile_program(&plans, graph, &partitions, &operators)?;
     let metadata =
-        metadata::service::rules(&program, named.as_ref(), &plans, &observation_frontiers)?;
+        metadata::service::rules(&program, &plans, &observation_frontiers)?;
     // The program's own pattern slots: its presence fold compiled the source searches' patterns into them.
     let matchers = Arc::clone(program.matchers());
     let file_frontier_outputs = demands::service::frontier_outputs(&metadata, named.as_ref());
@@ -299,11 +269,9 @@ pub(crate) fn prepare(
         SemanticNeed::NotRequired
     };
     Ok(Arc::new(PreparedProgram {
-        program,
         rule_ids: rules.iter().map(|rule| rule.id.clone()).collect(),
         applicability: rules.iter().map(|rule| rule.applicability).collect(),
         rule_digests: rule_digests.to_vec().into_boxed_slice(),
-        bindings: bindings.into_iter().map(Vec::into_boxed_slice).collect(),
         rules: metadata.into_boxed_slice(),
         semantic_needed,
         file_frontier_outputs,
@@ -312,7 +280,6 @@ pub(crate) fn prepare(
         semantic_metadata: ryo_values::domain::run_metadata::service::from_plans(&plans),
         hosted: hosted.to_vec().into_boxed_slice(),
         matchers,
-        walk,
         demanded: crate::application::file_dag::file_pass::service::demanded(&plans),
     }))
 }

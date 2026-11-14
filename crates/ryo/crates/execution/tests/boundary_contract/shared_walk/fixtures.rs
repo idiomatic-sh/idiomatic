@@ -44,7 +44,6 @@ pub(crate) fn engine() -> (PrepareUseCaseImpl, Arc<SemanticCalls>) {
         PrepareUseCaseImpl::new(
             semantics.clone(),
             Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
-            Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
         ),
         semantics,
     )

@@ -102,7 +102,7 @@ pub(crate) fn sources_of(lowering: &Lowering) -> impl Iterator<Item = RowSource>
         Lowering::Distinct {
             sources: [left, right],
         } => (Some(*left), Some(*right)),
-        Lowering::Lookup { .. } | Lowering::Unlowered => (None, None),
+        Lowering::Lookup { .. } | Lowering::ScanBound { .. } | Lowering::Unlowered => (None, None),
     };
     first.into_iter().chain(second)
 }

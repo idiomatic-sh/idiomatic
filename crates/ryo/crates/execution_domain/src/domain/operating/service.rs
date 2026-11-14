@@ -37,7 +37,8 @@ pub fn portable_fault(
         PortableOperatorFault::UnboundKey => OperatingError::WrongBinding,
         PortableOperatorFault::WrongBinding => OperatingError::WrongBinding,
         PortableOperatorFault::Unbound => OperatingError::Unbound,
-        PortableOperatorFault::NotRun => OperatingError::NotRun,
+        // The engine answers a withheld input with its own reason before it asks this: a token alone names no reason.
+        PortableOperatorFault::NotRun | PortableOperatorFault::Withheld(_) => OperatingError::NotRun,
         PortableOperatorFault::WrongTest => OperatingError::WrongTest,
         PortableOperatorFault::Pattern(
             ryo_matching::inbound::use_cases::matching::errors::MatchingError::InvalidRegex {

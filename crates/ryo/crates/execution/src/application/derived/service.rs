@@ -3,7 +3,6 @@
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::prepared_request::types::{Compiled, ObservationIdentity};
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 use ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess;
 use ryo_execution_store::outbound::derived::interface::DerivedPort;
@@ -24,7 +23,7 @@ impl DerivedPreparation {
         Self(DerivedAccess::from(port).routed(routes))
     }
 
-    /// The program of a request, prepared over the engine's `operators` and `digest` and the derived views held.
+    /// The program of a request, prepared over the engine's `operators` and the derived views held.
     ///
     /// # Errors
     ///
@@ -38,7 +37,6 @@ impl DerivedPreparation {
         hosted: &[HostRelation],
         identity: ObservationIdentity,
         operators: Arc<dyn OperatorsPort>,
-        digest: Arc<dyn DigestPort>,
     ) -> Result<PreparedExecutionProgram, OperatingError> {
         ryo_execution_runtime::application::file_dag::derived::service::prepare(
             compiled,
@@ -48,7 +46,6 @@ impl DerivedPreparation {
             identity,
             operators,
             self.0.clone(),
-            digest,
         )
     }
 }

@@ -4,17 +4,13 @@
 
 use crate::application::file_dag::file_pass::types::{
     FileRoots, NodeReads, PassInputs, PassProgram, PassResources, PassScratch, PassSource,
-    RootKindNodes, RulesHeld, Stages, TreeStart,
+    RootKindNodes, TreeStart,
 };
-use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::constants::BOUND_STAGE;
-use ryo_execution_domain::domain::executable_program::service::{
-    assemble, logical, root_kinds, serving,
-};
+use ryo_execution_domain::domain::executable_program::service::{assemble, logical, root_kinds};
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
 use ryo_execution_domain::domain::executable_program::types::{
-    RuleBindings, RuleInput, RuleObservations, Serving,
+    RuleBindings, RuleInput, RuleObservations,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::portable_fault;
@@ -25,21 +21,25 @@ use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::of_kind;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_operators::domain::contract::types::PortableOperatorFault;
+use crate::application::file_dag::publications::service::held_observation;
+use ryo_operators::domain::contract::types::{PortableOperatorFault, WithheldInput};
+use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
+use ryo_operators::domain::physical_plan::types::candidates::value::Candidates;
+use ryo_operators::domain::physical_plan::types::fact_rows::value::FactRows;
+use ryo_operators::domain::physical_plan::types::frontier_place::value::FrontierPlace;
+use ryo_operators::domain::physical_plan::types::held_rows::value::HeldRows;
 use ryo_operators::domain::physical_plan::types::{
-    Candidates, FactRows, OpenFileBytes, PlanInputs, PlanNodeId, RenderOutcomes, RenderRequests,
-    Resources,
+    OpenFileBytes, PlanInputs, PlanNodeId, RenderOutcomes, RenderRequests, Resources,
 };
 use ryo_operators::domain::table_texts::service::symbol_text;
 use ryo_operators::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{FileId, KindBits, Relation, Value};
 use ryo_relations::domain::terms::types::NameText;
-use ryo_values::domain::plan_parts::types::{Input, ObservationBindingId, ParameterId};
+use ryo_values::domain::plan_parts::types::{HostedNumber, Input};
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::row_texts::types::CellText;
-use ryo_values::domain::rows::types::Table;
 use std::sync::{Arc, Mutex, PoisonError};
 
 pub(crate) mod captures;
@@ -169,6 +169,7 @@ pub(crate) fn pass_program(source: &PassSource) -> Result<PassProgram, Operating
         plans,
         bindings,
         operators,
+        hosted,
     } = source;
     let rules: Vec<RuleInput<'_>> = plans
         .iter()
@@ -179,7 +180,7 @@ pub(crate) fn pass_program(source: &PassSource) -> Result<PassProgram, Operating
             observations: RuleObservations(&plan.observation_inputs),
         })
         .collect();
-    let mut inputs = ProgramInputs::default();
+    let mut inputs = ProgramInputs::hosting(hosted.clone());
     let build = logical(&rules, &mut inputs)?;
     let plan = operators.plan(build.program()).map_err(portable_fault)?;
     let program = assemble(build, plan);
@@ -272,11 +273,22 @@ impl PlanInputs for PassInputs<'_, '_, '_> {
     fn roots(&self, root: PlanNodeId) -> Candidates<'_> {
         roots_of(self.roots, root)
     }
-    fn bound(&self, _parameter: ParameterId) -> &Table {
-        &self.unserved
+    fn frontier(&self, _place: FrontierPlace) -> HeldRows<'_> {
+        // A step in a file reads no handover: only a step after the files does.
+        HeldRows::Withheld(WithheldInput(u32::MAX))
     }
-    fn observation(&self, _input: ObservationBindingId) -> &Table {
-        &self.unserved
+    fn observation(&self, place: BoundObservationPlace) -> HeldRows<'_> {
+        held_observation(&self.bound, place)
+    }
+    fn hosted(&self, relation: HostedNumber) -> HeldRows<'_> {
+        match usize::try_from(relation.0)
+            .ok()
+            .and_then(|at| self.hosted.get(at))
+            .and_then(Option::as_ref)
+        {
+            Some(table) => HeldRows::Held(table),
+            None => HeldRows::Withheld(WithheldInput(u32::MAX)),
+        }
     }
 }
 
@@ -313,56 +325,4 @@ impl Resources for PassResources<'_> {
         // Rendering is the second stage's: a rule that renders is refused before any file.
         Err(PortableOperatorFault::UnsupportedRender)
     }
-}
-
-/// Refuses opening the project phase or the observation stage of a request holding a rule no stage serves yet, with the latest
-/// stage among them.
-///
-/// # Errors
-///
-/// `NotServedUntil` the latest unserved stage.
-pub(crate) fn served(pass: &PassProgram) -> Result<(), OperatingError> {
-    stages(pass)
-        .latest
-        .map_or(Ok(()), |stage| Err(OperatingError::NotServedUntil(stage)))
-}
-
-/// Refuses evaluating a rule after the files: until the fourth stage no rule runs there. The refusal names the latest stage
-/// among the request's rules that no stage serves yet, or the fourth when every rule is served in the files.
-///
-/// # Errors
-///
-/// `NotServedUntil` that stage when the request holds a rule.
-pub(crate) fn served_after_the_files(pass: &PassProgram) -> Result<(), OperatingError> {
-    match stages(pass) {
-        Stages {
-            latest: Some(stage),
-            ..
-        } => Err(OperatingError::NotServedUntil(stage)),
-        Stages {
-            latest: None,
-            held: RulesHeld::Some,
-        } => Err(OperatingError::NotServedUntil(BOUND_STAGE)),
-        Stages {
-            latest: None,
-            held: RulesHeld::None,
-        } => Ok(()),
-    }
-}
-
-/// The latest stage among the request's rules that no stage serves yet, and whether it holds a rule at all.
-fn stages(pass: &PassProgram) -> Stages {
-    let mut found = Stages {
-        latest: None,
-        held: RulesHeld::None,
-    };
-    let mut rule = RuleIndex(0);
-    while let Ok(served) = serving(&pass.program, rule) {
-        found.held = RulesHeld::Some;
-        if let Serving::NotServedUntil(stage) = served {
-            found.latest = found.latest.max(Some(stage));
-        }
-        rule = RuleIndex(rule.0.saturating_add(1));
-    }
-    found
 }

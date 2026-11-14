@@ -233,11 +233,6 @@ pub fn intern_derived(symbols: &mut Symbols, source: ByteSlice<'_>, text: NameTe
     derive(symbols.as_mut(), source, text)
 }
 
-/// Reborrows a query's symbols without handing a query operator source-name interning.
-#[must_use]
-pub fn query_reborrow<'a>(symbols: &'a mut QuerySymbols<'_>) -> QuerySymbols<'a> {
-    QuerySymbols(&mut *symbols.0)
-}
 
 /// Adds a value computed by a query, retaining existing source and derived identities.
 ///
@@ -331,18 +326,6 @@ pub fn transport_permit(symbols: &mut Symbols) -> super::types::TransportPermit 
     super::types::TransportPermit(std::sync::Arc::clone(&symbols.transport_generation))
 }
 
-/// Whether two engine-issued frame permits name the same live symbol generation.
-/// Comparing permits exposes no place mutation to a query or semantic kernel.
-pub fn same_transport_generation(
-    first: &super::types::TransportPermit,
-    second: &super::types::TransportPermit,
-) -> Generation {
-    if std::sync::Arc::ptr_eq(&first.0, &second.0) {
-        Generation::Same
-    } else {
-        Generation::Different
-    }
-}
 
 /// Check a semantic query borrow against an application-held frame key without
 /// granting the query a way to mint keys or mutate transported name places.

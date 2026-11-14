@@ -10,6 +10,7 @@ pub(crate) mod interface;
 pub(crate) mod lookup;
 pub(crate) mod probe;
 pub(crate) mod project;
+pub(crate) mod scan_bound;
 pub(crate) mod scan_facts;
 pub(crate) mod scan_node;
 pub(crate) mod scan_roots;

@@ -5,11 +5,19 @@ use crate::application::file_dag::fact_lookup::service::FactLookup;
 use crate::application::file_dag::fact_lookup::types::FileWants;
 use crate::application::file_dag::file_pass::constants::SOURCE_FACTS_INCOMPLETE;
 use crate::application::file_dag::file_pass::service::captures::service::captured_rule;
-use crate::application::file_dag::file_pass::service::nodes::service::{node_outcome, released};
+use crate::application::file_dag::file_pass::service::nodes::service::{node_outcome, node_rows, released};
 use crate::application::file_dag::file_pass::service::{fill_roots, given_back, taken};
+use crate::application::file_dag::file_pass::constants::BOUND_PRODUCER_UNAVAILABLE;
 use crate::application::file_dag::file_pass::types::{
-    CaptureAt, OutputCommit, OutputState, PassFile, PassInputs, PassProgram, PassRequest,
+    CaptureAt, NodeAnswer, OutputCommit, OutputState, PassFile, PassInputs, PassProgram,
+    PassRequest,
 };
+use crate::application::file_dag::frontiers::service::withheld;
+use crate::application::file_dag::frontiers::types::Withholdings;
+use crate::application::file_dag::publications::service::united;
+use crate::application::file_dag::publications::types::{BoundRows, BoundTable, BoundTables};
+use ryo_execution_domain::domain::frontier_coverage::service::affected_files;
+use ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationProducer;
 use crate::application::file_dag::program::facade_runtime::file_execution::service::{
     classify, readiness_of,
 };
@@ -31,7 +39,11 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::{
     DiagnosticDelivery, FileRuleIntent, ObservationDemand,
 };
-use ryo_language::domain::symbols::types::Symbols;
+use ryo_execution_domain::domain::hosted::service::table_of_query;
+use ryo_execution_domain::domain::hosted::types::NumberedFiles;
+use ryo_execution_domain::domain::operating::types::AfterTheFiles;
+use ryo_language::domain::symbols::types::{QuerySymbols, Symbols};
+use ryo_values::domain::plans::types::{Operation, Plan};
 use ryo_operators::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::observations::service::{new_frontiers, set_frontier};
@@ -39,7 +51,6 @@ use ryo_values::domain::plan_parts::types::{Input, StepScope};
 use ryo_values::domain::records::types::{
     ObservationReadinessCount, ObservationReadinessSlot, ProducerReadiness,
 };
-use ryo_values::domain::rows::types::Table;
 use std::cell::RefCell;
 use std::sync::Arc;
 
@@ -110,7 +121,9 @@ pub(crate) fn run_rules(
             lookup: &lookup,
             roots: &scratch.roots,
             refused: RefCell::new(None),
-            unserved: Table::default(),
+            bound: BoundTables::default(),
+            withholdings: Withholdings::default(),
+            hosted: Vec::new(),
         },
         buffers: std::mem::take(&mut scratch.buffers),
         file,
@@ -119,11 +132,16 @@ pub(crate) fn run_rules(
         source: input.source,
         paths,
         outputs: std::mem::take(&mut scratch.outputs),
+        answers: std::mem::take(&mut scratch.answers),
     };
     for outputs in &mut at.outputs {
         outputs.clear();
     }
     at.outputs.resize_with(program.rule_count().0, Vec::new);
+    for answers in &mut at.answers {
+        answers.clear();
+    }
+    at.answers.resize_with(program.rule_count().0, Vec::new);
     let CaptureContext {
         worker,
         arena: Arena(arena),
@@ -210,10 +228,14 @@ pub(crate) fn run_rules(
         (rules, FileEnd::Finished(readiness))
     })();
     let PassFile {
-        buffers, outputs, ..
+        buffers,
+        outputs,
+        answers,
+        ..
     } = at;
     scratch.buffers = buffers;
     scratch.outputs = outputs;
+    scratch.answers = answers;
     given_back(pass, scratch);
     let (rules, end) = ran;
     FileRules {
@@ -237,6 +259,8 @@ pub(crate) fn delivered_rule(
     }
     let nodes = fused_rule(&at.pass.program, rule)?;
     let plan = at.pass.plans.get(rule.0).ok_or(OperatingError::NotRun)?;
+    at.inputs.bound = in_file_bound(at, rule)?;
+    hosted_in_file(at, symbols, plan);
     let emit = if diagnostic == DiagnosticDelivery::Disabled {
         RootOutcome::NoQuery
     } else {
@@ -249,6 +273,7 @@ pub(crate) fn delivered_rule(
     if observations == ObservationDemand::Required {
         let metadata = at.request.program.rule_metadata(rule)?;
         let mut states = vec![OutputState::default(); metadata.observations.len()];
+        let mut answers = vec![None; metadata.observations.len()];
         for (index, root) in metadata.observations.iter().enumerate() {
             if root.phase != StepScope::PerFile {
                 continue;
@@ -264,7 +289,16 @@ pub(crate) fn delivered_rule(
                                 .get(usize::try_from(id.0).unwrap_or(usize::MAX))
                                 .ok_or(OperatingError::NotRun)
                                 .and_then(Clone::clone);
-                            node_outcome(at, symbols, rule, step, id)
+                            match node_rows(at, symbols, rule, step, id) {
+                                Ok(answer) => {
+                                    let outcome = answered(&answer);
+                                    if let Some(kept) = answers.get_mut(index) {
+                                        *kept = Some(answer);
+                                    }
+                                    outcome
+                                }
+                                Err(error) => classify(error),
+                            }
                         }
                         Some(Input::Relation(_) | Input::BoundObservation(_)) | None => {
                             RootOutcome::Failed(OperatingError::NotRun)
@@ -282,8 +316,99 @@ pub(crate) fn delivered_rule(
         if let Some(held) = at.outputs.get_mut(rule.0) {
             *held = states;
         }
+        if let Some(held) = at.answers.get_mut(rule.0) {
+            *held = answers;
+        }
     }
     Ok(emit)
+}
+
+/// The tables `rule`'s bound observations in the open file are bound to: each binding's producers' rows in this file, in
+/// producer order, each row once; a producer with no rows in this file withholds its binding.
+fn in_file_bound(
+    at: &mut PassFile<'_, '_, '_, '_>,
+    rule: RuleIndex,
+) -> Result<BoundTables, OperatingError> {
+    let Some(metadata) = at.request.program.observation_metadata() else {
+        return Ok(BoundTables::default());
+    };
+    let Some(bindings) = metadata.bindings.get(rule.0) else {
+        return Ok(BoundTables::default());
+    };
+    let mut tables = Vec::new();
+    for binding in bindings
+        .iter()
+        .filter(|binding| binding.schema.scope == StepScope::PerFile)
+    {
+        let members = binding
+            .producers
+            .iter()
+            .map(|producer| match producer {
+                ResolvedObservationProducer::Output { rule, output } => at
+                    .answers
+                    .get(rule.0)
+                    .and_then(|answers| answers.get(usize::try_from(output.0).unwrap_or(usize::MAX)))
+                    .and_then(Option::as_ref)
+                    .map(|answer| (Arc::new(answer.table.clone()), answer.coverage.clone()))
+                    .ok_or_else(|| OperatingError::ObservationIncomplete {
+                        reason: BOUND_PRODUCER_UNAVAILABLE.into(),
+                    }),
+                ResolvedObservationProducer::NoQuery { .. } => Err(OperatingError::ObservationIncomplete {
+                    reason: BOUND_PRODUCER_UNAVAILABLE.into(),
+                }),
+            })
+            .collect::<Result<Vec<_>, _>>();
+        let declared = binding.schema.columns.iter().map(|column| column.kind).collect();
+        let rows = match members.and_then(|members| united(&members, declared)) {
+            Ok((table, coverage)) => BoundRows::Held { table, coverage },
+            Err(error) => BoundRows::Withheld(withheld(&mut at.inputs.withholdings, error)),
+        };
+        tables.push(BoundTable {
+            input: binding.input,
+            rows,
+        });
+    }
+    Ok(BoundTables(tables))
+}
+
+/// The host's rows of each relation a step of `plan` in the open file reads, interned in the file's symbols once per file.
+fn hosted_in_file(at: &mut PassFile<'_, '_, '_, '_>, symbols: &mut Symbols, plan: &Plan) {
+    let declared = at.request.program.hosted();
+    for step in plan.steps.iter().filter(|step| step.scope == StepScope::PerFile) {
+        let Operation::Hosted { relation } = step.operation else {
+            continue;
+        };
+        let Some((at_place, host)) = usize::try_from(relation.0)
+            .ok()
+            .and_then(|place| declared.get(place).map(|host| (place, host)))
+        else {
+            continue;
+        };
+        if at.inputs.hosted.len() <= at_place {
+            at.inputs.hosted.resize_with(at_place.saturating_add(1), || None);
+        }
+        if let Some(held) = at.inputs.hosted.get_mut(at_place)
+            && held.is_none()
+        {
+            *held = Some(table_of_query(
+                host,
+                NumberedFiles(at.paths),
+                &mut QuerySymbols::from(&mut *symbols),
+                AfterTheFiles::Before,
+            ));
+        }
+    }
+}
+
+/// A named output's answer from its rows and their coverage.
+fn answered(answer: &NodeAnswer) -> RootOutcome {
+    match affected_files(&answer.coverage) {
+        None => RootOutcome::Complete(answer.table.clone()),
+        Some(affected) => RootOutcome::Partial {
+            table: answer.table.clone(),
+            affected,
+        },
+    }
 }
 
 /// The readiness of the request's named outputs after the open file, when the request names any.

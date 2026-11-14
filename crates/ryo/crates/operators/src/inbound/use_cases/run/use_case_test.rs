@@ -311,4 +311,6 @@ fn succeeds() {
 }
 
 #[cfg(test)]
+mod held_rows;
+#[cfg(test)]
 mod tree_rows;

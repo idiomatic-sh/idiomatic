@@ -30,6 +30,7 @@ impl KernelsItem for ProjectItem {
                 | Lowering::Extend { .. }
                 | Lowering::Distinct { .. }
                 | Lowering::Group { .. }
+                | Lowering::ScanBound { .. }
                 | Lowering::Unlowered => false,
             }
         };

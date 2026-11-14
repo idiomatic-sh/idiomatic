@@ -11,6 +11,7 @@ use crate::domain::physical_plan::collections::kernels::group::item::{GroupScrat
 use crate::domain::physical_plan::collections::kernels::lookup::item::lookups;
 use crate::domain::physical_plan::collections::kernels::probe::item::{ProbeScratch, probed};
 use crate::domain::physical_plan::collections::kernels::project::item::projected;
+use crate::domain::physical_plan::collections::kernels::scan_bound::item::{held, scanned};
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
     count_of, facts, kinds_of, row_of,
 };
@@ -74,7 +75,11 @@ fn ready(
         RowSource::Node(read) if buffers.rows(read) == NodeRows::Absent => {
             materialize(plan, run, read, buffers)
         }
-        RowSource::Node(_) | RowSource::Facts(_) | RowSource::Tree(_) => Ok(()),
+        RowSource::Node(_)
+        | RowSource::Facts(_)
+        | RowSource::Tree(_)
+        | RowSource::Frontier(_)
+        | RowSource::Observation(_) => Ok(()),
     }
 }
 
@@ -95,6 +100,9 @@ fn reading<'s>(
             relation,
         ))),
         RowSource::Node(read) => take(buffers, read).map(|taken| Reading::Node(read, taken)),
+        // A withheld input faults where it is first read, never as empty rows.
+        RowSource::Frontier(place) => held(run.inputs.frontier(place)).map(Reading::Held),
+        RowSource::Observation(place) => held(run.inputs.observation(place)).map(Reading::Held),
     }
 }
 
@@ -104,6 +112,7 @@ fn rows_in<'r>(reading: &'r Reading<'_>) -> InputRows<'r> {
         Reading::Facts(view) => InputRows::Facts(view),
         Reading::Tree(tree) => InputRows::Tree(tree),
         Reading::Node(_, taken) => InputRows::Table(&taken.rows),
+        Reading::Held(table) => InputRows::Table(table),
     }
 }
 
@@ -135,6 +144,11 @@ fn materialize(
         .lowering;
     match lowering {
         Lowering::Lookup { index, .. } => return lookups(plan, run, *index, buffers),
+        Lowering::ScanBound { scan } => {
+            let rows = scanned(scan, run)?;
+            hold(plan, buffers, node, rows, None);
+            return Ok(());
+        }
         Lowering::Unlowered => return Err(PortableOperatorFault::NotRun),
         Lowering::Filter { .. }
         | Lowering::Project { .. }
@@ -167,6 +181,7 @@ fn materialize(
         | Lowering::Probe { .. }
         | Lowering::Distinct { .. }
         | Lowering::Lookup { .. }
+        | Lowering::ScanBound { .. }
         | Lowering::Unlowered => None,
     };
     let run: &KernelRun<'_> = run;
@@ -199,6 +214,7 @@ fn materialize(
         | Lowering::Extend { .. }
         | Lowering::Distinct { .. }
         | Lowering::Lookup { .. }
+        | Lowering::ScanBound { .. }
         | Lowering::Unlowered => None,
     };
     let mut output = Table::default();
@@ -243,7 +259,7 @@ fn materialize(
 /// The fault a read node raised after its rows.
 fn pending_of(reading: &Reading<'_>) -> Option<PortableOperatorFault> {
     match reading {
-        Reading::Facts(_) | Reading::Tree(_) => None,
+        Reading::Facts(_) | Reading::Tree(_) | Reading::Held(_) => None,
         Reading::Node(_, taken) => taken.pending.clone(),
     }
 }
@@ -373,7 +389,7 @@ fn kernels(
             };
             grouped(input, &group.keys, group.distinct, scratch, output)?;
         }
-        Lowering::Lookup { .. } | Lowering::Unlowered => {}
+        Lowering::Lookup { .. } | Lowering::ScanBound { .. } | Lowering::Unlowered => {}
     }
     Ok(None)
 }

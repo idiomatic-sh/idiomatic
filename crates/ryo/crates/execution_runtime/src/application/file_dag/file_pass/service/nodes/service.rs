@@ -20,14 +20,16 @@ use ryo_execution_domain::domain::operating::service::portable_fault;
 use ryo_execution_domain::domain::output_coverage::service::output_coverage;
 use ryo_execution_domain::domain::output_coverage::types::{InputCoverage, OperandOrdinal};
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_operators::domain::physical_plan::types::{FactRows, PlanInputs as _};
-use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
+use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::domain::physical_plan::types::fact_rows::value::FactRows;
+use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+use ryo_operators::domain::physical_plan::types::{NodeRows, PlanInputs, PlanNodeId, Resources};
 use ryo_operators::domain::tree_cells::service::native_form;
 use ryo_relations::domain::relations::service::kinds as relation_kinds;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::lineage::service::{of_step, one_file};
 use ryo_values::domain::lineage::types::Lineage;
-use ryo_values::domain::plan_parts::types::{Input, StepId};
+use ryo_values::domain::plan_parts::types::{Input, StepId, StepScope};
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::rows::service::reset;
 use ryo_values::domain::rows::types::Table;
@@ -106,7 +108,7 @@ pub(crate) fn node_rows(
 }
 
 /// What one step's rows lack, with their cell kinds and where they come from.
-type StepCoverage = (Vec<CellKind>, CoverageState, Lineage);
+pub(crate) type StepCoverage = (Vec<CellKind>, CoverageState, Lineage);
 
 /// The coverage of step `step` of `rule`'s plan in the open file: each relation it reads covered as the file's partiality says
 /// of it, and each step on the way passing on what its inputs lack as its operator does (`output_coverage`), so a missing row
@@ -117,6 +119,28 @@ fn step_coverage(
     rule: RuleIndex,
     step: StepId,
 ) -> Result<CoverageState, OperatingError> {
+    step_coverage_with(pass, rule, step, |input, _| match input {
+        Input::Relation(relation) => {
+            let kinds = relation_kinds(relation);
+            Some(Ok((
+                kinds.to_vec(),
+                completion.relation_coverage(relation),
+                one_file(kinds),
+            )))
+        }
+        Input::Step(_) => None,
+        Input::BoundObservation(_) => Some(Err(OperatingError::NotRun)),
+    })
+}
+
+/// The coverage of step `step` of `rule`'s plan, each input `leaf` answers covered as it says, given the scope of the step an
+/// input names or of the step reading it, and every other step passing on what its inputs lack as its operator does.
+pub(crate) fn step_coverage_with(
+    pass: &PassProgram,
+    rule: RuleIndex,
+    step: StepId,
+    mut leaf: impl FnMut(Input, StepScope) -> Option<Result<StepCoverage, OperatingError>>,
+) -> Result<CoverageState, OperatingError> {
     let plan = pass.plans.get(rule.0).ok_or(OperatingError::NotRun)?;
     let nodes = fused_rule(&pass.program, rule)?;
     let last = usize::try_from(step.0).unwrap_or(usize::MAX);
@@ -124,20 +148,24 @@ fn step_coverage(
     for (place, each) in plan.steps.iter().enumerate().take(last.saturating_add(1)) {
         let operands = named(&inputs_of(&each.operation))
             .into_iter()
-            .map(|input| match *input {
-                Input::Relation(relation) => {
-                    let kinds = relation_kinds(relation);
-                    Ok((
-                        kinds.to_vec(),
-                        completion.relation_coverage(relation),
-                        one_file(kinds),
-                    ))
+            .map(|input| {
+                let scope = match *input {
+                    Input::Step(id) => plan
+                        .steps
+                        .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+                        .map_or(each.scope, |read| read.scope),
+                    Input::Relation(_) | Input::BoundObservation(_) => each.scope,
+                };
+                match leaf(*input, scope) {
+                    Some(answer) => answer,
+                    None => match *input {
+                        Input::Step(id) => merged
+                            .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+                            .cloned()
+                            .ok_or(OperatingError::NotRun),
+                        Input::Relation(_) | Input::BoundObservation(_) => Err(OperatingError::NotRun),
+                    },
                 }
-                Input::Step(id) => merged
-                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-                    .cloned()
-                    .ok_or(OperatingError::NotRun),
-                Input::BoundObservation(_) => Err(OperatingError::NotRun),
             })
             .collect::<Result<Vec<StepCoverage>, OperatingError>>()?;
         let output = match nodes.steps.get(place) {
@@ -189,16 +217,24 @@ pub(crate) fn ran_node(
         paths: at.paths,
         elements: at.inputs.lookup.tree(),
     };
-    at.pass
-        .operators
-        .run(
-            physical(&at.pass.program),
-            node,
-            &mut at.buffers,
-            &at.inputs,
-            &mut resources,
-        )
-        .map_err(portable_fault)
+    run_node(at.pass, node, &mut at.buffers, &at.inputs, &mut resources).map_err(portable_fault)
+}
+
+/// The one node step of the request's program: `node` run by the operators over `inputs` and `resources`, in a file or after
+/// the files, its rows held in `buffers`.
+///
+/// # Errors
+///
+/// The operators' fault, raised where the node's first fault is in the interpreter's order.
+pub(crate) fn run_node(
+    pass: &PassProgram,
+    node: PlanNodeId,
+    buffers: &mut FileBuffers,
+    inputs: &dyn PlanInputs,
+    resources: &mut dyn Resources,
+) -> Result<(), PortableOperatorFault> {
+    pass.operators
+        .run(physical(&pass.program), node, buffers, inputs, resources)
 }
 
 /// Ends the file: every node's rows go back to the buffers.

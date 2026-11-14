@@ -120,7 +120,6 @@ impl Preparation {
             &request.hosted,
             request.observations,
             Arc::clone(&self.operators),
-            Arc::new(ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake),
         )
     }
 }

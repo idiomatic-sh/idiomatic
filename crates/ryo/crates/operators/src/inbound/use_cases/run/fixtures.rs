@@ -1,14 +1,17 @@
 //! Test support for the plan and run use cases: the rows and resources an engine lends a run, held in tables and counted, and
 //! the programs a case plans, built from operations over relations.
 
-use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::contract::types::{PortableOperatorFault, WithheldInput};
+use crate::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
+use crate::domain::physical_plan::types::frontier_place::value::FrontierPlace;
+use crate::domain::physical_plan::types::held_rows::value::HeldRows;
 use crate::domain::physical_plan::fixtures::Step;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
-use crate::domain::physical_plan::types::{
-    Candidates, FactRows, LogicalNode, NodeBindings, NodeRows, OpenFileBytes, PlanInputList,
-    PlanInputs, PlanNodeId, RenderOutcomes, RenderRequests, Resources, RuleOrdinal,
-};
+use crate::domain::physical_plan::types::{LogicalNode, NodeBindings, NodeRows, OpenFileBytes, PlanInputList, PlanInputs, PlanNodeId, RenderOutcomes, RenderRequests, Resources};
+use crate::domain::physical_plan::types::candidates::value::Candidates;
+use crate::domain::physical_plan::types::fact_rows::value::FactRows;
+use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::table_texts::types::Texts;
 use crate::inbound::use_cases::plan::interface::PlanUseCase as _;
 use crate::inbound::use_cases::plan::use_case::PlanUseCaseImpl;
@@ -23,7 +26,7 @@ use ryo_relations::domain::relations::types::{ColumnsView, FactColumn, NodeId, R
 use ryo_relations::domain::terms::types::NameText;
 use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::files::types::SourceView;
-use ryo_values::domain::plan_parts::types::{ObservationBindingId, ParameterId, StepScope};
+use ryo_values::domain::plan_parts::types::{HostedNumber, StepScope};
 use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::Table;
 use std::cell::Cell;
@@ -43,6 +46,23 @@ pub struct TableInputs {
     empty: Table,
     /// The tree nodes every node reading the tree starts from, in tree order.
     roots: Vec<NodeId>,
+    /// The rows held for each frontier entry, bound observation and host relation.
+    after: HeldInputs,
+}
+
+/// The rows an engine holds for a run after the files, each lent in place; a withheld input answers its token.
+#[derive(Debug, Default)]
+struct HeldInputs {
+    /// The rows of each frontier entry.
+    frontiers: Vec<(FrontierPlace, Table)>,
+    /// The rows of each bound observation.
+    observations: Vec<(BoundObservationPlace, Table)>,
+    /// The host's rows of each relation, by its place.
+    hosted: Vec<Table>,
+    /// The token every withheld input answers, when the case withholds them.
+    withheld: Option<WithheldInput>,
+    /// How many times the host's rows were read.
+    hosted_reads: Cell<usize>,
 }
 
 impl TableInputs {
@@ -59,6 +79,7 @@ impl TableInputs {
             reads,
             empty: Table::default(),
             roots: Vec::new(),
+            after: HeldInputs::default(),
         }
     }
 
@@ -66,6 +87,28 @@ impl TableInputs {
     #[must_use]
     pub fn with_roots(self, roots: Vec<NodeId>) -> Self {
         Self { roots, ..self }
+    }
+
+
+
+    /// These inputs, with the host's rows of each relation, by its place.
+    #[must_use]
+    pub fn with_hosted(mut self, tables: Vec<Table>) -> Self {
+        self.after.hosted = tables;
+        self
+    }
+
+    /// These inputs, withholding every frontier entry, bound observation and host relation with `token`.
+    #[must_use]
+    pub fn withholding(mut self, token: WithheldInput) -> Self {
+        self.after.withheld = Some(token);
+        self
+    }
+
+    /// How many times the host's rows were read.
+    #[must_use]
+    pub fn hosted_reads(&self) -> usize {
+        self.after.hosted_reads.get()
     }
 
     /// How many times `relation`'s rows were read.
@@ -101,11 +144,30 @@ impl PlanInputs for TableInputs {
     fn roots(&self, _root: PlanNodeId) -> Candidates<'_> {
         Candidates(&self.roots)
     }
-    fn bound(&self, _parameter: ParameterId) -> &Table {
-        &self.empty
+    fn frontier(&self, place: FrontierPlace) -> HeldRows<'_> {
+        match (self.after.withheld, self.after.frontiers.iter().find(|(at, _)| *at == place)) {
+            (Some(token), _) => HeldRows::Withheld(token),
+            (None, Some((_, table))) => HeldRows::Held(table),
+            (None, None) => HeldRows::Held(&self.empty),
+        }
     }
-    fn observation(&self, _input: ObservationBindingId) -> &Table {
-        &self.empty
+    fn observation(&self, place: BoundObservationPlace) -> HeldRows<'_> {
+        match (self.after.withheld, self.after.observations.iter().find(|(at, _)| *at == place)) {
+            (Some(token), _) => HeldRows::Withheld(token),
+            (None, Some((_, table))) => HeldRows::Held(table),
+            (None, None) => HeldRows::Held(&self.empty),
+        }
+    }
+    fn hosted(&self, relation: HostedNumber) -> HeldRows<'_> {
+        self.after.hosted_reads.set(self.after.hosted_reads.get() + 1);
+        match (
+            self.after.withheld,
+            usize::try_from(relation.0).ok().and_then(|at| self.after.hosted.get(at)),
+        ) {
+            (Some(token), _) => HeldRows::Withheld(token),
+            (None, Some(table)) => HeldRows::Held(table),
+            (None, None) => HeldRows::Held(&self.empty),
+        }
     }
 }
 

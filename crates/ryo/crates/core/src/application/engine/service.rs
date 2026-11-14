@@ -64,14 +64,10 @@ impl std::fmt::Debug for Execution {
 }
 
 impl Execution {
-    /// Execution over the operators, the derived views and the digest the edge injects.
+    /// Execution over the operators and the derived views the edge injects.
     #[must_use]
-    pub fn new(
-        operators: Arc<dyn OperatorsPort>,
-        derived: DerivedViews,
-        digest: Arc<dyn DigestPort>,
-    ) -> Self {
-        Self(PrepareUseCaseImpl::new(operators, derived, digest))
+    pub fn new(operators: Arc<dyn OperatorsPort>, derived: DerivedViews) -> Self {
+        Self(PrepareUseCaseImpl::new(operators, derived))
     }
 
     /// Begins the execution of a prepared program over the corpus it runs on, telling `observer` of the engine's work.

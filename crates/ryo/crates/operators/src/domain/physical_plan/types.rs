@@ -1,9 +1,15 @@
 //! The types of the `physical_plan` concept: the plain data that crosses the operators' seam and the two traits the engine
 //! implements for a run. The plan's and the buffers' own fields stay private to operators.
 
+pub mod bound_observation_place;
+pub mod candidates;
+pub mod fact_rows;
 pub mod file_buffers;
+pub mod frontier_place;
+pub mod held_rows;
 pub mod logical_program;
 pub mod physical_plan;
+pub mod rule_ordinal;
 
 use crate::domain::aggregate::types::GroupParts;
 use crate::domain::append::types::ExtendParts;
@@ -15,7 +21,13 @@ use crate::domain::table_texts::types::Texts;
 use ryo_language::domain::elements::types::Elements;
 use ryo_relations::domain::relations::types::{ColumnsView, NodeId, Relation, TextHash, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::{ObservationBindingId, ParameterId, StepScope};
+use bound_observation_place::value::BoundObservationPlace;
+use candidates::value::Candidates;
+use fact_rows::value::FactRows;
+use frontier_place::value::FrontierPlace;
+use held_rows::value::HeldRows;
+use rule_ordinal::value::RuleOrdinal;
+use ryo_values::domain::plan_parts::types::{HostedNumber, ParameterId, StepScope, TableKey};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::row_texts::types::CellText;
@@ -25,10 +37,6 @@ use ryo_values::domain::rows::types::Table;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PlanNodeId(pub u32);
 
-/// A rule of a program, by its place in rule order.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RuleOrdinal(pub u32);
-
 /// What one input of a node reads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PlanInput {
@@ -36,10 +44,10 @@ pub enum PlanInput {
     Node(PlanNodeId),
     /// A relation's rows for the open file, lent by the facts.
     Relation(Relation),
-    /// The rows a table parameter is bound to.
-    Bound(ParameterId),
-    /// The rows an observation binding answers.
-    Observation(ObservationBindingId),
+    /// What the files handed over for an entry of a rule's frontier.
+    Frontier(FrontierPlace),
+    /// The rows a bound observation of a rule answers.
+    Observation(BoundObservationPlace),
 }
 
 /// A rule's emitted node.
@@ -82,19 +90,6 @@ pub enum NodeRows<'b> {
     Absent,
 }
 
-/// A relation's rows as the facts lend them for the open file.
-#[derive(Clone, Copy, Debug)]
-pub enum FactRows<'a> {
-    /// The rows, borrowed in place: read as they are, never decoded into a table.
-    Lent(ColumnsView<'a>),
-    /// The facts refused the relation: a fault, never empty rows.
-    Refused,
-}
-
-/// The tree nodes a root may start from, in tree order.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Candidates<'a>(pub &'a [NodeId]);
-
 /// The bytes of the open file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct OpenFileBytes<'a>(pub &'a [u8]);
@@ -113,10 +108,12 @@ pub trait PlanInputs {
     fn facts(&self, relation: Relation) -> FactRows<'_>;
     /// The tree nodes a root node starts from.
     fn roots(&self, root: PlanNodeId) -> Candidates<'_>;
-    /// The rows a table parameter is bound to.
-    fn bound(&self, parameter: ParameterId) -> &Table;
-    /// The rows an observation binding answers.
-    fn observation(&self, input: ObservationBindingId) -> &Table;
+    /// What the files handed over for an entry of a rule's frontier, or the token of why it is withheld.
+    fn frontier(&self, place: FrontierPlace) -> HeldRows<'_>;
+    /// The rows a bound observation of a rule answers, or the token of why they are withheld.
+    fn observation(&self, place: BoundObservationPlace) -> HeldRows<'_>;
+    /// The host's rows of a declared relation, or the token of why they are withheld.
+    fn hosted(&self, relation: HostedNumber) -> HeldRows<'_>;
 }
 
 /// What a kernel borrows from the engine besides rows: the complete inventory.
@@ -165,6 +162,10 @@ pub(crate) enum RowSource {
     Tree(Relation),
     /// An earlier node's materialized rows.
     Node(PlanNodeId),
+    /// What the files handed over for an entry of a rule's frontier.
+    Frontier(FrontierPlace),
+    /// The rows a bound observation of a rule answers.
+    Observation(BoundObservationPlace),
 }
 
 /// The kernels one node is lowered to.
@@ -222,8 +223,29 @@ pub(crate) enum Lowering {
         /// The keys and what is counted.
         group: GroupParts,
     },
+    /// `scan_bound`: the rows the engine holds for the run, or a table parameter's rows.
+    ScanBound {
+        /// What it scans.
+        scan: BoundScan,
+    },
     /// No kernel at this stage: the plan's `unserved` names the stage that lowers it.
     Unlowered,
+}
+
+/// What a bound scan reads: the host's rows of a declared relation, or the tables a `list<table>` parameter is bound to.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum BoundScan {
+    /// The host's rows of a declared relation.
+    Hosted(HostedNumber),
+    /// One row for each table of a parameter, the text under each key in key order.
+    Rows {
+        /// The parameter.
+        parameter: ParameterId,
+        /// The keys, in order.
+        keys: Vec<TableKey>,
+        /// What the node's parameters are bound to.
+        bindings: Vec<ParameterBinding>,
+    },
 }
 
 /// The place of a shared index among a plan's indexes.
@@ -359,6 +381,8 @@ pub(crate) enum Reading<'a> {
     Tree(TreeRead<'a>),
     /// An earlier node and its rows and pending fault.
     Node(PlanNodeId, TakenRows),
+    /// Rows the engine holds for the run, read in place.
+    Held(&'a Table),
 }
 
 /// A tree relation's rows as one node reads them: the open file's elements at the tree nodes the engine named, in tree order.

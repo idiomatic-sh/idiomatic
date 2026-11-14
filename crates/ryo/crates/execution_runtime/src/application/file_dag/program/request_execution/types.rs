@@ -2,13 +2,12 @@
 use std::sync::Arc;
 
 /// One request's execution, opened only by `begin`: its fields are sealed to the engine, so no
-/// caller outside it reads or replaces the prepared program, the services, the frontier cache or
-/// the digest port.
+/// caller outside it reads or replaces the prepared program, the services or the planned program.
 ///
 /// ```compile_fail,E0451
 /// use ryo_execution_runtime::application::file_dag::program::request_execution::types::RequestExecution;
-/// fn digest(execution: RequestExecution) {
-///     let RequestExecution { digest, .. } = execution;
+/// fn pass(execution: RequestExecution) {
+///     let RequestExecution { pass, .. } = execution;
 /// }
 /// ```
 pub struct RequestExecution {
@@ -16,10 +15,6 @@ pub struct RequestExecution {
         Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
     pub(crate) services:
         Arc<crate::application::file_dag::program::facade_runtime::service::ProgramServices>,
-    /// Prepared frontiers of this request, one acquisition per population.
-    pub(crate) frontiers: crate::application::file_dag::frontiers::cache::service::FrontierCache,
-    /// The prepared program's digest port, handed to each publication scope.
-    pub(crate) digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
     /// The program the file pass runs, planned when the program was prepared.
     pub(crate) pass: Arc<crate::application::file_dag::file_pass::types::PassProgram>,
 }

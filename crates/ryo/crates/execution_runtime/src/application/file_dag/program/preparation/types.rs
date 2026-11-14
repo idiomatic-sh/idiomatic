@@ -1,9 +1,5 @@
 //! Immutable prepared request metadata; no runtime or lifecycle dependency.
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::file_program::types::ObservationSlot;
-use ryo_execution_domain::domain::interpreted_program::types::InputSource;
-use ryo_execution_domain::domain::interpreted_program::types::RegionId;
-use ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram;
 use ryo_execution_domain::domain::observation_schedule::types::ObservedFrontierRoot;
 use ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationBinding;
 use ryo_execution_domain::domain::observation_schedule::types::RuleSchedule;
@@ -15,7 +11,6 @@ use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::types::Emit;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::records::types::ObservationReadinessLayout;
 use std::sync::Arc;
@@ -24,13 +19,11 @@ use std::sync::Arc;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RuleTotal(pub usize);
 pub(crate) struct RootMetadata {
-    pub source: Result<InputSource, OperatingError>,
     pub phase: StepScope,
     pub reads: Box<[RelationRead]>,
 }
 pub(crate) struct RuleMetadata {
     pub emit: Emit,
-    pub emit_root: Result<RegionId, OperatingError>,
     pub frontiers: Box<[Input]>,
     pub observations: Box<[RootMetadata]>,
     pub observation_frontiers: Box<[FrontierPurpose]>,
@@ -52,7 +45,6 @@ pub(crate) struct OutputMetadata {
 }
 pub(crate) struct ObservationMetadata {
     pub(crate) layout: ObservationReadinessLayout,
-    pub(crate) slots: Box<[ObservationSlot]>,
     pub(crate) frontiers: Box<[ObservedFrontierRoot]>,
     pub(crate) bindings: Vec<Vec<ResolvedObservationBinding>>,
     pub(crate) consumers: Vec<Vec<Vec<RuleIndex>>>,
@@ -67,11 +59,9 @@ pub(crate) struct ObservationMetadata {
 /// use ryo_execution_runtime::application::file_dag::program::preparation::types::PreparedProgram;
 /// ```
 pub(crate) struct PreparedProgram {
-    pub(super) program: Arc<InterpretedProgram>,
     pub(super) rule_ids: Box<[ryo_values::domain::runs::types::RuleId]>,
     pub(super) applicability: Box<[ryo_values::domain::runs::types::RuleApplicability]>,
     pub(super) rule_digests: Box<[ryo_values::domain::stored_facts::types::Digest]>,
-    pub(super) bindings: Box<[Box<[ParameterBinding]>]>,
     pub(super) rules: Box<[RuleMetadata]>,
     /// Computed once when the program is built; never a per-call scan of `rules`.
     pub(super) semantic_needed: SemanticNeed,
@@ -82,8 +72,6 @@ pub(crate) struct PreparedProgram {
     pub(super) hosted: Box<[HostRelation]>,
     pub(super) matchers:
         Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers>,
-    pub(super) walk:
-        ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
     /// The relations the request's plans read, each once, in the order first read: what each file's sources are asked for.
     pub(super) demanded: Box<[ryo_relations::domain::relations::types::Relation]>,
 }

@@ -9,7 +9,7 @@ use std::sync::Arc;
 /// runtime's own build refuses it. The same lint holds `RequestExecution::open_project`, whose return type is crate-private.
 ///
 /// ```compile_fail,E0603
-/// use ryo_execution_runtime::application::file_dag::execution::service::CommonOperatorEngine;
+/// use ryo_execution_runtime::application::file_dag::project_pass::service::run_batch;
 /// ```
 /// The program compiler (`compile`) lives in `ryo_execution_domain`; `idiomatic.arch/library-surface` keeps it, the store
 /// and the runtime's application from every crate outside the engine crates.
@@ -25,13 +25,8 @@ pub struct PreparedExecutionProgram {
 }
 /// The members of a prepared program, reachable only inside the runtime.
 pub(crate) struct ProgramParts {
-    pub(crate) kernels:
-        Arc<dyn crate::application::file_dag::executor::service::PrimitiveExecutor + Send>,
-    pub(crate) derived: crate::application::file_dag::derived::program::service::ProgramDerived,
     pub(crate) inner:
         Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
-    /// What names the content of packed words, for every request of the program.
-    pub(crate) digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
     /// The program the file pass runs every file of the program's requests through, planned once.
     pub(crate) pass: Arc<crate::application::file_dag::file_pass::types::PassProgram>,
 }

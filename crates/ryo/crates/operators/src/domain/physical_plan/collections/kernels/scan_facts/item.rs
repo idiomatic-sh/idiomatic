@@ -5,7 +5,8 @@
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_roots::item::{tree_cell, tree_count, tree_kinds, tree_row};
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::types::{FactRows, InputRows, PlanInputs};
+use crate::domain::physical_plan::types::{InputRows, PlanInputs};
+use crate::domain::physical_plan::types::fact_rows::value::FactRows;
 #[cfg(test)]
 use crate::domain::physical_plan::types::{Lowering, RowSource};
 use ryo_relations::domain::relations::service::from_bits;

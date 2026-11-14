@@ -172,23 +172,4 @@ impl CompletionPolicy {
             RegionAdmission::Blocked
         }
     }
-    /// This policy, now for another rule: what `for_rule` answers, made in place without copying the partials.
-    pub fn rebind(&mut self, rule: RuleIndex) {
-        self.scope = match self.scope {
-            ScopeIdentity::File { file, .. } => ScopeIdentity::File { rule, file },
-            ScopeIdentity::Project { .. } => ScopeIdentity::Project { rule },
-        };
-    }
-    /// The same policy for another rule.
-    pub fn for_rule(&self, rule: RuleIndex) -> Self {
-        let scope = match self.scope {
-            ScopeIdentity::File { file, .. } => ScopeIdentity::File { rule, file },
-            ScopeIdentity::Project { .. } => ScopeIdentity::Project { rule },
-        };
-        Self {
-            scope,
-            behavior: self.behavior.clone(),
-            publication: self.publication.clone(),
-        }
-    }
 }

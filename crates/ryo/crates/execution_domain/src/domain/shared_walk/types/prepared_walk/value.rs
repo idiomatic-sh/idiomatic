@@ -333,13 +333,6 @@ impl PreparedWalk {
         }
     }
 
-    /// The route bound to a physical instruction, if it was bound.
-    pub fn route_of(
-        &self,
-        instruction: &crate::domain::interpreted_program::types::instruction::value::Instruction,
-    ) -> Option<WalkRoute> {
-        *self.physical.get(instruction.logical().0)?
-    }
 
     /// The classes of the walk.
     pub fn classes(&self) -> &[StepClass] {

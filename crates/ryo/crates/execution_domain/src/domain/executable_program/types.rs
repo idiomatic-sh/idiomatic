@@ -7,6 +7,7 @@ pub mod program_inputs;
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::types::InputShape;
+use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId, ServedAt};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::observations::types::BoundObservationInput;
@@ -146,6 +147,50 @@ pub(crate) struct DraftInputs<'s> {
     pub(crate) shapes: Vec<InputShape<'s>>,
     /// The first schema fault of a node they read.
     pub(crate) fault: Option<OperatingError>,
-    /// The stage that serves a bound input among them, if one is.
-    pub(crate) stage: Option<ServedAt>,
+}
+
+/// Where a step being drafted runs, the rule it is a step of and that rule's plan: what its inputs are read as.
+#[derive(Clone, Copy)]
+pub(crate) struct StepAt<'p> {
+    /// Where it runs.
+    pub(crate) scope: StepScope,
+    /// The rule.
+    pub(crate) rule: RuleOrdinal,
+    /// The rule's plan.
+    pub(crate) plan: &'p Plan,
+}
+
+/// Where a rule's emitted step runs and where each of its named outputs is made.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::RuleScopes;
+/// use ryo_values::domain::plan_parts::types::StepScope;
+/// let scopes = RuleScopes { emit: StepScope::CrossFile, observations: Vec::new() };
+/// assert_eq!(scopes.emit, StepScope::CrossFile);
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuleScopes {
+    /// Where the emitted step runs.
+    pub emit: StepScope,
+    /// Where each named output is made, in output order.
+    pub observations: Vec<StepScope>,
+}
+
+/// Whether a node's rows answer the whole phase after the files, or one occurrence: a node that reads a bound observation, or
+/// reads a node that does, answers the slots its occurrence bound.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::ObservationReach;
+/// assert_ne!(ObservationReach::Phase, ObservationReach::Occurrence);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ObservationReach {
+    /// Its rows are the same for every occurrence of the phase.
+    Phase,
+    /// Its rows answer one occurrence's bound observations.
+    Occurrence,
 }

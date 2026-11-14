@@ -225,3 +225,32 @@ fn in_arena(
         ..place
     }
 }
+
+/// The rows of a relation the project wrote, made a table whose names are the steps' after the files: each name carried
+/// from `project` into `cross`, and a repeated row kept once, the first in place.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::finish::service::carried_once;
+/// use ryo_language::domain::symbols::types::Symbols;
+/// use ryo_relations::domain::relations::types::ColumnsView;
+/// let rows = carried_once(ColumnsView { kinds: &[], columns: &[] }, &Symbols::default(), &mut Symbols::default());
+/// assert_eq!(rows.count.0, 0);
+/// ```
+#[must_use]
+pub fn carried_once(
+    view: ryo_relations::domain::relations::types::ColumnsView<'_>,
+    project: &Symbols,
+    cross: &mut Symbols,
+) -> Table {
+    let mut table = Table::default();
+    crate::domain::table_model::service::materialize(
+        &crate::domain::table_model::types::Rows::Stored(view),
+        &mut table,
+        &mut Vec::new(),
+    );
+    carry(&mut table, project, cross);
+    crate::domain::table_dedup::service::distinct(&mut table, &mut hashbrown::HashTable::new());
+    table
+}

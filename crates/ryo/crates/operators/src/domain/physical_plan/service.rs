@@ -7,8 +7,8 @@ use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    Lowering, NodeReaders, PhysicalNode, PlanInput, PlanNodeId, Retention, RowSource, ServedAt,
-    Unserved,
+    BoundScan, Lowering, NodeReaders, PhysicalNode, PlanInput, PlanNodeId, Retention, RowSource,
+    ServedAt, Unserved,
 };
 use crate::domain::set_rows::types::{SetKind, SetLowering};
 use ryo_values::domain::plans::service::kind_of;
@@ -55,6 +55,8 @@ kernels! {
     ScanRoots => crate::domain::physical_plan::collections::kernels::scan_roots::item::ScanRootsItem,
     /// The `scan_node` kernel.
     ScanNode => crate::domain::physical_plan::collections::kernels::scan_node::item::ScanNodeItem,
+    /// The `scan_bound` kernel.
+    ScanBound => crate::domain::physical_plan::collections::kernels::scan_bound::item::ScanBoundItem,
     /// The `lookup` kernel.
     Lookup => crate::domain::physical_plan::collections::kernels::lookup::item::LookupItem,
     /// The `filter` kernel.
@@ -151,7 +153,8 @@ fn source_of(input: &PlanInput) -> Option<RowSource> {
                 None => RowSource::Facts(*relation),
             },
         ),
-        PlanInput::Bound(_) | PlanInput::Observation(_) => None,
+        PlanInput::Frontier(place) => Some(RowSource::Frontier(*place)),
+        PlanInput::Observation(place) => Some(RowSource::Observation(*place)),
     }
 }
 
@@ -238,9 +241,17 @@ pub(crate) fn lowered(
         | Operation::Axis { .. }
         | Operation::Closure { .. }
         | Operation::OrderedDfs { .. }
-        | Operation::Cycles { .. }
-        | Operation::Rows { .. }
-        | Operation::Hosted { .. } => None,
+        | Operation::Cycles { .. } => None,
+        Operation::Rows { parameter, keys } => Some(Lowering::ScanBound {
+            scan: BoundScan::Rows {
+                parameter: *parameter,
+                keys: keys.clone(),
+                bindings: bindings.to_vec(),
+            },
+        }),
+        Operation::Hosted { relation } => Some(Lowering::ScanBound {
+            scan: BoundScan::Hosted(*relation),
+        }),
     };
     lowering.unwrap_or(Lowering::Unlowered)
 }
@@ -277,7 +288,7 @@ pub(crate) fn stage_of_kind(kind: OperationKind) -> ServedAt {
 }
 
 /// The stage that lowers a node this stage does not: its kind's, or for one of this stage's kinds, the stage that reads what
-/// it reads: a join's closure demand at the third, a bound table or an observation at the fourth.
+/// it reads: a join's closure demand at the third.
 fn stage_of(operation: &Operation) -> ServedAt {
     match (stage_of_kind(kind_of(operation)), operation) {
         (ServedAt(1), Operation::Join { reach: Some(_), .. }) => ServedAt(3),

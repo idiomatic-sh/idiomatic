@@ -12,12 +12,6 @@ mod budget;
 #[cfg(test)]
 mod generation;
 #[cfg(test)]
-mod interpreter_budget;
-#[cfg(test)]
-mod interpreter_population;
-#[cfg(test)]
-mod interpreter_root_set;
-#[cfg(test)]
 mod partials;
 #[cfg(test)]
 mod population;

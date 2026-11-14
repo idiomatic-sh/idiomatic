@@ -71,10 +71,9 @@ pub trait WorkspacePort: sealed::Sealed {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort;
-    /// use ryo_execution_domain::domain::operator::contract::lease::service::take_totals;
-    /// use ryo_execution_domain::domain::operator::contract::types::WorkTotals;
-    /// fn found(workspace: &impl WorkspacePort) -> WorkTotals {
-    ///     take_totals(workspace.work())
+    /// use ryo_execution_domain::domain::operator::contract::types::WorkCounters;
+    /// fn found(workspace: &impl WorkspacePort) -> &WorkCounters {
+    ///     workspace.work()
     /// }
     /// ```
     fn work(&self) -> &WorkCounters;

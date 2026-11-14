@@ -48,7 +48,6 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
     let engine = PrepareUseCaseImpl::new(
         semantics.clone(),
         Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
-        Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     let mut input = authored_request(1);
     boundary_fixture::fixtures::plans(&mut input)[0]

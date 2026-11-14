@@ -145,6 +145,5 @@ pub struct Install {
 /// ```
 pub struct ObservationStage<'a> {
     pub(crate) phase: ProjectPhase<'a>,
-    pub(crate) publications:
-        crate::application::file_dag::observations::types::CrossPublications<'a>,
+    pub(crate) publications: crate::application::file_dag::publications::types::Publications<'a>,
 }

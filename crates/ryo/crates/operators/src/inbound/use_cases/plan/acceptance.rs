@@ -2,9 +2,8 @@
 use crate::Behavior;
 use cucumber::{given, then, when};
 use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
-use ryo_operators::domain::physical_plan::types::{
-    LogicalNode, NodeBindings, PlanInput, PlanInputList, PlanNodeId, RuleOrdinal,
-};
+use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList, PlanNodeId};
+use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use ryo_operators::inbound::use_cases::plan::interface::PlanUseCase as _;
 use ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl;
 use ryo_relations::domain::relations::types::Relation;

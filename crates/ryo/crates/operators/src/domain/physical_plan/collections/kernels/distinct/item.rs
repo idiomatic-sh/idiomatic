@@ -25,6 +25,7 @@ impl KernelsItem for DistinctItem {
                 | Lowering::Lookup { .. }
                 | Lowering::Extend { .. }
                 | Lowering::Group { .. }
+                | Lowering::ScanBound { .. }
                 | Lowering::Unlowered => false,
             }
         };

@@ -2,9 +2,8 @@
 //! emitted node and the consumers that are not node readers.
 
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::types::{
-    Emitted, LogicalNode, PlanInput, PlanNodeId, RuleOrdinal,
-};
+use crate::domain::physical_plan::types::{Emitted, LogicalNode, PlanInput, PlanNodeId};
+use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 
 /// A logical program. The root kinds of its nodes are the engine's: it derives them from the kind tests the plans write.
 ///
@@ -32,7 +31,8 @@ impl<'p> LogicalProgram<'p> {
     ///
     /// ```
     /// use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
-    /// use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList, RuleOrdinal};
+    /// use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList};
+    /// use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
     /// use ryo_relations::domain::relations::types::Relation;
     /// use ryo_values::domain::plan_parts::types::{Input, StepScope};
     /// use ryo_values::domain::plans::types::Operation;
@@ -65,7 +65,8 @@ impl<'p> LogicalProgram<'p> {
     ///
     /// ```
     /// use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
-    /// use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList, RuleOrdinal};
+    /// use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList};
+    /// use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
     /// use ryo_relations::domain::relations::types::Relation;
     /// use ryo_values::domain::plan_parts::types::{Input, StepScope};
     /// use ryo_values::domain::plans::types::Operation;
@@ -94,7 +95,8 @@ impl<'p> LogicalProgram<'p> {
     ///
     /// ```
     /// use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
-    /// use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList, RuleOrdinal};
+    /// use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList};
+    /// use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
     /// use ryo_relations::domain::relations::types::Relation;
     /// use ryo_values::domain::plan_parts::types::{Input, StepScope};
     /// use ryo_values::domain::plans::types::Operation;
@@ -121,7 +123,8 @@ impl<'p> LogicalProgram<'p> {
     ///
     /// ```
     /// use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
-    /// use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList, RuleOrdinal};
+    /// use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList};
+    /// use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
     /// use ryo_relations::domain::relations::types::Relation;
     /// use ryo_values::domain::plan_parts::types::{Input, StepScope};
     /// use ryo_values::domain::plans::types::Operation;
@@ -166,7 +169,7 @@ impl<'p> LogicalProgram<'p> {
         let count = PlanNodeId(u32::try_from(self.nodes.len()).unwrap_or(u32::MAX));
         let earlier = |at: PlanNodeId, input: &PlanInput| match input {
             PlanInput::Node(read) => *read < at,
-            PlanInput::Relation(_) | PlanInput::Bound(_) | PlanInput::Observation(_) => true,
+            PlanInput::Relation(_) | PlanInput::Frontier(_) | PlanInput::Observation(_) => true,
         };
         let shaped = self.emits.iter().all(|emitted| emitted.node < count)
             && self.holds.iter().all(|held| *held < count)
