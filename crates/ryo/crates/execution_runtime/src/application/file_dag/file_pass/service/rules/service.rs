@@ -141,7 +141,8 @@ pub(crate) fn run_rules(
             else {
                 continue;
             };
-            // A rule that reads a feature no stage serves yet is refused where it would run, with the stage that serves it.
+            // A rule that reads a feature no stage serves yet is refused where it would run, with the stage that serves it; the
+            // refusal is that rule's alone, so the served rules after it still run.
             if let Ok(Serving::NotServedUntil(stage)) = serving(&pass.program, rule) {
                 rules.push(RanRule {
                     rule,
@@ -150,8 +151,7 @@ pub(crate) fn run_rules(
                         stage,
                     ))),
                 });
-                released(&mut at);
-                return (rules, FileEnd::Unfinished);
+                continue;
             }
             let emits = diagnostic != DiagnosticDelivery::Disabled;
             let delivered = delivered_rule(&mut at, symbols, rule, diagnostic, observations);

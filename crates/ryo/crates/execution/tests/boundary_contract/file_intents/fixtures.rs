@@ -223,3 +223,58 @@ pub(crate) fn named_request() -> PrepareRequest {
         ObservationIdentity::Named(ObservationReadinessLayout(Digest([91; 16])));
     authored
 }
+
+/// A consumer written before its producer: rule 0 reads rule 1's named output through a bound input, and rule 1 captures a
+/// name before naming the output, so dependency order runs rule 1 first.
+pub(crate) fn consumer_before_its_producer_request() -> PrepareRequest {
+    use ryo_values::domain::observations::types::{
+        BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
+        ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
+    };
+    use ryo_values::domain::plan_parts::types::{CapturePattern, ObservationBindingId};
+    use ryo_values::domain::records::types::ObservationReadinessLayout;
+    let mut authored = authored_request(2);
+    let columns = vec![ObservationColumn {
+        name: ObservationColumnName("node".into()),
+        kind: CellKind::Node,
+    }];
+    let producer = &mut boundary_fixture::fixtures::plans(&mut authored)[1];
+    producer.steps.push(PlanStep {
+        scope: StepScope::PerFile,
+        operation: Operation::Capture {
+            from: Input::Step(StepId(0)),
+            path: ColumnIndex(1),
+            pattern: CapturePattern("{name}".into()),
+        },
+    });
+    producer.frontier = vec![Input::Step(StepId(1))];
+    producer.observations.push(PlanObservation {
+        name: ObservationName("captured".into()),
+        source: Input::Step(StepId(1)),
+        columns: columns.clone(),
+        scope: StepScope::PerFile,
+    });
+    let consumer = &mut boundary_fixture::fixtures::plans(&mut authored)[0];
+    consumer.steps[0].operation = Operation::Select {
+        from: Input::BoundObservation(ObservationBindingId(0)),
+        comparisons: vec![],
+        kept: vec![],
+    };
+    consumer.observation_inputs.push(BoundObservationInput {
+        name: ObservationBindingName("input".into()),
+        columns: columns.clone(),
+        scope: StepScope::PerFile,
+    });
+    let producer_id = authored.rules[1].id.clone();
+    authored.rules[0].observations.push(ObservationBinding {
+        name: ObservationBindingName("input".into()),
+        columns,
+        producers: vec![ObservationProducer::Output {
+            rule: producer_id,
+            output: ObservationName("captured".into()),
+        }],
+    });
+    authored.observations =
+        ObservationIdentity::Named(ObservationReadinessLayout(Digest([92; 16])));
+    authored
+}
