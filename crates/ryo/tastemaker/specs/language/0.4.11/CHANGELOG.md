@@ -1,3 +1,7 @@
+# language 0.4.11
+
+Places `contract` 0.7.0, whose parse contract's `semantics.rs` answers the four control-flow relations the catalog adds as `optional` (`flow_edge`, `flow_block`, `flow_member`, `flow_step`). It is built on 0.4.9: the version 0.4.10 the Ruff harness work adds is not on this line yet, so its benchmark pins are not here and the pin chain is rebased at merge. Everything else is as in 0.4.9.
+
 # language 0.4.9
 
 Places `contract` 0.6.0, whose parse contract answers the catalog's optional relations in `semantics.rs`, declared `mod semantics;` in the contract's module file, which the `contract-module` template admits beside what it renders. Everything else is as in 0.4.8.

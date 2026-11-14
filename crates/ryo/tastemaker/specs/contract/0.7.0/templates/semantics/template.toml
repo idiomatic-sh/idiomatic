@@ -133,6 +133,22 @@ impl languages::Semantics for {{ part | pascal }}Contract {
     fn pattern_child(&self) -> Support<Reader<languages::PatternChild, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn flow_edge(&self) -> Support<Reader<languages::FlowEdge, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn flow_block(&self) -> Support<Reader<languages::FlowBlock, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn flow_member(&self) -> Support<Reader<languages::FlowMember, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn flow_step(&self) -> Support<Reader<languages::FlowStep, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }
 {%- else -%}
 {{ refuse("only the parse contract implements `ryo::languages::Semantics`: `Parse::semantics` hands it out") }}
@@ -282,6 +298,22 @@ impl languages::Semantics for ParseContract {
     fn pattern_child(&self) -> Support<Reader<languages::PatternChild, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn flow_edge(&self) -> Support<Reader<languages::FlowEdge, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn flow_block(&self) -> Support<Reader<languages::FlowBlock, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn flow_member(&self) -> Support<Reader<languages::FlowMember, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn flow_step(&self) -> Support<Reader<languages::FlowStep, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }
 '''
 
@@ -297,6 +329,10 @@ use ryo::languages::{self, AbsenceCause, Reader, Support};
 use super::contract::ParseContract;
 '''
 then.findings = [
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
   { rule = 'semantics#template', path = 'semantics.rs' },
   { rule = 'semantics#template', path = 'semantics.rs' },
   { rule = 'semantics#template', path = 'semantics.rs' },
