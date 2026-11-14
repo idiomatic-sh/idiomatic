@@ -27,6 +27,12 @@ exclude = [
   "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/**",
   "crates/ryo/languages/python/benchmarks/linters/ruff/evidence/**",
   "crates/ryo/crates/benchmark/tests/fixtures/*/rules/**",
+  # Frozen asset versions: a pinned version never changes, so a formatter or speller finding in it is recorded here instead of fixed.
+  "tastemaker/rules/collection-members/0.2.0/**",
+  "tastemaker/rules/no-reexports/0.6.0/**",
+  "tastemaker/specs/idiomatic-rust/0.1.14/**",
+  "tastemaker/specs/adapter/0.4.0/**",
+  "crates/ryo/tastemaker/rules/program-implementation-boundary/0.4.0/**",
 ]
 
 # Formatting keeps the files as they are written: nothing is wrapped or aligned, only indentation, spacing and blank lines are made one.
