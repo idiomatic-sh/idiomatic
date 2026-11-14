@@ -42,3 +42,29 @@ pub(crate) struct DecodedNumber<'a> {
     /// The suffix written after the digits; none when no type is written.
     pub suffix: Option<NameText<'a>>,
 }
+
+/// The base an integer literal's digits are written in: 2, 8, 10 or 16.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Radix(pub u32);
+
+/// Where a decimal literal's digits end in its text: the byte offset of its suffix, or its length.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct DigitsEnd(pub usize);
+
+/// Whether a decimal literal's digits are an integer's or a float's.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Notation {
+    /// Digits alone.
+    Integer,
+    /// Digits with a fraction or an exponent.
+    Float,
+}
+
+/// Where the decimal number at the start of a literal's text ends, and whether a fraction or an exponent made it a float.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct DecimalEnd {
+    /// The byte offset its digits end at.
+    pub end: DigitsEnd,
+    /// Whether they are an integer's or a float's.
+    pub notation: Notation,
+}

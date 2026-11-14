@@ -4,9 +4,12 @@
 use std::borrow::Cow;
 
 use super::constants::{
-    BASES, F32_SUFFIX, F64_SUFFIX, FLOAT_NUMBER, INTEGER_SUFFIXES, NUMERIC_KIND, NUMERIC_VALUE,
+    BASES, DECIMAL, F32_SUFFIX, F64_SUFFIX, FLOAT_NUMBER, INTEGER_SUFFIXES, NUMERIC_KIND,
+    NUMERIC_VALUE,
 };
-use super::types::{DecodedNumber, IntegerValue, LiteralNumber, NumberValue};
+use super::types::{
+    DecimalEnd, DecodedNumber, DigitsEnd, IntegerValue, LiteralNumber, Notation, NumberValue, Radix,
+};
 use crate::domain::syntax::service::{child, end, start};
 use crate::domain::syntax::types::{Kind, TokenText};
 use crate::domain::tokens::types::Token;
@@ -87,23 +90,29 @@ pub(crate) fn decoded(written: TokenText<'_>) -> Option<DecodedNumber<'_>> {
     let text = written.0;
     let (suffix, value) = if let Some((rest, radix)) = BASES
         .iter()
-        .find_map(|(prefix, radix)| Some((text.strip_prefix(prefix)?, *radix)))
+        .find_map(|(prefix, radix)| Some((text.strip_prefix(prefix)?, Radix(*radix))))
     {
         let end = rest
-            .find(|character: char| character != '_' && !character.is_digit(radix.max(10)))
-            .unwrap_or(rest.len());
+            .char_indices()
+            .find(|(_, character)| *character != '_' && !character.is_digit(radix.0.max(10)))
+            .map_or(rest.len(), |(at, _)| at);
         let (digits, suffix) = rest.split_at(end);
         if !suffix.is_empty() && !INTEGER_SUFFIXES.contains(&suffix) {
             return None;
         }
-        (suffix, NumberValue::Integer(integer(digits, radix)?))
+        (
+            suffix,
+            NumberValue::Integer(integer(TokenText(digits), radix)?),
+        )
     } else {
-        let (end, floating) = decimal_end(text);
-        let (digits, suffix) = text.split_at(end);
-        let value = if !floating && (suffix.is_empty() || INTEGER_SUFFIXES.contains(&suffix)) {
-            NumberValue::Integer(integer(digits, 10)?)
+        let decimal = decimal_end(written);
+        let (digits, suffix) = text.split_at(decimal.end.0);
+        let value = if decimal.notation == Notation::Integer
+            && (suffix.is_empty() || INTEGER_SUFFIXES.contains(&suffix))
+        {
+            NumberValue::Integer(integer(TokenText(digits), DECIMAL)?)
         } else {
-            NumberValue::Float(float(digits, suffix)?)
+            NumberValue::Float(float(TokenText(digits), TokenText(suffix))?)
         };
         (suffix, value)
     };
@@ -114,13 +123,13 @@ pub(crate) fn decoded(written: TokenText<'_>) -> Option<DecodedNumber<'_>> {
 }
 
 /// The integer `digits` stand for in `radix`, each `_` skipped; none without a digit, with a digit outside the radix, or past 128 bits.
-fn integer(digits: &str, radix: u32) -> Option<IntegerValue> {
+fn integer(digits: TokenText<'_>, radix: Radix) -> Option<IntegerValue> {
     let mut value: u128 = 0;
     let mut counted = false;
-    for character in digits.chars().filter(|character| *character != '_') {
-        let digit = character.to_digit(radix)?;
+    for character in digits.0.chars().filter(|character| *character != '_') {
+        let digit = character.to_digit(radix.0)?;
         value = value
-            .checked_mul(u128::from(radix))?
+            .checked_mul(u128::from(radix.0))?
             .checked_add(u128::from(digit))?;
         counted = true;
     }
@@ -129,29 +138,38 @@ fn integer(digits: &str, radix: u32) -> Option<IntegerValue> {
 
 /// The binary64 value of the decimal `digits`, each `_` skipped: rounded to `f32` first when the suffix is `f32`, to `f64` when it is
 /// `f64` or absent; none for another suffix (`f16` and `f128` have no value here) or for digits that are no number of the width.
-fn float(digits: &str, suffix: &str) -> Option<FloatBits> {
-    let text: Cow<'_, str> = if digits.contains('_') {
-        Cow::Owned(digits.replace('_', ""))
+fn float(digits: TokenText<'_>, suffix: TokenText<'_>) -> Option<FloatBits> {
+    let text: Cow<'_, str> = if digits.0.contains('_') {
+        Cow::Owned(
+            digits
+                .0
+                .chars()
+                .filter(|character| *character != '_')
+                .collect(),
+        )
     } else {
-        Cow::Borrowed(digits)
+        Cow::Borrowed(digits.0)
     };
-    if suffix == F32_SUFFIX {
-        text.parse::<f32>()
-            .ok()
-            .map(|value| FloatBits(f64::from(value).to_bits()))
-    } else if suffix.is_empty() || suffix == F64_SUFFIX {
-        text.parse::<f64>()
-            .ok()
-            .map(|value| FloatBits(value.to_bits()))
+    // A parse that fails is digits the lexer took that are no number of this width: they have no value.
+    if suffix.0 == F32_SUFFIX {
+        match text.parse::<f32>() {
+            Ok(value) => Some(FloatBits(f64::from(value).to_bits())),
+            Err(_) => None,
+        }
+    } else if suffix.0.is_empty() || suffix.0 == F64_SUFFIX {
+        match text.parse::<f64>() {
+            Ok(value) => Some(FloatBits(value.to_bits())),
+            Err(_) => None,
+        }
     } else {
         None
     }
 }
 
 /// Where the decimal number at the start of `text` ends, and whether a fraction or an exponent made it a float.
-fn decimal_end(text: &str) -> (usize, bool) {
-    let bytes = text.as_bytes();
-    let digits_from = |from: usize| {
+fn decimal_end(text: TokenText<'_>) -> DecimalEnd {
+    let bytes = text.0.as_bytes();
+    let digits_from = |from| {
         from + bytes
             .get(from..)
             .unwrap_or_default()
@@ -160,10 +178,10 @@ fn decimal_end(text: &str) -> (usize, bool) {
             .count()
     };
     let mut end = digits_from(0);
-    let mut floating = false;
+    let mut notation = Notation::Integer;
     if bytes.get(end) == Some(&b'.') {
         end = digits_from(end + 1);
-        floating = true;
+        notation = Notation::Float;
     }
     if matches!(bytes.get(end), Some(b'e' | b'E')) {
         let signed = end + 1 + usize::from(matches!(bytes.get(end + 1), Some(b'+' | b'-')));
@@ -173,8 +191,11 @@ fn decimal_end(text: &str) -> (usize, bool) {
             .is_some_and(|exponent| exponent.iter().any(u8::is_ascii_digit))
         {
             end = after;
-            floating = true;
+            notation = Notation::Float;
         }
     }
-    (end, floating)
+    DecimalEnd {
+        end: DigitsEnd(end),
+        notation,
+    }
 }
