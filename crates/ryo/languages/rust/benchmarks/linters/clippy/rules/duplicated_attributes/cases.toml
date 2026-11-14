@@ -207,3 +207,8 @@ expected = [{ file = "src/lib.rs", start = 31, end = 32 }]
 name = "unicode-escape-char-value"
 files = { "src/lib.rs" = "#[rustfmt::skip(v = '\\u{41}', a, a)]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 33, end = 34 }]
+
+[[cases]]
+name = "byte-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = b'x', a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 30 }]
