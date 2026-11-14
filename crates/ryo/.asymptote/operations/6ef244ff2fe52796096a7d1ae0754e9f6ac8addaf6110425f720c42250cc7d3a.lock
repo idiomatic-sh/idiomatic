@@ -1,0 +1,11 @@
+version = 1
+parents = ["ba51cd9ca48035c4358fc9e5775d9e16fdac7660b8d26c81ec41655951aefc63"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/benchmark/src/outbound/inventory/adapters/local/constants.rs", level = "error", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/ryo/crates/benchmark/src/outbound/inventory/adapters/local/constants.rs` has 458 lines, over the file-length limit", since_rev = "60ea9572502a949e05f796d79342b0539bc9d027", since = "2026-11-14" },
+  { tool = "tastemaker", rule = "idiomatic.arch/no-env-reads", path = "crates/benchmark/src/main.rs", level = "error", fingerprint = "5ceda1e41e7eeb86", count = 1, message = "`std::env::var_os` reads an environment variable", since_rev = "60ea9572502a949e05f796d79342b0539bc9d027", since = "2026-11-14" },
+]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/execution_store/src/application/file_dag/workspace/service.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+]
