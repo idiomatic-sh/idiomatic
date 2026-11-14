@@ -39,4 +39,3 @@ fixtures = []
 
 [lints]
 workspace = true
-
