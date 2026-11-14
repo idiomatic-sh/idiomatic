@@ -248,6 +248,8 @@ files = { "case.py" = "from a.q import *  # NOQA\nfrom a.q import Query\n" }
 expected = [{ "end" = 25, "file" = "case.py", "rule" = "RUF100", "start" = 19 }]
 "selected-rules" = ["RUF100", "I001"]
 "rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "I001", "output" = "noqa_matches" }] }] }
+"project-search-roots" = ["", "src"]
+"given-project-inventory" = { "entries" = [], "completeness" = "complete-within-declared-scope" }
 
 [[cases]]
 name = "redirect-sources-are-used"
