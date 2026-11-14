@@ -1,0 +1,9 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+let tokens = select id, file, span, text from "syntax-tree" where kind = "int-number" and matches(text, "^0x[0-9a-fA-F_]*(?:[a-f][0-9a-fA-F_]*[A-F]|[A-F][0-9a-fA-F_]*[a-f])");
+let hosts = select id, file from "syntax-tree" where kind = "literal" or kind = "macro-call" or kind = "macro-rules" or kind = "macro-def" or kind = "attr";
+let hosted = axis(from=tokens, relation="syntax-child", direction=nearest-ancestor, domain=hosts);
+let readers = select id, file from "syntax-tree" where kind = "literal" or kind = "macro-call";
+let literals = select l.id as id, l.file as file, l.span as span, l.text as text from hosted as l join readers as r on l.related = r.id;
+let candidates = select id, file, span from literals;
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:mixed_case_hex_literals|style|all))\s*(?:,|$)");
+emit violations subject file key(id);

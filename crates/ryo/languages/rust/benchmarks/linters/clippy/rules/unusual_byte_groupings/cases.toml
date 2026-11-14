@@ -1,0 +1,49 @@
+[[cases]]
+name = "uneven-hex"
+files = { "src/lib.rs" = "pub const X: u32 = 0x1_23_456;\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 29 }]
+
+[[cases]]
+name = "first-group-larger"
+files = { "src/lib.rs" = "pub const X: u32 = 0xFFFF_FF;\npub const Y: u8 = 0b1010_10;\npub const Z: u32 = 0o7777_77;\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 28 }, { file = "src/lib.rs", start = 48, end = 57 }, { file = "src/lib.rs", start = 78, end = 87 }]
+
+[[cases]]
+name = "even-groups"
+files = { "src/lib.rs" = "pub const A: u32 = 0xFFFF_FFFF;\npub const B: u32 = 0xFFF_FFF;\npub const C: u32 = 0x1_234_567;\npub const D: u8 = 0b10_1010;\n" }
+expected = []
+
+[[cases]]
+name = "suffixed"
+files = { "src/lib.rs" = "pub const X: u32 = 0x1_23_456u32;\npub const Y: u32 = 0xFF_FF_u32;\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 32 }]
+
+[[cases]]
+name = "decimal-is-another-lint"
+files = { "src/lib.rs" = "pub const X: u32 = 1_23_456;\n" }
+expected = []
+
+[[cases]]
+name = "uuid"
+files = { "src/lib.rs" = "pub const X: u128 = 0x12345678_1234_1234_1234_123456789abc;\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::unusual_byte_groupings)]\npub const X: u32 = 0x1_23_456;\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::style)]\npub const X: u32 = 0x1_23_456;\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::all)]\npub const X: u32 = 0x1_23_456;\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::all)]\n#[warn(clippy::unusual_byte_groupings)]\npub const X: u32 = 0x1_23_456;\n" }
+expected = [{ file = "src/lib.rs", start = 82, end = 92 }]
