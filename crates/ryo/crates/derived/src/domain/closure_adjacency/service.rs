@@ -1,4 +1,5 @@
 //! One current closure adjacency. Partition scheduling stays outside this capability.
+use super::constants::SOURCE;
 use super::types::{ClosureCapacities, ClosurePartition};
 use crate::domain::allocation::types::ElementCapacity;
 use crate::domain::fault::types::DerivedFault;
@@ -57,8 +58,7 @@ pub(crate) fn build(
         part.table.count.0 += 1;
         part.sources.push(from);
     }
-    part.index =
-        crate::domain::equality::service::build(&part.table, &[ColumnIndex(0)], Some(part.index))?;
+    part.index = crate::domain::equality::service::build(&part.table, &[SOURCE], Some(part.index))?;
     part.sources.sort_unstable();
     part.sources.dedup();
     Ok(part)
