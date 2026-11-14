@@ -48,9 +48,13 @@ pub fn portable_fault(
                 ..
             },
         ) => OperatingError::InvalidRegex { reason },
-        PortableOperatorFault::MissingCapture
-        | PortableOperatorFault::WrongOperation
-        | PortableOperatorFault::UnsupportedRender => OperatingError::WrongOperation,
+        PortableOperatorFault::MissingCapture { capture } => OperatingError::InvalidRegex {
+            reason: format!("missing named capture `{}`", capture.0),
+        },
+        PortableOperatorFault::Derived(fault) => derived_fault(fault),
+        PortableOperatorFault::WrongOperation | PortableOperatorFault::UnsupportedRender => {
+            OperatingError::WrongOperation
+        }
     }
 }
 
@@ -87,5 +91,32 @@ pub(crate) fn written_result(
         Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written) => Ok(()),
         Ok(_) => Err(OperatingError::WrongOperation),
         Err(error) => Err(portable_fault(error)),
+    }
+}
+
+/// A provider's unsupported answer invalidates the consuming rule, with the provider's reason: the first unsupported answer of
+/// the batch.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operating::errors::OperatingError;
+/// use ryo_execution_domain::domain::operating::service::unsupported_render;
+/// assert!(matches!(unsupported_render(&[]), OperatingError::SemanticIncomplete { .. }));
+/// ```
+#[must_use]
+pub fn unsupported_render(
+    answers: &[ryo_language::domain::semantics::types::RenderOutcome],
+) -> OperatingError {
+    use ryo_language::domain::semantics::types::RenderOutcome;
+    let reason = answers.iter().find_map(|answer| match answer {
+        RenderOutcome::Unsupported(reason) => Some(reason.0),
+        RenderOutcome::Known(_) | RenderOutcome::NotApplicable => None,
+    });
+    OperatingError::SemanticIncomplete {
+        reason: format!(
+            "selected language cannot render this syntax (reason {})",
+            reason.map_or_else(String::new, |reason| reason.to_string())
+        ),
     }
 }

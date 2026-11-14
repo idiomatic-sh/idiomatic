@@ -122,3 +122,14 @@ pub(crate) fn evaluate(
     }
     Ok(())
 }
+
+/// The one lowering of a capture: its path column and slot pattern, for the `text_map` kernel.
+pub(crate) fn lower(
+    path: ryo_values::domain::plan_parts::types::ColumnIndex,
+    pattern: &ryo_values::domain::plan_parts::types::CapturePattern,
+) -> super::types::CaptureParts {
+    super::types::CaptureParts {
+        path,
+        pattern: pattern.clone(),
+    }
+}

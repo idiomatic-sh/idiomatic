@@ -1,5 +1,11 @@
 //! The run use case through `plan` and `run` only: what a planned program answers, how often it reads its facts, what it holds
 //! and which fault it reports, each against the same rows run another way.
+#[cfg(test)]
+mod ordered_match;
+#[cfg(test)]
+mod render;
+#[cfg(test)]
+mod text_map;
 use super::fixtures::cases::{DEFINES, defines, input_of, named, select, self_matching};
 use super::fixtures::{TableInputs, TextResources, emitted, rewritten};
 use crate::cases::{Case, CaseName, Expect, Word, run};

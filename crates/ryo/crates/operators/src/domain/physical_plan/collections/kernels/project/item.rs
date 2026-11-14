@@ -30,6 +30,9 @@ impl KernelsItem for ProjectItem {
                 | Lowering::Extend { .. }
                 | Lowering::Distinct { .. }
                 | Lowering::Group { .. }
+                | Lowering::TextMap { .. }
+                | Lowering::OrderedMatch { .. }
+                | Lowering::Render { .. }
                 | Lowering::Unlowered => false,
             }
         };

@@ -64,11 +64,13 @@ pub(crate) fn evaluate(
         },
     );
     let latched = driver.take_failure();
-    let refusal = match answer {
-        Err(Fault::MissingCapture) if latched.is_none() => missing_capture(operation),
-        Err(Fault::UnsupportedRender) if latched.is_none() => {
-            Some(unsupported_render(driver.rendered_answers()))
-        }
+    let refusal = match &answer {
+        Err(fault @ Fault::MissingCapture { .. }) if latched.is_none() => Some(
+            crate::domain::operating::service::portable_fault(fault.clone()),
+        ),
+        Err(Fault::UnsupportedRender) if latched.is_none() => Some(
+            crate::domain::operating::service::unsupported_render(driver.rendered_answers()),
+        ),
         _ => None,
     };
     let lease = driver.finish();
@@ -77,34 +79,4 @@ pub(crate) fn evaluate(
         return Err(refusal);
     }
     crate::domain::operating::service::written_result(answer, latched)
-}
-
-/// A named capture the matcher does not have is an invalid regular expression of the operation.
-pub(super) fn missing_capture(operation: &Operation) -> Option<OperatingError> {
-    let Operation::SourceMatches { capture, .. } = operation else {
-        return None;
-    };
-    Some(OperatingError::InvalidRegex {
-        reason: format!(
-            "missing named capture `{}`",
-            capture.as_ref().map(|name| &*name.0).unwrap_or_default()
-        ),
-    })
-}
-
-/// A provider's unsupported answer invalidates the consuming rule, with the provider's reason.
-pub(super) fn unsupported_render(
-    answers: &[ryo_language::domain::semantics::types::RenderOutcome],
-) -> OperatingError {
-    use ryo_language::domain::semantics::types::RenderOutcome;
-    let reason = answers.iter().find_map(|answer| match answer {
-        RenderOutcome::Unsupported(reason) => Some(reason.0),
-        RenderOutcome::Known(_) | RenderOutcome::NotApplicable => None,
-    });
-    OperatingError::SemanticIncomplete {
-        reason: format!(
-            "selected language cannot render this syntax (reason {})",
-            reason.map_or_else(String::new, |reason| reason.to_string())
-        ),
-    }
 }

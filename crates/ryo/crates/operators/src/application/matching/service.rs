@@ -19,6 +19,14 @@ impl<Matching: MatchingUseCase + ?Sized> PatternSemantics for Matching {
     fn matches_regex(&self, regex: &CompiledRegex, text: SearchText<'_>) -> MatchOutcome {
         MatchingUseCase::matches_regex(self, regex, text)
     }
+    fn visit_regex_matches(
+        &self,
+        regex: &CompiledRegex,
+        text: SearchText<'_>,
+        each: &mut dyn FnMut(TextSpan) -> std::ops::ControlFlow<()>,
+    ) -> std::ops::ControlFlow<()> {
+        MatchingUseCase::visit_regex_matches(self, regex, text, each)
+    }
     fn visit_regex_captures(
         &self,
         regex: &CompiledRegex,
@@ -47,6 +55,14 @@ impl PatternSemantics for super::types::PortSemantics<'_> {
     }
     fn matches_regex(&self, regex: &CompiledRegex, text: SearchText<'_>) -> MatchOutcome {
         self.0.matches_regex(regex, text)
+    }
+    fn visit_regex_matches(
+        &self,
+        regex: &CompiledRegex,
+        text: SearchText<'_>,
+        each: &mut dyn FnMut(TextSpan) -> std::ops::ControlFlow<()>,
+    ) -> std::ops::ControlFlow<()> {
+        self.0.visit_regex_matches(regex, text, each)
     }
     fn visit_regex_captures(
         &self,

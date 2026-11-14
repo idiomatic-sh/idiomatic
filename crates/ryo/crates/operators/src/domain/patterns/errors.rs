@@ -10,3 +10,15 @@ pub enum PatternsError {
         reason: String,
     },
 }
+
+impl From<PatternsError> for crate::domain::contract::types::PortableOperatorFault {
+    /// A pattern that is no regular expression, as the run reports it: the matcher's reason, unchanged.
+    fn from(error: PatternsError) -> Self {
+        let PatternsError::InvalidRegex { reason } = error;
+        Self::Pattern(
+            ryo_matching::inbound::use_cases::matching::errors::MatchingError::InvalidRegex {
+                reason,
+            },
+        )
+    }
+}

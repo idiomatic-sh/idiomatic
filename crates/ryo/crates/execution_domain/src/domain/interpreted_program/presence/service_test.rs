@@ -880,13 +880,17 @@ fn portable(fault: &ryo_operators::domain::contract::types::PortableOperatorFaul
         UnsupportedRender => Fault::RowFallible(RENDER),
         NoSuchColumn { .. } | WrongOperation | UnboundKey | WrongBinding | Unbound => Fault::Fixed,
         // A named capture the matcher lacks, raised when a row first reaches the search.
-        MissingCapture => Fault::RowFallible(CAPTURE),
+        MissingCapture { .. } => Fault::RowFallible(CAPTURE),
         Interrupted | NotRun => Fault::Engine,
         // A comparison's fault is the operating error it maps to, variant for variant.
         WrongTest => operating(&OperatingError::WrongTest),
         Pattern(_) => operating(&OperatingError::InvalidRegex {
             reason: String::new(),
         }),
+        // An ordering's fault is the operating error it maps to, variant for variant.
+        Derived(derived) => operating(&crate::domain::operating::service::derived_fault(
+            derived.clone(),
+        )),
     }
 }
 
@@ -1034,7 +1038,7 @@ fn located_proof(raised: Raised<'_>) -> Option<LocatedProof> {
             Some(LocatedProof::SpanGate)
         }
         Raised::Operating(OperatingError::InvalidRegex { .. })
-        | Raised::Portable(P::MissingCapture) => Some(LocatedProof::MatcherSlot),
+        | Raised::Portable(P::MissingCapture { .. }) => Some(LocatedProof::MatcherSlot),
         Raised::Operating(
             OperatingError::DuplicateDfsOrder
             | OperatingError::DfsOrdinalOverflow
@@ -1070,7 +1074,7 @@ fn located_proof(raised: Raised<'_>) -> Option<LocatedProof> {
             | P::NotRun,
         ) => None,
         Raised::Portable(P::Pattern(_)) => Some(LocatedProof::MatcherSlot),
-        Raised::Portable(P::WrongTest) => None,
+        Raised::Portable(P::WrongTest | P::Derived(_)) => None,
     }
 }
 
@@ -1115,7 +1119,7 @@ fn portable_position(
         InvalidSpanBounds => 3,
         InvalidSpan => 4,
         InvalidSourceMatchSpan => 5,
-        MissingCapture => 6,
+        MissingCapture { .. } => 6,
         WrongOperation => 7,
         UnboundKey => 8,
         UnsupportedRender => 9,
@@ -1124,6 +1128,7 @@ fn portable_position(
         NotRun => 12,
         WrongTest => 13,
         Pattern(_) => 14,
+        Derived(_) => 15,
     }
 }
 
@@ -1213,7 +1218,9 @@ fn verdicts() -> Verdicts {
         PortableOperatorFault::InvalidSpanBounds,
         PortableOperatorFault::InvalidSpan,
         PortableOperatorFault::InvalidSourceMatchSpan,
-        PortableOperatorFault::MissingCapture,
+        PortableOperatorFault::MissingCapture {
+            capture: LiteralText("".into()),
+        },
         PortableOperatorFault::WrongOperation,
         PortableOperatorFault::UnboundKey,
         PortableOperatorFault::UnsupportedRender,
@@ -1279,7 +1286,9 @@ fn verdicts() -> Verdicts {
             &ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers::default(),
         ),
         not_run: operating(&OperatingError::NotRun),
-        missing_capture: portable(&PortableOperatorFault::MissingCapture),
+        missing_capture: portable(&PortableOperatorFault::MissingCapture {
+            capture: LiteralText("".into()),
+        }),
     }
 }
 
@@ -1329,7 +1338,7 @@ const SEARCHED: &[Cow<'static, str>] = &[
     Cow::Borrowed("Operating(ShapeMismatch)"),
     Cow::Borrowed("Portable(ShapeMismatch)"),
     Cow::Borrowed("Portable(InvalidSourceMatchSpan)"),
-    Cow::Borrowed("Portable(MissingCapture)"),
+    Cow::Borrowed("Portable(MissingCapture { capture: LiteralText(\"\") })"),
 ];
 
 const CASES: &[Case<Input, Value, Failure>] = &[

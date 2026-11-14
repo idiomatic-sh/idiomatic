@@ -23,7 +23,10 @@ pub enum PortableOperatorFault {
     /// An occurrence cannot be represented inside the validated physical source.
     InvalidSourceMatchSpan,
     /// A required named regular-expression capture is absent.
-    MissingCapture,
+    MissingCapture {
+        /// The capture the pattern lacks.
+        capture: ryo_values::domain::plan_parts::types::LiteralText,
+    },
     /// The supplied semantic options are not a valid operation.
     WrongOperation,
     /// A requested table key is absent from a table.
@@ -38,6 +41,8 @@ pub enum PortableOperatorFault {
     NotRun,
     /// A comparison's test is not one of its family's.
     WrongTest,
+    /// The ordering of an ordered match refused its rows: the derived fault, mapped 1:1 by the engine.
+    Derived(ryo_derived::domain::fault::types::DerivedFault),
     /// A pattern a comparison compiled is no regular expression.
     Pattern(ryo_matching::inbound::use_cases::matching::errors::MatchingError),
 }

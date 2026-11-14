@@ -46,6 +46,13 @@ pub trait PatternSemantics: sealed::Sealed {
     fn compile_regex(&self, pattern: RegexSource<'_>) -> Result<CompiledRegex, MatchingError>;
     /// Searches text with a compiled regex.
     fn matches_regex(&self, regex: &CompiledRegex, text: SearchText<'_>) -> MatchOutcome;
+    /// Visits the occurrences of a compiled regex in source order, stopping when `each` breaks.
+    fn visit_regex_matches(
+        &self,
+        regex: &CompiledRegex,
+        text: SearchText<'_>,
+        each: &mut dyn FnMut(TextSpan) -> std::ops::ControlFlow<()>,
+    ) -> std::ops::ControlFlow<()>;
     /// Visits the matches of a named capture in source order, refusing a name the regex lacks before reading any text.
     ///
     /// # Errors

@@ -44,3 +44,18 @@ pub(crate) struct RenderedShape<'a> {
     /// The columns between tab stops.
     pub tab_width: ryo_values::domain::query_operators::types::TabWidth,
 }
+
+/// What a fit check lowers to: the text columns and literals, the span, the widest line and the tab stop.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct FitsParts {
+    /// The columns whose texts the candidate interleaves.
+    pub(crate) texts: Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
+    /// The literals before, between and after the texts.
+    pub(crate) literals: Vec<ryo_values::domain::plan_parts::types::LiteralText>,
+    /// The span the candidate replaces.
+    pub(crate) span: ryo_values::domain::plan_parts::types::ColumnIndex,
+    /// The widest permitted line.
+    pub(crate) max_line: ryo_values::domain::query_operators::types::MaxLine,
+    /// The columns between tab stops.
+    pub(crate) tab_width: ryo_values::domain::query_operators::types::TabWidth,
+}

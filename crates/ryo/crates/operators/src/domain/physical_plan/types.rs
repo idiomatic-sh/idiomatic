@@ -7,7 +7,7 @@ pub mod physical_plan;
 
 use crate::domain::aggregate::types::GroupParts;
 use crate::domain::append::types::ExtendParts;
-use crate::domain::contract::types::{PortableOperatorFault, RenderKind};
+use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::ProbeParts;
 use crate::domain::project::types::ProjectParts;
 use crate::domain::select::types::SelectParts;
@@ -101,11 +101,11 @@ pub struct OpenFileBytes<'a>(pub &'a [u8]);
 
 /// The nodes a batch of renderings asks for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct RenderRequests<'a>(pub &'a [NodeId]);
+pub struct RenderRequests<'a>(pub &'a [ryo_language::domain::semantics::types::RenderRequest]);
 
 /// What the provider answered for each rendering of a batch, in request order.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct RenderOutcomes(pub Vec<RenderKind>);
+pub struct RenderOutcomes(pub Vec<ryo_language::domain::semantics::types::RenderOutcome>);
 
 /// The rows a run reads besides its own nodes', which the engine holds for the open file.
 pub trait PlanInputs {
@@ -222,6 +222,29 @@ pub(crate) enum Lowering {
         /// The keys and what is counted.
         group: GroupParts,
     },
+    /// `text_map`: each row of the source through one text kind's per-row meaning, giving none, one or many rows.
+    TextMap {
+        /// What it reads.
+        source: RowSource,
+        /// The kind's parts.
+        map: RowMap,
+    },
+    /// `ordered_match`: both sources ordered by key then order, each left row paired with the earliest later right row.
+    OrderedMatch {
+        /// The left rows.
+        left: RowSource,
+        /// The right rows.
+        right: RowSource,
+        /// The keys, the orders and the output.
+        ordered: crate::domain::ordered_match::types::OrderedParts,
+    },
+    /// `render`: one batch of renderings for every row of the source, refused whole on one unsupported answer.
+    Render {
+        /// What it reads.
+        source: RowSource,
+        /// The node column and the role.
+        render: crate::domain::render_batch::types::RenderParts,
+    },
     /// No kernel at this stage: the plan's `unserved` names the stage that lowers it.
     Unlowered,
 }
@@ -319,15 +342,6 @@ pub(crate) enum InputRows<'a> {
     Table(&'a Table),
 }
 
-/// The rows a node's kernels read: its first input's, and its second's when it reads two.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct KernelInputs<'a> {
-    /// The first input's rows.
-    pub(crate) input: InputRows<'a>,
-    /// The second input's rows, when the node reads two.
-    pub(crate) other: Option<InputRows<'a>>,
-}
-
 /// Rows keyed by key columns: the rows and their key columns.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct KeyedSide<'a> {
@@ -350,15 +364,25 @@ pub(crate) struct KeyedRowAt<'a> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct CellStart(pub(crate) usize);
 
-/// The rows a node's kernel reads: a relation's, lent in place, or an earlier node's, taken while it reads them.
-#[derive(Debug)]
-pub(crate) enum Reading<'a> {
-    /// A relation's columns.
-    Facts(ColumnsView<'a>),
-    /// A tree relation's rows.
-    Tree(TreeRead<'a>),
-    /// An earlier node and its rows and pending fault.
-    Node(PlanNodeId, TakenRows),
+/// What a `text_map` stage does to each row: one text kind's per-row meaning, its parts built by the kind's own lowering.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum RowMap {
+    /// `capture`.
+    Capture(crate::domain::capture::types::CaptureParts),
+    /// `replace`.
+    Replace(crate::domain::replace::types::ReplaceParts),
+    /// `source-matches`.
+    SourceMatches(crate::domain::source_matches::types::SourceMatchesParts),
+    /// `span-bounds`.
+    SpanBounds(crate::domain::span_bounds::types::SpanBoundsParts),
+    /// `span-between`.
+    SpanBetween(crate::domain::span_between::types::SpanBetweenParts),
+    /// `words`.
+    Words(crate::domain::words::types::WordsParts),
+    /// `rank`.
+    Rank(crate::domain::rank::types::RankParts),
+    /// `fits-rendered`.
+    FitsRendered(crate::domain::fits_rendered::types::FitsParts),
 }
 
 /// A tree relation's rows as one node reads them: the open file's elements at the tree nodes the engine named, in tree order.

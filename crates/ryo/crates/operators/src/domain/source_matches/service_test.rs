@@ -24,7 +24,15 @@ enum Scenario {
 }
 type Input = Scenario;
 type Value = std::borrow::Cow<'static, [Cell]>;
-type Failure = PortableOperatorFault;
+/// A refusal as a case states it: a fault, or a missing capture by its name.
+#[derive(Debug, PartialEq)]
+enum Refusal {
+    /// Any other fault.
+    Fault(PortableOperatorFault),
+    /// The capture the pattern lacks.
+    MissingCapture(std::borrow::Cow<'static, str>),
+}
+type Failure = Refusal;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("physical_crlf_and_cr_lines_track_whole_and_captured_spans"),
@@ -59,25 +67,29 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("unknown_named_capture_refuses_before_intern_or_emit"),
         word: Word::Refuses,
         input: || Scenario::MissingCapture,
-        expect: Expect::Error(PortableOperatorFault::MissingCapture),
+        expect: Expect::Error(Refusal::MissingCapture(std::borrow::Cow::Borrowed(
+            "absent",
+        ))),
     },
     Case {
         name: CaseName("first_sink_failure_stops_before_next_capture"),
         word: Word::Refuses,
         input: || Scenario::Interrupted,
-        expect: Expect::Error(PortableOperatorFault::Interrupted),
+        expect: Expect::Error(Refusal::Fault(PortableOperatorFault::Interrupted)),
     },
     Case {
         name: CaseName("unrepresentable_absolute_span_refuses"),
         word: Word::Refuses,
         input: || Scenario::Overflow,
-        expect: Expect::Error(PortableOperatorFault::InvalidSourceMatchSpan),
+        expect: Expect::Error(Refusal::Fault(
+            PortableOperatorFault::InvalidSourceMatchSpan,
+        )),
     },
     Case {
         name: CaseName("capture_outputs_require_named_capture"),
         word: Word::Refuses,
         input: || Scenario::MissingOptions,
-        expect: Expect::Error(PortableOperatorFault::WrongOperation),
+        expect: Expect::Error(Refusal::Fault(PortableOperatorFault::WrongOperation)),
     },
 ];
 struct Driver {
@@ -149,7 +161,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     GroupName(name),
                     &mut |found, group| each(found.0, Some(group.0)),
                 )
-                .map_err(|_| PortableOperatorFault::MissingCapture),
+                .map_err(|_| PortableOperatorFault::MissingCapture {
+                    capture: ryo_values::domain::plan_parts::types::LiteralText(name.into()),
+                }),
             None => Ok(MatchingUseCaseImpl::new().visit_regex_matches(
                 &regex,
                 SearchText(source),
@@ -175,7 +189,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             assert_eq!(driver.deliveries, 0);
         }
     }
-    result?;
+    result.map_err(|fault| match fault {
+        PortableOperatorFault::MissingCapture { capture } => {
+            Refusal::MissingCapture(std::borrow::Cow::Owned(capture.0.into()))
+        }
+        other => Refusal::Fault(other),
+    })?;
     Ok(std::borrow::Cow::Owned(driver.rows))
 }
 #[test]

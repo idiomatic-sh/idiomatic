@@ -163,3 +163,127 @@ pub fn case_program() -> Vec<Step> {
         ),
     ]
 }
+
+/// The case program followed by one node of each text kind, each reading Defines: the program the catalogs of the served
+/// stages are checked over.
+#[must_use]
+pub fn text_program() -> Vec<Step> {
+    use ryo_values::domain::plan_parts::types::{CapturePattern, ParameterId};
+    use ryo_values::domain::query_operators::types::{LineOutput, MaxLine, TabWidth, TextOutput};
+    let from = || defines().0;
+    let read = |operation: Operation| step(operation, &[defines().1]);
+    let literal = |text: &str| LiteralText(text.into());
+    let mut steps = case_program();
+    steps.extend([
+        read(Operation::Capture {
+            from: from(),
+            path: ColumnIndex(3),
+            pattern: CapturePattern("{x}".into()),
+        }),
+        read(Operation::Rank {
+            from: from(),
+            column: ColumnIndex(3),
+            sets: ParameterId(0),
+        }),
+        read(Operation::Replace {
+            from: from(),
+            text: ColumnIndex(3),
+            pattern: literal("a"),
+            replacement: literal("b"),
+        }),
+        step(
+            Operation::OrderedMatch {
+                left: from(),
+                right: from(),
+                left_on: vec![ColumnIndex(3)],
+                right_on: vec![ColumnIndex(3)],
+                left_order: ColumnIndex(0),
+                right_order: ColumnIndex(0),
+                output: Vec::new(),
+            },
+            &[defines().1, defines().1],
+        ),
+        read(Operation::Words {
+            from: from(),
+            text: ColumnIndex(3),
+        }),
+        read(Operation::SpanBetween {
+            from: from(),
+            start: ColumnIndex(6),
+            end: ColumnIndex(6),
+        }),
+        read(Operation::SourceMatches {
+            from: from(),
+            span: ColumnIndex(6),
+            base_line: None,
+            pattern: literal("a"),
+            capture: None,
+            capture_text: TextOutput::Omitted,
+            capture_line: LineOutput::Omitted,
+        }),
+        read(Operation::RenderSyntax {
+            from: from(),
+            node: ColumnIndex(0),
+            context: ryo_language::domain::semantics::types::RenderContext::PositionalArgument,
+        }),
+        read(Operation::FitsRendered {
+            from: from(),
+            texts: vec![ColumnIndex(3)],
+            literals: vec![literal(""), literal("")],
+            span: ColumnIndex(6),
+            max_line: MaxLine(80),
+            tab_width: TabWidth(4),
+        }),
+        read(Operation::SpanBounds {
+            from: from(),
+            span: ColumnIndex(6),
+        }),
+    ]);
+    steps
+}
+
+/// Defines rows of file 0, one for each `(name, span)`, each its own node by its place; the kind and refinement cells are the
+/// name too.
+#[must_use]
+pub fn defines_rows(
+    rows: &[(
+        ryo_relations::domain::relations::types::Value,
+        ryo_relations::domain::relations::types::Span,
+    )],
+) -> ryo_values::domain::rows::types::Table {
+    use ryo_relations::domain::relations::types::{FileId, Position, Value};
+    let mut cells = Vec::with_capacity(rows.len() * 7);
+    for ((name, span), at) in rows.iter().zip(0..) {
+        let node = Value::Node(ryo_relations::domain::relations::fixtures::node_id(
+            FileId(0),
+            Position(at),
+        ));
+        cells.extend([
+            node,
+            *name,
+            *name,
+            *name,
+            node,
+            Value::File(FileId(0)),
+            Value::Span(*span),
+        ]);
+    }
+    ryo_values::domain::rows::types::Table {
+        kinds: ryo_relations::domain::relations::fixtures::kinds(DEFINES).to_vec(),
+        cells,
+        count: ryo_values::domain::rows::types::RowCount(rows.len()),
+    }
+}
+
+/// One node reading Defines.
+#[must_use]
+pub fn over_defines(operation: Operation) -> Step {
+    step(operation, &[defines().1])
+}
+
+/// One node reading the earlier nodes `at`, in order.
+#[must_use]
+pub fn over_nodes(operation: Operation, at: &[u32]) -> Step {
+    let inputs: Vec<PlanInput> = at.iter().map(|at| node(*at).1).collect();
+    step(operation, &inputs)
+}

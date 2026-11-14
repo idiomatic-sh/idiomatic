@@ -77,3 +77,23 @@ fn compile(
     }
     Ok(())
 }
+
+/// The compiled regex of `pattern` from `compiled`, compiled into it at its first use: one compile per pattern while the
+/// cache holds it.
+///
+/// # Errors
+///
+/// [`PatternsError::InvalidRegex`] with the matcher's reason when the pattern does not compile.
+pub(crate) fn compiled<'a>(
+    pattern: TextView<'_>,
+    compiled: &'a mut Patterns,
+    matcher: PatternMatcher<'_>,
+) -> Result<&'a CompiledRegex, PatternsError> {
+    compile(pattern, compiled, matcher)?;
+    compiled
+        .0
+        .get(pattern.0)
+        .ok_or_else(|| PatternsError::InvalidRegex {
+            reason: String::new(),
+        })
+}

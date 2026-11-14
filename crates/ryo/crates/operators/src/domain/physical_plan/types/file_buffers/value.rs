@@ -34,6 +34,10 @@ pub struct FileBuffers {
     pub(crate) written: Vec<Value>,
     /// The values a kernel collects: an extension's resolved values, a group's distinct values.
     pub(crate) values: Vec<Value>,
+    /// The row and text buffers of a text kind's rows, their capacity kept across files.
+    pub(crate) scratch: crate::domain::contract::types::RowScratch,
+    /// The places of a text kind's slots or words in their text, their capacity kept across files.
+    pub(crate) places: crate::domain::contract::types::RangeScratch,
     /// The place of each row `distinct` kept, by the hash of its cells, its capacity kept across nodes.
     pub(crate) seen: hashbrown::HashTable<ryo_values::domain::rows::types::RowCount>,
 }

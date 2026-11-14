@@ -1,13 +1,13 @@
-//! The catalogs hold: every kind of this stage lowers once, and every kernel is run by some lowering of the case program;
+//! The catalogs hold: every kind of a served stage lowers once, and every kernel is run by some lowering of the case program;
 //! each check is shown failing on a planted counter-example.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::interface::Reach;
-use crate::domain::physical_plan::fixtures::{Step, case_program};
-use crate::domain::physical_plan::service::{Kernel, REWRITES, lowered, plan_with, stage_of_kind};
+use crate::domain::physical_plan::fixtures::{Step, text_program};
+use crate::domain::physical_plan::service::{Kernel, REWRITES, SERVED, lowered, plan_with, stage_of_kind};
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::{
-    LogicalNode, Lowering, NodeBindings, PlanInput, PlanInputList, RuleOrdinal, ServedAt,
+    LogicalNode, Lowering, NodeBindings, PlanInput, PlanInputList, RuleOrdinal,
 };
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::service::kind_of;
@@ -25,7 +25,7 @@ enum Scenario {
 /// What a check found broken.
 #[derive(Debug, PartialEq)]
 enum Breach {
-    /// A kind of this stage the case program has no lowered node of.
+    /// A kind of a served stage the case program has no lowered node of.
     Unlowered(OperationKind),
     /// A kernel no lowering of the case program runs.
     Unreached(Kernel),
@@ -42,7 +42,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_kind_lowers_once"),
         word: Word::Succeeds,
         input: || Scenario::KindsLower,
-        expect: Expect::Value(9),
+        expect: Expect::Value(19),
     },
     Case {
         name: CaseName("a_kind_left_unlowered_fails_every_kind_lowers_once"),
@@ -54,7 +54,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_kernel_is_reached"),
         word: Word::Succeeds,
         input: || Scenario::KernelsReached,
-        expect: Expect::Value(11),
+        expect: Expect::Value(14),
     },
     Case {
         name: CaseName("a_kernel_no_lowering_runs_fails_every_kernel_is_reached"),
@@ -80,12 +80,12 @@ fn extension_unlowered(
     }
 }
 
-/// Every kind of this stage has a node of the case program `lower` lowers; every other kind is a later stage's.
+/// Every kind of a served stage has a node of the case program `lower` lowers; every other kind is a later stage's.
 fn kinds_lower(lower: Lower) -> Result<Value, Failure> {
-    let steps = case_program();
+    let steps = text_program();
     let mut held = 0;
     for kind in OperationKind::ALL {
-        if stage_of_kind(*kind) > ServedAt(1) {
+        if !SERVED.contains(&stage_of_kind(*kind)) {
             continue;
         }
         if !steps.iter().any(|step| {
@@ -128,9 +128,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::KindsLower => kinds_lower(lowered),
         Scenario::KindLeftUnlowered => kinds_lower(extension_unlowered),
-        Scenario::KernelsReached => kernels_reached(&case_program()),
+        Scenario::KernelsReached => kernels_reached(&text_program()),
         Scenario::KernelNoLoweringRuns => {
-            let steps: Vec<Step> = case_program()
+            let steps: Vec<Step> = text_program()
                 .into_iter()
                 .filter(|step| !matches!(step.operation, Operation::GroupCount { .. }))
                 .collect();

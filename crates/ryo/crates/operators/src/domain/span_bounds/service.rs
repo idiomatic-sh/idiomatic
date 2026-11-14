@@ -25,3 +25,8 @@ pub fn bounds(row: &[Value], column: ColumnIndex) -> Result<[Value; 2], Portable
     let end = i64::try_from(end).map_err(|_| PortableOperatorFault::InvalidSpanBounds)?;
     Ok([Value::Number(Integer(start)), Value::Number(Integer(end))])
 }
+
+/// The one lowering of a span-bounds: its span column, for the `text_map` kernel.
+pub(crate) fn lower(span: ColumnIndex) -> super::types::SpanBoundsParts {
+    super::types::SpanBoundsParts { span }
+}

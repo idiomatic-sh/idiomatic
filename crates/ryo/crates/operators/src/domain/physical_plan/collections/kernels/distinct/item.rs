@@ -25,6 +25,9 @@ impl KernelsItem for DistinctItem {
                 | Lowering::Lookup { .. }
                 | Lowering::Extend { .. }
                 | Lowering::Group { .. }
+                | Lowering::TextMap { .. }
+                | Lowering::OrderedMatch { .. }
+                | Lowering::Render { .. }
                 | Lowering::Unlowered => false,
             }
         };

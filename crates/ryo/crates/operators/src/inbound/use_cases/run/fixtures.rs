@@ -31,6 +31,8 @@ use std::cell::Cell;
 pub mod allocating;
 #[cfg(test)]
 pub(crate) mod cases;
+pub mod counting;
+pub mod texts;
 
 /// The rows of relations, held as a worker's columns, lent to a run and counted per read.
 #[derive(Debug, Default)]
@@ -137,6 +139,21 @@ pub struct TextResources {
     symbols: Symbols,
     /// The file's tree: no node, but in the small tree's resources.
     tree: Elements,
+    /// What each rendering of a batch answers, in request order.
+    renderings: Vec<ryo_language::domain::semantics::types::RenderOutcome>,
+    /// What the run asked of the resources, in order.
+    calls: Vec<ResourceCall>,
+}
+
+/// One request a run made of the resources.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ResourceCall {
+    /// A text interned in the file's symbols.
+    Interned(String),
+    /// A text minted as a derived symbol.
+    Minted(String),
+    /// A batch of renderings.
+    Rendered(Vec<ryo_language::domain::semantics::types::RenderRequest>),
 }
 
 impl TextResources {
@@ -155,6 +172,8 @@ impl TextResources {
             source,
             symbols,
             tree: Elements::default(),
+            renderings: Vec::new(),
+            calls: Vec::new(),
         }
     }
 
@@ -188,7 +207,34 @@ impl TextResources {
             source,
             symbols,
             tree,
+            renderings: Vec::new(),
+            calls: Vec::new(),
         }
+    }
+
+    /// These resources, each rendering of a batch answering `renderings` in request order.
+    #[must_use]
+    pub fn rendering(
+        mut self,
+        renderings: Vec<ryo_language::domain::semantics::types::RenderOutcome>,
+    ) -> Self {
+        self.renderings = renderings;
+        self
+    }
+
+    /// What the run asked of the resources, in order.
+    #[must_use]
+    pub fn calls(&self) -> &[ResourceCall] {
+        &self.calls
+    }
+
+    /// The symbol a derived text is.
+    fn derived(&mut self, text: CellText<'_>) -> Value {
+        Value::Symbol(intern_derived(
+            &mut self.symbols,
+            ByteSlice(&self.source),
+            NameText(text.0),
+        ))
     }
 
     /// The cell of the symbol whose text is `text`.
@@ -219,14 +265,12 @@ impl Resources for TextResources {
         }
     }
     fn intern(&mut self, text: CellText<'_>) -> Value {
-        Value::Symbol(intern_derived(
-            &mut self.symbols,
-            ByteSlice(&self.source),
-            NameText(text.0),
-        ))
+        self.calls.push(ResourceCall::Interned(text.0.to_owned()));
+        self.derived(text)
     }
     fn mint(&mut self, text: CellText<'_>) -> Value {
-        self.intern(text)
+        self.calls.push(ResourceCall::Minted(text.0.to_owned()));
+        self.derived(text)
     }
     fn source(&self) -> OpenFileBytes<'_> {
         OpenFileBytes(&self.source)
@@ -236,9 +280,19 @@ impl Resources for TextResources {
     }
     fn render(
         &mut self,
-        _requests: RenderRequests<'_>,
+        requests: RenderRequests<'_>,
     ) -> Result<RenderOutcomes, PortableOperatorFault> {
-        Err(PortableOperatorFault::WrongBinding)
+        if self.renderings.is_empty() {
+            return Err(PortableOperatorFault::WrongBinding);
+        }
+        self.calls.push(ResourceCall::Rendered(requests.0.to_vec()));
+        Ok(RenderOutcomes(
+            self.renderings
+                .iter()
+                .take(requests.0.len())
+                .cloned()
+                .collect(),
+        ))
     }
 }
 
@@ -258,12 +312,35 @@ pub fn emitted(
     resources: &mut dyn Resources,
     buffers: &mut FileBuffers,
 ) -> Result<Vec<Table>, PortableOperatorFault> {
+    let matching = std::sync::Arc::new(crate::outbound::matching::factory::use_case());
+    emitted_through(steps, emits, (&[], matching), inputs, resources, buffers)
+}
+
+/// What a program reads besides rows: the bindings every node reads, and the matching port the runner is composed with.
+pub type Composed<'a> = (
+    &'a [ryo_values::domain::query_bindings::types::ParameterBinding],
+    std::sync::Arc<dyn crate::outbound::matching::interface::MatchingPort>,
+);
+
+/// [`emitted`], each node reading `composed`'s bindings, run through `composed`'s matching port.
+///
+/// # Errors
+///
+/// The fault `plan` or `run` answers.
+pub fn emitted_through(
+    steps: &[Step],
+    emits: &[PlanNodeId],
+    (bindings, matching): Composed<'_>,
+    inputs: &dyn PlanInputs,
+    resources: &mut dyn Resources,
+    buffers: &mut FileBuffers,
+) -> Result<Vec<Table>, PortableOperatorFault> {
     let mut program = LogicalProgram::new();
     for step in steps {
         let _id = program.node(LogicalNode {
             operation: &step.operation,
             inputs: PlanInputList(&step.inputs),
-            bindings: NodeBindings(&[]),
+            bindings: NodeBindings(bindings),
             scope: StepScope::PerFile,
         });
     }
@@ -271,9 +348,7 @@ pub fn emitted(
         program.emit(RuleOrdinal(u32::try_from(rule).unwrap_or(u32::MAX)), *node);
     }
     let plan = PlanUseCaseImpl.plan(&program)?;
-    let run = RunUseCaseImpl::new(std::sync::Arc::new(
-        crate::outbound::matching::factory::use_case(),
-    ));
+    let run = RunUseCaseImpl::new(matching);
     let mut answered = Vec::with_capacity(emits.len());
     for node in emits {
         run.run(&plan, *node, buffers, inputs, resources)?;

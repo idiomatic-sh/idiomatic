@@ -42,3 +42,8 @@ pub fn between(
         end: right.end,
     }))
 }
+
+/// The one lowering of a span-between: its start and end span columns, for the `text_map` kernel.
+pub(crate) fn lower(start: ColumnIndex, end: ColumnIndex) -> super::types::SpanBetweenParts {
+    super::types::SpanBetweenParts { start, end }
+}

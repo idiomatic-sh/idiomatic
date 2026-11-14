@@ -23,7 +23,15 @@ enum Observation {
 }
 type Input = Scenario;
 type Value = Observation;
-type Failure = PortableOperatorFault;
+/// A refusal as a case states it: a fault, or a missing capture by its name.
+#[derive(Debug, PartialEq)]
+enum Refusal {
+    /// Any other fault.
+    Fault(PortableOperatorFault),
+    /// The capture the pattern lacks.
+    MissingCapture(Cow<'static, str>),
+}
+type Failure = Refusal;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("source_dispatch_preserves_crlf_and_capture_line_numbers"),
@@ -38,19 +46,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("source_unknown_capture_fails_even_when_regex_matches_nothing"),
         word: Word::Refuses,
         input: || Scenario::SourceMissingCapture,
-        expect: Expect::Error(Failure::MissingCapture),
+        expect: Expect::Error(Refusal::MissingCapture(Cow::Borrowed("absent"))),
     },
     Case {
         name: CaseName("source_capture_outputs_require_named_capture"),
         word: Word::Refuses,
         input: || Scenario::SourceMissingOptions,
-        expect: Expect::Error(Failure::WrongOperation),
+        expect: Expect::Error(Refusal::Fault(PortableOperatorFault::WrongOperation)),
     },
     Case {
         name: CaseName("source_second_sink_failure_stops_later_interns_and_delivery"),
         word: Word::Fails,
         input: || Scenario::SourceInterrupted,
-        expect: Expect::Error(Failure::Interrupted),
+        expect: Expect::Error(Refusal::Fault(PortableOperatorFault::Interrupted)),
     },
 ];
 fn source(input: Input) -> Result<Value, Failure> {
@@ -145,7 +153,12 @@ fn source(input: Input) -> Result<Value, Failure> {
         }
         _ => unreachable!(),
     }
-    result?;
+    result.map_err(|fault| match fault {
+        PortableOperatorFault::MissingCapture { capture } => {
+            Refusal::MissingCapture(Cow::Owned(capture.0.into()))
+        }
+        other => Refusal::Fault(other),
+    })?;
     Ok(Observation::Cells(Cow::Owned(
         delivery.rows.iter().map(|row| row[1]).collect(),
     )))

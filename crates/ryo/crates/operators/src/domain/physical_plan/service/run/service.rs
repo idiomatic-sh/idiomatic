@@ -9,20 +9,23 @@ use crate::domain::physical_plan::collections::kernels::extend::item::{
 use crate::domain::physical_plan::collections::kernels::filter::item::{filter, keep, kept_kinds};
 use crate::domain::physical_plan::collections::kernels::group::item::{GroupScratch, grouped};
 use crate::domain::physical_plan::collections::kernels::lookup::item::lookups;
+use crate::domain::physical_plan::collections::kernels::ordered_match::item::matched;
 use crate::domain::physical_plan::collections::kernels::probe::item::{ProbeScratch, probed};
 use crate::domain::physical_plan::collections::kernels::project::item::projected;
+use crate::domain::physical_plan::collections::kernels::render::item::rendered;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
     count_of, facts, kinds_of, row_of,
 };
 use crate::domain::physical_plan::collections::kernels::scan_node::item::{
     give_back, hold, sources_of, take,
 };
-use crate::domain::physical_plan::collections::kernels::scan_roots::item::roots;
+use crate::domain::physical_plan::collections::kernels::scan_roots::item::{copied, roots};
+use crate::domain::physical_plan::collections::kernels::text_map::item::{RowMapRun, mapped};
+use crate::domain::physical_plan::service::run::types::{KernelInputs, Reading};
 use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, NodeDecisions};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    CellStart, InputRows, KernelInputs, KernelRun, Lowering, NodeReaders, NodeRows, PlanNodeId,
-    Reading, RowSource,
+    CellStart, InputRows, KernelRun, Lowering, NodeReaders, NodeRows, PlanNodeId, RowSource,
 };
 use ryo_values::domain::rows::types::{RowIndex, Table};
 
@@ -103,6 +106,7 @@ fn rows_in<'r>(reading: &'r Reading<'_>) -> InputRows<'r> {
     match reading {
         Reading::Facts(view) => InputRows::Facts(view),
         Reading::Tree(tree) => InputRows::Tree(tree),
+        Reading::Copied(rows) => InputRows::Table(rows),
         Reading::Node(_, taken) => InputRows::Table(&taken.rows),
     }
 }
@@ -141,7 +145,10 @@ fn materialize(
         | Lowering::Extend { .. }
         | Lowering::Group { .. }
         | Lowering::Probe { .. }
-        | Lowering::Distinct { .. } => {}
+        | Lowering::Distinct { .. }
+        | Lowering::TextMap { .. }
+        | Lowering::OrderedMatch { .. }
+        | Lowering::Render { .. } => {}
     }
     let mut sources = sources_of(lowering);
     let first = sources
@@ -151,6 +158,9 @@ fn materialize(
     ready(plan, run, first, buffers)?;
     if let Some(second) = second {
         ready(plan, run, second, buffers)?;
+    }
+    if let Lowering::TextMap { .. } | Lowering::Render { .. } = lowering {
+        return minted(plan, run, node, lowering, first, buffers);
     }
     // An extension's values are made before its rows are read: making a name changes the file's names, and reading reads them.
     let resolution = match lowering {
@@ -167,6 +177,9 @@ fn materialize(
         | Lowering::Probe { .. }
         | Lowering::Distinct { .. }
         | Lowering::Lookup { .. }
+        | Lowering::TextMap { .. }
+        | Lowering::OrderedMatch { .. }
+        | Lowering::Render { .. }
         | Lowering::Unlowered => None,
     };
     let run: &KernelRun<'_> = run;
@@ -193,11 +206,13 @@ fn materialize(
     // union reads its right rows only after every left row.
     let blocked = match lowering {
         Lowering::Probe { .. } => right_fault.clone(),
-        Lowering::Group { .. } => left_fault.clone(),
+        Lowering::Group { .. } | Lowering::Render { .. } => left_fault.clone(),
+        Lowering::OrderedMatch { .. } => left_fault.clone().or_else(|| right_fault.clone()),
         Lowering::Filter { .. }
         | Lowering::Project { .. }
         | Lowering::Extend { .. }
         | Lowering::Distinct { .. }
+        | Lowering::TextMap { .. }
         | Lowering::Lookup { .. }
         | Lowering::Unlowered => None,
     };
@@ -243,7 +258,7 @@ fn materialize(
 /// The fault a read node raised after its rows.
 fn pending_of(reading: &Reading<'_>) -> Option<PortableOperatorFault> {
     match reading {
-        Reading::Facts(_) | Reading::Tree(_) => None,
+        Reading::Facts(_) | Reading::Tree(_) | Reading::Copied(_) => None,
         Reading::Node(_, taken) => taken.pending.clone(),
     }
 }
@@ -373,7 +388,76 @@ fn kernels(
             };
             grouped(input, &group.keys, group.distinct, scratch, output)?;
         }
-        Lowering::Lookup { .. } | Lowering::Unlowered => {}
+        Lowering::OrderedMatch { ordered, .. } => {
+            let right = other.ok_or(PortableOperatorFault::WrongOperation)?;
+            if let Err(fault) = matched(ordered, input, right, run.resources.texts(), output) {
+                return Ok(Some(fault));
+            }
+        }
+        // Run by `minted`, which holds the resources mutably while it reads its rows.
+        Lowering::TextMap { .. }
+        | Lowering::Render { .. }
+        | Lowering::Lookup { .. }
+        | Lowering::Unlowered => {}
     }
     Ok(None)
+}
+
+/// Runs a node that mints or renders through the resources while it reads its rows (a `text_map` stage or a `render`) and
+/// holds its rows and pending fault. It holds the resources mutably, so it reads a tree relation's rows from a copy, never
+/// from the elements in place.
+fn minted(
+    plan: &PhysicalPlan,
+    run: &mut KernelRun<'_>,
+    node: PlanNodeId,
+    lowering: &Lowering,
+    source: RowSource,
+    buffers: &mut FileBuffers,
+) -> Result<(), PortableOperatorFault> {
+    let inputs = run.inputs;
+    let input = match source {
+        RowSource::Tree(relation) => Reading::Copied(copied(&roots(inputs, run.resources.tree(), node, relation))),
+        RowSource::Facts(relation) => Reading::Facts(facts(inputs, relation)?),
+        RowSource::Node(read) => Reading::Node(read, take(buffers, read)?),
+    };
+    let pending = pending_of(&input);
+    let mut output = Table::default();
+    let made = match lowering {
+        // A render reads every row before it answers one: its input's fault comes before any of its rows.
+        Lowering::Render { render, .. } => match &pending {
+            Some(fault) => Ok(Some(fault.clone())),
+            None => Ok(rendered(render, rows_in(&input), run.resources, &mut output).err()),
+        },
+        Lowering::TextMap { map, .. } => match buffers
+            .decisions
+            .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
+        {
+            Some(decisions) => mapped(
+                map,
+                rows_in(&input),
+                &mut RowMapRun {
+                    resources: &mut *run.resources,
+                    matcher: run.matcher,
+                    decisions,
+                    scratch: &mut buffers.scratch,
+                    places: &mut buffers.places,
+                    output: &mut output,
+                },
+            ),
+            None => Err(PortableOperatorFault::WrongOperation),
+        },
+        Lowering::Filter { .. }
+        | Lowering::Lookup { .. }
+        | Lowering::Project { .. }
+        | Lowering::Extend { .. }
+        | Lowering::Probe { .. }
+        | Lowering::Distinct { .. }
+        | Lowering::Group { .. }
+        | Lowering::OrderedMatch { .. }
+        | Lowering::Unlowered => Err(PortableOperatorFault::WrongOperation),
+    };
+    returned(plan, buffers, input, NodeReaders(1));
+    let fault = made?;
+    hold(plan, buffers, node, output, fault.or(pending));
+    Ok(())
 }
