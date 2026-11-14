@@ -41,10 +41,13 @@ pub trait ContextPort {
         context: &CaseContext,
         sources: &BTreeMap<ryo::linter::RelativePath, ryo::linter::SourceText>,
     ) -> Result<ContextManifest, Error>;
-    /// Seal observed absences against the same filesystem snapshot as declared files.
+    /// The receipt of the dependencies a run observed, from the manifest alone: it reads no file,
+    /// so it costs the measured worker nothing per sealed byte. `verify_receipt` proves its bytes,
+    /// absences and fingerprints against the snapshot.
     ///
     /// # Errors
-    /// Refuses undeclared presences, appeared absences, escaping and duplicate dependencies.
+    /// Refuses undeclared presences, absences contradicting a sealed file, escaping and duplicate
+    /// dependencies.
     fn receipt(
         &self,
         manifest: &ContextManifest,
@@ -52,6 +55,9 @@ pub trait ContextPort {
         dependencies: Vec<ryo::linter::ProjectDependency>,
     ) -> Result<ProjectContextReceipt, Error>;
     /// Verify the receipt after crossing the worker boundary, including its opaque fingerprints.
+    /// Proves the snapshot (as `validate`), each walked dependency path, each present dependency's
+    /// bytes against its fingerprint and each new absence, then requires equality with `receipt` of
+    /// the same observations.
     ///
     /// # Errors
     /// Refuses a receipt that disagrees with the snapshot it claims.

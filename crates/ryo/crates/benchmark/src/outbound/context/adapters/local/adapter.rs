@@ -185,63 +185,39 @@ pub(crate) fn materialize(
     Ok(manifest)
 }
 
-/// Seal observed absences against the same filesystem snapshot as declared files.
-/// A missing observation is admissible only after the boundary verifies that path is absent.
+/// The receipt of the dependencies a run observed, from the manifest alone: it reads no file.
+/// `verify_receipt` proves its bytes, absences and fingerprints against the snapshot.
 pub(crate) fn receipt(
     manifest: &ContextManifest,
     actual_root: &Path,
     dependencies: Vec<ryo::linter::ProjectDependency>,
 ) -> Result<ProjectContextReceipt, Error> {
-    validate(manifest, actual_root)?;
     let mut effective = manifest.clone();
     let mut missing: std::collections::BTreeSet<_> = manifest.missing.iter().cloned().collect();
     let mut observed = BTreeMap::new();
     for dependency in dependencies {
         let path = PathBuf::from(dependency.path.0.as_ref());
-        let declared = walked_dependency(manifest, &path)?;
+        let declared = resolve(manifest, &path)?;
+        let sealed = manifest.auxiliary_files.contains_key(&declared)
+            || manifest.source_files.contains_key(&declared);
         let state = match dependency.state {
             ryo::linter::ProjectDependencyState::Present(fingerprint) => {
-                if !manifest.auxiliary_files.contains_key(&declared)
-                    && !manifest.source_files.contains_key(&declared)
-                {
+                if !sealed {
                     return Err(Error::Invalid(format!(
                         "undeclared present context dependency: {}",
                         path.display()
                     )));
                 }
-                let bytes = std::fs::read(manifest.boundary.join(&declared))?;
-                if ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes(&bytes))
-                    != fingerprint
-                {
-                    return Err(Error::Invalid(
-                        constants::PROJECT_DEPENDENCY_FINGERPRINT_DISAGREES.into(),
-                    ));
-                }
                 Some(fingerprint)
             }
             ryo::linter::ProjectDependencyState::Missing => {
-                if manifest.auxiliary_files.contains_key(&declared)
-                    || manifest.source_files.contains_key(&declared)
-                {
+                if sealed {
                     return Err(Error::Invalid(format!(
                         "missing context dependency contradicts a sealed file: {}",
                         path.display()
                     )));
                 }
-                if !missing.contains(&declared) {
-                    no_symlinks(&manifest.boundary, &declared)?;
-                    match std::fs::symlink_metadata(manifest.boundary.join(&declared)) {
-                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-                        Err(error) => return Err(error.into()),
-                        Ok(_) => {
-                            return Err(Error::Invalid(format!(
-                                "observed missing context path appeared: {}",
-                                path.display()
-                            )));
-                        }
-                    }
-                    let _new = missing.insert(declared);
-                }
+                let _new = missing.insert(declared);
                 None
             }
         };
@@ -263,11 +239,14 @@ pub(crate) fn receipt(
 }
 
 /// Verify the receipt after crossing the worker boundary, including its opaque dependency fingerprints.
+/// Proves the snapshot, walks each dependency path, reads each present dependency and checks each new
+/// absence, then requires the receipt of the same observations.
 pub(crate) fn verify_receipt(
     manifest: &ContextManifest,
     actual_root: &Path,
     observed: &ProjectContextReceipt,
 ) -> Result<(), Error> {
+    validate(manifest, actual_root)?;
     let dependencies = observed
         .dependencies
         .iter()
@@ -279,7 +258,37 @@ pub(crate) fn verify_receipt(
             ),
         })
         .collect();
-    if receipt(manifest, actual_root, dependencies)? != *observed {
+    let assembled = receipt(manifest, actual_root, dependencies)?;
+    for (path, state) in &observed.dependencies {
+        let declared = walked_dependency(manifest, path)?;
+        match state {
+            Some(fingerprint) => {
+                let bytes = std::fs::read(manifest.boundary.join(&declared))?;
+                if ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes(&bytes))
+                    != *fingerprint
+                {
+                    return Err(Error::Invalid(
+                        constants::PROJECT_DEPENDENCY_FINGERPRINT_DISAGREES.into(),
+                    ));
+                }
+            }
+            None if !manifest.missing.contains(&declared) => {
+                no_symlinks(&manifest.boundary, &declared)?;
+                match std::fs::symlink_metadata(manifest.boundary.join(&declared)) {
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(error) => return Err(error.into()),
+                    Ok(_) => {
+                        return Err(Error::Invalid(format!(
+                            "observed missing context path appeared: {}",
+                            path.display()
+                        )));
+                    }
+                }
+            }
+            None => {}
+        }
+    }
+    if assembled != *observed {
         return Err(Error::Invalid(
             constants::CONTEXT_RECEIPT_IDENTITY_DISAGREES.into(),
         ));
