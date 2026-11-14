@@ -323,6 +323,19 @@ pub enum StepScope {
 
 /// What a lookup into the syntax tree or its edges finds its rows by, as the engine looks the tree up where it is: the relation's
 /// columns its keys read, in order.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
+/// use ryo_relations::domain::relations::types::{Column, Relation};
+/// use ryo_values::domain::plan_parts::service::tree_lookup_key;
+/// use ryo_values::domain::plan_parts::types::{ColumnIndex, TreeLookupKey};
+/// assert_eq!(
+///     tree_lookup_key(Relation::SyntaxChild, &[ColumnIndex(1)]),
+///     Some(TreeLookupKey::Node(Column::SyntaxChild(SyntaxChildColumn::Child)))
+/// );
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TreeLookupKey {
     /// A node: the element's id, or one end of an edge, which is this column.
