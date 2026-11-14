@@ -30,7 +30,7 @@ fn main() {
                         answering: true
                     }
                 ),
-                "programs whose answer grows with the rows allocate more for more rows, and the row does not hold"
+                "each program whose answer grows with the rows allocates more for more rows: no row holds for it"
             );
             Ok(())
         },

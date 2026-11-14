@@ -37,22 +37,27 @@ enum KernelRow {
     SpanKinds,
 }
 
-/// Whether every row holds for `kernels`: a file of a hundred thousand rows allocates the same blocks as a file of a
-/// thousand, each measured with buffers warm from a file of the same rows. Programs that do not run do not hold it.
+/// Whether `kernels` holds the allocation rows, each judged on its own: a row holds when a file of a hundred thousand rows
+/// allocates the same blocks as a file of a thousand, each measured with buffers warm from a file of the same rows. The
+/// bounded programs hold only when every row holds; the answering programs hold when any row still holds, so their `false`
+/// shows every row able to fail.
+///
+/// # Panics
+///
+/// When a program faults: a program that does not run proves no row.
 #[must_use]
 pub fn held(kernels: &Kernels) -> bool {
-    [
+    let rows = [
         KernelRow::KeyedSelects,
         KernelRow::RepeatsDropped,
         KernelRow::SpanKinds,
-    ]
-    .into_iter()
-    .all(
-        |row| match (blocks(row, kernels, 1_000), blocks(row, kernels, 100_000)) {
-            (Some(few), Some(many)) => few == many,
-            (None, _) | (_, None) => false,
-        },
-    )
+    ];
+    let holds = |row: &KernelRow| blocks(*row, kernels, 1_000) == blocks(*row, kernels, 100_000);
+    if kernels.answering {
+        rows.iter().any(holds)
+    } else {
+        rows.iter().all(holds)
+    }
 }
 
 /// The two keyed selects, keyed on `name`.
@@ -103,9 +108,13 @@ fn defines(rows: usize, resources: &TextResources) -> Table {
     }
 }
 
-/// The blocks one file of `rows` rows allocates in `row`'s program, its buffers warm from a file of the same rows, or nothing
-/// when the program does not run. The caller's global allocator is `dhat`'s.
-fn blocks(row: KernelRow, kernels: &Kernels, rows: usize) -> Option<u64> {
+/// The blocks one file of `rows` rows allocates in `row`'s program, its buffers warm from a file of the same rows. The
+/// caller's global allocator is `dhat`'s.
+///
+/// # Panics
+///
+/// When the program faults.
+fn blocks(row: KernelRow, kernels: &Kernels, rows: usize) -> u64 {
     let _profiler = dhat::Profiler::builder().testing().build();
     let mut resources = TextResources::new(&["kind", "n0", "n1", "n2", "n3", "absent"]);
     let mut table = defines(rows, &resources);
@@ -124,7 +133,8 @@ fn blocks(row: KernelRow, kernels: &Kernels, rows: usize) -> Option<u64> {
         .map(PlanNodeId)
         .collect();
     let mut buffers = FileBuffers::default();
-    let _warm = emitted(&steps, &emits, &inputs, &mut resources, &mut buffers).ok()?;
+    #[expect(clippy::expect_used, reason = "a program that faults proves no allocation row: the panic is the failure")]
+    let _warm = emitted(&steps, &emits, &inputs, &mut resources, &mut buffers).expect("the warm file runs");
     // The warm file ends: the engine releases every node it kept, and the next file starts with their capacity.
     for node in &emits {
         buffers.release(*node);
@@ -132,7 +142,9 @@ fn blocks(row: KernelRow, kernels: &Kernels, rows: usize) -> Option<u64> {
     let before = dhat::HeapStats::get().total_blocks;
     let measured = emitted(&steps, &emits, &inputs, &mut resources, &mut buffers);
     let after = dhat::HeapStats::get().total_blocks;
-    measured.ok().map(|_| after - before)
+    #[expect(clippy::expect_used, reason = "a program that faults proves no allocation row: the panic is the failure")]
+    let _measured = measured.expect("the measured file runs");
+    after - before
 }
 
 /// Makes `table`'s rows four rows repeated: each row's node becomes the node of its name.
