@@ -1,5 +1,5 @@
 import lint_attributes from "rust/clippy/lint-attributes";
-import item_start from "rust/clippy/item-start";
+import item_heads from "rust/clippy/item-heads";
 let fns = select id, file from "syntax-tree" where kind = "fn";
 let fn_children = select l.parent as id, l.child as child, l.field as field, l.ordinal as ordinal, l.file as file from "syntax-child" as l join fns as r on l.parent = r.id;
 let lists = select id, child as list, file from fn_children where field = "param-list";
@@ -26,7 +26,8 @@ let where_clauses = select l.id as id, l.child as child, l.ordinal as ordinal, l
 let ends = union(left=signature_parts, right=where_clauses);
 let earlier_ends = select l.id as id, l.child as child, l.file as file from ends as l join ends as r on l.id = r.id where l.ordinal < r.ordinal;
 let last_ends = antijoin(left=ends, right=earlier_ends, left-on=["child"], right-on=["child"]);
-let starts = item_start(items=checked);
+let heads = item_heads(items=checked);
+let starts = select id, file, span from heads;
 let bounds = select l.id as id, l.file as file, l.span as start, r.child as finish_node from starts as l join last_ends as r on l.id = r.id;
 let bounded = select l.id as id, l.file as file, l.start as start, r.span as finish from bounds as l join "syntax-tree" as r on l.finish_node = r.id;
 let spanned = span-between(from=bounded, start="start", end="finish", output="span");

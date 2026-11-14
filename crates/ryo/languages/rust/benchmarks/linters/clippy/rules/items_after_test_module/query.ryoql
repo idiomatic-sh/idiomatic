@@ -1,5 +1,5 @@
 import lint_attributes from "rust/clippy/lint-attributes";
-import item_start from "rust/clippy/item-start";
+import item_heads from "rust/clippy/item-heads";
 import cfg_test from "rust/clippy/cfg-test";
 let containers = select id, file from "syntax-tree" where kind = "source-file" or kind = "item-list";
 let items = select l.parent as container, l.child as id, l.ordinal as ordinal, l.file as file from "syntax-child" as l join containers as r on l.parent = r.id where l.field = "items";
@@ -25,7 +25,8 @@ let suppressed = union(left=blocked, right=after_silenced);
 let followed = project(from=afters, columns=["test", "file"]);
 let lintable = antijoin(left=followed, right=suppressed, left-on=["test"], right-on=["test"]);
 let tests = select test as id, file from lintable;
-let starts = item_start(items=tests);
+let heads = item_heads(items=tests);
+let starts = select id, file, span from heads;
 let named = select l.id as id, l.file as file, l.span as start, r.child as name from starts as l join "syntax-child" as r on l.id = r.parent where r.field = "name";
 let ends = select l.id as id, l.file as file, l.start as start, r.span as finish from named as l join "syntax-tree" as r on l.name = r.id;
 let spanned = span-between(from=ends, start="start", end="finish", output="span");

@@ -1,4 +1,5 @@
 import inner_attributes from "rust/clippy/inner-attributes";
+import next_token from "rust/clippy/next-token";
 input elements: relation<id: node, file: file>;
 output relation<id: node, owner: node, file: file>;
 let edges = select l.child as id, l.parent as parent, l.ordinal as ordinal, l.file as file from "syntax-child" as l join elements as r on l.child = r.id;
@@ -17,11 +18,9 @@ let blocks = antijoin(left=lifted, right=bodies, left-on=["id"], right-on=["id"]
 let inner_lifted = union(left=blocks, right=bodies);
 let inner_owned = union(left=crate_level, right=inner_lifted);
 let detached = antijoin(left=listed, right=inner_marks, left-on=["id"], right-on=["id"]);
-let siblings = select l.id as id, r.child as owner, r.ordinal as ordinal, l.file as file from detached as l join "syntax-child" as r on l.parent = r.parent where r.ordinal > l.ordinal;
-let documented = select l.id as id, l.owner as owner, l.ordinal as ordinal, l.file as file from siblings as l join "syntax-tree" as r on l.owner = r.id where r.kind != "whitespace" and r.kind != "comment";
-let nearer = select l.id as id, l.owner as owner from documented as l join documented as r on l.id = r.id where r.ordinal < l.ordinal;
-let nearest = antijoin(left=documented, right=nearer, left-on=["id", "owner"], right-on=["id", "owner"]);
-let detached_owned = select id, owner, file from nearest;
+let detached_attributes = select id, file from detached;
+let nearest = next_token(tokens=detached_attributes);
+let detached_owned = select id, next as owner, file from nearest;
 let listed_owned = union(left=inner_owned, right=detached_owned);
 let owned = union(left=held, right=listed_owned);
 return owned;
