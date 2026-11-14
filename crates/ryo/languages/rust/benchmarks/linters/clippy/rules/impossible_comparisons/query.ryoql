@@ -1,0 +1,6 @@
+import constant_comparisons from "rust/clippy/constant-comparisons";
+import lint_attributes from "rust/clippy/lint-attributes";
+let found = constant_comparisons();
+let candidates = select id, file, span from found where finding = "impossible";
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:impossible_comparisons|correctness|all))\s*(?:,|$)");
+emit violations subject file key(id);

@@ -5,10 +5,10 @@ installs it with the toolchain's `clippy` component, and no other install is mad
 toolchain's own `clippy-driver` (`rustup which clippy-driver`), never the rustup proxy of the same name on the path.
 
 `benchmark.toml` pins the 495 lints a plain run of clippy 0.1.100 enables, `clippy::all`: its warn and deny lints. rustc's own warnings,
-which the same run prints, are the compiler's and are not compared. Of the 495, 7 have a query, each in `rules/<lint>/` with its cases;
-the other 488 are `deferred`, each under the limitation that blocks it. 406 of them read an expression's type or the standard item a
-path names, which is semantic analysis; `unauthored` and `numeric_literal_and_expression_shape` hold the lints this round's batches
-author from the relations the Rust provider reads. `fragments/lint-attributes.ryoql` holds the `allow`, `expect`, `warn`, `deny` and
+which the same run prints, are the compiler's and are not compared. Of the 495, 14 have a query, each in `rules/<lint>/` with its cases;
+the other 481 are `deferred`, each under the limitation that blocks it. 407 of them read an expression's type or the standard item a
+path names, which is semantic analysis; `unauthored` holds the lints this round's batches author from the relations the Rust provider
+reads. `fragments/lint-attributes.ryoql` holds the `allow`, `expect`, `warn`, `deny` and
 `forbid` attributes every query honors, as rustc reads them: the nearest attribute naming the lint, its group or `clippy::all` decides,
 and an `allow(warnings)` nearer than a `warn(warnings)` silences every warning under it.
 
@@ -17,7 +17,13 @@ These clippy findings have no query yet:
 - a literal inside a `macro_rules!` body, which clippy reports where a call expands it;
 - a string a macro other than the standard formatting macros passes to `format_args!` (`anyhow!`, `log::info!`), which
   `octal_escapes` does not read as an expression;
-- an outer `#[allow]` on a `mod` item, which clippy applies to the module's own file.
+- an outer `#[allow]` on a `mod` item, which clippy applies to the module's own file;
+- two expressions compared inside a macro's arguments (`assert!(a == b || a < b)`): `expression_shape` holds the file's own tree, not
+  the arguments read again from a call;
+- a pattern inside `matches!`, which is not read as a pattern;
+- two expressions clippy holds equal that differ beyond layout, comments inside them and a number's spelling: a type suffix inside a
+  larger expression (`x + 1` and `x + 1u32`), and locals bound alike under other names (`let y = x * 2; y` and `let z = x * 2; z`);
+- a comparison's constant that is a named constant or a `char`, which clippy evaluates (`x < C && x > 10`, `c > 'z' && c < 'a'`).
 
 The reference runs, in each root, the toolchain's `cargo-clippy` beside the verified driver:
 

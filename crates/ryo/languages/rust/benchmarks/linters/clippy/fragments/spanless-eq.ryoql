@@ -1,0 +1,11 @@
+import numeric_constants from "rust/clippy/numeric-constants";
+input pairs: relation<id: node, left: node, right: node, file: file, span: span>;
+output relation<id: node, left: node, right: node, file: file, span: span>;
+let shapes = select id, shape, file from "expression-shape";
+let left_classes = select l.id as id, l.left as left, l.right as right, l.file as file, l.span as span, r.shape as shape from pairs as l join shapes as r on l.left = r.id;
+let same_shape = select l.id as id, l.left as left, l.right as right, l.file as file, l.span as span from left_classes as l join shapes as r on l.right = r.id and l.shape = r.shape;
+let constants = numeric_constants();
+let left_values = select l.id as id, l.left as left, l.right as right, l.file as file, l.span as span, r.kind as kind, r.value as value from pairs as l join constants as r on l.left = r.id;
+let same_value = select l.id as id, l.left as left, l.right as right, l.file as file, l.span as span from left_values as l join constants as r on l.right = r.id and l.kind = r.kind and l.value = r.value;
+let equal = union(left=same_shape, right=same_value);
+return equal;
