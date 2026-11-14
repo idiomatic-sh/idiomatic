@@ -24,6 +24,7 @@ enum Scenario {
     CollectedCountOrder,
     StreamDigestOrder,
     DigestIdentity,
+    RowMeaningDigest,
 }
 type Input = Scenario;
 type Value = std::borrow::Cow<'static, [i64]>;
@@ -80,6 +81,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
+        name: CaseName("a_group_digest_s_row_meaning_is_first_row_distinct_count_and_digest_per_group"),
+        word: Word::Succeeds,
+        input: || Scenario::RowMeaningDigest,
+        expect: Expect::Value(std::borrow::Cow::Borrowed(ROW_MEANING_DIGESTS)),
+    },
+    Case {
         name: CaseName("digest_depends_on_resolved_text_set_and_not_order_repeats_or_handles"),
         word: Word::Succeeds,
         input: || Scenario::DigestIdentity,
@@ -112,6 +119,20 @@ fn values(groups: &Output) -> Vec<i64> {
         })
         .collect()
 }
+/// The row meaning of a group digest over (key, value) rows `[[1, 7], [2, 9], [1, 8], [1, 7], [2, 9], [3, 4]]`, sorted by
+/// key as main's engine hands them: per group, the first row, the count of distinct values and the digest of their
+/// numbers. Recorded from a run; the `group` kernel's digest measure answers the same.
+const ROW_MEANING_DIGESTS: &[i64] = &[
+    0,
+    2,
+    -5_686_229_789_459_316_394,
+    1,
+    1,
+    -5_928_100_084_692_852_672,
+    5,
+    1,
+    7_069_949_220_488_350_037,
+];
 fn number(value: i64) -> Cell {
     Cell::Number(Integer(value))
 }
@@ -178,6 +199,16 @@ impl DigestValues for Resolved {
             _ => "changed",
         };
         DigestDatum::Text(ryo_values::domain::row_texts::types::CellText(text))
+    }
+}
+/// Each number cell is digested as its number.
+struct Numbers;
+impl DigestValues for Numbers {
+    fn datum(&self, value: Cell) -> DigestDatum<'_> {
+        let Cell::Number(Integer(number)) = value else {
+            panic!("numeric fixture")
+        };
+        DigestDatum::Number(WholeNumber(number))
     }
 }
 fn digest(table: &Table, resolved: &Resolved) -> Output {
@@ -282,6 +313,20 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     AggregationCheckOrder::Streaming
                 },
                 &mut Vec::new(),
+            )?;
+        }
+        Scenario::RowMeaningDigest => {
+            let rows = [[1, 7], [2, 9], [1, 8], [1, 7], [2, 9], [3, 4]];
+            let mut order: Vec<_> = (0..rows.len()).map(RowIndex).collect();
+            order.sort_by_key(|at| rows[at.0][0]);
+            reduction::digest_groups(
+                &table(&rows),
+                &[ColumnIndex(0)],
+                ColumnIndex(1),
+                &order,
+                HashScratch(&mut Vec::new()),
+                &Numbers,
+                &mut output,
             )?;
         }
         Scenario::DigestIdentity => {
