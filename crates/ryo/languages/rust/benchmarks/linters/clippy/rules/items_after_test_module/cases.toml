@@ -1,0 +1,84 @@
+[[cases]]
+name = "item-after"
+files = { "src/lib.rs" = "pub fn a() {}\n#[cfg(test)]\nmod tests {}\npub fn b() {}\n" }
+expected = [{ file = "src/lib.rs", start = 27, end = 36 }]
+
+[[cases]]
+name = "visible-module-and-several-items"
+files = { "src/lib.rs" = "/// The tests.\n#[cfg(test)]\npub(crate) mod tests {\n    #[test]\n    fn t() {}\n}\npub use std::fmt::Debug;\npub const C: u8 = 1;\npub struct S;\nimpl S {\n    pub fn f(&self) {}\n}\nmacro_rules! m {\n    () => {};\n}\npub type T = u8;\n" }
+expected = [{ file = "src/lib.rs", start = 28, end = 48 }]
+
+[[cases]]
+name = "nothing-after"
+files = { "src/lib.rs" = "pub fn a() {}\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "file-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests;\npub fn b() {}\n", "src/tests.rs" = "#[test]\nfn t() {}\n" }
+expected = []
+
+[[cases]]
+name = "module-after"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {}\npub fn b() {}\npub mod other {}\n" }
+expected = []
+
+[[cases]]
+name = "two-test-modules"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod a {}\npub fn b() {}\n#[cfg(test)]\nmod c {}\npub fn d() {}\n" }
+expected = []
+
+[[cases]]
+name = "not-a-test-module"
+files = { "src/lib.rs" = "mod tests {}\npub fn b() {}\n#[cfg(all(test))]\nmod more {}\npub fn c() {}\n" }
+expected = []
+
+[[cases]]
+name = "nested-module"
+files = { "src/lib.rs" = "pub mod outer {\n    #[cfg(test)]\n    mod tests {}\n    pub fn b() {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 37, end = 46 }]
+
+[[cases]]
+name = "derived-item-after"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {}\n#[derive(Debug)]\npub struct S;\n" }
+expected = []
+
+[[cases]]
+name = "test-function-after"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {}\n#[test]\nfn t() {}\n" }
+expected = []
+
+[[cases]]
+name = "macro-call-after"
+files = { "src/lib.rs" = "macro_rules! m {\n    () => {\n        pub fn made() {}\n    };\n}\n#[cfg(test)]\nmod tests {}\nm!();\n" }
+expected = []
+
+[[cases]]
+name = "item-after-allowed"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {}\n#[allow(clippy::items_after_test_module)]\npub fn b() {}\npub fn c() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[cfg(test)]\n#[allow(clippy::items_after_test_module)]\nmod tests {}\npub fn b() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "pub mod a {\n    #[allow(clippy::style)]\n    #[cfg(test)]\n    mod tests {}\n    pub fn b() {}\n}\npub mod c {\n    #[cfg(test)]\n    #[allow(clippy::all)]\n    mod tests {}\n    pub fn b() {}\n}\npub mod d {\n    #[cfg(test)]\n    #[expect(warnings)]\n    mod tests {}\n    pub fn b() {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::items_after_test_module)]\n#[cfg(test)]\nmod tests {}\npub fn b() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inside-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    #![allow(clippy::items_after_test_module)]\n}\npub fn b() {}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::all)]\npub mod a {\n    #[cfg(test)]\n    #[warn(clippy::items_after_test_module)]\n    mod tests {}\n    pub fn b() {}\n}\npub mod c {\n    #[cfg(test)]\n    mod tests {}\n    pub fn b() {}\n}\n" }
+expected = []

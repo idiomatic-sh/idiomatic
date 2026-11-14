@@ -1,0 +1,59 @@
+[[cases]]
+name = "eight"
+files = { "src/lib.rs" = "pub fn f(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8) -> u8 {\n    a + b + c + d + e + f + g + h\n}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 70 }]
+
+[[cases]]
+name = "seven"
+files = { "src/lib.rs" = "pub fn f(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8) -> u8 {\n    a + b + c + d + e + f + g\n}\n" }
+expected = []
+
+[[cases]]
+name = "qualified-signature"
+files = { "src/lib.rs" = "/// Documented.\n#[inline]\npub(crate) const unsafe fn f<T: Copy>(t: T, a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8) -> T\nwhere\n    T: Clone,\n{\n    let _ = (a, b, c, d, e, f, g);\n    t\n}\npub async fn g(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8) {\n    let _ = (a, b, c, d, e, f, g, h);\n}\npub extern \"Rust\" fn k(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8) {\n    let _ = (a, b, c, d, e, f, g, h);\n}\n" }
+expected = [{ file = "src/lib.rs", start = 26, end = 143 }, { file = "src/lib.rs", start = 189, end = 259 }, { file = "src/lib.rs", start = 302, end = 380 }]
+
+[[cases]]
+name = "foreign-abi"
+files = { "src/lib.rs" = "pub extern \"C\" fn f(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8) {\n    let _ = (a, b, c, d, e, f, g, h);\n}\nunsafe extern \"C\" {\n    pub fn g(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8);\n}\n" }
+expected = []
+
+[[cases]]
+name = "methods"
+files = { "src/lib.rs" = "pub struct S;\nimpl S {\n    pub fn m(&self, a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8) {\n        let _ = (a, b, c, d, e, f, g);\n    }\n    pub fn n(self, a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8) {\n        let _ = (a, b, c, d, e, f, g);\n    }\n    pub fn o(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8) {\n        let _ = (a, b, c, d, e, f, g);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 27, end = 91 }, { file = "src/lib.rs", start = 143, end = 206 }]
+
+[[cases]]
+name = "trait-and-implementation"
+files = { "src/lib.rs" = "pub trait T {\n    fn required(&self, a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8);\n    fn provided(&self, a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8) {\n        let _ = (a, b, c, d, e, f, g);\n    }\n    fn returns(&self, a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8) -> u8;\n}\npub struct S;\nimpl T for S {\n    fn required(&self, a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8) {\n        let _ = (a, b, c, d, e, f, g);\n    }\n    fn returns(&self, a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8) -> u8 {\n        a + b + c + d + e + f + g\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 18, end = 85 }, { file = "src/lib.rs", start = 91, end = 158 }, { file = "src/lib.rs", start = 210, end = 282 }]
+
+[[cases]]
+name = "closure-and-nested"
+files = { "src/lib.rs" = "pub fn outer() -> u8 {\n    fn inner(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8) -> u8 {\n        a + b + c + d + e + f + g + h\n    }\n    let k = |a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8| a + b + c + d + e + f + g + h;\n    inner(1, 2, 3, 4, 5, 6, 7, 8) + k(1, 2, 3, 4, 5, 6, 7, 8)\n}\n" }
+expected = [{ file = "src/lib.rs", start = 27, end = 97 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    pub fn f(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8) {\n        let _ = (a, b, c, d, e, f, g, h);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 93 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::too_many_arguments)]\npub fn f(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8) {\n    let _ = (a, b, c, d, e, f, g, h);\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::complexity)]\npub fn f(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8) {\n    let _ = (a, b, c, d, e, f, g, h);\n}\n#[allow(clippy::all)]\npub fn g(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8) {\n    let _ = (a, b, c, d, e, f, g, h);\n}\n#[expect(warnings)]\npub fn k(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8) {\n    let _ = (a, b, c, d, e, f, g, h);\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::too_many_arguments)]\npub fn f(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8) {\n    let _ = (a, b, c, d, e, f, g, h);\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::all)]\n#[warn(clippy::too_many_arguments)]\npub fn f(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8) {\n    let _ = (a, b, c, d, e, f, g, h);\n}\npub fn g(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8) {\n    let _ = (a, b, c, d, e, f, g, h);\n}\n" }
+expected = [{ file = "src/lib.rs", start = 59, end = 123 }]
