@@ -6,8 +6,8 @@ use ryo_relations::domain::relations::service::columns;
 use ryo_relations::domain::relations::types::{Column, Relation};
 
 use super::types::{EdgeSource, ElementDemand, InputWidth, StartingRow};
-use crate::domain::fusing::service::source_column;
 use crate::domain::rewriting::types::StepIndex;
+use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::service::{column_place, relation_column};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Direction as AxisDirection;
@@ -116,7 +116,7 @@ fn descent_columns(
         columns.push(match kept.side {
             Side::Right => JoinColumn {
                 side: Side::Right,
-                column: source_column(view, kept.column)?,
+                column: view_source(view, kept.column)?,
             },
             Side::Left => {
                 let was = edges_output.get(usize::try_from(kept.column.0).unwrap_or(usize::MAX))?;
@@ -159,7 +159,7 @@ fn fuse_descent(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     let element_id = column_place(Column::SyntaxTree(SyntaxTreeColumn::Id));
     let edge_parent = column_place(Column::SyntaxChild(SyntaxChildColumn::Parent));
     let edge_child = column_place(Column::SyntaxChild(SyntaxChildColumn::Child));
-    if source_column(view, *right_key)? != element_id {
+    if view_source(view, *right_key)? != element_id {
         return None;
     }
     let middle = steps.get(usize::try_from(children.0).unwrap_or(usize::MAX))?;
@@ -202,7 +202,7 @@ fn fuse_descent(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         || !no_output.is_empty()
         || by_parent.as_slice() != [edge_parent]
         || only_nodes(domain_filter) == ElementDemand::More
-        || source_column(domain_view, *domain_id)? != element_id
+        || view_source(domain_view, *domain_id)? != element_id
     {
         return None;
     }
@@ -282,7 +282,7 @@ fn neighbour_columns(
         columns.push(match kept.side {
             Side::Right => JoinColumn {
                 side: Side::Right,
-                column: source_column(view, kept.column)?,
+                column: view_source(view, kept.column)?,
             },
             Side::Left => {
                 let was = edges_output.get(usize::try_from(kept.column.0).unwrap_or(usize::MAX))?;
@@ -327,7 +327,7 @@ fn fuse_neighbour(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         return None;
     };
     let element_id = column_place(Column::SyntaxTree(SyntaxTreeColumn::Id));
-    if source_column(view, *element_key)? != element_id {
+    if view_source(view, *element_key)? != element_id {
         return None;
     }
     let middle = steps.get(usize::try_from(edges.0).unwrap_or(usize::MAX))?;

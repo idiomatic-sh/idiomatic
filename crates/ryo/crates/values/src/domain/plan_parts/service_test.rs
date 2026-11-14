@@ -7,7 +7,7 @@ use ryo_relations::domain::relations::types::{Column, Relation};
 
 use super::service::{
     column_place, columns_of, each_column, each_column_mut, parameter_in, relation_column,
-    remapped, step_in, tree_lookup_key,
+    remapped, step_in, tree_lookup_key, view_source,
 };
 use super::types::{
     Applied, ColumnIndex, Function, LiteralText, Operand, ParameterId, QueryLiteral, StepId,
@@ -48,6 +48,10 @@ enum Scenario {
     TreeLookupsByTheirKeys,
     /// A lookup keyed on any other column of the tree or its edges, or on another relation, is not one.
     OtherLookupsAreNot,
+    /// A view's column reads the column the view keeps there, and an empty view reads its input whole.
+    ViewColumnsReadWhatTheViewKeeps,
+    /// A column past the last a non-empty view keeps reads nothing.
+    ViewColumnPastTheViewReadsNothing,
 }
 
 /// `concat(pascal(column 3), "Service", column 1)`.
@@ -165,6 +169,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::OtherLookupsAreNot,
         expect: Expect::Value(1),
     },
+    Case {
+        name: CaseName(
+            "a_view_column_reads_what_the_view_keeps_and_an_empty_view_reads_its_input_whole",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::ViewColumnsReadWhatTheViewKeeps,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_column_past_a_non_empty_view_reads_nothing"),
+        word: Word::Succeeds,
+        input: || Scenario::ViewColumnPastTheViewReadsNothing,
+        expect: Expect::Value(1),
+    },
 ];
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -203,6 +221,17 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     == Some(TreeLookupKey::FileThenSpan)
                 && tree_lookup_key(Relation::SyntaxTree, &[span, file])
                     == Some(TreeLookupKey::SpanThenFile)
+        }
+        Scenario::ViewColumnsReadWhatTheViewKeeps => {
+            let view = [ColumnIndex(0), ColumnIndex(3), ColumnIndex(4)];
+            view_source(&view, ColumnIndex(1)) == Some(ColumnIndex(3))
+                && view_source(&view, ColumnIndex(2)) == Some(ColumnIndex(4))
+                && view_source(&[], ColumnIndex(4)) == Some(ColumnIndex(4))
+        }
+        Scenario::ViewColumnPastTheViewReadsNothing => {
+            let view = [ColumnIndex(0), ColumnIndex(3), ColumnIndex(4)];
+            view_source(&view, ColumnIndex(3)).is_none()
+                && view_source(&view, ColumnIndex(u32::MAX)).is_none()
         }
         Scenario::OtherLookupsAreNot => {
             let edge = |column| column_place(Column::SyntaxChild(column));

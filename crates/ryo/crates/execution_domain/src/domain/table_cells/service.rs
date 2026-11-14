@@ -150,18 +150,6 @@ pub(crate) fn tree_value(
     }
 }
 
-/// The physical column of the tree a view's logical column reads: a view names only the columns it moves,
-/// so a column it does not name is the tree's own.
-pub(crate) fn source_column(
-    view: &[ryo_values::domain::plan_parts::types::ColumnIndex],
-    column: ryo_values::domain::plan_parts::types::ColumnIndex,
-) -> ryo_values::domain::plan_parts::types::ColumnIndex {
-    match view.get(usize::try_from(column.0).unwrap_or(usize::MAX)) {
-        Some(moved) => *moved,
-        None => column,
-    }
-}
-
 /// Pushes onto `found` the elements a left row finds in the tree: by the node it holds (the element itself,
 /// the child an edge leads to, or, when the key is the parent of the edges, the children of the node), or by
 /// the stretch of a file it holds (the elements that cover exactly that stretch). A node or stretch of

@@ -10,6 +10,7 @@ enum Scenario {
     SpanKeyOfElements,
     NodeKey,
     FileAndStretch,
+    StretchAndFile,
     UnsupportedShape,
 }
 type Input = Scenario;
@@ -37,6 +38,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Some(NativeFinding::Stretch(ColumnIndex(0), ColumnIndex(1)))),
     },
     Case {
+        name: CaseName(
+            "the_stretch_and_file_columns_are_a_stretch_lookup_of_the_left_file_and_stretch",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::StretchAndFile,
+        expect: Expect::Value(Some(NativeFinding::Stretch(ColumnIndex(1), ColumnIndex(0)))),
+    },
+    Case {
         name: CaseName("an_unsupported_shape_declines_without_a_fault"),
         word: Word::Succeeds,
         input: || Scenario::UnsupportedShape,
@@ -54,6 +63,12 @@ fn subject(input: Input) -> Result<Value, Failure> {
             NativeForm::Elements,
             &[c0, c1],
             &[ColumnIndex(3), ColumnIndex(4)],
+            &[],
+        ),
+        Scenario::StretchAndFile => finding(
+            NativeForm::Elements,
+            &[c0, c1],
+            &[ColumnIndex(4), ColumnIndex(3)],
             &[],
         ),
         Scenario::UnsupportedShape => finding(NativeForm::Edges, &[c0, c1], &[c0, c1], &[]),

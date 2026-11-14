@@ -61,6 +61,29 @@ pub fn relation_column(relation: Relation, index: ColumnIndex) -> Option<Column>
     column_in(&columns(relation), index).copied()
 }
 
+/// The column of a step's input that the column `column` of its view reads: the column itself when the view is empty, since the step
+/// then reads its input whole; else the column the view keeps at that place. A column past a non-empty view is none: the view does not
+/// make it, so nothing reads it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::plan_parts::service::view_source;
+/// use ryo_values::domain::plan_parts::types::ColumnIndex;
+/// let view = [ColumnIndex(0), ColumnIndex(3)];
+/// assert_eq!(view_source(&view, ColumnIndex(1)), Some(ColumnIndex(3)));
+/// assert_eq!(view_source(&view, ColumnIndex(2)), None);
+/// assert_eq!(view_source(&[], ColumnIndex(2)), Some(ColumnIndex(2)));
+/// ```
+#[must_use]
+pub fn view_source(view: &[ColumnIndex], column: ColumnIndex) -> Option<ColumnIndex> {
+    if view.is_empty() {
+        Some(column)
+    } else {
+        column_in(view, column).copied()
+    }
+}
+
 /// What a lookup into `relation` keyed on its columns `keys`, in order, finds its rows by, when the engine looks the syntax tree or
 /// its edges up where they are: an element by its id or its span, or by its file and span; an edge by its parent or its child.
 ///

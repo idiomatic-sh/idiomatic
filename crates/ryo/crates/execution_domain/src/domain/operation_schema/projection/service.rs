@@ -128,15 +128,18 @@ pub(crate) fn joined(
         .iter()
         .map(|column| {
             let (kinds, source) = match column.side {
-                Side::Left => (left, column.column),
+                Side::Left => (left, Some(column.column)),
                 Side::Right => (right, right_column(view, column.column)),
             };
-            column_in(kinds, source).copied().ok_or_else(|| {
-                RowsError::NoSuchColumn {
-                    index: column.column.0,
-                }
-                .into()
-            })
+            source
+                .and_then(|source| column_in(kinds, source))
+                .copied()
+                .ok_or_else(|| {
+                    RowsError::NoSuchColumn {
+                        index: column.column.0,
+                    }
+                    .into()
+                })
         })
         .collect()
 }
@@ -156,9 +159,12 @@ pub(crate) fn right_view<'a>(
 }
 
 /// The right input column a join's right column names, through its view when it has one.
-pub(crate) fn right_column(view: Option<&[ColumnIndex]>, column: ColumnIndex) -> ColumnIndex {
-    view.map_or(column, |view| {
-        crate::domain::table_cells::service::source_column(view, column)
+pub(crate) fn right_column(
+    view: Option<&[ColumnIndex]>,
+    column: ColumnIndex,
+) -> Option<ColumnIndex> {
+    view.map_or(Some(column), |view| {
+        ryo_values::domain::plan_parts::service::view_source(view, column)
     })
 }
 
@@ -292,7 +298,8 @@ pub(crate) fn output_origins<T: Copy>(
                     Side::Right if reach.is_some() => None,
                     Side::Right => side(
                         OriginSide::Right,
-                        pick(input(InputPlace(1)), right_column(view, column.column)),
+                        right_column(view, column.column)
+                            .and_then(|source| pick(input(InputPlace(1)), source)),
                     ),
                 })
                 .collect();

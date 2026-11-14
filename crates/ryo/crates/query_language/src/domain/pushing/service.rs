@@ -6,12 +6,12 @@ use super::types::FilterStep;
 use super::types::FilteredElements;
 use super::types::KeptColumns;
 use super::types::Pushed;
-use crate::domain::fusing::service::source_column;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::rewriting::types::StepIndex;
 use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
 use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
 use ryo_relations::domain::relations::types::{Column, Relation};
+use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::service::{column_place, remapped};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
@@ -87,9 +87,7 @@ fn above_with(mut operation: Operation, first: StepId) -> Operation {
 fn inward(chain: &[FilterStep<'_>], column: ColumnIndex, from: FilterDepth) -> Option<ColumnIndex> {
     let mut column = column;
     for FilterStep { kept, .. } in chain.iter().skip(from.0) {
-        if !kept.is_empty() {
-            column = *kept.get(usize::try_from(column.0).unwrap_or(usize::MAX))?;
-        }
+        column = view_source(kept, column)?;
     }
     Some(column)
 }
@@ -115,9 +113,8 @@ fn element_comparisons(
                                 .unwrap_or(usize::MAX),
                         )
                         .copied()?;
-                    (wanted.side == Side::Right).then(|| {
-                        source_column(element_view, wanted.column).unwrap_or(wanted.column)
-                    })
+                    (wanted.side == Side::Right)
+                        .then(|| view_source(element_view, wanted.column).unwrap_or(wanted.column))
                 })
             };
             filters.push(PlanComparison {
@@ -267,7 +264,7 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
         return None;
     };
     if *child != column_place(Column::SyntaxChild(SyntaxChildColumn::Child))
-        || source_column(element_view, *element_key)
+        || view_source(element_view, *element_key)
             != Some(column_place(Column::SyntaxTree(SyntaxTreeColumn::Id)))
     {
         return None;

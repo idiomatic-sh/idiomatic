@@ -4,6 +4,7 @@ use crate::domain::equality_join::types::{
     Advance, JoinDriver, JoinRow, JoinShape, PositionSlots, PositionTarget,
 };
 use ryo_relations::domain::relations::types::Value;
+use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 
 /// Ordered Join meaning over the engine-selected borrowed left representation.
@@ -38,12 +39,8 @@ pub(crate) fn join_row(
         for column in output {
             let value = match column.side {
                 Side::Left => read_left(column.column),
-                Side::Right => driver.right_cell(
-                    match view.get(usize::try_from(column.column.0).unwrap_or(usize::MAX)) {
-                        Some(physical) => *physical,
-                        None => column.column,
-                    },
-                ),
+                Side::Right => view_source(view, column.column)
+                    .and_then(|physical| driver.right_cell(physical)),
             }
             .ok_or(PortableOperatorFault::NoSuchColumn {
                 index: column.column,
