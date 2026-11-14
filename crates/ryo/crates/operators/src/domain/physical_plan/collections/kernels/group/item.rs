@@ -62,8 +62,7 @@ pub(crate) fn grouped(
     let (distinct, over) = match measure {
         GroupMeasure::Rows => (None, None),
         GroupMeasure::DistinctValues(column) => (Some(column), None),
-        // Red step: the digest measure lands in F3 commit 3.
-        GroupMeasure::Digest(_) => return Ok(()),
+        GroupMeasure::Digest(column) => (None, Some(column)),
     };
     let kinds = kinds_of(input);
     let mut answer = Vec::with_capacity(keys.len() + 2);

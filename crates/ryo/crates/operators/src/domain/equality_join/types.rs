@@ -166,6 +166,14 @@ pub(crate) enum ProbeMode {
 }
 
 /// Which end of an order an ordered probe keeps. `pub` until F3 commit 4: the engine's runtime names it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::equality_join::types::PartitionExtremum;
+///
+/// assert_ne!(PartitionExtremum::Maximum, PartitionExtremum::Minimum);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PartitionExtremum {
     /// The greatest: a left row is kept when no right row of its key orders after it.

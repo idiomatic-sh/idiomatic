@@ -8,7 +8,7 @@ use super::super::interface::{KernelsItem, Reach};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use super::super::hash_index::item::{cells, find_cells, hash_of, indexed, next_of};
-use super::super::probe::item::ProbeScratch;
+use super::super::probe::item::{ProbeScratch, probed};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of};
 use crate::domain::closure::types::ReachParts;
 use crate::domain::contract::types::PortableOperatorFault;
@@ -48,7 +48,6 @@ impl KernelsItem for ReachItem {
 
 /// The rows a reach walks from: every source of its edges, or the left rows of the join it was fused into.
 #[derive(Clone, Copy, Debug)]
-#[expect(dead_code, reason = "red step: F3 commit 3 runs it")]
 pub(crate) enum Starts<'a> {
     /// Every source of every partition, in partition order then ascending.
     Every,
@@ -89,13 +88,18 @@ pub(crate) fn reached(
     cells(KeyedSide { rows: edges, on: &columns.near }, index)?;
     walk.reached.clear();
     walk.runs.clear();
-    // Red step: the walks land in F3 commit 3; until then a reach answers no row.
-    let _ = (starts, run, probe);
-    output.count = RowCount(0);
-    Ok(None)
+    match starts {
+        Starts::Every => {
+            every(graph, edges, index, walk, output)?;
+            Ok(None)
+        }
+        Starts::Seeded(left, join) => {
+            seeded_rows(graph, edges, left, join, index, walk)?;
+            probed(&join.probe, left, InputRows::Table(&walk.rows), run, probe, output)
+        }
+    }
 }
 
-#[expect(dead_code, reason = "red step: F3 commit 3 runs it")]
 /// The closure from every start, partition by partition and source by source ascending, each start's entities ascending.
 fn every(
     graph: &ReachParts,
@@ -145,7 +149,6 @@ fn every(
     Ok(())
 }
 
-#[expect(dead_code, reason = "red step: F3 commit 3 runs it")]
 /// The work of one walk, borrowed from the scratch.
 struct WalkState<'w> {
     /// The entities met.
@@ -156,7 +159,6 @@ struct WalkState<'w> {
     reached: &'w mut Vec<Value>,
 }
 
-#[expect(dead_code, reason = "red step: F3 commit 3 runs it")]
 /// Appends to `state.reached` each entity the edges lead to from the start whose first edge row is `first`, once.
 fn walked(
     edges: InputRows<'_>,
@@ -191,7 +193,6 @@ fn walked(
     }
 }
 
-#[expect(dead_code, reason = "red step: F3 commit 3 runs it")]
 /// The rows each start a left row binds reaches, as the join's logical right rows, walking each start once.
 fn seeded_rows(
     graph: &ReachParts,
@@ -286,7 +287,6 @@ fn seeded_rows(
     Ok(())
 }
 
-#[expect(dead_code, reason = "red step: F3 commit 3 runs it")]
 /// The hash a walk keeps an entity it met under.
 fn value_hash(value: Value) -> IndexKeyHash {
     use std::hash::{Hash as _, Hasher as _};
