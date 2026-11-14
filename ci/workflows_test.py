@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import tomllib
 from copy import deepcopy
@@ -26,10 +27,12 @@ CAPTURE_GROUP = re.compile(r"asymptote check --groups ([a-z][a-z-]*) --format js
 # and the token `gh` creates the GitHub Release with; npm and PyPI exchange the OIDC token themselves.
 COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
 HANDED = {"CARGO_REGISTRY_TOKEN", "GH_TOKEN"}
-# What may start a workflow: a hand run alone (no paid CI: no pull request, no schedule). The release workflow, by name, may start
-# on a push to main too, which only the owner's merged release pull request makes; `pull_request_target`, which runs a fork's code
-# with the repository's secrets, never. A schedule starts only the workflows `SCHEDULED` names: none.
-ALLOWED = {"workflow_dispatch"}
+# What may start a workflow: a hand run, and a pull request to main for the workflows `REQUESTED` names, the check alone (GitHub's
+# standard hosted runners are free on a public repository). The release workflow, by name, may start on a push to main too, which
+# only a merged pull request makes; `pull_request_target`, which runs a fork's code with the repository's secrets, never. A
+# schedule starts only the workflows `SCHEDULED` names: none. A workflow that publishes starts only by hand or on a push to main.
+ALLOWED = {"workflow_dispatch", "pull_request"}
+REQUESTED = {"check.yml"}
 PUSHED = {"release.yml"}
 SCHEDULED: set[str] = set()
 # What may follow a job's check: uploading what its tools left (a bench's documents) as the run's artifact.
@@ -103,7 +106,9 @@ def environment(job: dict) -> str | None:
 
 def trigger_problems(name: str, workflow: dict) -> list[str]:
     """What starts the workflow that may not: a trigger outside `ALLOWED` (a schedule outside `SCHEDULED`), a push for any
-    workflow `PUSHED` does not name, and a push to a branch other than main for one it does."""
+    workflow `PUSHED` does not name and a push to a branch other than main for one it does, a pull request for any workflow
+    `REQUESTED` does not name and a pull request to a branch other than main for one it does, and anything but a hand run or a push
+    to main for a workflow that publishes (a `publish` job, or a job in the `release` environment)."""
     started = triggers(workflow)
     pushed = name in PUSHED
     allowed = ALLOWED | ({"schedule"} if name in SCHEDULED else set())
@@ -111,6 +116,13 @@ def trigger_problems(name: str, workflow: dict) -> list[str]:
     on = workflow["on" if "on" in workflow else True]
     if pushed and "push" in started and (on.get("push") if isinstance(on, dict) else None) != {"branches": ["main"]}:
         found.append(f"{name} starts on a push to more than main")
+    if "pull_request" in started and name not in REQUESTED:
+        found.append(f"{name} starts on pull_request")
+    elif "pull_request" in started and (on.get("pull_request") if isinstance(on, dict) else None) != {"branches": ["main"]}:
+        found.append(f"{name} starts on a pull request to more than main")
+    jobs = workflow["jobs"]
+    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started - {"workflow_dispatch", "push"}:
+        found.append(f"{name} publishes, so it starts only by hand or on a push to main")
     return found
 
 
@@ -380,9 +392,22 @@ def test_a_schedule_starts_only_the_scheduled_workflows() -> None:
     assert trigger_problems("benchmarks.yml", scheduled) == ["benchmarks.yml starts on schedule"]
 
 
-def test_a_pull_request_starts_no_workflow() -> None:
+def test_a_pull_request_to_main_starts_only_the_check() -> None:
+    """The check runs on every pull request to main; no other workflow starts on one, and the check on no other branch's."""
     requested = yaml.safe_load("on:\n  pull_request:\n    branches: [main]\n  workflow_dispatch:\njobs: {}\n")
-    assert trigger_problems("check.yml", requested) == ["check.yml starts on pull_request"]
+    assert trigger_problems("check.yml", requested) == []
+    assert trigger_problems("release-pr.yml", requested) == ["release-pr.yml starts on pull_request"]
+    assert trigger_problems("release.yml", requested | {"on": {"pull_request": {"branches": ["main"]}, "push": {"branches": ["main"]}}}) == [
+        "release.yml starts on pull_request"
+    ]
+    every = yaml.safe_load("on:\n  pull_request:\n  workflow_dispatch:\njobs: {}\n")
+    assert trigger_problems("check.yml", every) == ["check.yml starts on a pull request to more than main"]
+    more = yaml.safe_load("on:\n  pull_request:\n    branches: [main, next]\njobs: {}\n")
+    assert trigger_problems("check.yml", more) == ["check.yml starts on a pull request to more than main"]
+    # The real release workflow, given a pull request, is refused.
+    release = yaml.safe_load((DIRECTORY / "release.yml").read_text())
+    release["on" if "on" in release else True]["pull_request"] = {"branches": ["main"]}
+    assert trigger_problems("release.yml", release) == ["release.yml starts on pull_request", "release.yml publishes, so it starts only by hand or on a push to main"]
 
 
 def test_a_pull_request_target_is_refused() -> None:
@@ -400,7 +425,14 @@ def test_a_workflow_that_publishes_starts_only_by_hand_or_on_a_push_to_main() ->
     """A push to main is a merged pull request; a pull request's own run never publishes."""
     publish = {"environment": "release", "steps": [{"run": "uv run ci/release/command.py --publish"}]}
     on_a_pull_request = {"on": {"workflow_dispatch": None, "pull_request": None}, "jobs": {"publish": publish}}
-    assert trigger_problems("release.yml", on_a_pull_request) == ["release.yml starts on pull_request"]
+    assert trigger_problems("release.yml", on_a_pull_request) == [
+        "release.yml starts on pull_request",
+        "release.yml publishes, so it starts only by hand or on a push to main",
+    ]
+    # The one workflow a pull request may start publishes nothing either.
+    assert trigger_problems("check.yml", on_a_pull_request | {"on": {"pull_request": {"branches": ["main"]}}}) == [
+        "check.yml publishes, so it starts only by hand or on a push to main"
+    ]
     by_hand = {"on": {"workflow_dispatch": None}, "jobs": {"upload": {"environment": {"name": "release"}, "steps": []}}}
     assert trigger_problems("release.yml", by_hand) == []
     on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}, "workflow_dispatch": None}}
@@ -567,13 +599,15 @@ def test_a_push_to_main_releases_the_products_whose_version_it_changes_without_c
     assert download["with"] == {"pattern": "${{ matrix.product }}-*", "merge-multiple": True, "path": "dist"}
 
 
-def test_a_hand_run_runs_its_product_s_check_fan_out_behind_one_gate() -> None:
-    """A run, started only by hand (no paid CI), checks the one product it names: its whole check fan-out, the rows release.yml
-    checks a hand run with. One `gate` job fails when a job failed or was cancelled and passes when each succeeded or was skipped;
-    the Ruff authoring guard alone may be skipped, for a product other than ryo."""
+def test_a_pull_request_or_hand_run_checks_the_products_it_reaches_behind_one_gate() -> None:
+    """A pull request to main checks every product it reaches, and a hand run the one product it names: each one's whole check
+    fan-out, the rows release.yml checks a hand run with but the root lint row, which the `root` job runs. One `gate` job fails when
+    a job failed or was cancelled and passes when each succeeded or was skipped; the Ruff authoring guard alone may be skipped, when
+    ryo is not reached."""
     workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
     on = workflow["on" if "on" in workflow else True]
-    assert set(on) == {"workflow_dispatch"}
+    assert set(on) == {"pull_request", "workflow_dispatch"}
+    assert on["pull_request"] == {"branches": ["main"]}
     assert on["workflow_dispatch"]["inputs"] == {
         "product": {
             "description": "The one product this run checks",
@@ -582,17 +616,31 @@ def test_a_hand_run_runs_its_product_s_check_fan_out_behind_one_gate() -> None:
             "options": list(PRODUCTS),
         }
     }
-    assert workflow["concurrency"] == {"group": "check-${{ github.ref }}-${{ inputs.product }}", "cancel-in-progress": True}
+    assert workflow["concurrency"] == {
+        "group": "check-${{ github.event.pull_request.number || github.ref }}-${{ inputs.product }}",
+        "cancel-in-progress": True,
+    }
+    assert workflow["env"] == {"NEXTEST_PROFILE": "ci"}
     jobs = workflow["jobs"]
-    assert set(jobs) == {"check", "gate", "speed", "ruff-candidates", "bench-correctness", "ownership-contracts"}
+    assert set(jobs) == {"changes", "root", "check", "gate", "speed", "ruff-candidates", "bench-correctness", "ownership-contracts"}
     assert sorted(path.parent.name for path in ROOT.glob("crates/*/Cargo.toml")) == sorted(PRODUCTS)
+    # A hand run's product; every product when the change is the repository's; otherwise the products it reaches.
+    changes = jobs["changes"]
+    assert "if" not in changes and changes["permissions"] == {"contents": "read", "pull-requests": "read"}
+    everything = "[" + ",".join(f'"{product}"' for product in PRODUCTS) + "]"
+    assert changes["outputs"] == {
+        "products": "${{ github.event_name != 'pull_request' && format('[\"{0}\"]', inputs.product) || "
+        f"(steps.filter.outputs.repository == 'true' && '{everything}' || steps.filter.outputs.changes) }}}}",
+        "repository": "${{ github.event_name == 'pull_request' && steps.filter.outputs.repository == 'true' }}",
+    }
     check = jobs["check"]
-    assert "needs" not in check and "if" not in check
-    assert check["strategy"]["matrix"]["product"] == ["${{ inputs.product }}"]
+    assert check["needs"] == "changes" and "if" not in check
+    assert check["strategy"]["matrix"]["product"] == "${{ fromJSON(needs.changes.outputs.products) }}"
     (checking,) = [step["run"] for step in check["steps"] if "asymptote check" in step.get("run", "")]
     assert checking == "asymptote check --root crates/${{ matrix.product }} --groups ${{ matrix.check.group }}"
     release = yaml.safe_load((DIRECTORY / "release.yml").read_text())["jobs"]["check"]["strategy"]["matrix"]["include"]
-    assert check["strategy"]["matrix"]["check"] == [{"runner": row["runner"], "group": row["group"]} for row in release]
+    assert check["strategy"]["matrix"]["check"] == [{"runner": row["runner"], "group": row["group"]} for row in release if row.get("root") != "."]
+    assert [row for row in release if row.get("root") == "."] == [{"runner": "ubuntu-26.04", "group": "lint", "root": "."}]
     # The same caches as the release's check: per machine, group and product, and the installed tools.
     (cache,) = [step for step in check["steps"] if step.get("uses", "").startswith("Swatinem/rust-cache@")]
     assert cache["with"]["shared-key"] == "${{ matrix.check.runner }}-${{ matrix.check.group }}-${{ matrix.product }}"
@@ -603,10 +651,106 @@ def test_a_hand_run_runs_its_product_s_check_fan_out_behind_one_gate() -> None:
         step["uses"].split("@")[0] for step in release_check()["steps"] if "uses" in step
     ]
     gate = jobs["gate"]
-    assert gate["if"] == "always()" and gate["needs"] == ["check", "speed", "ruff-candidates", "ownership-contracts"]
+    assert gate["if"] == "always()"
+    assert gate["needs"] == ["changes", "root", "check", "speed", "ruff-candidates", "ownership-contracts", "bench-correctness"]
     (deciding,) = gate["steps"]
     assert deciding["uses"].startswith("re-actors/")
     assert deciding["with"] == {"jobs": "${{ toJSON(needs) }}", "allowed-skips": "ruff-candidates"}
+
+
+def filters(workflow: dict) -> tuple[dict[str, set[str]], str]:
+    """The `changes` job's paths filters, each a set of patterns, and its predicate quantifier."""
+    (step,) = [step for step in workflow["jobs"]["changes"]["steps"] if step.get("uses", "").startswith("dorny/paths-filter@")]
+    read = yaml.safe_load(step["with"]["filters"])
+    return {name: {patterns} if isinstance(patterns, str) else set(patterns) for name, patterns in read.items()}, step["with"]["predicate-quantifier"]
+
+
+def product_paths(product: str, root: Path = ROOT) -> set[str]:
+    """The directories a change reaches `product` through: its own, `crates/<product>/**`, and that of every other product a `path`
+    of its manifests or its lock points into. The paths are read from `crates/<product>/Cargo.toml`'s `[workspace.dependencies]` and
+    `[patch.*]` tables, the `[dependencies]`, `[dev-dependencies]` and `[build-dependencies]` tables of each member its
+    `[workspace] members` names, and its `tastemaker.lock`'s `[packages.*] path` entries, each against its own file's directory."""
+    directory = root / "crates" / product
+    manifest = tomllib.loads((directory / "Cargo.toml").read_text())
+    workspace = manifest.get("workspace", {})
+    pointed: list[tuple[Path, str]] = []
+
+    def paths(base: Path, table: dict) -> None:
+        pointed.extend((base, entry["path"]) for entry in table.values() if isinstance(entry, dict) and "path" in entry)
+
+    paths(directory, workspace.get("dependencies", {}))
+    for patched in manifest.get("patch", {}).values():
+        paths(directory, patched)
+    for member in workspace.get("members", []):
+        for found in sorted(directory.glob(f"{member}/Cargo.toml")):
+            read = tomllib.loads(found.read_text())
+            for table in ("dependencies", "dev-dependencies", "build-dependencies"):
+                paths(found.parent, read.get(table, {}))
+    lock = directory / "tastemaker.lock"
+    if lock.is_file():
+        paths(directory, tomllib.loads(lock.read_text()).get("packages", {}))
+    reached = {f"crates/{product}/**"}
+    for base, relative in pointed:
+        parts = Path(os.path.relpath(os.path.normpath(base / relative), root)).parts
+        if len(parts) > 1 and parts[0] == "crates" and parts[1] in PRODUCTS:
+            reached.add(f"crates/{parts[1]}/**")
+    return reached
+
+
+def test_each_product_filter_is_its_directory_and_every_product_it_path_depends_on() -> None:
+    """A change reaches every product that builds what it changed: tastemaker patches ryo's crates, so a change to crates/ryo/
+    checks tastemaker too. A path dependency into another product's directory without a filter entry fails here."""
+    read, _ = filters(yaml.safe_load((DIRECTORY / "check.yml").read_text()))
+    assert {product: read[product] for product in PRODUCTS} == {product: product_paths(product) for product in PRODUCTS}
+    assert product_paths("tastemaker") == {"crates/tastemaker/**", "crates/ryo/**"}
+
+
+def test_a_path_into_another_product_reaches_it(tmp_path: Path) -> None:
+    """A lock path, a member's dependency or a patch into another product's directory adds that directory to the product's filter;
+    a path outside the products adds nothing, since such a change is the repository's."""
+    (tmp_path / "crates/demo/member").mkdir(parents=True)
+    (tmp_path / "crates/tastemaker/x").mkdir(parents=True)
+    (tmp_path / "crates/demo/Cargo.toml").write_text('[workspace]\nmembers = ["member"]\n')
+    (tmp_path / "crates/demo/member/Cargo.toml").write_text('[package]\nname = "m"\n[dependencies]\nother = { path = "../../../tools/other" }\n')
+    assert product_paths("demo", tmp_path) == {"crates/demo/**"}
+    (tmp_path / "crates/demo/tastemaker.lock").write_text('version = 1\n[packages."demo.arch"]\npath = "../tastemaker/x"\n')
+    assert product_paths("demo", tmp_path) == {"crates/demo/**", "crates/tastemaker/**"}
+
+
+def test_the_repository_filter_is_everything_outside_the_products() -> None:
+    read, quantifier = filters(yaml.safe_load((DIRECTORY / "check.yml").read_text()))
+    assert quantifier == "some-with-excludes"
+    (step,) = [step for step in yaml.safe_load((DIRECTORY / "check.yml").read_text())["jobs"]["changes"]["steps"]]
+    assert yaml.safe_load(step["with"]["filters"])["repository"] == ["**"] + [f"!crates/{product}/**" for product in PRODUCTS]
+    assert set(read) == {*PRODUCTS, "repository"}
+
+
+def test_root_runs_on_every_event_and_its_groups_follow_the_repository_output() -> None:
+    """The root's lint group runs on every run, a hand run's too, and its check group (the ci/ tests) when a pull request changes
+    the repository's files."""
+    jobs = yaml.safe_load((DIRECTORY / "check.yml").read_text())["jobs"]
+    root = jobs["root"]
+    assert "if" not in root and root["needs"] == "changes"
+    assert [step["run"] for step in root["steps"] if "asymptote check" in step.get("run", "")] == [
+        "asymptote check --root . --groups ${{ needs.changes.outputs.repository == 'true' && 'lint,check' || 'lint' }}"
+    ]
+    assert "root" in jobs["gate"]["needs"] and "root" not in jobs["gate"]["steps"][0]["with"]["allowed-skips"].split(", ")
+
+
+def bench_correctness_required(workflow: dict) -> bool:
+    """The gate waits for bench-correctness and never lets it skip."""
+    gate = workflow["jobs"]["gate"]
+    return "bench-correctness" in needs(gate) and "bench-correctness" not in gate["steps"][0]["with"]["allowed-skips"].split(", ")
+
+
+def test_bench_correctness_is_required_by_the_gate() -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    assert bench_correctness_required(workflow)
+    dropped = deepcopy(workflow)
+    dropped["jobs"]["gate"]["needs"].remove("bench-correctness")
+    skippable = deepcopy(workflow)
+    skippable["jobs"]["gate"]["steps"][0]["with"]["allowed-skips"] += ", bench-correctness"
+    assert not bench_correctness_required(dropped) and not bench_correctness_required(skippable)
 
 
 def ruff_candidates_covered(workflow: dict) -> bool:
@@ -616,8 +760,8 @@ def ruff_candidates_covered(workflow: dict) -> bool:
     if job is None:
         return False
     return (
-        "needs" not in job
-        and job.get("if") == "inputs.product == 'ryo'"
+        job.get("needs") == "changes"
+        and job.get("if") == "contains(fromJSON(needs.changes.outputs.products), 'ryo')"
         and job.get("runs-on") == "ubuntu-26.04"
         and [step["run"] for step in job["steps"] if "asymptote check" in step.get("run", "")]
         == ["asymptote check --root crates/ryo --groups ruff-candidates"]
@@ -708,6 +852,11 @@ def test_a_hand_run_opens_one_product_s_release_pull_request_after_its_lint_and_
         assert configuration["pr_name"] == f"chore({name}): release {{{{ version }}}}"
 
 
+# The ownership job's machine, in order: the actions it sets up, then the toolchain and the declared tools.
+OWNERSHIP_SETUP = ["actions/checkout", "rui314/setup-mold", "actions/setup-node", "actions/setup-go", "actions/setup-python", "astral-sh/setup-uv"]
+OWNERSHIP_INSTALL = ["rustup toolchain install", "uv run --script tools/install.py"]
+
+
 def ownership_contract_problems(workflow: dict) -> list[str]:
     tm_script = "tm validate --root crates/ryo\ntm check --root crates/ryo"
     rust_script = """set -euo pipefail
@@ -734,7 +883,9 @@ cargo test --locked --manifest-path crates/ryo/Cargo.toml --workspace --doc"""
         job.get("runs-on") != "ubuntu-26.04"
         or job.get("if") is not None
         or job.get("continue-on-error") is not None
-        or len(steps) != 9
+        or len(steps) != len(OWNERSHIP_SETUP) + len(OWNERSHIP_INSTALL) + 2
+        or [step.get("uses", "").split("@")[0] for step in steps[: len(OWNERSHIP_SETUP)]] != OWNERSHIP_SETUP
+        or [step.get("run", "").strip() for step in steps[len(OWNERSHIP_SETUP) : -2]] != OWNERSHIP_INSTALL
         or any(step.get("if") is not None or step.get("continue-on-error") is not None for step in steps)
         or steps[-2].get("run", "").strip() != tm_script
         or steps[-1].get("run", "").strip() != rust_script
@@ -759,6 +910,8 @@ def test_real_ownership_contract_suites_are_required() -> None:
         lambda w: w["jobs"]["ownership-contracts"]["steps"][-1].update({"run": w["jobs"]["ownership-contracts"]["steps"][-1]["run"].replace("--include-ignored", "")}),
         lambda w: w["jobs"]["ownership-contracts"]["steps"][-1].update({"run": w["jobs"]["ownership-contracts"]["steps"][-1]["run"].replace("required_suite cargo test --locked", "# required_suite cargo test --locked", 1)}),
         lambda w: w["jobs"]["gate"]["steps"][0]["with"].update({"allowed-skips": "ownership-contracts"}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"].pop(1),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"].insert(6, {"run": "echo extra"}),
     ):
         changed = deepcopy(workflow)
         mutate(changed)
