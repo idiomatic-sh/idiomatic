@@ -31,16 +31,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// The kinds of no language: a case's kind tests name none.
-fn vocabulary() -> ryo_values::domain::descriptions::types::KindVocabulary {
-    ryo_values::domain::descriptions::types::KindVocabulary {
-        language: ryo_values::domain::descriptions::types::LanguageName("cases".into()),
-        kinds: Vec::new(),
-    }
-}
 
 fn subject(read: Input) -> Result<Value, Failure> {
-    let vocabulary = vocabulary();
     let operation = Operation::Select {
         from: StepInput::Relation(Relation::Function),
         comparisons: Vec::new(),
@@ -51,7 +43,7 @@ fn subject(read: Input) -> Result<Value, Failure> {
     } else {
         PlanInput::Node(PlanNodeId(read))
     }];
-    let mut program = LogicalProgram::new(&vocabulary);
+    let mut program = LogicalProgram::new();
     let _id = program.node(LogicalNode {
         operation: &operation,
         inputs: PlanInputList(&inputs),

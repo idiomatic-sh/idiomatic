@@ -85,17 +85,16 @@ fn planned_and_run(adapter: &impl OperatorsPort) -> Result<usize, PortableOperat
         LogicalNode, NodeBindings, NodeRows, PlanInput, PlanInputList, PlanNodeId, RuleOrdinal,
     };
     use ryo_operators::inbound::use_cases::run::fixtures::{
-        TableInputs, TextResources, vocabulary,
+        TableInputs, TextResources,
     };
     use ryo_relations::domain::relations::types::Relation;
-    let vocabulary = vocabulary();
     let operation = ryo_values::domain::plans::types::Operation::Select {
         from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::Function),
         comparisons: Vec::new(),
         kept: Vec::new(),
     };
     let inputs = [PlanInput::Relation(Relation::Function)];
-    let mut program = LogicalProgram::new(&vocabulary);
+    let mut program = LogicalProgram::new();
     let node = program.node(LogicalNode {
         operation: &operation,
         inputs: PlanInputList(&inputs),

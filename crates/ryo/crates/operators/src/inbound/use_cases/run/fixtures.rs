@@ -22,7 +22,6 @@ use ryo_relations::domain::relations::types::Offset;
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn, Relation, Value};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_relations::domain::terms::types::Symbol;
-use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{ObservationBindingId, ParameterId, StepScope};
 use ryo_values::domain::row_texts::types::CellText;
@@ -201,12 +200,6 @@ impl Resources for TextResources {
 
 /// The kinds of no language: a case's kind tests name none.
 #[must_use]
-pub fn vocabulary() -> KindVocabulary {
-    KindVocabulary {
-        language: LanguageName("cases".into()),
-        kinds: Vec::new(),
-    }
-}
 
 /// The rows each emitted step answers, in emit order, or the first fault: the steps planned as one program, each the emit of
 /// a rule of its own when `emits` names it, and run over `inputs` and `resources` with `buffers`.
@@ -221,8 +214,7 @@ pub fn emitted(
     resources: &mut dyn Resources,
     buffers: &mut FileBuffers,
 ) -> Result<Vec<Table>, PortableOperatorFault> {
-    let vocabulary = vocabulary();
-    let mut program = LogicalProgram::new(&vocabulary);
+    let mut program = LogicalProgram::new();
     for step in steps {
         let _id = program.node(LogicalNode {
             operation: &step.operation,
@@ -294,8 +286,7 @@ pub(crate) fn rewritten(
     inputs: &dyn PlanInputs,
     resources: &mut dyn Resources,
 ) -> Result<Vec<Table>, PortableOperatorFault> {
-    let vocabulary = vocabulary();
-    let mut program = LogicalProgram::new(&vocabulary);
+    let mut program = LogicalProgram::new();
     let mut emits = Vec::with_capacity(steps.len());
     for (rule, step) in (0..).map(RuleOrdinal).zip(steps) {
         let id = program.node(LogicalNode {

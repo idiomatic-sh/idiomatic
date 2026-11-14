@@ -52,6 +52,10 @@ Carries a coverage of files to the file-frontier boundary and restores it.
 
 Describes the retained rows and project facts read by cross-file steps.
 
+### fused_program
+
+Merges a request's rules into one logical program and assembles the planned program the file pass runs.
+
 ### hosted
 
 Describes host-provided relations and their declared row shapes.

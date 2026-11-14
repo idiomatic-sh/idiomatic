@@ -3,6 +3,7 @@ pub mod coverage;
 pub mod derived_views;
 pub mod executable_program;
 pub mod features;
+pub mod fused_program;
 pub mod file_program;
 pub mod kind_check;
 pub mod kind_sets;

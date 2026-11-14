@@ -5,27 +5,18 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::{
     Emitted, LogicalNode, PlanInput, PlanNodeId, RuleOrdinal,
 };
-use ryo_values::domain::descriptions::types::KindVocabulary;
 
-/// A logical program over one kind vocabulary.
+/// A logical program. The root kinds of its nodes are the engine's: it derives them from the kind tests the plans write.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
-/// use ryo_values::domain::descriptions::types::KindVocabulary;
-/// fn empty(vocabulary: &KindVocabulary) -> LogicalProgram<'_> {
-///     LogicalProgram::new(vocabulary)
-/// }
+/// let program = LogicalProgram::new();
+/// assert_eq!(format!("{program:?}").is_empty(), false);
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct LogicalProgram<'p> {
-    /// The kinds the program's kind tests name.
-    #[expect(
-        dead_code,
-        reason = "read by the root kinds of the program, which the engine derives with its kind sets when the file pass lands (F1 commit 6)"
-    )]
-    vocabulary: &'p KindVocabulary,
     /// The nodes, each reading only earlier ones.
     nodes: Vec<LogicalNode<'p>>,
     /// Each rule's emitted node, in rule order.
@@ -35,11 +26,32 @@ pub struct LogicalProgram<'p> {
 }
 
 impl<'p> LogicalProgram<'p> {
-    /// A program with no node over `vocabulary`.
+    /// A program with no node.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
+    /// use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList, RuleOrdinal};
+    /// use ryo_relations::domain::relations::types::Relation;
+    /// use ryo_values::domain::plan_parts::types::{Input, StepScope};
+    /// use ryo_values::domain::plans::types::Operation;
+    /// let operation = Operation::Select { from: Input::Relation(Relation::Function), comparisons: Vec::new(), kept: Vec::new() };
+    /// let inputs = [PlanInput::Relation(Relation::Function)];
+    /// let mut program = LogicalProgram::new();
+    /// let node = program.node(LogicalNode {
+    ///     operation: &operation,
+    ///     inputs: PlanInputList(&inputs),
+    ///     bindings: NodeBindings(&[]),
+    ///     scope: StepScope::PerFile,
+    /// });
+    /// program.emit(RuleOrdinal(0), node);
+    /// program.hold(node);
+    /// assert_eq!(node.0, 0);
+    /// ```
     #[must_use]
-    pub fn new(vocabulary: &'p KindVocabulary) -> Self {
+    pub fn new() -> Self {
         Self {
-            vocabulary,
             nodes: Vec::new(),
             emits: Vec::new(),
             holds: Vec::new(),
@@ -48,6 +60,28 @@ impl<'p> LogicalProgram<'p> {
 
     /// Appends a node whose `PlanInput::Node` inputs are all earlier ids; answers its id. A node that reads a later one is
     /// refused by `plan`, not here.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
+    /// use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList, RuleOrdinal};
+    /// use ryo_relations::domain::relations::types::Relation;
+    /// use ryo_values::domain::plan_parts::types::{Input, StepScope};
+    /// use ryo_values::domain::plans::types::Operation;
+    /// let operation = Operation::Select { from: Input::Relation(Relation::Function), comparisons: Vec::new(), kept: Vec::new() };
+    /// let inputs = [PlanInput::Relation(Relation::Function)];
+    /// let mut program = LogicalProgram::new();
+    /// let node = program.node(LogicalNode {
+    ///     operation: &operation,
+    ///     inputs: PlanInputList(&inputs),
+    ///     bindings: NodeBindings(&[]),
+    ///     scope: StepScope::PerFile,
+    /// });
+    /// program.emit(RuleOrdinal(0), node);
+    /// program.hold(node);
+    /// assert_eq!(node.0, 0);
+    /// ```
     pub fn node(&mut self, node: LogicalNode<'p>) -> PlanNodeId {
         let id = PlanNodeId(u32::try_from(self.nodes.len()).unwrap_or(u32::MAX));
         self.nodes.push(node);
@@ -55,11 +89,55 @@ impl<'p> LogicalProgram<'p> {
     }
 
     /// `rule`'s emitted node; rules in rule order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
+    /// use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList, RuleOrdinal};
+    /// use ryo_relations::domain::relations::types::Relation;
+    /// use ryo_values::domain::plan_parts::types::{Input, StepScope};
+    /// use ryo_values::domain::plans::types::Operation;
+    /// let operation = Operation::Select { from: Input::Relation(Relation::Function), comparisons: Vec::new(), kept: Vec::new() };
+    /// let inputs = [PlanInput::Relation(Relation::Function)];
+    /// let mut program = LogicalProgram::new();
+    /// let node = program.node(LogicalNode {
+    ///     operation: &operation,
+    ///     inputs: PlanInputList(&inputs),
+    ///     bindings: NodeBindings(&[]),
+    ///     scope: StepScope::PerFile,
+    /// });
+    /// program.emit(RuleOrdinal(0), node);
+    /// program.hold(node);
+    /// assert_eq!(node.0, 0);
+    /// ```
     pub fn emit(&mut self, rule: RuleOrdinal, node: PlanNodeId) {
         self.emits.push(Emitted { rule, node });
     }
 
     /// One more consumer that is not a node reader: frontier capture, observation root, publication.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
+    /// use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList, RuleOrdinal};
+    /// use ryo_relations::domain::relations::types::Relation;
+    /// use ryo_values::domain::plan_parts::types::{Input, StepScope};
+    /// use ryo_values::domain::plans::types::Operation;
+    /// let operation = Operation::Select { from: Input::Relation(Relation::Function), comparisons: Vec::new(), kept: Vec::new() };
+    /// let inputs = [PlanInput::Relation(Relation::Function)];
+    /// let mut program = LogicalProgram::new();
+    /// let node = program.node(LogicalNode {
+    ///     operation: &operation,
+    ///     inputs: PlanInputList(&inputs),
+    ///     bindings: NodeBindings(&[]),
+    ///     scope: StepScope::PerFile,
+    /// });
+    /// program.emit(RuleOrdinal(0), node);
+    /// program.hold(node);
+    /// assert_eq!(node.0, 0);
+    /// ```
     pub fn hold(&mut self, node: PlanNodeId) {
         self.holds.push(node);
     }

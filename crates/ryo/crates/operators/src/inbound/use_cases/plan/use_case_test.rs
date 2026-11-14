@@ -7,7 +7,6 @@ use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::{
     LogicalNode, NodeBindings, PlanInput, PlanInputList, PlanNodeId, RuleOrdinal,
 };
-use crate::inbound::use_cases::run::fixtures::vocabulary;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{Input as StepInput, StepScope};
 use ryo_values::domain::plans::types::Operation;
@@ -45,7 +44,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// The unserved nodes of a two-node program: a select of a relation, then a select of node `read`, emitting `emit`.
 fn subject(scenario: Scenario) -> Result<Value, Failure> {
-    let vocabulary = vocabulary();
     let operation = Operation::Select {
         from: StepInput::Relation(Relation::Function),
         comparisons: Vec::new(),
@@ -58,7 +56,7 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
     };
     let relation = [PlanInput::Relation(Relation::Function)];
     let node = [PlanInput::Node(PlanNodeId(read))];
-    let mut program = LogicalProgram::new(&vocabulary);
+    let mut program = LogicalProgram::new();
     for inputs in [&relation[..], &node[..]] {
         let _id = program.node(LogicalNode {
             operation: &operation,

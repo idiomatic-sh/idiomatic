@@ -9,9 +9,7 @@ use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 /// ```
 /// use ryo_operators::inbound::use_cases::plan::{interface::PlanUseCase, use_case::PlanUseCaseImpl};
 /// use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
-/// use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
-/// let vocabulary = KindVocabulary { language: LanguageName("none".into()), kinds: Vec::new() };
-/// let plan = PlanUseCaseImpl.plan(&LogicalProgram::new(&vocabulary));
+/// let plan = PlanUseCaseImpl.plan(&LogicalProgram::new());
 /// assert!(plan.is_ok_and(|plan| plan.unserved().is_empty()));
 /// ```
 ///

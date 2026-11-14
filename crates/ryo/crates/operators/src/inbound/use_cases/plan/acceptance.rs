@@ -18,7 +18,6 @@ fn given_program(world: &mut Behavior, program: String) {
 
 #[when(expr = "plan runs")]
 fn runs(world: &mut Behavior) {
-    let vocabulary = ryo_operators::inbound::use_cases::run::fixtures::vocabulary();
     let operation = Operation::Select {
         from: Input::Relation(Relation::Function),
         comparisons: Vec::new(),
@@ -27,7 +26,7 @@ fn runs(world: &mut Behavior) {
     let read = if world.input == "reads later" { 1 } else { 0 };
     let relation = [PlanInput::Relation(Relation::Function)];
     let node = [PlanInput::Node(PlanNodeId(read))];
-    let mut program = LogicalProgram::new(&vocabulary);
+    let mut program = LogicalProgram::new();
     for inputs in [&relation[..], &node[..]] {
         let _id = program.node(LogicalNode {
             operation: &operation,

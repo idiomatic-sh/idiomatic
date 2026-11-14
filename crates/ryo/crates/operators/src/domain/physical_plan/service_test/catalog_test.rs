@@ -100,11 +100,7 @@ fn kinds_lower(lower: Lower) -> Result<Value, Failure> {
 
 /// Every kernel is run by a node of `steps` planned with every rewrite.
 fn kernels_reached(steps: &[Step]) -> Result<Value, Failure> {
-    let vocabulary = ryo_values::domain::descriptions::types::KindVocabulary {
-        language: ryo_values::domain::descriptions::types::LanguageName("cases".into()),
-        kinds: Vec::new(),
-    };
-    let mut program = LogicalProgram::new(&vocabulary);
+    let mut program = LogicalProgram::new();
     for (at, step) in steps.iter().enumerate() {
         let id = program.node(LogicalNode {
             operation: &step.operation,
