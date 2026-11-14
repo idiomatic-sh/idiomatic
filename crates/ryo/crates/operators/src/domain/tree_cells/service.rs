@@ -224,3 +224,26 @@ pub(crate) fn walked_tree(
         Direction::NextSibling => found.extend(next_sibling(elements, at).map(node)),
     }
 }
+
+/// The position of a candidate's node; past every element for a candidate that is no node.
+pub(crate) fn candidate_position(candidate: Value) -> Position {
+    if let Value::Node(node) = candidate {
+        ryo_relations::domain::relations::service::node_position(node)
+    } else {
+        Position(u32::MAX)
+    }
+}
+
+/// The tree rows of `form` over `elements` in the file of `candidate`'s node.
+pub(crate) fn tree_rows_at(form: TreeForm, elements: &Elements, candidate: Value) -> TreeRows<'_> {
+    let file = if let Value::Node(node) = candidate {
+        ryo_relations::domain::relations::service::node_file(node)
+    } else {
+        ryo_relations::domain::relations::types::FileId(u32::MAX)
+    };
+    TreeRows {
+        form,
+        elements,
+        file,
+    }
+}
