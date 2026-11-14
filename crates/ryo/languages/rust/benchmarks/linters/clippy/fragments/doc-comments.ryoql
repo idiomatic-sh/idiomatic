@@ -1,0 +1,6 @@
+output relation<id: node, file: file, span: span, text: symbol>;
+let comments = select id, file, span, text from "syntax-tree" where kind = "comment" and matches(text, "^(?:///(?:[^/]|$)|//!|/\*\*[^*/]|/\*!)");
+let trees = select id, file from "syntax-tree" where kind = "token-tree";
+let in_trees = axis(from=comments, relation="syntax-child", direction=nearest-ancestor, domain=trees);
+let docs = antijoin(left=comments, right=in_trees, left-on=["id"], right-on=["id"]);
+return docs;

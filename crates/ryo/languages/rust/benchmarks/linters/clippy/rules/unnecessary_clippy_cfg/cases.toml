@@ -1,0 +1,49 @@
+[[cases]]
+name = "only-clippy-lints"
+files = { "src/lib.rs" = "#![cfg_attr(clippy, deny(clippy::non_minimal_cfg))]\n#[cfg_attr(clippy, allow(clippy::len_zero, clippy::new_without_default))]\npub struct S;\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 51 }, { file = "src/lib.rs", start = 52, end = 125 }]
+
+[[cases]]
+name = "mixed-lints"
+files = { "src/lib.rs" = "#![cfg_attr(clippy, deny(dead_code, clippy::non_minimal_cfg))]\n#[cfg_attr(clippy, warn(clippy::len_zero, unused, clippy::new_without_default))]\npub struct S;\n" }
+expected = [{ file = "src/lib.rs", start = 36, end = 59 }, { file = "src/lib.rs", start = 87, end = 103 }]
+
+[[cases]]
+name = "levels"
+files = { "src/lib.rs" = "#[cfg_attr(clippy, forbid(clippy::len_zero))]\npub fn f() {}\n#[cfg_attr(clippy, expect(clippy::len_zero))]\npub fn g() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 45 }, { file = "src/lib.rs", start = 60, end = 105 }]
+
+[[cases]]
+name = "spacing"
+files = { "src/lib.rs" = "#[cfg_attr( clippy , allow( clippy :: len_zero , ) )]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 53 }]
+
+[[cases]]
+name = "not-reported"
+files = { "src/lib.rs" = "#[cfg_attr(clippy, allow(dead_code))]\npub fn f() {}\n#[cfg_attr(not(clippy), allow(clippy::len_zero))]\npub fn g() {}\n#[cfg_attr(test, allow(clippy::len_zero))]\npub fn h() {}\n#[cfg_attr(clippy, allow(clippy::len_zero), inline)]\npub fn i() {}\n#[cfg_attr(clippy, derive(Debug))]\npub struct S;\n#[allow(clippy::len_zero)]\npub fn j() {}\n" }
+expected = []
+
+[[cases]]
+name = "on-statements"
+files = { "src/lib.rs" = "pub fn f() {\n    #[cfg_attr(clippy, allow(clippy::len_zero))]\n    let _x = 1;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 17, end = 61 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::unnecessary_clippy_cfg)]\n#[cfg_attr(clippy, allow(clippy::len_zero))]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious)]\npub mod m {\n    #[cfg_attr(clippy, allow(clippy::len_zero))]\n    pub fn f() {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::unnecessary_clippy_cfg)]\n#[cfg_attr(clippy, allow(clippy::len_zero))]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n#[warn(clippy::unnecessary_clippy_cfg)]\n#[cfg_attr(clippy, allow(clippy::len_zero))]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 70, end = 114 }]

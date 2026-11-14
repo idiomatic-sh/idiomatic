@@ -1,0 +1,74 @@
+[[cases]]
+name = "word"
+files = { "src/lib.rs" = "#[inline]\n#[inline]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 10, end = 19 }]
+
+[[cases]]
+name = "lint-lists"
+files = { "src/lib.rs" = "#[allow(dead_code)]\n#[allow(dead_code)]\nfn f() {}\n#[allow(dead_code, unused, dead_code)]\nfn g() {}\n#[allow(clippy::len_zero)]\n#[allow(clippy :: len_zero)]\npub fn h() {}\n" }
+expected = [{ file = "src/lib.rs", start = 28, end = 37 }, { file = "src/lib.rs", start = 77, end = 86 }, { file = "src/lib.rs", start = 134, end = 152 }]
+
+[[cases]]
+name = "different-levels"
+files = { "src/lib.rs" = "#[allow(dead_code)]\n#[warn(dead_code)]\n#[allow(unused)]\nfn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "name-values"
+files = { "src/lib.rs" = "#[must_use = \"a\"]\n#[must_use = \"a\"]\npub fn f() -> u8 { 0 }\n#[must_use = \"b\"]\n#[must_use = \"c\"]\npub fn g() -> u8 { 0 }\n#[must_use]\n#[must_use]\npub fn i() -> u8 { 0 }\n" }
+expected = [{ file = "src/lib.rs", start = 18, end = 35 }, { file = "src/lib.rs", start = 130, end = 141 }]
+
+[[cases]]
+name = "nested-lists"
+files = { "src/lib.rs" = "#[repr(C, align(8))]\n#[repr(C)]\npub struct S;\n#[repr(align(8))]\n#[repr(align(8))]\npub struct T;\n#[allow(clippy::all)]\n#[allow(clippy::len_zero)]\npub struct U;\n" }
+expected = [{ file = "src/lib.rs", start = 28, end = 29 }]
+
+[[cases]]
+name = "skipped-names"
+files = { "src/lib.rs" = "/// a\n/// a\n#[doc = \"b\"]\n#[doc = \"b\"]\n#[doc(alias = \"c\")]\n#[doc(alias = \"c\")]\n#[allow(unused, reason = \"r\")]\n#[allow(dead_code, reason = \"r\")]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "cfg"
+files = { "src/lib.rs" = "#[cfg(all())]\n#[cfg(all())]\npub fn f() {}\n#[cfg(unix)]\n#[cfg(unix)]\npub fn g() {}\n" }
+expected = []
+
+[[cases]]
+name = "unsafe-attributes"
+files = { "src/lib.rs" = "#[unsafe(no_mangle)]\n#[unsafe(no_mangle)]\npub extern \"C\" fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 21, end = 41 }]
+
+[[cases]]
+name = "other-nodes"
+files = { "src/lib.rs" = "pub struct S {\n    #[allow(dead_code)]\n    #[allow(dead_code)]\n    a: u8,\n}\npub fn f() {\n    #[allow(unused)]\n    #[allow(unused)]\n    let x = 1;\n    let _ = x;\n}\npub enum E {\n    #[allow(dead_code)]\n    #[allow(dead_code)]\n    V,\n}\n" }
+expected = [{ file = "src/lib.rs", start = 51, end = 60 }, { file = "src/lib.rs", start = 122, end = 128 }, { file = "src/lib.rs", start = 212, end = 221 }]
+
+[[cases]]
+name = "inner-and-outer"
+files = { "src/lib.rs" = "#![allow(dead_code)]\n#![allow(dead_code)]\n#[allow(unused)]\npub mod m {\n    #![allow(unused)]\n}\n#[allow(unused)]\npub fn f() {\n    #![allow(unused)]\n}\n" }
+expected = [{ file = "src/lib.rs", start = 30, end = 39 }, { file = "src/lib.rs", start = 84, end = 90 }, { file = "src/lib.rs", start = 138, end = 144 }]
+
+[[cases]]
+name = "separate-items"
+files = { "src/lib.rs" = "#[inline]\npub fn f() {}\n#[inline]\npub fn g() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::duplicated_attributes)]\n#[inline]\n#[inline]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious)]\npub mod m {\n    #[inline]\n    #[inline]\n    pub fn f() {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::duplicated_attributes)]\n#[inline]\n#[inline]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n#[warn(clippy::duplicated_attributes)]\n#[inline]\n#[inline]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 79, end = 88 }]

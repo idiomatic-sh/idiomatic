@@ -1,0 +1,44 @@
+[[cases]]
+name = "cfg-attr-predicate"
+files = { "src/lib.rs" = "#![cfg_attr(feature = \"cargo-clippy\", doc = \"a\")]\n#[cfg_attr(feature = \"cargo-clippy\", derive(Debug))]\npub struct S;\n" }
+expected = [{ file = "src/lib.rs", start = 12, end = 36 }, { file = "src/lib.rs", start = 61, end = 85 }]
+
+[[cases]]
+name = "nested-predicates"
+files = { "src/lib.rs" = "#[cfg_attr(not(feature = \"cargo-clippy\"), derive(Debug))]\npub struct S;\n#[cfg(not(feature = \"cargo-clippy\"))]\npub struct T;\n#[cfg(any(unix, all(feature  =  \"cargo-clippy\", test)))]\npub struct U;\n" }
+expected = [{ file = "src/lib.rs", start = 15, end = 39 }, { file = "src/lib.rs", start = 82, end = 106 }, { file = "src/lib.rs", start = 144, end = 170 }]
+
+[[cases]]
+name = "cfg"
+files = { "src/lib.rs" = "#[cfg(feature = \"cargo-clippy\")]\npub struct S;\npub fn f() {\n    #[cfg(feature = \"cargo-clippy\")]\n    let _x = 1;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 6, end = 30 }, { file = "src/lib.rs", start = 70, end = 94 }]
+
+[[cases]]
+name = "configured-out"
+files = { "src/lib.rs" = "#[cfg(any())]\nmod hidden {\n    #[cfg(feature = \"cargo-clippy\")]\n    fn f() {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 37, end = 61 }]
+
+[[cases]]
+name = "other-shapes"
+files = { "src/lib.rs" = "#[cfg(clippy)]\npub struct S;\n#[cfg(feature = \"clippy\")]\npub struct T;\n#[cfg_attr(feature = \"cargo-clippy\", derive(Debug), derive(Clone))]\npub struct U;\npub fn f() -> bool {\n    cfg!(feature = \"cargo-clippy\")\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::deprecated_clippy_cfg_attr)]\n#[cfg(feature = \"cargo-clippy\")]\npub struct S;\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious)]\npub mod m {\n    #[cfg(not(feature = \"cargo-clippy\"))]\n    pub struct S;\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::deprecated_clippy_cfg_attr)]\n#[cfg(not(feature = \"cargo-clippy\"))]\npub struct S;\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n#[warn(clippy::deprecated_clippy_cfg_attr)]\n#[cfg(not(feature = \"cargo-clippy\"))]\npub struct S;\n" }
+expected = [{ file = "src/lib.rs", start = 84, end = 108 }]

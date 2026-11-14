@@ -1,0 +1,64 @@
+[[cases]]
+name = "after-attribute"
+files = { "src/lib.rs" = "#[inline]\n\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 10 }]
+
+[[cases]]
+name = "several-lines-and-gaps"
+files = { "src/lib.rs" = "#[inline]\n\n\n#[must_use]\n  \npub fn f() -> u8 { 0 }\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 26 }]
+
+[[cases]]
+name = "doc-first-gap"
+files = { "src/lib.rs" = "/// Docs.\n\n#[inline]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "attribute-first-gap"
+files = { "src/lib.rs" = "#[inline]\n\n/// Docs.\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 10 }]
+
+[[cases]]
+name = "with-comment"
+files = { "src/lib.rs" = "#[must_use]\n// a comment\n\npub struct S;\n#[must_use]\n/* block\n\n */\npub struct T;\n#[derive(Debug)]\n\npub struct U;\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 25 }]
+
+[[cases]]
+name = "members"
+files = { "src/lib.rs" = "pub struct S;\nimpl S {\n    #[inline]\n\n    pub fn f() {}\n}\npub trait T {\n    #[inline]\n\n    fn g() {}\n}\npub fn h() {\n    #[inline]\n\n    fn i() {}\n    i();\n}\n" }
+expected = [{ file = "src/lib.rs", start = 27, end = 37 }, { file = "src/lib.rs", start = 76, end = 86 }, { file = "src/lib.rs", start = 120, end = 130 }]
+
+[[cases]]
+name = "not-items"
+files = { "src/lib.rs" = "pub struct S {\n    #[allow(dead_code)]\n\n    x: u8,\n}\npub fn f() {\n    #[allow(unused)]\n\n    let _x = 1;\n}\nunsafe extern \"C\" {\n    #[link_name = \"abs\"]\n\n    pub fn my_abs(x: i32) -> i32;\n}\n" }
+expected = []
+
+[[cases]]
+name = "no-gap"
+files = { "src/lib.rs" = "#[inline]\npub fn f() {}\n\n#[inline]\n// note\npub fn g() {}\n#[inline] pub fn h() {}\n" }
+expected = []
+
+[[cases]]
+name = "inner-attributes"
+files = { "src/lib.rs" = "#![allow(unused)]\n\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::empty_line_after_outer_attr)]\n#[inline]\n\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious)]\npub mod m {\n    #[inline]\n\n    pub fn f() {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::empty_line_after_outer_attr)]\n#[inline]\n\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n#[warn(clippy::empty_line_after_outer_attr)]\n#[inline]\n\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 75, end = 85 }]

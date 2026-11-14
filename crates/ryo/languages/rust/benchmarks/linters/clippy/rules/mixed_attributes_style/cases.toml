@@ -1,0 +1,54 @@
+[[cases]]
+name = "module"
+files = { "src/lib.rs" = "#[allow(unused)]\npub mod m {\n    #![allow(unused)]\n    pub fn f() {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 50 }]
+
+[[cases]]
+name = "function-body"
+files = { "src/lib.rs" = "#[allow(unused)]\n#[inline]\npub fn f() {\n    #![allow(unused)]\n    let _x = 1;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 61 }]
+
+[[cases]]
+name = "doc-comments"
+files = { "src/lib.rs" = "/// Outer.\npub mod m {\n    //! Inner.\n}\n/// Outer.\npub mod n {\n    #![doc = \"inner\"]\n}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 37 }]
+
+[[cases]]
+name = "impl-and-trait"
+files = { "src/lib.rs" = "pub struct S;\n#[allow(unused)]\nimpl S {\n    #![allow(unused)]\n}\n#[allow(unused)]\npub trait T {\n    #![allow(unused)]\n}\n" }
+expected = [{ file = "src/lib.rs", start = 14, end = 61 }, { file = "src/lib.rs", start = 64, end = 116 }]
+
+[[cases]]
+name = "different-attributes"
+files = { "src/lib.rs" = "#[allow(unused)]\npub mod m {\n    #![deny(unused)]\n}\n#[allow(unused)]\npub mod n {}\npub mod o {\n    #![allow(unused)]\n}\n" }
+expected = []
+
+[[cases]]
+name = "assoc-and-nested"
+files = { "src/lib.rs" = "pub struct S;\nimpl S {\n    #[allow(unused)]\n    pub fn f() {\n        #![allow(unused)]\n    }\n}\npub fn g() {\n    #[allow(unused)]\n    mod inner {\n        #![allow(unused)]\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 112, end = 170 }]
+
+[[cases]]
+name = "several"
+files = { "src/lib.rs" = "/// Doc.\n#[allow(unused)]\n#[cfg(all())]\npub mod m {\n    #![cfg(all())]\n    #![allow(dead_code)]\n}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 95 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::mixed_attributes_style)]\n#[allow(unused)]\npub mod m {\n    #![allow(unused)]\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::style)]\npub mod o {\n    #[allow(unused)]\n    pub mod m {\n        #![allow(unused)]\n    }\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::mixed_attributes_style)]\n#[allow(unused)]\npub mod m {\n    #![allow(unused)]\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::style)]\n#[warn(clippy::mixed_attributes_style)]\n#[allow(unused)]\npub mod m {\n    #![allow(unused)]\n}\n" }
+expected = [{ file = "src/lib.rs", start = 25, end = 115 }]

@@ -1,0 +1,59 @@
+[[cases]]
+name = "on-use"
+files = { "src/lib.rs" = "#[allow(dead_code)]\n#[warn(clippy::len_zero)]\npub use std::fmt;\n" }
+expected = []
+
+[[cases]]
+name = "levels-on-use"
+files = { "src/lib.rs" = "#[deny(clippy::len_zero)]\nuse std::fmt as _a;\n#[forbid(clippy::len_zero)]\nuse std::io as _b;\n#[expect(clippy::len_zero)]\nuse std::cmp as _c;\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 25 }, { file = "src/lib.rs", start = 46, end = 73 }, { file = "src/lib.rs", start = 93, end = 120 }]
+
+[[cases]]
+name = "exempt-on-use"
+files = { "src/lib.rs" = "#[allow(unused_imports)]\nuse std::fmt;\n#[allow(deprecated, clippy::wildcard_imports)]\npub use std::io::*;\n#[allow(unreachable_pub)]\npub use std::cmp;\n#[warn(clippy::single_component_path_imports)]\npub use std::mem;\n" }
+expected = []
+
+[[cases]]
+name = "exempt-stops-the-rest"
+files = { "src/lib.rs" = "#[allow(unused_imports)]\n#[warn(clippy::len_zero)]\nuse std::fmt;\n#[warn(clippy::len_zero)]\n#[allow(unused_imports)]\nuse std::io;\n#[allow(clippy::len_zero, unused_imports)]\nuse std::cmp;\n#[allow(rustdoc::broken_intra_doc_links)]\n#[warn(clippy::len_zero)]\npub use std::mem;\n" }
+expected = [{ file = "src/lib.rs", start = 65, end = 90 }]
+
+[[cases]]
+name = "extern-crate"
+files = { "src/lib.rs" = "#[allow(unused_extern_crates)]\nextern crate std as s1;\n#[allow(dead_code)]\nextern crate std as s2;\n#[macro_use]\n#[allow(unused_imports)]\nextern crate std as s3;\n#[allow(unused_imports)]\nextern crate std as s4;\n" }
+expected = [{ file = "src/lib.rs", start = 55, end = 74 }, { file = "src/lib.rs", start = 161, end = 185 }]
+
+[[cases]]
+name = "other-items-and-inner"
+files = { "src/lib.rs" = "#[allow(dead_code)]\nfn f() {}\n#[allow(dead_code)]\nstruct S;\npub mod m {\n    #![allow(dead_code)]\n    use std::fmt as _f;\n}\n" }
+expected = []
+
+[[cases]]
+name = "nested-and-reason"
+files = { "src/lib.rs" = "pub fn f() {\n    #[allow(dead_code)]\n    use std::fmt as _f;\n}\npub mod m {\n    #[allow(dead_code, reason = \"r\")]\n    pub use std::io;\n    #[allow(clippy::len_zero, reason = \"r\")]\n    pub use std::cmp;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 138, end = 178 }]
+
+[[cases]]
+name = "multi-line"
+files = { "src/lib.rs" = "#[allow(\n    clippy::len_zero,\n)]\npub use std::fmt;\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 33 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#![allow(unused)]\n#[allow(clippy::useless_attribute)]\n#[allow(clippy::len_zero)]\npub use std::fmt;\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::correctness)]\npub mod m {\n    #[allow(clippy::len_zero)]\n    pub use std::fmt;\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::useless_attribute)]\n#[allow(clippy::len_zero)]\npub use std::fmt;\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::correctness)]\npub mod m {\n    #![warn(clippy::useless_attribute)]\n    #[allow(clippy::len_zero)]\n    pub use std::fmt;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 87, end = 113 }]
