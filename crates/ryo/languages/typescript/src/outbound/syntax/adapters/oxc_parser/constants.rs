@@ -31,3 +31,5 @@ pub(super) const PATTERN_CONSTRUCTOR: &str = "RegExp";
 pub(super) const UNKNOWN_FLAGS: &str = "unknown";
 /// The flags of a pattern whose call passes no second argument: it states none.
 pub(super) const NO_FLAGS: &str = "";
+/// The pattern the library reads flags with when the call gives no pattern string: an empty string literal, which it always parses.
+pub(super) const EMPTY_PATTERN: &str = "\"\"";
