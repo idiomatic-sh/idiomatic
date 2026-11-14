@@ -23,6 +23,8 @@ use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::Table;
 use std::cell::Cell;
 
+pub mod allocating;
+
 /// The rows of relations, held as a worker's columns, lent to a run and counted per read.
 #[derive(Debug, Default)]
 pub struct TableInputs {
