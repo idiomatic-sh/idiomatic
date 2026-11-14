@@ -21,11 +21,12 @@ ryo::reads! {
             LiteralNumber::Unread => {
                 partial NUMBER_UNREAD => languages::Missing::Any;
             }
-            LiteralNumber::Known { kind, value } => {
+            LiteralNumber::Known { kind, value, exact } => {
                 row {
                     id: node(at),
                     kind: value(languages::intern_derived(symbols, tree.source, kind)),
                     value: value(languages::intern_derived(symbols, tree.source, value)),
+                    exact_digits: value(exact),
                     file: file,
                     span: span(at),
                 }

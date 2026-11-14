@@ -3,11 +3,12 @@
 //! the kind, value and suffix the language reads from its token.
 
 use super::constants::{CRLF, LF};
-use super::schemas::{kind_of, number_of};
-use super::types::{Cursor, DecodedString, NumberValue, RustText, Step, StringLiteral};
+use super::schemas::kind_of;
+use super::types::{Cursor, DecodedString, RustText, Step, StringLiteral};
 use crate::domain::numeric_literals::constants::{
     FLOAT_NUMBER, INTEGER_NUMBER, NUMERIC_KIND, NUMERIC_SUFFIX, NUMERIC_VALUE,
 };
+use crate::domain::numeric_literals::types::NumberValue;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::TokenText;
 use ra_ap_syntax::SyntaxKind;
@@ -37,7 +38,7 @@ fn decoded(literal: StringLiteral<'_>) -> Option<DecodedString> {
 /// (an integer's base-10 digits, a float's one binary64 spelling) and the suffix written after it. A literal a compiler refuses gets
 /// none.
 fn numeric(builder: &mut languages::TableBuilder<'_>, written: TokenText<'_>) {
-    let Some(literal) = number_of(written) else {
+    let Some(literal) = crate::domain::numeric_literals::service::decoded(written) else {
         return;
     };
     match literal.value {

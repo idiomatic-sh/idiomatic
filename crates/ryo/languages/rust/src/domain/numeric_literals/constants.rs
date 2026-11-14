@@ -13,3 +13,17 @@ pub(crate) const NUMERIC_SUFFIX: PropertyId = PropertyId(3);
 pub(crate) const INTEGER_NUMBER: &str = "integer";
 /// The numeric kind of a float literal, a binary64 value.
 pub(crate) const FLOAT_NUMBER: &str = "float";
+
+/// The suffixes that make a numeric literal an integer of a type: the Rust Reference, Integer literals.
+pub(crate) const INTEGER_SUFFIXES: [&str; 12] = [
+    "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "u128", "i128", "usize", "isize",
+];
+
+/// The suffix of a 32-bit float, whose value is rounded to `f32` before it is written as binary64.
+pub(crate) const F32_SUFFIX: &str = "f32";
+
+/// The suffix of a 64-bit float.
+pub(crate) const F64_SUFFIX: &str = "f64";
+
+/// The prefixes of the integer literals in another base than ten, each with its base.
+pub(crate) const BASES: [(&str, u32); 3] = [("0x", 16), ("0o", 8), ("0b", 2)];
