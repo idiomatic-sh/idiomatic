@@ -1,7 +1,7 @@
-description = "The repository's workflows under `.github/workflows/`, each a thin edge on GitHub Actions over one `asymptote check` call, started only by hand."
+description = "The repository's workflows under `.github/workflows/`, each a thin edge on GitHub Actions over one `asymptote check` call, started on the triggers the `ci` spec's workflows test allows: by hand, on a pull request to main, on a push to main."
 why = "Keeps the CI host a thin edge: Asymptote decides what a check runs from the tools in the `asymptote.toml` files, so a workflow only provides a machine, the tools and the one call, and moving off GitHub replaces the workflows alone. The `ci` spec's `workflows_test.py` holds each workflow to that."
 templates = [
-  { template = "thin-workflow", file = "{workflow}.yml", description = "A workflow on GitHub Actions, started only by hand (`workflow_dispatch`): a machine, the toolchain, the tools and one `asymptote check` call." },
+  { template = "thin-workflow", file = "{workflow}.yml", description = "A workflow on GitHub Actions, started by hand (`workflow_dispatch`) or on a trigger the `ci` spec's workflows test allows: a machine, the toolchain, the tools and one `asymptote check` call." },
 ]
 
 [given]

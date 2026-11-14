@@ -1,10 +1,14 @@
-description = "A product's cargo-nextest configuration: unit and integration tests by default."
-why = "Bench and cucumber runners use cargo test; distribution installation tests require explicit release selection."
+description = "A product's cargo-nextest configuration: unit and integration tests by default, and every test in CI."
+why = "Bench and cucumber runners use cargo test; distribution installation tests require explicit release selection. CI runs the `ci` profile, which does not stop at the first red, so one run lists every red test of a machine."
 content = '''
 # Bench and cucumber BDD targets do not support libtest's listing protocol.
 # Run them with `cargo test --all-features --benches --test '*bdd'`.
 [profile.default]
 default-filter = "not kind(bench) and not binary(/bdd$|^distribution$/)"
+
+# The CI profile (check.yml sets NEXTEST_PROFILE=ci): every test runs, so one red does not hide the rest of a machine's reds.
+[profile.ci]
+fail-fast = false
 '''
 
 [given]
@@ -18,6 +22,10 @@ given.files.'.config/nextest.toml' = '''
 # Run them with `cargo test --all-features --benches --test '*bdd'`.
 [profile.default]
 default-filter = "not kind(bench) and not binary(/bdd$|^distribution$/)"
+
+# The CI profile (check.yml sets NEXTEST_PROFILE=ci): every test runs, so one red does not hide the rest of a machine's reds.
+[profile.ci]
+fail-fast = false
 '''
 
 [[scenarios]]
@@ -29,8 +37,12 @@ given.files.'.config/nextest.toml' = '''
 [profile.default]
 default-filter = "not kind(bench) and not binary(/bdd$|^distribution$/)"
 
+# The CI profile (check.yml sets NEXTEST_PROFILE=ci): every test runs, so one red does not hide the rest of a machine's reds.
 [profile.ci]
 fail-fast = false
+
+[profile.ci.junit]
+path = "junit.xml"
 '''
 
 [[scenarios]]
@@ -48,7 +60,25 @@ given.files.'.config/nextest.toml' = '''
 # Run them with `cargo test --all-features --benches --test '*bdd'`.
 [profile.default]
 retries = 0
+
+# The CI profile (check.yml sets NEXTEST_PROFILE=ci): every test runs, so one red does not hide the rest of a machine's reds.
+[profile.ci]
+fail-fast = false
 '''
 then.findings = [
+  { rule = 'nextest-config#template', path = '.config/nextest.toml' },
+]
+
+[[scenarios]]
+id = 'ci-profile-missing'
+scenario = 'The file has no `ci` profile, so a CI run stops at its first red.'
+given.files.'.config/nextest.toml' = '''
+# Bench and cucumber BDD targets do not support libtest's listing protocol.
+# Run them with `cargo test --all-features --benches --test '*bdd'`.
+[profile.default]
+default-filter = "not kind(bench) and not binary(/bdd$|^distribution$/)"
+'''
+then.findings = [
+  { rule = 'nextest-config#template', path = '.config/nextest.toml' },
   { rule = 'nextest-config#template', path = '.config/nextest.toml' },
 ]

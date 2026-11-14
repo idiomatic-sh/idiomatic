@@ -1,4 +1,4 @@
-description = "A workflow on GitHub Actions: its one trigger, `workflow_dispatch`, so a hosted run starts only by hand; its steps, which `ci/workflows_test.py` holds to a machine, the toolchain, the tools installed and, for a job that checks, one `asymptote check` call at the end."
+description = "A workflow on GitHub Actions: `workflow_dispatch`, so a hosted run can start by hand, beside the other triggers the `ci` spec allows (a pull request to main, a push to main), which `ci/workflows_test.py` holds; its steps, which `ci/workflows_test.py` holds to a machine, the toolchain, the tools installed and, for a job that checks, one `asymptote check` call at the end."
 why = "Keeps GitHub a thin edge over Asymptote: what a check runs and in which groups is decided by `asymptote check` from the tools in the `asymptote.toml` files, so moving to another CI replaces the workflows alone."
 content = '''
 name: {{ workflow }}
