@@ -1,0 +1,135 @@
+description = "A column index is not written as a number: a relation's column is named with `column_place(Column::…)`, and a step's own column with a named const."
+why = "A relation's column written as a bare number, `ColumnIndex(3)`, says nothing of which relation it counts in, so a number of one relation's columns can be read against another's and nothing fails: the planner read the field of a `syntax-child` edge, its fourth column, as the fourth column of the `syntax-tree` element, its file, and a rule that kept the field through a parent or child lookup answered the file. `column_place(Column::SyntaxTree(SyntaxTreeColumn::File))` names the relation and the column, so the place comes from the relation's own declaration and the column of one relation cannot be named as another's; a step's own column, which no relation declares, is a `const` with a name that says what it holds. The rule reports a `ColumnIndex(<integer literal>)` call or tuple-struct pattern, an or-pattern of literals among them, outside the initializer of a `const`. Not seen: a wrong number inside a named `const`, which a reviewer holds; a `ColumnIndex` reached through a renamed import; and a number inside a macro invocation's tokens, such as `matches!(column, ColumnIndex(0 | 4))` or `vec![ColumnIndex(0)]`, whose tokens the rule's reader does not read as expressions. Test code and fixtures are left out by the entry's `exclude`, where hand-written plans name their columns by number."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let names = select * from tree-tokens where kind = "ident" and text = "ColumnIndex";
+let numbers = select * from tree-tokens where kind = "int-number";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let segments = select * from tree-nodes where kind = "path-segment";
+let paths = select * from tree-nodes where kind = "path";
+let path-exprs = select * from tree-nodes where kind = "path-expr";
+let calls = select * from tree-nodes where kind = "call-expr";
+let struct-pats = select * from tree-nodes where kind = "tuple-struct-pat";
+let arg-lists = select * from tree-nodes where kind = "arg-list";
+let literals = select * from tree-nodes where kind = "literal";
+let literal-pats = select * from tree-nodes where kind = "literal-pat";
+let or-pats = select * from tree-nodes where kind = "or-pat";
+let consts = select * from tree-nodes where kind = "const";
+let name-ref-up = axis(from=names, relation="syntax-child", direction=parent, domain=name-refs);
+let name-ref-of = select l."related" as "id" from name-ref-up as l;
+let segment-up = axis(from=name-ref-of, relation="syntax-child", direction=parent, domain=segments);
+let segment-of = select l."related" as "id" from segment-up as l;
+let path-up = axis(from=segment-of, relation="syntax-child", direction=parent, domain=paths);
+let path-of = select l."related" as "id" from path-up as l;
+let path-expr-up = axis(from=path-of, relation="syntax-child", direction=parent, domain=path-exprs);
+let path-expr-of = select l."related" as "id" from path-expr-up as l;
+let call-up = axis(from=path-expr-of, relation="syntax-child", direction=parent, domain=calls);
+let named-calls = select l."related" as "id" from call-up as l;
+let pat-up = axis(from=path-of, relation="syntax-child", direction=parent, domain=struct-pats);
+let named-pats = select l."related" as "id" from pat-up as l;
+let named = union(left=named-calls, right=named-pats);
+let literal-up = axis(from=numbers, relation="syntax-child", direction=parent, domain=literals);
+let literal-of = select l."related" as "id" from literal-up as l;
+let argument-up = axis(from=literal-of, relation="syntax-child", direction=parent, domain=arg-lists);
+let argument-of = select l."related" as "id" from argument-up as l;
+let argument-call-up = axis(from=argument-of, relation="syntax-child", direction=parent, domain=calls);
+let literal-calls = select l."related" as "id" from argument-call-up as l;
+let literal-pat-up = axis(from=literal-of, relation="syntax-child", direction=parent, domain=literal-pats);
+let literal-pat-of = select l."related" as "id" from literal-pat-up as l;
+let or-up = axis(from=literal-pat-of, relation="syntax-child", direction=parent, domain=or-pats);
+let or-of = select l."related" as "id" from or-up as l;
+let alternatives = union(left=literal-pat-of, right=or-of);
+let alternative-pat-up = axis(from=alternatives, relation="syntax-child", direction=parent, domain=struct-pats);
+let literal-pats-held = select l."related" as "id" from alternative-pat-up as l;
+let numbered = union(left=literal-calls, right=literal-pats-held);
+let both = select l."id" as "id" from named as l join numbered as r on l."id" = r."id";
+let in-consts = axis(from=both, relation="syntax-child", direction=ancestor, domain=consts);
+let const-held = project(from=in-consts, columns=["id"]);
+let loose = antijoin(left=both, right=const-held, left-on=["id"], right-on=["id"]);
+let found = select r."id" as "id", r."file" as "file", r."span" as "span" from loose as l join tree-nodes as r on l."id" = r."id";
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "a column index is written as a number"
+help = "Name a relation's column with `column_place(Column::<Relation>(<Relation>Column::<Column>))`, and read one with `relation_column`; name a step's own column with a `const` in its concept's constants.rs. An ignore is never the fix."
+
+[given]
+include = ['**/*.rs']
+
+[[scenarios]]
+id = 'edge-column-read-as-element-column'
+scenario = 'The planted bug: a match arm that reads an edge column by number and answers an element column by number.'
+given.files.'src/domain/walking/service.rs' = '''
+fn neighbour(was: JoinColumn) -> Option<JoinColumn> {
+    match (was.side, was.column) {
+        (Side::Right, ColumnIndex(3)) => Some(JoinColumn {
+            side: Side::Right,
+            column: ColumnIndex(3),
+        }),
+        _ => None,
+    }
+}
+'''
+then.findings = [
+  { path = 'src/domain/walking/service.rs', line = 3 },
+  { path = 'src/domain/walking/service.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'or-pattern-of-numbers'
+scenario = 'An or-pattern of numbered columns.'
+given.files.'src/domain/walking/service.rs' = '''
+fn either(column: ColumnIndex) -> bool {
+    match column {
+        ColumnIndex(0 | 1) => true,
+        _ => false,
+    }
+}
+'''
+then.findings = [
+  { path = 'src/domain/walking/service.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'qualified-number'
+scenario = 'A numbered column written through a module path.'
+given.files.'src/domain/idioms/service.rs' = '''
+fn key() -> parts::ColumnIndex {
+    parts::ColumnIndex(0)
+}
+'''
+then.findings = [
+  { path = 'src/domain/idioms/service.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'named-columns'
+scenario = 'Columns named by their relation, a computed index and a named const.'
+given.files.'src/domain/walking/service.rs' = '''
+const KEY: ColumnIndex = ColumnIndex(0);
+
+fn named(place: usize) -> Option<ColumnIndex> {
+    let element = column_place(Column::SyntaxTree(SyntaxTreeColumn::Id));
+    let computed = ColumnIndex(u32::try_from(place).ok()?);
+    (element == KEY).then_some(computed)
+}
+'''
+
+[[scenarios]]
+id = 'test-file-left-out'
+scenario = "A test's hand-written plan, left out as the entry leaves tests out."
+given.exclude = ['**/*_test.rs']
+given.files.'src/domain/walking/service.rs' = '''
+fn element() -> ColumnIndex {
+    column_place(Column::SyntaxTree(SyntaxTreeColumn::Id))
+}
+'''
+given.files.'src/domain/walking/service_test.rs' = '''
+fn plan() -> ColumnIndex {
+    ColumnIndex(3)
+}
+'''
