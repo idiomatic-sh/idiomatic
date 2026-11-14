@@ -4,7 +4,6 @@ use super::types::FilterGain;
 use super::types::PushedFilter;
 use super::types::SplitComparisons;
 use super::types::Tested;
-use crate::domain::fusing::service::source_column;
 use crate::domain::lineage::service::column_kind;
 use crate::domain::lineage::types::LineageMemo;
 use crate::domain::planning::service::planned_scope;
@@ -15,6 +14,7 @@ use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::service::columns_of;
 use ryo_values::domain::plan_parts::service::remapped;
+use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::PlanComparison;
@@ -210,7 +210,7 @@ fn split_comparisons(
             }
             match side {
                 Side::Left => Some(made.column),
-                Side::Right => source_column(view, made.column),
+                Side::Right => view_source(view, made.column),
             }
         }
     };

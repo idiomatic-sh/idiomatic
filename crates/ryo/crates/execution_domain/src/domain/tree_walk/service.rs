@@ -2,7 +2,7 @@
 
 use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
+use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
 use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::rows::types::Table;
 use {ryo_values::domain::rows::service::column_in, ryo_values::domain::rows::service::reset};
@@ -36,12 +36,4 @@ pub(crate) fn walk_kinds(
         );
     }
     Ok(())
-}
-
-/// The column of the domain that holds the entity a walk reaches: the domain's id, through its view (a column the view does not name is the domain's own).
-pub fn entity_of(domain_view: &[ColumnIndex], domain_id: ColumnIndex) -> ColumnIndex {
-    match domain_view.get(usize::try_from(domain_id.0).unwrap_or(usize::MAX)) {
-        Some(moved) => *moved,
-        None => domain_id,
-    }
 }

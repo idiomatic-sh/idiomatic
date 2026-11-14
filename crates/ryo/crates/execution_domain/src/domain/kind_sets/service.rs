@@ -23,11 +23,20 @@ use crate::domain::table_scratch::types::{
 };
 use crate::domain::table_texts::types::{Datum, TextView};
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::service::kind_column;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::descriptions::types::KindWord;
 use ryo_values::domain::files::types::SourceView;
+use ryo_values::domain::plan_parts::service::column_place;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
 };
+use std::sync::LazyLock;
+
+/// The place of the kind among the columns of the syntax tree, found once: the files' walks read it without making the relation's
+/// columns again.
+static ELEMENT_KIND: LazyLock<Option<ColumnIndex>> =
+    LazyLock::new(|| kind_column(Relation::SyntaxTree).map(column_place));
 
 /// Whether the comparison asks of the kind of an element something fixed, which the sets of kinds decide.
 pub fn names_a_kind(comparison: &PlanComparison) -> KindNaming {
@@ -35,9 +44,9 @@ pub fn names_a_kind(comparison: &PlanComparison) -> KindNaming {
         && matches!(
             (&comparison.left, &comparison.right),
             (
-                Operand::Column(ColumnIndex(1)),
+                Operand::Column(column),
                 Operand::Literal(QueryLiteral::Text(_))
-            )
+            ) if Some(*column) == *ELEMENT_KIND
         )
     {
         KindNaming::Names
@@ -124,14 +133,14 @@ pub(crate) fn kind_tests(
     // language's, found by what its kinds are called.
     let vocabulary = kind_vocabulary(tree.elements);
     for (ordinal, comparison) in comparisons.iter().enumerate() {
-        let (
-            Some(which),
-            Operand::Column(ColumnIndex(1)),
-            Operand::Literal(QueryLiteral::Text(named)),
-        ) = (naming(comparison.test), &comparison.left, &comparison.right)
+        let (Some(which), Operand::Column(column), Operand::Literal(QueryLiteral::Text(named))) =
+            (naming(comparison.test), &comparison.left, &comparison.right)
         else {
             continue;
         };
+        if Some(*column) != *ELEMENT_KIND {
+            continue;
+        }
         let asked = KindTest {
             vocabulary,
             test: NamingTest(u8::try_from(which.0).unwrap_or(u8::MAX)),

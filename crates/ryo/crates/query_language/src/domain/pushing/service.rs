@@ -6,11 +6,13 @@ use super::types::FilterStep;
 use super::types::FilteredElements;
 use super::types::KeptColumns;
 use super::types::Pushed;
-use crate::domain::fusing::service::source_column;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::rewriting::types::StepIndex;
-use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::service::remapped;
+use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
+use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
+use ryo_relations::domain::relations::types::{Column, Relation};
+use ryo_values::domain::plan_parts::service::view_source;
+use ryo_values::domain::plan_parts::service::{column_place, remapped};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
@@ -85,9 +87,7 @@ fn above_with(mut operation: Operation, first: StepId) -> Operation {
 fn inward(chain: &[FilterStep<'_>], column: ColumnIndex, from: FilterDepth) -> Option<ColumnIndex> {
     let mut column = column;
     for FilterStep { kept, .. } in chain.iter().skip(from.0) {
-        if !kept.is_empty() {
-            column = *kept.get(usize::try_from(column.0).unwrap_or(usize::MAX))?;
-        }
+        column = view_source(kept, column)?;
     }
     Some(column)
 }
@@ -113,9 +113,12 @@ fn element_comparisons(
                                 .unwrap_or(usize::MAX),
                         )
                         .copied()?;
-                    (wanted.side == Side::Right).then(|| {
-                        source_column(element_view, wanted.column).unwrap_or(wanted.column)
-                    })
+                    // A column past the elements' view is one the view does not make: the filter, and the push, decline.
+                    if wanted.side == Side::Right {
+                        view_source(element_view, wanted.column)
+                    } else {
+                        None
+                    }
                 })
             };
             filters.push(PlanComparison {
@@ -136,7 +139,8 @@ fn kept_columns(
     made_column: &dyn Fn(ColumnIndex) -> Option<JoinColumn>,
 ) -> Option<KeptColumns> {
     let mut kept_left: Vec<ColumnIndex> = Vec::new();
-    let mut kept_edge: Vec<ColumnIndex> = vec![ColumnIndex(1)];
+    let mut kept_edge: Vec<ColumnIndex> =
+        vec![column_place(Column::SyntaxChild(SyntaxChildColumn::Child))];
     for column in output {
         match column.side {
             Side::Left => {
@@ -263,7 +267,9 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
     let ([child], [element_key]) = (edge_on.as_slice(), element_on.as_slice()) else {
         return None;
     };
-    if *child != ColumnIndex(1) || source_column(element_view, *element_key) != Some(ColumnIndex(0))
+    if *child != column_place(Column::SyntaxChild(SyntaxChildColumn::Child))
+        || view_source(element_view, *element_key)
+            != Some(column_place(Column::SyntaxTree(SyntaxTreeColumn::Id)))
     {
         return None;
     }
@@ -284,7 +290,7 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
     if made_column(*asked)?
         != (JoinColumn {
             side: Side::Left,
-            column: ColumnIndex(0),
+            column: column_place(Column::SyntaxChild(SyntaxChildColumn::Parent)),
         })
     {
         return None;
@@ -303,7 +309,9 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
     let above = Operation::Join {
         left: Input::Step(StepId(0)),
         right: Input::Relation(Relation::SyntaxTree),
-        left_on: vec![at_edge(ColumnIndex(1))?],
+        left_on: vec![at_edge(column_place(Column::SyntaxChild(
+            SyntaxChildColumn::Child,
+        )))?],
         right_on: vec![*element_key],
         output: answer,
         filter: filters,
@@ -326,7 +334,7 @@ fn edge_lookup(
         left,
         right: Input::Relation(Relation::SyntaxChild),
         left_on: vec![lookup],
-        right_on: vec![ColumnIndex(0)],
+        right_on: vec![column_place(Column::SyntaxChild(SyntaxChildColumn::Parent))],
         output: kept_left
             .iter()
             .map(|column| JoinColumn {

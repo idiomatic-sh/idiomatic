@@ -1,5 +1,6 @@
 //! The `rewriting` service: free functions named by verb over the idiom of a plan that says in many rows what one aggregate says in few: the pairs of functions whose sets of texts are equal.
 
+use super::constants::{JOINED_TEXT, PAIR_FUNCTION, PAIR_OTHER};
 use super::types::{ComparisonDirection, PairColumns, PairProjection, SameSets};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
@@ -51,7 +52,7 @@ fn three_columns(output: &[JoinColumn]) -> Option<PairColumns> {
 
 /// The two columns a projection keeps, when it keeps exactly the first two of its input.
 fn first_two(columns: &[ColumnIndex]) -> PairProjection {
-    if columns == [ColumnIndex(0), ColumnIndex(1)] {
+    if columns == [PAIR_FUNCTION, PAIR_OTHER] {
         PairProjection::FirstTwo
     } else {
         PairProjection::Other
@@ -101,7 +102,7 @@ fn direction(steps: &[PlanStep], mismatches: StepId) -> Option<ComparisonDirecti
         return None;
     };
     // The rows joined are (function, other, text) and the antijoin asks for two of them in the texts.
-    let asks_text = *second_left == ColumnIndex(2) && joined_text == *text;
+    let asks_text = *second_left == JOINED_TEXT && joined_text == *text;
     if !asks_text || step_of(*joined_texts)? != texts || *joined_owner != *owner {
         return None;
     }
@@ -151,11 +152,11 @@ pub(crate) fn same_sets(
     let first_function = one.joined_on == one.function
         && one.function == *function
         && one.other == *other
-        && *mismatch_function == ColumnIndex(0)
-        && *mismatch_other == ColumnIndex(1);
+        && *mismatch_function == PAIR_FUNCTION
+        && *mismatch_other == PAIR_OTHER;
     let second_other =
         two.joined_on == two.other && two.function == *function && two.other == *other;
-    let asked = one.asked == ColumnIndex(1) && two.asked == ColumnIndex(0);
+    let asked = one.asked == PAIR_OTHER && two.asked == PAIR_FUNCTION;
     (both_ways && first_function && second_other && asked).then_some(SameSets {
         pairs,
         function: *function,

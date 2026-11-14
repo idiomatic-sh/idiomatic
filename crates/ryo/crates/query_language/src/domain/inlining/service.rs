@@ -3,6 +3,7 @@
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::service::each_column;
 use ryo_values::domain::plan_parts::service::each_column_mut;
+use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
@@ -12,6 +13,7 @@ use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
+use std::cell::Cell;
 
 /// The columns a join or an axis names of its input on `side`.
 fn side_columns(output: &[JoinColumn], side: Side) -> impl Iterator<Item = ColumnIndex> + '_ {
@@ -195,14 +197,19 @@ pub(crate) fn columns_read(operation: &Operation, read: Input) -> Option<Vec<Col
     Some(used)
 }
 
-/// The operation reading the step `read` now reading `through` instead, each column it names there named by `map`.
+/// The operation reading the step `read` now reading `through` instead, each column it names there named by `map`; nothing when
+/// `map` has no column for one of them, and then the operation may be left part renamed: a caller that can be refused renames a copy.
 pub(crate) fn reading_through(
     operation: &mut Operation,
     read: Input,
     through: Input,
-    map: &dyn Fn(ColumnIndex) -> ColumnIndex,
-) {
-    let place = |column: &mut ColumnIndex| *column = map(*column);
+    map: &dyn Fn(ColumnIndex) -> Option<ColumnIndex>,
+) -> Option<()> {
+    let unmapped = Cell::new(false);
+    let place = |column: &mut ColumnIndex| match map(*column) {
+        Some(mapped) => *column = mapped,
+        None => unmapped.set(true),
+    };
     let is = |input: &Input| *input == read;
     match operation {
         Operation::Select {
@@ -306,6 +313,7 @@ pub(crate) fn reading_through(
         | Operation::Rows { .. }
         | Operation::Hosted { .. } => {}
     }
+    (!unmapped.get()).then_some(())
 }
 
 /// The steps with each filter-free view of a relation that only reorders its columns read in place by the per-file steps
@@ -335,10 +343,15 @@ pub(crate) fn inline_views(mut steps: Vec<PlanStep>) -> Vec<PlanStep> {
             {
                 continue;
             }
-            reading_through(&mut step.operation, Input::Step(read), from, &|column| {
-                let at = usize::try_from(column.0).unwrap_or(usize::MAX);
-                kept.get(at).copied().unwrap_or(column)
-            });
+            // A column the step reads past the view is one the view does not make: the step is left reading the view.
+            let mut through = step.operation.clone();
+            if reading_through(&mut through, Input::Step(read), from, &|column| {
+                view_source(&kept, column)
+            })
+            .is_some()
+            {
+                step.operation = through;
+            }
         }
     }
     steps

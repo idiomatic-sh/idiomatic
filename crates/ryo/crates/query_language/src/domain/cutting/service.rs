@@ -149,11 +149,12 @@ fn reduced_frontier_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec
             let Some(consumer) = steps.get_mut(place + 1) else {
                 continue;
             };
-            reading_through(
+            // `used` is every column the consumers read, so each has its place in the step made of it: the rename is whole.
+            let _: Option<()> = reading_through(
                 &mut consumer.operation,
                 Input::Step(read),
                 Input::Step(through),
-                &|column| projection_column(&used, column),
+                &|column| Some(projection_column(&used, column)),
             );
         }
     }
@@ -247,11 +248,12 @@ pub(crate) fn cut_relations_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]
             let Some(consumer) = steps.get_mut(place + 1) else {
                 continue;
             };
-            reading_through(
+            // `used` is every column the consumers read, so each has its place in the step made of it: the rename is whole.
+            let _: Option<()> = reading_through(
                 &mut consumer.operation,
                 read,
                 Input::Step(StepId(0)),
-                &|column| projection_column(&used, column),
+                &|column| Some(projection_column(&used, column)),
             );
         }
     }

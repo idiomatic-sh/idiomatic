@@ -12,16 +12,15 @@ use crate::domain::kind_sets::service::satisfies;
 use crate::domain::matching::types::PatternMatcher;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_texts::types::TextView;
+use ryo_relations::domain::relations::service::kind_column;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindWord};
+use ryo_values::domain::plan_parts::service::column_place;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Input, Operand, ParameterId, PlanComparison, QueryLiteral, Test,
+    Input, Operand, ParameterId, PlanComparison, QueryLiteral, Test,
 };
 use ryo_values::domain::plans::types::{Operation, Plan};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
-
-/// The place of the kind among the columns of the syntax tree.
-const KIND_COLUMN: ColumnIndex = ColumnIndex(1);
 
 /// The words `plan` compares the kind of a node or a token with, once the parameters are bound: a literal, or the texts a parameter is
 /// bound to.
@@ -30,36 +29,50 @@ pub fn kinds_asked(plan: &Plan, bound: &[ParameterBinding]) -> Vec<AskedKind> {
     let mut asked = Vec::new();
     for step in &plan.steps {
         if let Operation::Select {
-            from, comparisons, ..
+            from: Input::Relation(relation @ (Relation::SyntaxTree | Relation::SemanticSyntax)),
+            comparisons,
+            ..
         } = &step.operation
-            && matches!(
-                from,
-                Input::Relation(Relation::SyntaxTree | Relation::SemanticSyntax)
-            )
         {
-            asked_in(comparisons, &plan.comparison_origins, bound, &mut asked);
+            asked_in(
+                *relation,
+                comparisons,
+                &plan.comparison_origins,
+                bound,
+                &mut asked,
+            );
         }
-        if let Operation::Join { right, filter, .. } = &step.operation
-            && matches!(
-                right,
-                Input::Relation(Relation::SyntaxTree | Relation::SemanticSyntax)
-            )
+        if let Operation::Join {
+            right: Input::Relation(relation @ (Relation::SyntaxTree | Relation::SemanticSyntax)),
+            filter,
+            ..
+        } = &step.operation
         {
-            asked_in(filter, &plan.comparison_origins, bound, &mut asked);
+            asked_in(
+                *relation,
+                filter,
+                &plan.comparison_origins,
+                bound,
+                &mut asked,
+            );
         }
     }
     asked
 }
 
-/// The words of the comparisons of the kind column, added to `asked`.
+/// The words of the comparisons of the kind column of `relation`, added to `asked`.
 fn asked_in(
+    relation: Relation,
     comparisons: &[PlanComparison],
     origins: &[ryo_values::domain::query_tokens::types::QueryOrigin],
     bound: &[ParameterBinding],
     asked: &mut Vec<AskedKind>,
 ) {
+    let Some(kind) = kind_column(relation).map(column_place) else {
+        return;
+    };
     for comparison in comparisons {
-        if comparison.left != Operand::Column(KIND_COLUMN) {
+        if comparison.left != Operand::Column(kind) {
             continue;
         }
         // Numeric and natural ordering do not assert that its text operand names a syntax kind.

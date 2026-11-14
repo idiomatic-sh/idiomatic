@@ -1,14 +1,14 @@
 //! The `visit` service: free functions named by verb that decide what a visit of a file must
 //! build, with no IO and no ports.
 
-use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
+use ryo_relations::domain::relations::types::{Column, Relation};
 
-use super::constants::ROLE_COLUMN_NAME;
 use super::errors::VisitError;
 use super::types::{
     BorrowedBytes, EdgeInput, LineCount, Noting, RoleCompared, RoleNamed, RoleRead, Wants,
 };
-use ryo_values::domain::plan_parts::service::each_column;
+use ryo_values::domain::plan_parts::service::{column_place, each_column};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::PlanComparison;
@@ -65,19 +65,7 @@ pub(crate) fn lines_in(bytes: BorrowedBytes<'_>) -> LineCount {
 
 /// The place of the `field` column among the columns of `syntax-child`.
 fn role_column() -> ColumnIndex {
-    let columns = ryo_relations::domain::relations::service::columns(Relation::SyntaxChild);
-    ColumnIndex(
-        u32::try_from(
-            columns
-                .iter()
-                .position(|column| {
-                    ryo_relations::domain::relations::service::column_name(*column).0
-                        == ROLE_COLUMN_NAME
-                })
-                .unwrap_or(usize::MAX),
-        )
-        .unwrap_or(u32::MAX),
-    )
+    column_place(Column::SyntaxChild(SyntaxChildColumn::Field))
 }
 
 /// Whether an input of a step is the edges of the tree.

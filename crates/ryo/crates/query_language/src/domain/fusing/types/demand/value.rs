@@ -1,5 +1,6 @@
 //! Conservatively fuse exclusively source-keyed closure consumers into physical demand joins.
 
+use crate::domain::fusing::constants::FIRST_REACH_COLUMN;
 use crate::domain::fusing::types::EmptyColumns;
 use crate::domain::fusing::types::RootStep;
 use crate::domain::fusing::types::pulled_graph::value::PulledGraph;
@@ -144,7 +145,7 @@ impl<'a> DemandClosure<'a> {
                         source,
                         destination,
                         keys: keys.clone(),
-                        columns: std::iter::successors(Some(ColumnIndex(0)), |previous| {
+                        columns: std::iter::successors(Some(FIRST_REACH_COLUMN), |previous| {
                             Some(ColumnIndex(previous.0.saturating_add(1)))
                         })
                         .take(keys.len() + 2)
