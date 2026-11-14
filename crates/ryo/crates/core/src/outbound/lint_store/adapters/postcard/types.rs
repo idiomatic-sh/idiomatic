@@ -47,17 +47,6 @@ pub(super) struct TableOfContents {
     pub buckets: Vec<BucketSpan>,
 }
 
-/// The store file, open, and the bytes of its table of contents.
-#[derive(Debug)]
-pub(super) struct OpenedStore {
-    /// The file.
-    pub file: std::fs::File,
-    /// The immutable snapshot length observed when this file was opened.
-    pub length: SectionLength,
-    /// The bytes of its table of contents.
-    pub contents: SectionBytes,
-}
-
 /// The largest number a postcard varint may hold: the width of the type it is read as.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct VarintMaximum(pub u64);
