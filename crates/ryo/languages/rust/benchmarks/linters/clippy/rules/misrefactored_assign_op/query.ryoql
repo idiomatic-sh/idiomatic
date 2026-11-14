@@ -1,0 +1,14 @@
+import binary_operands from "rust/clippy/binary-operands";
+import eq_expr_value from "rust/clippy/eq-expr-value";
+import lint_attributes from "rust/clippy/lint-attributes";
+let binaries = binary_operands();
+let compound = select id, op, left, right, file, span from binaries where op = "+=" or op = "-=" or op = "*=" or op = "/=" or op = "%=" or op = "^=" or op = "&=" or op = "|=" or op = "<<=" or op = ">>=";
+let misrefactored = select l.id as id, l.op as op, l.left as target, r.left as first, r.right as second, l.file as file, l.span as span from compound as l join binaries as r on l.right = r.id where l.op = concat(r.op, "=");
+let firsts = select id, target as left, first as right, file, span from misrefactored;
+let seconds = select id, target as left, second as right, file, span from misrefactored where op = "+=" or op = "*=" or op = "^=" or op = "&=" or op = "|=";
+let same_first = eq_expr_value(pairs=firsts);
+let same_second = eq_expr_value(pairs=seconds);
+let same = union(left=same_first, right=same_second);
+let candidates = select id, file, span from same;
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:misrefactored_assign_op|suspicious|all))\s*(?:,|$)");
+emit violations subject file key(id);
