@@ -1,0 +1,44 @@
+[[cases]]
+name = "warn-inner"
+files = { "src/lib.rs" = "#![warn(clippy::restriction)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 8, end = 27 }]
+
+[[cases]]
+name = "deny-forbid-expect"
+files = { "src/lib.rs" = "#[deny(clippy::restriction)]\npub fn f() {}\n#[forbid(clippy::restriction)]\npub fn g() {}\n#[expect(clippy::restriction)]\npub fn h() {}\n" }
+expected = [{ file = "src/lib.rs", start = 7, end = 26 }, { file = "src/lib.rs", start = 52, end = 71 }, { file = "src/lib.rs", start = 97, end = 116 }]
+
+[[cases]]
+name = "among-others"
+files = { "src/lib.rs" = "#[warn(dead_code, clippy::restriction, clippy::all)]\npub fn f() {}\n#[warn(clippy :: restriction)]\npub fn g() {}\n" }
+expected = [{ file = "src/lib.rs", start = 18, end = 37 }, { file = "src/lib.rs", start = 74, end = 95 }]
+
+[[cases]]
+name = "allow-and-others"
+files = { "src/lib.rs" = "#[allow(clippy::restriction)]\npub fn f() {}\n#[warn(restriction)]\npub fn g() {}\n#[warn(clippy::pedantic)]\npub fn h() {}\n" }
+expected = []
+
+[[cases]]
+name = "on-statements-and-fields"
+files = { "src/lib.rs" = "pub struct S {\n    #[warn(clippy::restriction)]\n    pub a: u8,\n}\npub fn f() {\n    #[warn(clippy::restriction)]\n    let _x = 1;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 26, end = 45 }, { file = "src/lib.rs", start = 89, end = 108 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::blanket_clippy_restriction_lints)]\n#[warn(clippy::restriction)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious)]\n#[warn(clippy::restriction)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::blanket_clippy_restriction_lints)]\n#[warn(clippy::restriction)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n#[warn(clippy::blanket_clippy_restriction_lints)]\n#[deny(clippy::restriction)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 87, end = 106 }]

@@ -1,0 +1,49 @@
+[[cases]]
+name = "not-a-version"
+files = { "src/lib.rs" = "#[deprecated(since = \"forever\")]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 13, end = 30 }]
+
+[[cases]]
+name = "partial-and-padded"
+files = { "src/lib.rs" = "#[deprecated(since = \"1.0\")]\npub fn f() {}\n#[deprecated(since = \"01.0.0\")]\npub fn g() {}\n#[deprecated(since = \"v1.0.0\")]\npub fn h() {}\n" }
+expected = [{ file = "src/lib.rs", start = 13, end = 26 }, { file = "src/lib.rs", start = 56, end = 72 }, { file = "src/lib.rs", start = 102, end = 118 }]
+
+[[cases]]
+name = "valid"
+files = { "src/lib.rs" = "#[deprecated(since = \"1.0.0\")]\npub fn f() {}\n#[deprecated(since = \"1.2.3-alpha.1+build.5\", note = \"use g\")]\npub fn g() {}\n#[deprecated(note = \"x\", since = \"TBD\")]\npub fn h() {}\n#[deprecated(since = \"CURRENT_RUSTC_VERSION\")]\npub fn i() {}\n" }
+expected = []
+
+[[cases]]
+name = "with-note"
+files = { "src/lib.rs" = "#[deprecated(note = \"use g\", since = \"soon\")]\npub fn f() {}\n#[deprecated(since=\"\")]\npub fn g() {}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 43 }, { file = "src/lib.rs", start = 73, end = 81 }]
+
+[[cases]]
+name = "other-forms"
+files = { "src/lib.rs" = "#[deprecated]\npub fn f() {}\n#[deprecated = \"soon\"]\npub fn g() {}\n#[deprecated(note = \"soon\")]\npub fn h() {}\n" }
+expected = []
+
+[[cases]]
+name = "on-other-items"
+files = { "src/lib.rs" = "#[deprecated(since = \"later\")]\npub struct S {\n    #[deprecated(since = \"x\")]\n    pub a: u8,\n}\npub trait T {\n    #[deprecated(since = \"y\")]\n    fn f(&self);\n}\n" }
+expected = [{ file = "src/lib.rs", start = 13, end = 28 }, { file = "src/lib.rs", start = 63, end = 74 }, { file = "src/lib.rs", start = 125, end = 136 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::deprecated_semver)]\n#[deprecated(since = \"forever\")]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::correctness)]\n#[deprecated(since = \"forever\")]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::deprecated_semver)]\n#[deprecated(since = \"forever\")]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::correctness)]\n#[warn(clippy::deprecated_semver)]\n#[deprecated(since = \"forever\")]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 79, end = 96 }]

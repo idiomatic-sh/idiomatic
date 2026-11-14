@@ -1,0 +1,12 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+let inlines = select occurrence, declaration, file, span from "decorates" where target = "inline";
+let functions = select l.occurrence as occurrence, l.declaration as declaration, l.file as file, l.span as span from inlines as l join "syntax-tree" as r on l.declaration = r.id where r.kind = "fn";
+let in_lists = select l.occurrence as occurrence, l.declaration as declaration, r.parent as list, l.file as file, l.span as span from functions as l join "syntax-child" as r on l.declaration = r.child;
+let lists = select l.occurrence as occurrence, l.declaration as declaration, l.list as list, l.file as file, l.span as span from in_lists as l join "syntax-tree" as r on l.list = r.id where r.kind = "assoc-item-list";
+let in_traits = select l.occurrence as occurrence, l.declaration as declaration, r.parent as owner, l.file as file, l.span as span from lists as l join "syntax-child" as r on l.list = r.child;
+let traits = select l.occurrence as occurrence, l.declaration as declaration, l.file as file, l.span as span from in_traits as l join "syntax-tree" as r on l.owner = r.id where r.kind = "trait";
+let bodies = select l.parent as declaration, l.file as file from "syntax-child" as l join "syntax-tree" as r on l.child = r.id where r.kind = "block-expr";
+let required = antijoin(left=traits, right=bodies, left-on=["declaration"], right-on=["declaration"]);
+let candidates = select occurrence as id, file, span from required;
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:inline_fn_without_body|correctness|all))\s*(?:,|$)");
+emit violations subject file key(span);

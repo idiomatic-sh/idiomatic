@@ -1,0 +1,49 @@
+[[cases]]
+name = "rustfmt-skip"
+files = { "src/lib.rs" = "#[cfg_attr(rustfmt, rustfmt_skip)]\npub fn f() {}\n#[cfg_attr(rustfmt, rustfmt::skip)]\npub fn g() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 34 }, { file = "src/lib.rs", start = 49, end = 84 }]
+
+[[cases]]
+name = "any-skip-path"
+files = { "src/lib.rs" = "#[cfg_attr(rustfmt, skip)]\npub fn f() {}\n#[cfg_attr( rustfmt , other::skip, )]\npub fn g() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 26 }, { file = "src/lib.rs", start = 41, end = 78 }]
+
+[[cases]]
+name = "on-statements-and-members"
+files = { "src/lib.rs" = "pub fn f() {\n    #[cfg_attr(rustfmt, rustfmt::skip)]\n    let _x = 1+2;\n}\npub struct S {\n    #[cfg_attr(rustfmt, rustfmt::skip)]\n    pub a: u8,\n}\n" }
+expected = [{ file = "src/lib.rs", start = 17, end = 52 }, { file = "src/lib.rs", start = 92, end = 127 }]
+
+[[cases]]
+name = "configured-out"
+files = { "src/lib.rs" = "#[cfg(any())]\nmod hidden {\n    #[cfg_attr(rustfmt, rustfmt::skip)]\n    fn f() {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 31, end = 66 }]
+
+[[cases]]
+name = "inner-not-reported"
+files = { "src/lib.rs" = "#![cfg_attr(rustfmt, rustfmt_skip)]\npub mod m {\n    #![cfg_attr(rustfmt, rustfmt::skip)]\n}\n" }
+expected = []
+
+[[cases]]
+name = "other-shapes"
+files = { "src/lib.rs" = "#[rustfmt::skip]\npub fn f() {}\n#[cfg_attr(rustfmt, rustfmt::skip, inline)]\npub fn g() {}\n#[cfg_attr(not(rustfmt), rustfmt::skip)]\npub fn h() {}\n#[cfg_attr(rustfmt, rustfmt::skip_all)]\npub fn i() {}\n#[cfg_attr(test, rustfmt::skip)]\npub fn j() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::deprecated_cfg_attr)]\n#[cfg_attr(rustfmt, rustfmt::skip)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::complexity)]\npub mod m {\n    #[cfg_attr(rustfmt, rustfmt::skip)]\n    pub fn f() {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::deprecated_cfg_attr)]\n#[cfg_attr(rustfmt, rustfmt::skip)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::complexity)]\n#[warn(clippy::deprecated_cfg_attr)]\n#[cfg_attr(rustfmt, rustfmt::skip)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 67, end = 102 }]

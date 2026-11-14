@@ -520,6 +520,12 @@ defaults = [
 
 [query-modules]
 "rust/clippy/lint-attributes" = "fragments/lint-attributes.ryoql"
+"rust/clippy/attribute-owners" = "fragments/attribute-owners.ryoql"
+"rust/clippy/inner-attributes" = "fragments/inner-attributes.ryoql"
+"rust/clippy/doc-comments" = "fragments/doc-comments.ryoql"
+"rust/clippy/hulls" = "fragments/hulls.ryoql"
+"rust/clippy/item-heads" = "fragments/item-heads.ryoql"
+"rust/clippy/empty-line-after" = "fragments/empty-line-after.ryoql"
 
 # Defaults deferred, each under the limitation that blocks it. 406 need types or the standard item a path names: semantic
 # analysis, which no provider answers yet.
@@ -527,31 +533,20 @@ defaults = [
 # Answerable from the relations the Rust provider reads today; authored by this round's batches.
 unauthored = [
   "almost_complete_range",
-  "blanket_clippy_restriction_lints",
   "block_scrutinee",
   "blocks_in_conditions",
   "builtin_type_shadow",
   "crate_in_macro_def",
-  "deprecated_cfg_attr",
-  "deprecated_clippy_cfg_attr",
-  "deprecated_semver",
   "disallowed_names",
   "double_parens",
   "duplicate_underscore_argument",
-  "duplicated_attributes",
-  "empty_docs",
-  "empty_line_after_doc_comments",
-  "empty_line_after_outer_attr",
   "empty_loop",
-  "four_forward_slashes",
   "infallible_destructuring_match",
-  "inline_fn_without_body",
   "int_plus_one",
   "items_after_test_module",
   "just_underscores_and_digits",
   "let_with_type_underscore",
   "manual_take",
-  "mixed_attributes_style",
   "multi_assignments",
   "multiple_bound_locations",
   "needless_arbitrary_self_type",
@@ -560,7 +555,6 @@ unauthored = [
   "needless_ifs",
   "needless_parens_on_range_literals",
   "needless_pub_self",
-  "non_minimal_cfg",
   "nonstandard_macro_braces",
   "option_env_unwrap",
   "possible_missing_comma",
@@ -573,18 +567,14 @@ unauthored = [
   "repr_packed_without_abi",
   "single_element_loop",
   "suspicious_assignment_formatting",
-  "suspicious_doc_comments",
   "suspicious_else_formatting",
   "suspicious_unary_op_formatting",
-  "tabs_in_doc_comments",
   "temporary_assignment",
   "too_many_arguments",
   "toplevel_ref_arg",
-  "unnecessary_clippy_cfg",
   "unneeded_wildcard_pattern",
   "unsafe_removed_from_name",
   "unused_unit",
-  "useless_attribute",
   "wildcard_in_or_patterns",
 ]
 # Rules that compare a literal's value or two expressions' shapes: the Rust provider answers neither `numeric_literal` nor

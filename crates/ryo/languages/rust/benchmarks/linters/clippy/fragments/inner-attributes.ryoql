@@ -1,0 +1,7 @@
+output relation<id: node, file: file>;
+let attributes = select id, file from "syntax-tree" where kind = "attr";
+let attribute_children = select l.parent as id, l.child as child, l.file as file from "syntax-child" as l join attributes as r on l.parent = r.id;
+let bangs = select l.id as id, l.file as file from attribute_children as l join "syntax-tree" as r on l.child = r.id where r.kind = "bang";
+let comments = select id, file from "syntax-tree" where kind = "comment" and matches(text, "^(?://!|/\*!)");
+let inner = union(left=bangs, right=comments);
+return inner;

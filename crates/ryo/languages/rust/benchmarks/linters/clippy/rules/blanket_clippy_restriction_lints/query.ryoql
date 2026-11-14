@@ -1,0 +1,6 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+let levels = select occurrence, file, span from "decorates" where target = "warn" or target = "deny" or target = "forbid" or target = "expect";
+let blankets = source-matches(from=levels, span="span", pattern="[(,]\s*(?P<lint>clippy\s*::\s*restriction)\s*[,)]", output="found", capture="lint", capture-output="lint_span");
+let candidates = select occurrence as id, file, lint_span as span from blankets;
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:blanket_clippy_restriction_lints|suspicious|all))\s*(?:,|$)");
+emit violations subject file key(span);

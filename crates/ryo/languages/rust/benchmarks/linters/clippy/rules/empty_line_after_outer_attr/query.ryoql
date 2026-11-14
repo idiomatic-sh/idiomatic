@@ -1,0 +1,6 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+import empty_line_after from "rust/clippy/empty-line-after";
+let found = empty_line_after();
+let after = select l.head as id, l.file as file, l.span as span from found as l join "syntax-tree" as r on l.stop = r.id where r.kind = "attr";
+let violations = lint_attributes(candidates=after, names="(?:^|,)\s*(?:clippy::(?:empty_line_after_outer_attr|suspicious|all))\s*(?:,|$)");
+emit violations subject file key(span);

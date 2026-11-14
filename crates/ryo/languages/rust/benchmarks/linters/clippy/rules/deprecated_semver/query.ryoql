@@ -1,0 +1,8 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+let deprecations = select occurrence, file, span from "decorates" where target = "deprecated";
+let sinces = source-matches(from=deprecations, span="span", pattern="[(,]\s*(?P<meta>since\s*=\s*\x22[^\x22]*\x22)", output="found", capture="meta", capture-output="meta_span", capture-text-output="meta_text");
+let versions = select occurrence, file, meta_span from sinces where matches(meta_text, "^since\s*=\s*\x22(?:TBD|CURRENT_RUSTC_VERSION|(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?)\x22$");
+let invalid = antijoin(left=sinces, right=versions, left-on=["occurrence", "meta_span"], right-on=["occurrence", "meta_span"]);
+let candidates = select occurrence as id, file, meta_span as span from invalid;
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:deprecated_semver|correctness|all))\s*(?:,|$)");
+emit violations subject file key(span);
