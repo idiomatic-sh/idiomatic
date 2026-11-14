@@ -238,6 +238,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
+        name: CaseName("a_shadowed_constructor_writes_no_element"),
+        word: Word::Succeeds,
+        input: || "const RegExp = (p: string) => p; RegExp(\"a\");",
+        expect: Expect::Value(Reading {
+            rows: &[],
+            causes: &[],
+        }),
+    },
+    Case {
         name: CaseName("an_empty_file_has_no_row"),
         word: Word::Succeeds,
         input: || "",
