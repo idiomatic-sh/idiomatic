@@ -36,9 +36,12 @@ These clippy findings have no query yet:
 The reference runs, in each root, the toolchain's `cargo-clippy` beside the verified driver:
 
 ```text
-cargo-clippy clippy --workspace --all-targets --message-format=json --offline -- -A clippy::all -A clippy::pedantic
-  -A clippy::nursery -A clippy::restriction -A clippy::cargo -W clippy::<lint>…
+cargo-clippy clippy --workspace --lib --bins --tests --examples --message-format=json --offline -- -A clippy::all
+  -A clippy::pedantic -A clippy::nursery -A clippy::restriction -A clippy::cargo -W clippy::<lint>…
 ```
+
+Every target but the benches: ripgrep's bench builds on nightly only (globset's `#![feature(test)]`), and clippy on the pinned
+stable toolchain refuses the whole run for it.
 
 with `CARGO` and `RUSTC` naming the toolchain's own, `CARGO_TARGET_DIR` and `CLIPPY_CONF_DIR` the command's scratch `targets/` (a
 project's `clippy.toml` is never read) and one job. The four groups clippy leaves off are allowed too, so a lint a project's manifest

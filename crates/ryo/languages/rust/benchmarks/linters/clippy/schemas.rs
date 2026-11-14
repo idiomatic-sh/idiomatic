@@ -7,7 +7,7 @@ use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, RunRepor
 use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 
 #[derive(Debug, Serialize)]
 /// The manifest of a case's crate: one package with no dependency, its own workspace.
@@ -129,7 +129,23 @@ pub(super) fn dep_info_sources(text: &str, root: &Path) -> Result<BTreeSet<Relat
         .replace(constants::ESCAPED_SPACE, constants::SPACE_PLACEHOLDER)
         .split_whitespace()
     {
-        let path = root.join(prerequisite.replace(constants::SPACE_PLACEHOLDER, constants::SPACE));
+        // rustc names an `include!`d file as written beside its includer (`src/../examples/demo.rs`): the path is resolved
+        // lexically, so it is the one the project tracks, and one that climbs above the root is not under it.
+        let mut path = PathBuf::new();
+        for component in root
+            .join(prerequisite.replace(constants::SPACE_PLACEHOLDER, constants::SPACE))
+            .components()
+        {
+            match component {
+                Component::ParentDir => {
+                    let _parent = path.pop();
+                }
+                Component::CurDir => {}
+                Component::Prefix(_) | Component::RootDir | Component::Normal(_) => {
+                    path.push(component);
+                }
+            }
+        }
         if let Ok(relative) = path.strip_prefix(root)
             && path
                 .extension()
