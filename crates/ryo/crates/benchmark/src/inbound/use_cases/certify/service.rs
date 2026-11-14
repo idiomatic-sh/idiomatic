@@ -1,6 +1,5 @@
-// ignore: idiomatic.arch/file-length - one certification workflow: certify, the registered context it prepares and the profile-case shard it runs share the sealed paths and ports; the profile-case route has no production constructor left, and its removal brings this file under the limit
 //! A complete disposition inventory is distinct from verified subset coverage.
-use super::types::{PreparedCases, RegisteredContext};
+use super::types::RegisteredContext;
 use crate::application::case_execution::{
     service::{candidate as run_candidate, run as run_case},
     types::AttemptOutcome,
@@ -10,11 +9,7 @@ use crate::application::case_selection::{service::select, types::ShardSelection}
 use crate::domain::discrepancy::service::{describe_difference, judge};
 use crate::domain::discrepancy::types::Contestant;
 use crate::domain::process_failure::types::CaptureRecord;
-use crate::domain::suite::{
-    constants,
-    service::require_accounted,
-    types::{audit::value::Audit, certificate::value::Certificate},
-};
+use crate::domain::suite::constants;
 use crate::outbound::{
     context::interface::ContextPort,
     execution::{interface::ExecutionPort, types::ExitObservationMode},
@@ -30,170 +25,6 @@ use ryo_benchmark_contracts::domain::workloads::types::{
     PreparedCase, Tool, case_count::value::CaseCount,
 };
 use std::path::{Path, PathBuf};
-
-/// Execute independent cases, then seal the unchanged artifacts and both executable bytes.
-#[expect(
-    clippy::too_many_arguments,
-    reason = "this orchestration forwards explicit sealed workload identities through four independently injected ports"
-)]
-pub(super) fn certify(
-    suite: &dyn SuitePort,
-    receipts: &dyn ReceiptsPort,
-    context: &dyn ContextPort,
-    reference: &dyn LinterPort,
-    candidate: &dyn LinterPort,
-    execution: &dyn ExecutionPort,
-    inventory_store: &dyn InventoryPort,
-    directory: &Path,
-    workload: &Path,
-    reference_executable: &Path,
-    candidate_executable: &Path,
-    selected_rules: &Path,
-    scratch: &Path,
-    scope: ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage,
-    case_source: &ryo_benchmark_contracts::domain::requests::types::CertificationCases,
-) -> Result<Certificate, Error> {
-    let tool = suite.profile(crate::outbound::suite::types::ArtifactPath(directory))?;
-    suite.verify_tool(
-        crate::outbound::suite::types::ArtifactPath(reference_executable),
-        &tool,
-        &reference.version_line(&tool),
-    )?;
-    let audit = crate::application::suite_auditing::service::audit(suite, directory, &tool)?;
-    if scope == ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted {
-        if let ryo_benchmark_contracts::domain::requests::types::CertificationCases::Registered {
-            coverage:
-                ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Selected {
-                    ..
-                },
-            ..
-        } = case_source
-        {
-            return Err(Error::Invalid(
-                super::constants::SELECTED_COVERAGE_REQUIRES_INTERIM.into(),
-            ));
-        }
-        require_accounted(&audit, &tool)?;
-    }
-    if audit.implemented.is_empty() {
-        return Err(Error::Invalid(
-            crate::domain::suite::constants::EMPTY_SUBSET.into(),
-        ));
-    }
-    let contestants = [
-        reference_executable.to_owned(),
-        candidate_executable.to_owned(),
-    ];
-    let execution_profile = execution.profile();
-    let mut paths = vec![
-        directory.to_owned(),
-        workload.to_owned(),
-        selected_rules.to_owned(),
-        contestants[0].clone(),
-        contestants[1].clone(),
-    ];
-    if let ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Isolated(
-        collector,
-    ) = &execution_profile
-    {
-        paths.push(collector.executable.clone());
-    }
-    let prepared_cases = match case_source {
-        ryo_benchmark_contracts::domain::requests::types::CertificationCases::Profile => {
-            PreparedCases::Profile
-        }
-        ryo_benchmark_contracts::domain::requests::types::CertificationCases::Registered {
-            registration,
-            output,
-            coverage,
-        } => {
-            let RegisteredContext {
-                registration,
-                paths: context_paths,
-            } = prepare(
-                inventory_store,
-                suite,
-                registration,
-                directory,
-                &tool,
-                selected_rules,
-                reference_executable,
-                candidate_executable,
-                coverage,
-            )?;
-            paths.extend(context_paths);
-            PreparedCases::Registered {
-                registration,
-                output: output.clone(),
-                coverage: coverage.clone(),
-            }
-        }
-    };
-    let before = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
-    let crate::application::certification_probe::types::ProbedProfiles { probe, profiles } =
-        crate::application::certification_probe::service::probe(
-            reference, candidate, directory, scratch,
-        )?;
-    let cases = match &prepared_cases {
-        PreparedCases::Profile => {
-            let rules = directory.join(super::constants::RULE_DIRECTORY);
-            let prepared = crate::application::case_preparation::service::cases(
-                suite, context, &rules, scratch,
-            )?;
-            verify_prepared_shard(
-                suite,
-                receipts,
-                context,
-                reference,
-                candidate,
-                execution,
-                inventory_store,
-                &rules,
-                prepared,
-                ryo_benchmark_contracts::domain::requests::types::CaseSelection::default(),
-            )?
-        }
-        PreparedCases::Registered {
-            registration,
-            output,
-            coverage,
-        } => crate::application::inventory_verification::service::certify_registered(
-            registration,
-            output,
-            suite,
-            receipts,
-            execution,
-            inventory_store,
-            coverage,
-        )?,
-    };
-    let after = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
-    if before != after || execution.profile() != execution_profile {
-        return Err(Error::Invalid(super::constants::CHANGED_EVIDENCE.into()));
-    }
-    if let ryo_benchmark_contracts::domain::requests::types::CertificationCases::Registered {
-        output,
-        ..
-    } = case_source
-    {
-        paths.push(output.clone());
-    }
-    let sealed = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
-    Ok(Certificate {
-        coverage: Audit {
-            implemented: audit.implemented,
-            missing: Vec::new(),
-        },
-        paths,
-        fingerprint: sealed,
-        contestants,
-        probe,
-        profiles,
-        execution: execution_profile,
-        cases,
-        case_source: case_source.clone(),
-    })
-}
 
 /// Preserve every registered context, and require measured code to be the code actually tested.
 pub(super) fn prepare(
@@ -252,7 +83,7 @@ pub(super) fn prepare(
     clippy::too_many_arguments,
     reason = "the workflow forwards the six independently injected ports and the admitted cases"
 )]
-fn verify_prepared_shard(
+pub(super) fn verify_prepared_shard(
     suite: &dyn SuitePort,
     receipts: &dyn ReceiptsPort,
     context: &dyn ContextPort,

@@ -1,5 +1,9 @@
 # contract
 
+## 0.6.0
+
+A contract part may hold `semantics.rs` (`count = { min = 0 }`), rendered by the new template `semantics`: the parse contract's struct implementing `ryo::languages::Semantics`, one method for each relation the catalog declares `optional`, each answered `NotYetRead` until the language reads it. `Parse::semantics` answers `Some(self)` when the file is there and `None` when it is not. The template renders only for the `ryo::languages::Parse` contract and refuses the file under any other. The new rule `semantics-in-parse` finds an `impl Semantics` in any file of the part but the parse contract's `semantics.rs` (scenarios `semantics-in-parse-semantics`, `semantics-in-contract`, `semantics-under-project`), so `contract.rs` keeps the baseline list and `semantics.rs` the optional one. Everything else is as in 0.5.0.
+
 ## 0.5.0
 
 `Parse` no longer renders the methods of the relations the catalog declares `optional` (`identifier`, `binding_read`, `token_link` and the rest): the engine's `ParseUseCase` no longer has them, and a language that answers them does so in its `Semantics`. The scenario `compiler-feature-method-is-required` goes with them: what it proved, that an optional relation cannot go unanswered, is now the compiler's refusal of a `Semantics` without the method. The rendered fixtures carry the change, and the scenarios that mutate a rendering expect one finding fewer for each removed member. Everything else is as in 0.4.0.
