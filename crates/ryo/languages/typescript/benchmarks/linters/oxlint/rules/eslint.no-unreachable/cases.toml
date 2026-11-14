@@ -1,0 +1,374 @@
+[[cases]]
+name = "oxlint-pass-01"
+files = { "case.ts" = "function foo() { function bar() { return 1; } return bar(); }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-02"
+files = { "case.ts" = "function foo() { return bar(); function bar() { return 1; } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-03"
+files = { "case.ts" = "function foo() { return x; var x; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-04"
+files = { "case.ts" = "function foo() { var x = 1; var y = 2; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-05"
+files = { "case.ts" = "function foo() { var x = 1; var y = 2; return; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-06"
+files = { "case.ts" = "while (true) { switch (foo) { case 1: x = 1; x = 2;} }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-07"
+files = { "case.ts" = "while (true) { break; var x; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-08"
+files = { "case.ts" = "while (true) { continue; var x, y; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-09"
+files = { "case.ts" = "while (true) { throw 'message'; var x; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-10"
+files = { "case.ts" = "while (true) { if (true) break; var x = 1; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-11"
+files = { "case.ts" = "while (true) continue;" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-12"
+files = { "case.ts" = "switch (foo) { case 1: break; var x; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-13"
+files = { "case.ts" = "switch (foo) { case 1: break; var x; default: throw true; };" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-14"
+files = { "case.ts" = "const arrow_direction = arrow => {  switch (arrow) { default: throw new Error();  };}" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-15"
+files = { "case.ts" = "var x = 1; y = 2; throw 'uh oh'; var y;" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-16"
+files = { "case.ts" = "function foo() { var x = 1; if (x) { return; } x = 2; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-17"
+files = { "case.ts" = "function foo() { var x = 1; if (x) { } else { return; } x = 2; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-18"
+files = { "case.ts" = "function foo() { var x = 1; switch (x) { case 0: break; default: return; } x = 2; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-19"
+files = { "case.ts" = "function foo() { var x = 1; while (x) { return; } x = 2; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-20"
+files = { "case.ts" = "function foo() { var x = 1; for (x in {}) { return; } x = 2; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-21"
+files = { "case.ts" = "function foo() { var x = 1; try { return; } finally { x = 2; } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-22"
+files = { "case.ts" = "function foo() { var x = 1; for (;;) { if (x) break; } x = 2; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-23"
+files = { "case.ts" = "A: { break A; } foo()" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-24"
+files = { "case.ts" = "function* foo() { try { yield 1; return; } catch (err) { return err; } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-25"
+files = { "case.ts" = "function foo() { try { bar(); return; } catch (err) { return err; } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-26"
+files = { "case.ts" = "function foo() { try { a.b.c = 1; return; } catch (err) { return err; } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-27"
+files = { "case.ts" = "class C { foo = reachable; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-28"
+files = { "case.ts" = "class C { foo = reachable; constructor() {} }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-29"
+files = { "case.ts" = "class C extends B { foo = reachable; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-30"
+files = { "case.ts" = "class C extends B { foo = reachable; constructor() { super(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-31"
+files = { "case.ts" = "class C extends B { static foo = reachable; constructor() {} }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-32"
+files = { "case.ts" = "function foo() { var x = 1; for (;x == 1;) { if (x) continue; } x = 2; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-33"
+files = { "case.ts" = "\n        if (a) {\n            a();\n        } else {\n          for (let i = 1; i <= 10; i++) {\n            b();\n          }\n\n          for (let i = 1; i <= 10; i++) {\n            c();\n          }\n        }\n        " }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-34"
+files = { "case.ts" = "\n        try {\n            throw 'error';\n        } catch (err) {\n            b();\n        }\n        c();\n        " }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-35"
+files = { "case.ts" = "\n        export const getPagePreviewText = (page) => {\n            if (!a) {\n                return '';\n            }\n            while (a && b > c && d-- > 0) {\n            }\n        };\n        " }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-36"
+files = { "case.ts" = "\n        try {\n            for (const a of b) {\n                c();\n            }\n\n            while (true) {\n                d();\n            }\n        } finally {\n        }\n        " }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-37-in-function"
+files = { "case.ts" = "function f(authType) {\n        switch (authType) {\n          case 1:\n            return a();\n          case 2:\n            return b();\n          case 3:\n            return c();\n        }\n        d();\n        }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-38"
+files = { "case.ts" = "\n        try {\n          a();\n        } catch (e) {\n          b();\n        } finally {\n          c();\n        }\n        d();\n        " }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-39"
+files = { "case.ts" = "\n        try {\n            while (true) {\n                a();\n            }\n        } finally {\n            b();\n        }\n        " }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-40"
+files = { "case.ts" = "\n        try {\n            a();\n        } finally {\n            b();\n        }\n        c();\n        " }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-41"
+files = { "case.ts" = "\n        try {\n            while (true) {\n                a();\n            }\n        } catch {\n            b();\n        }\n        " }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-42"
+files = { "case.ts" = "\n        function foo() {\n            if (Math.random() === 0.5) {\n                while (true) { return 'greetings!'; }\n            }\n            return 'Hello, tsdown!';\n        }\n        " }
+expected = []
+
+[[cases]]
+name = "oxlint-fail-01"
+files = { "case.ts" = "function foo() { return x; var x = 1; }" }
+expected = [{ file = "case.ts", start = 27, end = 37 }]
+
+[[cases]]
+name = "oxlint-fail-02"
+files = { "case.ts" = "function foo() { return x; var x, y = 1; }" }
+expected = [{ file = "case.ts", start = 27, end = 40 }]
+
+[[cases]]
+name = "oxlint-fail-03"
+files = { "case.ts" = "while (true) { break; var x = 1; }" }
+expected = [{ file = "case.ts", start = 22, end = 32 }]
+
+[[cases]]
+name = "oxlint-fail-04"
+files = { "case.ts" = "while (true) { continue; var x = 1; }" }
+expected = [{ file = "case.ts", start = 25, end = 35 }]
+
+[[cases]]
+name = "oxlint-fail-05"
+files = { "case.ts" = "function foo() { return; x = 1; }" }
+expected = [{ file = "case.ts", start = 25, end = 31 }]
+
+[[cases]]
+name = "oxlint-fail-06"
+files = { "case.ts" = "function foo() { throw error; x = 1; }" }
+expected = [{ file = "case.ts", start = 30, end = 36 }]
+
+[[cases]]
+name = "oxlint-fail-07"
+files = { "case.ts" = "while (true) { break; x = 1; }" }
+expected = [{ file = "case.ts", start = 22, end = 28 }]
+
+[[cases]]
+name = "oxlint-fail-08"
+files = { "case.ts" = "while (true) { continue; x = 1; }" }
+expected = [{ file = "case.ts", start = 25, end = 31 }]
+
+[[cases]]
+name = "oxlint-fail-09"
+files = { "case.ts" = "function foo() { switch (foo) { case 1: return; x = 1; } }" }
+expected = [{ file = "case.ts", start = 48, end = 54 }]
+
+[[cases]]
+name = "oxlint-fail-10"
+files = { "case.ts" = "function foo() { switch (foo) { case 1: throw e; x = 1; } }" }
+expected = [{ file = "case.ts", start = 49, end = 55 }]
+
+[[cases]]
+name = "oxlint-fail-11"
+files = { "case.ts" = "while (true) { switch (foo) { case 1: break; x = 1; } }" }
+expected = [{ file = "case.ts", start = 45, end = 51 }]
+
+[[cases]]
+name = "oxlint-fail-12"
+files = { "case.ts" = "while (true) { switch (foo) { case 1: continue; x = 1; } }" }
+expected = [{ file = "case.ts", start = 48, end = 54 }]
+
+[[cases]]
+name = "oxlint-fail-13"
+files = { "case.ts" = "var x = 1; throw 'uh oh'; var y = 2;" }
+expected = [{ file = "case.ts", start = 26, end = 36 }]
+
+[[cases]]
+name = "oxlint-fail-14"
+files = { "case.ts" = "function foo() { var x = 1; if (x) { return; } else { throw e; } x = 2; }" }
+expected = [{ file = "case.ts", start = 65, end = 71 }]
+
+[[cases]]
+name = "oxlint-fail-15"
+files = { "case.ts" = "function foo() { var x = 1; if (x) return; else throw -1; x = 2; }" }
+expected = [{ file = "case.ts", start = 58, end = 64 }]
+
+[[cases]]
+name = "oxlint-fail-16"
+files = { "case.ts" = "function foo() { var x = 1; try { return; } finally {} x = 2; }" }
+expected = [{ file = "case.ts", start = 55, end = 61 }]
+
+[[cases]]
+name = "oxlint-fail-17"
+files = { "case.ts" = "function foo() { var x = 1; try { } finally { return; } x = 2; }" }
+expected = [{ file = "case.ts", start = 56, end = 62 }]
+
+[[cases]]
+name = "oxlint-fail-18"
+files = { "case.ts" = "function foo() { var x = 1; do { return; } while (x); x = 2; }" }
+expected = [{ file = "case.ts", start = 54, end = 60 }]
+
+[[cases]]
+name = "oxlint-fail-19"
+files = { "case.ts" = "function foo() { var x = 1; while (x) { if (x) break; else continue; x = 2; } }" }
+expected = [{ file = "case.ts", start = 69, end = 75 }]
+
+[[cases]]
+name = "oxlint-fail-20"
+files = { "case.ts" = "function foo() { var x = 1; for (;;) { if (x) continue; } x = 2; }" }
+expected = [{ file = "case.ts", start = 58, end = 64 }]
+
+[[cases]]
+name = "oxlint-fail-21"
+files = { "case.ts" = "function foo() { var x = 1; while (true) { } x = 2; }" }
+expected = [{ file = "case.ts", start = 45, end = 51 }]
+
+[[cases]]
+name = "oxlint-fail-22"
+files = { "case.ts" = "function foo() { var x = 1; do { } while (true); x = 2; }" }
+expected = [{ file = "case.ts", start = 49, end = 55 }]
+
+[[cases]]
+name = "oxlint-fail-23"
+files = { "case.ts" = "\n        function foo() {\n            return;\n\n            if (Math.random() > 0.5) {\n                if (Math.random() > 0.5) {\n                    console.log('test');\n                }\n            } else {\n                console.log('test');\n\n            }\n        }\n        " }
+expected = [{ file = "case.ts", start = 59, end = 260 }]
+
+[[cases]]
+name = "oxlint-fail-24"
+files = { "case.ts" = "\n        function foo() {\n            return;\n\n            if (Math.random() > 0.5) {\n                function bar() {\n                    return;\n                    console.log('inner');\n                }\n            }\n        }\n        " }
+expected = [{ file = "case.ts", start = 59, end = 220 }, { file = "case.ts", start = 167, end = 188 }]
+
+[[cases]]
+name = "oxlint-fail-25"
+files = { "case.ts" = "function foo() { while (true) { return ''; } return ''; }" }
+expected = [{ file = "case.ts", start = 45, end = 55 }]
+
+[[cases]]
+name = "after-infinite-loop"
+files = { "case.ts" = "function f(x) { while (true) {}  if (x) { a(); } else { b(); }  c(); }\n" }
+expected = [{ file = "case.ts", start = 33, end = 62 }]
+
+[[cases]]
+name = "after-return"
+files = { "case.ts" = "function g(x) { return;          if (x) { a(); } else { b(); }  c(); }\n" }
+expected = [{ file = "case.ts", start = 33, end = 62 }, { file = "case.ts", start = 64, end = 68 }]
+
+[[cases]]
+name = "step-after-exit"
+files = { "case.ts" = "function h() { return; foo(); }\n" }
+expected = [{ file = "case.ts", start = 23, end = 29 }]
+
+[[cases]]
+name = "nested-block-after-return"
+files = { "case.ts" = "function n() { return; { a(); { b(); } } c(); }\n" }
+expected = [{ file = "case.ts", start = 23, end = 40 }, { file = "case.ts", start = 41, end = 45 }]
+
+[[cases]]
+name = "skips-empty-and-bare-var"
+files = { "case.ts" = "function s() { return; ; var v; }\n" }
+expected = []
+
+[[cases]]
+name = "static-block"
+files = { "case.ts" = "class K { static { throw e; a(); } }\n" }
+expected = [{ file = "case.ts", start = 28, end = 32 }]
+
+[[cases]]
+name = "function-after-return"
+files = { "case.ts" = "function f() { return; function g() { return; a(); } }\n" }
+expected = [{ file = "case.ts", start = 46, end = 50 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "function f() {\n  return;\n  // eslint-disable-next-line no-unreachable\n  a();\n}\n" }
+expected = []
