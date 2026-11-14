@@ -131,22 +131,22 @@ fn subject(shape: Input) -> Result<Value, Failure> {
         .take(3)
         .filter(|node| node.readers == NodeReaders(0))
         .count();
-    match &plan.nodes.get(3).ok_or(())?.lowering {
-        Lowering::Probe { right, probe, .. } => match probe.mode {
-            ProbeMode::Ordered(order) => {
-                let on_parent = matches!(&probe.key, ProbeKey::Columns { left, right }
+    let Lowering::Probe { right, probe, .. } = &plan.nodes.get(3).ok_or(())?.lowering else {
+        return Err(());
+    };
+    match probe.mode {
+        ProbeMode::Ordered(order) => {
+            let on_parent = matches!(&probe.key, ProbeKey::Columns { left, right }
                     if left == right && left.as_slice() == [ColumnIndex(0)]);
-                Ok(Rewritten::Ordered {
-                    right: *right,
-                    on_parent,
-                    order,
-                    unread,
-                })
-            }
-            ProbeMode::Anti => Ok(Rewritten::Declined),
-            ProbeMode::Inner | ProbeMode::Semi => Err(()),
-        },
-        _ => Err(()),
+            Ok(Rewritten::Ordered {
+                right: *right,
+                on_parent,
+                order,
+                unread,
+            })
+        }
+        ProbeMode::Anti => Ok(Rewritten::Declined),
+        ProbeMode::Inner | ProbeMode::Semi => Err(()),
     }
 }
 
