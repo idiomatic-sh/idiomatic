@@ -34,10 +34,12 @@ impl<'a> Visit<'a> for PatternWriter<'_, '_> {
             kind_bits(Kind::Pattern(node)),
             Offset(kind.span().start),
         );
-        let number = match kind {
-            RegExpAstKind::Character(character) => Some(character.value),
-            RegExpAstKind::IndexedReference(reference) => Some(reference.index),
-            _ => None,
+        let number = if let RegExpAstKind::Character(character) = kind {
+            Some(character.value)
+        } else if let RegExpAstKind::IndexedReference(reference) = kind {
+            Some(reference.index)
+        } else {
+            None
         };
         if let Some(number) = number {
             // A number formats into retained storage without failure.
@@ -81,10 +83,12 @@ fn pattern_node(kind: RegExpAstKind<'_>) -> Option<PatternNode> {
 /// Notes the string a call of `RegExp` takes first as a possible carrier, with the flags its second argument gives: whether the name
 /// is the global constructor is known only once the file's names are resolved.
 pub(in super::super) fn constructed<'a>(projection: &mut VisitorStack<'a>, kind: AstKind<'a>) {
-    let (callee, arguments) = match kind {
-        AstKind::CallExpression(call) => (&call.callee, &call.arguments),
-        AstKind::NewExpression(call) => (&call.callee, &call.arguments),
-        _ => return,
+    let (callee, arguments) = if let AstKind::CallExpression(call) = kind {
+        (&call.callee, &call.arguments)
+    } else if let AstKind::NewExpression(call) = kind {
+        (&call.callee, &call.arguments)
+    } else {
+        return;
     };
     let Expression::Identifier(name) = callee else {
         return;
@@ -104,7 +108,7 @@ pub(in super::super) fn constructed<'a>(projection: &mut VisitorStack<'a>, kind:
     };
     projection.carriers.push(Carrier {
         span: pattern.span,
-        form: Form::Constructor(&**name),
+        form: Form::Constructor(name),
         flags,
         host: Hosting::Unwritten,
     });
@@ -112,30 +116,27 @@ pub(in super::super) fn constructed<'a>(projection: &mut VisitorStack<'a>, kind:
 
 /// Whether the node the walk enters carries a pattern: a pattern literal always, a string when the call around it noted it.
 pub(in super::super) fn carried(projection: &mut VisitorStack<'_>, kind: AstKind<'_>) -> Carries {
-    match kind {
-        AstKind::RegExpLiteral(literal) => {
-            let start = literal.span.start.saturating_add(1);
-            let end =
-                start.saturating_add(u32::try_from(literal.regex.pattern.text.len()).unwrap_or(0));
-            projection.carriers.push(Carrier {
-                span: literal.span,
-                form: Form::Literal(Span::new(start, end)),
-                flags: PatternFlags::Bare(Span::new(end.saturating_add(1), literal.span.end)),
-                host: Hosting::Unwritten,
-            });
-            Carries::Pattern(CarrierIndex(projection.carriers.len() - 1))
-        }
-        AstKind::StringLiteral(literal) => match projection.carriers.last() {
-            Some(carrier)
-                if carrier.span == literal.span
-                    && matches!(carrier.form, Form::Constructor(_))
-                    && carrier.host == Hosting::Unwritten =>
-            {
-                Carries::Pattern(CarrierIndex(projection.carriers.len() - 1))
-            }
-            _ => Carries::Nothing,
-        },
-        _ => Carries::Nothing,
+    if let AstKind::RegExpLiteral(literal) = kind {
+        let start = literal.span.start.saturating_add(1);
+        let end =
+            start.saturating_add(u32::try_from(literal.regex.pattern.text.len()).unwrap_or(0));
+        projection.carriers.push(Carrier {
+            span: literal.span,
+            form: Form::Literal(Span::new(start, end)),
+            flags: PatternFlags::Bare(Span::new(end.saturating_add(1), literal.span.end)),
+            host: Hosting::Unwritten,
+        });
+        Carries::Pattern(CarrierIndex(projection.carriers.len() - 1))
+    } else if let AstKind::StringLiteral(literal) = kind
+        && projection.carriers.last().is_some_and(|carrier| {
+            carrier.span == literal.span
+                && matches!(carrier.form, Form::Constructor(_))
+                && carrier.host == Hosting::Unwritten
+        })
+    {
+        Carries::Pattern(CarrierIndex(projection.carriers.len() - 1))
+    } else {
+        Carries::Nothing
     }
 }
 
@@ -226,7 +227,7 @@ pub(in super::super) fn written_patterns(
 }
 
 /// The text of the source at `span`; empty where the span is not of it.
-fn slice<'s>(source: NameText<'s>, span: Span) -> NameText<'s> {
+fn slice(source: NameText<'_>, span: Span) -> NameText<'_> {
     NameText(
         source
             .0

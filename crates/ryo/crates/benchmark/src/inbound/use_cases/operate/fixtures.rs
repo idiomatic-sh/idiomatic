@@ -65,6 +65,10 @@ pub fn use_case(executables: Arc<ExecutablesFake>) -> OperateUseCaseImpl {
 }
 
 /// Run one scenario through the use case `build` makes, observing its answer, output and requests.
+///
+/// # Panics
+///
+/// When the scenario's temporary bench directory, profile or reference tool cannot be written.
 #[must_use]
 pub fn observe(
     scenario: Scenario,
