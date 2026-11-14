@@ -51,6 +51,8 @@ macro_rules! kernels {
 kernels! {
     /// The `scan_facts` kernel.
     ScanFacts => crate::domain::physical_plan::collections::kernels::scan_facts::item::ScanFactsItem,
+    /// The `scan_roots` kernel.
+    ScanRoots => crate::domain::physical_plan::collections::kernels::scan_roots::item::ScanRootsItem,
     /// The `scan_node` kernel.
     ScanNode => crate::domain::physical_plan::collections::kernels::scan_node::item::ScanNodeItem,
     /// The `lookup` kernel.
@@ -143,7 +145,12 @@ fn place(nodes: &mut [PhysicalNode], id: PlanNodeId) -> Option<&mut PhysicalNode
 fn source_of(input: &PlanInput) -> Option<RowSource> {
     match input {
         PlanInput::Node(node) => Some(RowSource::Node(*node)),
-        PlanInput::Relation(relation) => Some(RowSource::Facts(*relation)),
+        PlanInput::Relation(relation) => Some(
+            match crate::domain::tree_cells::service::native_form(*relation) {
+                Some(_) => RowSource::Tree(*relation),
+                None => RowSource::Facts(*relation),
+            },
+        ),
         PlanInput::Bound(_) | PlanInput::Observation(_) => None,
     }
 }

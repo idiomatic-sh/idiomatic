@@ -221,7 +221,7 @@ impl AdmittedInput {
             return Err(OperatingError::NotRead);
         }
         if kinds_of(rows) != ryo_relations::domain::relations::service::kinds(relation)
-            || matches!(rows,Rows::Tree(tree) if ryo_execution_domain::domain::table_cells::service::native_form(relation) != Some(tree.form))
+            || matches!(rows,Rows::Tree(tree) if ryo_operators::domain::tree_cells::service::native_form(relation) != Some(tree.form))
         {
             return Ok(None);
         }

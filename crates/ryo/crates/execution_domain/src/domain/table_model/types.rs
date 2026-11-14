@@ -3,7 +3,7 @@
 
 use ryo_values::domain::rows::types::Table;
 
-use crate::domain::table_cells::types::TreeRows;
+use ryo_operators::domain::tree_cells::types::TreeRows;
 use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_values::domain::plan_parts::types::Input;
 

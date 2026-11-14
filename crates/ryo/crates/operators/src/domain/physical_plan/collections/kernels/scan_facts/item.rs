@@ -4,6 +4,7 @@
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use crate::domain::contract::types::PortableOperatorFault;
+use super::super::scan_roots::item::{tree_cell, tree_count, tree_kinds, tree_row};
 use crate::domain::physical_plan::types::{FactRows, InputRows, PlanInputs};
 #[cfg(test)]
 use crate::domain::physical_plan::types::{Lowering, RowSource};
@@ -69,6 +70,7 @@ pub(crate) fn decode(view: &ColumnsView<'_>, row: RowIndex, into: &mut Vec<Value
 pub(crate) fn kinds_of<'a>(rows: InputRows<'a>) -> &'a [CellKind] {
     match rows {
         InputRows::Facts(view) => view.kinds,
+        InputRows::Tree(tree) => tree_kinds(tree),
         InputRows::Table(table) => &table.kinds,
     }
 }
@@ -77,6 +79,7 @@ pub(crate) fn kinds_of<'a>(rows: InputRows<'a>) -> &'a [CellKind] {
 pub(crate) fn count_of(rows: InputRows<'_>) -> RowCount {
     match rows {
         InputRows::Facts(view) => rows_of(view),
+        InputRows::Tree(tree) => tree_count(tree),
         InputRows::Table(table) => table.count,
     }
 }
@@ -90,6 +93,7 @@ pub(crate) fn cell_of(rows: InputRows<'_>, row: RowIndex, column: ColumnIndex) -
             let bits = view.columns.get(at)?.0.get(row.0)?;
             Some(from_bits(*kind, Bits(*bits)))
         }
+        InputRows::Tree(tree) => tree_cell(tree, row, column),
         InputRows::Table(table) => {
             let width = table.kinds.len();
             (at < width && row.0 < table.count.0)
@@ -108,6 +112,10 @@ pub(crate) fn row_of<'r>(
     match rows {
         InputRows::Facts(view) => {
             decode(view, row, scratch);
+            scratch
+        }
+        InputRows::Tree(tree) => {
+            tree_row(tree, row, scratch);
             scratch
         }
         InputRows::Table(table) => {

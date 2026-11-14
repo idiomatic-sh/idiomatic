@@ -54,7 +54,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_kernel_is_reached"),
         word: Word::Succeeds,
         input: || Scenario::KernelsReached,
-        expect: Expect::Value(10),
+        expect: Expect::Value(11),
     },
     Case {
         name: CaseName("a_kernel_no_lowering_runs_fails_every_kernel_is_reached"),

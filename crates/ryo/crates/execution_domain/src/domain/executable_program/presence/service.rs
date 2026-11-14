@@ -138,7 +138,7 @@ pub fn of_graph(
                             Provenance::Trees | Provenance::Engine
                         ) =>
                 {
-                    trees.push(crate::domain::table_cells::service::native_form(*relation));
+                    trees.push(ryo_operators::domain::tree_cells::service::native_form(*relation));
                     reads.push(*relation);
                     presences.push(test(&mut tables, *relation, Vec::new()));
                     let kinds = node
@@ -164,7 +164,7 @@ pub fn of_graph(
                     );
                 }
                 (NodeInput::Relation(relation), _) => {
-                    trees.push(crate::domain::table_cells::service::native_form(*relation));
+                    trees.push(ryo_operators::domain::tree_cells::service::native_form(*relation));
                     presences.push(ALWAYS);
                     origins.push(vec![None; width]);
                     located.push(vec![None; width]);

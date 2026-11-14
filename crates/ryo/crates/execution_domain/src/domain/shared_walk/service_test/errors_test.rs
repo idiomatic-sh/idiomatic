@@ -9,7 +9,7 @@ use crate::domain::shared_walk::types::WalkWork;
 use crate::domain::shared_walk::types::native_batch::value::NativeBatch;
 use crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk;
 use crate::domain::step_classes::types::ClassPlace;
-use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_operators::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};

@@ -1,6 +1,6 @@
 //! The small tree the engine's tests read elements from, and the rows they run their steps over.
 
-use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;

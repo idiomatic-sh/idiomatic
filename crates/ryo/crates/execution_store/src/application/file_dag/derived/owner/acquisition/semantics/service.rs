@@ -43,10 +43,10 @@ pub(crate) fn build(
                     return Err(OperatingError::WrongOperation);
                 };
                 let form = match tree.form {
-                    ryo_execution_domain::domain::table_cells::types::TreeForm::Elements => {
+                    ryo_operators::domain::tree_cells::types::TreeForm::Elements => {
                         ryo_derived::domain::native::types::NativeForm::Elements
                     }
-                    ryo_execution_domain::domain::table_cells::types::TreeForm::Edges => {
+                    ryo_operators::domain::tree_cells::types::TreeForm::Edges => {
                         ryo_derived::domain::native::types::NativeForm::Edges
                     }
                 };

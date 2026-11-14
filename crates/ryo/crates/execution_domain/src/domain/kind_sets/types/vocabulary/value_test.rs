@@ -3,7 +3,7 @@
 use crate::domain::kind_sets::service::{kind_tests, passes, prepare_vocabulary};
 use crate::domain::kind_sets::types::KindScratch;
 use crate::domain::operator::types::OperatorContext;
-use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_operators::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};

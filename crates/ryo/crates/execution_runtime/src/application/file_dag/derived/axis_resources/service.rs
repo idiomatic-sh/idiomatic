@@ -5,10 +5,10 @@ use super::view::service::AxisResource;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::membership::types::MembershipView;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_operators::domain::tree_cells::types::TreeForm;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     operator::contract::resources::types::AxisResources,
-    table_cells::types::TreeForm,
     table_model::service::check_columns,
     tree_walk::service::entity_of,
 };

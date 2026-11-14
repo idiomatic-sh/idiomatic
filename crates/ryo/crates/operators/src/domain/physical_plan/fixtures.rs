@@ -76,7 +76,7 @@ fn join(left: (StepInput, PlanInput), right: (StepInput, PlanInput), on: [u32; 2
 }
 
 /// The case vocabulary: every kind of this stage over `DEFINES` and over nodes, two selects keyed on one name column, and
-/// the groupings last.
+/// the groupings, then a select of the tree, last.
 #[expect(clippy::too_many_lines, reason = "one program naming each kind of the stage once, in node order")]
 pub fn case_program() -> Vec<Step> {
     let select = |name: &str| {
@@ -145,6 +145,14 @@ pub fn case_program() -> Vec<Step> {
                 distinct: Some(ColumnIndex(2)),
             },
             &[defines().1],
+        ),
+        step(
+            Operation::Select {
+                from: StepInput::Relation(Relation::SyntaxTree),
+                comparisons: vec![equal(1, "word")],
+                kept: Vec::new(),
+            },
+            &[PlanInput::Relation(Relation::SyntaxTree)],
         ),
     ]
 }

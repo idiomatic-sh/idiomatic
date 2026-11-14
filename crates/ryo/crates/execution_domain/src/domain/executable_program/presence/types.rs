@@ -222,7 +222,7 @@ pub(crate) struct NodeFacts {
     /// Whether each of its columns is located, and from which provider span columns.
     pub located: Vec<Option<LocatedId>>,
     /// The native tree form its output keeps.
-    pub tree: Option<crate::domain::table_cells::types::TreeForm>,
+    pub tree: Option<ryo_operators::domain::tree_cells::types::TreeForm>,
     /// Whether it may have rows in any file.
     pub conditionality: Conditionality,
     /// The per-file relations its inputs read, at any depth, sorted.

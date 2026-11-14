@@ -54,7 +54,7 @@ fn axis_contract(
     let kinds = ryo_relations::domain::relations::service::kinds(Relation::Function);
     let shape = ryo_execution_domain::domain::operation_schema::types::InputShape {
         kinds,
-        tree: ryo_execution_domain::domain::table_cells::service::native_form(Relation::Function),
+        tree: ryo_operators::domain::tree_cells::service::native_form(Relation::Function),
     };
     let mut contract = ryo_execution_domain::domain::operator::service::prepare_operator(
         ryo_values::domain::plans::service::kind_of(operation),

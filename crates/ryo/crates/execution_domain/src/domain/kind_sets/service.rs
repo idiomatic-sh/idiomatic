@@ -16,7 +16,7 @@ use ryo_operators::domain::comparing::collections::comparisons::glob::item::Glob
 use ryo_operators::domain::comparing::collections::comparisons::interface::ComparisonsItem as _;
 use ryo_operators::domain::patterns::types::PatternMatcher;
 use crate::domain::operating::types::KindNaming;
-use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_operators::domain::table_scratch::service::kind_has;
 use ryo_operators::domain::table_scratch::types::{

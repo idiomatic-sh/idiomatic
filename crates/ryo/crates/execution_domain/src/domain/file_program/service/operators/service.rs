@@ -5,7 +5,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::operator::service::prepare_operator;
-use crate::domain::table_cells::types::TreeForm;
+use ryo_operators::domain::tree_cells::types::TreeForm;
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::hosted::types::{HostKind, HostRelation};
 use ryo_values::domain::plan_parts::types::Input;
@@ -65,7 +65,7 @@ pub fn prepare<'s>(
                     Ok(match input {
                         Input::Relation(relation) => InputShape {
                             kinds: relation_kinds(*relation),
-                            tree: crate::domain::table_cells::service::native_form(*relation),
+                            tree: ryo_operators::domain::tree_cells::service::native_form(*relation),
                         },
                         Input::BoundObservation(id) => InputShape {
                             kinds: observed_kinds

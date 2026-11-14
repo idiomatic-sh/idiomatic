@@ -36,3 +36,4 @@ pub mod functions;
 pub mod patterns;
 pub mod table_texts;
 pub mod table_scratch;
+pub mod tree_cells;

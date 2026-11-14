@@ -140,7 +140,7 @@ pub(super) struct SourceSlice<'a> {
 #[derive(Clone, Copy, Debug)]
 pub struct NativeJoin<'a> {
     /// The tree the lookup finds candidates in.
-    pub tree: crate::domain::table_cells::types::TreeRows<'a>,
+    pub tree: ryo_operators::domain::tree_cells::types::TreeRows<'a>,
     /// How the lookup finds them.
     pub finding: ryo_derived::domain::native::types::NativeFinding,
 }
@@ -171,9 +171,9 @@ pub enum PreparedAxis<'a> {
     /// A tree of elements.
     Native {
         /// The tree walked.
-        tree: crate::domain::table_cells::types::TreeRows<'a>,
+        tree: ryo_operators::domain::tree_cells::types::TreeRows<'a>,
         /// The nodes the walk is confined to, when it is confined.
-        among: Option<crate::domain::table_cells::types::TreeRows<'a>>,
+        among: Option<ryo_operators::domain::tree_cells::types::TreeRows<'a>>,
         /// The marks of the domain's members.
         marks: ryo_derived::domain::positions::types::DenseMarks<'a>,
     },

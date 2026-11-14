@@ -10,7 +10,7 @@ use crate::domain::operation_schema::types::InputShape;
 use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId, ServedAt};
 use ryo_values::domain::observations::types::BoundObservationInput;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plan_parts::types::{LiteralText, StepScope};
 use ryo_values::domain::plans::types::{Operation, Plan};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
@@ -60,6 +60,15 @@ pub struct Consumers(pub u32);
 
 /// One node of the logical program while it is drafted: the operation, the rule it was first written in, its scope and its
 /// output's columns.
+/// A root kind of a program: the text the plans write for it and the nodes that start from the tree nodes of that kind.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RootKind<'a> {
+    /// The kind's text, as the plans write it.
+    pub kind: &'a LiteralText,
+    /// The nodes that start from it, in node order.
+    pub nodes: &'a [PlanNodeId],
+}
+
 pub(crate) struct Draft<'p> {
     /// The operation, borrowed from its rule's plan.
     pub(crate) operation: &'p Operation,

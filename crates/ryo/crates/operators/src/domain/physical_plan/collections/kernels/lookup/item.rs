@@ -35,7 +35,7 @@ impl KernelsItem for LookupItem {
 /// A refused relation; `NoSuchColumn` for a kept column past the relation's rows.
 pub(crate) fn lookups(
     plan: &PhysicalPlan,
-    run: &mut KernelRun<'_>,
+    run: &KernelRun<'_>,
     index: IndexPlace,
     buffers: &mut FileBuffers,
 ) -> Result<(), PortableOperatorFault> {

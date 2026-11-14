@@ -1,6 +1,6 @@
 //! A classified physical catalog handle; implementer storage never crosses this value.
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_cells::types::TreeForm;
+use ryo_operators::domain::tree_cells::types::TreeForm;
 use crate::domain::table_model::collections::representations::{
     compact::item::CompactItem,
     computed::item::ComputedItem,

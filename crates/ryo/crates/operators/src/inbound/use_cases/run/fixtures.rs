@@ -19,7 +19,7 @@ use ryo_language::domain::symbols::service::{intern, intern_derived, text_of};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Offset;
-use ryo_relations::domain::relations::types::{ColumnsView, FactColumn, Relation, Value};
+use ryo_relations::domain::relations::types::{ColumnsView, FactColumn, NodeId, Relation, Value};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::files::types::SourceView;
@@ -39,6 +39,8 @@ pub struct TableInputs {
     reads: Vec<Cell<usize>>,
     /// The rows of a binding no case holds.
     empty: Table,
+    /// The tree nodes every node reading the tree starts from, in tree order.
+    roots: Vec<NodeId>,
 }
 
 impl TableInputs {
@@ -54,7 +56,14 @@ impl TableInputs {
             held,
             reads,
             empty: Table::default(),
+            roots: Vec::new(),
         }
+    }
+
+    /// These inputs, with every node reading the tree starting from `roots`.
+    #[must_use]
+    pub fn with_roots(self, roots: Vec<NodeId>) -> Self {
+        Self { roots, ..self }
     }
 
     /// How many times `relation`'s rows were read.
@@ -88,7 +97,7 @@ impl PlanInputs for TableInputs {
         }
     }
     fn roots(&self, _root: PlanNodeId) -> Candidates<'_> {
-        Candidates(&[])
+        Candidates(&self.roots)
     }
     fn bound(&self, _parameter: ParameterId) -> &Table {
         &self.empty
@@ -124,7 +133,7 @@ pub struct TextResources {
     source: Vec<u8>,
     /// The file's symbols: one for each distinct text.
     symbols: Symbols,
-    /// The file's tree: no node.
+    /// The file's tree: no node, but in the small tree's resources.
     tree: Elements,
 }
 
@@ -144,6 +153,32 @@ impl TextResources {
             source,
             symbols,
             tree: Elements::default(),
+        }
+    }
+
+    /// The resources of the file `abc` in file 0: a `file` node over the tokens `a` (a `word`), `b` (an `other`) and `c` (a
+    /// `word`), at positions 1 to 3.
+    #[must_use]
+    pub fn small_tree() -> Self {
+        use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
+        use ryo_language::domain::completion::service::{completion, name_kind};
+        use ryo_relations::domain::relations::types::{FileId, KindBits};
+        let source = b"abc".to_vec();
+        let (mut tree, mut symbols) = (Elements::default(), Symbols::default());
+        let mut builder = table_builder(&mut tree, &mut symbols, ByteSlice(&source));
+        enter_node(&mut builder, KindBits(1), Offset(0));
+        for (bits, start) in [(2, 0), (3, 1), (2, 2)] {
+            token(&mut builder, KindBits(bits), Offset(start), Offset(start + 1));
+        }
+        leave_node(&mut builder, Offset(3));
+        for (bits, name) in [(1, "file"), (2, "word"), (3, "other")] {
+            let mut names = completion(&mut tree, &mut symbols, ByteSlice(&source), FileId(0));
+            name_kind(&mut names, KindBits(bits), NameText(name));
+        }
+        Self {
+            source,
+            symbols,
+            tree,
         }
     }
 

@@ -1,6 +1,6 @@
 //! The types of the `axis_resources` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_execution_domain::domain::table_cells::types::TreeRows;
+use ryo_operators::domain::tree_cells::types::TreeRows;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 #[derive(Clone, Copy)]

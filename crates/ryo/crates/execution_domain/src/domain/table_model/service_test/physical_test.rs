@@ -1,6 +1,6 @@
 //! Physical rows of the zero-width and native representations, through the registry.
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::collections::representations::types::*;
 use crate::domain::table_model::service::{borrowed, kind, registered};
 use crate::domain::table_model::service_test::{check_rows, number, values};

@@ -22,10 +22,10 @@ use ryo_execution_domain::domain::{
     derived_views::types::contract::value::PreparedViewUse,
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
-    table_cells::types::{TreeForm, TreeRows},
     table_model::types::Rows,
 };
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_relations::domain::relations::types::{CellKind, FileId, NodeId, Relation, Value};
 use ryo_values::domain::files::types::SourceView;
 use std::{rc::Rc, sync::Arc};

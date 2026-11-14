@@ -12,6 +12,7 @@ use crate::domain::physical_plan::collections::kernels::project::item::projected
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
     count_of, facts, kinds_of, row_of,
 };
+use crate::domain::physical_plan::collections::kernels::scan_roots::item::roots;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::{
     give_back, hold, sources_of, take,
 };
@@ -71,18 +72,26 @@ fn ready(
         RowSource::Node(read) if buffers.rows(read) == NodeRows::Absent => {
             materialize(plan, run, read, buffers)
         }
-        RowSource::Node(_) | RowSource::Facts(_) => Ok(()),
+        RowSource::Node(_) | RowSource::Facts(_) | RowSource::Tree(_) => Ok(()),
     }
 }
 
-/// What `source` reads, taken for its reader: a relation's rows lent in place, or a ready node's rows.
-fn reading<'a>(
-    run: &KernelRun<'a>,
+/// What `source` reads, taken for its reader `node`: a relation's rows lent in place, a tree relation's rows at the tree nodes
+/// the engine names for the reader, or a ready node's rows.
+fn reading<'s>(
+    run: &'s KernelRun<'_>,
+    node: PlanNodeId,
     source: RowSource,
     buffers: &mut FileBuffers,
-) -> Result<Reading<'a>, PortableOperatorFault> {
+) -> Result<Reading<'s>, PortableOperatorFault> {
     match source {
         RowSource::Facts(relation) => facts(run.inputs, relation).map(Reading::Facts),
+        RowSource::Tree(relation) => Ok(Reading::Tree(roots(
+            run.inputs,
+            run.resources.tree(),
+            node,
+            relation,
+        ))),
         RowSource::Node(read) => take(buffers, read).map(|taken| Reading::Node(read, taken)),
     }
 }
@@ -91,6 +100,7 @@ fn reading<'a>(
 fn rows_in<'r>(reading: &'r Reading<'_>) -> InputRows<'r> {
     match reading {
         Reading::Facts(view) => InputRows::Facts(view),
+        Reading::Tree(tree) => InputRows::Tree(tree),
         Reading::Node(_, taken) => InputRows::Table(&taken.rows),
     }
 }
@@ -138,11 +148,25 @@ fn materialize(
     if let Some(second) = second {
         ready(plan, run, second, buffers)?;
     }
+    // An extension's values are made before its rows are read: making a name changes the file's names, and reading reads them.
+    let resolution = match lowering {
+        Lowering::Extend { extension, .. } => {
+            resolved(&extension.values, &extension.bindings, run.resources, &mut buffers.values).err()
+        }
+        Lowering::Filter { .. }
+        | Lowering::Project { .. }
+        | Lowering::Group { .. }
+        | Lowering::Probe { .. }
+        | Lowering::Distinct { .. }
+        | Lowering::Lookup { .. }
+        | Lowering::Unlowered => None,
+    };
+    let run: &KernelRun<'_> = run;
     // One node read on both sides is taken once and read twice.
     let shared = second == Some(first) && matches!(first, RowSource::Node(_));
-    let left = reading(run, first, buffers)?;
+    let left = reading(run, node, first, buffers)?;
     let right = match second {
-        Some(second) if !shared => match reading(run, second, buffers) {
+        Some(second) if !shared => match reading(run, node, second, buffers) {
             Ok(right) => Some(right),
             Err(fault) => {
                 returned(plan, buffers, left, NodeReaders(1));
@@ -182,7 +206,7 @@ fn materialize(
                 input: rows_in(&left),
                 other: right_rows,
             };
-            kernels(lowering, run, node, inputs, buffers, &mut output)
+            kernels(lowering, run, node, inputs, resolution, buffers, &mut output)
         }
     };
     returned(plan, buffers, left, NodeReaders(if shared { 2 } else { 1 }));
@@ -197,7 +221,7 @@ fn materialize(
 /// The fault a read node raised after its rows.
 fn pending_of(reading: &Reading<'_>) -> Option<PortableOperatorFault> {
     match reading {
-        Reading::Facts(_) => None,
+        Reading::Facts(_) | Reading::Tree(_) => None,
         Reading::Node(_, taken) => taken.pending.clone(),
     }
 }
@@ -209,9 +233,10 @@ fn pending_of(reading: &Reading<'_>) -> Option<PortableOperatorFault> {
 /// A fault of the node's shape: a column past its input's rows.
 fn kernels(
     lowering: &Lowering,
-    run: &mut KernelRun<'_>,
+    run: &KernelRun<'_>,
     node: PlanNodeId,
     KernelInputs { input, other }: KernelInputs<'_>,
+    resolution: Option<PortableOperatorFault>,
     buffers: &mut FileBuffers,
     output: &mut Table,
 ) -> Result<Option<PortableOperatorFault>, PortableOperatorFault> {
@@ -244,8 +269,8 @@ fn kernels(
                 }
             }
         }
-        Lowering::Extend { extension, .. } => {
-            if let Err(fault) = resolved(&extension.values, &extension.bindings, run.resources, &mut buffers.values) {
+        Lowering::Extend { .. } => {
+            if let Some(fault) = resolution {
                 return Ok(Some(fault));
             }
             output.kinds = kinds.iter().copied().chain(buffers.values.iter().map(|value| kind_of(*value))).collect();

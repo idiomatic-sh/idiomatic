@@ -161,6 +161,8 @@ pub struct Unserved {
 pub(crate) enum RowSource {
     /// A relation's rows, lent by the facts.
     Facts(Relation),
+    /// A tree relation's rows, read from the open file's elements.
+    Tree(Relation),
     /// An earlier node's materialized rows.
     Node(PlanNodeId),
 }
@@ -313,6 +315,8 @@ pub(crate) struct TakenRows {
 pub(crate) enum InputRows<'a> {
     /// A relation's columns, lent by the facts.
     Facts(&'a ColumnsView<'a>),
+    /// A tree relation's rows, read from the elements.
+    Tree(&'a TreeRead<'a>),
     /// A table of rows.
     Table(&'a Table),
 }
@@ -353,6 +357,21 @@ pub(crate) struct CellStart(pub(crate) usize);
 pub(crate) enum Reading<'a> {
     /// A relation's columns.
     Facts(ColumnsView<'a>),
+    /// A tree relation's rows.
+    Tree(TreeRead<'a>),
     /// An earlier node and its rows and pending fault.
     Node(PlanNodeId, TakenRows),
+}
+
+/// A tree relation's rows as one node reads them: the open file's elements at the tree nodes the engine named, in tree order.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct TreeRead<'a> {
+    /// Which rows of the tree these are.
+    pub(crate) form: crate::domain::tree_cells::types::TreeForm,
+    /// What each column holds.
+    pub(crate) kinds: &'static [ryo_relations::domain::relations::types::CellKind],
+    /// The open file's elements.
+    pub(crate) elements: &'a Elements,
+    /// The tree nodes whose rows these are, in tree order.
+    pub(crate) candidates: &'a [NodeId],
 }

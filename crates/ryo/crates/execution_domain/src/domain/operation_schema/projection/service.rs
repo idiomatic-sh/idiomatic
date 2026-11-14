@@ -145,7 +145,7 @@ pub(crate) fn joined(
 /// input or a reach join, whose right columns are the closure's own.
 pub(crate) fn right_view<'a>(
     view: &'a [ColumnIndex],
-    tree: Option<crate::domain::table_cells::types::TreeForm>,
+    tree: Option<ryo_operators::domain::tree_cells::types::TreeForm>,
     reach: Option<&ryo_values::domain::plan_parts::types::ReachLookup>,
 ) -> Option<&'a [ColumnIndex]> {
     if reach.is_some() {
@@ -167,7 +167,7 @@ pub(crate) fn right_column(view: Option<&[ColumnIndex]>, column: ColumnIndex) ->
 pub(crate) fn tree_output(
     operation: &Operation,
     input: Option<InputShape<'_>>,
-) -> Option<crate::domain::table_cells::types::TreeForm> {
+) -> Option<ryo_operators::domain::tree_cells::types::TreeForm> {
     match operation {
         Operation::Select {
             comparisons, kept, ..

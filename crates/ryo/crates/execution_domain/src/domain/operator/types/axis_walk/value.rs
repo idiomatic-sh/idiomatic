@@ -6,7 +6,7 @@ use super::super::row_delivery::value::RowDelivery;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::failure::types::LatchState;
 use crate::domain::operator::contract::views::types::PreparedAxis;
-use crate::domain::table_cells::service::{element_of, tree_value};
+use ryo_operators::domain::tree_cells::service::{element_of, tree_value};
 use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_derived::domain::membership::types::MembershipView;
 use ryo_language::domain::elements::service::{

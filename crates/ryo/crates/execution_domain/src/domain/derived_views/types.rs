@@ -5,7 +5,7 @@ use ryo_values::domain::{plan_parts::types::ColumnIndex, stored_facts::types::Ar
 
 use crate::domain::table_model::types::RepresentationInput;
 use {
-    crate::domain::stored_graph::types::GraphSource, crate::domain::table_cells::types::TreeRows,
+    crate::domain::stored_graph::types::GraphSource, ryo_operators::domain::tree_cells::types::TreeRows,
     ryo_operators::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
 };
 

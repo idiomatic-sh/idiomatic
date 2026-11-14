@@ -87,7 +87,7 @@ pub(crate) fn probed(
     probe: &ProbeParts,
     left: InputRows<'_>,
     right: InputRows<'_>,
-    run: &mut KernelRun<'_>,
+    run: &KernelRun<'_>,
     scratch: ProbeScratch<'_>,
     output: &mut Table,
 ) -> Result<Option<PortableOperatorFault>, PortableOperatorFault> {

@@ -12,6 +12,7 @@ use super::types::{
 };
 use crate::domain::operator::types::OperatorContext;
 use ryo_operators::domain::table_texts::types::Texts;
+use ryo_operators::domain::tree_cells::types::TreeForm;
 use crate::domain::{
     kind_sets::{
         service::{kind_tests, named_kinds, names_a_kind, passes},
@@ -23,7 +24,7 @@ use crate::domain::{
     step_classes::types::StepClass,
     table_cells::{
         service::read_tree_cells,
-        types::{CellsRead, ColumnPlaces, TreeForm},
+        types::{CellsRead, ColumnPlaces},
     },
     table_model::{
         service::{count_of, kinds_of, read_row},

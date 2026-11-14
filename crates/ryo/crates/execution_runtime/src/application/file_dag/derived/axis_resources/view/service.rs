@@ -4,10 +4,10 @@ use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::membership::types::MembershipView;
 use ryo_derived::domain::positions::types::DenseMarks;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_operators::domain::tree_cells::types::TreeRows;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     operator::contract::views::types::PreparedAxis,
-    table_cells::types::TreeRows,
     table_reach::borrowed::types::IndexedRows,
 };
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;

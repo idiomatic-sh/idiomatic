@@ -6,6 +6,7 @@ use crate::domain::fused_program::types::fused_program::value::FusedProgram;
 use crate::domain::fused_program::types::logical_build::value::LogicalBuild;
 use crate::domain::fused_program::types::program_inputs::value::ProgramInputs;
 use crate::domain::fused_program::types::{
+    RootKind,
     Consumers, Draft, RuleInput, RuleNodes, Serving, DraftInputs,
 };
 use crate::domain::kind_sets::service::names_a_kind;
@@ -13,7 +14,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::KindNaming;
 use crate::domain::operation_schema::service::schema_of;
 use crate::domain::operation_schema::types::InputShape;
-use crate::domain::table_cells::service::native_form;
+use ryo_operators::domain::tree_cells::service::native_form;
 use ryo_operators::domain::comparing::service::fixed_prefix;
 use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
@@ -166,7 +167,7 @@ pub fn logical<'p>(
             }
         }
     }
-    let roots = root_kinds(&drafts, &inputs.lists);
+    let roots = derived_roots(&drafts, &inputs.lists);
     Ok(LogicalBuild {
         program,
         rules: nodes,
@@ -234,7 +235,7 @@ fn read_inputs<'s>(
 /// The nodes that start from the tree nodes of a kind: each select of a tree relation whose infallible prefix tests the kind
 /// column equal to a written text, by that text. A kind test after a comparison that may fail is never a root kind, so its
 /// fault is never skipped.
-fn root_kinds(
+fn derived_roots(
     drafts: &[Draft<'_>],
     lists: &[Vec<PlanInput>],
 ) -> hashbrown::HashMap<LiteralText, Vec<PlanNodeId>> {
@@ -313,6 +314,22 @@ pub fn serving(program: &FusedProgram, rule: RuleIndex) -> Result<Serving, Opera
 #[must_use]
 pub fn roots<'a>(program: &'a FusedProgram, kind: &LiteralText) -> &'a [PlanNodeId] {
     program.roots.get(kind).map_or(&[], Vec::as_slice)
+}
+
+/// Each kind text the plans write for a root kind, with the nodes that start from the tree nodes of that kind; in no order.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::fused_program::service::{assemble, logical, root_kinds};
+/// use ryo_execution_domain::domain::fused_program::types::program_inputs::value::ProgramInputs;
+/// use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+/// let mut inputs = ProgramInputs::default();
+/// let program = assemble(logical(&[], &mut inputs).unwrap(), PhysicalPlan::default());
+/// assert_eq!(root_kinds(&program).count(), 0);
+/// ```
+pub fn root_kinds(program: &FusedProgram) -> impl Iterator<Item = RootKind<'_>> {
+    program.roots.iter().map(|(kind, nodes)| RootKind { kind, nodes })
 }
 
 /// The nodes of `rule`.

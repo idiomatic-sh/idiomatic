@@ -9,7 +9,7 @@ use crate::domain::shared_walk::types::native_batch::value::NativeBatch;
 use crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk;
 use crate::domain::step_classes::types::ClassPlace;
 use crate::domain::table_cells::fixtures::{SMALL_SOURCE, SmallTree, small_tree};
-use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::Rows;
 use ryo_operators::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::elements::types::Elements;

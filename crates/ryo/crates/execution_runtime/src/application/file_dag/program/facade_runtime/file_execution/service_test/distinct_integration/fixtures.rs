@@ -16,11 +16,11 @@ use ryo_execution_domain::domain::rule_intent::types::{
 };
 use ryo_execution_domain::domain::table_cells::fixtures::{SMALL_SOURCE, SmallTree, small_tree};
 use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
     operator::types::Emit as RowSink,
     prepared_request::types::{Compiled, ObservationIdentity},
-    table_cells::types::{TreeForm, TreeRows},
 };
 use ryo_execution_store::application::file_dag::derived::relation_owner::types::ScopePartials;
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;

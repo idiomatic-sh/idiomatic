@@ -1,5 +1,5 @@
 //! Canonical provider data and its physical encoding; no evaluator or admission factory.
-use ryo_execution_domain::domain::table_cells::types::{TreeForm, TreeRows};
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_execution_domain::domain::table_model::service::materialize;
 use ryo_execution_domain::domain::table_model::types::RepresentationKind;
 use ryo_execution_domain::domain::table_model::types::Rows;

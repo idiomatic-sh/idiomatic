@@ -35,7 +35,7 @@ pub(super) fn column_span(column: &FactColumn) -> StorageSpan {
     reason = "the witness keeps a tree's u32 file id as a span length: lossless into usize on every target ryo builds for, and std offers only a fallible TryFrom for it"
 )]
 pub(super) fn tree_spans(
-    tree: &ryo_execution_domain::domain::table_cells::types::TreeRows<'_>,
+    tree: &ryo_operators::domain::tree_cells::types::TreeRows<'_>,
 ) -> Vec<StorageSpan> {
     let e = tree.elements;
     vec![

@@ -1,6 +1,6 @@
 //! The `table_model` service's cases for reading rows of stored, tree and computed tables, on values alone.
 
-use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::service::{count_of, kinds_of, read_row};
 use crate::domain::table_model::service_test::pairs;
 use crate::domain::table_model::types::Rows;

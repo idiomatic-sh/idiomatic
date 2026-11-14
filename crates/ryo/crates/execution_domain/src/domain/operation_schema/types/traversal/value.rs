@@ -6,7 +6,7 @@ use crate::domain::operation_schema::projection::{
 };
 use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operation_schema::types::bindings::value::BindingShape;
-use crate::domain::table_cells::types::TreeForm;
+use ryo_operators::domain::tree_cells::types::TreeForm;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Side};
 use ryo_values::domain::plans::service::kind_of;

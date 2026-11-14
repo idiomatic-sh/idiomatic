@@ -7,7 +7,7 @@ use fixtures::execution::*;
 #[cfg(test)]
 use fixtures::provider::*;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::table_cells::types::TreeForm;
+use ryo_operators::domain::tree_cells::types::TreeForm;
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::contract::types::PortableOperatorFault;

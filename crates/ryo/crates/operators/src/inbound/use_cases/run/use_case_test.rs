@@ -391,3 +391,6 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+#[cfg(test)]
+mod tree_rows;

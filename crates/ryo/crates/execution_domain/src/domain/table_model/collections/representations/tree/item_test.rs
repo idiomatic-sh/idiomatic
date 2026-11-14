@@ -2,7 +2,7 @@
 use super::super::interface::RepresentationsItem;
 use super::item::TreeItem;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::PhysicalShape;
 use crate::domain::table_model::types::RepresentationInput;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};

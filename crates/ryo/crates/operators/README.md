@@ -132,6 +132,10 @@ Holds per-invocation table workspace and work counters.
 
 Resolves table text cells through their retained name sources.
 
+### tree_cells
+
+Reads the cells of a file's tree rows from its elements, one cell at a time.
+
 ### words
 
 Splits resolved Unicode text into lowercase words using the original letter, digit, and case-boundary policy.
