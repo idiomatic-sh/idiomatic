@@ -1,10 +1,5 @@
 //! Borrowed ordered existence contracts; no engine authority.
-/// Strict comparison direction for admitted whole-number columns only.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PartitionExtremum {
-    Maximum,
-    Minimum,
-}
+use crate::domain::equality_join::types::PartitionExtremum;
 
 /// Finite immutable rows already demanded and admitted by the existing engine owner.
 /// Repeated reads return identical keys/numbers; equality is exact Value equality.

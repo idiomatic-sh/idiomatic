@@ -72,8 +72,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     };
     let shape = DfsShape {
         root: ColumnIndex(1),
-        edge_columns: [ColumnIndex(0), ColumnIndex(1), ColumnIndex(2)],
+        edge_columns: [ColumnIndex(0), ColumnIndex(1), ColumnIndex(1), ColumnIndex(2)],
         root_keys: &[ColumnIndex(0)],
+        edge_keys: &[],
     };
     evaluate(shape, &mut driver, &mut RowScratch::default())?;
     Ok(std::borrow::Cow::Owned(written(&driver.emitted)))

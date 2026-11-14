@@ -172,17 +172,6 @@ pub(crate) struct IndexPlace(pub(crate) usize);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct NodeReaders(pub(crate) u32);
 
-/// One node of the physical plan: its kernels and who reads its rows.
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct PhysicalNode {
-    /// Its kernels.
-    pub(crate) lowering: lowering::value::Lowering,
-    /// How many nodes read its rows.
-    pub(crate) readers: NodeReaders,
-    /// Whether a consumer that reads no node keeps it past its readers.
-    pub(crate) retained: Retention,
-}
-
 /// Whether a node's rows outlive its node readers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Retention {

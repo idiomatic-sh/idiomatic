@@ -78,3 +78,12 @@ pub trait CyclesEvaluation: crate::domain::contract::types::RowDriver {
         &mut self,
     ) -> Result<&dyn CycleDriver, crate::domain::contract::types::PortableOperatorFault>;
 }
+
+/// The graph a cycle search reads: an edge row's source column and destination column.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CycleParts {
+    /// The source column of an edge row.
+    pub(crate) source: ryo_values::domain::plan_parts::types::ColumnIndex,
+    /// The destination column of an edge row.
+    pub(crate) destination: ryo_values::domain::plan_parts::types::ColumnIndex,
+}

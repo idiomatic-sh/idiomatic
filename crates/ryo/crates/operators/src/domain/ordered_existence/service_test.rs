@@ -1,9 +1,10 @@
 //! Empty semantic input must clear reused scratch without consulting row callbacks.
 use super::{
     service::flag,
-    types::{OrderedExistenceDriver, OrderedExistenceScratch, PartitionExtremum},
+    types::{OrderedExistenceDriver, OrderedExistenceScratch},
 };
 use crate::domain::equality_join::errors::EqualityJoinError;
+use crate::domain::equality_join::types::PartitionExtremum;
 use crate::domain::ordered_existence::types::ExtremumWitness;
 use ryo_relations::domain::relations::types::{Integer, Value as ValueCell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;

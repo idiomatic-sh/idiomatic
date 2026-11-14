@@ -29,10 +29,15 @@ impl KernelsItem for FilterItem {
             match lowering {
                 Lowering::Filter { .. } | Lowering::Lookup { .. } => true,
                 Lowering::Probe { probe, .. } => !probe.filter.comparisons.is_empty(),
+                Lowering::SeededReach { join, .. } => !join.probe.filter.comparisons.is_empty(),
+                Lowering::Axis { axis, .. } => !axis.domain.comparisons.is_empty(),
                 Lowering::Project { .. }
                 | Lowering::Extend { .. }
                 | Lowering::Distinct { .. }
                 | Lowering::Group { .. }
+                | Lowering::Reach { .. }
+                | Lowering::OrderedWalk { .. }
+                | Lowering::Components { .. }
                 | Lowering::Unlowered => false,
             }
         };

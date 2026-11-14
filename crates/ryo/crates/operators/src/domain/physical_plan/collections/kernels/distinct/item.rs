@@ -25,6 +25,11 @@ impl KernelsItem for DistinctItem {
                 | Lowering::Lookup { .. }
                 | Lowering::Extend { .. }
                 | Lowering::Group { .. }
+                | Lowering::Reach { .. }
+                | Lowering::SeededReach { .. }
+                | Lowering::Axis { .. }
+                | Lowering::OrderedWalk { .. }
+                | Lowering::Components { .. }
                 | Lowering::Unlowered => false,
             }
         };

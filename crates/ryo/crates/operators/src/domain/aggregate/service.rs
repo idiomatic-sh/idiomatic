@@ -58,13 +58,10 @@ pub(crate) fn evaluate(
     Ok(())
 }
 
-/// The one lowering of a counted grouping, for the `group` kernel.
-pub(crate) fn lower(
-    keys: &[ColumnIndex],
-    distinct: Option<ColumnIndex>,
-) -> super::types::GroupParts {
+/// The one lowering of a grouping, counted or digested, for the `group` kernel.
+pub(crate) fn lower(keys: &[ColumnIndex], measure: super::types::GroupMeasure) -> super::types::GroupParts {
     super::types::GroupParts {
         keys: keys.to_vec(),
-        distinct,
+        measure,
     }
 }

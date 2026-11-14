@@ -8,7 +8,11 @@ use crate::domain::physical_plan::collections::kernels::extend::item::{
 };
 use crate::domain::physical_plan::collections::kernels::filter::item::{filter, keep, kept_kinds};
 use crate::domain::physical_plan::collections::kernels::group::item::{GroupScratch, grouped};
+use crate::domain::physical_plan::collections::kernels::components::item::cyclic;
+use crate::domain::physical_plan::collections::kernels::directed_walk::item::{AxisInputs, AxisTables, walked};
 use crate::domain::physical_plan::collections::kernels::lookup::item::lookups;
+use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visited;
+use crate::domain::physical_plan::collections::kernels::reach::item::{ReachScratch, Starts, reached};
 use crate::domain::physical_plan::collections::kernels::probe::item::{ProbeScratch, probed};
 use crate::domain::physical_plan::collections::kernels::project::item::projected;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
@@ -142,14 +146,23 @@ fn materialize(
         | Lowering::Extend { .. }
         | Lowering::Group { .. }
         | Lowering::Probe { .. }
-        | Lowering::Distinct { .. } => {}
+        | Lowering::Distinct { .. }
+        | Lowering::Reach { .. }
+        | Lowering::SeededReach { .. }
+        | Lowering::Axis { .. }
+        | Lowering::OrderedWalk { .. }
+        | Lowering::Components { .. } => {}
     }
     let mut sources = lowering.sources();
     let first = sources.next().ok_or(PortableOperatorFault::WrongOperation)?;
     let second = sources.next();
+    let third = sources.next();
     ready(plan, run, first, buffers)?;
     if let Some(second) = second {
         ready(plan, run, second, buffers)?;
+    }
+    if let Some(third) = third {
+        ready(plan, run, third, buffers)?;
     }
     // An extension's values are made before its rows are read: making a name changes the file's names, and reading reads them.
     let resolution = match lowering {
@@ -166,6 +179,11 @@ fn materialize(
         | Lowering::Probe { .. }
         | Lowering::Distinct { .. }
         | Lowering::Lookup { .. }
+        | Lowering::Reach { .. }
+        | Lowering::SeededReach { .. }
+        | Lowering::Axis { .. }
+        | Lowering::OrderedWalk { .. }
+        | Lowering::Components { .. }
         | Lowering::Unlowered => None,
     };
     let run: &KernelRun<'_> = run;
@@ -182,7 +200,22 @@ fn materialize(
         },
         Some(_) | None => None,
     };
+    // A third input (an axis's domain) is never the node read on another side: the planner gives it its own source.
+    let last = match third {
+        Some(third) => match reading(run, node, third, buffers) {
+            Ok(last) => Some(last),
+            Err(fault) => {
+                returned(plan, buffers, left, NodeReaders(if shared { 2 } else { 1 }));
+                if let Some(right) = right {
+                    returned(plan, buffers, right, NodeReaders(1));
+                }
+                return Err(fault);
+            }
+        },
+        None => None,
+    };
     let left_fault = pending_of(&left);
+    let last_fault = last.as_ref().and_then(pending_of);
     let right_fault = match &right {
         Some(right) => pending_of(right),
         None if shared => left_fault.clone(),
@@ -190,9 +223,13 @@ fn materialize(
     };
     // A blocking kernel reads every row of an input before it answers one: an input's fault comes before any of its rows. A
     // union reads its right rows only after every left row.
+    // A graph kernel reads every edge row before it walks: the edges' fault comes first, then an axis's domain's, then an
+    // ordered walk's roots' (sorted before use).
     let blocked = match lowering {
-        Lowering::Probe { .. } => right_fault.clone(),
-        Lowering::Group { .. } => left_fault.clone(),
+        Lowering::Probe { .. } | Lowering::SeededReach { .. } => right_fault.clone(),
+        Lowering::Group { .. } | Lowering::Reach { .. } | Lowering::Components { .. } => left_fault.clone(),
+        Lowering::Axis { .. } => right_fault.clone().or_else(|| last_fault.clone()),
+        Lowering::OrderedWalk { .. } => right_fault.clone().or_else(|| left_fault.clone()),
         Lowering::Filter { .. }
         | Lowering::Project { .. }
         | Lowering::Extend { .. }
@@ -212,6 +249,7 @@ fn materialize(
             let inputs = KernelInputs {
                 input: rows_in(&left),
                 other: right_rows,
+                third: last.as_ref().map(rows_in),
             };
             kernels(
                 lowering,
@@ -228,14 +266,11 @@ fn materialize(
     if let Some(right) = right {
         returned(plan, buffers, right, NodeReaders(1));
     }
+    if let Some(last) = last {
+        returned(plan, buffers, last, NodeReaders(1));
+    }
     let fault = made?;
-    hold(
-        plan,
-        buffers,
-        node,
-        output,
-        fault.or(left_fault).or(right_fault),
-    );
+    hold(plan, buffers, node, output, fault.or(left_fault).or(right_fault).or(last_fault));
     Ok(())
 }
 
@@ -256,7 +291,7 @@ fn kernels(
     lowering: &Lowering,
     run: &KernelRun<'_>,
     node: PlanNodeId,
-    KernelInputs { input, other }: KernelInputs<'_>,
+    KernelInputs { input, other, third }: KernelInputs<'_>,
     resolution: Option<PortableOperatorFault>,
     buffers: &mut FileBuffers,
     output: &mut Table,
@@ -368,9 +403,54 @@ fn kernels(
                 index: &mut buffers.index,
                 row: &mut buffers.row,
                 values: &mut buffers.values,
+                hashes: &mut buffers.hashes,
+                texts: run.resources.texts(),
                 written: &mut buffers.written,
             };
-            grouped(input, &group.keys, group.distinct, scratch, output)?;
+            grouped(input, &group.keys, group.measure, scratch, output)?;
+        }
+        Lowering::Reach { graph, .. } | Lowering::SeededReach { graph, .. } => {
+            let (edges, starts) = match lowering {
+                Lowering::SeededReach { join, .. } => {
+                    (other.ok_or(PortableOperatorFault::WrongOperation)?, Starts::Seeded(input, join))
+                }
+                _ => (input, Starts::Every),
+            };
+            let decisions = buffers
+                .decisions
+                .get_mut(place)
+                .ok_or(PortableOperatorFault::WrongOperation)?;
+            let scratch = ReachScratch {
+                index: &mut buffers.index,
+                walk: &mut buffers.walk,
+                probe: ProbeScratch {
+                    index: &mut buffers.second,
+                    row: &mut buffers.row,
+                    written: &mut buffers.written,
+                    seen: &mut buffers.seen,
+                    decisions,
+                },
+            };
+            return reached(graph, edges, starts, run, scratch, output);
+        }
+        Lowering::Axis { axis, .. } => {
+            let inputs = AxisInputs {
+                starts: input,
+                edges: other.ok_or(PortableOperatorFault::WrongOperation)?,
+                domain: third.ok_or(PortableOperatorFault::WrongOperation)?,
+            };
+            let tables = AxisTables {
+                edges: &mut buffers.index,
+                domain: &mut buffers.second,
+            };
+            return walked(axis, inputs, run, tables, &mut buffers.walk, output);
+        }
+        Lowering::OrderedWalk { dfs, .. } => {
+            let edges = other.ok_or(PortableOperatorFault::WrongOperation)?;
+            return visited(dfs, input, edges, &mut buffers.index, &mut buffers.walk, output);
+        }
+        Lowering::Components { cycles, .. } => {
+            return cyclic(cycles, input, &mut buffers.index, &mut buffers.cycles, output);
         }
         Lowering::Lookup { .. } | Lowering::Unlowered => {}
     }

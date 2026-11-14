@@ -10,7 +10,8 @@ use crate::domain::physical_plan::fixtures::{Step, case_program};
 use crate::domain::physical_plan::service::REWRITES;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
-use crate::domain::physical_plan::types::{KeyedIndex, PhysicalNode};
+use crate::domain::physical_plan::types::KeyedIndex;
+use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as StepInput, RepeatedRows};
@@ -311,5 +312,7 @@ fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
 
+#[cfg(test)]
+mod graphs;
 #[cfg(test)]
 mod tree_rows;

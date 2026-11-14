@@ -6,7 +6,8 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-use crate::domain::physical_plan::types::{NodeReaders, PhysicalNode, PlanInput, PlanNodeId, Retention, RowSource, ServedAt, Unserved};
+use crate::domain::physical_plan::types::{NodeReaders, PlanInput, PlanNodeId, Retention, RowSource, ServedAt, Unserved};
+use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::set_rows::types::{SetKind, SetLowering};
 use ryo_values::domain::plans::service::kind_of;
@@ -18,6 +19,7 @@ use ryo_values::domain::query_operators::types::OperationKind;
 /// it.
 pub(crate) const REWRITES: &[&dyn RewritesItem] = &[
     &crate::domain::physical_plan::collections::rewrites::keyed_select::item::KeyedSelectItem,
+    &crate::domain::physical_plan::collections::rewrites::ordered_existence::item::OrderedExistenceItem,
     &crate::domain::physical_plan::collections::rewrites::existence_probe::item::ExistenceProbeItem,
 ];
 
@@ -69,6 +71,14 @@ kernels! {
     Distinct => crate::domain::physical_plan::collections::kernels::distinct::item::DistinctItem,
     /// The `group` kernel.
     Group => crate::domain::physical_plan::collections::kernels::group::item::GroupItem,
+    /// The `reach` kernel.
+    Reach => crate::domain::physical_plan::collections::kernels::reach::item::ReachItem,
+    /// The `directed_walk` kernel.
+    DirectedWalk => crate::domain::physical_plan::collections::kernels::directed_walk::item::DirectedWalkItem,
+    /// The `ordered_walk` kernel.
+    OrderedWalk => crate::domain::physical_plan::collections::kernels::ordered_walk::item::OrderedWalkItem,
+    /// The `components` kernel.
+    Components => crate::domain::physical_plan::collections::kernels::components::item::ComponentsItem,
 }
 
 /// The physical plan of `program`: each node lowered once, every registered rewrite applied, and every node of a kind of a
@@ -219,10 +229,111 @@ pub(crate) fn lowered(
         } => set(SetKind::Antijoin, left_on, right_on),
         Operation::GroupCount { keys, distinct, .. } => first.map(|source| Lowering::Group {
             source,
-            group: crate::domain::aggregate::service::lower(keys, *distinct),
+            group: crate::domain::aggregate::service::lower(
+                keys,
+                distinct.map_or(
+                    crate::domain::aggregate::types::GroupMeasure::Rows,
+                    crate::domain::aggregate::types::GroupMeasure::DistinctValues,
+                ),
+            ),
         }),
-        Operation::Join { reach: Some(_), .. }
-        | Operation::Capture { .. }
+        Operation::Join {
+            left_on,
+            right_on,
+            output,
+            filter,
+            view,
+            reach: Some(reach),
+            ..
+        } => both().map(|(left, edges)| Lowering::SeededReach {
+            left,
+            edges,
+            graph: crate::domain::closure::service::lower(&reach.keys, reach.source, reach.destination),
+            join: crate::domain::equality_join::service::seeded(
+                crate::domain::equality_join::types::JoinShape {
+                    left_on,
+                    right_on,
+                    output,
+                    view,
+                    reach: Some(reach),
+                },
+                filter,
+                bindings,
+            ),
+        }),
+        Operation::GroupDigest { keys, over, .. } => first.map(|source| Lowering::Group {
+            source,
+            group: crate::domain::aggregate::service::lower(
+                keys,
+                crate::domain::aggregate::types::GroupMeasure::Digest(*over),
+            ),
+        }),
+        Operation::Closure {
+            keys,
+            source,
+            destination,
+            ..
+        } => first.map(|edges| Lowering::Reach {
+            edges,
+            graph: crate::domain::closure::service::lower(keys, *source, *destination),
+        }),
+        Operation::Axis {
+            direction,
+            id,
+            parent,
+            child,
+            domain_id,
+            domain_filter,
+            domain_view,
+            output,
+            ..
+        } => {
+            let third = inputs.get(2).and_then(source_of);
+            both().zip(third).map(|((starts, edges), domain)| Lowering::Axis {
+                starts,
+                edges,
+                domain,
+                axis: crate::domain::axis::service::lower(
+                    crate::domain::axis::types::AxisShape {
+                        direction: *direction,
+                        id: *id,
+                        parent: *parent,
+                        child: *child,
+                        domain_id: *domain_id,
+                        output,
+                    },
+                    domain_filter,
+                    domain_view,
+                    bindings,
+                ),
+            })
+        }
+        Operation::OrderedDfs {
+            root,
+            source,
+            destination,
+            order,
+            edge,
+            root_keys,
+            edge_keys,
+            ..
+        } => both().map(|(roots, edges)| Lowering::OrderedWalk {
+            roots,
+            edges,
+            dfs: crate::domain::ordered_dfs::service::lower(crate::domain::ordered_dfs::types::DfsShape {
+                root: *root,
+                edge_columns: [*source, *destination, *order, *edge],
+                root_keys,
+                edge_keys,
+            }),
+        }),
+        Operation::Cycles {
+            source, destination, ..
+        } => first.map(|edges| Lowering::Components {
+            edges,
+            cycles: crate::domain::cycles::service::lower(*source, *destination),
+        }),
+        Operation::Capture { .. }
         | Operation::Rank { .. }
         | Operation::Replace { .. }
         | Operation::OrderedMatch { .. }
@@ -232,11 +343,6 @@ pub(crate) fn lowered(
         | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. }
         | Operation::SpanBounds { .. }
-        | Operation::GroupDigest { .. }
-        | Operation::Axis { .. }
-        | Operation::Closure { .. }
-        | Operation::OrderedDfs { .. }
-        | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. } => None,
     };
@@ -254,7 +360,12 @@ pub(crate) fn stage_of_kind(kind: OperationKind) -> ServedAt {
         | OperationKind::Intersection
         | OperationKind::Difference
         | OperationKind::Antijoin
-        | OperationKind::GroupCount => 1,
+        | OperationKind::GroupCount
+        | OperationKind::GroupDigest
+        | OperationKind::Axis
+        | OperationKind::Closure
+        | OperationKind::OrderedDfs
+        | OperationKind::Cycles => 1,
         OperationKind::Capture
         | OperationKind::Rank
         | OperationKind::Replace
@@ -265,20 +376,14 @@ pub(crate) fn stage_of_kind(kind: OperationKind) -> ServedAt {
         | OperationKind::RenderSyntax
         | OperationKind::FitsRendered
         | OperationKind::SpanBounds => 2,
-        OperationKind::GroupDigest
-        | OperationKind::Axis
-        | OperationKind::Closure
-        | OperationKind::OrderedDfs
-        | OperationKind::Cycles => 3,
         OperationKind::Rows | OperationKind::Hosted => 4,
     })
 }
 
 /// The stage that lowers a node this stage does not: its kind's, or for one of this stage's kinds, the stage that reads what
-/// it reads: a join's closure demand at the third, a bound table or an observation at the fourth.
+/// it reads: a bound table or an observation at the fourth.
 fn stage_of(operation: &Operation) -> ServedAt {
     match (stage_of_kind(kind_of(operation)), operation) {
-        (ServedAt(1), Operation::Join { reach: Some(_), .. }) => ServedAt(3),
         (ServedAt(1), _) => ServedAt(4),
         (stage, _) => stage,
     }

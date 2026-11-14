@@ -134,3 +134,15 @@ pub(crate) fn evaluate(
     }
     Ok(())
 }
+
+/// The graph of a cycle search over edges whose `source` leads to `destination`: its one lowering, Tarjan's components
+/// over its edges.
+pub(crate) const fn lower(
+    source: ryo_values::domain::plan_parts::types::ColumnIndex,
+    destination: ryo_values::domain::plan_parts::types::ColumnIndex,
+) -> super::types::CycleParts {
+    super::types::CycleParts {
+        source,
+        destination,
+    }
+}

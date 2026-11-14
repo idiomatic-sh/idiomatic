@@ -30,6 +30,11 @@ impl KernelsItem for ProjectItem {
                 | Lowering::Extend { .. }
                 | Lowering::Distinct { .. }
                 | Lowering::Group { .. }
+                | Lowering::Reach { .. }
+                | Lowering::SeededReach { .. }
+                | Lowering::Axis { .. }
+                | Lowering::OrderedWalk { .. }
+                | Lowering::Components { .. }
                 | Lowering::Unlowered => false,
             }
         };

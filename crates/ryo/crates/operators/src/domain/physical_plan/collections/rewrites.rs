@@ -3,3 +3,4 @@
 pub(crate) mod existence_probe;
 pub(crate) mod interface;
 pub(crate) mod keyed_select;
+pub(crate) mod ordered_existence;

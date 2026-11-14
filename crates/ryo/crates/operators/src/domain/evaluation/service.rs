@@ -202,16 +202,19 @@ pub(crate) fn evaluate(
             root,
             source,
             destination,
+            order,
             edge,
             root_keys,
+            edge_keys,
             ..
         } => {
             populations(input)?;
             crate::domain::ordered_dfs::service::evaluate(
                 crate::domain::ordered_dfs::types::DfsShape {
                     root: *root,
-                    edge_columns: [*source, *destination, *edge],
+                    edge_columns: [*source, *destination, *order, *edge],
                     root_keys,
+                    edge_keys,
                 },
                 driver,
                 &mut scratch.rows,

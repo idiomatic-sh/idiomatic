@@ -43,7 +43,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_kind_lowers_once"),
         word: Word::Succeeds,
         input: || Scenario::KindsLower,
-        expect: Expect::Value(9),
+        expect: Expect::Value(14),
     },
     Case {
         name: CaseName("a_kind_left_unlowered_fails_every_kind_lowers_once"),
@@ -55,7 +55,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_kernel_is_reached"),
         word: Word::Succeeds,
         input: || Scenario::KernelsReached,
-        expect: Expect::Value(11),
+        expect: Expect::Value(14),
     },
     Case {
         name: CaseName("a_kernel_no_lowering_runs_fails_every_kernel_is_reached"),
@@ -133,7 +133,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::KernelNoLoweringRuns => {
             let steps: Vec<Step> = case_program()
                 .into_iter()
-                .filter(|step| !matches!(step.operation, Operation::GroupCount { .. }))
+                .filter(|step| {
+                    !matches!(
+                        step.operation,
+                        Operation::GroupCount { .. } | Operation::GroupDigest { .. }
+                    )
+                })
                 .collect();
             kernels_reached(&steps)
         }

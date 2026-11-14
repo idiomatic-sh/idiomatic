@@ -30,7 +30,14 @@ impl KernelsItem for HashIndexItem {
         let runs = {
             matches!(
                 lowering,
-                Lowering::Lookup { .. } | Lowering::Probe { .. } | Lowering::Group { .. }
+                Lowering::Lookup { .. }
+                    | Lowering::Probe { .. }
+                    | Lowering::Group { .. }
+                    | Lowering::Reach { .. }
+                    | Lowering::SeededReach { .. }
+                    | Lowering::Axis { .. }
+                    | Lowering::OrderedWalk { .. }
+                    | Lowering::Components { .. }
             )
         };
         if runs { Reach::Runs } else { Reach::Skips }
@@ -121,7 +128,7 @@ pub(crate) fn texts(
 /// # Errors
 ///
 /// `NoSuchColumn` for a key column past the row.
-fn hash_of(at: KeyedRowAt<'_>) -> Result<IndexKeyHash, PortableOperatorFault> {
+pub(crate) fn hash_of(at: KeyedRowAt<'_>) -> Result<IndexKeyHash, PortableOperatorFault> {
     let mut hasher = rustc_hash::FxHasher::default();
     for column in at.side.on {
         cell_of(at.side.rows, at.row, *column)

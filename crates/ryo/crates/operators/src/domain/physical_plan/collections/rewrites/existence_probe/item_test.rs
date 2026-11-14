@@ -3,7 +3,8 @@ use super::item::ExistenceProbeItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::equality_join::types::{Existence, ProbeMode};
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem as _;
-use crate::domain::physical_plan::types::{NodeReaders, PhysicalNode, PlanNodeId, Retention, RowSource};
+use crate::domain::physical_plan::types::{NodeReaders, PlanNodeId, Retention, RowSource};
+use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::set_rows::types::{SetKind, SetLowering};
 

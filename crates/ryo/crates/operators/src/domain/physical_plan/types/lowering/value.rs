@@ -1,7 +1,11 @@
 //! The `Lowering` value: the kernels one node of the physical plan is lowered to, and the rows they read.
 use crate::domain::aggregate::types::GroupParts;
 use crate::domain::append::types::ExtendParts;
-use crate::domain::equality_join::types::ProbeParts;
+use crate::domain::axis::types::AxisParts;
+use crate::domain::closure::types::ReachParts;
+use crate::domain::cycles::types::CycleParts;
+use crate::domain::equality_join::types::{ProbeParts, SeededJoin};
+use crate::domain::ordered_dfs::types::DfsParts;
 use crate::domain::physical_plan::types::{IndexPlace, RowSource};
 use crate::domain::project::types::ProjectParts;
 use crate::domain::select::types::SelectParts;
@@ -62,6 +66,53 @@ pub(crate) enum Lowering {
         /// The keys and what is counted.
         group: GroupParts,
     },
+    /// `reach` from every source (`traverse::All`): one row per partition, source and entity it reaches.
+    Reach {
+        /// The edge rows.
+        edges: RowSource,
+        /// The graph they make.
+        graph: ReachParts,
+    },
+    /// `reach` from the sources the left rows bind (`traverse::Seeds`), probed by them: a closure the planner fused into
+    /// the join that keys it by its partition and source. Each bound source is walked once per file.
+    SeededReach {
+        /// The left rows, read in order.
+        left: RowSource,
+        /// The edge rows.
+        edges: RowSource,
+        /// The graph they make.
+        graph: ReachParts,
+        /// The join over the reached rows.
+        join: SeededJoin,
+    },
+    /// `directed_walk`: from each start row, the entities a walk over the edges reaches in a direction that the domain
+    /// admits.
+    Axis {
+        /// The start rows, read in order.
+        starts: RowSource,
+        /// The edge rows.
+        edges: RowSource,
+        /// The domain rows.
+        domain: RowSource,
+        /// The walk.
+        axis: AxisParts,
+    },
+    /// `ordered_walk`: from each distinct partition and root, in sorted order, the edges an ordered depth-first visit reaches.
+    OrderedWalk {
+        /// The root rows.
+        roots: RowSource,
+        /// The edge rows.
+        edges: RowSource,
+        /// The visit.
+        dfs: DfsParts,
+    },
+    /// `components`: each entity of a strongly connected component of more than one, or with an edge to itself, once.
+    Components {
+        /// The edge rows.
+        edges: RowSource,
+        /// The graph they make.
+        cycles: CycleParts,
+    },
     /// No kernel at this stage: the plan's `unserved` names the stage that lowers it.
     Unlowered,
 }
@@ -69,15 +120,19 @@ pub(crate) enum Lowering {
 impl Lowering {
     /// The rows the node reads, in the order its kernels read them; a lookup reads its index's relation, which is not here.
     pub(crate) fn sources(&self) -> impl Iterator<Item = RowSource> {
-        let (first, second) = match self {
+        let (first, second, third) = match self {
             Self::Filter { source, .. }
             | Self::Project { source, .. }
             | Self::Extend { source, .. }
-            | Self::Group { source, .. } => (Some(*source), None),
-            Self::Probe { left, right, .. } => (Some(*left), Some(*right)),
-            Self::Distinct { sources: [left, right] } => (Some(*left), Some(*right)),
-            Self::Lookup { .. } | Self::Unlowered => (None, None),
+            | Self::Group { source, .. } => (Some(*source), None, None),
+            Self::Reach { edges, .. } | Self::Components { edges, .. } => (Some(*edges), None, None),
+            Self::Probe { left, right, .. } => (Some(*left), Some(*right), None),
+            Self::Distinct { sources: [left, right] } => (Some(*left), Some(*right), None),
+            Self::SeededReach { left, edges, .. } => (Some(*left), Some(*edges), None),
+            Self::OrderedWalk { roots, edges, .. } => (Some(*roots), Some(*edges), None),
+            Self::Axis { starts, edges, domain, .. } => (Some(*starts), Some(*edges), Some(*domain)),
+            Self::Lookup { .. } | Self::Unlowered => (None, None, None),
         };
-        first.into_iter().chain(second)
+        first.into_iter().chain(second).chain(third)
     }
 }

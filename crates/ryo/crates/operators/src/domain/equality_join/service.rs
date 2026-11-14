@@ -327,3 +327,16 @@ pub(crate) fn lower(
         empty_right: EmptyRight::KeyRead,
     }
 }
+
+/// The join a closure was fused into, over the rows its seeded walk reaches: the probe of those rows by the left rows, and
+/// the logical right row each reached entity stands for, over the partition's keys, then the source, then the entity.
+pub(crate) fn seeded(
+    shape: JoinShape<'_>,
+    filter: &[ryo_values::domain::plan_parts::types::PlanComparison],
+    bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
+) -> super::types::SeededJoin {
+    super::types::SeededJoin {
+        columns: shape.reach.map(|reach| reach.columns.clone()).unwrap_or_default(),
+        probe: lower(shape, filter, bindings),
+    }
+}

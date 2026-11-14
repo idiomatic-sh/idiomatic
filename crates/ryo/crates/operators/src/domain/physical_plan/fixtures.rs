@@ -4,8 +4,8 @@
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, Input as StepInput, JoinColumn, LiteralText, Operand,
-    PlanComparison, QueryLiteral, RepeatedRows, Side, StepId, Test,
+    ColumnIndex, ComparisonOrigin, Direction, Input as StepInput, JoinColumn, LiteralText, Operand,
+    PlanComparison, QueryLiteral, ReachLookup, RepeatedRows, Side, StepId, Test,
 };
 use ryo_values::domain::plans::types::Operation;
 
@@ -81,7 +81,11 @@ fn join(
 }
 
 /// The case vocabulary: every kind of this stage over `DEFINES` and over nodes, two selects keyed on one name column, and
-/// the groupings, then a select of the tree, last.
+/// the groupings and the graph kinds, then a select of the tree, last.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one program naming each kind of the stage once, in node order"
+)]
 pub fn case_program() -> Vec<Step> {
     let select = |name: &str| {
         step(
@@ -154,6 +158,62 @@ pub fn case_program() -> Vec<Step> {
             &[defines().1],
         ),
         step(
+            Operation::GroupDigest {
+                from: defines().0,
+                keys: vec![ColumnIndex(3)],
+                over: ColumnIndex(2),
+            },
+            &[defines().1],
+        ),
+        step(
+            Operation::Closure {
+                edges: defines().0,
+                keys: Vec::new(),
+                source: ColumnIndex(0),
+                destination: ColumnIndex(1),
+            },
+            &[defines().1],
+        ),
+        seeded_join(),
+        step(
+            Operation::Axis {
+                from: node(0).0,
+                edges: defines().0,
+                domain: defines().0,
+                direction: Direction::Parent,
+                id: ColumnIndex(0),
+                parent: ColumnIndex(0),
+                child: ColumnIndex(1),
+                domain_id: ColumnIndex(0),
+                domain_filter: vec![equal(3, "alpha")],
+                domain_view: Vec::new(),
+                output: Vec::new(),
+            },
+            &[node(0).1, defines().1, defines().1],
+        ),
+        step(
+            Operation::OrderedDfs {
+                from: node(0).0,
+                edges: defines().0,
+                root: ColumnIndex(0),
+                source: ColumnIndex(0),
+                destination: ColumnIndex(1),
+                order: ColumnIndex(1),
+                edge: ColumnIndex(0),
+                root_keys: Vec::new(),
+                edge_keys: Vec::new(),
+            },
+            &[node(0).1, defines().1],
+        ),
+        step(
+            Operation::Cycles {
+                edges: defines().0,
+                source: ColumnIndex(0),
+                destination: ColumnIndex(1),
+            },
+            &[defines().1],
+        ),
+        step(
             Operation::Select {
                 from: StepInput::Relation(Relation::SyntaxTree),
                 comparisons: vec![equal(1, "word")],
@@ -162,4 +222,49 @@ pub fn case_program() -> Vec<Step> {
             &[PlanInput::Relation(Relation::SyntaxTree)],
         ),
     ]
+}
+
+/// A join of node 0's rows with a closure of `DEFINES` that the query planner fused into it: keyed on the closure's source.
+fn seeded_join() -> Step {
+    let Step { operation, inputs } = join(node(0), defines(), [0, 0], Vec::new());
+    let Operation::Join {
+        left,
+        right,
+        left_on,
+        right_on,
+        output,
+        filter,
+        view,
+        ..
+    } = operation
+    else {
+        unreachable!("join answers a join")
+    };
+    step(
+        Operation::Join {
+            left,
+            right,
+            left_on,
+            right_on,
+            output: output
+                .into_iter()
+                .map(|column| match column.side {
+                    Side::Left => column,
+                    Side::Right => JoinColumn {
+                        side: Side::Right,
+                        column: ColumnIndex(1),
+                    },
+                })
+                .collect(),
+            filter,
+            view,
+            reach: Some(ReachLookup {
+                source: ColumnIndex(0),
+                destination: ColumnIndex(1),
+                keys: Vec::new(),
+                columns: vec![ColumnIndex(0), ColumnIndex(1)],
+            }),
+        },
+        &inputs,
+    )
 }

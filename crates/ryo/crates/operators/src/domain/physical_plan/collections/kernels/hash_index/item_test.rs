@@ -19,7 +19,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Lowering::Group {
             source: RowSource::Node(PlanNodeId(0)),
-            group: crate::domain::aggregate::service::lower(&[], None),
+            group: crate::domain::aggregate::service::lower(
+                &[],
+                crate::domain::aggregate::types::GroupMeasure::Rows,
+            ),
         },
         expect: Expect::Value(Reach::Runs),
     },
