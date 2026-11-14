@@ -5,13 +5,13 @@ use crate::domain::{
     nodes::types::Node,
     syntax::{
         constants::{COMPLEX_SCALAR, FLOAT_SCALAR, INTEGER_SCALAR, SCALAR_KIND, SCALAR_VALUE},
-        service::{kind, literal},
+        service::{kind, literal, written},
         types::{Kind, Literal},
     },
 };
 use ryo::languages::{
     self, ByteSlice, FLOAT_TEXT_BYTES, Flag, FloatBits, FloatBuffer, NameText, Position, Symbol,
-    Symbols, Tree,
+    Symbols, Tree, WRITTEN_DIGITS_BYTES,
 };
 
 /// Intern an occurrence without allocating temporary decimal text on each file read.
@@ -27,6 +27,36 @@ pub(crate) fn intern_value(
             let text = languages::binary64_text(bits, &mut buffer);
             languages::intern_derived(symbols, source, text)
         }
+    }
+}
+
+/// Whether the literal at `at` writes digits its value gives back, the `exact-digits` cell: an integer is exact at any size, and
+/// a float's digits are its decimal spelling before the exponent, without `_` and leading zeros, copied to the stack. Digits
+/// that do not fit [`WRITTEN_DIGITS_BYTES`] are more than binary64 can hold, so they are not exact.
+#[must_use]
+pub(crate) fn exactness(tree: &Tree<'_>, at: Position, numeric: &NumericLiteral<'_>) -> Flag {
+    let NumericValue::Float(bits) = numeric.value else {
+        return Flag::Raised;
+    };
+    let mut digits = [0_u8; WRITTEN_DIGITS_BYTES];
+    let mut length = 0;
+    for byte in written(tree, at)
+        .0
+        .bytes()
+        .take_while(|byte| !matches!(byte, b'e' | b'E'))
+        .filter(|byte| *byte != b'_')
+        .skip_while(|byte| *byte == b'0')
+    {
+        let Some(slot) = digits.get_mut(length) else {
+            return Flag::Lowered;
+        };
+        *slot = byte;
+        length += 1;
+    }
+    match digits.get(..length).map(std::str::from_utf8) {
+        Some(Ok(text)) => languages::exact_digits(NameText(text), bits),
+        // digits copied from a float's spelling are ASCII; a cut that is not text writes no digits to give back
+        Some(Err(_)) | None => Flag::Lowered,
     }
 }
 

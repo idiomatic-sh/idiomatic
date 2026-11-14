@@ -1,0 +1,4 @@
+import directives from "typescript/oxlint/eslint-directives";
+let found = select n.id as id, n.file as file, n.span as span from "numeric-literal" as n where n."exact-digits" = "false";
+let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-loss-of-precision(?:,|$)");
+emit violations subject file key(id);

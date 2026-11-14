@@ -1993,8 +1993,8 @@ tree 2 N class-body 21 23
 tree 3 T punctuator 21 22
 tree 3 T punctuator 22 23
 tree 1 T whitespace 23 24
-file 4df1298e1b4d0b9a 48
-tree 0 N program 0 48
+file 6949bb4242cee033 76
+tree 0 N program 0 76
 tree 1 N variable-declaration 0 15
 tree 2 T keyword 0 5
 tree 2 T whitespace 5 6
@@ -2034,6 +2034,19 @@ tree 3 N literal 43 46
 tree 4 T numeric 43 46
 tree 2 T punctuator 46 47
 tree 1 T whitespace 47 48
+tree 1 N variable-declaration 48 75
+tree 2 T keyword 48 53
+tree 2 T whitespace 53 54
+tree 2 N variable-declarator 54 74
+tree 3 N identifier 54 55
+tree 4 T identifier-token 54 55
+tree 3 T whitespace 55 56
+tree 3 T punctuator 56 57
+tree 3 T whitespace 57 58
+tree 3 N literal 58 74
+tree 4 T numeric 58 74
+tree 2 T punctuator 74 75
+tree 1 T whitespace 75 76
 file 37787aaed2cd3cbe 196
 tree 0 N program 0 196
 tree 1 N function-declaration 0 43
