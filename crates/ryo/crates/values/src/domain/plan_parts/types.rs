@@ -1,6 +1,6 @@
 //! The types of the `plan_parts` concept: the numbers, text and comparisons a query plan is made of. Plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_relations::domain::relations::types::{Integer, Relation, Span};
+use ryo_relations::domain::relations::types::{Column, Integer, Relation, Span};
 
 /// The text of a RyoQL query.
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -319,4 +319,18 @@ pub enum StepScope {
     PerFile,
     /// On the frontier rows of every file.
     CrossFile,
+}
+
+/// What a lookup into the syntax tree or its edges finds its rows by, as the engine looks the tree up where it is: the relation's
+/// columns its keys read, in order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TreeLookupKey {
+    /// A node: the element's id, or one end of an edge, which is this column.
+    Node(Column),
+    /// The element's span.
+    Span,
+    /// The element's file, then its span.
+    FileThenSpan,
+    /// The element's span, then its file.
+    SpanThenFile,
 }

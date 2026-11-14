@@ -1,12 +1,11 @@
 //! The `fusing` service: free functions named by verb over the filters and lookups of a plan that are read where they are found, instead of being made into tables first.
 
-use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
 use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
 use ryo_relations::domain::relations::types::{Column, Relation};
 
 use super::types::TreeLookup;
 use crate::domain::rewriting::types::StepIndex;
-use ryo_values::domain::plan_parts::service::{column_place, relation_column, remapped};
+use ryo_values::domain::plan_parts::service::{column_place, remapped, tree_lookup_key};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::Operand;
@@ -132,28 +131,9 @@ fn tree_lookup_supported(
     keys: &[ColumnIndex],
     view: &[ColumnIndex],
 ) -> TreeLookup {
-    // The column of `relation` that the key `key` reads through the view.
-    let read = |key: ColumnIndex| relation_column(relation, source_column(view, key)?);
-    let supported = match keys {
-        [key] => matches!(
-            read(*key),
-            Some(
-                Column::SyntaxTree(SyntaxTreeColumn::Id | SyntaxTreeColumn::Span)
-                    | Column::SyntaxChild(SyntaxChildColumn::Parent | SyntaxChildColumn::Child)
-            )
-        ),
-        [file, stretch] => matches!(
-            (read(*file), read(*stretch)),
-            (
-                Some(Column::SyntaxTree(SyntaxTreeColumn::File)),
-                Some(Column::SyntaxTree(SyntaxTreeColumn::Span))
-            ) | (
-                Some(Column::SyntaxTree(SyntaxTreeColumn::Span)),
-                Some(Column::SyntaxTree(SyntaxTreeColumn::File))
-            )
-        ),
-        _ => false,
-    };
+    // The columns of `relation` that the keys read through the view.
+    let read: Option<Vec<ColumnIndex>> = keys.iter().map(|key| source_column(view, *key)).collect();
+    let supported = read.is_some_and(|read| tree_lookup_key(relation, &read).is_some());
     if supported {
         TreeLookup::Supported
     } else {

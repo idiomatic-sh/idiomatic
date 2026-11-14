@@ -3,14 +3,15 @@
 use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
 use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
 use ryo_relations::domain::relations::service::{all, columns};
-use ryo_relations::domain::relations::types::Column;
+use ryo_relations::domain::relations::types::{Column, Relation};
 
 use super::service::{
     column_place, columns_of, each_column, each_column_mut, parameter_in, relation_column,
-    remapped, step_in,
+    remapped, step_in, tree_lookup_key,
 };
 use super::types::{
     Applied, ColumnIndex, Function, LiteralText, Operand, ParameterId, QueryLiteral, StepId,
+    TreeLookupKey,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
@@ -43,6 +44,10 @@ enum Scenario {
     PlaceOfTheEdgeField,
     /// A place past the last column of a relation.
     PlacePastTheColumns,
+    /// The lookups the engine makes of the tree where it is: an element by id, span, or file and span; an edge by an end.
+    TreeLookupsByTheirKeys,
+    /// A lookup keyed on any other column of the tree or its edges, or on another relation, is not one.
+    OtherLookupsAreNot,
 }
 
 /// `concat(pascal(column 3), "Service", column 1)`.
@@ -146,6 +151,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::PlacePastTheColumns,
         expect: Expect::Value(1),
     },
+    Case {
+        name: CaseName(
+            "the_tree_is_looked_up_by_an_element_id_span_or_file_and_span_or_an_edge_end",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::TreeLookupsByTheirKeys,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_lookup_by_any_other_column_is_no_tree_lookup"),
+        word: Word::Succeeds,
+        input: || Scenario::OtherLookupsAreNot,
+        expect: Expect::Value(1),
+    },
 ];
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -163,6 +182,44 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 .into_iter()
                 .all(|column| relation_column(*relation, column_place(column)) == Some(column))
         }),
+        Scenario::TreeLookupsByTheirKeys => {
+            let element = |column| column_place(Column::SyntaxTree(column));
+            let edge = |column| column_place(Column::SyntaxChild(column));
+            let id = Column::SyntaxTree(SyntaxTreeColumn::Id);
+            let parent = Column::SyntaxChild(SyntaxChildColumn::Parent);
+            let child = Column::SyntaxChild(SyntaxChildColumn::Child);
+            let (file, span) = (
+                element(SyntaxTreeColumn::File),
+                element(SyntaxTreeColumn::Span),
+            );
+            tree_lookup_key(Relation::SyntaxTree, &[column_place(id)])
+                == Some(TreeLookupKey::Node(id))
+                && tree_lookup_key(Relation::SyntaxChild, &[column_place(parent)])
+                    == Some(TreeLookupKey::Node(parent))
+                && tree_lookup_key(Relation::SyntaxChild, &[edge(SyntaxChildColumn::Child)])
+                    == Some(TreeLookupKey::Node(child))
+                && tree_lookup_key(Relation::SyntaxTree, &[span]) == Some(TreeLookupKey::Span)
+                && tree_lookup_key(Relation::SyntaxTree, &[file, span])
+                    == Some(TreeLookupKey::FileThenSpan)
+                && tree_lookup_key(Relation::SyntaxTree, &[span, file])
+                    == Some(TreeLookupKey::SpanThenFile)
+        }
+        Scenario::OtherLookupsAreNot => {
+            let edge = |column| column_place(Column::SyntaxChild(column));
+            let kind = column_place(Column::SyntaxTree(SyntaxTreeColumn::Kind));
+            tree_lookup_key(Relation::SyntaxChild, &[edge(SyntaxChildColumn::Field)]).is_none()
+                && tree_lookup_key(Relation::SyntaxTree, &[kind]).is_none()
+                && tree_lookup_key(Relation::Function, &[ColumnIndex(0)]).is_none()
+                && tree_lookup_key(
+                    Relation::SyntaxChild,
+                    &[
+                        edge(SyntaxChildColumn::Parent),
+                        edge(SyntaxChildColumn::Child),
+                    ],
+                )
+                .is_none()
+                && tree_lookup_key(Relation::SyntaxTree, &[]).is_none()
+        }
         Scenario::PlacePastTheColumns => all().iter().all(|relation| {
             let width = u32::try_from(columns(*relation).len()).unwrap_or(u32::MAX);
             relation_column(*relation, ColumnIndex(width)).is_none()

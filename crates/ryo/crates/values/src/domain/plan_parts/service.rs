@@ -1,10 +1,13 @@
 //! The `plan_parts` service: free functions named by verb over the numbers a plan is made of, with no IO and no ports.
 
+use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
+use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
 use ryo_relations::domain::relations::service::{columns, relation_of};
 use ryo_relations::domain::relations::types::{Column, Relation};
 
 use super::types::{
     Applied, BindingPlace, ColumnIndex, ObservationBindingId, Operand, ParameterId, StepId,
+    TreeLookupKey,
 };
 
 /// The one of `items` that the step `id` names, when there is one.
@@ -56,6 +59,44 @@ pub fn column_place(column: Column) -> ColumnIndex {
 #[must_use]
 pub fn relation_column(relation: Relation, index: ColumnIndex) -> Option<Column> {
     column_in(&columns(relation), index).copied()
+}
+
+/// What a lookup into `relation` keyed on its columns `keys`, in order, finds its rows by, when the engine looks the syntax tree or
+/// its edges up where they are: an element by its id or its span, or by its file and span; an edge by its parent or its child.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::relations::types::Relation;
+/// use ryo_values::domain::plan_parts::service::tree_lookup_key;
+/// use ryo_values::domain::plan_parts::types::{ColumnIndex, TreeLookupKey};
+/// assert_eq!(tree_lookup_key(Relation::SyntaxTree, &[ColumnIndex(4)]), Some(TreeLookupKey::Span));
+/// assert_eq!(tree_lookup_key(Relation::SyntaxChild, &[ColumnIndex(3)]), None);
+/// ```
+#[must_use]
+pub fn tree_lookup_key(relation: Relation, keys: &[ColumnIndex]) -> Option<TreeLookupKey> {
+    let read: Vec<Option<Column>> = keys
+        .iter()
+        .map(|key| relation_column(relation, *key))
+        .collect();
+    match read.as_slice() {
+        [
+            Some(
+                node @ (Column::SyntaxTree(SyntaxTreeColumn::Id)
+                | Column::SyntaxChild(SyntaxChildColumn::Parent | SyntaxChildColumn::Child)),
+            ),
+        ] => Some(TreeLookupKey::Node(*node)),
+        [Some(Column::SyntaxTree(SyntaxTreeColumn::Span))] => Some(TreeLookupKey::Span),
+        [
+            Some(Column::SyntaxTree(SyntaxTreeColumn::File)),
+            Some(Column::SyntaxTree(SyntaxTreeColumn::Span)),
+        ] => Some(TreeLookupKey::FileThenSpan),
+        [
+            Some(Column::SyntaxTree(SyntaxTreeColumn::Span)),
+            Some(Column::SyntaxTree(SyntaxTreeColumn::File)),
+        ] => Some(TreeLookupKey::SpanThenFile),
+        _ => None,
+    }
 }
 
 /// The place of an observation binding among the bindings of a request.
