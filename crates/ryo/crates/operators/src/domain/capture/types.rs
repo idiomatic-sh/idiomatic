@@ -15,6 +15,17 @@ pub struct SlotSubject<'a>(pub &'a str);
 /// The engine-owned ranges of the slots matched so far.
 pub struct CaptureSlots<'a>(pub &'a mut Vec<std::ops::Range<usize>>);
 
+/// How many slots a path pattern has: the columns a capture appends to each row.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::capture::types::SlotCount;
+/// assert_eq!(SlotCount(2).0, 2);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SlotCount(pub usize);
+
 /// The ranges of every slot of one complete match, in slot order.
 #[derive(Clone, Copy, Debug)]
 pub struct CaptureSpans<'a>(pub &'a [std::ops::Range<usize>]);

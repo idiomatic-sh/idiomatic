@@ -90,7 +90,10 @@ pub fn schema_of(
             let mut answer = input.kinds.to_vec();
             answer.extend(std::iter::repeat_n(
                 CellKind::Symbol,
-                memchr::memchr_iter(b'{', pattern.0.as_bytes()).count(),
+                ryo_operators::domain::capture::service::slot_count(
+                    ryo_operators::domain::capture::types::SlotPattern(&pattern.0),
+                )
+                .0,
             ));
             Ok(answer)
         }

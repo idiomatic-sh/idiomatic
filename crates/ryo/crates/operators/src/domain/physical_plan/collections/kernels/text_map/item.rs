@@ -5,6 +5,7 @@
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{count_of, kinds_of, row_of};
+use crate::domain::capture::service::slot_count;
 use crate::domain::capture::types::{CaptureSlots, SlotPattern, SlotPlaces, SlotSubject};
 use crate::domain::contract::types::{
     PortableOperatorFault, RangeScratch, RowScratch, SourceByteLength, TextFound, TextScratch,
@@ -94,8 +95,7 @@ pub(crate) fn mapped(
 fn appended_kinds(map: &RowMap) -> Vec<CellKind> {
     match map {
         RowMap::Capture(capture) => {
-            let slots = capture.pattern.0.bytes().filter(|byte| *byte == b'{');
-            vec![CellKind::Symbol; slots.count()]
+            vec![CellKind::Symbol; slot_count(SlotPattern(&capture.pattern.0)).0]
         }
         RowMap::Replace(_) | RowMap::Words(_) => vec![CellKind::Symbol],
         RowMap::SourceMatches(search) => {
@@ -219,12 +219,7 @@ fn row_mapped(
             }
             captured.clear();
             slots.0.clear();
-            let width = capture
-                .pattern
-                .0
-                .bytes()
-                .filter(|byte| *byte == b'{')
-                .count();
+            let width = slot_count(SlotPattern(&capture.pattern.0)).0;
             run.places.0.clear();
             let mut minting = SlotPlaces {
                 places: run.places,

@@ -1,8 +1,22 @@
 //! Enumerate path captures without allocating or splitting UTF-8 characters.
 use crate::domain::capture::constants::CROSSING_OPEN;
 use crate::domain::capture::types::{
-    CaptureOutput, CaptureSlots, CaptureSpans, SlotPattern, SlotSubject,
+    CaptureOutput, CaptureSlots, CaptureSpans, SlotCount, SlotPattern, SlotSubject,
 };
+
+/// How many slots `pattern` has, each a `{name}` or `{*name}`: the columns a capture appends to each row.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::capture::service::slot_count;
+/// use ryo_operators::domain::capture::types::{SlotCount, SlotPattern};
+/// assert_eq!(slot_count(SlotPattern("src/{crate}/{*rest}")), SlotCount(2));
+/// ```
+#[must_use]
+pub fn slot_count(pattern: SlotPattern<'_>) -> SlotCount {
+    SlotCount(pattern.0.bytes().filter(|byte| *byte == b'{').count())
+}
 
 pub(crate) fn matches(
     pattern: SlotPattern<'_>,
@@ -95,7 +109,7 @@ pub(crate) fn evaluate(
     let text: &str = text.0.as_str();
     captured.clear();
     slots.0.clear();
-    let width = pattern.0.bytes().filter(|byte| *byte == b'{').count();
+    let width = slot_count(pattern).0;
     let mut minting = crate::domain::capture::types::SlotMinting {
         driver: &mut *driver,
         text: SlotSubject(text),
