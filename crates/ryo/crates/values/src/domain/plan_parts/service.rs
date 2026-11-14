@@ -1,5 +1,8 @@
 //! The `plan_parts` service: free functions named by verb over the numbers a plan is made of, with no IO and no ports.
 
+use ryo_relations::domain::relations::service::{columns, relation_of};
+use ryo_relations::domain::relations::types::{Column, Relation};
+
 use super::types::{
     Applied, BindingPlace, ColumnIndex, ObservationBindingId, Operand, ParameterId, StepId,
 };
@@ -14,6 +17,45 @@ pub fn step_in<T>(items: &[T], id: StepId) -> Option<&T> {
 #[must_use]
 pub fn column_in<T>(items: &[T], id: ColumnIndex) -> Option<&T> {
     items.get(usize::try_from(id.0).unwrap_or(usize::MAX))
+}
+
+/// The place of a relation's column among the relation's columns, from zero, in the order its item declares them.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
+/// use ryo_relations::domain::relations::types::Column;
+/// use ryo_values::domain::plan_parts::service::column_place;
+/// use ryo_values::domain::plan_parts::types::ColumnIndex;
+/// assert_eq!(column_place(Column::SyntaxTree(SyntaxTreeColumn::Id)), ColumnIndex(0));
+/// ```
+#[must_use]
+pub fn column_place(column: Column) -> ColumnIndex {
+    let place = columns(relation_of(column))
+        .iter()
+        .position(|each| *each == column)
+        .unwrap_or(usize::MAX);
+    ColumnIndex(u32::try_from(place).unwrap_or(u32::MAX))
+}
+
+/// The column of `relation` at `index`, when the relation has that many columns.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
+/// use ryo_relations::domain::relations::types::{Column, Relation};
+/// use ryo_values::domain::plan_parts::service::relation_column;
+/// use ryo_values::domain::plan_parts::types::ColumnIndex;
+/// assert_eq!(
+///     relation_column(Relation::SyntaxTree, ColumnIndex(0)),
+///     Some(Column::SyntaxTree(SyntaxTreeColumn::Id))
+/// );
+/// ```
+#[must_use]
+pub fn relation_column(relation: Relation, index: ColumnIndex) -> Option<Column> {
+    column_in(&columns(relation), index).copied()
 }
 
 /// The place of an observation binding among the bindings of a request.

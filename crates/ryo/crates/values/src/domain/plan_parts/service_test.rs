@@ -1,6 +1,14 @@
 //! The `plan_parts` service's cases, on values alone.
 
-use super::service::{columns_of, each_column, each_column_mut, parameter_in, remapped, step_in};
+use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
+use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
+use ryo_relations::domain::relations::service::{all, columns};
+use ryo_relations::domain::relations::types::Column;
+
+use super::service::{
+    column_place, columns_of, each_column, each_column_mut, parameter_in, relation_column,
+    remapped, step_in,
+};
 use super::types::{
     Applied, ColumnIndex, Function, LiteralText, Operand, ParameterId, QueryLiteral, StepId,
 };
@@ -27,6 +35,14 @@ enum Scenario {
     FunctionRemapped,
     /// Two comparisons that differ only in their diagnostic origin.
     OriginIgnored,
+    /// Every column of every relation is the column at its place.
+    EveryColumnRoundTrips,
+    /// The place of the syntax tree's `file`.
+    PlaceOfTheElementFile,
+    /// The place of the syntax child's `field`.
+    PlaceOfTheEdgeField,
+    /// A place past the last column of a relation.
+    PlacePastTheColumns,
 }
 
 /// `concat(pascal(column 3), "Service", column 1)`.
@@ -106,11 +122,51 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::OriginIgnored,
         expect: Expect::Value(1),
     },
+    Case {
+        name: CaseName("every_column_round_trips_through_its_place"),
+        word: Word::Succeeds,
+        input: || Scenario::EveryColumnRoundTrips,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("the_element_file_is_the_fourth_column_of_the_syntax_tree"),
+        word: Word::Succeeds,
+        input: || Scenario::PlaceOfTheElementFile,
+        expect: Expect::Value(3),
+    },
+    Case {
+        name: CaseName("the_edge_field_is_the_fourth_column_of_the_syntax_child"),
+        word: Word::Succeeds,
+        input: || Scenario::PlaceOfTheEdgeField,
+        expect: Expect::Value(3),
+    },
+    Case {
+        name: CaseName("a_place_past_the_columns_is_no_column"),
+        word: Word::Succeeds,
+        input: || Scenario::PlacePastTheColumns,
+        expect: Expect::Value(1),
+    },
 ];
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let items = [10_u8, 20];
+    let place = |column| usize::try_from(column_place(column).0).unwrap_or(usize::MAX);
     let answered = match scenario {
+        Scenario::PlaceOfTheElementFile => {
+            return Ok(place(Column::SyntaxTree(SyntaxTreeColumn::File)));
+        }
+        Scenario::PlaceOfTheEdgeField => {
+            return Ok(place(Column::SyntaxChild(SyntaxChildColumn::Field)));
+        }
+        Scenario::EveryColumnRoundTrips => all().iter().all(|relation| {
+            columns(*relation)
+                .into_iter()
+                .all(|column| relation_column(*relation, column_place(column)) == Some(column))
+        }),
+        Scenario::PlacePastTheColumns => all().iter().all(|relation| {
+            let width = u32::try_from(columns(*relation).len()).unwrap_or(u32::MAX);
+            relation_column(*relation, ColumnIndex(width)).is_none()
+        }),
         Scenario::StepThere => step_in(&items, StepId(1)) == Some(&20),
         Scenario::StepMissing => step_in(&items, StepId(2)).is_none(),
         Scenario::ParameterThere => parameter_in(&items, ParameterId(0)) == Some(&10),
