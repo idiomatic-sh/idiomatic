@@ -15,7 +15,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     word: Word::Succeeds,
     input: || (),
     // The integrated catalog includes the declared project-namespace membership fact.
-    expect: Expect::Value(69),
+    expect: Expect::Value(72),
 }];
 
 fn subject((): Input) -> Result<Value, Failure> {

@@ -29,7 +29,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     word: Word::Succeeds,
     input: all,
     expect: Expect::Value(Agreement {
-        numbered: 23,
+        numbered: 25,
         disagreeing: Cow::Borrowed(&[]),
     }),
 }];
