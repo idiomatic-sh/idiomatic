@@ -1,0 +1,6 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+import operator_before_unary from "rust/clippy/operator-before-unary";
+let found = operator_before_unary();
+let candidates = select id, file, span from found where operator = "=";
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:suspicious_assignment_formatting|suspicious|all))\s*(?:,|$)");
+emit violations subject file key(span);

@@ -526,6 +526,7 @@ defaults = [
 "rust/clippy/hulls" = "fragments/hulls.ryoql"
 "rust/clippy/item-heads" = "fragments/item-heads.ryoql"
 "rust/clippy/empty-line-after" = "fragments/empty-line-after.ryoql"
+"rust/clippy/operator-before-unary" = "fragments/operator-before-unary.ryoql"
 
 # Defaults deferred, each under the limitation that blocks it. 406 need types or the standard item a path names: semantic
 # analysis, which no provider answers yet.
@@ -538,7 +539,6 @@ unauthored = [
   "builtin_type_shadow",
   "crate_in_macro_def",
   "disallowed_names",
-  "double_parens",
   "duplicate_underscore_argument",
   "empty_loop",
   "infallible_destructuring_match",
@@ -553,22 +553,15 @@ unauthored = [
   "needless_borrowed_reference",
   "needless_else",
   "needless_ifs",
-  "needless_parens_on_range_literals",
   "needless_pub_self",
   "nonstandard_macro_braces",
   "option_env_unwrap",
-  "possible_missing_comma",
-  "possible_missing_else",
-  "precedence",
   "redundant_at_rest_pattern",
   "redundant_field_names",
   "redundant_pattern",
   "redundant_static_lifetimes",
   "repr_packed_without_abi",
   "single_element_loop",
-  "suspicious_assignment_formatting",
-  "suspicious_else_formatting",
-  "suspicious_unary_op_formatting",
   "temporary_assignment",
   "too_many_arguments",
   "toplevel_ref_arg",
