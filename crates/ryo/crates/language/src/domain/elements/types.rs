@@ -1,5 +1,6 @@
 // Numbers, Elements, TableBuilder and Completion are the engine's element table and the builders that write it, handed to every language: what only the engine may write is a private field holding a crate-private engine part (WrittenColumn in Numbers, ElementsEngine in TableState, BuilderEngine, CompletionEngine), reached by the crate through `AsRef`/`AsMut`, so a language builds a tree only through the SDK's functions and cannot corrupt the table. A public field would hand a language the table's invariants; privacy is the compiler's enforcement.
 //! The types of the `elements` concept: the element table of a file and what builds and reads it.
+pub mod children;
 
 use super::constants::SCRATCH;
 use crate::domain::diagnostics::types::Diagnostics;
@@ -180,6 +181,8 @@ pub(crate) struct ElementsEngine {
     pub model_preparation: ModelPreparation,
     /// What the language kept of its read of the file for a semantic session, its parsed tree; emptied with the table.
     pub retained: LanguageScratch,
+    /// The control flow graphs the language's read gave of the file's functions; emptied with the table, keeping its room.
+    pub flow: crate::domain::flow::types::FlowGraph,
     /// What the language wrote of the file besides its tree, bytes only it reads, when the request asked for them.
     pub notes: Bytes,
     /// What the parser reported.
@@ -312,36 +315,6 @@ impl<'a> AsMut<CompletionEngine<'a>> for Completion<'a> {
     /// What the completion writes, for the crate's operations on it.
     fn as_mut(&mut self) -> &mut CompletionEngine<'a> {
         &mut self.0
-    }
-}
-
-/// The children of one element, in order, found by skipping each child's subtree.
-#[derive(Clone, Debug)]
-pub struct Children<'a> {
-    /// The table.
-    pub elements: &'a Elements,
-    /// The next child.
-    pub next: Position,
-    /// The last position inside the parent.
-    pub last: Position,
-}
-
-impl Iterator for Children<'_> {
-    type Item = Position;
-
-    fn next(&mut self) -> Option<Position> {
-        if self.next > self.last {
-            return None;
-        }
-        let child = self.next;
-        let size = self
-            .elements
-            .size
-            .as_ref()
-            .values
-            .get(usize::try_from(child.0).unwrap_or(usize::MAX))?;
-        self.next = Position(child.0 + size.0 + 1);
-        Some(child)
     }
 }
 

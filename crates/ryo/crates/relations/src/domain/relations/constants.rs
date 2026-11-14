@@ -41,6 +41,12 @@ pub const PACKAGE: &str = "package";
 /// A column of every relation that has it, named the same in each: What a row points from.
 pub const SOURCE: &str = "source";
 
+/// A column of every relation that has it, named the same in each: The basic block of a control flow graph a row is about, by its number in the file.
+pub(crate) const BLOCK: &str = "block";
+
+/// A column of every relation that has it, named the same in each: The element a row is about.
+pub(crate) const NODE: &str = "node";
+
 /// A column of every relation that has it, named the same in each: The declaration a row is about.
 pub(crate) const DECLARATION: &str = "declaration";
 

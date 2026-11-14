@@ -95,7 +95,20 @@ pub use ryo_language::domain::elements::service::syntax_acceptance;
 /// Take what a read kept for a semantic session out of the table.
 pub use ryo_language::domain::elements::service::take_semantics;
 
-pub use ryo_language::domain::elements::types::Children;
+/// Say a kind of edge or step in the words of `flow-edge` and `flow-step`.
+pub use ryo_language::domain::flow::service::{flow_edge_word, flow_step_word};
+/// The control flow graphs a language's read keeps of a file: blocks by number, edges, steps and the block of each element.
+pub use ryo_language::domain::flow::types::{
+    BlockNumber, FlowBlockFact, FlowEdgeFact, FlowEdgeKind, FlowGraph, FlowMemberFact,
+    FlowStepFact, FlowStepKind, StepOrdinal,
+};
+/// Keep a file's control flow graphs in its table through the builder (a builder that discards keeps nothing), and read them back
+/// for the readers of the flow relations.
+pub use ryo_language::domain::flow_table::service::{
+    add_flow_block, add_flow_edge, add_flow_member, add_flow_step, flow_of,
+};
+
+pub use ryo_language::domain::elements::types::children::value::Children;
 
 pub use ryo_relations::domain::relations::constants::TOKEN;
 

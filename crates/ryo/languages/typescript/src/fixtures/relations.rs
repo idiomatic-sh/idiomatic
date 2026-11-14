@@ -123,6 +123,22 @@ mod pattern_syntax {
 mod pattern_child {
     include!("../../tests/fixtures/relations/pattern_child/expected.rs");
 }
+/// The rows the `flow-edge` relation must give for its fixture.
+mod flow_edge {
+    include!("../../tests/fixtures/relations/flow_edge/expected.rs");
+}
+/// The rows the `flow-block` relation must give for its fixture.
+mod flow_block {
+    include!("../../tests/fixtures/relations/flow_block/expected.rs");
+}
+/// The rows the `flow-member` relation must give for its fixture.
+mod flow_member {
+    include!("../../tests/fixtures/relations/flow_member/expected.rs");
+}
+/// The rows the `flow-step` relation must give for its fixture.
+mod flow_step {
+    include!("../../tests/fixtures/relations/flow_step/expected.rs");
+}
 /// The expected rows of every relation the language reads from trees, one entry for each.
 pub(super) fn expected() -> Vec<Expected> {
     vec![
@@ -157,6 +173,10 @@ pub(super) fn expected() -> Vec<Expected> {
         pattern_parse::expected(),
         pattern_syntax::expected(),
         pattern_child::expected(),
+        flow_edge::expected(),
+        flow_block::expected(),
+        flow_member::expected(),
+        flow_step::expected(),
     ]
 }
 

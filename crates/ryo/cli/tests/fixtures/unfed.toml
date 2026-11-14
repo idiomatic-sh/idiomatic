@@ -122,6 +122,18 @@ why = "no recorded rule reads it; the Python I001 query does."
 [feature."relation:TokenLink"]
 why = "no recorded rule reads it."
 
+[feature."relation:FlowEdge"]
+why = "no recorded rule reads it, and Python reads no control flow: only the TypeScript provider answers it."
+
+[feature."relation:FlowBlock"]
+why = "no recorded rule reads it, and Python reads no control flow: only the TypeScript provider answers it."
+
+[feature."relation:FlowMember"]
+why = "no recorded rule reads it, and Python reads no control flow: only the TypeScript provider answers it."
+
+[feature."relation:FlowStep"]
+why = "no recorded rule reads it, and Python reads no control flow: only the TypeScript provider answers it."
+
 [feature."relation:PatternChild"]
 why = "no recorded rule reads it, and Python reads no regular-expression pattern: only the TypeScript provider answers it."
 

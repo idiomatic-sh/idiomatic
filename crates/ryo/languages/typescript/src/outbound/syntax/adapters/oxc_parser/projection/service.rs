@@ -262,6 +262,7 @@ pub(in super::super) fn leaf(kind: Kind, span: Span) -> Piece {
         cursor: ChildCursor(0),
         properties: Vec::new(),
         carries: Carries::Nothing,
+        node: None,
     }
 }
 

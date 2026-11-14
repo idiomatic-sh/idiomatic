@@ -1,5 +1,9 @@
 # contract
 
+## 0.7.0
+
+The `semantics` template renders the four relations the catalog adds as `optional`: `flow_edge`, `flow_block`, `flow_member` and `flow_step`, the control-flow facts of a language's read, each answered `NotYetRead` until the language reads it. The scenario `impl-missing` expects one finding more for each. Everything else is as in 0.6.0.
+
 ## 0.6.0
 
 A contract part may hold `semantics.rs` (`count = { min = 0 }`), rendered by the new template `semantics`: the parse contract's struct implementing `ryo::languages::Semantics`, one method for each relation the catalog declares `optional`, each answered `NotYetRead` until the language reads it. `Parse::semantics` answers `Some(self)` when the file is there and `None` when it is not. The template renders only for the `ryo::languages::Parse` contract and refuses the file under any other. The new rule `semantics-in-parse` finds an `impl Semantics` in any file of the part but the parse contract's `semantics.rs` (scenarios `semantics-in-parse-semantics`, `semantics-in-contract`, `semantics-under-project`), so `contract.rs` keeps the baseline list and `semantics.rs` the optional one. Everything else is as in 0.5.0.

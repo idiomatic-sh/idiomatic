@@ -2,9 +2,9 @@
 //! and no ports. An element is a node or a token, a row of the table.
 
 use super::constants::FOREIGN_POSITION;
+use super::types::children::value::Children;
 use super::types::{
-    Children, Elements, ElementsEngine, KindSum, ModelReadiness, Numbers, SourceOrder,
-    SyntaxAcceptance,
+    Elements, ElementsEngine, KindSum, ModelReadiness, Numbers, SourceOrder, SyntaxAcceptance,
 };
 use crate::domain::diagnostics::service::{
     clear, count, incomplete_lexical_stream, incomplete_syntax, listed,
@@ -32,6 +32,7 @@ pub fn clear_elements(elements: &mut Elements) {
     // Invalidate before touching the old population; stale models never survive a refill.
     engine_mut(elements).model_preparation.ready = ModelReadiness::Stale;
     engine_mut(elements).retained.0 = None;
+    crate::domain::flow::service::clear_flow(&mut engine_mut(elements).flow);
     elements.kind.as_mut().values.clear();
     elements.flags.as_mut().values.clear();
     elements.start.as_mut().values.clear();

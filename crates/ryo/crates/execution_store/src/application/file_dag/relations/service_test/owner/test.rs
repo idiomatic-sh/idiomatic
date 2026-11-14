@@ -52,14 +52,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Published::Catalog,
         expect: Expect::Value(Observed::Catalog(Catalog {
-            complete: 72,
-            complete_again: 72,
-            asked_its_relation: 72,
-            read_its_rows: 72,
-            // 72 catalog relations, separately from five physical representations.
-            groups: [60, 8, 4],
-            checks: CheckCount(72),
-            reuses: CheckCount(72),
+            complete: 76,
+            complete_again: 76,
+            asked_its_relation: 76,
+            read_its_rows: 76,
+            // 76 catalog relations, separately from five physical representations.
+            groups: [64, 8, 4],
+            checks: CheckCount(76),
+            reuses: CheckCount(76),
         })),
     },
     Case {
