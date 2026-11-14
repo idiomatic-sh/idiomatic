@@ -84,6 +84,10 @@ pub enum OperatingError {
     /// A step reads a column its input lacks.
     #[error(transparent)]
     Table(#[from] RowsError),
+    /// A rule reads a feature no stage of the swap serves yet: a kind with no lowering, a step after the files or a bound input.
+    /// Branch only: deleted with the last unlowered kind.
+    #[error("not served until F{}", .0.0)]
+    NotServedUntil(ryo_operators::domain::physical_plan::types::ServedAt),
 }
 
 impl From<ryo_operators::domain::comparing::errors::ComparingError> for OperatingError {

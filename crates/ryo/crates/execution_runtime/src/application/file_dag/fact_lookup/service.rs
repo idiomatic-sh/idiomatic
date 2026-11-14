@@ -3,7 +3,6 @@
 //! relation outside what was demanded is refused, never read late.
 
 use super::types::{FileWants, RowsRead};
-use crate::application::file_dag::program::file_session::types::FileStop;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsWorker;
 use crate::outbound::facts::types::fact_sources::value::FactSources;
@@ -173,24 +172,5 @@ impl<'a, 's> FactLookup<'a, 's> {
     /// The storage's own failure.
     pub(crate) fn keep(&self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
         self.facts.keep(bucket, words)
-    }
-}
-
-/// Opens one file: every wanted relation read and admitted. Any failure releases the rows written and stops the file.
-///
-/// # Errors
-///
-/// `Reader` when a source refused, its rows released; `Facts` with the storage's own failure otherwise.
-pub(crate) fn opened<'a, 's>(
-    sources: FactSources<'s>,
-    facts: &'a mut dyn FactsWorker,
-    wants: FileWants<'a>,
-    symbols: &mut Symbols,
-) -> Result<FactLookup<'a, 's>, FileStop> {
-    let mut lookup = FactLookup::new(sources, facts, wants);
-    match lookup.ensure(symbols, wants.wanted) {
-        Ok(()) => Ok(lookup),
-        Err(FactsError::Refused) => Err(FileStop::Reader),
-        Err(other) => Err(FileStop::Facts(other)),
     }
 }

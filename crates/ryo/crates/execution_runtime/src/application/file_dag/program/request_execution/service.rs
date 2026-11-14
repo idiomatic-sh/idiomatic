@@ -1,5 +1,5 @@
 //! A request execution: its files, its project phase and its observation stage.
-use crate::application::file_dag::fact_lookup::service::opened;
+use crate::application::file_dag::file_pass::service::rules::service::opened;
 use crate::application::file_dag::fact_lookup::types::FileWants;
 use crate::application::file_dag::frontiers::errors::FrontiersError;
 use crate::application::file_dag::frontiers::service::PreparationPolicy;
@@ -51,6 +51,7 @@ impl ProgramRequestExecutionPort for RequestExecution {
         &'a self,
         arenas: &'a mut crate::application::file_dag::program::request_execution::types::ObservationArenas,
     ) -> Result<ObservationStage<'a>, OperatingError> {
+        crate::application::file_dag::file_pass::service::served(self.pass.as_ref())?;
         let metadata = self
             .program
             .observation_metadata()
@@ -87,9 +88,27 @@ impl ProgramRequestExecutionPort for RequestExecution {
         capture: CaptureContext<'_>,
         facts: &mut dyn FactsWorker,
     ) -> FileRules {
-        run_file(self, input, symbols, capture, facts)
+        let Some(pass) = &self.pass else {
+            return run_file(self, input, symbols, capture, facts);
+        };
+        let request = crate::application::file_dag::file_pass::types::PassRequest {
+            program: &self.program,
+            admission: if input.intents.len() != self.program.rule_count().0 {
+                Err(OperatingError::ShapeMismatch)
+            } else if self.services.request().contains(input.file)
+                == crate::application::file_dag::program::request_identity::types::CorpusMembership::Unlisted
+            {
+                Err(OperatingError::NotRead)
+            } else {
+                Ok(())
+            },
+            paths: self.services.request().paths(),
+            observer: self.services.observer(),
+        };
+        crate::application::file_dag::file_pass::service::rules::service::run_rules(request, pass, input, symbols, capture, facts)
     }
     fn project_phase(&self) -> Result<ProjectPhase<'_>, OperatingError> {
+        crate::application::file_dag::file_pass::service::served(self.pass.as_ref())?;
         Ok(ProjectPhase {
             request: self,
             publication: std::rc::Rc::new(facade_runtime::service::publication_owner(
@@ -371,5 +390,10 @@ pub fn begin(
         ),
         frontiers: crate::application::file_dag::frontiers::cache::service::FrontierCache::new(),
         digest: Arc::clone(&program.parts.digest),
+        pass: program
+            .parts
+            .fused
+            .as_deref()
+            .map(crate::application::file_dag::file_pass::service::pass_program),
     }
 }

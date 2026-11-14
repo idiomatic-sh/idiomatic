@@ -4,6 +4,8 @@
 use crate::domain::fused_program::types::{Consumers, RuleNodes, Serving};
 use ryo_operators::domain::physical_plan::types::PlanNodeId;
 use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
+use crate::domain::operating::errors::OperatingError;
+use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
 /// A request's logical program and what the engine derived while building it.
@@ -29,6 +31,8 @@ pub struct LogicalBuild<'p> {
     pub(crate) consumers: Vec<Consumers>,
     /// The nodes that start from the tree nodes of a kind, by the text the plans write for the kind.
     pub(crate) roots: hashbrown::HashMap<LiteralText, Vec<PlanNodeId>>,
+    /// Each node's output columns, or the schema fault of it or of a node it reads, by node.
+    pub(crate) schemas: Vec<Result<Vec<CellKind>, OperatingError>>,
 }
 
 impl<'p> LogicalBuild<'p> {

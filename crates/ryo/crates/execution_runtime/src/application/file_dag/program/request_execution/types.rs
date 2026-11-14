@@ -1,4 +1,5 @@
 //! One request execution: the state its files and project phase share.
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::sync::Arc;
 
 /// One request's execution, opened only by `begin`: its fields are sealed to the engine, so no
@@ -19,7 +20,12 @@ pub struct RequestExecution {
     /// Prepared frontiers of this request, one acquisition per population.
     pub(crate) frontiers: crate::application::file_dag::frontiers::cache::service::FrontierCache,
     /// The prepared program's digest port, handed to each publication scope.
-    pub(crate) digest: std::sync::Arc<dyn crate::outbound::digest::interface::DigestPort>,
+    pub(crate) digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
+    /// The program the file pass runs, or why it could not be made, when the differential asks for it. Branch only: until the
+    /// switch.
+    pub(crate) pass: Option<
+        Result<crate::application::file_dag::file_pass::types::PassProgram, OperatingError>,
+    >,
 }
 
 /// The arenas the cross-file observations publish their stored facts into, kept by the caller across requests.

@@ -2,7 +2,8 @@
 //! serves it, a served relation refused until ensured, outside what was ensured or after release, core's own read in place, a
 //! refusal stopping the file, and the partiality `partial_of` gives.
 
-use super::service::{FactLookup, opened};
+use super::service::FactLookup;
+use crate::application::file_dag::file_pass::service::rules::service::opened;
 use super::types::FileWants;
 use crate::application::file_dag::program::file_session::types::FileStop;
 use crate::outbound::facts::errors::FactsError;

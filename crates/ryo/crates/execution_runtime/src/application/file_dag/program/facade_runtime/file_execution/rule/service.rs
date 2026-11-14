@@ -1,8 +1,7 @@
 //! Evaluation of one rule over the prepared file.
+use crate::application::file_dag::file_pass::constants::SOURCE_FACTS_INCOMPLETE;
 use crate::application::file_dag::program::admission::service::Partition;
-use crate::application::file_dag::program::constants::{
-    FILE_RULE_CONSUMER, SOURCE_FACTS_INCOMPLETE,
-};
+use crate::application::file_dag::program::constants::FILE_RULE_CONSUMER;
 use crate::application::file_dag::program::facade_runtime::file_execution::service::FileRun;
 use crate::application::file_dag::program::facade_runtime::file_execution::service::classify;
 use crate::application::file_dag::program::facade_runtime::file_execution::service::outcome_of;

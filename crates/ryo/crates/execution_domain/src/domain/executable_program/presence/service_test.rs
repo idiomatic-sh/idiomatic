@@ -863,7 +863,9 @@ fn operating(error: &OperatingError) -> Fault {
         | OperatingError::Unbound
         | OperatingError::WrongBinding
         | OperatingError::Table(_) => Fault::Fixed,
-        OperatingError::NotRun | OperatingError::NotRead => Fault::Engine,
+        OperatingError::NotRun | OperatingError::NotRead | OperatingError::NotServedUntil(_) => {
+            Fault::Engine
+        }
         OperatingError::ObservationIncomplete { .. }
         | OperatingError::SemanticIncomplete { .. } => Fault::Incomplete,
     }
@@ -1052,7 +1054,8 @@ fn located_proof(raised: Raised<'_>) -> Option<LocatedProof> {
             | OperatingError::NotRun
             | OperatingError::NotRead
             | OperatingError::ObservationIncomplete { .. }
-            | OperatingError::SemanticIncomplete { .. },
+            | OperatingError::SemanticIncomplete { .. }
+            | OperatingError::NotServedUntil(_),
         )
         | Raised::Portable(
             P::InvalidSpanBounds
@@ -1097,6 +1100,7 @@ fn operating_position(error: &OperatingError) -> usize {
         OperatingError::InvalidRegex { .. } => 19,
         OperatingError::ShapeMismatch => 20,
         OperatingError::Table(_) => 21,
+        OperatingError::NotServedUntil(_) => 22,
     }
 }
 /// Each portable operator fault's place in the catalogue's list, by declaration order.
@@ -1198,6 +1202,7 @@ fn verdicts() -> Verdicts {
         OperatingError::Table(ryo_values::domain::rows::errors::RowsError::NoSuchColumn {
             index: 0,
         }),
+        OperatingError::NotServedUntil(ryo_operators::domain::physical_plan::types::ServedAt(4)),
     ];
     let faults = [
         PortableOperatorFault::Interrupted,

@@ -17,7 +17,6 @@ mod service_test;
 
 pub(crate) mod executor;
 pub(crate) mod fact_lookup;
-#[cfg_attr(not(test), expect(dead_code, reason = "the file pass is built beside the interpreter; run_file reaches it at the switch"))]
 pub(crate) mod file_pass;
 
 pub mod observations;

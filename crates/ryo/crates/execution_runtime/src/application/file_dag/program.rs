@@ -14,11 +14,11 @@ pub(super) mod runtime;
 
 pub(crate) mod restored;
 
-mod request_identity;
+pub(crate) mod request_identity;
 
 mod context;
 pub(crate) mod native_walk;
 
 mod project_population;
 
-mod constants;
+pub(crate) mod constants;

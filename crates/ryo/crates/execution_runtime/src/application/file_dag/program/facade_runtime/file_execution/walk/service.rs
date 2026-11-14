@@ -1,11 +1,11 @@
 //! Binding intents and preparing the shared walk of one file.
+use crate::application::file_dag::file_pass::constants::{SOURCE_FACTS_INCOMPLETE, PRODUCER_COVERAGE_INCOMPLETE};
 use crate::application::file_dag::program::admission::service::ApplicabilityProof;
 use crate::application::file_dag::program::admission::service::Inputs;
 use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::constants::{EXECUTION_TARGET, PRESENCE_FILE};
 use crate::application::file_dag::program::constants::{
-    METADATA_UNAVAILABLE, PRODUCER_COVERAGE_INCOMPLETE, SOURCE_FACTS_INCOMPLETE,
-    SYNTAX_UNDETERMINED,
+    METADATA_UNAVAILABLE, SYNTAX_UNDETERMINED,
 };
 use crate::application::file_dag::program::facade_runtime::file_execution::service::FileRun;
 use crate::application::file_dag::program::facade_runtime::file_execution::service::classify;

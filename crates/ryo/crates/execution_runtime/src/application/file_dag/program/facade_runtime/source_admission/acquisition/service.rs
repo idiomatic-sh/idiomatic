@@ -1,4 +1,5 @@
 //! Demand-triggered source supply for one region input.
+use crate::application::file_dag::file_pass::constants::{SOURCE_FACTS_INCOMPLETE, PRODUCER_COVERAGE_INCOMPLETE};
 use super::super::service::SourceInputs;
 use crate::application::file_dag::program::admission::service::AdmittedInput;
 use crate::application::file_dag::program::admission::service::AvailableInput;
@@ -7,9 +8,8 @@ use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::admission::service::ReadProof;
 use crate::application::file_dag::program::admission::types::ProducerRoot;
 use crate::application::file_dag::program::constants::{
-    OBSERVATION_UNAVAILABLE, PRODUCER_COVERAGE_INCOMPLETE, PRODUCER_ROOT_INCOMPLETE,
-    PRODUCER_WITHOUT_QUERY, SOURCE_FACTS_INCOMPLETE,
-};
+    OBSERVATION_UNAVAILABLE, PRODUCER_ROOT_INCOMPLETE,
+    PRODUCER_WITHOUT_QUERY, };
 use crate::application::file_dag::program::facade_runtime::types::ObservationKey;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::OperatorContext;

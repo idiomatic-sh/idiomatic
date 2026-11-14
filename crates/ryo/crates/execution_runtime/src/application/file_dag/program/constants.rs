@@ -32,9 +32,6 @@ pub(super) const BOUND_PRODUCER_UNAVAILABLE: &str = "declared bound producer is 
 pub(super) const OBSERVATION_UNAVAILABLE: &str = "declared observation publication is unavailable";
 pub(super) const PRODUCER_WITHOUT_QUERY: &str = "named producer has no executable query";
 pub(super) const PRODUCER_ROOT_INCOMPLETE: &str = "named producer root is not complete";
-pub(super) const SOURCE_FACTS_INCOMPLETE: &str = "physical source facts are incomplete";
-pub(super) const PRODUCER_COVERAGE_INCOMPLETE: &str =
-    "producer publication has incomplete physical coverage";
 pub(super) const FILE_OWNER_FINISH: &str = "file_owner_finish";
 pub(super) const FILE_STREAM_CONSUMER: &str = "file_stream";
 pub(super) const FILE_RULE_CONSUMER: &str = "file_rule";

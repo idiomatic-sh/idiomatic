@@ -6,9 +6,8 @@ use crate::application::file_dag::program::admission::service::FileGeneration;
 #[cfg(test)]
 use crate::application::file_dag::program::admission::service::Inputs;
 use crate::application::file_dag::program::admission::service::Partition;
-use crate::application::file_dag::program::constants::{
-    FILE_OWNER_FINISH, PRODUCER_COVERAGE_INCOMPLETE,
-};
+use crate::application::file_dag::file_pass::constants::PRODUCER_COVERAGE_INCOMPLETE;
+use crate::application::file_dag::program::constants::FILE_OWNER_FINISH;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 #[cfg(test)]
 use crate::application::file_dag::program::facade_runtime::source_admission::service::SourceInputs;
@@ -333,32 +332,7 @@ impl FileRun<'_> {
     }
 }
 
-pub(super) fn readiness_of(
-    outcome: &RootOutcome,
-) -> Option<ryo_values::domain::records::types::ProducerReadiness> {
-    use ryo_values::domain::records::types::ObservationReason;
-    use ryo_values::domain::records::types::ProducerReadiness;
-    Some(match outcome {
-        RootOutcome::Complete(_) => ProducerReadiness::Complete,
-        RootOutcome::Partial { .. } => {
-            ProducerReadiness::Unknown(ObservationReason(PRODUCER_COVERAGE_INCOMPLETE.into()))
-        }
-        RootOutcome::Skipped(_) => ProducerReadiness::Skipped,
-        RootOutcome::Unknown(error) | RootOutcome::Failed(error) => {
-            ProducerReadiness::Unknown(ObservationReason(error.to_string().into()))
-        }
-        RootOutcome::NoQuery => ProducerReadiness::NoQuery,
-        RootOutcome::Deferred { .. } => return None,
-    })
-}
 
-pub(crate) fn classify(error: OperatingError) -> RootOutcome {
-    match error {
-        OperatingError::ObservationIncomplete { .. }
-        | OperatingError::SemanticIncomplete { .. } => RootOutcome::Unknown(error),
-        other => RootOutcome::Failed(other),
-    }
-}
 
 pub(crate) fn outcome_of<'facts>(
     result: Result<InvocationOutcome, OperatingError>,
@@ -393,5 +367,34 @@ pub(crate) fn outcome_of<'facts>(
 impl FileRun<'_> {
     pub(crate) fn source_reuse_eligible(&self) -> ReuseEligibility {
         self.owner.stable()
+    }
+}
+
+/// How ready a named output is after its root answered `outcome`; a root deferred past the file says nothing yet.
+pub(crate) fn readiness_of(
+    outcome: &RootOutcome,
+) -> Option<ryo_values::domain::records::types::ProducerReadiness> {
+    use ryo_values::domain::records::types::ObservationReason;
+    use ryo_values::domain::records::types::ProducerReadiness;
+    Some(match outcome {
+        RootOutcome::Complete(_) => ProducerReadiness::Complete,
+        RootOutcome::Partial { .. } => {
+            ProducerReadiness::Unknown(ObservationReason(PRODUCER_COVERAGE_INCOMPLETE.into()))
+        }
+        RootOutcome::Skipped(_) => ProducerReadiness::Skipped,
+        RootOutcome::Unknown(error) | RootOutcome::Failed(error) => {
+            ProducerReadiness::Unknown(ObservationReason(error.to_string().into()))
+        }
+        RootOutcome::NoQuery => ProducerReadiness::NoQuery,
+        RootOutcome::Deferred { .. } => return None,
+    })
+}
+
+/// The answer of a root that raised `error`: unknown when its inputs were incomplete, failed otherwise.
+pub(crate) fn classify(error: OperatingError) -> RootOutcome {
+    match error {
+        OperatingError::ObservationIncomplete { .. }
+        | OperatingError::SemanticIncomplete { .. } => RootOutcome::Unknown(error),
+        other => RootOutcome::Failed(other),
     }
 }

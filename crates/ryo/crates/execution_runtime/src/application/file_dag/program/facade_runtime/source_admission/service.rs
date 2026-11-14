@@ -1,5 +1,6 @@
 //! The `source_admission` application operation.
 
+use crate::application::file_dag::file_pass::constants::PRODUCER_COVERAGE_INCOMPLETE;
 use super::types::ProjectSources;
 use crate::application::file_dag::program::admission::service::AdmittedInput;
 use crate::application::file_dag::program::admission::service::AvailableInput;
@@ -8,7 +9,6 @@ use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::admission::service::Representation;
 use crate::application::file_dag::program::admission::types::Emptiness;
 use crate::application::file_dag::program::admission::types::ProducerRoot;
-use crate::application::file_dag::program::constants::PRODUCER_COVERAGE_INCOMPLETE;
 use crate::application::file_dag::program::facade_runtime::types::FileRoot;
 use crate::application::file_dag::program::facade_runtime::types::ObservationKey;
 use crate::application::file_dag::program::facade_runtime::types::Provision;

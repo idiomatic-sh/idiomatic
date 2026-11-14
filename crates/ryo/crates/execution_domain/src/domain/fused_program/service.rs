@@ -168,12 +168,14 @@ pub fn logical<'p>(
         }
     }
     let roots = derived_roots(&drafts, &inputs.lists);
+    let schemas = drafts.iter().map(|draft| draft.schema.clone()).collect();
     Ok(LogicalBuild {
         program,
         rules: nodes,
         serving,
         consumers,
         roots,
+        schemas,
     })
 }
 
@@ -272,6 +274,7 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> FusedProgram {
         mut serving,
         consumers,
         roots,
+        schemas,
         ..
     } = build;
     for unserved in plan.unserved() {
@@ -294,6 +297,7 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> FusedProgram {
         serving,
         consumers,
         roots,
+        schemas,
     }
 }
 
@@ -352,6 +356,31 @@ pub fn consumers(program: &FusedProgram, node: PlanNodeId) -> Result<Consumers, 
         .get(node.0 as usize)
         .copied()
         .ok_or(OperatingError::NotRun)
+}
+
+/// The output columns of `node`.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::fused_program::service::{assemble, logical, schema};
+/// use ryo_execution_domain::domain::fused_program::types::program_inputs::value::ProgramInputs;
+/// use ryo_operators::domain::physical_plan::types::PlanNodeId;
+/// use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+/// let mut inputs = ProgramInputs::default();
+/// let program = assemble(logical(&[], &mut inputs).unwrap(), PhysicalPlan::default());
+/// assert!(schema(&program, PlanNodeId(0)).is_err());
+/// ```
+///
+/// # Errors
+///
+/// The schema fault of the node or of a node it reads; `NotRun` for a node the program does not have.
+pub fn schema(program: &FusedProgram, node: PlanNodeId) -> Result<&[CellKind], OperatingError> {
+    match program.schemas.get(node.0 as usize) {
+        Some(Ok(kinds)) => Ok(kinds),
+        Some(Err(error)) => Err(error.clone()),
+        None => Err(OperatingError::NotRun),
+    }
 }
 
 /// The operators' plan of the program.
