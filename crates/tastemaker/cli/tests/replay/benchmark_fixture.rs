@@ -126,14 +126,14 @@ fn invalid_or_unfamiliar_manifest_is_not_guessed() {
 }
 
 #[test]
-fn normalization_operates_only_on_the_copied_fixture() -> std::io::Result<()> {
+fn normalization_operates_only_on_the_copied_fixture() -> io::Result<()> {
     let original = tempfile::tempdir()?;
     let scratch = tempfile::tempdir()?;
     let copy = scratch.path().join("crates/ryo");
     std::fs::create_dir_all(&copy)?;
     let source = "tastemaker = \"0.0.0\"\nworkspace = { name = \"fixture\" }\n";
     std::fs::write(original.path().join("tastemaker.toml"), source)?;
-    std::fs::copy(
+    let _: u64 = std::fs::copy(
         original.path().join("tastemaker.toml"),
         copy.join("tastemaker.toml"),
     )?;
@@ -145,7 +145,7 @@ fn normalization_operates_only_on_the_copied_fixture() -> std::io::Result<()> {
     assert_eq!(
         std::fs::read_to_string(copy.join("tastemaker.toml"))?,
         rewritten(source, env!("CARGO_PKG_VERSION"))
-            .map_err(std::io::Error::other)?
+            .map_err(io::Error::other)?
             .1
     );
     for lock in [
