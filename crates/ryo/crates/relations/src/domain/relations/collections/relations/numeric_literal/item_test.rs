@@ -20,7 +20,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     word: Word::Succeeds,
     input: || (),
     expect: Expect::Value((
-        [Bits(3), Bits(17), Bits(23), Bits(1), Bits(7), Bits(47_244_640_269)],
+        [
+            Bits(3),
+            Bits(17),
+            Bits(23),
+            Bits(1),
+            Bits(7),
+            Bits(47_244_640_269),
+        ],
         CELL_VALUE_BYTES,
     )),
 }];

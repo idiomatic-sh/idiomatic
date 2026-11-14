@@ -80,13 +80,16 @@ fn decoded(literal: &str) -> FloatBits {
         _ => 10,
     };
     let value = if radix == 10 {
-        literal.parse::<f64>().expect("the row writes a decimal literal")
+        literal
+            .parse::<f64>()
+            .expect("the row writes a decimal literal")
     } else {
         #[expect(
             clippy::cast_precision_loss,
             reason = "the literal's integer rounds to the nearest binary64, as a parser decodes it"
         )]
-        let rounded = u128::from_str_radix(&literal[2..], radix).expect("the row writes a prefixed integer") as f64;
+        let rounded = u128::from_str_radix(&literal[2..], radix)
+            .expect("the row writes a prefixed integer") as f64;
         rounded
     };
     FloatBits(value.to_bits())
@@ -96,7 +99,10 @@ fn decoded(literal: &str) -> FloatBits {
 fn exactness(rows: &[(&str, &str)]) -> String {
     rows.iter()
         .map(|(written, literal)| {
-            format!("{:?}", exact_digits(NameText(&written.replace('_', "")), decoded(literal)))
+            format!(
+                "{:?}",
+                exact_digits(NameText(&written.replace('_', "")), decoded(literal))
+            )
         })
         .collect::<Vec<_>>()
         .join("|")
@@ -108,7 +114,10 @@ fn decimal_digits_a_binary64_gives_back_are_exact() -> String {
         ("12345", "12345"),
         ("123.456", "123.456"),
         ("12300000000000000000000000", "12300000000000000000000000"),
-        ("0.00000000000000000000000123", "0.00000000000000000000000123"),
+        (
+            "0.00000000000000000000000123",
+            "0.00000000000000000000000123",
+        ),
         ("9007199254740991", "9007199254740991"),
         ("0", "0"),
         ("0.0", "0.0"),
@@ -121,8 +130,14 @@ fn decimal_digits_a_binary64_gives_back_are_exact() -> String {
         (".42", ".42"),
         ("42.", "42."),
         ("123.0", "123.0e34"),
-        ("123_00_000_000_000_000_000_000_000", "123_00_000_000_000_000_000_000_000"),
-        ("123.000_000_000_000_000_000_000_0", "123.000_000_000_000_000_000_000_0"),
+        (
+            "123_00_000_000_000_000_000_000_000",
+            "123_00_000_000_000_000_000_000_000",
+        ),
+        (
+            "123.000_000_000_000_000_000_000_0",
+            "123.000_000_000_000_000_000_000_0",
+        ),
         ("480.00", "480.00"),
         ("3", "3e-308"),
         ("1000000000000000128", "1000000000000000128"),
@@ -139,7 +154,10 @@ fn decimal_digits_a_binary64_rounds_are_not_exact() -> String {
         (".9007199254740993", ".9007199254740993e16"),
         ("900719925474099.30", "900719925474099.30e1"),
         ("90071992547409930", "90071992547409930e-1"),
-        ("5123000000000000000000000000001", "5123000000000000000000000000001"),
+        (
+            "5123000000000000000000000000001",
+            "5123000000000000000000000000001",
+        ),
         ("1230000000000000000000000.0", "1230000000000000000000000.0"),
         ("1.0000000000000000000000123", "1.0000000000000000000000123"),
         (
@@ -157,8 +175,14 @@ fn decimal_digits_a_binary64_rounds_are_not_exact() -> String {
 /// oxlint's `no-loss-of-precision` passes (its cases at 662-682): prefixed integers of at most 53 significant bits.
 fn prefixed_digits_a_binary64_holds_are_exact() -> String {
     exactness(&[
-        ("0b11111111111111111111111111111111111111111111111111111", "0b11111111111111111111111111111111111111111111111111111"),
-        ("0b111_111_111_111_1111_11111_111_11111_1111111111_11111111_111_111", "0b111_111_111_111_1111_11111_111_11111_1111111111_11111111_111_111"),
+        (
+            "0b11111111111111111111111111111111111111111111111111111",
+            "0b11111111111111111111111111111111111111111111111111111",
+        ),
+        (
+            "0b111_111_111_111_1111_11111_111_11111_1111111111_11111111_111_111",
+            "0b111_111_111_111_1111_11111_111_11111_1111111111_11111111_111_111",
+        ),
         ("0o377777777777777777", "0o377777777777777777"),
         ("0o3_77_777_777_777_777_777", "0o3_77_777_777_777_777_777"),
         ("0x1FFFFFFFFFFFFF", "0x1FFFFFFFFFFFFF"),
@@ -173,16 +197,28 @@ fn prefixed_digits_a_binary64_holds_are_exact() -> String {
 /// oxlint's `no-loss-of-precision` failures (its cases at 733-756): prefixed integers binary64 rounds.
 fn prefixed_digits_a_binary64_rounds_are_not_exact() -> String {
     exactness(&[
-        ("0b100000000000000000000000000000000000000000000000000001", "0b100000000000000000000000000000000000000000000000000001"),
+        (
+            "0b100000000000000000000000000000000000000000000000000001",
+            "0b100000000000000000000000000000000000000000000000000001",
+        ),
         ("0o400000000000000001", "0o400000000000000001"),
         ("0x20000000000001", "0x20000000000001"),
-        ("0b1_0000000000000000000000000000000000000000000000000000_1", "0b1_0000000000000000000000000000000000000000000000000000_1"),
-        ("0b10000000000_0000000000000000000000000000_000000000000001", "0b10000000000_0000000000000000000000000000_000000000000001"),
+        (
+            "0b1_0000000000000000000000000000000000000000000000000000_1",
+            "0b1_0000000000000000000000000000000000000000000000000000_1",
+        ),
+        (
+            "0b10000000000_0000000000000000000000000000_000000000000001",
+            "0b10000000000_0000000000000000000000000000_000000000000001",
+        ),
         ("0o4_00000000000000_001", "0o4_00000000000000_001"),
         ("0o4_0000000000000000_1", "0o4_0000000000000000_1"),
         ("0x2_0000000000001", "0x2_0000000000001"),
         ("0x200000_0000000_1", "0x200000_0000000_1"),
-        ("0b100_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_001", "0b100_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_001"),
+        (
+            "0b100_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_001",
+            "0b100_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_001",
+        ),
     ])
 }
 
@@ -210,25 +246,33 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("decimal_digits_a_binary64_gives_back_are_exact"),
         word: Word::Succeeds,
         input: || decimal_digits_a_binary64_gives_back_are_exact,
-        expect: Expect::Value("Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised"),
+        expect: Expect::Value(
+            "Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised",
+        ),
     },
     Case {
         name: CaseName("decimal_digits_a_binary64_rounds_are_not_exact"),
         word: Word::Succeeds,
         input: || decimal_digits_a_binary64_rounds_are_not_exact,
-        expect: Expect::Value("Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered"),
+        expect: Expect::Value(
+            "Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered",
+        ),
     },
     Case {
         name: CaseName("prefixed_digits_a_binary64_holds_are_exact"),
         word: Word::Succeeds,
         input: || prefixed_digits_a_binary64_holds_are_exact,
-        expect: Expect::Value("Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised"),
+        expect: Expect::Value(
+            "Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised|Raised",
+        ),
     },
     Case {
         name: CaseName("prefixed_digits_a_binary64_rounds_are_not_exact"),
         word: Word::Succeeds,
         input: || prefixed_digits_a_binary64_rounds_are_not_exact,
-        expect: Expect::Value("Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered"),
+        expect: Expect::Value(
+            "Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered|Lowered",
+        ),
     },
 ];
 

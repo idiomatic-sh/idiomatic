@@ -342,6 +342,7 @@ pub use ryo::languages::Visibility
 pub use ryo::languages::VisibilityColumn
 pub use ryo::languages::VisibilityRow
 pub use ryo::languages::Visiting
+pub use ryo::languages::WRITTEN_DIGITS_BYTES
 pub use ryo::languages::Why
 pub use ryo::languages::WorkspaceMember
 pub use ryo::languages::WorkspaceMemberColumn

@@ -2,14 +2,14 @@
 //! and no ports.
 
 use super::constants::{
-    ASCII_ONLY, BINARY_DIGIT_BITS, EXPONENT_BIAS, EXPONENT_MASK, FLOAT_SUFFIX, FLOAT_TEXT_BYTES, HEX_DIGIT_BITS,
-    MANTISSA_BITS, MANTISSA_MASK, OCTAL_DIGIT_BITS, PRINTED_DIGITS_LIMIT,
+    ASCII_ONLY, BINARY_DIGIT_BITS, EXPONENT_BIAS, EXPONENT_MASK, FLOAT_SUFFIX, FLOAT_TEXT_BYTES,
+    HEX_DIGIT_BITS, MANTISSA_BITS, MANTISSA_MASK, OCTAL_DIGIT_BITS, PRINTED_DIGITS_LIMIT,
 };
 use super::types::{FloatBits, FloatBuffer};
 use crate::domain::elements::service::engine;
 use crate::domain::elements::types::Elements;
-use ryo_relations::domain::relations::types::{Flag, Position};
 use ryo_relations::domain::relations::types::PropertyId;
+use ryo_relations::domain::relations::types::{Flag, Position};
 use ryo_relations::domain::terms::types::NameText;
 
 /// The text the token at `at` stands for, when the language's library decoded it.
@@ -119,12 +119,19 @@ pub fn exact_digits(written: NameText<'_>, bits: FloatBits) -> Flag {
 fn decimal_exact(written: NameText<'_>, bits: FloatBits) -> Flag {
     let value = f64::from_bits(bits.0).abs();
     let written = written.0.as_bytes();
-    if !written.iter().all(|byte| byte.is_ascii_digit() || *byte == b'.') {
+    if !written
+        .iter()
+        .all(|byte| byte.is_ascii_digit() || *byte == b'.')
+    {
         return Flag::Lowered;
     }
     let digits = || written.iter().filter(|byte| byte.is_ascii_digit());
     let Some(first) = digits().position(|byte| *byte != b'0') else {
-        return if value == 0.0 { Flag::Raised } else { Flag::Lowered };
+        return if value == 0.0 {
+            Flag::Raised
+        } else {
+            Flag::Lowered
+        };
     };
     let end = if written.contains(&b'.') {
         digits().count()
@@ -179,7 +186,11 @@ fn prefixed_exact(written: NameText<'_>, bits: FloatBits) -> Flag {
         };
     }
     if length == 0 {
-        return if value == 0.0 { Flag::Raised } else { Flag::Lowered };
+        return if value == 0.0 {
+            Flag::Raised
+        } else {
+            Flag::Lowered
+        };
     }
     if !value.is_finite() || value == 0.0 || value.fract() != 0.0 {
         return Flag::Lowered;
@@ -202,7 +213,11 @@ fn prefixed_exact(written: NameText<'_>, bits: FloatBits) -> Flag {
         if !started && digit == 0 {
             continue;
         }
-        let count = if started { width } else { u32::BITS - digit.leading_zeros() };
+        let count = if started {
+            width
+        } else {
+            u32::BITS - digit.leading_zeros()
+        };
         started = true;
         for shift in (0..count).rev() {
             let wanted = significant_bits

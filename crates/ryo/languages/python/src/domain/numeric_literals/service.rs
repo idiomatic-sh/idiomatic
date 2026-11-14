@@ -4,16 +4,14 @@ use super::types::{NumericClassification, NumericLiteral, NumericValue};
 use crate::domain::{
     nodes::types::Node,
     syntax::{
-        constants::{
-            COMPLEX_SCALAR, FLOAT_SCALAR, INTEGER_SCALAR, SCALAR_KIND, SCALAR_VALUE, WRITTEN_DIGITS_BYTES,
-        },
+        constants::{COMPLEX_SCALAR, FLOAT_SCALAR, INTEGER_SCALAR, SCALAR_KIND, SCALAR_VALUE},
         service::{kind, literal, written},
         types::{Kind, Literal},
     },
 };
 use ryo::languages::{
     self, ByteSlice, FLOAT_TEXT_BYTES, Flag, FloatBits, FloatBuffer, NameText, Position, Symbol,
-    Symbols, Tree,
+    Symbols, Tree, WRITTEN_DIGITS_BYTES,
 };
 
 /// Intern an occurrence without allocating temporary decimal text on each file read.

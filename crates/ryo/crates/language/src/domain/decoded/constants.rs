@@ -1,7 +1,11 @@
-//! The names of the `decoded` concept: the room one binary64 spelling takes, and what that spelling is made of.
+//! The names of the `decoded` concept: the room one binary64 spelling and one literal's written digits take, and what that
+//! spelling is made of.
 
 /// `Display`'s longest finite binary64 spelling, with its `.0` suffix, fits without a heap allocation.
 pub const FLOAT_TEXT_BYTES: usize = 350;
+/// Room for a numeric literal's significant spelling, its `0x`, `0o` or `0b` prefix with it: binary64's widest whole value has
+/// 1024 bits, so no exact literal writes more digits than this.
+pub const WRITTEN_DIGITS_BYTES: usize = 1026;
 /// The text `numeric Display only writes ASCII`.
 pub(crate) const ASCII_ONLY: &str = "numeric Display only writes ASCII";
 /// The suffix that keeps a whole-valued binary64 spelling a float.
