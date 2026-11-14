@@ -1,5 +1,5 @@
 use super::program::{corpus, engine, prepared};
-use super::subscriber::{Activation, Sample, Window};
+use super::subscriber::{Activation, RunCost, Sample, Window};
 use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
@@ -17,7 +17,7 @@ use ryo_relations::domain::relations::types::{FileId, Words, WorkerNumber};
 use ryo_values::domain::stored_facts::types::Bucket;
 
 /// Only declared relevant intents change; the installed engine and public entry, the one per-file route, stay identical.
-pub(crate) fn measure(total: usize, demanded: &[usize]) -> (Sample, Window) {
+pub(crate) fn measure(total: usize, demanded: &[usize]) -> (Sample, Window, RunCost) {
     let engine = engine();
     let prepared = prepared(&engine, total);
     let corpus = corpus();
@@ -37,11 +37,13 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> (Sample, Window) {
     let dispatch = tracing::Dispatch::new(observed.clone());
     // The first actual run warms callsite registration and the allocator's
     // own metadata. The second sees exactly the same real request and intents.
+    let mut cost = RunCost::default();
     for _ in 0..2 {
         tracing::dispatcher::with_default(&dispatch, || {
             let mut symbols = Symbols::default();
             let first = vec![Bucket(0); intents.len()];
             let (mut arena, mut places, mut words) = (Vec::new(), Vec::new(), Words::default());
+            let before = dhat::HeapStats::get();
             let _rules = request.run_file(
                 FileRunInput {
                     language: SourceLanguage::Recognized,
@@ -66,6 +68,11 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> (Sample, Window) {
                 },
                 &mut facts,
             );
+            let after = dhat::HeapStats::get();
+            cost = RunCost {
+                blocks: after.total_blocks - before.total_blocks,
+                bytes: after.total_bytes - before.total_bytes,
+            };
         });
     }
     request.finish();
@@ -80,5 +87,6 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> (Sample, Window) {
             provider_reads: facts.reads(),
             delivered: 0,
         },
+        cost,
     )
 }

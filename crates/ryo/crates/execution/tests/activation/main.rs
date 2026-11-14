@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - one case table of one target: the interpreter's six activation-window cases and the two whole-run cases that replace them sit together until the switch (F1 step 4) deletes the six, which brings this file under the limit
 //! Actual derived activation visits and allocator blocks exclude dormant compiled roots.
 #[cfg(test)]
 mod fixtures;
@@ -24,6 +25,8 @@ enum Input {
     ProjectSparse,
     ProjectDense,
     ProjectUncounted,
+    RunSelector,
+    RunEmpty,
 }
 /// What a case compared, in counters (exact) and allocation relations (allocation sizes are the allocator's).
 #[derive(Debug, PartialEq, Eq)]
@@ -72,6 +75,8 @@ enum Answer {
         counters_unchanged: bool,
         matches: [bool; 2],
     },
+    /// Whether the small whole run allocated, and whether the one beside dormant rules allocated exactly as much.
+    RunSame { allocates: bool, same: bool },
 }
 /// Every measurement's window, in order, and what the case compared.
 type Value = (Cow<'static, [Window]>, Answer);
@@ -79,16 +84,31 @@ fn subject(input: Input) -> Result<Value, OperatingError> {
     const TOTAL: usize = 131;
     let windows = RefCell::new(vec![]);
     let measure = |total: usize, demanded: &[usize]| {
-        let (sample, window) = measure(total, demanded);
+        let (sample, window, _) = measure(total, demanded);
         windows.borrow_mut().push(window);
         sample
     };
+    // A whole file run's allocations, independent of how the engine reports its activation.
+    let cost_of = |total: usize, demanded: &[usize]| fixtures::file::measure(total, demanded).2;
     let measure_project = |total: usize, demanded: &[usize], intrusion: &dyn Fn(usize)| {
         let (sample, access, window) = measure_project(total, demanded, intrusion);
         windows.borrow_mut().push(window);
         (sample, access)
     };
     let answer = match input {
+        Input::RunSelector | Input::RunEmpty => {
+            let demanded: &[usize] = if matches!(input, Input::RunSelector) {
+                &[0]
+            } else {
+                &[]
+            };
+            let small = cost_of(3, demanded);
+            let dormant = cost_of(TOTAL, demanded);
+            Answer::RunSame {
+                allocates: small.blocks > 0 && small.bytes > 0,
+                same: small == dormant,
+            }
+        }
         Input::Sparse => Answer::Work(measure(TOTAL, &[0]).work),
         Input::Empty => Answer::Samples([measure(3, &[]), measure(TOTAL, &[])]),
         Input::Selector => {
@@ -112,7 +132,9 @@ fn subject(input: Input) -> Result<Value, OperatingError> {
                 | Input::Dense
                 | Input::ProjectSparse
                 | Input::ProjectDense
-                | Input::ProjectUncounted => (measure(3, &[0, 2]), measure(TOTAL, &[130, 0])),
+                | Input::ProjectUncounted
+                | Input::RunSelector
+                | Input::RunEmpty => (measure(3, &[0, 2]), measure(TOTAL, &[130, 0])),
             };
             Answer::Tail {
                 work: small.work,
@@ -340,6 +362,28 @@ const CASES: &[Case<Input, Value, OperatingError>] = &[
         )),
     },
 ];
+/// What a whole run answers when dormant rules cost it nothing.
+const SAME: Answer = Answer::RunSame {
+    allocates: true,
+    same: true,
+};
+/// The whole file run's allocation contracts, which hold whatever reports the activation: dormant rules cost nothing. The file
+/// pass meets them and the interpreter does not (only its activation window is sparse), so they run under the differential
+/// until the switch makes the pass the one path.
+const RUN_CASES: &[Case<Input, Value, OperatingError>] = &[
+    Case {
+        name: CaseName("one_demanded_rule_allocates_the_same_beside_128_dormant_rules"),
+        word: Word::Succeeds,
+        input: || Input::RunSelector,
+        expect: Expect::Value((windows(&[]), SAME)),
+    },
+    Case {
+        name: CaseName("no_demanded_rule_allocates_the_same_beside_128_dormant_rules"),
+        word: Word::Succeeds,
+        input: || Input::RunEmpty,
+        expect: Expect::Value((windows(&[]), SAME)),
+    },
+];
 fn main() {
     // This target is alone in its process; assertions count blocks and bytes,
     // never elapsed time. Request compilation and full intent binding precede
@@ -352,6 +396,11 @@ fn main() {
     let profiler = (!arguments.list).then(|| dhat::Profiler::builder().testing().build());
     let trials = CASES
         .iter()
+        .chain(
+            RUN_CASES
+                .iter()
+                .filter(|_| cfg!(feature = "fused-differential")),
+        )
         .map(|case| {
             libtest_mimic::Trial::test(case.name.0, move || {
                 run(std::slice::from_ref(case), Word::Succeeds, subject);

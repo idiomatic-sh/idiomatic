@@ -136,8 +136,11 @@ fn an_empty_publication_keeps_the_partial_coverage_of_its_reads() {
         affected,
         [Some(ryo_relations::domain::relations::types::FileId(0))]
     );
+    // The file pass reads each relation once, read in part or not; the interpreter read them twice more. Branch only: the
+    // switch keeps the pass's 2.
+    let settled = if cfg!(feature = "fused-differential") { 2 } else { 4 };
     assert_eq!(
-        reads, 4,
+        reads, settled,
         "the gate settles the antijoin on its empty left input, reading Comment no further"
     );
 }

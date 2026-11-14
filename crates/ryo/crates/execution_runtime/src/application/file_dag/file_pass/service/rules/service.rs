@@ -1,7 +1,7 @@
 //! One file's rules through the planned program: its facts read once, each rule's emitted node, named outputs and frontiers,
 //! and the file finished with its named outputs' readiness.
 
-use crate::application::file_dag::file_pass::service::{file_roots, fill_roots};
+use crate::application::file_dag::file_pass::service::{fill_roots, given_back, taken};
 use crate::application::file_dag::program::facade_runtime::file_execution::service::{classify, readiness_of};
 use crate::application::file_dag::fact_lookup::service::FactLookup;
 use crate::application::file_dag::fact_lookup::types::FileWants;
@@ -21,7 +21,6 @@ use ryo_execution_domain::domain::fused_program::types::Serving;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::{DiagnosticDelivery, FileRuleIntent, ObservationDemand};
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use ryo_operators::domain::table_texts::types::Texts;
 use ryo_values::domain::observations::service::{new_frontiers, set_frontier};
 use ryo_values::domain::plan_parts::types::{Input, StepScope};
@@ -80,10 +79,11 @@ pub(crate) fn run_rules(
         Partiality::Physical => partials.as_slice(),
         Partiality::Relaxed => &[][..],
     };
-    let mut roots = file_roots(&pass.program);
+    // What the request's last file left: its buffers, roots and outputs, grown once to the program and only refilled here.
+    let mut scratch = taken(pass);
     let (paths, program) = (request.paths, request.program);
     fill_roots(
-        &mut roots,
+        &mut scratch.roots,
         lookup.tree(),
         &Texts {
             symbols,
@@ -98,103 +98,107 @@ pub(crate) fn run_rules(
         pass,
         inputs: PassInputs {
             lookup: &lookup,
-            roots: &roots,
+            roots: &scratch.roots,
             refused: RefCell::new(None),
             unserved: Table::default(),
         },
-        buffers: FileBuffers::default(),
+        buffers: std::mem::take(&mut scratch.buffers),
         file,
         evaluation,
         publication: &partials,
         source: input.source,
         paths,
-        outputs: vec![Vec::new(); program.rule_count().0],
+        outputs: std::mem::take(&mut scratch.outputs),
     };
+    for outputs in &mut at.outputs {
+        outputs.clear();
+    }
+    at.outputs.resize_with(program.rule_count().0, Vec::new);
     let CaptureContext {
         worker,
         arena: Arena(arena),
         places,
         words,
     } = capture;
-    let mut rules = Vec::new();
-    for rule in program.rule_order() {
-        let Some(FileRuleIntent::Run {
-            diagnostic,
-            observations,
-            capture: capture_intent,
-        }) = intents.get(rule.0).copied()
-        else {
-            continue;
-        };
-        // A rule that reads a feature no stage serves yet is refused where it would run, with the stage that serves it.
-        if let Ok(Serving::NotServedUntil(stage)) = serving(&pass.program, rule) {
-            rules.push(RanRule {
-                rule,
-                emit: EmittedRoot::Withheld,
-                after: RuleAfter::Stopped(FileStop::Operating(OperatingError::NotServedUntil(stage))),
-            });
-            released(&mut at);
-            return FileRules {
-                rules,
-                end: FileEnd::Unfinished,
-                partials,
+    let ran = (|| {
+        let mut rules = Vec::new();
+        for rule in program.rule_order() {
+            let Some(FileRuleIntent::Run {
+                diagnostic,
+                observations,
+                capture: capture_intent,
+            }) = intents.get(rule.0).copied()
+            else {
+                continue;
             };
-        }
-        let emits = diagnostic != DiagnosticDelivery::Disabled;
-        let delivered = delivered_rule(&mut at, symbols, rule, diagnostic, observations);
-        let refused = at.inputs.refused.take();
-        let (emit, after) = match (delivered, refused) {
-            (_, Some(error)) => (EmittedRoot::Withheld, RuleAfter::Stopped(FileStop::Facts(error))),
-            (Err(error), None) => (EmittedRoot::Withheld, RuleAfter::Stopped(FileStop::Operating(error))),
-            (Ok(outcome), None) => {
-                let emit = if emits {
-                    EmittedRoot::Delivered(outcome)
-                } else {
-                    EmittedRoot::Withheld
-                };
-                let after = if matches!(emit, EmittedRoot::Delivered(RootOutcome::Failed(_))) {
-                    RuleAfter::Unreached
-                } else {
-                    let captured = captured_rule(
-                        &mut at,
-                        symbols,
-                        CaptureAt {
-                            rule,
-                            first: input.first,
-                            intent: capture_intent,
-                        },
-                        CaptureContext {
-                            worker,
-                            arena: Arena(&mut *arena),
-                            places: &mut *places,
-                            words: &mut *words,
-                        },
-                    );
-                    match (captured, at.inputs.refused.take()) {
-                        (_, Some(error)) => RuleAfter::Stopped(FileStop::Facts(error)),
-                        (Err(error), None) => RuleAfter::Stopped(FileStop::Operating(error)),
-                        (Ok(after), None) => after,
-                    }
-                };
-                (emit, after)
+            // A rule that reads a feature no stage serves yet is refused where it would run, with the stage that serves it.
+            if let Ok(Serving::NotServedUntil(stage)) = serving(&pass.program, rule) {
+                rules.push(RanRule {
+                    rule,
+                    emit: EmittedRoot::Withheld,
+                    after: RuleAfter::Stopped(FileStop::Operating(OperatingError::NotServedUntil(stage))),
+                });
+                released(&mut at);
+                return (rules, FileEnd::Unfinished);
             }
-        };
-        let ran = matches!(after, RuleAfter::Ran { .. });
-        rules.push(RanRule { rule, emit, after });
-        if !ran {
-            released(&mut at);
-            return FileRules {
-                rules,
-                end: FileEnd::Unfinished,
-                partials,
+            let emits = diagnostic != DiagnosticDelivery::Disabled;
+            let delivered = delivered_rule(&mut at, symbols, rule, diagnostic, observations);
+            let refused = at.inputs.refused.take();
+            let (emit, after) = match (delivered, refused) {
+                (_, Some(error)) => (EmittedRoot::Withheld, RuleAfter::Stopped(FileStop::Facts(error))),
+                (Err(error), None) => (EmittedRoot::Withheld, RuleAfter::Stopped(FileStop::Operating(error))),
+                (Ok(outcome), None) => {
+                    let emit = if emits {
+                        EmittedRoot::Delivered(outcome)
+                    } else {
+                        EmittedRoot::Withheld
+                    };
+                    let after = if matches!(emit, EmittedRoot::Delivered(RootOutcome::Failed(_))) {
+                        RuleAfter::Unreached
+                    } else {
+                        let captured = captured_rule(
+                            &mut at,
+                            symbols,
+                            CaptureAt {
+                                rule,
+                                first: input.first,
+                                intent: capture_intent,
+                            },
+                            CaptureContext {
+                                worker,
+                                arena: Arena(&mut *arena),
+                                places: &mut *places,
+                                words: &mut *words,
+                            },
+                        );
+                        match (captured, at.inputs.refused.take()) {
+                            (_, Some(error)) => RuleAfter::Stopped(FileStop::Facts(error)),
+                            (Err(error), None) => RuleAfter::Stopped(FileStop::Operating(error)),
+                            (Ok(after), None) => after,
+                        }
+                    };
+                    (emit, after)
+                }
             };
+            let ran = matches!(after, RuleAfter::Ran { .. });
+            rules.push(RanRule { rule, emit, after });
+            if !ran {
+                released(&mut at);
+                return (rules, FileEnd::Unfinished);
+            }
         }
-    }
-    let readiness = finished_readiness(&at);
-    released(&mut at);
+        let readiness = finished_readiness(&at);
+        released(&mut at);
+        (rules, FileEnd::Finished(readiness))
+    })();
+    let PassFile { buffers, outputs, .. } = at;
+    scratch.buffers = buffers;
+    scratch.outputs = outputs;
+    given_back(pass, scratch);
+    let (rules, end) = ran;
     FileRules {
         rules,
-        end: FileEnd::Finished(readiness),
+        end,
         partials,
     }
 }

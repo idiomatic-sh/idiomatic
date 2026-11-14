@@ -49,6 +49,21 @@ pub(crate) struct PassProgram {
     pub(crate) plans: Box<[std::sync::Arc<ryo_values::domain::plans::types::Plan>]>,
     /// What each step of each rule reads, in rule order.
     pub(crate) reads: Box<[Box<[NodeReads]>]>,
+    /// What files ran in and gave back, for the next files: one per file running at once.
+    pub(crate) scratch: std::sync::Mutex<Vec<PassScratch>>,
+}
+
+/// What one file's run fills and gives back to the request for the next file: the nodes' rows, the tree nodes each node starts
+/// from and the rules' named outputs, each grown to the program once and refilled per file, so a file allocates only for what
+/// it runs.
+#[derive(Debug, Default)]
+pub(crate) struct PassScratch {
+    /// The nodes' rows.
+    pub(crate) buffers: ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers,
+    /// The tree nodes each node starts from.
+    pub(crate) roots: FileRoots,
+    /// Each rule's named outputs, in rule order.
+    pub(crate) outputs: Vec<Vec<OutputState>>,
 }
 
 /// What one step's rows rest on: every relation read on the way to them, and the reads whose absence of rows a step on the way

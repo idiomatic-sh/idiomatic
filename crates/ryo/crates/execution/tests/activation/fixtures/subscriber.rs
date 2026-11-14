@@ -10,6 +10,12 @@ pub(crate) struct Sample {
     pub blocks: u64,
     pub bytes: u64,
 }
+/// What one whole file run allocated, from the call into the request to its answer: its blocks and bytes.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct RunCost {
+    pub blocks: u64,
+    pub bytes: u64,
+}
 /// Per-rule accesses to private prepared metadata, counted at their only accessors.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Access {

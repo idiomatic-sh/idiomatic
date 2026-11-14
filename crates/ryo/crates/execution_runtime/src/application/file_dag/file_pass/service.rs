@@ -2,7 +2,7 @@
 //! the file's facts and tree in place; and the plan's root kinds, written as texts, mapped to the open file's own kind numbers,
 //! so each node reading the tree starts from the tree nodes of its kinds, and a node with no root kind from every tree node.
 
-use crate::application::file_dag::file_pass::types::{FileRoots, NodeReads, PassSource, PassInputs, PassProgram, PassResources, RootKindNodes, TreeStart};
+use crate::application::file_dag::file_pass::types::{FileRoots, NodeReads, PassInputs, PassProgram, PassResources, PassScratch, PassSource, RootKindNodes, TreeStart};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::fused_program::service::{assemble, logical, root_kinds, serving};
 use ryo_execution_domain::domain::fused_program::types::fused_program::value::FusedProgram;
@@ -29,7 +29,7 @@ use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::Table;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 
 pub(crate) mod captures;
 pub(crate) mod nodes;
@@ -158,7 +158,26 @@ pub(crate) fn pass_program(source: &PassSource) -> Result<PassProgram, Operating
         operators: Arc::clone(operators),
         plans: plans.to_vec().into_boxed_slice(),
         reads,
+        scratch: Mutex::new(Vec::new()),
     })
+}
+
+/// What a file of `pass` runs in: what an earlier file gave back, or one made for the program, its roots' kinds found.
+pub(crate) fn taken(pass: &PassProgram) -> PassScratch {
+    // A file that panicked held its own scratch, never the pool's: what a poisoned pool holds is whole.
+    let given = pass.scratch.lock().unwrap_or_else(PoisonError::into_inner).pop();
+    given.unwrap_or_else(|| PassScratch {
+        roots: file_roots(&pass.program),
+        ..PassScratch::default()
+    })
+}
+
+/// Gives back what a file of `pass` ran in, for the next file to refill without growing it.
+pub(crate) fn given_back(pass: &PassProgram, scratch: PassScratch) {
+    pass.scratch
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .push(scratch);
 }
 
 /// What each step of `plan` reads: every relation read on the way to its rows, and the trusted reads of it and the steps it
