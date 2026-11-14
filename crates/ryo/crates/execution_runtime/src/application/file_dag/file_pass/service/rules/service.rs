@@ -240,7 +240,7 @@ pub(crate) fn delivered_rule(
     let emit = if diagnostic == DiagnosticDelivery::Disabled {
         RootOutcome::NoQuery
     } else {
-        let step = plan.emit.step.0 as usize;
+        let step = usize::try_from(plan.emit.step.0).unwrap_or(usize::MAX);
         match plan.steps.get(step).map(|each| each.scope) {
             Some(phase) if phase != StepScope::PerFile => RootOutcome::Deferred { phase },
             _ => node_outcome(at, symbols, rule, nodes.emit.clone(), plan.emit.step),
@@ -261,7 +261,7 @@ pub(crate) fn delivered_rule(
                         Some(Input::Step(id)) => {
                             let step = nodes
                                 .steps
-                                .get(id.0 as usize)
+                                .get(usize::try_from(id.0).unwrap_or(usize::MAX))
                                 .ok_or(OperatingError::NotRun)
                                 .and_then(Clone::clone);
                             node_outcome(at, symbols, rule, step, id)
@@ -302,7 +302,7 @@ pub(crate) fn finished_readiness(at: &PassFile<'_, '_, '_, '_>) -> FinishedReadi
         let Some(state) = at
             .outputs
             .get(root.producer.0)
-            .and_then(|outputs| outputs.get(root.output.0 as usize))
+            .and_then(|outputs| outputs.get(usize::try_from(root.output.0).unwrap_or(usize::MAX)))
         else {
             continue;
         };

@@ -123,10 +123,15 @@ pub fn logical<'p>(
         // A rule with an authoring error in any of its steps answers that error, in step order, before any row: its emit may be
         // sound while a step after it is not.
         let authored = steps.iter().find_map(|step| match step {
-            Ok(node) => drafts[node.0 as usize].schema.as_ref().err().cloned(),
+            Ok(node) => drafts
+                .get(usize::try_from(node.0).unwrap_or(usize::MAX))
+                .and_then(|draft| draft.schema.as_ref().err().cloned()),
             Err(error) => Some(error.clone()),
         });
-        let emit = match (authored, steps.get(plan.emit.step.0 as usize)) {
+        let emit = match (
+            authored,
+            steps.get(usize::try_from(plan.emit.step.0).unwrap_or(usize::MAX)),
+        ) {
             (Some(error), _) => Err(error),
             (None, Some(Ok(node))) => Ok(*node),
             (None, Some(Err(error))) => Err(error.clone()),
@@ -147,7 +152,7 @@ pub fn logical<'p>(
     }
     let mut consumers = vec![Consumers(0); drafts.len()];
     let count = |consumers: &mut Vec<Consumers>, node: PlanNodeId| {
-        if let Some(each) = consumers.get_mut(node.0 as usize) {
+        if let Some(each) = consumers.get_mut(usize::try_from(node.0).unwrap_or(usize::MAX)) {
             each.0 = each.0.saturating_add(1);
         }
     };
@@ -160,7 +165,10 @@ pub fn logical<'p>(
     }
     for (rule, (input, rule_nodes)) in rules.iter().zip(&nodes).enumerate() {
         let ordinal = RuleOrdinal(u32::try_from(rule).map_err(|_| OperatingError::ShapeMismatch)?);
-        if let Some(Ok(node)) = rule_nodes.steps.get(input.plan.emit.step.0 as usize) {
+        if let Some(Ok(node)) = rule_nodes
+            .steps
+            .get(usize::try_from(input.plan.emit.step.0).unwrap_or(usize::MAX))
+        {
             program.emit(ordinal, *node);
             count(&mut consumers, *node);
         }
@@ -173,7 +181,9 @@ pub fn logical<'p>(
         );
         for each in kept {
             if let Input::Step(id) = each
-                && let Some(Ok(node)) = rule_nodes.steps.get(id.0 as usize)
+                && let Some(Ok(node)) = rule_nodes
+                    .steps
+                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))
             {
                 program.hold(*node);
                 count(&mut consumers, *node);
@@ -333,7 +343,7 @@ pub fn consumers(
 ) -> Result<Consumers, OperatingError> {
     program
         .consumers
-        .get(node.0 as usize)
+        .get(usize::try_from(node.0).unwrap_or(usize::MAX))
         .copied()
         .ok_or(OperatingError::NotRun)
 }
@@ -359,7 +369,10 @@ pub fn schema(
     program: &ExecutableProgram,
     node: PlanNodeId,
 ) -> Result<&[CellKind], OperatingError> {
-    match program.schemas.get(node.0 as usize) {
+    match program
+        .schemas
+        .get(usize::try_from(node.0).unwrap_or(usize::MAX))
+    {
         Some(Ok(kinds)) => Ok(kinds),
         Some(Err(error)) => Err(error.clone()),
         None => Err(OperatingError::NotRun),

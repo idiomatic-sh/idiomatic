@@ -38,10 +38,13 @@ pub(in crate::domain::executable_program) fn read_inputs<'s>(
                 },
             ),
             Input::Step(id) => {
-                let Some(Ok(node)) = steps.get(id.0 as usize).cloned() else {
+                let Some(Ok(node)) = steps
+                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+                    .cloned()
+                else {
                     return None;
                 };
-                let draft = drafts.get(node.0 as usize)?;
+                let draft = drafts.get(usize::try_from(node.0).unwrap_or(usize::MAX))?;
                 if let (Err(error), None) = (&draft.schema, &read.fault) {
                     read.fault = Some(error.clone());
                 }
@@ -58,7 +61,9 @@ pub(in crate::domain::executable_program) fn read_inputs<'s>(
                 (
                     PlanInput::Observation(*id),
                     InputShape {
-                        kinds: observed.get(id.0 as usize).map_or(&[], Vec::as_slice),
+                        kinds: observed
+                            .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+                            .map_or(&[], Vec::as_slice),
                         tree: None,
                     },
                 )

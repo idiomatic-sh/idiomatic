@@ -137,6 +137,10 @@ impl InterpretedProgram {
     }
     /// The prepared physical phase of an original frontier root. No file or
     /// project runtime can change this declaration while admitting its input.
+    ///
+    /// # Errors
+    ///
+    /// The refusal of the source's partition, or `WrongOperation` for a source with no frontier phase.
     pub fn frontier_phase(&self, source: InputSource) -> Result<StepScope, OperatingError> {
         match source {
             InputSource::Relation(_) => match self.source_partition(source)? {
@@ -165,6 +169,10 @@ impl InterpretedProgram {
         }
     }
     /// The partition requirement of one input of a region.
+    ///
+    /// # Errors
+    ///
+    /// `NotRead` for a source the program does not hold.
     pub fn source_partition(
         &self,
         source: InputSource,

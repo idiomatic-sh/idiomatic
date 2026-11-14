@@ -50,9 +50,12 @@ fn subject(kind: Input) -> Result<Value, Failure> {
         })
         .collect();
     ExistenceProbeItem.rewrite(&mut nodes, &mut Vec::new());
-    let existence = |node: &PhysicalNode| match &node.lowering {
-        Lowering::Probe { probe, .. } => Some(probe.existence),
-        _ => None,
+    let existence = |node: &PhysicalNode| {
+        if let Lowering::Probe { probe, .. } = &node.lowering {
+            Some(probe.existence)
+        } else {
+            None
+        }
     };
     // An inner probe reads every right row of its key: the rewrite leaves it.
     match (

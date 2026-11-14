@@ -236,7 +236,7 @@ fn step_reads(plan: &Plan) -> Box<[NodeReads]> {
         );
         for input in named(&inputs_of(&step.operation)) {
             if let Input::Step(id) = input
-                && let Some(earlier) = reads.get(id.0 as usize)
+                && let Some(earlier) = reads.get(usize::try_from(id.0).unwrap_or(usize::MAX))
             {
                 let needs = earlier.needs.clone();
                 absorb(&mut each.needs, &needs);

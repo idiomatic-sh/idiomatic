@@ -10,6 +10,10 @@ use crate::domain::table_texts::types::{RegexPattern, TextView};
 use ryo_matching::inbound::use_cases::matching::types::{CompiledRegex, MatchOutcome, SearchText};
 
 /// Searches text with a regular expression. Invalid expressions are errors, not empty results.
+///
+/// # Errors
+///
+/// The expression's own error when it is not a valid regular expression.
 pub fn matches(
     left: &Datum<'_>,
     right: &Datum<'_>,

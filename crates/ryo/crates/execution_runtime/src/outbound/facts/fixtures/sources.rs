@@ -59,21 +59,22 @@ impl FactSource for SourceFake {
     ) -> Result<Vec<ReadInPart>, FactsError> {
         self.reads.push(wanted.to_vec());
         for relation in wanted {
-            match relation {
-                Relation::Function => out.write(FunctionRow {
+            // The fake writes one row of each relation it knows; any other it serves has no row.
+            if *relation == Relation::Function {
+                out.write(FunctionRow {
                     id: NodeId(1),
                     name: Symbol(0),
                     file: FileId(0),
                     span: SPAN,
-                }),
-                Relation::Comment => out.write(CommentRow {
+                });
+            } else if *relation == Relation::Comment {
+                out.write(CommentRow {
                     id: NodeId(2),
                     text: Symbol(1),
                     file: FileId(0),
                     span: SPAN,
                     doc: Flag::Lowered,
-                }),
-                _ => {}
+                });
             }
         }
         Ok(self.said.clone())

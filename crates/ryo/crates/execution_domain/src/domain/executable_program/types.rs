@@ -16,14 +16,38 @@ use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
 
 /// What a rule's parameters are bound to, by parameter id.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::RuleBindings;
+/// assert!(RuleBindings(&[]).0.is_empty());
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub struct RuleBindings<'a>(pub &'a [ParameterBinding]);
 
 /// The schemas of a rule's bound inputs, by binding id.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::RuleObservations;
+/// assert!(RuleObservations(&[]).0.is_empty());
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub struct RuleObservations<'a>(pub &'a [BoundObservationInput]);
 
 /// One rule of a request as the logical program reads it: its compiled plan, shared, never copied, and what it is bound to.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::{RuleBindings, RuleInput, RuleObservations};
+/// use ryo_values::domain::plans::types::Plan;
+/// fn rule(plan: &std::sync::Arc<Plan>) -> RuleInput<'_> {
+///     RuleInput { plan, bindings: RuleBindings(&[]), observations: RuleObservations(&[]) }
+/// }
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub struct RuleInput<'a> {
     /// The compiled plan.
@@ -36,6 +60,14 @@ pub struct RuleInput<'a> {
 
 /// Whether a rule's nodes all run at this stage, or the stage that serves the last of them. Branch only: deleted with the last
 /// unlowered kind.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::Serving;
+/// use ryo_operators::domain::physical_plan::types::ServedAt;
+/// assert_ne!(Serving::Served, Serving::NotServedUntil(ServedAt(4)));
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Serving {
     /// Every node of the rule runs.
@@ -46,6 +78,15 @@ pub enum Serving {
 
 /// A rule's nodes: the node of each of its steps, in step order, and the node it emits, each with the fault of a step whose
 /// schema the metadata does not hold.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::RuleNodes;
+/// use ryo_operators::domain::physical_plan::types::PlanNodeId;
+/// let nodes = RuleNodes { steps: vec![Ok(PlanNodeId(0))], emit: Ok(PlanNodeId(0)) };
+/// assert_eq!(nodes.emit, Ok(PlanNodeId(0)));
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct RuleNodes {
     /// The node of each step; a step that reads a step after it has none.
@@ -55,12 +96,26 @@ pub struct RuleNodes {
 }
 
 /// How many consumers a node has: node readers, the rules that emit it and the holds that keep it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::Consumers;
+/// assert_eq!(Consumers::default(), Consumers(0));
+/// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Consumers(pub u32);
 
-/// One node of the logical program while it is drafted: the operation, the rule it was first written in, its scope and its
-/// output's columns.
 /// A root kind of a program: the text the plans write for it and the nodes that start from the tree nodes of that kind.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::RootKind;
+/// use ryo_values::domain::plan_parts::types::LiteralText;
+/// let kind = LiteralText("function_definition".into());
+/// assert!(RootKind { kind: &kind, nodes: &[] }.nodes.is_empty());
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RootKind<'a> {
     /// The kind's text, as the plans write it.
@@ -69,6 +124,8 @@ pub struct RootKind<'a> {
     pub nodes: &'a [PlanNodeId],
 }
 
+/// One node of the logical program while it is drafted: the operation, the rule it was first written in, its scope and its
+/// output's columns.
 pub(crate) struct Draft<'p> {
     /// The operation, borrowed from its rule's plan.
     pub(crate) operation: &'p Operation,

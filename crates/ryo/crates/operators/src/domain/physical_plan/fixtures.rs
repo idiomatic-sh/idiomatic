@@ -82,10 +82,6 @@ fn join(
 
 /// The case vocabulary: every kind of this stage over `DEFINES` and over nodes, two selects keyed on one name column, and
 /// the groupings, then a select of the tree, last.
-#[expect(
-    clippy::too_many_lines,
-    reason = "one program naming each kind of the stage once, in node order"
-)]
 pub fn case_program() -> Vec<Step> {
     let select = |name: &str| {
         step(

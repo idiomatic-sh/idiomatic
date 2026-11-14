@@ -37,6 +37,16 @@ pub struct LogicalBuild<'p> {
 
 impl<'p> LogicalBuild<'p> {
     /// The logical program, for the operators to plan.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_domain::domain::executable_program::service::logical;
+    /// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
+    /// let mut inputs = ProgramInputs::default();
+    /// let build = logical(&[], &mut inputs).unwrap();
+    /// let _program = build.program();
+    /// ```
     #[must_use]
     pub fn program(&self) -> &LogicalProgram<'p> {
         &self.program

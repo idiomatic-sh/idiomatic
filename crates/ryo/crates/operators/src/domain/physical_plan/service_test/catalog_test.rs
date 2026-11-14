@@ -73,9 +73,10 @@ fn extension_unlowered(
     inputs: &[PlanInput],
     bindings: &[ParameterBinding],
 ) -> Lowering {
-    match operation {
-        Operation::Extend { .. } => Lowering::Unlowered,
-        _ => lowered(operation, inputs, bindings),
+    if let Operation::Extend { .. } = operation {
+        Lowering::Unlowered
+    } else {
+        lowered(operation, inputs, bindings)
     }
 }
 

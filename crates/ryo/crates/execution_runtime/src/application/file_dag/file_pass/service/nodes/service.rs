@@ -63,7 +63,7 @@ pub(crate) fn node_rows(
     let reads = pass
         .reads
         .get(rule.0)
-        .and_then(|reads| reads.get(step.0 as usize))
+        .and_then(|reads| reads.get(usize::try_from(step.0).unwrap_or(usize::MAX)))
         .unwrap_or(&empty);
     let node = match node {
         Ok(node) => node,
@@ -95,7 +95,9 @@ pub(crate) fn node_rows(
             // What no read of the step lacks, no operator on the way can lack.
             let coverage = match completion.coverage(&reads.uses) {
                 CoverageState::Complete => CoverageState::Complete,
-                _ => step_coverage(pass, &completion, rule, step)?,
+                CoverageState::Partial { .. } | CoverageState::Inapplicable { .. } => {
+                    step_coverage(pass, &completion, rule, step)?
+                }
             };
             Ok(NodeAnswer { table, coverage })
         }
@@ -117,7 +119,7 @@ fn step_coverage(
 ) -> Result<CoverageState, OperatingError> {
     let plan = pass.plans.get(rule.0).ok_or(OperatingError::NotRun)?;
     let nodes = fused_rule(&pass.program, rule)?;
-    let last = step.0 as usize;
+    let last = usize::try_from(step.0).unwrap_or(usize::MAX);
     let mut merged: Vec<StepCoverage> = Vec::with_capacity(last.saturating_add(1));
     for (place, each) in plan.steps.iter().enumerate().take(last.saturating_add(1)) {
         let operands = named(&inputs_of(&each.operation))
@@ -132,7 +134,7 @@ fn step_coverage(
                     ))
                 }
                 Input::Step(id) => merged
-                    .get(id.0 as usize)
+                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))
                     .cloned()
                     .ok_or(OperatingError::NotRun),
                 Input::BoundObservation(_) => Err(OperatingError::NotRun),

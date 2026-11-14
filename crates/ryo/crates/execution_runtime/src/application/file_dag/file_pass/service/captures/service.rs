@@ -68,7 +68,10 @@ pub(crate) fn captured_rule(
             Input::Relation(_) | Input::BoundObservation(_) => None,
         };
         if step
-            .and_then(|step| plan.steps.get(step.0 as usize))
+            .and_then(|step| {
+                plan.steps
+                    .get(usize::try_from(step.0).unwrap_or(usize::MAX))
+            })
             .is_some_and(|each| each.scope == StepScope::CrossFile)
         {
             continue;
@@ -77,7 +80,7 @@ pub(crate) fn captured_rule(
             let step = step.ok_or(OperatingError::NotRun)?;
             let node = nodes
                 .steps
-                .get(step.0 as usize)
+                .get(usize::try_from(step.0).unwrap_or(usize::MAX))
                 .ok_or(OperatingError::NotRun)
                 .and_then(Clone::clone);
             let NodeAnswer {
@@ -150,10 +153,13 @@ pub(crate) fn committed(
 ) -> Result<(), OperatingError> {
     for &output in at.request.program.file_frontier_outputs(rule, input)? {
         let held = at.outputs.get_mut(rule.0).ok_or(OperatingError::NotRun)?;
-        if held.len() <= output.0 as usize {
-            held.resize(output.0 as usize + 1, OutputState::default());
+        if held.len() <= usize::try_from(output.0).unwrap_or(usize::MAX) {
+            held.resize(
+                usize::try_from(output.0).unwrap_or(usize::MAX) + 1,
+                OutputState::default(),
+            );
         }
-        if let Some(state) = held.get_mut(output.0 as usize) {
+        if let Some(state) = held.get_mut(usize::try_from(output.0).unwrap_or(usize::MAX)) {
             state.commit = OutputCommit::Committed;
         }
     }
@@ -178,24 +184,26 @@ pub(crate) fn observed(
             *slot = match input {
                 Input::Relation(relation) if native_form(*relation).is_some() => {
                     let node = node.clone()?;
-                    roots_of(at.inputs.roots, node).0.len() as u64
+                    u64::try_from(roots_of(at.inputs.roots, node).0.len()).unwrap_or(u64::MAX)
                 }
                 Input::Relation(relation) => {
                     at.inputs.lookup.columns(*relation).map_or(0, |view| {
-                        view.columns
-                            .first()
-                            .map_or(0, |column| column.0.len() as u64)
+                        view.columns.first().map_or(0, |column| {
+                            u64::try_from(column.0.len()).unwrap_or(u64::MAX)
+                        })
                     })
                 }
                 Input::Step(id) => {
                     let read = nodes
                         .steps
-                        .get(id.0 as usize)
+                        .get(usize::try_from(id.0).unwrap_or(usize::MAX))
                         .ok_or(OperatingError::NotRun)?
                         .clone()?;
                     ran_node(at, symbols, read)?;
                     match at.buffers.rows(read) {
-                        NodeRows::Materialized(table) => table.count.0 as u64,
+                        NodeRows::Materialized(table) => {
+                            u64::try_from(table.count.0).unwrap_or(u64::MAX)
+                        }
                         NodeRows::Absent => 0,
                     }
                 }
