@@ -2,8 +2,8 @@
 use super::constants::{
     CANDIDATE_EDITED, CANDIDATE_FIRST, CANDIDATE_RETAINED, CLEAN_EDITED_DIRECTORY,
     COHORT_OUTSIDE_CERTIFICATE, EDITED_CACHE_CONDITION, EMPTY_CACHE_CONDITION, FINDING_SEPARATOR,
-    ONE_FINDING, PATH_SEPARATOR, PREFLIGHT_DIRECTORY, REFERENCE_EDITED, REFERENCE_FIRST,
-    REFERENCE_RETAINED, RETAINED_CACHE_CONDITION, RETAINED_DIRECTORY, TRIAL_PREFIX, TRIALS,
+    ONE_FINDING, PATH_SEPARATOR, REFERENCE_EDITED, REFERENCE_FIRST, REFERENCE_RETAINED,
+    RETAINED_CACHE_CONDITION, RETAINED_DIRECTORY, TRIAL_PREFIX, TRIALS,
 };
 use super::types::{
     ComparisonName, CorpusBoundaries, CorpusMeasurement, FindingCounts, SourceProfile,
@@ -12,6 +12,7 @@ use crate::application::certified_measurement::service::{admit, conclude, pair, 
 use crate::application::measurement::service::run as execute;
 use crate::application::project_request::types::ProjectCorpus;
 use crate::domain::measurements::types::{pair::value::Pair, sample::value::BenchmarkSample};
+use crate::domain::source_validity::constants::PREFLIGHT_DIRECTORY;
 use crate::outbound::linter::interface::LinterPort;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet, ArtifactText};
 use ryo_benchmark_contracts::domain::measurements::types::{
@@ -122,16 +123,12 @@ fn measure_project(
             corpus.cache.join(PREFLIGHT_DIRECTORY).join(&project.name.0),
         )?;
         let parsed = run_linter(boundaries, boundaries.reference, &preflight)?;
-        let rejected = || {
-            parsed
-                .report
-                .diagnostics
-                .iter()
-                .filter(|finding| finding.rule == *language.invalid_syntax)
-        };
-        let invalid: std::collections::BTreeSet<_> =
-            rejected().map(|finding| finding.file.clone()).collect();
-        for finding in rejected() {
+        let refused = crate::domain::source_validity::service::exclude_refused(
+            &parsed.report,
+            language.invalid_syntax,
+            &mut files,
+        );
+        for finding in &refused {
             writeln!(
                 observations,
                 "{}: excluded invalid {} (pinned {} parser), path={} range={}..{}; frontend parser capability gap",
@@ -143,7 +140,6 @@ fn measure_project(
                 finding.end.0
             )?;
         }
-        files.retain(|file| !invalid.contains(file));
     }
     let paths: Vec<_> = files
         .iter()

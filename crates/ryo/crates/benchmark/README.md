@@ -80,6 +80,10 @@ The declared inputs of a registered case, resolved the same way for registration
 
 Declared linter configuration is resolved, checked against the request and counted without matching paths.
 
+### source_validity
+
+A corpus run covers the sources the pinned reference parses: measure-valid and parity drop each source the reference reports under its invalid-syntax rule, and say which.
+
 ### suite
 
 Pinned profiles, authored cases and shared project inputs define the benchmark contract.

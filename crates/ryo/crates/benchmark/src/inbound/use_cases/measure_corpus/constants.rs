@@ -1,6 +1,4 @@
 //! Stable operation vocabulary and artifact identities of a corpus measurement.
-/// Directory below the cache that holds the preflight state of each project.
-pub(super) const PREFLIGHT_DIRECTORY: &str = "preflight";
 /// Name prefix of the fresh directory one trial of a project runs in.
 pub(super) const TRIAL_PREFIX: &str = "trial-";
 /// Directory below one trial that holds the retained cache state.

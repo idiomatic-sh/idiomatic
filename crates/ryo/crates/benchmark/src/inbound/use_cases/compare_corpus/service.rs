@@ -1,7 +1,7 @@
 //! Both contestants run once through the shared measurement; each configured rule is compared and judged.
 use super::constants::{
-    PROJECT_FAILED, PROJECT_SEPARATOR, PROJECTS_FAILED, SELECTION_DIFFERS, UNACCEPTED,
-    UNTRACKED_SOURCE,
+    EXCLUDED_REFUSED, EXCLUDED_SEPARATOR, PROJECT_FAILED, PROJECT_SEPARATOR, PROJECTS_FAILED,
+    SELECTION_DIFFERS, UNACCEPTED, UNTRACKED_SOURCE,
 };
 use super::types::{
     AcceptedDifferencesFile, Corpus, CorpusParity, ParityBoundaries, ProjectsParity, SourceTexts,
@@ -91,21 +91,57 @@ fn compare_project(
     {
         return Err(Error::Invalid(UNTRACKED_SOURCE.into()));
     }
-    let request = crate::application::project_request::service::request(
+    let corpus = crate::application::project_request::types::ProjectCorpus {
+        cohort: projects.cohort,
+        rule_context: projects.rule_context,
+        search_roots: projects.search_roots,
+        context_mode: projects.context_mode,
+    };
+    let tracked_paths = tracked
+        .iter()
+        .map(std::path::PathBuf::from)
+        .collect::<Vec<_>>();
+    let state = projects.state.join(&project.name.0);
+    let preflight = crate::application::project_request::service::request(
         boundaries.context,
-        &crate::application::project_request::types::ProjectCorpus {
-            cohort: projects.cohort,
-            rule_context: projects.rule_context,
-            search_roots: projects.search_roots,
-            context_mode: projects.context_mode,
-        },
+        &corpus,
         workspace.root(),
         &files,
-        &tracked
-            .iter()
-            .map(std::path::PathBuf::from)
-            .collect::<Vec<_>>(),
-        projects.state.join(&project.name.0),
+        &tracked_paths,
+        state.join(crate::domain::source_validity::constants::PREFLIGHT_DIRECTORY),
+    )?;
+    let mut files = files;
+    let parsed = run_with(
+        boundaries.context,
+        boundaries.reference,
+        boundaries.execution,
+        &preflight,
+        Pinning::Untimed,
+    )?;
+    let refused = crate::domain::source_validity::service::exclude_refused(
+        &parsed.report,
+        parity.syntax,
+        &mut files,
+    );
+    let mut refused_paths: Vec<_> = refused
+        .iter()
+        .map(|finding| finding.file.0.as_ref())
+        .collect();
+    refused_paths.dedup();
+    writeln!(
+        observations,
+        "{}: {EXCLUDED_REFUSED}: {} [{}]",
+        project.name,
+        refused_paths.len(),
+        refused_paths.join(EXCLUDED_SEPARATOR)
+    )?;
+    let request = crate::application::project_request::service::request(
+        boundaries.context,
+        &corpus,
+        workspace.root(),
+        &files,
+        &tracked_paths,
+        state,
     )?;
     let mut file_name = project.name.0.clone();
     file_name.push_str(projects.accepted_suffix.0);

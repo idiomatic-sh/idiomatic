@@ -18,4 +18,5 @@ pub(crate) mod process_receipts;
 pub mod project_inputs;
 pub(crate) mod registered_inputs;
 pub mod rule_context;
+pub(crate) mod source_validity;
 pub mod suite;

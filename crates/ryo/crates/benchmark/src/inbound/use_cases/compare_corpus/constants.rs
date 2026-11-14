@@ -13,3 +13,7 @@ pub(super) const PROJECT_SEPARATOR: &str = "/";
 pub(super) const PROJECT_FAILED: &str = "parity failed";
 /// The refusal when any project failed.
 pub(super) const PROJECTS_FAILED: &str = "parity failed for projects";
+/// What a project reports of the sources the reference refuses to parse, which parity leaves out as measure-valid does.
+pub(super) const EXCLUDED_REFUSED: &str = "excluded the sources the reference refuses to parse";
+/// What separates the paths of the sources a project leaves out.
+pub(super) const EXCLUDED_SEPARATOR: &str = ", ";
