@@ -127,3 +127,8 @@ expected = [{ file = "case.ts", start = 24, end = 40 }]
 name = "directive"
 files = { "case.ts" = "// eslint-disable-next-line no-useless-length-check\nif (array.length === 0 || array.every(Boolean)) {}\n" }
 expected = []
+
+[[cases]]
+name = "computed-template"
+files = { "case.ts" = "if (a[`l\\u0065ngth`] === 0 || a.every(f)) {}\nif (a[`length`] === 0 || a.every(f)) {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 26 }, { file = "case.ts", start = 49, end = 66 }]

@@ -87,3 +87,8 @@ expected = []
 name = "directive"
 files = { "case.ts" = "// eslint-disable-next-line bad-min-max-func\nMath.min(Math.max(x, 10), 5);\n" }
 expected = []
+
+[[cases]]
+name = "computed-escaped-template"
+files = { "case.ts" = "Math[`m\\u0069n`](Math.max(x, 10), 5);\n" }
+expected = [{ file = "case.ts", start = 0, end = 36 }]

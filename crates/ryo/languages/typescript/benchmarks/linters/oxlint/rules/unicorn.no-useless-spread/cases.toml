@@ -282,3 +282,8 @@ expected = []
 name = "directive"
 files = { "case.ts" = "// eslint-disable-next-line no-useless-spread\nconst array = [...[a]];\n" }
 expected = []
+
+[[cases]]
+name = "computed-template"
+files = { "case.ts" = "const a = [...x[`m\\u0061p`](f)];\nconst b = [...x[`map`](f)];\n" }
+expected = [{ file = "case.ts", start = 11, end = 14 }, { file = "case.ts", start = 44, end = 47 }]

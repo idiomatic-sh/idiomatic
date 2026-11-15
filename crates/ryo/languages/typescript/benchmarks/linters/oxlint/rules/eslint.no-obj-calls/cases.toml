@@ -87,3 +87,8 @@ expected = []
 name = "directive"
 files = { "case.ts" = "// eslint-disable-next-line no-obj-calls\nMath();\n" }
 expected = []
+
+[[cases]]
+name = "global-this-escaped-template"
+files = { "case.ts" = "globalThis[`Refl\\u0065ct`]();\n" }
+expected = [{ file = "case.ts", start = 0, end = 28 }]

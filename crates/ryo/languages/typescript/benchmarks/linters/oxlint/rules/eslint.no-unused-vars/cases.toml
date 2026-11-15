@@ -277,3 +277,9 @@ expected = [{ file = "case.mjs", start = 18, end = 19 }]
 name = "js-unused-destructured-option-parameters"
 files = { "case.js" = "export default {\n  renderBuiltUrl(filename, { hostId, hostType }) {\n    return filename\n  },\n}\n" }
 expected = [{ file = "case.js", start = 46, end = 52 }, { file = "case.js", start = 54, end = 62 }]
+
+[[cases]]
+name = "js-invalid-code"
+comparison = "full"
+files = { "syntax-error.js" = "invalid code\n" }
+expected = [{ rule = "invalid-syntax", file = "syntax-error.js", start = 7, end = 7 }]

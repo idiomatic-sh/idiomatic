@@ -222,3 +222,13 @@ expected = []
 name = "directive"
 files = { "case.ts" = "import { a } from \"m\";\n// eslint-disable-next-line no-import-assign\na = 1;\n" }
 expected = []
+
+[[cases]]
+name = "mutator-computed-template"
+files = { "case.ts" = "import * as ns from \"n\";\nObject[`assign`](ns, {});\nReflect[`set`](ns, \"a\", 1);\n" }
+expected = [{ file = "case.ts", start = 42, end = 44 }, { file = "case.ts", start = 66, end = 68 }]
+
+[[cases]]
+name = "mutator-computed-escaped-template"
+files = { "case.ts" = "import * as ns from \"n\";\nObject[`assi\\u0067n`](ns, {});\n" }
+expected = [{ file = "case.ts", start = 47, end = 49 }]
