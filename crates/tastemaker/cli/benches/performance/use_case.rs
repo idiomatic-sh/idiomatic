@@ -130,12 +130,23 @@ mod cost {
     fn target() -> tempfile::TempDir {
         let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let copy = tempfile::tempdir().expect("a temporary directory");
+        // Every workspace lock of the repository, at its own place: the copy is the repository root, and a version a
+        // lock outside the copied trees still reads is otherwise refused as unread. Copied first, so the trees copied
+        // after keep their own.
+        copy_locks(&source.join(".."), &source.join(".."), copy.path());
         copy_tree(&source.join("ryo"), &copy.path().join("crates/ryo"));
         super::fixture_version::normalize(&copy.path().join("crates/ryo"))
             .expect("the benchmark's copied fixture uses its executing tool version");
         copy_tree(
             &source.join("../tastemaker"),
             &copy.path().join("tastemaker"),
+        );
+        // The role package the shared assets' rule proofs name as `foreign`, at the place those proofs resolve it.
+        copy_tree(
+            &source.join("tastemaker/cli/tests/fixtures/replay/roles"),
+            &copy
+                .path()
+                .join("crates/tastemaker/cli/tests/fixtures/replay/roles"),
         );
         std::fs::create_dir_all(copy.path().join(".git")).expect("a .git directory");
         std::fs::write(
@@ -146,22 +157,80 @@ mod cost {
         copy
     }
 
-    /// `from` copied to `to`, its build trees left out.
-    fn copy_tree(from: &Path, to: &Path) {
-        std::fs::create_dir_all(to).expect("the directory");
-        for entry in std::fs::read_dir(from)
+    /// The entries of `directory`, each with whether it is a directory, its build trees, caches and version control
+    /// left out. Every entry reads or the bench stops: a dropped entry would time an incomplete tree.
+    fn entries(directory: &Path) -> Vec<(PathBuf, bool)> {
+        std::fs::read_dir(directory)
+            .map_err(|error| format!("{}: {error}", directory.display()))
             .expect("the directory reads")
-            .flatten()
-        {
-            let name = entry.file_name();
-            if name == "target" || name == ".tastemaker_cache" || name == ".ryo_cache" {
-                continue;
-            }
-            let path = entry.path();
-            if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
-                copy_tree(&path, &to.join(&name));
+            .filter_map(|entry| {
+                let entry = entry
+                    .map_err(|error| format!("{}: {error}", directory.display()))
+                    .expect("an entry of the directory reads");
+                let name = entry.file_name();
+                if [
+                    "target",
+                    ".tastemaker_cache",
+                    ".ryo_cache",
+                    ".git",
+                    "node_modules",
+                ]
+                .iter()
+                .any(|left_out| name == *left_out)
+                {
+                    return None;
+                }
+                let path = entry.path();
+                let kind = entry
+                    .file_type()
+                    .map_err(|error| format!("{}: {error}", path.display()))
+                    .expect("the entry's type reads");
+                Some((path, kind.is_dir()))
+            })
+            .collect()
+    }
+
+    /// `path` copied to `to`, its directory created.
+    fn copy_file(path: &Path, to: &Path) {
+        if let Some(parent) = to.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|error| format!("{}: {error}", parent.display()))
+                .expect("the directory is created");
+        }
+        let _: u64 = std::fs::copy(path, to)
+            .map_err(|error| format!("{}: {error}", path.display()))
+            .expect("the file copies");
+    }
+
+    /// `from` copied to `to`.
+    fn copy_tree(from: &Path, to: &Path) {
+        std::fs::create_dir_all(to)
+            .map_err(|error| format!("{}: {error}", to.display()))
+            .expect("the directory is created");
+        for (path, directory) in entries(from) {
+            let place = to.join(path.file_name().expect("an entry has a name"));
+            if directory {
+                copy_tree(&path, &place);
             } else {
-                let _: u64 = std::fs::copy(&path, to.join(&name)).expect("the file copies");
+                copy_file(&path, &place);
+            }
+        }
+    }
+
+    /// Every `tastemaker.lock` under `directory` copied to its place under `copy`, relative to `root`.
+    fn copy_locks(root: &Path, directory: &Path, copy: &Path) {
+        for (path, directory) in entries(directory) {
+            if directory {
+                copy_locks(root, &path, copy);
+            } else if path
+                .file_name()
+                .is_some_and(|name| name == "tastemaker.lock")
+            {
+                let relative = path
+                    .strip_prefix(root)
+                    .map_err(|error| format!("{}: {error}", path.display()))
+                    .expect("the lock is under the repository");
+                copy_file(&path, &copy.join(relative));
             }
         }
     }
