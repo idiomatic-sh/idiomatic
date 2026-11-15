@@ -2,7 +2,9 @@
 //! file is Run, once each, and nothing for a rule that does not run on it. A rule that runs but has no candidate in the file
 //! still reads its relations: its fault, its coverage and its rows are what they are with them.
 use super::super::fixtures::{RUN, every, plan, ran, request};
-use ryo_execution_domain::domain::rule_intent::types::{ApplicabilityReason, FileRuleIntent};
+use ryo_execution_domain::domain::rule_intent::types::{
+    ApplicabilityReason, CaptureIntent, DiagnosticDelivery, FileRuleIntent, ObservationDemand,
+};
 use ryo_relations::domain::relations::types::{Missing, Relation};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
@@ -20,6 +22,8 @@ enum Scenario {
     SecondNotRun,
     /// The same two rules, neither running on the file.
     NoneRun,
+    /// The same two rules, rule 1 run for its named outputs alone: its diagnostic is disabled on the file.
+    SecondObservationsOnly,
     /// A rule rooted at classes, the file having none, that extends their rows with a parameter it binds to nothing.
     RootedExtension,
     /// A rule rooted at classes joined with the functions, which the file's source says it read in part.
@@ -47,6 +51,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::NoneRun,
         expect: Expect::Value(Cow::Borrowed("[[]] finished; partial []")),
+    },
+    Case {
+        name: CaseName("a_rule_run_for_its_named_outputs_alone_reads_its_relations"),
+        word: Word::Succeeds,
+        input: || Scenario::SecondObservationsOnly,
+        expect: Expect::Value(Cow::Borrowed(
+            "[[Function, Comment]] rule 0: complete [Node(NodeId(1)), Symbol(Symbol(0)), File(FileId(0)), Span(Span { start: Offset(0), end: Offset(4) })]; ran . rule 1: withheld; ran . finished; partial []",
+        )),
     },
     Case {
         name: CaseName("a_rule_with_no_candidate_still_raises_its_extension_fault"),
@@ -77,6 +89,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// A diagnostic that does not apply to the file.
 const NOT_RUN: FileRuleIntent =
     FileRuleIntent::Skipped(ApplicabilityReason::DiagnosticNotApplicable);
+
+/// A rule run on the file for its named outputs alone, as core runs a rule that does not govern the file but whose outputs a
+/// governing rule reads: its diagnostic disabled, its named outputs required, only its observation frontiers captured.
+const OBSERVATIONS_ONLY: FileRuleIntent = FileRuleIntent::Run {
+    diagnostic: DiagnosticDelivery::Disabled,
+    observations: ObservationDemand::Required,
+    capture: CaptureIntent::Observations,
+};
 
 /// A step in each file that selects the tree nodes of the classes: a select rooted at their kind.
 fn classes() -> PlanStep {
@@ -116,6 +136,11 @@ fn scenario(input: Scenario) -> (Vec<Plan>, Vec<FileRuleIntent>, Vec<ReadInPart>
         Scenario::NoneRun => (
             vec![functions(), comments()],
             vec![NOT_RUN, FileRuleIntent::Undemanded],
+            Vec::new(),
+        ),
+        Scenario::SecondObservationsOnly => (
+            vec![functions(), comments()],
+            vec![RUN, OBSERVATIONS_ONLY],
             Vec::new(),
         ),
         Scenario::RootedExtension => (
