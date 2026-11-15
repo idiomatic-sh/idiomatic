@@ -1,7 +1,7 @@
 //! The public corpus measurement over the fakes of its boundaries.
 use cucumber::then;
 use ryo_benchmark::inbound::use_cases::measure_corpus::{
-    fixtures::{discovering, use_case, with_corpus, with_suffixes},
+    fixtures::{discovering, project_of, use_case, with_corpus, with_suffixes},
     interface::MeasureCorpusUseCase as _,
     types::SourceSuffix,
 };
@@ -26,11 +26,8 @@ fn suffixed(world: &mut crate::Behavior) {
     let _: &mut crate::Behavior = world;
     let suffixes = [".ts", ".mts", ".cts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"].map(SourceSuffix);
     let files = ["a.ts", "b.mjs", "c.vue"];
-    let root = tempfile::tempdir().expect("a project directory");
-    for file in files {
-        std::fs::write(root.path().join(file), "a\n").expect("a source");
-    }
-    let cache = tempfile::tempdir().expect("a cache directory");
+    let root = project_of(&files);
+    let cache = project_of(&[]);
     let mut observations = Vec::new();
     let measured = with_suffixes(cache.path(), &suffixes, |corpus| {
         discovering(root.path(), &files).measure_corpus(corpus, &mut observations)

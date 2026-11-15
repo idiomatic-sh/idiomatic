@@ -218,3 +218,16 @@ fn measured<R>(
         },
     })
 }
+
+/// A project directory holding `files`, each one line long, removed on drop.
+///
+/// # Panics
+/// When the directory or a file cannot be written.
+#[must_use]
+pub fn project_of(files: &[&str]) -> tempfile::TempDir {
+    let root = tempfile::tempdir().expect("a project directory");
+    for file in files {
+        std::fs::write(root.path().join(file), "a\n").expect("a source");
+    }
+    root
+}
