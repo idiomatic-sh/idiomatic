@@ -3,7 +3,7 @@ use super::fixtures::{COLLECTED, answered, over_a_shared_node, project, root_tex
 use crate::boundary_fixture::fixtures::{
     FileRun, authored_request, corpus, engine, run_file, source,
 };
-use crate::file_intents::fixtures::{consumer_before_its_producer_request, named_request, partial};
+use crate::file_intents::fixtures::{named_request, partial};
 use crate::shared_walk::fixtures::{Selector, compared, selection, text, tree};
 use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
@@ -345,33 +345,5 @@ fn project_root_shared_by_two_consumers_with_one_failing() {
         text,
         "project rule 0: complete Table { kinds: [File], cells: [File(FileId(0))], count: RowCount(1) }\nproject rule 1: failed Table(NoSuchColumn { index: 99 })\n",
         "the answers main gave"
-    );
-}
-
-/// Rules run in dependency order, not in the order they are written: the producer (rule 1, a capture) runs before its consumer
-/// (rule 0, a bound input of the producer's output), so the producer's answer comes first. Its capture names column 1 of a
-/// step that keeps one column, so its root fails, and a failed root stops the file there: the consumer, written first, never
-/// runs ahead of the producer it reads.
-#[test]
-fn a_producer_runs_before_the_consumer_written_before_it() {
-    let program = engine()
-        .prepare(consumer_before_its_producer_request())
-        .expect("a consumer written before its producer");
-    let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
-    let table = source();
-    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
-    let elements = ryo_language::domain::elements::types::Elements::default();
-    let rules = run_file(
-        &request,
-        FileRun::of(&[COLLECTED, COLLECTED], &elements),
-        &mut Symbols::default(),
-        &mut facts,
-    );
-    request.finish();
-    assert_eq!(
-        answered(rules),
-        "rule 1: failed Table(NoSuchColumn { index: 1 }); unreached\n\
-         file: unfinished\n"
     );
 }

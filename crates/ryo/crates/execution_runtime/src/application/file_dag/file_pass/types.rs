@@ -65,8 +65,15 @@ pub(crate) struct PassScratch {
     pub(crate) roots: FileRoots,
     /// Each rule's named outputs, in rule order.
     pub(crate) outputs: Vec<Vec<OutputState>>,
-    /// Each rule's named outputs' rows in the open file, by rule and output, for the bound observations of the rules after it.
-    pub(crate) answers: Vec<Vec<Option<NodeAnswer>>>,
+    /// Each rule's named outputs' rows in the open file, or what refused them, by rule and output, for the bound observations of
+    /// the rules after it.
+    pub(crate) answers: Vec<
+        Vec<
+            Option<
+                Result<NodeAnswer, ryo_execution_domain::domain::operating::errors::OperatingError>,
+            >,
+        >,
+    >,
 }
 
 /// What one step's rows rest on: every relation read on the way to them, and the reads whose absence of rows a step on the way
@@ -163,8 +170,15 @@ pub(crate) struct PassFile<'f, 'p, 'a, 's> {
     pub(crate) refusals: Vec<ryo_execution_domain::domain::operating::errors::OperatingError>,
     /// Each rule's named outputs in this file, in rule order.
     pub(crate) outputs: Vec<Vec<OutputState>>,
-    /// Each rule's named outputs' rows in this file, by rule and output, for the bound observations of the rules after it.
-    pub(crate) answers: Vec<Vec<Option<NodeAnswer>>>,
+    /// Each rule's named outputs' rows in this file, or what refused them, by rule and output, for the bound observations of the
+    /// rules after it.
+    pub(crate) answers: Vec<
+        Vec<
+            Option<
+                Result<NodeAnswer, ryo_execution_domain::domain::operating::errors::OperatingError>,
+            >,
+        >,
+    >,
 }
 
 /// What a rule's capture is bound to: the rule, the first bucket of each rule and the rule's capture intent.
