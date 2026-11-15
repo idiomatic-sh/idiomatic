@@ -222,6 +222,8 @@ pub(crate) enum ProbeIndex {
     Own,
     /// The shared index at this place.
     Shared(IndexPlace),
+    /// The open file's tree is the index: each left row walks from its node.
+    Tree,
 }
 
 /// What a run lends its kernels: the engine's rows and resources, and the matching semantics.

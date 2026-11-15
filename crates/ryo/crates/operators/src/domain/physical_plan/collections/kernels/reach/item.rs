@@ -16,7 +16,7 @@ use crate::domain::physical_plan::types::file_buffers::value::{
 };
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
-use crate::domain::physical_plan::types::{InputRows, KernelRun, KeyedRowAt, KeyedSide};
+use crate::domain::physical_plan::types::{InputRows, KernelRun, KeyedRowAt, KeyedSide, NodeFed};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
@@ -108,12 +108,14 @@ pub(crate) fn reached(
         }
         Starts::Seeded(left, join) => {
             seeded_rows(graph, edges, left, join, index, walk)?;
+            // The seeded join probes the rows its walk reached, never the tree: what it was fed is the node's, as read.
             probed(
                 &join.probe,
                 left,
                 InputRows::Table(&walk.rows),
                 run,
                 probe,
+                &mut NodeFed::default(),
                 output,
             )
         }

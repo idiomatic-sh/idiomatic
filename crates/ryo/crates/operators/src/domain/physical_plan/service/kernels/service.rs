@@ -136,8 +136,14 @@ pub(crate) fn kernels(
         }
         Lowering::Probe { probe, index, .. } => {
             let right = other.ok_or(PortableOperatorFault::WrongOperation)?;
+            // The rows the node was fed, read as `made` wrote them: a probe that walks the tree counts what it found.
+            let mut fed = buffers.fed(node);
             let scratch = probe_scratch(buffers, *index, node)?;
-            return probed(probe, input, right, run, scratch, output);
+            let answer = probed(probe, input, right, run, scratch, &mut fed, output);
+            if let Some(held) = buffers.fed.get_mut(place) {
+                *held = fed;
+            }
+            return answer;
         }
         Lowering::Group { group, .. } => {
             let scratch = GroupScratch {
@@ -173,6 +179,7 @@ pub(crate) fn kernels(
                     written: &mut buffers.written,
                     repeats: &mut buffers.repeats,
                     decisions,
+                    found: &mut buffers.found,
                 },
             };
             return reached(graph, edges, starts, run, scratch, output);

@@ -3,14 +3,16 @@
 
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
+use crate::domain::physical_plan::types::file_buffers::value::{IndexedRow, NO_ROW};
 use crate::domain::physical_plan::types::{PlanInputs, PlanNodeId, TreeRead};
 #[cfg(test)]
 use crate::domain::physical_plan::types::{RowSource, lowering::value::Lowering};
 use crate::domain::tree_cells::service::{native_form, tree_value};
 use crate::domain::tree_cells::types::{TreeForm, TreeRows};
+use ryo_language::domain::elements::service::{children, element_count};
 use ryo_language::domain::elements::types::Elements;
-use ryo_relations::domain::relations::service::{kinds, node_file, node_position};
-use ryo_relations::domain::relations::types::{CellKind, Relation, Value};
+use ryo_relations::domain::relations::service::{kinds, node_file, node_id, node_position};
+use ryo_relations::domain::relations::types::{CellKind, NodeId, Relation, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
@@ -47,6 +49,54 @@ pub(crate) fn roots<'a>(
         kinds: kinds(relation),
         elements,
         candidates,
+    }
+}
+
+/// Appends the nodes of the tree read's rows whose node column `column` holds `key`, in tree order: an element by its id, an
+/// edge by its child (none for the root), the edges of a parent's children. A row's cell is the one `tree_value` reads, so a
+/// row is found exactly when an index of the read keyed by `column` holds it under `key`; the walk only names the rows that
+/// may: the key's own node and its children. A key that is no node, a node of another file than the read's, or a position
+/// past the file's elements finds none.
+pub(crate) fn keyed_roots(
+    tree: &TreeRead<'_>,
+    column: ColumnIndex,
+    key: Value,
+    found: &mut Vec<NodeId>,
+) {
+    // The open file is the file of the read's first row; an empty read finds nothing.
+    let (Value::Node(node), Some(first)) = (key, tree.candidates.first()) else {
+        return;
+    };
+    let file = node_file(*first);
+    let at = node_position(node);
+    if node_file(node) != file
+        || usize::try_from(at.0).map_or(true, |place| place >= element_count(tree.elements).0)
+    {
+        return;
+    }
+    let rows = TreeRows {
+        form: tree.form,
+        elements: tree.elements,
+        file,
+    };
+    for each in std::iter::once(at).chain(children(tree.elements, at)) {
+        let row = node_id(file, each);
+        if tree_value(&rows, each, column) == key && tree.candidates.binary_search(&row).is_ok() {
+            found.push(row);
+        }
+    }
+}
+
+/// The found row after `row` among `found` rows, or the first when `row` is none; `NO_ROW` past the last: the rows a walk
+/// found, read in order as an index's run of a key is.
+pub(crate) fn next_found(row: Option<IndexedRow>, found: RowCount) -> IndexedRow {
+    let next = row.map_or(RowIndex(0), |row| {
+        RowIndex(usize::try_from(row.0).map_or(usize::MAX, |at| at.saturating_add(1)))
+    });
+    if next.0 < found.0 {
+        IndexedRow(u32::try_from(next.0).unwrap_or(u32::MAX))
+    } else {
+        NO_ROW
     }
 }
 

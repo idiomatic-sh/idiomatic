@@ -1,6 +1,6 @@
 //! The rows and steps the run use case's cases are made of: the relation they read, its rows, and the selects and comparisons
-//! over it.
-use super::{TextResources, ran};
+//! over it; and the probes of the tree a rewrite case runs.
+use super::{TableInputs, TextResources, ran};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::Step;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
@@ -10,10 +10,12 @@ use crate::domain::physical_plan::types::{
 };
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::fixtures::{kinds, node_id};
-use ryo_relations::domain::relations::types::{FileId, Offset, Position, Relation, Span, Value};
+use ryo_relations::domain::relations::types::{
+    FileId, NodeId, Offset, Position, Relation, Span, Value,
+};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, Input as StepInput, LiteralText, Operand, PlanComparison,
-    QueryLiteral, StepScope, Test,
+    ColumnIndex, ComparisonOrigin, Input as StepInput, JoinColumn, LiteralText, Operand,
+    PlanComparison, QueryLiteral, RepeatedRows, Side, StepScope, Test,
 };
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::{RowCount, Table};
@@ -46,6 +48,32 @@ pub(crate) fn defines(pairs: &[(&str, &str)], texts: &TextResources) -> Table {
         kinds: kinds(DEFINES).to_vec(),
         cells,
         count: RowCount(pairs.len()),
+    }
+}
+
+/// The rows of `DEFINES`, one for each of `nodes`, each named `name`, the node its own definition, in file 0 over no bytes.
+pub(crate) fn defines_of_nodes(nodes: &[NodeId], name: Value) -> Table {
+    let span = Value::Span(Span {
+        start: Offset(0),
+        end: Offset(0),
+    });
+    Table {
+        kinds: kinds(DEFINES).to_vec(),
+        cells: nodes
+            .iter()
+            .flat_map(|node| {
+                [
+                    Value::Node(*node),
+                    name,
+                    name,
+                    name,
+                    Value::Node(*node),
+                    Value::File(FileId(0)),
+                    span,
+                ]
+            })
+            .collect(),
+        count: RowCount(nodes.len()),
     }
 }
 
@@ -141,4 +169,145 @@ pub(crate) fn rewritten(
             }
         })
         .collect()
+}
+
+/// One program a rewrite case runs: its steps, the nodes it emits, and what it reads.
+pub(crate) struct TreeRun {
+    /// The steps.
+    pub(crate) steps: Vec<Step>,
+    /// The nodes each a rule's emit.
+    pub(crate) emits: Vec<PlanNodeId>,
+    /// The rows it reads.
+    pub(crate) inputs: TableInputs,
+    /// The file it reads them in.
+    pub(crate) resources: TextResources,
+}
+
+/// The join of `DEFINES`' column `left_on` with a tree relation's rows on `right_on`, answering `output`, its right rows kept
+/// where `filter` holds.
+fn tree_join(
+    left_on: u32,
+    right: (Relation, u32),
+    output: &[(Side, u32)],
+    filter: Vec<PlanComparison>,
+) -> Step {
+    Step {
+        operation: Operation::Join {
+            left: StepInput::Relation(DEFINES),
+            right: StepInput::Relation(right.0),
+            left_on: vec![ColumnIndex(left_on)],
+            right_on: vec![ColumnIndex(right.1)],
+            output: output
+                .iter()
+                .map(|(side, column)| JoinColumn {
+                    side: *side,
+                    column: ColumnIndex(*column),
+                })
+                .collect(),
+            filter,
+            view: Vec::new(),
+            reach: None,
+        },
+        inputs: vec![PlanInput::Relation(DEFINES), PlanInput::Relation(right.0)],
+    }
+}
+
+/// The antijoin of `left`'s column `left_on` with a tree relation's rows on `right_on`.
+fn tree_antijoin(left: PlanInput, left_on: u32, right: (Relation, u32)) -> Step {
+    Step {
+        operation: Operation::Antijoin {
+            left: input_of(left),
+            right: StepInput::Relation(right.0),
+            left_on: vec![ColumnIndex(left_on)],
+            right_on: vec![ColumnIndex(right.1)],
+        },
+        inputs: vec![left, PlanInput::Relation(right.0)],
+    }
+}
+
+/// The probes of the tree a rewrite must keep the rows of: inner probes and antijoins of the nested tree's edges by parent
+/// and by child and of its elements by id, over `DEFINES` rows of a node of three children, the root, that node again, a node
+/// of another file, a node past the tree and a token; an inner probe answering the same row for each child, one keyed on a
+/// column of no node, and one with a right filter that cannot fail. Then rows narrower than their key against the nested
+/// tree's edges, which fault, and against a tree of only its root, which keep every row unread.
+pub(crate) fn tree_probe_runs() -> Vec<TreeRun> {
+    let (edges, elements) = (Relation::SyntaxChild, Relation::SyntaxTree);
+    let nested = TextResources::nested_tree();
+    let left = defines_of_nodes(
+        &[
+            node_id(FileId(0), Position(1)),
+            node_id(FileId(0), Position(0)),
+            node_id(FileId(0), Position(1)),
+            node_id(FileId(1), Position(1)),
+            node_id(FileId(0), Position(9)),
+            node_id(FileId(0), Position(2)),
+        ],
+        nested.symbol("word"),
+    );
+    let reading = |nodes: u32| {
+        TableInputs::new(&[(DEFINES, &left)]).with_roots(
+            (0..nodes)
+                .map(|at| node_id(FileId(0), Position(at)))
+                .collect(),
+        )
+    };
+    let unnamed = compared(
+        Test::NotEqual,
+        Operand::Column(ColumnIndex(3)),
+        Operand::Literal(QueryLiteral::Text(LiteralText("zzz".into()))),
+    );
+    let pair = [(Side::Left, 0), (Side::Right, 1)];
+    let probes = vec![
+        tree_join(0, (edges, 0), &pair, Vec::new()),
+        tree_join(
+            0,
+            (edges, 1),
+            &[(Side::Left, 0), (Side::Right, 0)],
+            Vec::new(),
+        ),
+        tree_join(0, (elements, 0), &pair, Vec::new()),
+        tree_join(0, (edges, 0), &[(Side::Left, 0)], Vec::new()),
+        tree_join(3, (edges, 0), &pair, Vec::new()),
+        tree_join(0, (edges, 0), &pair, vec![unnamed]),
+        tree_antijoin(PlanInput::Relation(DEFINES), 0, (edges, 0)),
+        tree_antijoin(PlanInput::Relation(DEFINES), 0, (edges, 1)),
+        tree_antijoin(PlanInput::Relation(DEFINES), 0, (elements, 0)),
+    ];
+    let emits = (0..u32::try_from(probes.len()).unwrap_or(u32::MAX))
+        .map(PlanNodeId)
+        .collect();
+    // Rows of one column, keyed on their sixth.
+    let narrow = || {
+        vec![
+            Step {
+                operation: Operation::Project {
+                    from: StepInput::Relation(DEFINES),
+                    columns: vec![ColumnIndex(0)],
+                    distinct: RepeatedRows::Kept,
+                },
+                inputs: vec![PlanInput::Relation(DEFINES)],
+            },
+            tree_antijoin(PlanInput::Node(PlanNodeId(0)), 5, (edges, 0)),
+        ]
+    };
+    vec![
+        TreeRun {
+            steps: probes,
+            emits,
+            inputs: reading(6),
+            resources: nested,
+        },
+        TreeRun {
+            steps: narrow(),
+            emits: vec![PlanNodeId(1)],
+            inputs: reading(6),
+            resources: TextResources::nested_tree(),
+        },
+        TreeRun {
+            steps: narrow(),
+            emits: vec![PlanNodeId(1)],
+            inputs: reading(1),
+            resources: TextResources::root_only(),
+        },
+    ]
 }

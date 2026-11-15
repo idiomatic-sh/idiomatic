@@ -4,7 +4,7 @@
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::{NodeFed, NodeReaders, NodeRows, PlanNodeId};
 use crate::domain::table_scratch::types::{LazyScratch, Memo, SelectScratch};
-use ryo_relations::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::{NodeId, Value};
 
 /// The buffers of one worker, reused across files.
 ///
@@ -50,6 +50,8 @@ pub struct FileBuffers {
     pub(crate) cycles: crate::domain::cycles::types::CycleScratch,
     /// The rows `distinct` kept so far, keyed by all their cells in `hash_index`'s table, its capacity kept across nodes.
     pub(crate) repeats: KeyedRows,
+    /// The tree nodes one left row of a tree probe found, its capacity kept across files.
+    pub(crate) found: Vec<NodeId>,
     /// Each probe index the plan shares, by its place, its capacity kept across files.
     pub(crate) shared: Vec<SharedIndex>,
     /// How many times a probe built an index, its own or a shared one: what the sharing cases count.

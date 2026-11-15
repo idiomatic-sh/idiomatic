@@ -13,12 +13,17 @@ use crate::domain::physical_plan::types::{
 
 /// Shares one `hash_index` between the probes of one right source and key: a planning step, not a rewrite, since an unshared
 /// plan answers the same rows. A probe that filters its right rows indexes rows of its own and keeps its own index, as does an
-/// ordered probe, which turns each key's first row into its extremum, and a probe alone on its right source and key. Run after
-/// the rewrites, which change a probe's right rows, key and mode.
+/// ordered probe, which turns each key's first row into its extremum, and a probe alone on its right source and key; a probe
+/// that walks the tree has no index to share. Run after the rewrites, which change a probe's right rows, key, mode and index.
 pub(crate) fn shared_indexes(nodes: &mut [PhysicalNode], indexes: &mut Vec<KeyedIndex>) {
     let mut keyed: Vec<KeyedIndex> = Vec::new();
     for (node, id) in nodes.iter().zip((0..).map(PlanNodeId)) {
-        if let Lowering::Probe { right, probe, .. } = &node.lowering
+        if let Lowering::Probe {
+            right,
+            probe,
+            index: ProbeIndex::Own,
+            ..
+        } = &node.lowering
             && let ProbeKey::Columns { right: on, .. } = &probe.key
             && probe.filter.comparisons.is_empty()
             && !matches!(probe.mode, ProbeMode::Ordered(_))
@@ -81,8 +86,8 @@ pub(crate) fn closed(buffers: &mut FileBuffers, at: IndexPlace) {
     }
 }
 
-/// What probe `node` writes through: its own index, built by this run, or its shared index, built by the first probe
-/// of the file that reads its rows.
+/// What probe `node` writes through: its own index, built by this run, its shared index, built by the first probe of the
+/// file that reads its rows, or no index, for a probe that walks the tree.
 ///
 /// # Errors
 ///
@@ -98,6 +103,7 @@ pub(crate) fn probe_scratch(
         .ok_or(PortableOperatorFault::WrongOperation)?;
     let (index, build) = match index {
         ProbeIndex::Own => (&mut buffers.index, IndexBuild::Builds),
+        ProbeIndex::Tree => (&mut buffers.index, IndexBuild::Walked),
         ProbeIndex::Shared(at) => {
             let shared = buffers
                 .shared
@@ -123,5 +129,6 @@ pub(crate) fn probe_scratch(
         written: &mut buffers.written,
         repeats: &mut buffers.repeats,
         decisions,
+        found: &mut buffers.found,
     })
 }

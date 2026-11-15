@@ -7,7 +7,9 @@ mod render;
 mod shared_index;
 #[cfg(test)]
 mod text_map;
-use super::fixtures::cases::{DEFINES, defines, input_of, named, rewritten, select, self_matching};
+use super::fixtures::cases::{
+    DEFINES, TreeRun, defines, input_of, named, rewritten, select, self_matching, tree_probe_runs,
+};
 use super::fixtures::{TableInputs, TextResources, emitted};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
@@ -127,9 +129,37 @@ impl RewritesItem for AntiAsSemi {
     }
 }
 
+/// Whether the probes of the nested tree answer the same rows, or the same first fault, planned with every rewrite of
+/// `rewrites` and with each left out: inner probes and antijoins of the edges by parent and by child and of the elements by
+/// id, over left rows of a node of three children, the root, that node again, a node of another file, a node past the tree,
+/// and a token; an inner probe answering the same row for each child, one keyed on a column of no node, and one with a right
+/// filter that cannot fail. Then rows narrower than their key against the edges of the nested tree, which fault, and of a
+/// tree of only its root, which keep every row unread.
+fn tree_probes_keep_rows(rewrites: &[&dyn RewritesItem]) -> Result<bool, Failure> {
+    for TreeRun {
+        steps,
+        emits,
+        inputs,
+        mut resources,
+    } in tree_probe_runs()
+    {
+        let every = rewritten(&steps, &emits, rewrites, &inputs, &mut resources);
+        for left_out in 0..rewrites.len() {
+            let others: Vec<&dyn RewritesItem> = (0..rewrites.len())
+                .filter(|at| *at != left_out)
+                .filter_map(|at| rewrites.get(at).copied())
+                .collect();
+            if rewritten(&steps, &emits, &others, &inputs, &mut resources) != every {
+                return Ok(false);
+            }
+        }
+    }
+    Ok(true)
+}
+
 /// Whether the case program, every node a rule's emit, and the two ordered existence shapes (the greatest and the least
 /// ordinal per parent, ties at either end among them), only their antijoins emitted, answer the same rows planned with every
-/// rewrite of `rewrites` and with each left out.
+/// rewrite of `rewrites` and with each left out; and the probes of the tree as `tree_probes_keep_rows` runs them.
 fn rewrites_keep_rows(rewrites: &[&dyn RewritesItem]) -> Result<Value, Failure> {
     let pairs = [
         ("kind", "alpha"),
@@ -162,7 +192,7 @@ fn rewrites_keep_rows(rewrites: &[&dyn RewritesItem]) -> Result<Value, Failure> 
             }
         }
     }
-    Ok(Observation::Same(true))
+    Ok(Observation::Same(tree_probes_keep_rows(rewrites)?))
 }
 
 /// The emitted rows of `steps`, every step a rule's emit when `all` is set, else only the last, over `pairs`.
