@@ -4,11 +4,8 @@ use super::constants::{
     NOT_A_BENCH_DIRECTORY, REGISTRATION, STATE, VERIFY_INVENTORY,
 };
 use super::types::{BenchDirectory, BenchOperation, OperationLayout, OperationVerb};
-use ryo_benchmark_contracts::domain::receipts::constants::VERIFY_CASES;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::constants::{
-    MEASURE_ACCOUNTED_VALID, PARITY, VERIFY_REFERENCE_CASES,
-};
+use ryo_benchmark_contracts::domain::requests::constants::{MEASURE_ACCOUNTED_VALID, PARITY};
 use std::ffi::OsString;
 use std::path::{Component, Path};
 
@@ -19,8 +16,6 @@ pub fn operation(verb: OperationVerb<'_>) -> Option<BenchOperation> {
         BenchOperation::Correctness,
         BenchOperation::Measure,
         BenchOperation::Parity,
-        BenchOperation::Cases,
-        BenchOperation::ReferenceCases,
     ]
     .into_iter()
     .find(|operation| verb_of(*operation).0 == verb.0)
@@ -32,8 +27,6 @@ pub(crate) fn verb_of(operation: BenchOperation) -> OperationVerb<'static> {
         BenchOperation::Correctness => VERIFY_INVENTORY,
         BenchOperation::Measure => MEASURE_ACCOUNTED_VALID,
         BenchOperation::Parity => PARITY,
-        BenchOperation::Cases => VERIFY_CASES,
-        BenchOperation::ReferenceCases => VERIFY_REFERENCE_CASES,
     })
 }
 
@@ -97,7 +90,5 @@ pub(crate) fn worker_arguments(
             ]
         }
         BenchOperation::Parity => vec![PARITY.into(), tool.into(), layout.root.clone().into()],
-        BenchOperation::Cases => vec![VERIFY_CASES.into(), tool.into()],
-        BenchOperation::ReferenceCases => vec![VERIFY_REFERENCE_CASES.into(), tool.into()],
     }
 }

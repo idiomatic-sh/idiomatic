@@ -10,10 +10,6 @@ pub enum BenchOperation {
     Measure,
     /// Both contestants compared rule by rule on the language's projects (`parity`).
     Parity,
-    /// Every registered case checked against both contestants (`verify-cases`).
-    Cases,
-    /// Every authored case checked with the pinned reference alone, no candidate run (`verify-reference-cases`).
-    ReferenceCases,
 }
 
 /// The collector verb that names an operation.

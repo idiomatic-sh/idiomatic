@@ -1,6 +1,6 @@
 //! The command line vocabulary of the bench operations.
 /// What the operation commands take.
-pub const USAGE: &str = "usage: (verify-inventory | verify-cases | verify-reference-cases | measure-valid | parity) <languages/<lang>/benchmarks/linters/<linter>>";
+pub const USAGE: &str = "usage: (verify-inventory | measure-valid | parity) <languages/<lang>/benchmarks/linters/<linter>>";
 /// The refusal when the operation failed.
 pub const FAILED: &str = "the bench operation failed; see its output directory";
 /// How long one rule's verification may take, in seconds.

@@ -79,6 +79,13 @@ impl OperateUseCase for OperateUseCaseImpl {
         )?;
         let answer = match request.operation {
             BenchOperation::Correctness => {
+                // The whole bench first, as certify does: a rule directory that is neither a default nor a supporting
+                // rule, or a query that does not read, is refused before any rule is registered.
+                let _audit = crate::application::suite_auditing::service::audit(
+                    self.suite.as_ref(),
+                    &request.bench.0,
+                    &profile,
+                )?;
                 let registration = register(
                     self.suite.as_ref(),
                     self.inventory.as_ref(),
@@ -122,15 +129,15 @@ impl OperateUseCase for OperateUseCaseImpl {
                     output,
                 )?)
             }
-            operation @ (BenchOperation::Parity
-            | BenchOperation::Cases
-            | BenchOperation::ReferenceCases) => {
-                OperationVerdict::from(self.executables.run_sealed(
-                    &worker.path,
-                    &RunArguments(worker_arguments(operation, &layout, &reference.path)),
-                    output,
-                )?)
-            }
+            BenchOperation::Parity => OperationVerdict::from(self.executables.run_sealed(
+                &worker.path,
+                &RunArguments(worker_arguments(
+                    BenchOperation::Parity,
+                    &layout,
+                    &reference.path,
+                )),
+                output,
+            )?),
         };
         Ok(OperationReport { verdict: answer })
     }

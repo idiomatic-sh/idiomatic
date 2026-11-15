@@ -13,6 +13,7 @@ fn parity(world: &mut crate::Behavior) {
         operation: BenchOperation::Parity,
         tool_found: true,
         verdict: OperationVerdict::Passed,
+        stray_rule: false,
     });
     assert_eq!(observed.answer, Ok(OperationVerdict::Passed));
     assert_eq!(observed.stdout, b"{\"metric\":{}}\n");
@@ -25,6 +26,7 @@ fn absent(world: &mut crate::Behavior) {
         operation: BenchOperation::Measure,
         tool_found: false,
         verdict: OperationVerdict::Passed,
+        stray_rule: false,
     });
     assert!(
         observed

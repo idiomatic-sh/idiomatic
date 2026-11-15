@@ -38,27 +38,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
-        name: CaseName("cases runs the worker's case verb on the reference"),
-        word: Word::Succeeds,
-        input: || ("verify-cases", "languages/python/benchmarks/linters/ruff"),
-        expect: Expect::Value(Cow::Borrowed(
-            "/target/benchmark/python/ruff/verify-cases: verify-cases /bin/tool",
-        )),
-    },
-    Case {
-        name: CaseName("reference cases runs the worker's reference case verb on the reference"),
-        word: Word::Succeeds,
-        input: || {
-            (
-                "verify-reference-cases",
-                "languages/typescript/benchmarks/linters/oxlint",
-            )
-        },
-        expect: Expect::Value(Cow::Borrowed(
-            "/target/benchmark/typescript/oxlint/verify-reference-cases: verify-reference-cases /bin/tool",
-        )),
-    },
-    Case {
         name: CaseName("correctness runs no worker"),
         word: Word::Succeeds,
         input: || {
@@ -70,6 +49,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed(
             "/target/benchmark/python/ruff/verify-inventory: ",
         )),
+    },
+    Case {
+        name: CaseName("verify-cases is a worker verb, not a collector operation"),
+        word: Word::Refuses,
+        input: || ("verify-cases", "languages/python/benchmarks/linters/ruff"),
+        expect: Expect::Error(Cow::Borrowed("verify-cases")),
+    },
+    Case {
+        name: CaseName("verify-reference-cases is a worker verb, not a collector operation"),
+        word: Word::Refuses,
+        input: || {
+            (
+                "verify-reference-cases",
+                "languages/typescript/benchmarks/linters/oxlint",
+            )
+        },
+        expect: Expect::Error(Cow::Borrowed("verify-reference-cases")),
     },
     Case {
         name: CaseName("a verb that names no operation is refused"),

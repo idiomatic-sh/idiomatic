@@ -30,6 +30,8 @@ pub struct Scenario {
     pub tool_found: bool,
     /// What the sealed worker answers.
     pub verdict: OperationVerdict,
+    /// Whether the bench's `rules/` holds `R9`, a rule that is neither a default nor a supporting rule.
+    pub stray_rule: bool,
 }
 
 /// What one scenario observed: the operation's answer, its standard output, and every executables request with the
@@ -42,6 +44,8 @@ pub struct Observed {
     pub stdout: Vec<u8>,
     /// Every executables request, in order.
     pub calls: Vec<ExecutablesCall>,
+    /// Whether the operation left a registration in its output directory.
+    pub registered: bool,
 }
 
 /// Run one scenario through the use case `build` makes over its scripted executables.
@@ -79,6 +83,12 @@ pub fn observe(
     let bench = root_path.join(BENCH);
     std::fs::create_dir_all(&bench).expect("bench directory");
     std::fs::write(bench.join("benchmark.toml"), PROFILE).expect("bench profile");
+    std::fs::create_dir_all(bench.join("rules")).expect("the bench's rules directory");
+    if scenario.stray_rule {
+        std::fs::create_dir_all(bench.join("rules/R9")).expect("the stray rule's directory");
+        std::fs::write(bench.join("rules/R9/query.ryoql"), "emit nothing;\n")
+            .expect("the stray rule's query");
+    }
     let tool = root_path.join("lint");
     std::fs::write(&tool, "reference").expect("reference tool");
     let executables = Arc::new(ExecutablesFake {
@@ -95,6 +105,14 @@ pub fn observe(
         },
         history: std::sync::Mutex::default(),
     });
+    let registration = crate::domain::operations::service::layout(
+        &root_path.join("target"),
+        &BenchDirectory(bench.clone()),
+        scenario.operation,
+    )
+    .expect("the fixture bench is a bench directory")
+    .root
+    .join(crate::domain::operations::constants::REGISTRATION);
     let operate = build(Arc::clone(&executables));
     let mut stdout = Vec::new();
     let answer = operate
@@ -140,5 +158,6 @@ pub fn observe(
         answer,
         stdout,
         calls,
+        registered: registration.is_file(),
     }
 }

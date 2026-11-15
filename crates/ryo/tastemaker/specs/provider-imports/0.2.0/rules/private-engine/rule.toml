@@ -1,0 +1,21 @@
+description = "A language provider cannot import private engine implementation."
+why = "The provider supplies language semantics through public contracts. Engine scheduling, storage and operator implementation are not provider dependencies; this applies to every provider source directory, including newly added modules."
+query = '''
+let imports = select file, span, target from "static-import" where glob_any(target, "{ryo_core,ryo_core::*}");
+emit imports subject file key(span);
+'''
+[diagnostic]
+primary = "file"
+message = "provider source imports private engine implementation in `{file}`"
+help = "Use public language, relation and value contracts; keep core implementation behind the SDK composition edge."
+
+[[scenarios]]
+id = "public-language-import"
+scenario = "A provider can use its public language contract."
+given.files.'domain/model.rs' = 'use ryo_language::domain::files::types::FilePath;'
+
+[[scenarios]]
+id = "private-engine-import"
+scenario = "A new provider module cannot import the engine implementation."
+given.files.'domain/model.rs' = 'use ryo_core::domain::operator::types::Operation;'
+then.findings = [{ path = 'domain/model.rs' }]
