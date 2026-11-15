@@ -48,6 +48,7 @@ fn subject(defaults: Input) -> Result<Value, Failure> {
         )),
         execution.clone(),
         Arc::new(local()),
+        Arc::new(crate::outbound::scheduler::factory::threads()),
     );
     let result = operation.verify_inventory(&registration, &output);
     let calls = execution.history.lock().expect("history").len();

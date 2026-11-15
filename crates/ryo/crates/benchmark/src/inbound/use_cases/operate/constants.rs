@@ -1,6 +1,10 @@
 //! The command line vocabulary of the bench operations.
 /// What the operation commands take.
-pub const USAGE: &str = "usage: (verify-inventory | measure-valid | parity) <languages/<lang>/benchmarks/linters/<linter>>";
+pub const USAGE: &str = "usage: (verify-inventory [--shards <count>] | measure-valid | parity) <languages/<lang>/benchmarks/linters/<linter>>";
+/// The option of `verify-inventory` that verifies the inventory in that many shards at once.
+pub const SHARDS_OPTION: &str = "--shards";
+/// The refusal of a shard count on an operation other than `verify-inventory`.
+pub const SHARDS_ONLY_VERIFY_INVENTORY: &str = "--shards applies to verify-inventory only";
 /// The refusal when the operation failed.
 pub const FAILED: &str = "the bench operation failed; see its output directory";
 /// How long one rule's verification may take, in seconds.

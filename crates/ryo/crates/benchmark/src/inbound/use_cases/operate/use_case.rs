@@ -19,7 +19,10 @@ use crate::outbound::{
 };
 use ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage;
+use ryo_benchmark_contracts::domain::requests::types::{
+    RegisteredCoverage, case_shard::value::ShardCount,
+};
+use super::constants::SHARDS_ONLY_VERIFY_INVENTORY;
 use std::sync::Arc;
 
 /// `operate`, over only the ports it calls, each injected by the edge.
@@ -34,6 +37,8 @@ pub struct OperateUseCaseImpl {
     receipts: Arc<dyn ReceiptsPort>,
     /// The bounded process launch of the correctness operation.
     execution: Arc<dyn ExecutionPort>,
+    /// Runs the correctness operation's shards.
+    scheduler: Arc<dyn crate::outbound::scheduler::interface::SchedulerPort>,
 }
 
 impl OperateUseCaseImpl {
@@ -45,6 +50,7 @@ impl OperateUseCaseImpl {
         inventory: Arc<dyn InventoryPort>,
         receipts: Arc<dyn ReceiptsPort>,
         execution: Arc<dyn ExecutionPort>,
+        scheduler: Arc<dyn crate::outbound::scheduler::interface::SchedulerPort>,
     ) -> Self {
         Self {
             executables,
@@ -52,6 +58,7 @@ impl OperateUseCaseImpl {
             inventory,
             receipts,
             execution,
+            scheduler,
         }
     }
 }
@@ -62,6 +69,9 @@ impl OperateUseCase for OperateUseCaseImpl {
         request: &OperationRequest,
         output: &mut dyn std::io::Write,
     ) -> Result<OperationReport, Error> {
+        if request.operation != BenchOperation::Correctness && request.shards != ShardCount(1) {
+            return Err(Error::Invalid(SHARDS_ONLY_VERIFY_INVENTORY.into()));
+        }
         let layout = layout(
             &self.executables.target()?,
             &request.bench,
@@ -95,6 +105,8 @@ impl OperateUseCase for OperateUseCaseImpl {
                     self.execution.as_ref(),
                     self.inventory.as_ref(),
                     &RegisteredCoverage::Full,
+                    self.scheduler.as_ref(),
+                    request.shards,
                 )? {
                     InventoryVerdict::Passed => OperationVerdict::Passed,
                     InventoryVerdict::Failed => OperationVerdict::Failed,

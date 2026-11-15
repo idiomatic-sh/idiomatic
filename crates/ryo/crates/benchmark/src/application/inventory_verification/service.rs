@@ -1,38 +1,34 @@
 //! Enumerate every registered default, invoke the existing verifier, and retain every result.
-use super::authority::service::{refused, require_authority, verify_context};
+use super::authority::service::require_authority;
 use super::constants;
+use super::rule::service::verify_rule;
 use crate::domain::suite::service::covered;
 use crate::domain::suite::types::inventory::value::{
-    FailureReason, Inventory, InventoryVerdict, PassedRule, RuleEvidence,
+    FailureReason, Inventory, InventoryVerdict, RuleEvidence,
 };
 use crate::outbound::{
     execution::interface::ExecutionPort,
     inventory::{
         interface::InventoryPort,
         types::{
-            Command, ReceiptDigest, ReceiptFile, Registration, RegistrationAuthority, Row,
-            RowInstance, RowReason, RowStatus, RuleCommand, RuleDefinition, RuleInstance,
-            RuleReason, RunState, Summary,
+            ReceiptDigest, Registration, Row, RowInstance, RowReason, RowStatus, RuleInstance,
+            RunState, Summary,
         },
     },
-    receipts::{interface::ReceiptsPort, types::ReceiptPath},
-    suite::{interface::SuitePort, types::ArtifactPath},
+    receipts::interface::ReceiptsPort,
+    scheduler::interface::SchedulerPort,
+    suite::interface::SuitePort,
 };
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::documents::types::text::value::{
     ReasonText, RuleName, Sha256Text,
 };
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::receipts::constants::{
-    CASE_RECEIPTS_ARGUMENT, CASES_JSONL, VERIFY_CASES,
-};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{RegisteredCoverage, RuleLabel};
-use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    path::Path,
+use ryo_benchmark_contracts::domain::requests::types::{
+    RegisteredCoverage, RuleLabel,
+    case_shard::value::{CaseShard, ShardCount, ShardIndex},
 };
+use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use std::{collections::BTreeSet, path::Path};
 
 /// The row a rule's current result publishes.
 fn row(registration: &Registration, rule: &RuleName, outcome: &RuleEvidence) -> Row {
@@ -98,10 +94,16 @@ fn summary(registration: &Registration, inventory: &Inventory, state: RunState) 
     }
 }
 
-/// Run every pinned rule the coverage names; one failed or missing implementation never removes another row.
+/// Run every pinned rule the coverage names; one failed or missing implementation never removes another row. The rules
+/// are dealt round robin to `shards` partitions the scheduler runs at once; one writer records the results and publishes
+/// the summary, in the order the rules finish.
 ///
 /// # Errors
-/// Refuses invalid registrations and propagates artifact persistence failures.
+/// Refuses a zero shard count, invalid registrations, and propagates artifact persistence failures.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the verification forwards the five independently injected ports, the registration, its output, its coverage and the shard count"
+)]
 pub fn verify(
     registration: &Registration,
     output: &Path,
@@ -110,7 +112,12 @@ pub fn verify(
     execution: &dyn ExecutionPort,
     store: &dyn InventoryPort,
     coverage: &RegisteredCoverage,
+    scheduler: &dyn SchedulerPort,
+    shards: ShardCount,
 ) -> Result<InventoryVerdict, Error> {
+    let partitions = (0..shards.0.max(1))
+        .map(|index| CaseShard::new(ShardIndex(index), shards))
+        .collect::<Result<Vec<_>, _>>()?;
     require_authority(registration, suite, store)?;
     let mut inventory = Inventory::new(
         &covered(coverage, &registration.defaults, |rule| rule)
@@ -134,121 +141,56 @@ pub fn verify(
             constants::UNKNOWN_OR_DUPLICATE_REGISTERED_RULE.into(),
         ));
     }
-    for index in 0..inventory.rules().len() {
-        let rule = inventory.rules()[index].rule().clone();
-        let directory = output.join(constants::PROFILES).join(&rule.0);
-        let entry = registration
-            .rules
-            .iter()
-            .find(|entry| entry.rule_id.0 == rule.0);
-        let outcome = (|| -> Result<PassedRule, FailureReason> {
-            let entry = entry.ok_or_else(|| {
-                FailureReason(constants::MISSING_IMPLEMENTATION_REGISTRATION.into())
-            })?;
-            if let RuleReason::Stated(reason) = &entry.reason {
-                return Err(FailureReason(reason.0.clone()));
+    let rules = inventory
+        .rules()
+        .iter()
+        .map(|result| result.rule().clone())
+        .collect::<Vec<_>>();
+    let (sender, finished) = std::sync::mpsc::channel();
+    let mut written = Ok(());
+    let mut tasks: Vec<Box<dyn FnOnce() + Send + '_>> = Vec::new();
+    for shard in partitions {
+        let sender = sender.clone();
+        let rules = &rules;
+        tasks.push(Box::new(move || {
+            for (index, rule) in shard.select(rules.iter().enumerate()) {
+                let directory = output.join(constants::PROFILES).join(&rule.0);
+                let outcome = verify_rule(
+                    registration,
+                    registration
+                        .rules
+                        .iter()
+                        .find(|entry| entry.rule_id.0 == rule.0),
+                    &directory,
+                    suite,
+                    receipts,
+                    execution,
+                    store,
+                );
+                if sender.send((index, directory, outcome)).is_err() {
+                    return;
+                }
             }
-            let RuleCommand::Registered(Command::CaseVerification { context }) = &entry.command
-            else {
-                return Err(FailureReason(
-                    constants::MISSING_IMPLEMENTATION_INVOCATION.into(),
-                ));
-            };
-            verify_context(entry, suite, store)?;
-            let RuleDefinition::Pinned(definition) = &entry.definition else {
-                return Err(FailureReason(
-                    constants::EXECUTABLE_RULE_HAS_NO_TESTED_DEFINITION.into(),
-                ));
-            };
-            if entry.artifacts.get(&definition.path) != Some(&definition.sha256)
-                || entry
-                    .modules
-                    .values()
-                    .any(|pin| entry.artifacts.get(&pin.path) != Some(&pin.sha256))
-            {
-                return Err(FailureReason(
-                    constants::QUERY_MODULE_PINS_ARE_OUTSIDE_THE.into(),
-                ));
-            }
-            if entry.cases.is_empty() {
-                return Err(FailureReason(constants::MISSING_INDEPENDENT_CASES.into()));
-            }
-            if entry.cases.iter().any(|case| case.rule != entry.rule_id) {
-                return Err(FailureReason(
-                    constants::CASE_IDENTITY_BELONGS_TO_ANOTHER_REGISTERED.into(),
-                ));
-            }
-            let RegistrationAuthority::Execution {
-                reference, worker, ..
-            } = &registration.authority
-            else {
-                return Err(FailureReason(
-                    constants::CASE_VERIFICATION_REQUIRES_EXECUTION_AUTHORI.into(),
-                ));
-            };
-            let mut destination = std::ffi::OsString::from(CASE_RECEIPTS_ARGUMENT);
-            destination.push(directory.join(CASES_JSONL).as_os_str());
-            store.prepare(&directory).map_err(refused)?;
-            let invocation = Invocation {
-                executable: worker.path.clone(),
-                arguments: vec![
-                    VERIFY_CASES.into(),
-                    reference.path.as_os_str().to_owned(),
-                    context.as_os_str().to_owned(),
-                    destination,
-                ],
-                environment: BTreeMap::new(),
-                directory: context.clone(),
-            };
-            let observed = execution.run(invocation).map_err(refused)?;
-            let receipt = store
-                .capture(&directory, &observed.stdout, &observed.stderr)
-                .map_err(refused)?;
-            if observed.status.0 != 0 {
-                return Err(FailureReason(format!(
-                    "verifier exited {}: {}",
-                    observed.status.0,
-                    String::from_utf8_lossy(&observed.stderr.0)
-                )));
-            }
-            let ReceiptFile::Present(path) = receipt else {
-                return Err(FailureReason(
-                    constants::NATIVE_RECEIPT_DIGEST_IS_MISSING.into(),
-                ));
-            };
-            let records = receipts
-                .case_observations(ReceiptPath(&path))
-                .map_err(refused)?;
-            let raw = store.raw_artifacts(&path, &records).map_err(refused)?;
-            let counts = if raw.bytes.is_empty() {
-                crate::domain::inventory_receipts::service::validate(&entry.cases, &records)
-            } else {
-                crate::domain::inventory_receipts::service::validate_with_artifacts(
-                    &entry.cases,
-                    &records,
-                    &raw.bytes,
-                    &raw.invocations,
-                )
-            }
-            .map_err(refused)?;
-            verify_context(entry, suite, store)?;
-            let digest = suite.digest(ArtifactPath(&path)).map_err(refused)?;
-            Ok(PassedRule {
-                cases: CaseCount(entry.cases.len()),
-                raw_exact: CaseCount(counts.raw_exact.0),
-                documented: CaseCount(counts.documented.0),
-                contract_only: CaseCount(counts.contract_only.0),
-                case_results_sha256: ArtifactDigest(digest.0),
-            })
-        })();
-        match outcome {
-            Ok(evidence) => inventory.pass(&rule, evidence),
-            Err(reason) => inventory.fail(&rule, reason),
-        }
-        let report = summary(registration, &inventory, RunState::Running);
-        store.result(&directory, &report.rules[index])?;
-        store.publish(output, &report)?;
+        }));
     }
+    drop(sender);
+    {
+        let (inventory, written, rules) = (&mut inventory, &mut written, &rules);
+        // The one writer: it records each result as it finishes and publishes the summary, so no shard ever writes it.
+        tasks.push(Box::new(move || {
+            *written = finished.into_iter().try_for_each(|(index, directory, outcome)| {
+                match outcome {
+                    Ok(evidence) => inventory.pass(&rules[index], evidence),
+                    Err(reason) => inventory.fail(&rules[index], reason),
+                }
+                let report = summary(registration, inventory, RunState::Running);
+                store.result(&directory, &report.rules[index])?;
+                store.publish(output, &report)
+            });
+        }));
+    }
+    scheduler.run_all(tasks);
+    written?;
     require_authority(registration, suite, store)?;
     store.publish(
         output,
@@ -261,6 +203,10 @@ pub fn verify(
 ///
 /// # Errors
 /// Refuses a failed verification, and propagates every verification failure.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the certification forwards the five independently injected ports, the registration, its output and its coverage"
+)]
 pub fn certify_registered(
     registration: &Registration,
     output: &Path,
@@ -269,6 +215,7 @@ pub fn certify_registered(
     execution: &dyn ExecutionPort,
     store: &dyn InventoryPort,
     coverage: &RegisteredCoverage,
+    scheduler: &dyn SchedulerPort,
 ) -> Result<CaseCount, Error> {
     if verify(
         registration,
@@ -278,6 +225,8 @@ pub fn certify_registered(
         execution,
         store,
         coverage,
+        scheduler,
+        ShardCount(1),
     )? != InventoryVerdict::Passed
     {
         return Err(Error::Invalid(

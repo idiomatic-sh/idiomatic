@@ -73,6 +73,7 @@ pub fn exercise(
         std::sync::Arc<dyn LinterPort>,
         std::sync::Arc<dyn crate::outbound::execution::interface::ExecutionPort>,
         std::sync::Arc<dyn crate::outbound::inventory::interface::InventoryPort>,
+        std::sync::Arc<dyn crate::outbound::scheduler::interface::SchedulerPort>,
     ) -> crate::inbound::use_cases::certify::use_case::CertifyUseCaseImpl,
 ) -> Result<ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount, ()> {
     let root = tempfile::tempdir().expect(constants::FIXTURE_PRECONDITION);
@@ -149,6 +150,7 @@ pub fn exercise(
         candidate.clone(),
         execution.clone(),
         std::sync::Arc::new(crate::outbound::inventory::factory::local()),
+        std::sync::Arc::new(crate::outbound::scheduler::factory::threads()),
     );
     let certificate = crate::inbound::use_cases::certify::interface::CertifyUseCase::certify(
         &operation,

@@ -6,6 +6,7 @@ use super::types::OperationVerdict;
 use super::use_case::OperateUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operations::types::BenchOperation;
+use ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardCount;
 use std::borrow::Cow;
 
 /// The scenario a row runs.
@@ -31,6 +32,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             operation: BenchOperation::Parity,
             tool_found: true,
             verdict: OperationVerdict::Passed,
+            shards: ShardCount(1),
         },
         expect: Expect::Value((
             OperationVerdict::Passed,
@@ -45,6 +47,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             operation: BenchOperation::Parity,
             tool_found: true,
             verdict: OperationVerdict::Failed,
+            shards: ShardCount(1),
         },
         expect: Expect::Value((
             OperationVerdict::Failed,
@@ -61,6 +64,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             operation: BenchOperation::Measure,
             tool_found: true,
             verdict: OperationVerdict::Passed,
+            shards: ShardCount(1),
         },
         expect: Expect::Value((
             OperationVerdict::Passed,
@@ -77,6 +81,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             operation: BenchOperation::Correctness,
             tool_found: true,
             verdict: OperationVerdict::Passed,
+            shards: ShardCount(1),
         },
         expect: Expect::Value((
             OperationVerdict::Failed,
@@ -87,12 +92,60 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
+        name: CaseName("correctness over four shards answers as over one"),
+        word: Word::Succeeds,
+        input: || Scenario {
+            operation: BenchOperation::Correctness,
+            tool_found: true,
+            verdict: OperationVerdict::Passed,
+            shards: ShardCount(4),
+        },
+        expect: Expect::Value((
+            OperationVerdict::Failed,
+            Cow::Borrowed(""),
+            Cow::Borrowed(
+                "[SealWorker(\"<root>/target/benchmark/fixture/lint/verify-inventory/worker\")]",
+            ),
+        )),
+    },
+    Case {
+        name: CaseName("zero shards are refused before any rule runs"),
+        word: Word::Refuses,
+        input: || Scenario {
+            operation: BenchOperation::Correctness,
+            tool_found: true,
+            verdict: OperationVerdict::Passed,
+            shards: ShardCount(0),
+        },
+        expect: Expect::Error((
+            Cow::Borrowed("invalid case shard coordinates"),
+            Cow::Borrowed(
+                "[SealWorker(\"<root>/target/benchmark/fixture/lint/verify-inventory/worker\")]",
+            ),
+        )),
+    },
+    Case {
+        name: CaseName("shards on measure or parity are refused"),
+        word: Word::Refuses,
+        input: || Scenario {
+            operation: BenchOperation::Parity,
+            tool_found: true,
+            verdict: OperationVerdict::Passed,
+            shards: ShardCount(2),
+        },
+        expect: Expect::Error((
+            Cow::Borrowed("--shards applies to verify-inventory only"),
+            Cow::Borrowed("[]"),
+        )),
+    },
+    Case {
         name: CaseName("an absent reference tool is refused by name before anything is sealed"),
         word: Word::Refuses,
         input: || Scenario {
             operation: BenchOperation::Parity,
             tool_found: false,
             verdict: OperationVerdict::Passed,
+            shards: ShardCount(1),
         },
         expect: Expect::Error((
             Cow::Borrowed("reference tool not found: lint"),

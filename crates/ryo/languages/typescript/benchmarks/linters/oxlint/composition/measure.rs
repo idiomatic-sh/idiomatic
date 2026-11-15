@@ -135,6 +135,7 @@ pub(super) fn measure(
         Arc::<_>::clone(&candidate),
         Arc::<_>::clone(&execution),
         Arc::new(ryo_benchmark::outbound::inventory::factory::local()),
+        Arc::new(ryo_benchmark::outbound::scheduler::factory::threads()),
     )
     .certify(
         &selected_profile,

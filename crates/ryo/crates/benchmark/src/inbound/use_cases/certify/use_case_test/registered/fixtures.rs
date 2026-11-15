@@ -195,6 +195,7 @@ impl Fixture {
             Arc::new(crate::outbound::linter::fixtures::fake::LinterFake::default()),
             self.execution.clone(),
             Arc::new(crate::outbound::inventory::factory::local()),
+            Arc::new(crate::outbound::scheduler::factory::threads()),
         );
         operation.certify(
             measured_profile,

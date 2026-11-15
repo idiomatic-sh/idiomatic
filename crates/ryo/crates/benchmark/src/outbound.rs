@@ -6,6 +6,7 @@ pub mod execution;
 pub mod linter;
 pub mod profile_tools;
 pub mod receipts;
+pub mod scheduler;
 pub mod suite;
 pub mod worker;
 pub mod workspace;

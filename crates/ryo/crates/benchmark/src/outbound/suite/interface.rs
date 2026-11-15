@@ -14,7 +14,7 @@ pub trait ScopedDirectory: Send + Sync {
     fn path(&self) -> &std::path::Path;
 }
 /// Read external suite artifacts and audit their authored default coverage.
-pub trait SuitePort {
+pub trait SuitePort: Send + Sync {
     /// Reverify declared physical observations before each contestant prepares its input.
     ///
     /// # Errors
