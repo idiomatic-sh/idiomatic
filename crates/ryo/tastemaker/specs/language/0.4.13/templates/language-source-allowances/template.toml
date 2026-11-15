@@ -1,8 +1,7 @@
 description = "The language's source import allowance, `src/tastemaker.toml`: the crates its own placement declares, written as the literal list its source is held to."
-why = "Every language's source scope needs its import allowance, `src/tastemaker.toml` (the product places `provider-imports` on `src`, which denies by default), and a scaffold writes only the files the entry it scaffolds places. The file was placed by the language's own `tastemaker.toml` (`provider-allowances`), which `tm scaffold language` writes but does not read, so a fresh language was a `provider-allowances#count` finding before its author wrote a line (ryo-hce3). A file is placed by one template entry, so the language spec places it here, alone. It renders the library the syntax adapter is named for; a language that reads with more crates lists them after it, and `source-import-allowlist`, in the language's own placement, refuses any entry its `libraries` and `domain-libraries` do not declare."
+why = "Every language's source scope needs its import allowance, `src/tastemaker.toml` (the product places `provider-imports` on `src`, which denies by default), and a scaffold writes only the files the entry it scaffolds places, so the language spec places it, alone: a file is placed by one template entry. It renders the library of each syntax adapter, and a placed file must list each of them; `source-import-allowlist`, in the language's own placement, holds the whole list to exactly the root's `libraries` and `domain-libraries`."
 content = '''
-{%- set library = captures.library | default(["library"]) | first -%}
-imports-allow = ["{{ library }}::*"]
+imports-allow = [{% for library in captures.library | default(["library"]) %}"{{ library }}::*"{% if not loop.last %}, {% endif %}{% endfor %}]
 '''
 
 [given]
@@ -10,7 +9,7 @@ file = 'own.toml'
 
 [[scenarios]]
 id = 'source-allowance-written'
-scenario = 'The scaffolded language allows its source the library its own placement declares.'
+scenario = 'The scaffolded language allows its source the library of its syntax adapter.'
 given.files.'own.toml' = '''
 imports-allow = ["library::*"]
 '''
