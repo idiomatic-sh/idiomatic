@@ -441,3 +441,51 @@ name="use-after-straight-line-rebinding"
 comparison="full"
 files={"case.py"="import os\nimport os\nprint(os)\n"}
 expected=[]
+
+[[cases]]
+name="nested-branch-rebinding-in-function-read-in-else"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    if c:\n        import os\n    else:\n        print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-try-rebinding-in-function-read-in-except"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    try:\n        import os\n    except ImportError:\n        print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-branch-rebinding-in-class-read-in-else"
+comparison="full"
+files={"case.py"="import os\nclass C:\n    if c:\n        import os\n    else:\n        print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-assignment-rebinding-in-function-read-in-else"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    if c:\n        os = 1\n    else:\n        print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-read-before-local-rebinding"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    if c:\n        print(os)\n    else:\n        import os\n"}
+expected=[{rule="F401", file="case.py", start=72, end=74}]
+
+[[cases]]
+name="nested-local-rebinding-then-read-same-branch"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    import os\n    print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-delete-in-branch-read-in-else"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    if c:\n        import os\n        del os\n    else:\n        print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-latest-branch-rebinding-is-the-one-used"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    if c:\n        import os\n    elif d:\n        import os\n    else:\n        print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]

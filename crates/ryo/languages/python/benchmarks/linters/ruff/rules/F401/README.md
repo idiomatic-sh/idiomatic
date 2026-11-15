@@ -17,3 +17,5 @@ The Python provider reports lexical facts; three Ruff 0.16.5 policies that chang
 An alias read also counts as a use at its position, so the submodule binding it marks passes that use to a later rebinding of the same name through the same replacement and inheritance step as any other use (`checker/mod.rs`, copy of references on rebinding).
 
 The cases `submodule-*`, `forward-reference-*`, `future-annotation-*`, `global-*`, `module-level-global-import` and `nonlocal-*` pin each clause against Ruff.
+
+A read in a function or class body that the provider resolves to an outer binding is a use of the latest earlier binding of that name in the read's own scope when one exists, in any branch (`model.rs` `resolve_load` finds the scope's binding before looking outward). So `import os` / `def f(): if c: import os / else: print(os)` leaves the module import unused. Deleted names still shadow, as in Ruff. Reads from a comprehension or lambda scope and `global`-declared rebindings are not covered yet.
