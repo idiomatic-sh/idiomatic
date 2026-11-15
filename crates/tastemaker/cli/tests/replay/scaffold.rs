@@ -2,8 +2,6 @@
 //! of it missing or misplaced. Findings about its content (the fixtures and rows the author writes) are the author's work and are not
 //! asked about here.
 
-mod contract;
-
 use std::path::Path;
 use std::process::Command;
 
@@ -186,7 +184,7 @@ fn a_fresh_language_compiles_and_lacks_no_part() {
     let contract =
         std::fs::read_to_string(language.join("src/inbound/contracts/parse/contract.rs"))
             .expect("the generated parse contract");
-    contract::assert_contract(&contract);
+    crate::scaffold_contract::assert_contract(&contract);
 
     // The packages the copied workspace's lock names, fetched first: a machine that built only Tastemaker has not downloaded
     // every one of ryo's (`addr2line`, a dependency for another target, among them), and the check itself runs offline.

@@ -25,6 +25,7 @@ templates = [
   { alias = "corpus-files", template = "language-tree", file = "tests/fixtures/corpus/{*file}", count = { min = 0 }, description = "A real-world file the language is held to, copied unchanged. The workspace keeps rules off the corpus, and the conformance requires its files." },
   { template = "language-allocation-test", file = "tests/allocation.rs", description = "The allocation row of the language contract, run alone in its process: reading a file allocates no more than its parser library does." },
   { template = "language-tastemaker", file = "tastemaker.toml", params = { lang = { param = "lang" } }, description = "The language's own placement: the parser and tool crates it reads with, declared once." },
+  { template = "language-source-allowances", file = "src/tastemaker.toml", description = "The source scope's import allowance: the library the syntax adapter is named for, then any other crate the language's own placement declares. Placed here, so a scaffold writes it with the rest of the language." },
   { template = "language-conformance-test", file = "tests/conformance.rs", params = { lang = { param = "lang" } }, description = "The conformance row of the language contract: each answer the language gives for the catalog is held to its fixtures." },
   { template = "language-cargo", file = "Cargo.toml", params = { lang = { param = "lang" } }, description = "The crate's manifest: the SDK and the derives it uses, the closed test targets, the bench and the `fixtures` feature." },
   { template = "language-readme", file = "README.md", params = { lang = { param = "lang" } }, description = "The crate's README: its name, what it is for, how a program links it, one runnable example and a line for each of its domains." },
@@ -2474,7 +2475,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*", "demo_lexer::*", "indexmap::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -2753,7 +2753,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -3087,7 +3086,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/conformance.rs' = '''
@@ -3408,7 +3406,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -3704,7 +3701,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -4014,7 +4010,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -4480,6 +4475,7 @@ The release or commit of the suite that is pinned here.
 '''
 then.findings = [
   { rule = 'idiomatic.ryo/language/language-tastemaker#count', path = 'demo' },
+  { rule = 'idiomatic.ryo/language/language-source-allowances#count', path = 'demo' },
 ]
 
 [[scenarios]]
@@ -4658,7 +4654,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -4984,7 +4979,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -5392,7 +5386,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -5709,7 +5702,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -6103,7 +6095,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -6494,7 +6485,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -6885,7 +6875,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -7232,7 +7221,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -7612,7 +7600,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -8047,7 +8034,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -8453,7 +8439,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -8969,7 +8954,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -9366,7 +9350,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -9748,7 +9731,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -10138,7 +10120,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -10522,7 +10503,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -10988,7 +10968,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -11451,7 +11430,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -11898,7 +11876,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -12404,7 +12381,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -12843,7 +12819,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -13251,7 +13226,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -13686,7 +13660,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -14124,7 +14097,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -14532,7 +14504,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -15532,7 +15503,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -16533,7 +16503,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -17497,7 +17466,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -18497,7 +18465,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -19497,7 +19464,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -19891,7 +19857,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -20353,7 +20318,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''
@@ -20811,7 +20775,6 @@ rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
   { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
-templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
 given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
 given.files.'demo/tests/allocation.rs' = '''

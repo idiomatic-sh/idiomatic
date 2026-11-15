@@ -1,3 +1,7 @@
+# language 0.4.13
+
+Places the source scope's import allowance, `src/tastemaker.toml`, with the new template `language-source-allowances` (`imports-allow = ["<library>::*"]`, `match = "contains"`: a language that reads with more crates lists them after the library its syntax adapter is named for). The language's own placement (`language-tastemaker`) no longer places the file with `provider-allowances`: a file is placed by one template entry, and `tm scaffold language` writes only what the language entry places, so a fresh language lacked the file and was a `provider-allowances#count` finding (ryo-hce3). The own placement keeps `source-import-allowlist`, which refuses any entry its `libraries` and `domain-libraries` do not declare. The scenarios' own placements drop the `provider-allowances` line, and `missing-tastemaker` also finds the missing allowance. Everything else is as in 0.4.12. 0.4.12 is removed with this version.
+
 # language 0.4.12
 
 Places `contract` 0.6.1, whose parse contract answers `semantics` with `languages::SemanticAnswers::Absent` and whose project contract's `project_entries` takes `&mut languages::ProjectEntries`. The language fixtures' parse and project contracts carry them, so a freshly scaffolded language compiles against the ports as they are. Everything else is as in 0.4.10. 0.4.10 is removed with this version; 0.4.11 is held by a branch in flight, which renames the tip when it lands.

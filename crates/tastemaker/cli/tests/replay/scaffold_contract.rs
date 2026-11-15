@@ -1,7 +1,7 @@
-//! Assertions for the generated language reader contract.
+//! What the `scaffold` row holds the parse contract `tm scaffold language` writes to: optional reader support explicitly unread.
 
 /// Keep optional reader support explicitly unread in a newly generated language, given the text of its parse contract.
-pub(super) fn assert_contract(contract: &str) {
+pub(crate) fn assert_contract(contract: &str) {
     assert!(
         contract.contains("fn capabilities(&self) -> &'static [languages::OptionalCapability] {\n        &[]\n    }"),
         "a fresh language must not advertise unimplemented optional capabilities"
