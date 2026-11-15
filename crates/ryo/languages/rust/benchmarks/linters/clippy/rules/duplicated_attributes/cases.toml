@@ -357,3 +357,23 @@ expected = [{ file = "src/lib.rs", start = 14, end = 25 }]
 name = "nested-raw-and-plain-string-same-value"
 files = { "src/lib.rs" = "#[rustfmt::skip(a(v = \"x\", v = r\"x\"))]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 27, end = 35 }]
+
+[[cases]]
+name = "third-level-words"
+files = { "src/lib.rs" = "#[rustfmt::skip(a(b(c, c)))]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 23, end = 24 }]
+
+[[cases]]
+name = "third-level-decoded-strings"
+files = { "src/lib.rs" = "#[rustfmt::skip(a(b(v = \"x\", v = r\"x\")))]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 37 }]
+
+[[cases]]
+name = "third-level-same-chain"
+files = { "src/lib.rs" = "#[rustfmt::skip(a(b(c)), a(b(c)))]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 30 }]
+
+[[cases]]
+name = "third-level-different-chain"
+files = { "src/lib.rs" = "#[rustfmt::skip(a(b(c)), a(d(c)))]\npub fn f() {}\n" }
+expected = []
