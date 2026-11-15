@@ -2,7 +2,7 @@
 //! kinds, until the operators' physical plan completes it.
 
 use crate::domain::executable_program::types::{
-    Consumers, ObservationReach, RuleNodes, RuleScopes, Serving,
+    Consumers, ObservationReach, RuleNodes, RuleScopes,
 };
 use crate::domain::operating::errors::OperatingError;
 use ryo_operators::domain::physical_plan::types::PlanNodeId;
@@ -27,8 +27,6 @@ pub struct LogicalBuild<'p> {
     pub(crate) program: LogicalProgram<'p>,
     /// Each rule's nodes, in rule order.
     pub(crate) rules: Vec<RuleNodes>,
-    /// Whether each rule is served, from its plan: a step after the files or a bound input.
-    pub(crate) serving: Vec<Serving>,
     /// Each node's consumers, by node.
     pub(crate) consumers: Vec<Consumers>,
     /// The nodes that start from the tree nodes of a kind, by the text the plans write for the kind.

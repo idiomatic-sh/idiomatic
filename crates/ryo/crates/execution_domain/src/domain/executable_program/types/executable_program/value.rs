@@ -2,7 +2,7 @@
 //! whether each rule is served, each node's consumers and the root kinds.
 
 use crate::domain::executable_program::types::{
-    Consumers, ObservationReach, RuleNodes, RuleScopes, Serving,
+    Consumers, ObservationReach, RuleNodes, RuleScopes,
 };
 use crate::domain::operating::errors::OperatingError;
 use ryo_operators::domain::physical_plan::types::PlanNodeId;
@@ -10,7 +10,7 @@ use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalP
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
-/// A request's program, planned. Read through the concept's service: `serving`, `roots`, `rule`, `consumers`, `physical`.
+/// A request's program, planned. Read through the concept's service: `roots`, `rule`, `consumers`, `physical`.
 ///
 /// # Examples
 ///
@@ -21,7 +21,7 @@ use ryo_values::domain::plan_parts::types::LiteralText;
 /// let mut inputs = ProgramInputs::default();
 /// let build = logical(&[], &mut inputs).unwrap();
 /// let program = assemble(build, PhysicalPlan::default());
-/// assert!(physical(&program).unserved().is_empty());
+/// let _plan = physical(&program);
 /// ```
 #[derive(Clone, Debug)]
 pub struct ExecutableProgram {
@@ -29,8 +29,6 @@ pub struct ExecutableProgram {
     pub(crate) plan: PhysicalPlan,
     /// Each rule's nodes, in rule order.
     pub(crate) rules: Vec<RuleNodes>,
-    /// Whether each rule is served.
-    pub(crate) serving: Vec<Serving>,
     /// Each node's consumers, by node.
     pub(crate) consumers: Vec<Consumers>,
     /// The nodes that start from the tree nodes of a kind, by the text the plans write for the kind.

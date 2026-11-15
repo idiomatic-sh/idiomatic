@@ -7,20 +7,11 @@ pub(crate) mod run;
 
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem;
-use crate::domain::physical_plan::constants::{
-    BOUND_STAGE, GRAPH_STAGE, RELATIONAL_STAGE, TEXT_STAGE,
-};
 use crate::domain::physical_plan::service::lowering::service::lowered;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-use crate::domain::physical_plan::types::{
-    NodeReaders, PlanInput, PlanNodeId, Retention, ServedAt, Unserved,
-};
-use ryo_values::domain::plans::service::kind_of;
-use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::query_operators::types::OperationKind;
+use crate::domain::physical_plan::types::{NodeReaders, PlanInput, PlanNodeId, Retention};
 
 /// Every rewrite, in the order the planner applies them: each an equivalence, so a plan answers the same rows with or without
 /// it.
@@ -96,8 +87,7 @@ kernels! {
     Components => crate::domain::physical_plan::collections::kernels::components::item::ComponentsItem,
 }
 
-/// The physical plan of `program`: each node lowered once, every registered rewrite applied, and every node of a kind of a
-/// later stage recorded as unserved.
+/// The physical plan of `program`: each node lowered once, and every registered rewrite applied.
 ///
 /// # Errors
 ///
@@ -125,15 +115,6 @@ pub(crate) fn plan_with(
             retained: Retention::Released,
         })
         .collect();
-    let mut unserved = Vec::new();
-    for ((node, physical), id) in logical.iter().zip(&nodes).zip((0..).map(PlanNodeId)) {
-        if physical.lowering == Lowering::Unlowered {
-            unserved.push(Unserved {
-                node: id,
-                until: stage_of(node.operation),
-            });
-        }
-    }
     for node in logical {
         for input in node.inputs.0 {
             if let PlanInput::Node(read) = input
@@ -154,57 +135,10 @@ pub(crate) fn plan_with(
     }
     // After the rewrites: a rewrite changes a probe's right rows, key and mode, and replaces probes.
     indexes::service::shared_indexes(&mut nodes, &mut indexes);
-    Ok(PhysicalPlan {
-        nodes,
-        indexes,
-        unserved,
-    })
+    Ok(PhysicalPlan { nodes, indexes })
 }
 
 /// The node at `id`, to change.
 fn place(nodes: &mut [PhysicalNode], id: PlanNodeId) -> Option<&mut PhysicalNode> {
     nodes.get_mut(usize::try_from(id.0).unwrap_or(usize::MAX))
 }
-
-pub(crate) fn stage_of_kind(kind: OperationKind) -> ServedAt {
-    match kind {
-        OperationKind::Select
-        | OperationKind::Project
-        | OperationKind::Extend
-        | OperationKind::Join
-        | OperationKind::Union
-        | OperationKind::Intersection
-        | OperationKind::Difference
-        | OperationKind::Antijoin
-        | OperationKind::GroupCount => RELATIONAL_STAGE,
-        OperationKind::Capture
-        | OperationKind::Rank
-        | OperationKind::Replace
-        | OperationKind::OrderedMatch
-        | OperationKind::Words
-        | OperationKind::SpanBetween
-        | OperationKind::SourceMatches
-        | OperationKind::RenderSyntax
-        | OperationKind::FitsRendered
-        | OperationKind::SpanBounds => TEXT_STAGE,
-        OperationKind::GroupDigest
-        | OperationKind::Axis
-        | OperationKind::Closure
-        | OperationKind::OrderedDfs
-        | OperationKind::Cycles => GRAPH_STAGE,
-        OperationKind::Rows | OperationKind::Hosted => BOUND_STAGE,
-    }
-}
-
-/// The stage that lowers a node this stage does not: its kind's, or for one of this stage's kinds, the stage that reads what
-/// it reads: a join's closure demand at the third.
-fn stage_of(operation: &Operation) -> ServedAt {
-    match (stage_of_kind(kind_of(operation)), operation) {
-        (stage, _) if SERVED.contains(&stage) => BOUND_STAGE,
-        (stage, _) => stage,
-    }
-}
-
-/// The stages whose kinds this branch lowers: a node of one of their kinds that is not lowered reads what a later stage
-/// serves. Branch only: deleted with `ServedAt`.
-pub(crate) const SERVED: &[ServedAt] = &[RELATIONAL_STAGE, TEXT_STAGE, GRAPH_STAGE, BOUND_STAGE];

@@ -6,7 +6,7 @@ use crate::domain::executable_program::types::executable_program::value::Executa
 use crate::domain::executable_program::types::logical_build::value::LogicalBuild;
 use crate::domain::executable_program::types::program_inputs::value::ProgramInputs;
 use crate::domain::executable_program::types::{
-    Consumers, Draft, DraftInputs, RootKind, RuleInput, RuleNodes, RuleScopes, Serving, StepAt,
+    Consumers, Draft, DraftInputs, RootKind, RuleInput, RuleNodes, RuleScopes, StepAt,
 };
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::service::schema_of;
@@ -56,7 +56,6 @@ pub fn logical<'p>(
     let mut drafts: Vec<Draft<'p>> = Vec::new();
     let mut buckets = hashbrown::HashMap::<u64, Vec<usize>>::new();
     let mut nodes = Vec::with_capacity(rules.len());
-    let mut serving = Vec::with_capacity(rules.len());
     let mut scopes = Vec::with_capacity(rules.len());
     for (rule, input) in rules.iter().enumerate() {
         let plan: &'p Plan = input.plan;
@@ -148,7 +147,6 @@ pub fn logical<'p>(
             (None, Some(Err(error))) => Err(error.clone()),
             (None, None) => Err(OperatingError::NotRun),
         };
-        serving.push(Serving::Served);
         scopes.push(RuleScopes {
             emit: scope_at(plan, plan.emit.step),
             observations: plan
@@ -180,7 +178,6 @@ pub fn logical<'p>(
     Ok(LogicalBuild {
         program,
         rules: nodes,
-        serving,
         consumers,
         roots,
         schemas,
@@ -204,7 +201,6 @@ pub fn logical<'p>(
 pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgram {
     let LogicalBuild {
         rules,
-        mut serving,
         consumers,
         roots,
         schemas,
@@ -212,56 +208,15 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
         reach,
         ..
     } = build;
-    for unserved in plan.unserved() {
-        for (nodes, served) in rules.iter().zip(serving.iter_mut()) {
-            if nodes
-                .steps
-                .iter()
-                .any(|step| step.as_ref() == Ok(&unserved.node))
-            {
-                *served = match *served {
-                    Serving::NotServedUntil(stage) if stage >= unserved.until => {
-                        Serving::NotServedUntil(stage)
-                    }
-                    Serving::Served | Serving::NotServedUntil(_) => {
-                        Serving::NotServedUntil(unserved.until)
-                    }
-                };
-            }
-        }
-    }
     ExecutableProgram {
         plan,
         rules,
-        serving,
         consumers,
         roots,
         schemas,
         scopes,
         reach,
     }
-}
-
-/// Whether `rule` runs at this stage.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::service::{assemble, logical, serving};
-/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
-/// let program = assemble(logical(&[], &mut ProgramInputs::default()).unwrap(), Default::default());
-/// assert!(serving(&program, ryo_execution_domain::domain::coverage::types::RuleIndex(0)).is_err());
-/// ```
-///
-/// # Errors
-///
-/// `NotRun` for a rule the program does not have.
-pub fn serving(program: &ExecutableProgram, rule: RuleIndex) -> Result<Serving, OperatingError> {
-    program
-        .serving
-        .get(rule.0)
-        .copied()
-        .ok_or(OperatingError::NotRun)
 }
 
 /// The nodes that start from the tree nodes of the kind the plans write as `kind`, in node order.

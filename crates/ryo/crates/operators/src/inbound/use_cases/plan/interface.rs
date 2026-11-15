@@ -10,7 +10,7 @@ use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 /// use ryo_operators::inbound::use_cases::plan::{interface::PlanUseCase, use_case::PlanUseCaseImpl};
 /// use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
 /// let plan = PlanUseCaseImpl.plan(&LogicalProgram::new());
-/// assert!(plan.is_ok_and(|plan| plan.unserved().is_empty()));
+/// assert!(plan.is_ok());
 /// ```
 ///
 /// A kernel is private to operators: the engine cannot name one.
@@ -37,8 +37,7 @@ use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 /// impl PlanUseCase for MissingPlanner {}
 /// ```
 pub trait PlanUseCase: Sync {
-    /// The physical plan of `program`. A node whose kind has no lowering yet is recorded in `PhysicalPlan::unserved`, never
-    /// answered as an error, so one unserved rule never fails the served ones.
+    /// The physical plan of `program`: every node lowered once.
     ///
     /// # Errors
     ///

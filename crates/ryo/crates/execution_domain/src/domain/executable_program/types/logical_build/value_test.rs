@@ -10,21 +10,21 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 /// No input: the request is empty.
 type Input = ();
 
-type Value = usize;
+/// Whether the operators planned the build's program.
+type Value = bool;
 type Failure = ();
 
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("the_program_of_an_empty_request_plans_with_nothing_unserved"),
+    name: CaseName("the_program_of_an_empty_request_plans"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value(0),
+    expect: Expect::Value(true),
 }];
 
 fn subject((): Input) -> Result<Value, Failure> {
     let mut inputs = ProgramInputs::default();
     let build: LogicalBuild<'_> = logical(&[], &mut inputs).map_err(|_| ())?;
-    let plan = PlanUseCaseImpl.plan(build.program()).map_err(|_| ())?;
-    Ok(plan.unserved().len())
+    Ok(PlanUseCaseImpl.plan(build.program()).is_ok())
 }
 
 #[test]

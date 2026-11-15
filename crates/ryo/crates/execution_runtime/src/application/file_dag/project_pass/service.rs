@@ -17,8 +17,6 @@ use crate::application::file_dag::program::rule_outcome::types::{
 use crate::application::file_dag::project_source::service::read;
 use crate::application::file_dag::publications::types::PublicationSlot;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::service::serving;
-use ryo_execution_domain::domain::executable_program::types::Serving;
 use ryo_execution_domain::domain::hosted::service::table_of_query;
 use ryo_execution_domain::domain::hosted::types::NumberedFiles;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -176,9 +174,6 @@ fn handover_of<E>(
     symbols: &mut Symbols,
 ) -> Result<HandoverPlace, PhaseStop<E>> {
     let rule = occurrence.rule;
-    if let Ok(Serving::NotServedUntil(stage)) = serving(&batch.pass.program, rule) {
-        return Err(PhaseStop::Operating(OperatingError::NotServedUntil(stage)));
-    }
     let first = *batch
         .first
         .get(rule.0)

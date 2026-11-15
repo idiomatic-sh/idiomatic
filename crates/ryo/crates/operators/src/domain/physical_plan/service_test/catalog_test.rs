@@ -5,7 +5,7 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::interface::Reach;
 use crate::domain::physical_plan::fixtures::{Step, text_program};
 use crate::domain::physical_plan::service::lowering::service::lowered;
-use crate::domain::physical_plan::service::{Kernel, REWRITES, SERVED, plan_with, stage_of_kind};
+use crate::domain::physical_plan::service::{Kernel, REWRITES, plan_with};
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
@@ -99,14 +99,11 @@ fn with_bound_scans(mut steps: Vec<Step>) -> Vec<Step> {
     steps
 }
 
-/// Every kind of a served stage has a node of the case program `lower` lowers; every other kind is a later stage's.
+/// Every kind has a node of the case program `lower` lowers.
 fn kinds_lower(lower: Lower) -> Result<Value, Failure> {
     let steps = with_bound_scans(text_program());
     let mut held = 0;
     for kind in OperationKind::ALL {
-        if !SERVED.contains(&stage_of_kind(*kind)) {
-            continue;
-        }
         if !steps.iter().any(|step| {
             kind_of(&step.operation) == *kind
                 && lower(&step.operation, &step.inputs, &[]) != Lowering::Unlowered

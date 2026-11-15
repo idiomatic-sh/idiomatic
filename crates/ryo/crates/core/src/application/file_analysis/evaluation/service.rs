@@ -139,19 +139,6 @@ impl FileAnalysis {
             }
             let captures = match after {
                 RuleAfter::Ran { captures } => captures,
-                // A rule no stage serves yet is refused alone: the file notes it undecided for that rule and the others run.
-                RuleAfter::Stopped(FileStop::Operating(
-                    refusal @ OperatingError::NotServedUntil(_),
-                )) => {
-                    let at = usize::try_from(file.0).map_err(|_| OperatingError::NotRun)?;
-                    tables.unknowns.push(Unknown {
-                        rule: visit.setting.ids[rule.0].clone(),
-                        path: visit.setting.paths[at].clone(),
-                        message: Message(refusal.to_string().into()),
-                        cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
-                    });
-                    continue;
-                }
                 RuleAfter::Stopped(stop) => return Err(stopped(stop, &mut refused)),
                 RuleAfter::Unreached => return Err(OperatingError::NotRun.into()),
             };

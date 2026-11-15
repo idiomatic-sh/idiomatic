@@ -1,4 +1,4 @@
-//! The plan use case: a program is refused only for its shape, never for a kind it cannot lower yet.
+//! The plan use case: a program is refused only for its shape.
 use super::interface::PlanUseCase as _;
 use super::use_case::PlanUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -27,7 +27,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_program_reading_only_earlier_nodes_is_planned"),
         word: Word::Succeeds,
         input: || Scenario::ReadsEarlier,
-        expect: Expect::Value(0),
+        expect: Expect::Value(2),
     },
     Case {
         name: CaseName("a_node_reading_a_later_node_is_refused"),
@@ -43,7 +43,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// The unserved nodes of a two-node program: a select of a relation, then a select of node `read`, emitting `emit`.
+/// The nodes planned of a two-node program: a select of a relation, then a select of node `read`, emitting `emit`.
 fn subject(scenario: Scenario) -> Result<Value, Failure> {
     let operation = Operation::Select {
         from: StepInput::Relation(Relation::Function),
@@ -67,9 +67,7 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
         });
     }
     program.emit(RuleOrdinal(0), PlanNodeId(emit));
-    PlanUseCaseImpl
-        .plan(&program)
-        .map(|plan| plan.unserved().len())
+    PlanUseCaseImpl.plan(&program).map(|plan| plan.nodes.len())
 }
 
 #[test]

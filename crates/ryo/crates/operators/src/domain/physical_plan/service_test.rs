@@ -21,7 +21,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_node_reading_only_a_relation_is_planned"),
         word: Word::Succeeds,
         input: || u32::MAX,
-        expect: Expect::Value(0),
+        expect: Expect::Value(1),
     },
     Case {
         name: CaseName("a_node_reading_itself_is_refused"),
@@ -49,7 +49,7 @@ fn subject(read: Input) -> Result<Value, Failure> {
         bindings: NodeBindings(&[]),
         scope: StepScope::PerFile,
     });
-    plan(&program).map(|planned| planned.unserved().len())
+    plan(&program).map(|planned| planned.nodes.len())
 }
 
 #[test]

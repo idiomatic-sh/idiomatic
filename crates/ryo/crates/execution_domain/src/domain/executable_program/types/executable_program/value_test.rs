@@ -9,21 +9,22 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 /// No input: the request is empty.
 type Input = ();
 
-type Value = usize;
+/// Whether the program answers the plan it was assembled with.
+type Value = bool;
 type Failure = ();
 
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("an_empty_program_answers_an_empty_plan"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value(0),
+    expect: Expect::Value(true),
 }];
 
 fn subject((): Input) -> Result<Value, Failure> {
     let mut inputs = ProgramInputs::default();
     let build = logical(&[], &mut inputs).map_err(|_| ())?;
     let program: ExecutableProgram = assemble(build, PhysicalPlan::default());
-    Ok(physical(&program).unserved().len())
+    Ok(format!("{:?}", physical(&program)) == format!("{:?}", PhysicalPlan::default()))
 }
 
 #[test]

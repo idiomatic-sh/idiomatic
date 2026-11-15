@@ -1,6 +1,6 @@
-//! What the planner made of a logical program: the kernels of each lowered node and the nodes it could not lower yet.
+//! What the planner made of a logical program: the kernels of each node and the indexes they share.
 
-use crate::domain::physical_plan::types::{KeyedIndex, Unserved};
+use crate::domain::physical_plan::types::KeyedIndex;
 
 /// The physical plan of one program. Built only by `plan`, so the engine cannot write a kernel.
 ///
@@ -8,8 +8,8 @@ use crate::domain::physical_plan::types::{KeyedIndex, Unserved};
 ///
 /// ```
 /// use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-/// fn unlowered(plan: &PhysicalPlan) -> usize {
-///     plan.unserved().len()
+/// fn planned(plan: &PhysicalPlan) -> &PhysicalPlan {
+///     plan
 /// }
 /// ```
 #[derive(Clone, Debug, Default)]
@@ -18,24 +18,6 @@ pub struct PhysicalPlan {
     pub(crate) nodes: Vec<PhysicalNode>,
     /// The shared indexes, each built once per file for all its readers: a relation's lookups, or one right side's probes.
     pub(crate) indexes: Vec<KeyedIndex>,
-    /// The nodes whose kind has no lowering yet, in node order.
-    pub(crate) unserved: Vec<Unserved>,
-}
-
-impl PhysicalPlan {
-    /// The nodes whose kind has no lowering yet, in node order, each with the stage that lowers it. `plan` records them and
-    /// never fails for them; `assemble` turns them into per-rule refusals. Branch only: deleted in F5.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-    /// assert!(PhysicalPlan::default().unserved().is_empty());
-    /// ```
-    #[must_use]
-    pub fn unserved(&self) -> &[Unserved] {
-        &self.unserved
-    }
 }
 
 /// One node of the physical plan: its kernels and who reads its rows.

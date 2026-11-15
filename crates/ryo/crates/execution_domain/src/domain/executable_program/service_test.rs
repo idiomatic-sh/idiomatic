@@ -2,7 +2,7 @@
 
 use super::fixtures::{Request, rules_of};
 use super::service::scopes::service::observation_reach;
-use super::service::{assemble, consumers, logical, roots, rule, serving};
+use super::service::{assemble, consumers, logical, roots, rule};
 use super::types::program_inputs::value::ProgramInputs;
 use super::types::{RuleBindings, RuleInput, RuleObservations};
 use crate::domain::coverage::types::RuleIndex;
@@ -23,7 +23,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Request::EqualSteps,
         expect: Expect::Value(Cow::Borrowed(
-            "nodes 1; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)) Served; rule 1: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)) Served; consumers [2]; inputs [[Relation(Function)]]; reach [Phase]; roots word []; roots other [];",
+            "nodes 1; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)); rule 1: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)); consumers [2]; inputs [[Relation(Function)]]; reach [Phase]; roots word []; roots other [];",
         )),
     },
     Case {
@@ -31,7 +31,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Request::FileAndProjectScope,
         expect: Expect::Value(Cow::Borrowed(
-            "nodes 2; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)) Served; rule 1: steps [Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)) Served; consumers [1, 1]; inputs [[Relation(Function)], [Relation(Function)]]; reach [Phase, Phase]; roots word []; roots other [];",
+            "nodes 2; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)); rule 1: steps [Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)); consumers [1, 1]; inputs [[Relation(Function)], [Relation(Function)]]; reach [Phase, Phase]; roots word []; roots other [];",
         )),
     },
     Case {
@@ -39,7 +39,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Request::DifferentParameterValues,
         expect: Expect::Value(Cow::Borrowed(
-            "nodes 2; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)) Served; rule 1: steps [Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)) Served; consumers [1, 1]; inputs [[Relation(Function)], [Relation(Function)]]; reach [Phase, Phase]; roots word []; roots other [];",
+            "nodes 2; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)); rule 1: steps [Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)); consumers [1, 1]; inputs [[Relation(Function)], [Relation(Function)]]; reach [Phase, Phase]; roots word []; roots other [];",
         )),
     },
     Case {
@@ -47,15 +47,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Request::BoundInput,
         expect: Expect::Value(Cow::Borrowed(
-            "nodes 1; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)) Served; consumers [1]; inputs [[Observation(BoundObservationPlace { rule: RuleOrdinal(0), input: ObservationBindingId(0) })]]; reach [Occurrence]; roots word []; roots other [];",
-        )),
-    },
-    Case {
-        name: CaseName("an_unlowered_kind_is_not_served_until_its_stage_and_the_other_rule_is"),
-        word: Word::Succeeds,
-        input: || Request::UnservedKind,
-        expect: Expect::Value(Cow::Borrowed(
-            "nodes 2; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)) NotServedUntil(ServedAt(3)); rule 1: steps [Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)) Served; consumers [1, 1]; inputs [[Relation(SyntaxTree), Relation(SyntaxChild), Relation(SyntaxTree)], [Relation(Function)]]; reach [Phase, Phase]; roots word []; roots other [];",
+            "nodes 1; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)); consumers [1]; inputs [[Observation(BoundObservationPlace { rule: RuleOrdinal(0), input: ObservationBindingId(0) })]]; reach [Occurrence]; roots word []; roots other [];",
         )),
     },
     Case {
@@ -63,7 +55,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Request::SchemaFault,
         expect: Expect::Value(Cow::Borrowed(
-            "nodes 1; rule 0: steps [Ok(PlanNodeId(0))] emit Err(Table(NoSuchColumn { index: 99 })) Served; consumers [1]; inputs [[Relation(Function)]]; reach [Phase]; roots word []; roots other [];",
+            "nodes 1; rule 0: steps [Ok(PlanNodeId(0))] emit Err(Table(NoSuchColumn { index: 99 })); consumers [1]; inputs [[Relation(Function)]]; reach [Phase]; roots word []; roots other [];",
         )),
     },
     Case {
@@ -71,7 +63,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Request::RootKinds,
         expect: Expect::Value(Cow::Borrowed(
-            "nodes 2; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)) Served; rule 1: steps [Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)) Served; consumers [1, 1]; inputs [[Relation(SyntaxTree)], [Relation(SyntaxTree)]]; reach [Phase, Phase]; roots word [PlanNodeId(0)]; roots other [];",
+            "nodes 2; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)); rule 1: steps [Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)); consumers [1, 1]; inputs [[Relation(SyntaxTree)], [Relation(SyntaxTree)]]; reach [Phase, Phase]; roots word [PlanNodeId(0)]; roots other [];",
         )),
     },
     Case {
@@ -79,7 +71,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Request::TwoRulesFrontiers,
         expect: Expect::Value(Cow::Borrowed(
-            "nodes 3; rule 0: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)) Served; rule 1: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(2))] emit Ok(PlanNodeId(2)) Served; consumers [2, 1, 1]; inputs [[Relation(Function)], [Frontier(FrontierPlace { rule: RuleOrdinal(0), input: InputNumber(0) })], [Frontier(FrontierPlace { rule: RuleOrdinal(1), input: InputNumber(0) })]]; reach [Phase, Phase, Phase]; roots word []; roots other [];",
+            "nodes 3; rule 0: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)); rule 1: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(2))] emit Ok(PlanNodeId(2)); consumers [2, 1, 1]; inputs [[Relation(Function)], [Frontier(FrontierPlace { rule: RuleOrdinal(0), input: InputNumber(0) })], [Frontier(FrontierPlace { rule: RuleOrdinal(1), input: InputNumber(0) })]]; reach [Phase, Phase, Phase]; roots word []; roots other [];",
         )),
     },
     Case {
@@ -87,7 +79,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Request::TwoRulesObservations,
         expect: Expect::Value(Cow::Borrowed(
-            "nodes 2; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)) Served; rule 1: steps [Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)) Served; consumers [1, 1]; inputs [[Observation(BoundObservationPlace { rule: RuleOrdinal(0), input: ObservationBindingId(0) })], [Observation(BoundObservationPlace { rule: RuleOrdinal(1), input: ObservationBindingId(0) })]]; reach [Occurrence, Occurrence]; roots word []; roots other [];",
+            "nodes 2; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)); rule 1: steps [Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)); consumers [1, 1]; inputs [[Observation(BoundObservationPlace { rule: RuleOrdinal(0), input: ObservationBindingId(0) })], [Observation(BoundObservationPlace { rule: RuleOrdinal(1), input: ObservationBindingId(0) })]]; reach [Occurrence, Occurrence]; roots word []; roots other [];",
         )),
     },
     Case {
@@ -95,7 +87,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Request::ObservationReach,
         expect: Expect::Value(Cow::Borrowed(
-            "nodes 4; rule 0: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1)), Ok(PlanNodeId(2)), Ok(PlanNodeId(3))] emit Ok(PlanNodeId(3)) Served; consumers [1, 1, 0, 1]; inputs [[Relation(Function)], [Observation(BoundObservationPlace { rule: RuleOrdinal(0), input: ObservationBindingId(0) })], [Node(PlanNodeId(1))], [Frontier(FrontierPlace { rule: RuleOrdinal(0), input: InputNumber(1) })]]; reach [Phase, Occurrence, Occurrence, Phase]; roots word []; roots other [];",
+            "nodes 4; rule 0: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1)), Ok(PlanNodeId(2)), Ok(PlanNodeId(3))] emit Ok(PlanNodeId(3)); consumers [1, 1, 0, 1]; inputs [[Relation(Function)], [Observation(BoundObservationPlace { rule: RuleOrdinal(0), input: ObservationBindingId(0) })], [Node(PlanNodeId(1))], [Frontier(FrontierPlace { rule: RuleOrdinal(0), input: InputNumber(1) })]]; reach [Phase, Occurrence, Occurrence, Phase]; roots word []; roots other [];",
         )),
     },
     Case {
@@ -103,7 +95,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Request::SharedReads,
         expect: Expect::Value(Cow::Borrowed(
-            "nodes 2; rule 0: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)) Served; consumers [2, 1]; inputs [[Relation(Function)], [Node(PlanNodeId(0))]]; reach [Phase, Phase]; roots word []; roots other [];",
+            "nodes 2; rule 0: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)); consumers [2, 1]; inputs [[Relation(Function)], [Node(PlanNodeId(0))]]; reach [Phase, Phase]; roots word []; roots other [];",
         )),
     },
 ];
@@ -129,10 +121,8 @@ fn subject(request: Input) -> Result<Value, Failure> {
     for at in 0..rules.len() {
         let nodes = rule(&program, RuleIndex(at)).map_err(|_| ())?;
         said.push_str(&format!(
-            " rule {at}: steps {:?} emit {:?} {:?};",
-            nodes.steps,
-            nodes.emit,
-            serving(&program, RuleIndex(at)).map_err(|_| ())?
+            " rule {at}: steps {:?} emit {:?};",
+            nodes.steps, nodes.emit
         ));
     }
     let counts: Vec<u32> = (0..nodes)

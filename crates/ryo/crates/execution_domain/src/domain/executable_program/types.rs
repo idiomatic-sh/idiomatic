@@ -8,7 +8,7 @@ use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::types::InputShape;
 use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
-use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId, ServedAt};
+use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::observations::types::BoundObservationInput;
 use ryo_values::domain::plan_parts::types::{LiteralText, StepScope};
@@ -57,24 +57,6 @@ pub struct RuleInput<'a> {
     pub bindings: RuleBindings<'a>,
     /// The schemas of its bound inputs.
     pub observations: RuleObservations<'a>,
-}
-
-/// Whether a rule's nodes all run at this stage, or the stage that serves the last of them. Branch only: deleted with the last
-/// unlowered kind.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::types::Serving;
-/// use ryo_operators::domain::physical_plan::types::ServedAt;
-/// assert_ne!(Serving::Served, Serving::NotServedUntil(ServedAt(4)));
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Serving {
-    /// Every node of the rule runs.
-    Served,
-    /// The latest stage among the rule's unserved features: a kind with no lowering, a step after the files, or a bound input.
-    NotServedUntil(ServedAt),
 }
 
 /// A rule's nodes: the node of each of its steps, in step order, and the node it emits, each with the fault of a step whose

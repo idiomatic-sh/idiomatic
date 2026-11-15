@@ -13,7 +13,6 @@ pub mod physical_plan;
 pub mod rule_ordinal;
 
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::select::types::SelectParts;
 use crate::domain::table_texts::types::Texts;
 use bound_observation_place::value::BoundObservationPlace;
 use candidates::value::Candidates;
@@ -22,9 +21,9 @@ use frontier_place::value::FrontierPlace;
 use held_rows::value::HeldRows;
 use rule_ordinal::value::RuleOrdinal;
 use ryo_language::domain::elements::types::Elements;
-use ryo_relations::domain::relations::types::{ColumnsView, NodeId, Relation, TextHash, Value};
+use ryo_relations::domain::relations::types::{ColumnsView, NodeId, Relation, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::{HostedNumber, ParameterId, StepScope, TableKey};
+use ryo_values::domain::plan_parts::types::{HostedNumber, StepScope};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::row_texts::types::CellText;
@@ -134,19 +133,6 @@ pub trait Resources {
         &mut self,
         requests: RenderRequests<'_>,
     ) -> Result<RenderOutcomes, PortableOperatorFault>;
-}
-
-/// The stage of the swap that lowers a kind: `F2` is `ServedAt(2)`. Branch only: deleted with the last unlowered kind.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ServedAt(pub u8);
-
-/// A node whose kind has no lowering yet, and the stage that lowers it. Branch only: deleted with the last unlowered kind.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Unserved {
-    /// The node.
-    pub node: PlanNodeId,
-    /// The stage that lowers its kind.
-    pub until: ServedAt,
 }
 
 /// What a node of the physical plan reads its rows from.

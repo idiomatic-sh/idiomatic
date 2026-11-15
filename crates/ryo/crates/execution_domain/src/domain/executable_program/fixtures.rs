@@ -24,8 +24,6 @@ pub(super) enum Request {
     DifferentParameterValues,
     /// A rule that reads a bound input in each file.
     BoundInput,
-    /// A rule with a kind no lowering serves yet, beside a served rule.
-    UnservedKind,
     /// A select of a column its relation does not have.
     SchemaFault,
     /// Two selects of the tree by kind, one behind a comparison that may fail.
@@ -178,28 +176,6 @@ pub(super) fn rules_of(request: Request) -> Vec<(Arc<Plan>, Vec<ParameterBinding
             ),
             unbound(),
         )],
-        Request::UnservedKind => vec![
-            (
-                plan(
-                    vec![per_file(Operation::Axis {
-                        from: StepInput::Relation(Relation::SyntaxTree),
-                        edges: StepInput::Relation(Relation::SyntaxChild),
-                        domain: StepInput::Relation(Relation::SyntaxTree),
-                        direction: ryo_values::domain::plan_parts::types::Direction::Parent,
-                        id: ColumnIndex(0),
-                        parent: ColumnIndex(0),
-                        child: ColumnIndex(1),
-                        domain_id: ColumnIndex(0),
-                        domain_filter: Vec::new(),
-                        domain_view: Vec::new(),
-                        output: Vec::new(),
-                    })],
-                    Vec::new(),
-                ),
-                unbound(),
-            ),
-            (plan(vec![per_file(named())], Vec::new()), unbound()),
-        ],
         Request::SchemaFault => vec![(
             plan(
                 vec![per_file(select(

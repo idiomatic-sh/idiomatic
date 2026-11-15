@@ -29,8 +29,7 @@ use crate::outbound::facts::types::fact_sources::value::FactSources;
 use ryo_execution_domain::domain::completion::types::ObservationAdmission;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::service::{rule as fused_rule, serving};
-use ryo_execution_domain::domain::executable_program::types::Serving;
+use ryo_execution_domain::domain::executable_program::service::rule as fused_rule;
 use ryo_execution_domain::domain::finish::types::Arena;
 use ryo_execution_domain::domain::frontier_coverage::service::affected_files;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -158,18 +157,6 @@ pub(crate) fn run_rules(
             else {
                 continue;
             };
-            // A rule that reads a feature no stage serves yet is refused where it would run, with the stage that serves it; the
-            // refusal is that rule's alone, so the served rules after it still run.
-            if let Ok(Serving::NotServedUntil(stage)) = serving(&pass.program, rule) {
-                rules.push(RanRule {
-                    rule,
-                    emit: EmittedRoot::Withheld,
-                    after: RuleAfter::Stopped(FileStop::Operating(OperatingError::NotServedUntil(
-                        stage,
-                    ))),
-                });
-                continue;
-            }
             let emits = diagnostic != DiagnosticDelivery::Disabled;
             let delivered = delivered_rule(&mut at, symbols, rule, diagnostic, observations);
             let refused = at.inputs.refused.take();
