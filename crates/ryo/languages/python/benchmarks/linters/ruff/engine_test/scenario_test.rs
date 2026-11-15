@@ -19,4 +19,8 @@ pub(super) enum EngineScenario {
     LazyFutureStaysVisibleWithoutADedicatedSelectedRule,
     ListedProjectInputsAndInvalidSourcesKeepDistinctReaders,
     I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory,
+    Pie794RootedEquivalenceReportsNothingAcrossUnrelatedGrowth,
+    SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth,
+    Plr1708RootedEquivalenceReportsNothingAcrossUnrelatedGrowth,
+    ActualRootedQueriesKeepTheirSparseAxis,
 }

@@ -22,6 +22,7 @@ enum SchemaInput {
     UnavailableSource,
     RuleConfiguration,
     PinnedPhases,
+    SuppressionCodes,
 }
 type Input = SchemaInput;
 type Value = usize;
@@ -114,6 +115,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || SchemaInput::PinnedPhases,
         expect: Expect::Value(2),
     },
+    Case {
+        name: CaseName("suppression_codes_match_the_pinned_catalog"),
+        word: Word::Succeeds,
+        input: || SchemaInput::SuppressionCodes,
+        expect: Expect::Value(0),
+    },
 ];
 
 fn subject(input: Input) -> Result<Value, Failure> {
@@ -128,6 +135,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
             Ok(rule_configuration_arguments_round_trip_as_toml_including_control_characters())
         }
         SchemaInput::PinnedPhases => Ok(the_pinned_registry_decodes_the_phase_of_every_rule()),
+        SchemaInput::SuppressionCodes => Ok(suppression_codes_match_the_pinned_catalog()),
     }
 }
 
@@ -266,4 +274,100 @@ fn the_pinned_registry_decodes_the_phase_of_every_rule() -> usize {
             phases.get(&RuleLabel((*rule).into())) == Some(&ApplicabilityPolicy((*policy).into()))
         })
         .count()
+}
+
+/// A noqa code as Ruff spells one: capitals, then digits.
+fn coded(code: &str) -> bool {
+    let digits = code.trim_start_matches(|character: char| character.is_ascii_uppercase());
+    digits.len() < code.len() && !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit())
+}
+
+/// The anchored alternation of `codes`, in sorted order.
+fn alternation<'a>(codes: impl IntoIterator<Item = &'a str>) -> String {
+    let sorted = codes.into_iter().collect::<std::collections::BTreeSet<_>>();
+    format!("^(?:{})$", sorted.into_iter().collect::<Vec<_>>().join("|"))
+}
+
+/// The RUF100 catalog lookup the pinned catalog renders: plain codes, then each redirect target's aliases, joined by a
+/// balanced union tree.
+fn catalog_lookup(registered: &[&str], redirects: &serde_json::Map<String, serde_json::Value>) -> String {
+    let plain = registered.iter().copied().filter(|code| !redirects.contains_key(*code));
+    let mut lines = vec![format!(
+        "let catalog_plain = select id, file, code, code as canonical, token_span from tokens where matches(code, \"{}\");",
+        alternation(plain)
+    )];
+    let mut groups = std::collections::BTreeMap::<&str, Vec<&str>>::new();
+    for (before, after) in redirects {
+        let after = after.as_str().unwrap();
+        if registered.contains(&after) && coded(before) {
+            groups.entry(after).or_default().push(before);
+        }
+    }
+    let mut names = vec!["catalog_plain".to_owned()];
+    for (index, (target, aliases)) in groups.into_iter().enumerate() {
+        lines.push(format!("let catalog_alias_{index} = select id, file, code, token_span from tokens where matches(code, \"{}\");", alternation(aliases)));
+        lines.push(format!("let catalog_target_{index} = extend(from=catalog_alias_{index}, values={{canonical: \"{target}\"}});"));
+        lines.push(format!("let catalog_branch_{index} = select id, file, code, canonical, token_span from catalog_target_{index};"));
+        names.push(format!("catalog_branch_{index}"));
+    }
+    let mut index = 0;
+    while names.len() > 1 {
+        let mut next = Vec::new();
+        for pair in names.chunks(2) {
+            if let [left, right] = pair {
+                lines.push(format!("let catalog_union_{index} = union(left={left}, right={right});"));
+                next.push(format!("catalog_union_{index}"));
+                index += 1;
+            } else {
+                next.push(pair[0].clone());
+            }
+        }
+        names = next;
+    }
+    lines.push(format!("let known_tokens = select id, file, code, canonical, token_span from {};", names[0]));
+    lines.join("\n") + "\n"
+}
+
+/// RUF100's lookup, RUF101's redirected codes and every suppressing rule's `codes` equal what the pinned catalog
+/// renders; the answer is the number of rules that differ.
+fn suppression_codes_match_the_pinned_catalog() -> usize {
+    let bench = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let read = |relative: &str| std::fs::read_to_string(bench.join(relative)).unwrap();
+    let policy: serde_json::Value =
+        serde_json::from_str(&read("profiles/pinned-noqa-code-policy.json")).unwrap();
+    let redirects = policy["redirects"].as_object().unwrap();
+    let registered = policy["registered_codes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|code| code.as_str().unwrap())
+        .collect::<Vec<_>>();
+    let mut differing = Vec::new();
+    let ruf100 = read("rules/RUF100/query.ryoql");
+    let start = ruf100.find("let catalog_plain =").unwrap();
+    let end = ruf100.find("let used_codes =").unwrap();
+    if ruf100[start..end] != catalog_lookup(&registered, redirects) {
+        differing.push("RUF100".to_owned());
+    }
+    let redirected = alternation(redirects.keys().map(String::as_str).filter(|code| coded(code)));
+    if !read("rules/RUF101/query.ryoql").contains(&format!("matches(code, \"{redirected}\");")) {
+        differing.push("RUF101".to_owned());
+    }
+    let suppression: serde_json::Value =
+        serde_json::from_str(&read("profiles/pinned-suppression-policy.json")).unwrap();
+    for rule in suppression["rules"].as_object().unwrap().keys() {
+        let spellings = redirects
+            .iter()
+            .filter(|(before, after)| after.as_str() == Some(rule.as_str()) && coded(before))
+            .map(|(before, _)| before.as_str())
+            .chain([rule.as_str()]);
+        let query = read(&format!("rules/{rule}/query.ryoql"));
+        if query.matches("codes=\"").count() != 1
+            || !query.contains(&format!("codes=\"{}\"", alternation(spellings)))
+        {
+            differing.push(rule.clone());
+        }
+    }
+    assert!(differing.is_empty(), "{differing:?}");
+    differing.len()
 }

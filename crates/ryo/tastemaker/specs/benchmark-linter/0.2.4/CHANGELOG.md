@@ -6,6 +6,8 @@ The Ruff bench moves its Python implementation into the shared harness (ryo-b1gq
 
 No bench has a `host.rs` or `host_policy.rs`: the shared harness observes the host and decides (`outbound/host`, `domain/host_applicability`). The roles `host-probe` and `host-policy`, the `import-directions` entry on `host_policy.rs`, the scenarios `host-probe-and-policy-have-shared-roles` and `host-policy-cannot-probe-environment`, and the `host-probe`/`host-policy` branches of the `bench-entry` template are removed; the template renders `bench.rs` without them.
 
+The suppression policy every suppressing rule's `codes` argument is rendered from moves from `results/standard-suppression-policy.json` to `profiles/pinned-suppression-policy.json`, role `registry-pinned-suppression-policy-json`, beside the pinned noqa code catalog; the Ruff schema test checks each query against both.
+
 ## 0.2.3
 
 Every linter bench gets the harness's heap and CPU profile run with no line of its own: `bench.rs` is the verbatim `bench-entry` template (its `mod` lines rendered from the bench's optional `frontend_projection.rs`, `host.rs` and `host_policy.rs`), a new verbatim `composition-profile` template places `composition/profile.rs`, which wires the harness's `profile` use case at the bench's edge, and `composition.rs` (template `composition-root`) declares `pub(crate) mod profile;`. The Ruff-only Python profile driver's placements (`profile_ryo.py`, `worker_profile_contract.py`, `test_worker_profile_contract.py`) are removed. Everything else is as in 0.2.2.
