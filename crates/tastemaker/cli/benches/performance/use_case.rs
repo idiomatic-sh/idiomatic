@@ -137,6 +137,13 @@ mod cost {
             &source.join("../tastemaker"),
             &copy.path().join("tastemaker"),
         );
+        // The role package the shared assets' rule proofs name as `foreign`, at the place those proofs resolve it.
+        copy_tree(
+            &source.join("tastemaker/cli/tests/fixtures/replay/roles"),
+            &copy
+                .path()
+                .join("crates/tastemaker/cli/tests/fixtures/replay/roles"),
+        );
         std::fs::create_dir_all(copy.path().join(".git")).expect("a .git directory");
         std::fs::write(
             copy.path().join(".gitignore"),
