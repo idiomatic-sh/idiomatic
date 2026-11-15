@@ -126,3 +126,37 @@ fn unsupported() -> FactsError {
         reason: "immutable project fixture does not write facts".into(),
     }
 }
+
+/// The store's kept frontiers of a run whose every file was skipped: no source of any, every read counted, the read of
+/// `refused` refused.
+pub struct RefusingKept {
+    /// The bucket whose read the store refuses, if any.
+    pub refused: Option<Bucket>,
+    /// How many reads the store answered or refused.
+    pub reads: AtomicUsize,
+}
+
+impl FactsFinish for RefusingKept {
+    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
+        let _previous = self.reads.fetch_add(1, Ordering::SeqCst);
+        if self.refused == Some(bucket) {
+            return Err(FactsError::Store {
+                reason: "the kept frontier is unreadable".into(),
+            });
+        }
+        Ok(KeptBucket {
+            words: std::sync::Arc::new(KeptWords(PackedWords(Vec::new()))),
+            sources: Vec::new(),
+        })
+    }
+}
+
+/// The bucket of the first entry of the frontier of a rule whose first bucket is `first`.
+#[must_use]
+pub fn first_entry(first: Bucket) -> Bucket {
+    ryo_values::domain::stored_facts::service::frontier_bucket(
+        first,
+        ryo_values::domain::plan_parts::types::InputNumber(0),
+    )
+}
+

@@ -10,6 +10,8 @@ use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 #[cfg(test)]
 mod budget;
 #[cfg(test)]
+mod fed;
+#[cfg(test)]
 mod generation;
 #[cfg(test)]
 mod partials;

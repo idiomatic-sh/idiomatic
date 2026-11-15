@@ -12,6 +12,7 @@ mod members;
 mod merged;
 mod named_selection;
 pub(crate) mod negative;
+mod pass;
 mod population_reads;
 mod restoration;
 mod rewrites;
