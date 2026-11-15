@@ -145,9 +145,9 @@ pub trait WorkspacePort: sealed::Sealed {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort;
-    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::OriginScope;
-    /// fn resumed(workspace: &impl WorkspacePort) -> OriginScope {
-    ///     workspace.progress_origin().resume()
+    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::CapturedOrigin;
+    /// fn opened_at(workspace: &impl WorkspacePort) -> &CapturedOrigin {
+    ///     workspace.progress_origin()
     /// }
     /// ```
     #[cfg(feature = "diagnostic-row-progress")]
