@@ -7,11 +7,12 @@ use crate::domain::physical_plan::fixtures::{Step, over_defines};
 use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use crate::inbound::use_cases::run::fixtures::cases::{compared, self_matching};
-use crate::inbound::use_cases::run::fixtures::streams::{Program, agrees, ran_after, span};
+use crate::inbound::use_cases::run::fixtures::streams::{
+    Program, agrees, both_nodes, join, left_columns, ran_after, span,
+};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Input as StepInput, JoinColumn, LiteralText, Operand, QueryLiteral, Side, StepId,
-    Test,
+    ColumnIndex, Input as StepInput, LiteralText, Operand, QueryLiteral, StepId, Test,
 };
 use ryo_values::domain::plans::types::Operation;
 use std::borrow::Cow;
@@ -187,52 +188,6 @@ fn defines_named(test: Test, text: &str) -> Step {
         )],
         kept: Vec::new(),
     })
-}
-
-/// An inner join of `left` with `right` on their names, answering `output`, its right rows kept where `filter` holds.
-fn join(
-    left: (StepInput, PlanInput),
-    right: (StepInput, PlanInput),
-    output: Vec<JoinColumn>,
-    filter: Vec<ryo_values::domain::plan_parts::types::PlanComparison>,
-) -> Step {
-    Step {
-        operation: Operation::Join {
-            left: left.0,
-            right: right.0,
-            left_on: vec![ColumnIndex(3)],
-            right_on: vec![ColumnIndex(3)],
-            output,
-            filter,
-            view: Vec::new(),
-            reach: None,
-        },
-        inputs: vec![left.1, right.1],
-    }
-}
-
-/// Every column of a join's left side, a row of Defines.
-fn left_columns() -> Vec<JoinColumn> {
-    (0..7)
-        .map(|column| JoinColumn {
-            side: Side::Left,
-            column: ColumnIndex(column),
-        })
-        .collect()
-}
-
-/// The left's node and the right's node.
-fn both_nodes() -> Vec<JoinColumn> {
-    vec![
-        JoinColumn {
-            side: Side::Left,
-            column: ColumnIndex(0),
-        },
-        JoinColumn {
-            side: Side::Right,
-            column: ColumnIndex(0),
-        },
-    ]
 }
 
 /// Defines rows, `rows` of them over three chunks of left rows and more, each name `n<k>` shared by the two rows `2k` and

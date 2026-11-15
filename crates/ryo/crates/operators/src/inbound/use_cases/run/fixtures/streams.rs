@@ -8,14 +8,14 @@ use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::{
-    LogicalNode, NodeBindings, NodeFlow, NodeRows, PlanInputList, PlanNodeId, Resources,
+    LogicalNode, NodeBindings, NodeFlow, NodeRows, PlanInput, PlanInputList, PlanNodeId, Resources,
 };
 use ryo_language::domain::symbols::service::text_of;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::types::{Offset, Relation, Span, Value as Cell};
 use ryo_values::domain::plan_parts::types::{
-    CapturePattern, ColumnIndex, Input as StepInput, LiteralText, Operand, PlanComparison,
-    QueryLiteral, StepId, StepScope, Test,
+    CapturePattern, ColumnIndex, Input as StepInput, JoinColumn, LiteralText, Operand,
+    PlanComparison, QueryLiteral, Side, StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::Table;
@@ -256,4 +256,50 @@ pub(crate) fn faulting(rows: usize, map_fault: usize, filter_fault: usize) -> Pr
             .collect(),
         texts: vec!["a".into(), "[".into()],
     }
+}
+
+/// An inner join of `left` with `right` on their names, answering `output`, its right rows kept where `filter` holds.
+pub(crate) fn join(
+    left: (StepInput, PlanInput),
+    right: (StepInput, PlanInput),
+    output: Vec<JoinColumn>,
+    filter: Vec<PlanComparison>,
+) -> Step {
+    Step {
+        operation: Operation::Join {
+            left: left.0,
+            right: right.0,
+            left_on: vec![ColumnIndex(3)],
+            right_on: vec![ColumnIndex(3)],
+            output,
+            filter,
+            view: Vec::new(),
+            reach: None,
+        },
+        inputs: vec![left.1, right.1],
+    }
+}
+
+/// Every column of a join's left side, a row of Defines.
+pub(crate) fn left_columns() -> Vec<JoinColumn> {
+    (0..7)
+        .map(|column| JoinColumn {
+            side: Side::Left,
+            column: ColumnIndex(column),
+        })
+        .collect()
+}
+
+/// The left's node and the right's node.
+pub(crate) fn both_nodes() -> Vec<JoinColumn> {
+    vec![
+        JoinColumn {
+            side: Side::Left,
+            column: ColumnIndex(0),
+        },
+        JoinColumn {
+            side: Side::Right,
+            column: ColumnIndex(0),
+        },
+    ]
 }
