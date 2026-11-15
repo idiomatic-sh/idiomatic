@@ -662,3 +662,9 @@ name="future-scope-whole-stub-typevar-bound-call"
 comparison="full"
 files={"case.pyi"="from typing import TypeVar\n_T=TypeVar(\"_T\",bound=identity(Later))\ndef identity(x): ...\nclass Later: ...\n"}
 expected=[]
+
+[[cases]]
+name="future-annotation-in-function-reads-module-first"
+comparison="full"
+files={"case.py"="from __future__ import annotations\n\nA = 1\n\n\ndef f():\n    A = 2\n    y: A = 3\n    return y\n"}
+expected=[{rule="F841", file="case.py", start=57, end=58}]
