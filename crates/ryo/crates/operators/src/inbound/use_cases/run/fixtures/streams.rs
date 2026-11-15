@@ -58,6 +58,15 @@ pub(crate) fn shown(value: Cell, resources: &TextResources) -> String {
 
 /// Runs `program`, every node before its emit held by the engine as well when `twin` is set.
 pub(crate) fn ran_program(program: &Program, twin: bool) -> Result<Ran, PortableOperatorFault> {
+    ran_after(program, twin, &[])
+}
+
+/// Runs `program` as `ran_program` does, the engine running each of `first` before the emit.
+pub(crate) fn ran_after(
+    program: &Program,
+    twin: bool,
+    first: &[PlanNodeId],
+) -> Result<Ran, PortableOperatorFault> {
     let texts: Vec<&str> = program.texts.iter().map(String::as_str).collect();
     let resources = TextResources::new(&texts);
     let named: Vec<(Cell, Span)> = program
@@ -85,6 +94,9 @@ pub(crate) fn ran_program(program: &Program, twin: bool) -> Result<Ran, Portable
     }
     let plan = planned(&logical)?;
     let mut buffers = FileBuffers::default();
+    for node in first {
+        ran(&plan, *node, &mut buffers, &inputs, &mut resources)?;
+    }
     let answer =
         ran(&plan, program.emit, &mut buffers, &inputs, &mut resources).and_then(
             |()| match buffers.rows(program.emit) {
