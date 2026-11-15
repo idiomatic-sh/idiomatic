@@ -1,6 +1,7 @@
 import lint_attributes from "rust/clippy/lint-attributes";
 import attribute_owners from "rust/clippy/attribute-owners";
 import attribute_items from "rust/clippy/attribute-items";
+import path_names from "rust/clippy/path-names";
 let attributes = select id, file, span from "syntax-tree" where kind = "attr";
 let attribute_ids = select id, file from attributes;
 let owned_rows = attribute_owners(elements=attribute_ids);
@@ -13,10 +14,9 @@ let unwrapped = select l.attribute as attribute, l.owner as owner, l.meta as met
 let plain = select attribute, owner, meta, kind, file from metas where kind != "unsafe-meta";
 let effective = union(left=plain, right=unwrapped);
 let meta_children = select l.attribute as attribute, l.owner as owner, l.meta as meta, l.kind as kind, r.child as child, l.file as file from effective as l join "syntax-child" as r on l.meta = r.parent;
-let meta_paths = select l.attribute as attribute, l.owner as owner, l.meta as meta, l.kind as kind, r.span as span, l.file as file from meta_children as l join "syntax-tree" as r on l.child = r.id where r.kind = "path";
-let path_texts = source-matches(from=meta_paths, span="span", pattern="\A(?P<path>[\s\S]*)\z", output="whole", capture="path", capture-output="path_span", capture-text-output="path_written");
-let spelled = replace(from=path_texts, text="path_written", pattern="\s+", replacement="", output="spelled");
-let named = replace(from=spelled, text="spelled", pattern="\br#", replacement="", output="name");
+let meta_paths = select l.attribute as attribute, l.owner as owner, l.meta as meta, l.kind as kind, r.id as path, l.file as file from meta_children as l join "syntax-tree" as r on l.child = r.id where r.kind = "path";
+let path_rows = path_names();
+let named = select l.attribute as attribute, l.owner as owner, l.meta as meta, l.kind as kind, r.name as name, l.file as file from meta_paths as l join path_rows as r on l.path = r.id;
 let checked = select attribute, owner, meta, kind, name, file from named where name != "doc" and name != "rustc_on_unimplemented" and name != "reason";
 let top_words = select attribute, owner, name as key, file from checked where kind = "path-meta";
 let pairs = select attribute, owner, meta, name, file from checked where kind = "key-value-meta";
