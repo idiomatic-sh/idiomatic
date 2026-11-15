@@ -9,6 +9,7 @@ use super::fixtures::{
     root_basename_preserves_contiguous_boundary_and_namespace_prefix,
     standalone_is_complete_empty_and_pyi_is_not_a_marker,
     the_filesystem_root_is_joined_without_a_doubled_separator,
+    verbatim_markers_are_joined_with_the_native_separator,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
@@ -31,6 +32,8 @@ enum Given {
     RootBasenamePreservesContiguousBoundaryAndNamespacePrefix,
     /// The `the_filesystem_root_is_joined_without_a_doubled_separator` scenario.
     TheFilesystemRootIsJoinedWithoutADoubledSeparator,
+    /// The `verbatim_markers_are_joined_with_the_native_separator` scenario.
+    VerbatimMarkersAreJoinedWithTheNativeSeparator,
 }
 /// What a row is given.
 type Input = Given;
@@ -97,6 +100,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Given::TheFilesystemRootIsJoinedWithoutADoubledSeparator,
         expect: Expect::Value("Need(\"/__init__.py\")"),
     },
+    Case {
+        name: CaseName("verbatim_markers_are_joined_with_the_native_separator"),
+        word: Word::Succeeds,
+        input: || Given::VerbatimMarkersAreJoinedWithTheNativeSeparator,
+        expect: Expect::Value("true|true"),
+    },
 ];
 
 /// Runs the scenario the row names.
@@ -125,6 +134,9 @@ fn subject(given: Input) -> Result<Value, Failure> {
         }
         Given::TheFilesystemRootIsJoinedWithoutADoubledSeparator => {
             the_filesystem_root_is_joined_without_a_doubled_separator()
+        }
+        Given::VerbatimMarkersAreJoinedWithTheNativeSeparator => {
+            verbatim_markers_are_joined_with_the_native_separator()
         }
     };
     Ok(Box::leak(observed.into_boxed_str()))

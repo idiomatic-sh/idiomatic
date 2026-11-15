@@ -9,17 +9,6 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-/// The initializer marker of a directory, joined with `/`, the one separator the module context's paths use on every platform.
-fn initializer(directory: &Path) -> PathBuf {
-    let mut joined = directory.to_path_buf().into_os_string();
-    let text = directory.to_string_lossy();
-    if !text.chars().last().is_none_or(std::path::is_separator) {
-        joined.push(constants::SEPARATOR);
-    }
-    joined.push(constants::INIT_FILE);
-    PathBuf::from(joined)
-}
-
 /// Derive a dotted identity only within a fully observed package ancestry.
 fn module_path(file: &Path, package: Option<&Path>) -> ModuleDecision {
     let Some(package) = package else {
@@ -74,7 +63,7 @@ pub(crate) fn disk(file: &Path, markers: &Markers) -> ModuleDecision {
     };
     let mut package = None;
     loop {
-        let marker = initializer(directory);
+        let marker = directory.join(constants::INIT_FILE);
         match markers.0.get(&marker) {
             None => return ModuleDecision::Need(marker),
             Some(false) => return module_path(file, package),
@@ -94,7 +83,7 @@ pub(crate) fn given(file: &Path, files: &BTreeSet<PathBuf>) -> ModuleDecision {
     };
     let mut package = None;
     loop {
-        if !files.contains(&initializer(directory)) {
+        if !files.contains(&directory.join(constants::INIT_FILE)) {
             return module_path(file, package);
         }
         if directory.as_os_str().is_empty() {
@@ -108,7 +97,7 @@ pub(crate) fn given(file: &Path, files: &BTreeSet<PathBuf>) -> ModuleDecision {
     }
 }
 
-/// A normalized absolute path expressed from the normalized absolute run root.
+/// A normalized absolute path expressed from the normalized absolute run root, as the `/`-separated text a file path is recorded in.
 pub(crate) fn relative_to(root: &Path, path: &Path) -> Option<PathBuf> {
     let root: Vec<_> = root.components().collect();
     let path: Vec<_> = path.components().collect();

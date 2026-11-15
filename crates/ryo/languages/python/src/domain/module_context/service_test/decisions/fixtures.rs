@@ -12,12 +12,12 @@ pub(super) fn disk_requests_every_marker_then_retains_initializer_component() ->
     let mut observed: Vec<String> = Vec::new();
     let source = Path::new("/boundary/pkg/sub/__init__.py");
     let mut markers = Markers::default();
-    observed.push(format!("{:?}", disk(source, &markers)));
+    observed.push(slashed(&disk(source, &markers)));
     let _previous_1 = markers
         .0
         .insert("/boundary/pkg/sub/__init__.py".into(), true);
     let _previous_2 = markers.0.insert("/boundary/pkg/__init__.py".into(), true);
-    observed.push(format!("{:?}", disk(source, &markers)));
+    observed.push(slashed(&disk(source, &markers)));
     let _previous_3 = markers.0.insert("/boundary/__init__.py".into(), false);
     observed.push(format!("{:?}", disk(source, &markers)));
     observed.join("|")
@@ -136,5 +136,27 @@ pub(super) fn root_basename_preserves_contiguous_boundary_and_namespace_prefix()
 
 pub(super) fn the_filesystem_root_is_joined_without_a_doubled_separator() -> String {
     let markers = Markers::default();
-    format!("{:?}", disk(Path::new("/mod.py"), &markers))
+    slashed(&disk(Path::new("/mod.py"), &markers))
+}
+
+/// A decision's text with its separators written `/`, so one expected row holds on every platform.
+fn slashed(decision: &ModuleDecision) -> String {
+    format!("{decision:?}").replace("\\\\", "/")
+}
+
+/// Windows verbatim paths do not read `/` as a separator, so a marker is the directory joined natively.
+pub(super) fn verbatim_markers_are_joined_with_the_native_separator() -> String {
+    let mut observed: Vec<String> = Vec::new();
+    for directory in [
+        Path::new(r"\\?\C:\repo\pkg"),
+        Path::new(r"\\?\UNC\server\share\pkg"),
+    ] {
+        let source = directory.join("mod.py");
+        let decision = disk(&source, &Markers::default());
+        observed.push(format!(
+            "{}",
+            decision == ModuleDecision::Need(directory.join("__init__.py"))
+        ));
+    }
+    observed.join("|")
 }
