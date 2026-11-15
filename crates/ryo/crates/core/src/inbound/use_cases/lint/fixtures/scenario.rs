@@ -2,7 +2,6 @@
 use super::super::errors::LintError;
 use super::super::interface::LintUseCase as _;
 use super::given::Given;
-use super::given::Lint;
 use super::given::SOURCES;
 use super::given::request;
 use super::given::violations;

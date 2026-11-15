@@ -7,7 +7,6 @@ use ryo_relations::domain::terms::types::UnknownName;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::runs::types::Skipped;
-use ryo_values::domain::stored_facts::types::ArenaBytes;
 
 /// What the cross-file steps of every rule read besides the rows the files handed over.
 #[derive(Clone, Debug)]

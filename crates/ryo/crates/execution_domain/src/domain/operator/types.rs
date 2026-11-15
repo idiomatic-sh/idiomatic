@@ -11,12 +11,6 @@ use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 
-pub mod axis_walk;
-pub mod graph_lookups;
-pub mod graph_walks;
-pub mod join_candidates;
-pub mod lease_driver;
-pub mod row_delivery;
 
 /// How many rows a step was fed: the rows of each of its inputs, by the input's place.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -28,17 +22,8 @@ pub struct LogicalCounts {
     pub fed: Box<[RowsFed]>,
 }
 
-/// A step of a plan, by its place among the plan's steps.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct StepPlace(pub usize);
 
-/// A plan, by where it is: the same plan has the same identity in every file.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct PlanIdentity(pub usize);
 
-/// Number of independent readers of the same publication.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct ReaderMultiplicity(pub usize);
 
 /// What an operator reads besides its inputs and may write: what the host bound, the names and
 /// bytes of the file the rows are of, and the paths of the files. An operator may add only derived

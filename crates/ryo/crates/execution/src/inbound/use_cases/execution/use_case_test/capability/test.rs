@@ -14,8 +14,6 @@ use ryo_execution_runtime::application::file_dag::program::request_execution::in
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
-use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
@@ -66,9 +64,6 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for In
             ),
             Refusal::Run => Err(PortableOperatorFault::ShapeMismatch),
         }
-    }
-    fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
-        fixtures::operators().operators(call)
     }
 }
 /// What a rule's root emitted on one demand.

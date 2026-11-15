@@ -15,7 +15,6 @@ use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution_runtime::outbound::digest::types::DigestBytes;
 use ryo_execution_runtime::outbound::digest::types::DigestWords;
 use ryo_relations::domain::relations::types::FileId;
-use ryo_relations::domain::relations::types::Rows as _;
 use ryo_values::domain::files::types::FileNumber;
 use ryo_values::domain::records::types::Handed;
 use ryo_values::domain::records::types::Handing;

@@ -12,11 +12,7 @@ pub mod operation_schema;
 pub mod operator;
 pub mod placement;
 pub mod prepared_request;
-pub mod table_cells;
-pub mod table_dedup;
-pub mod table_groups;
 pub mod table_model;
-pub mod table_reach;
 
 pub mod trust;
 

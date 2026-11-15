@@ -2,7 +2,7 @@
 use ryo_derived::domain::vertices::types::VertexId;
 
 use ryo_derived::domain::sharing::types::SharedMarks;
-use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value};
+use ryo_relations::domain::relations::types::{CellKind, FileId, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowCount;
 
@@ -194,35 +194,3 @@ pub struct EarlyStops(pub u64);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ForestHits(pub u64);
 
-/// Opt-in-compatible aggregate work counts for one generation.
-#[derive(Debug, Default, Clone, Copy)]
-pub struct GraphCounts {
-    /// Dormant ordinary indexes reclaimed only to admit a complete new adjacency.
-    pub reclaimed_indexes: ReclaimedIndexes,
-    /// Actual payload bytes released, excluding retained metadata capacity.
-    pub reclaimed_bytes: ReclaimedBytes,
-    /// Admissions blocked while ordinary payload is pinned by another consumer.
-    pub pinned_refusals: PinnedRefusals,
-    /// Highest accounted retained cache bytes, not process RSS or transient allocations.
-    pub peak_bytes: PeakBytes,
-    /// Complete physical adjacency builds.
-    pub builds: GraphBuilds,
-    /// Compatible generation-local adjacency hits.
-    pub reuses: GraphReuses,
-    /// Complete local graphs whose retention was refused.
-    pub refusals: GraphRefusals,
-    /// Actual source-key requests, retaining left-row multiplicity.
-    pub roots: RootRequests,
-    /// Root requests that performed traversal.
-    pub traversals: Traversals,
-    /// Successful reached-ID memo hits.
-    pub memo_hits: MemoHits,
-    /// Vertices whose outgoing adjacency was expanded.
-    pub expanded: ExpandedVertices,
-    /// Edges visited by demanded traversal.
-    pub examined: ExaminedVertices,
-    /// Nearest queries stopped at their first qualifying encounter.
-    pub early_stops: EarlyStops,
-    /// Forest answers reused without a parent-chain walk.
-    pub forest_hits: ForestHits,
-}

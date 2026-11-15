@@ -20,7 +20,7 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId, Test};
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 #[test]
 fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
-    use ryo_execution_runtime::outbound::operators::fixtures::projection_tree_positions::ObservedJoin;
+    use crate::shared_walk::fixtures::ObservedJoin;
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
     use std::sync::Arc;
     for relation in [Relation::SyntaxTree, Relation::SyntaxChild] {
@@ -119,7 +119,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
 #[test]
 fn direct_pure_projections_share_source_scan_including_zero_columns_and_repeats() {
     use ryo_values::domain::plan_parts::types::RepeatedRows;
-    let (engine, semantics) = engine();
+    let engine = engine();
     let mut authored = authored_request(3);
     for (plan, columns) in crate::boundary_fixture::fixtures::plans(&mut authored)
         .iter_mut()
@@ -162,7 +162,6 @@ fn direct_pure_projections_share_source_scan_including_zero_columns_and_repeats(
             }
         }
     }
-    assert_eq!(semantics.selects(), 0);
     assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }

@@ -76,8 +76,8 @@ impl PreparedProgram {
     /// `NotRun` for a rule the request does not hold.
     pub(crate) fn rule_plan(&self, rule: RuleIndex) -> Result<&RulePlan, OperatingError> {
         tracing::trace!(
-            target: ryo_execution_store::application::file_dag::derived::constants::TARGET,
-            event = ryo_execution_store::application::file_dag::derived::constants::RULE_METADATA,
+            target: super::constants::TARGET,
+            event = super::constants::RULE_METADATA,
             rule = rule.0
         );
         self.rules.get(rule.0).ok_or(OperatingError::NotRun)

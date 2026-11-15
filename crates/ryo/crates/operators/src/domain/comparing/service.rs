@@ -21,7 +21,7 @@ use crate::domain::patterns::types::PatternMatcher;
 use crate::domain::patterns::types::prepared::value::PreparedMatchers;
 use crate::domain::table_scratch::types::Memo;
 use crate::domain::table_scratch::types::{
-    ComparisonNumbers, ComparisonSlot, GlobSubject, MemoPlace, MemoSlot, SelectScratch,
+    ComparisonSlot, GlobSubject, MemoPlace, MemoSlot, SelectScratch,
     SubjectHash, SubjectTag, VerdictKey,
 };
 use crate::domain::table_texts::types::Texts;

@@ -10,7 +10,6 @@ use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution_runtime::outbound::operators::fixtures::shared_walk::SemanticCalls;
 use ryo_language::domain::builders::fixtures::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::{
     completion::fixtures::{completion, name_kind},
@@ -37,10 +36,8 @@ use ryo_values::domain::{
     query_bindings::types::{ParameterBinding, ParameterType, PlanParameter},
     rows::types::{RowCount, Table},
 };
-use std::sync::Arc;
-pub(crate) fn engine() -> (PrepareUseCaseImpl, Arc<SemanticCalls>) {
-    let semantics = Arc::new(SemanticCalls::default());
-    (PrepareUseCaseImpl::new(semantics.clone()), semantics)
+pub(crate) fn engine() -> PrepareUseCaseImpl {
+    crate::boundary_fixture::fixtures::engine()
 }
 #[derive(Clone, Copy)]
 pub(crate) enum Selector {
@@ -194,4 +191,34 @@ pub(crate) fn failed(rules: &mut FileRules, rule: usize) -> Option<OperatingErro
 pub(crate) fn regex_error(pattern: &str) -> OperatingError {
     ryo_execution::inbound::use_cases::execution::fixtures::regex_refusal(pattern)
         .expect("intentionally malformed regular expression")
+}
+/// An operators port that refuses every node it is asked to run, when it is told to refuse.
+#[derive(Debug)]
+pub(crate) struct ObservedJoin {
+    /// Whether every node is refused.
+    pub(crate) refuse: bool,
+}
+impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for ObservedJoin {
+    fn plan(
+        &self,
+        program: &ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram<'_>,
+    ) -> Result<
+        ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
+    > {
+        ryo_operators::inbound::use_cases::run::fixtures::planned(program)
+    }
+    fn run(
+        &self,
+        plan: &ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
+        node: ryo_operators::domain::physical_plan::types::PlanNodeId,
+        buffers: &mut ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers,
+        inputs: &dyn ryo_operators::domain::physical_plan::types::PlanInputs,
+        resources: &mut dyn ryo_operators::domain::physical_plan::types::Resources,
+    ) -> Result<(), ryo_operators::domain::contract::types::PortableOperatorFault> {
+        if self.refuse {
+            return Err(ryo_operators::domain::contract::types::PortableOperatorFault::ShapeMismatch);
+        }
+        ryo_operators::inbound::use_cases::run::fixtures::ran(plan, node, buffers, inputs, resources)
+    }
 }

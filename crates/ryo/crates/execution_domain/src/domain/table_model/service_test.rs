@@ -15,19 +15,12 @@ mod physical_test;
 mod representations_test;
 #[cfg(test)]
 mod rows_test;
-#[cfg(test)]
-mod stored_keys_test;
 
 use super::types::Rows;
-use crate::domain::table_cells::service_test::prepared_index;
-use ryo_derived::domain::key::types::On;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::errors::RowsError;
-use {
-    super::service::matching, ryo_values::domain::rows::service::cell,
-    ryo_values::domain::rows::service::push_row,
-};
+use {ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::push_row};
 
 /// A scenario: what a row asks of the part.
 type Input = fn() -> Result<Value, RowsError>;
@@ -62,57 +55,7 @@ pub(crate) fn pairs(rows: &[[i64; 2]]) -> Table {
     table
 }
 
-/// Looking up a key finds the rows that have it, in the order they came, whatever the order of the table.
-fn finds_the_rows_of_a_key() -> Result<Value, RowsError> {
-    let table = pairs(&[[2, 1], [1, 2], [2, 3], [3, 4]]);
-    let on = [ColumnIndex(0)];
-    let order = prepared_index(&Rows::Computed(&table), &on)?;
-    let found: Vec<RowIndex> = matching(
-        &table,
-        On::Columns(&on),
-        &order,
-        &[Cell::Number(Integer(2))],
-    )
-    .copied()
-    .collect();
-    let none = matching(
-        &table,
-        On::Columns(&on),
-        &order,
-        &[Cell::Number(Integer(9))],
-    );
-    Ok(usize::from(
-        found == [RowIndex(0), RowIndex(2)] && none.clone().next().is_none(),
-    ))
-}
 
-/// Among many keys, a key finds exactly the rows that have it, still in the order they came.
-fn finds_a_key_among_many() -> Result<Value, RowsError> {
-    let rows: Vec<[i64; 2]> = (0..700).map(|each| [each % 7, each]).collect();
-    let table = pairs(&rows);
-    let on = [ColumnIndex(0)];
-    let order = prepared_index(&Rows::Computed(&table), &on)?;
-    let found: Vec<RowIndex> = matching(
-        &table,
-        On::Columns(&on),
-        &order,
-        &[Cell::Number(Integer(3))],
-    )
-    .copied()
-    .collect();
-    let expected: Vec<RowIndex> = (0..100).map(|each| RowIndex(3 + 7 * each)).collect();
-    Ok(usize::from(
-        found == expected
-            && matching(
-                &table,
-                On::Columns(&on),
-                &order,
-                &[Cell::Number(Integer(7))],
-            )
-            .next()
-            .is_none(),
-    ))
-}
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -120,18 +63,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_cell_is_found_by_position"),
         word: Word::Succeeds,
         input: || finds_the_second_cell,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("a_key_finds_its_rows_in_the_order_they_came"),
-        word: Word::Succeeds,
-        input: || finds_the_rows_of_a_key,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("a_key_among_many_finds_exactly_its_rows"),
-        word: Word::Succeeds,
-        input: || finds_a_key_among_many,
         expect: Expect::Value(1),
     },
     Case {
@@ -227,10 +158,6 @@ pub(crate) fn check_rows(input: &Rows<'_>, expected: &[Vec<Cell>]) {
             assert_eq!(
                 item.cell(raw, RowIndex(at), at_column).unwrap(),
                 CellRead::Value(*wanted)
-            );
-            assert_eq!(
-                crate::domain::table_model::service::cell_at(input, RowIndex(at), at_column),
-                Some(*wanted)
             );
         }
     }

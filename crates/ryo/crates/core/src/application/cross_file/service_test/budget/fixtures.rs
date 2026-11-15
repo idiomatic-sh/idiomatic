@@ -3,9 +3,6 @@
 use crate::application::cross_file::fixtures::project_calls::ProjectCalls;
 use crate::outbound::memory::errors::MemoryError;
 use crate::outbound::memory::interface::MemoryPort;
-use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
-use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_values::domain::runs::types::MemoryBytes;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -39,9 +36,6 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Gr
             self.resident.store(200, Ordering::SeqCst);
         }
         ran
-    }
-    fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
-        self.actual.operators(call)
     }
 }
 

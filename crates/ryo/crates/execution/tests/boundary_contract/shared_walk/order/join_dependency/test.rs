@@ -20,7 +20,7 @@ use ryo_values::domain::rows::types::{RowCount, Table};
 #[test]
 fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
-    let (engine, _) = engine();
+    let engine = engine();
     let mut authored = authored_request(2);
     crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
         PlanStep {
@@ -112,7 +112,7 @@ fn independent_semantic_relation_selectors_share_one_source_walk() {
         fixtures::node_id,
         types::{CellKind, Position, Value},
     };
-    let (engine, semantics) = engine();
+    let engine = engine();
     let mut authored = authored_request(2);
     for (index, name) in ["main", "other"].iter().enumerate() {
         crate::boundary_fixture::fixtures::plans(&mut authored)[index].steps[0].operation =
@@ -157,11 +157,6 @@ fn independent_semantic_relation_selectors_share_one_source_walk() {
             },
         );
     }
-    assert_eq!(
-        semantics.selects(),
-        0,
-        "both selectors use shared row dispatch"
-    );
     assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }

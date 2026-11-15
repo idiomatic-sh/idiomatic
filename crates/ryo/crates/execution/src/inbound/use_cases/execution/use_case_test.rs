@@ -105,9 +105,6 @@ mod axis_graph;
 mod conformance;
 
 #[cfg(test)]
-mod conformance_driver;
-
-#[cfg(test)]
 mod conformance_emptied;
 
 #[cfg(test)]

@@ -8,7 +8,7 @@ use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, 
 
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::SourcePath;
-use ryo_language::domain::semantics::types::{SemanticSession, SemanticSlot};
+use ryo_language::domain::semantics::types::SemanticSlot;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::inbound::use_cases::parse::errors::ParseError;

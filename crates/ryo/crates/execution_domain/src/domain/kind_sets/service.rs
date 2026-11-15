@@ -1,11 +1,9 @@
 //! The `kind_sets` service: the comparisons that name a kind, as sets of kinds, with no IO and no ports.
 
-use ryo_language::domain::elements::service::{kind_names, kind_vocabulary};
+use ryo_language::domain::elements::service::kind_names;
 use ryo_language::domain::symbols::service::text_of;
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_operators::domain::table_scratch::types::SetMembership;
 use ryo_relations::domain::relations::constants::NO_SYMBOL;
-use ryo_relations::domain::relations::types::KindBits;
 
 use super::constants::NO_NAME;
 use super::types::vocabulary::value::PreparedVocabulary;
@@ -17,19 +15,15 @@ use ryo_operators::domain::comparing::collections::comparisons::glob::item::Glob
 use ryo_operators::domain::comparing::collections::comparisons::interface::ComparisonsItem as _;
 use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_operators::domain::patterns::types::PatternMatcher;
-use ryo_operators::domain::table_scratch::service::kind_has;
-use ryo_operators::domain::table_scratch::types::{
-    KindSet, KindSetPlace, KindTest, NamingPlace, NamingTest,
-};
+use ryo_operators::domain::table_scratch::types::NamingPlace;
 use ryo_operators::domain::table_texts::types::{Datum, TextView};
-use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_relations::domain::relations::service::kind_column;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::descriptions::types::KindWord;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::service::column_place;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
+    ColumnIndex, Operand, PlanComparison, QueryLiteral, Test,
 };
 use std::sync::LazyLock;
 

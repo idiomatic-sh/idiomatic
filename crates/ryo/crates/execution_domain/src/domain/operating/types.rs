@@ -2,7 +2,6 @@
 
 use crate::domain::operating::errors::OperatingError;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
-use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::files::types::SourceView;
 
 /// An application-owned, file-scoped semantic demand port. Operators borrow it;
@@ -43,7 +42,6 @@ pub enum AfterTheFiles {
     After,
 }
 
-use ryo_values::domain::rows::types::{RowCount, Table};
 
 /// Profile-only semantic observations. No execution or ownership policy is reachable.
 #[cfg(feature = "diagnostic-row-progress")]
@@ -89,18 +87,4 @@ pub trait PrimitiveSemantics: Sync {
     fn progress(&self) -> &dyn ProgressObserver {
         &IgnoredProgress
     }
-
-    /// The injected operators the primitive evaluates through.
-    ///
-    /// # Errors
-    ///
-    /// The [`PortableOperatorFault`](ryo_operators::domain::contract::types::PortableOperatorFault) the operator
-    /// answers the call with.
-    fn operators(
-        &self,
-        call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
-    ) -> Result<
-        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
-    >;
 }

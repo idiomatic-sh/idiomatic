@@ -198,52 +198,6 @@ pub(crate) fn occurrences(
     Ok(())
 }
 
-/// Emits the occurrences of the acquired matcher inside the span text the engine validated before it acquired it.
-pub(crate) fn evaluate(
-    row: &[Value],
-    shape: super::types::SearchShape<'_>,
-    views: super::types::SearchViews<'_>,
-    driver: &mut dyn crate::domain::source_matches::types::TextRowsEvaluation,
-    joined: &mut Vec<Value>,
-    matching: &dyn crate::domain::contract::types::Occurrences,
-) -> Result<(), PortableOperatorFault> {
-    let super::types::SearchViews {
-        source,
-        checked,
-        regex,
-    } = views;
-    let text = checked.text.0;
-    let capture = shape.capture;
-    occurrences(
-        SourceMatchesInput {
-            row,
-            source,
-            base: checked.base,
-            text: checked.text,
-            line: checked.line,
-            regex,
-            capture,
-            capture_text: shape.capture_text,
-            capture_line: shape.capture_line,
-        },
-        driver.text_rows(),
-        joined,
-        &|each| match capture {
-            CaptureRequest::Group(name) => matching.captures(
-                regex,
-                ryo_matching::inbound::use_cases::matching::types::SearchText(text),
-                ryo_matching::inbound::use_cases::matching::types::GroupName(name.0),
-                &mut |found, group| each(found.0, Some(group.0)),
-            ),
-            CaptureRequest::Whole => Ok(matching.matches(
-                regex,
-                ryo_matching::inbound::use_cases::matching::types::SearchText(text),
-                &mut |found| each(found.0, None),
-            )),
-        },
-    )
-}
-
 /// The source gate of a search: the span's text and base line, checked before any pattern is compiled; an absent span gives
 /// no occurrence and stops the row's later checks.
 ///

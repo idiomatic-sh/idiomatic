@@ -210,7 +210,7 @@ fn capture_storage_failure_after_a_shared_node() {
 
 #[test]
 fn failing_pipeline_stage_with_an_earlier_failing_stage_on_a_later_row() {
-    let (engine, _) = crate::shared_walk::fixtures::engine();
+    let engine = crate::shared_walk::fixtures::engine();
     let mut input = authored_request(1);
     // The first stage fails only on the file's last row, whose text is not a pattern; the second stage fails on its first row.
     crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![

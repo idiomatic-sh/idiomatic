@@ -2,7 +2,7 @@
 use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
 use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
 use ryo_derived::domain::contract::types::{
-    BuildInputs, BuildOutcome, BuildWorkspace, DerivedView,
+    BuildInputs, BuildOutcome, BuildWorkspace,
 };
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::request::types::DerivedRequest;
@@ -10,14 +10,11 @@ use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
 use ryo_derived::inbound::use_cases::build::use_case::BuildUseCaseImpl;
 use ryo_derived::inbound::use_cases::prepare_derived::interface::PrepareDerivedUseCase;
 use ryo_derived::inbound::use_cases::prepare_derived::use_case::PrepareDerivedUseCaseImpl;
-use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
-use ryo_derived::inbound::use_cases::view::use_case::ViewUseCaseImpl;
 
 /// The portable derived use cases the domain's tests call, as one value: the tests never reach the engine's outbound port.
 pub(crate) struct Semantics {
     prepare: PrepareDerivedUseCaseImpl,
     build: BuildUseCaseImpl,
-    view: ViewUseCaseImpl,
 }
 
 /// The portable derived use cases, built where the test needs them.
@@ -25,7 +22,6 @@ pub(crate) fn semantics() -> Semantics {
     Semantics {
         prepare: PrepareDerivedUseCaseImpl::new(),
         build: BuildUseCaseImpl::new(),
-        view: ViewUseCaseImpl::new(),
     }
 }
 
@@ -56,14 +52,5 @@ impl Semantics {
             None => ryo_derived::domain::contract::types::Recycled::Nothing,
         };
         BuildUseCase::build(&self.build, prepared, inputs, room, recycled)
-    }
-
-    /// A view over a built payload.
-    pub(crate) fn view<'a>(
-        &self,
-        prepared: &PreparedDerived,
-        payload: &'a DerivedPayload,
-    ) -> Result<DerivedView<'a>, DerivedFault> {
-        ViewUseCase::view(&self.view, prepared, payload)
     }
 }

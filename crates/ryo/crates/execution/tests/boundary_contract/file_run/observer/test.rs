@@ -92,7 +92,7 @@ fn each_fused_step_is_counted_for_the_rows_it_was_fed() {
     use crate::shared_walk::fixtures::{compared, text, tree};
     use ryo_execution::inbound::use_cases::execution::interface::ObserverPort as _;
     use ryo_values::domain::plan_parts::types::Test;
-    let (engine, _) = crate::shared_walk::fixtures::engine();
+    let engine = crate::shared_walk::fixtures::engine();
     let mut input = authored_request(1);
     let plan = &mut crate::boundary_fixture::fixtures::plans(&mut input)[0];
     plan.steps = vec![

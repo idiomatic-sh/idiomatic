@@ -4,7 +4,7 @@
 use crate::domain::describing::constants::{DESTINATION, RELATION, described, field};
 use ryo_relations::domain::relations::constants::SOURCE;
 use ryo_values::domain::descriptions::constants::{
-    COLUMN, COLUMNS, DIGEST, OUTPUT, PROJECT, SELECT,
+    COLUMN, COLUMNS, DIGEST, PROJECT, SELECT,
 };
 use ryo_values::domain::descriptions::types::FieldRequirement::{Optional, Required};
 use ryo_values::domain::descriptions::types::OperatorDescription;

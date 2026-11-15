@@ -20,7 +20,7 @@ use ryo_values::domain::plans::types::{Operation, PlanStep};
 #[test]
 fn frontier_and_callback_share_the_same_atomic_semantic_failure() {
     {
-        let (engine, _) = engine();
+        let engine = engine();
         let mut authored = authored_request(1);
         crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps[0].operation =
             Operation::Select {
@@ -61,7 +61,7 @@ fn frontier_and_callback_share_the_same_atomic_semantic_failure() {
 }
 #[test]
 fn identical_join_diagnostics_have_equal_errors_for_both_delivery_orders() {
-    let (engine, _) = engine();
+    let engine = engine();
     let authored = conditional_join_request(2);
     let program = engine
         .prepare(authored)
@@ -156,7 +156,7 @@ fn conditional_join_request(count: usize) -> PrepareRequest {
 }
 #[test]
 fn callback_and_frontier_use_one_dependency_contract_in_both_orders() {
-    let (engine, _) = engine();
+    let engine = engine();
     let mut authored = conditional_join_request(1);
     crate::boundary_fixture::fixtures::plans(&mut authored)[0].frontier =
         vec![Input::Step(StepId(2))];

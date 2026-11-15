@@ -8,19 +8,6 @@ pub fn append(row: &[Value], appended: &[Value], target: &mut Vec<Value>) {
     target.extend_from_slice(appended);
 }
 
-/// Appends the resolved values of an extension to a scheduled row.
-pub(crate) fn evaluate(
-    row: &[Value],
-    appended: Option<&[Value]>,
-    driver: &mut dyn crate::domain::contract::types::RowDriver,
-    joined: &mut Vec<Value>,
-) -> Result<(), crate::domain::contract::types::PortableOperatorFault> {
-    let appended =
-        appended.ok_or(crate::domain::contract::types::PortableOperatorFault::WrongBinding)?;
-    append(row, appended, joined);
-    driver.emit(joined)
-}
-
 /// The one lowering of an extension: its values and bindings, for the `extend` kernel.
 pub(crate) fn lower(
     values: &[ryo_values::domain::plan_parts::types::Operand],

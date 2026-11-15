@@ -1,14 +1,5 @@
 //! Which reduction an aggregate formats.
 
-/// Whether a group is formatted with its count alone or with the digest of its values too.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Aggregation {
-    /// The keys and the count.
-    Counted,
-    /// The keys, the digest and the count.
-    Digested,
-}
-
 /// What a grouping lowers to: the columns that make a group and what each group answers.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct GroupParts {

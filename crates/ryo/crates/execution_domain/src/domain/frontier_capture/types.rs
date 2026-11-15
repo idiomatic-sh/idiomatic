@@ -1,6 +1,5 @@
 //! The frontier a rule hands over: its packed words and the scope that bounds the capture.
 use crate::domain::operating::errors::OperatingError;
-use ryo_relations::domain::relations::types::Words;
 
 /// The outcome of capturing one frontier input.
 pub struct FrontierCapture {

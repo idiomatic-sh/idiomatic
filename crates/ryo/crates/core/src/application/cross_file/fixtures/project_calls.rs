@@ -43,17 +43,4 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Pr
         }
         Ok(())
     }
-    fn operators(
-        &self,
-        call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
-    ) -> Result<
-        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
-    > {
-        use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
-        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
-            std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
-        )
-        .operators(call)
-    }
 }

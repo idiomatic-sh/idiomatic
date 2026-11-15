@@ -32,10 +32,6 @@ Merges a request's rules into one logical program and assembles the planned prog
 
 Attributes observed row work to the features used by a request.
 
-### file_program
-
-Compiles per-file operation dependencies and admissible cut points.
-
 ### finish
 
 Normalizes producer names and prepares portable publication values.
@@ -51,10 +47,6 @@ Carries a coverage of files to the file-frontier boundary and restores it.
 ### hosted
 
 Describes host-provided relations and their declared row shapes.
-
-### interpreted_program
-
-Defines the interpreter's immutable compiled regions, producers and dependency edges, which the project phase runs until the fourth stage.
 
 ### kind_check
 
@@ -92,10 +84,6 @@ Decides which configured rules govern a source file.
 
 Holds immutable request declarations consumed by compilation.
 
-### replay
-
-Describes how produced rows are passed to their consumers.
-
 ### row_emission
 
 Preserves physical uncertainty when rows are delivered.
@@ -108,14 +96,6 @@ Freezes each rule's emit, observation and frontier demand before any file is wal
 
 Looks up admitted rule coordinates in the compiled request.
 
-### self_join_recogniser
-
-Recognises a dominated-key subtree for self joins.
-
-### shared_walk
-
-Groups compatible selections for one request-wide file walk.
-
 ### source_partitions
 
 Declares the immutable producer partitions of a compiled request.
@@ -124,37 +104,13 @@ Declares the immutable producer partitions of a compiled request.
 
 Checks equal name hashes against retained text to detect collisions.
 
-### step_classes
-
-Classifies compatible selection steps before shared traversal.
-
 ### stored_graph
 
 Describes generation-bound graph population and adjacency.
 
-### table_cells
-
-Reads and validates typed cells in produced tables.
-
-### table_dedup
-
-Tracks distinct table rows while preserving encounter order.
-
-### table_groups
-
-Groups table rows for aggregate operations.
-
 ### table_model
 
 Defines table representations and their physical row access.
-
-### table_reach
-
-Traverses reachable table nodes in source order.
-
-### text_gate
-
-Prepares fixed text comparisons for tree selection.
 
 ### tree_walk
 

@@ -4,7 +4,7 @@ use super::errors::RuleCompilationError;
 use super::service::CompiledPlans;
 use super::service::RuleCompilation;
 use crate::outbound::query_language::errors::QueryLanguageError;
-use crate::outbound::query_language::fixtures::fake::{QueryLanguageFake, REFUSED};
+use crate::outbound::query_language::fixtures::fake::QueryLanguageFake;
 use crate::outbound::query_language::interface::QueryLanguagePort;
 use fixtures::{
     Compiled, bounded, changed_ids, module_catalog_identity, oversized_requests, population,
@@ -14,12 +14,10 @@ use ryo_execution_domain::domain::operator::constants::{OPERATORS, describe};
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::descriptions::types::ValidateReport;
 use ryo_values::domain::hosted::types::{
-    HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostedRelation,
+    HostColumn, HostColumnName, HostKind, HostName, HostRelation,
 };
 use ryo_values::domain::plan_parts::types::{ParameterName, QueryText, WholeNumber};
-use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_bindings::types::ParameterType;
 use ryo_values::domain::query_bindings::types::PlanParameter;

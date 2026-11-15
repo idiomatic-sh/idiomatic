@@ -1,20 +1,13 @@
 //! Literal-mask setup work, exact vocabulary identity and generation isolation.
 
 use crate::domain::kind_sets::service::prepare_vocabulary;
-use crate::domain::operator::types::OperatorContext;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_operators::domain::contract::types::PredicateOutcome;
-use ryo_operators::domain::table_scratch::types::OperatorScratch;
-use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_relations::domain::relations::types::{FileId, KindBits, Offset};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::files::types::SourceView;
-use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
-};
 
 /// Build a small real vocabulary; the payload is irrelevant to prepared kind predicates.
 fn prepared_tree(names: &[&str]) -> (Elements, Symbols) {

@@ -41,15 +41,6 @@ pub struct WalkStep {
     pub edge: EdgePlace,
 }
 
-/// Engine-prepared adjacency, read through a port: the graph keeps its own layout.
-pub trait CycleDriver {
-    /// How many nodes the graph has.
-    fn nodes(&self) -> NodeCount;
-    /// The value of a node, or none for a number the graph does not have.
-    fn value(&self, node: NodeNumber) -> Option<Value>;
-    /// The node the edge at `place` leaving `node` leads to, or none when `node` has no such edge.
-    fn edge(&self, node: NodeNumber, place: EdgePlace) -> Option<NodeNumber>;
-}
 
 /// The work arrays of one search, kept by the engine between invocations so they keep their capacity. The `components`
 /// kernel's adjacency is the operators' own:
@@ -83,17 +74,6 @@ pub struct CycleScratch {
     pub(crate) leaving: Vec<NodeNumber>,
 }
 
-/// An engine driver that lends the prepared adjacency of a cycle search.
-pub trait CyclesEvaluation: crate::domain::contract::types::RowDriver {
-    /// The engine's prepared adjacency of a cycle search.
-    ///
-    /// # Errors
-    ///
-    /// The engine retained an error: no adjacency is bound.
-    fn cycles(
-        &mut self,
-    ) -> Result<&dyn CycleDriver, crate::domain::contract::types::PortableOperatorFault>;
-}
 
 /// The graph a cycle search reads: an edge row's source column and destination column.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

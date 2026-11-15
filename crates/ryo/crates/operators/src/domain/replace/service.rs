@@ -38,45 +38,6 @@ pub(crate) fn replace_compiled(
     Ok(())
 }
 
-/// Appends the text of a scheduled row's column with every match of the acquired matcher replaced by the
-/// authored text, interned as derived text; a cell that is not text is refused.
-pub(crate) fn evaluate(
-    row: &[ryo_relations::domain::relations::types::Value],
-    column: ryo_values::domain::plan_parts::types::ColumnIndex,
-    replacement: ReplacementText<'_>,
-    regex: Option<&ryo_matching::inbound::use_cases::matching::types::CompiledRegex>,
-    driver: &mut dyn crate::domain::contract::types::RowDriver,
-    scratch: &mut crate::domain::contract::types::RowScratch,
-    occurrences: &dyn crate::domain::contract::types::Occurrences,
-) -> Result<(), PortableOperatorFault> {
-    let value = ryo_values::domain::rows::service::column_in(row, column)
-        .copied()
-        .ok_or(
-            crate::domain::contract::types::PortableOperatorFault::NoSuchColumn { index: column },
-        )?;
-    scratch.text.0.clear();
-    if driver.text(value, &mut scratch.text) == crate::domain::contract::types::TextFound::NotText {
-        return Err(PortableOperatorFault::ShapeMismatch);
-    }
-    let regex = regex.ok_or(PortableOperatorFault::WrongBinding)?;
-    let text = scratch.text.0.as_str();
-    replace_compiled(
-        &|each| {
-            occurrences.matches(
-                regex,
-                ryo_matching::inbound::use_cases::matching::types::SearchText(text),
-                &mut |found| each(found.0),
-            )
-        },
-        CellText(text),
-        replacement,
-        ReplacedText(&mut scratch.replaced.0),
-    )?;
-    let appended = driver.mint(CellText(&scratch.replaced.0));
-    crate::domain::append::service::append(row, std::slice::from_ref(&appended), &mut scratch.row);
-    driver.emit(&scratch.row)
-}
-
 /// The one lowering of a replacement: its text column, pattern and replacement, for the `text_map` kernel.
 pub(crate) fn lower(
     text: ryo_values::domain::plan_parts::types::ColumnIndex,

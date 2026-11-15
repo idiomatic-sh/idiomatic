@@ -51,8 +51,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_group_digest_is_the_row_meaning_s"),
         word: Word::Succeeds,
         input: || Scenario::GroupDigest,
-        // Per group in first-row order: its key, then the digest and count main's reduction answers for the same rows
-        // (`reduction` service_test `a_group_digest_s_row_meaning_is_first_row_distinct_count_and_digest_per_group`).
+        // Per group in first-row order: its key, then the digest and count main's reduction answered for the same rows, recorded
+        // from its row meaning (`a_group_digest_s_row_meaning_is_first_row_distinct_count_and_digest_per_group`).
         expect: Expect::Value(Observation::Rows(std::borrow::Cow::Borrowed(&[
             1,
             -5_686_229_789_459_316_394,

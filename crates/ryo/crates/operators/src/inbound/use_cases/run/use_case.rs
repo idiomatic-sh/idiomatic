@@ -53,32 +53,3 @@ impl RunUseCase for RunUseCaseImpl {
         )
     }
 }
-
-impl crate::domain::contract::types::Occurrences for RunUseCaseImpl {
-    fn matches(
-        &self,
-        regex: &ryo_matching::inbound::use_cases::matching::types::CompiledRegex,
-        text: ryo_matching::inbound::use_cases::matching::types::SearchText<'_>,
-        each: &mut dyn FnMut(
-            ryo_matching::inbound::use_cases::matching::types::TextSpan,
-        ) -> std::ops::ControlFlow<()>,
-    ) -> std::ops::ControlFlow<()> {
-        self.matching.visit_regex_matches(regex, text, each)
-    }
-    fn captures(
-        &self,
-        regex: &ryo_matching::inbound::use_cases::matching::types::CompiledRegex,
-        text: ryo_matching::inbound::use_cases::matching::types::SearchText<'_>,
-        group: ryo_matching::inbound::use_cases::matching::types::GroupName<'_>,
-        each: &mut dyn FnMut(
-            ryo_matching::inbound::use_cases::matching::types::TextSpan,
-            ryo_matching::inbound::use_cases::matching::types::TextSpan,
-        ) -> std::ops::ControlFlow<()>,
-    ) -> Result<std::ops::ControlFlow<()>, PortableOperatorFault> {
-        self.matching
-            .visit_regex_captures(regex, text, group, each)
-            .map_err(|_| PortableOperatorFault::MissingCapture {
-                capture: ryo_values::domain::plan_parts::types::LiteralText(group.0.into()),
-            })
-    }
-}

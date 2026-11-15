@@ -1,6 +1,4 @@
 //! The operator capability's acceptance runner: every use case's colocated feature, run through its steps over one world.
-#[path = "../src/inbound/use_cases/operators/acceptance.rs"]
-mod operators;
 #[path = "../src/inbound/use_cases/plan/acceptance.rs"]
 mod plan;
 #[path = "../src/inbound/use_cases/run/acceptance.rs"]

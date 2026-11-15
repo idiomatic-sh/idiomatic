@@ -18,7 +18,7 @@ use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::rows::types::{RowCount, Table};
 #[test]
 fn an_earlier_dynamic_regex_error_is_not_hidden_by_a_later_false_kind_test() {
-    let (engine, semantics) = engine();
+    let engine = engine();
     let program = prepared(&engine, &[Selector::RegexBeforeAbsentKind]);
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
@@ -35,13 +35,12 @@ fn an_earlier_dynamic_regex_error_is_not_hidden_by_a_later_false_kind_test() {
         &mut symbols,
     );
     assert_eq!(failed(&mut rules, 0), Some(regex_error("[")));
-    assert_eq!(semantics.selects(), 0);
     assert!(matches!(rules.end, FileEnd::Unfinished));
     request.finish();
 }
 #[test]
 fn an_earlier_false_kind_test_still_short_circuits_the_later_invalid_regex() {
-    let (engine, semantics) = engine();
+    let engine = engine();
     let program = prepared(&engine, &[Selector::AbsentKindBeforeRegex]);
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
@@ -65,13 +64,12 @@ fn an_earlier_false_kind_test_still_short_circuits_the_later_invalid_regex() {
             cells: vec![]
         }
     );
-    assert_eq!(semantics.selects(), 0);
     assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
 #[test]
 fn a_fused_child_error_precedes_a_later_head_error_and_is_terminal() {
-    let (engine, _semantics) = engine();
+    let engine = engine();
     let mut authored = authored_request(1);
     crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
         PlanStep {
@@ -121,7 +119,7 @@ fn a_fused_child_error_precedes_a_later_head_error_and_is_terminal() {
 }
 #[test]
 fn semantic_failure_precedes_delivery_and_is_terminal_for_every_retry() {
-    let (engine, semantics) = engine();
+    let engine = engine();
     let program = prepared(&engine, &[Selector::DynamicRegex]);
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
@@ -141,11 +139,6 @@ fn semantic_failure_precedes_delivery_and_is_terminal_for_every_retry() {
         failed(&mut rules, 0),
         Some(regex_error("(")),
         "semantic failure must precede all delivery"
-    );
-    assert_eq!(
-        semantics.selects(),
-        0,
-        "cached native rows never rerun ordinary selection"
     );
     assert!(matches!(rules.end, FileEnd::Unfinished));
     request.finish();

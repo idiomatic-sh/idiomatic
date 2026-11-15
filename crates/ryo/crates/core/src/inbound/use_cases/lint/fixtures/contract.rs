@@ -18,7 +18,6 @@ use crate::cases::Word;
 use crate::cases::run;
 use crate::cases::selects;
 use ryo_language::inbound::use_cases::project::types::RootPath;
-use ryo_relations::domain::relations::service::name;
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::types::ParameterName;

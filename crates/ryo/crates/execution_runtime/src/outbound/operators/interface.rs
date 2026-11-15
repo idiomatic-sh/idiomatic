@@ -4,7 +4,6 @@ use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffer
 use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use ryo_operators::domain::physical_plan::types::{PlanInputs, PlanNodeId, Resources};
-use ryo_operators::inbound::use_cases::operators::types::{OperatorAnswer, OperatorCall};
 
 /// What every `operators` adapter implements.
 ///
@@ -18,12 +17,6 @@ use ryo_operators::inbound::use_cases::operators::types::{OperatorAnswer, Operat
 /// }
 /// ```
 pub trait OperatorsPort: Send + Sync + std::fmt::Debug {
-    /// Runs the operator the call names over its borrowed rows and answers its meaning.
-    ///
-    /// # Errors
-    ///
-    /// The portable fault the operator refuses with.
-    fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault>;
     /// The physical plan of a whole program; a node whose kind has no lowering yet is recorded as unserved, never refused.
     ///
     /// # Errors

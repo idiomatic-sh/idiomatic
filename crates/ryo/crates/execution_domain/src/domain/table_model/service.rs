@@ -1,29 +1,20 @@
 //! The `table_model` service: free functions named by verb over tables, with no IO and no ports.
 
-use std::cmp::Ordering;
 
 use ryo_language::domain::elements::service::real_count;
-use ryo_relations::domain::relations::service::from_bits;
 use ryo_relations::domain::relations::types::{
-    Bits, CellKind, ColumnsView, Flag, Integer, Position, Value,
+    CellKind, Value,
 };
 
 use super::constants::MATERIALIZED;
 use super::types::RepresentationKind;
 use super::types::registered_representation::value::RegisteredRepresentation;
 use super::types::{RepresentationInput, Rows};
-use ryo_derived::domain::equality::types::KeyIndex;
-use ryo_derived::domain::key::service::hash_key;
-use ryo_derived::domain::key::types::ChainLink;
-use ryo_derived::domain::key::types::On;
-use ryo_operators::domain::tree_cells::service::{edge_of, element_of};
 use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
-use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::errors::RowsError;
-use ryo_values::domain::table_words::types::TableShape;
 
-use ryo_values::domain::rows::service::{positions, push_row, reset, row_in};
+use ryo_values::domain::rows::service::{positions, push_row, reset};
 
 /// What each column of the rows holds.
 #[must_use]
@@ -102,22 +93,6 @@ pub fn materialize(rows: &Rows<'_>, into: &mut Table, scratch: &mut Vec<Value>) 
         capacity_bytes = into.cells.capacity().saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>()));
 }
 
-/// How the row compares with `key`, by the cells `on` names.
-pub(crate) fn compare_key(row: &[Value], on: On<'_>, key: &[Value]) -> Ordering {
-    match on {
-        On::Whole => row.cmp(key),
-        On::Columns(columns) => {
-            for (column, wanted) in columns.iter().zip(key) {
-                match column_in(row, *column).map(|each| each.cmp(wanted)) {
-                    Some(Ordering::Equal) => {}
-                    Some(other) => return other,
-                    None => return Ordering::Less,
-                }
-            }
-            Ordering::Equal
-        }
-    }
-}
 
 /// Whether a table whose columns hold `kinds` has every one of `columns`.
 ///
@@ -134,108 +109,10 @@ pub fn check_columns(kinds: &[CellKind], columns: &[ColumnIndex]) -> Result<(), 
     }
 }
 
-#[cfg(test)]
-/// Whether every declared stored column has exactly the first column's row population.
-/// Other views keep the materializing path, including its treatment of incomplete rows.
-pub(crate) fn rectangular(view: ColumnsView<'_>) -> TableShape {
-    let count = view.columns.first().map_or(0, |column| column.0.len());
-    if view.columns.len() == view.kinds.len()
-        && view.columns.iter().all(|column| column.0.len() == count)
-    {
-        TableShape::Rectangular
-    } else {
-        TableShape::Ragged
-    }
-}
 
-#[cfg(any(test, feature = "fixtures"))]
-/// Decode one typed stored cell, preserving normalization such as nonzero flag encodings.
-fn stored_cell(view: ColumnsView<'_>, row: RowIndex, column: ColumnIndex) -> Option<Value> {
-    let kind = column_in(view.kinds, column)?;
-    let bits = column_in(view.columns, column)?.0.get(row.0)?;
-    Some(from_bits(*kind, Bits(*bits)))
-}
 
-#[cfg(test)]
-/// Read one typed cell without decoding unused stored payload or allocating a row buffer.
-pub(crate) fn cell_at(rows: &Rows<'_>, row: RowIndex, column: ColumnIndex) -> Option<Value> {
-    borrowed(rows).cell(row, column)
-}
 
-#[cfg(any(test, feature = "fixtures"))]
-/// Find original stored rows by typed keys, checking equality after every hash match.
-/// The caller indexes a rectangular view first; payload columns are never read here.
-pub fn matching_stored<'o, 'k>(
-    view: ColumnsView<'o>,
-    columns: &'k [ColumnIndex],
-    order: &'o KeyIndex,
-    key: &'k [Value],
-    #[cfg(feature = "diagnostic-row-progress")]
-    observer: &dyn crate::domain::operating::types::ProgressObserver,
-) -> impl Iterator<Item = &'o RowIndex> + Clone {
-    #[cfg(feature = "diagnostic-row-progress")]
-    observer.observe(
-        crate::domain::operating::types::ProgressCounter::IndexProbes,
-        crate::domain::operating::types::ProgressAmount(1),
-    );
-    let hash = hash_key(key.iter().map(Some));
-    let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads.len().saturating_sub(1);
-    let mut at = order.heads.get(bucket).copied().unwrap_or(ChainLink(0));
-    std::iter::from_fn(move || {
-        while at.0 != 0 {
-            #[cfg(feature = "diagnostic-row-progress")]
-            observer.observe(
-                crate::domain::operating::types::ProgressCounter::IndexRowsExamined,
-                crate::domain::operating::types::ProgressAmount(1),
-            );
-            let place = usize::try_from(at.0 - 1).unwrap_or(usize::MAX);
-            at = order.next.get(place).copied().unwrap_or(ChainLink(0));
-            if order.hashes.get(place) == Some(&hash)
-                && columns.iter().zip(key).all(|(column, wanted)| {
-                    stored_cell(view, RowIndex(place), *column) == Some(*wanted)
-                })
-            {
-                let row = order.rows.get(place);
-                #[cfg(feature = "diagnostic-row-progress")]
-                if row.is_some() {
-                    observer.observe(
-                        crate::domain::operating::types::ProgressCounter::EqualityMatches,
-                        crate::domain::operating::types::ProgressAmount(1),
-                    );
-                }
-                return row;
-            }
-        }
-        None
-    })
-}
 
-/// The rows of an indexed table whose keys are `key`, in the order they came: the chain of the key's bucket is followed, and a row
-/// whose hash or key differs is passed over.
-pub(crate) fn matching<'o, 'k>(
-    table: &'o Table,
-    on: On<'k>,
-    order: &'o KeyIndex,
-    key: &'k [Value],
-) -> impl Iterator<Item = &'o RowIndex> + Clone {
-    let hash = hash_key(key.iter().map(Some));
-    let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads.len().saturating_sub(1);
-    // The next row of the chain, plus one; zero when there is none.
-    let mut at = order.heads.get(bucket).copied().unwrap_or(ChainLink(0));
-    std::iter::from_fn(move || {
-        while at.0 != 0 {
-            let place = usize::try_from(at.0 - 1).unwrap_or(usize::MAX);
-            at = order.next.get(place).copied().unwrap_or(ChainLink(0));
-            if order.hashes.get(place) == Some(&hash)
-                && row_in(table, RowIndex(place))
-                    .is_some_and(|row| compare_key(row, on, key) == Ordering::Equal)
-            {
-                return order.rows.get(place);
-            }
-        }
-        None
-    })
-}
 
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 

@@ -1,7 +1,6 @@
 //! The `use_case` adapter of the `operators` port: the core's contract rows run through it.
 use super::adapter::OperatorsUseCaseAdapter;
 use crate::outbound::operators::fixtures::contract;
-use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -20,7 +19,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 fn subject(column: Input) -> Result<Value, Failure> {
     let matching = || std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case());
     contract::check(&OperatorsUseCaseAdapter::new(
-        OperatorsUseCaseImpl::new(matching()),
         ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl::new(),
         ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl::new(matching()),
     ));

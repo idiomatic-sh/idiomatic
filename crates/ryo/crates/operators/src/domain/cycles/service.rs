@@ -1,6 +1,6 @@
 //! Tarjan cycle semantics: the nodes of a component of more than one, or with an edge to themselves.
 use super::types::{
-    CycleDriver, CycleMark, CycleScratch, EdgePlace, MeetOrder, NodeCount, NodeNumber, WalkStep,
+    CycleMark, CycleScratch, EdgePlace, MeetOrder, NodeCount, NodeNumber, WalkStep,
 };
 
 /// Marks in `scratch.found`, by node number, each node of `nodes` in a component of more than one or with an edge to itself,
@@ -115,43 +115,6 @@ fn mark_components(
             }
         }
     }
-}
-
-/// Marks the nodes on a cycle of `graph` and leaves their values ascending in `scratch.ordered`.
-pub(crate) fn cycles(graph: &dyn CycleDriver, scratch: &mut CycleScratch) {
-    let nodes = graph.nodes().0;
-    components(
-        graph.nodes(),
-        |node, place| graph.edge(node, place),
-        scratch,
-    );
-    scratch.ordered.clear();
-    scratch.ordered.extend(
-        (0..nodes)
-            .zip(&scratch.found)
-            .filter(|(_, on)| **on == CycleMark::Raised)
-            .filter_map(|(node, _)| graph.value(NodeNumber(node))),
-    );
-    scratch.ordered.sort_unstable();
-}
-
-/// Marks the nodes on a cycle of the engine's prepared adjacency and emits each, ascending, as both the
-/// source and the destination of its row. The step is fed every edge row: the adjacency holds them all.
-pub(crate) fn evaluate(
-    driver: &mut dyn crate::domain::cycles::types::CyclesEvaluation,
-    scratch: &mut CycleScratch,
-) -> Result<(), crate::domain::contract::types::PortableOperatorFault> {
-    use ryo_values::domain::plan_parts::types::InputNumber;
-    cycles(driver.cycles()?, scratch);
-    let edges = driver.population(InputNumber(0))?;
-    driver.found(
-        InputNumber(0),
-        ryo_relations::domain::relations::types::Count(edges.0),
-    );
-    for value in &scratch.ordered {
-        driver.emit(&[*value, *value])?;
-    }
-    Ok(())
 }
 
 /// The graph of a cycle search over edges whose `source` leads to `destination`: its one lowering, Tarjan's components

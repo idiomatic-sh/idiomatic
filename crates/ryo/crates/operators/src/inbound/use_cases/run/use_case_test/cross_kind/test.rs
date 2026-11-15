@@ -26,7 +26,6 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, HostedNumber, Operand, QueryLiteral, RepeatedRows, Side, StepScope,
 };
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::rows::types::Table;
 use std::borrow::Cow;
 
 #[derive(Clone, Copy, Debug)]

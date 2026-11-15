@@ -22,7 +22,7 @@ use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::rows::types::{RowCount, Table};
 #[test]
 fn distinct_native_heads_keep_reordered_duplicate_columns_and_source_row_order() {
-    let (engine, semantics) = engine();
+    let engine = engine();
     let mut authored = authored_request(2);
     for (index, kind, kept) in [
         (
@@ -94,18 +94,13 @@ fn distinct_native_heads_keep_reordered_duplicate_columns_and_source_row_order()
             cells: vec![span, b, span, Value::Node(node_id(FileId(0), Position(2)))]
         }
     );
-    assert_eq!(
-        semantics.selects(),
-        0,
-        "both projected heads use shared replay, without ordinary selector rescans"
-    );
     assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
 #[test]
 fn fused_select_reads_projected_ordinals_and_forwards_exact_rows_in_source_order() {
     for (pattern, positions) in [("{a,c}", &[1_u32, 3][..]), ("c", &[3_u32][..])] {
-        let (engine, _semantics) = engine();
+        let engine = engine();
         let mut authored = authored_request(1);
         crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
             PlanStep {
@@ -167,7 +162,7 @@ fn fused_select_reads_projected_ordinals_and_forwards_exact_rows_in_source_order
 }
 #[test]
 fn mixed_intents_keep_excluded_errors_unreachable_while_an_active_neighbor_walks() {
-    let (engine, semantics) = engine();
+    let engine = engine();
     let program = prepared(
         &engine,
         &[
@@ -203,13 +198,12 @@ fn mixed_intents_keep_excluded_errors_unreachable_while_an_active_neighbor_walks
         rules.rules.is_empty(),
         "excluded roots do not run and deliver no rows"
     );
-    assert_eq!(semantics.selects(), 0);
     assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
 #[test]
 fn a_run_intent_with_no_enabled_roots_does_not_evaluate_its_predicates() {
-    let (engine, _) = engine();
+    let engine = engine();
     let program = prepared(&engine, &[Selector::BadRegex, Selector::Kind("other")]);
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());

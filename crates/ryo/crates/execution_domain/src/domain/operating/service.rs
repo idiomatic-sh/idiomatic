@@ -1,7 +1,6 @@
 //! The `operating` service: free functions named by verb over what an operator reads, with no IO and no ports.
 
 use crate::domain::operating::errors::OperatingError;
-use ryo_values::domain::plan_parts::types::Test;
 
 /// A name the steps made, as a value: when the steps run after the files were read (the text of the workers is
 /// given) it is a name that has left its file, which compares with the names the files handed over; before, a name of the file.
@@ -78,24 +77,6 @@ pub fn derived_fault(fault: ryo_derived::domain::fault::types::DerivedFault) -> 
         DerivedFault::ShapeMismatch => OperatingError::ShapeMismatch,
         DerivedFault::NotRun => OperatingError::NotRun,
         DerivedFault::WrongOperation | DerivedFault::Interrupted => OperatingError::WrongOperation,
-    }
-}
-
-/// Preserve the engine's original downstream error ahead of a portable interruption marker.
-pub(crate) fn written_result(
-    answer: Result<
-        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
-    >,
-    error: Option<OperatingError>,
-) -> Result<(), OperatingError> {
-    if let Some(error) = error {
-        return Err(error);
-    }
-    match answer {
-        Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written) => Ok(()),
-        Ok(_) => Err(OperatingError::WrongOperation),
-        Err(error) => Err(portable_fault(error)),
     }
 }
 

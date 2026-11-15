@@ -4,9 +4,8 @@
 use super::constants::SCRATCH_GROUP_INITIALIZED;
 
 use crate::domain::contract::types::PredicateOutcome;
-use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_language::domain::elements::types::KindSum;
-use ryo_relations::domain::relations::types::{KindBits, TextHash, Value};
+use ryo_relations::domain::relations::types::{KindBits, TextHash};
 use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
@@ -167,7 +166,6 @@ pub struct Patterns(
     >,
 );
 
-use ryo_values::domain::rows::types::{RowIndex, Table};
 
 /// What a comparison decided about a name of the file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

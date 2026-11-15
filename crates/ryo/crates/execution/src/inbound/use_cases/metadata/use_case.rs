@@ -2,8 +2,7 @@
 use super::interface::MetadataUseCase;
 use super::interface::*;
 use super::types::*;
-use ryo_execution_domain::domain::features::types::StepWork;
-use ryo_execution_domain::domain::kind_check::types::{AskedKind, KindRefusal};
+use ryo_execution_domain::domain::kind_check::types::KindRefusal;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Relation;
@@ -12,7 +11,6 @@ use ryo_values::domain::files::types::Hits;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_operators::types::QueryOperator;
-use ryo_values::domain::run_metadata::types::Feature;
 use ryo_values::domain::runs::types::{RuleId, RuleNumber};
 use ryo_values::domain::stored_facts::types::ReadInPart;
 

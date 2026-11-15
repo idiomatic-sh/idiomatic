@@ -3,14 +3,6 @@
 use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
-/// Whether the row was kept.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum RowSelection {
-    /// The row is kept.
-    Kept,
-    /// The row is dropped.
-    Dropped,
-}
 
 /// What a select keeps: its comparisons, its kept columns and what its parameters are bound to.
 #[derive(Clone, Debug, PartialEq)]

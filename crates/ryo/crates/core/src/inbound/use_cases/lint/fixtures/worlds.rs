@@ -7,7 +7,6 @@ use super::given::Lint;
 use super::given::SOURCES;
 use super::given::World;
 use super::given::request;
-use crate::cases::run;
 use crate::inbound::use_cases::lint::fixtures::given::violations;
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
 use crate::outbound::language::fixtures::fake::LanguageFake;
@@ -58,9 +57,6 @@ pub(crate) fn scheduled_world_with_query(
     let memory = Arc::new(given.memory);
     let operators = Arc::new(
         ryo_execution_runtime::outbound::operators::factory::use_case(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
-                std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
-            ),
             ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl::new(),
             ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl::new(
                 std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),

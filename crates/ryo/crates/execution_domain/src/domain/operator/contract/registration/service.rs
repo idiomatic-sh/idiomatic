@@ -17,45 +17,6 @@ pub(in crate::domain::operator) fn prepare(
     super::super::service::prepare_for(registered.kind, operation, inputs, bindings, scope)
 }
 
-/// Evaluates an operation through the operators' one meaning of its kind.
-///
-/// # Errors
-///
-/// [`OperatingError::WrongOperation`](crate::domain::operating::errors::OperatingError::WrongOperation) when the
-/// operation is not of this operator's kind, then the first error the evaluation or a downstream row returns.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::operating::errors::OperatingError;
-/// use ryo_execution_domain::domain::operator::contract::primitive::types::PreparedInputs;
-/// use ryo_execution_domain::domain::operator::contract::registration::service::evaluate;
-/// use ryo_execution_domain::domain::operator::contract::registration::types::RegisteredOperator;
-/// use ryo_execution_domain::domain::operator::contract::types::{PrimitiveLease, RowSink};
-/// use ryo_values::domain::plans::types::Operation;
-/// fn evaluated(
-///     registered: &RegisteredOperator,
-///     operation: &Operation,
-///     inputs: PreparedInputs<'_>,
-///     lease: &mut PrimitiveLease<'_>,
-///     output: &mut dyn RowSink,
-/// ) -> Result<(), OperatingError> {
-///     evaluate(registered, operation, inputs, lease, output)
-/// }
-/// ```
-pub fn evaluate(
-    registered: &RegisteredOperator,
-    operation: &ryo_values::domain::plans::types::Operation,
-    inputs: super::super::primitive::types::PreparedInputs<'_>,
-    lease: &mut super::super::types::PrimitiveLease<'_>,
-    output: &mut dyn super::super::types::RowSink,
-) -> Result<(), crate::domain::operating::errors::OperatingError> {
-    if ryo_values::domain::plans::service::kind_of(operation) != registered.kind {
-        return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
-    }
-    super::super::driver::service::evaluate(operation, inputs, lease, output)
-}
-
 /// The registered operator of a kind.
 ///
 /// # Examples

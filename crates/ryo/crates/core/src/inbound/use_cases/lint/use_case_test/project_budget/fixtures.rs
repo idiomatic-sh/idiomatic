@@ -8,17 +8,12 @@ use crate::outbound::memory::{errors::MemoryError, interface::MemoryPort};
 use ryo_execution::outbound::query_language::errors::QueryLanguageError;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
-use ryo_language::domain::files::types::FilePath;
-use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
-use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
-use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, StepId};
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
-use ryo_values::domain::runs::types::{AnswerShape, RuleId};
+use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::{
     descriptions::types::ValidateReport,
     hosted::types::HostedRelation,
@@ -66,12 +61,6 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Pr
             let _runs = self.runs.fetch_add(1, Ordering::SeqCst);
         }
         Ok(())
-    }
-    fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
-        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
-            std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
-        )
-        .operators(call)
     }
 }
 impl MemoryPort for ProjectPressure {

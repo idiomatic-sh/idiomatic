@@ -11,7 +11,7 @@ use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_relations::domain::relations::constants::NO_SYMBOL;
-use ryo_relations::domain::relations::service::{node_id, to_bits};
+use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FileId, KindBits, Offset, Position, Value as Cell,
 };

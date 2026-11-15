@@ -3,7 +3,6 @@ use super::interface::{CompileRulesUseCase as _, CompiledRules, RuleCompilationE
 use super::types::CompileRequest;
 use super::use_case::CompileRulesUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
 use ryo_operators::domain::patterns::errors::PatternsError;

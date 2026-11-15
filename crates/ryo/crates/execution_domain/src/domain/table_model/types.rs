@@ -51,22 +51,7 @@ pub struct Frontier {
 
 /// The hash of the cells that make a key.
 
-/// Whether a row was put into a table by the call that looked for it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Addition {
-    /// It was not there before, and now is.
-    Added,
-    /// It was there already.
-    Existing,
-}
 
-/// Opaque immutable publication crossing the engine's domain port. A foreign
-/// implementation carries no authority: the application verifies its private
-/// record and current population epoch before admission or resolution.
-pub trait PublishedRelation: std::any::Any + std::fmt::Debug + Send + Sync {
-    /// The relation as `Any`, for the application to recover its private record.
-    fn as_any(&self) -> &dyn std::any::Any;
-}
 pub mod registered_representation;
 
 /// The representation a physical row source is held in.
