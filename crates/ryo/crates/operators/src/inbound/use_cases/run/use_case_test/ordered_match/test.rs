@@ -12,8 +12,8 @@ use ryo_values::domain::plan_parts::types::{
 use ryo_values::domain::plans::types::Operation;
 use std::borrow::Cow;
 
-/// The orders of Defines' rows: the start of each row's span.
-type Input = &'static [u32];
+/// The orders of Defines' rows (the start of each row's span), and the right column the answer keeps.
+type Input = (&'static [u32], u32);
 /// The pairs as text, or the fault.
 type Value = Cow<'static, str>;
 type Failure = ();
@@ -22,7 +22,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("ordered_match_pairs_first_in_first_out"),
         word: Word::Succeeds,
-        input: || &[3, 1, 2],
+        input: || (&[3, 1, 2], 7),
         expect: Expect::Value(Cow::Borrowed(
             "Ok([[Number(Integer(1)), Number(Integer(2)), Number(Integer(2)), Number(Integer(3))]])",
         )),
@@ -30,13 +30,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("ordered_match_refuses_a_duplicate_order"),
         word: Word::Succeeds,
-        input: || &[1, 1],
+        input: || (&[1, 1], 7),
         expect: Expect::Value(Cow::Borrowed("Err(Derived(DuplicateOrder))")),
+    },
+    Case {
+        name: CaseName("missing_projection_column_fails_before_delivery"),
+        word: Word::Succeeds,
+        input: || (&[3, 1, 2], 99),
+        expect: Expect::Value(Cow::Borrowed(
+            "Err(NoSuchColumn { index: ColumnIndex(99) })",
+        )),
     },
 ];
 
 /// Each Defines row of one name ordered by its span's start, matched with itself: each left row with the earliest later row.
-fn subject(orders: Input) -> Result<Value, Failure> {
+fn subject((orders, kept): Input) -> Result<Value, Failure> {
     let mut resources = TextResources::new(&["k"]);
     let rows: Vec<_> = orders
         .iter()
@@ -73,7 +81,7 @@ fn subject(orders: Input) -> Result<Value, Failure> {
                 right_on: vec![ColumnIndex(3)],
                 left_order: ColumnIndex(7),
                 right_order: ColumnIndex(7),
-                output: vec![column(Side::Left, 7), column(Side::Right, 7)],
+                output: vec![column(Side::Left, 7), column(Side::Right, kept)],
             },
             &[0, 1],
         ),

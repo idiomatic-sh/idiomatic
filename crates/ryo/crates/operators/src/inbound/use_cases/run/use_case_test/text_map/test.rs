@@ -34,6 +34,7 @@ enum Scenario {
     UnboundRankOverNoRows,
     Fits,
     EarlierRowWins,
+    CrlfAndCrLines,
 }
 type Input = Scenario;
 /// The answer as text: the emitted rows, or the fault; and what the case counted.
@@ -123,6 +124,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::EarlierRowWins,
         expect: Expect::Value(Cow::Borrowed(
             "Pattern(InvalidRegex { reason: \"regex parse error:\\n    [\\n    ^\\nerror: unclosed character class\" })",
+        )),
+    },
+    Case {
+        name: CaseName("physical_crlf_and_cr_lines_track_whole_and_captured_spans"),
+        word: Word::Succeeds,
+        input: || Scenario::CrlfAndCrLines,
+        // Over `a\r\nb\rc\nd` from line 1: `b` at 3..4 on line 2 (CRLF one break) and `c` at 5..6 on line 3 (CR alone a
+        // break), each the whole occurrence's span and line then the capture's.
+        expect: Expect::Value(Cow::Borrowed(
+            "2 rows [Number(Integer(1)), Span(Span { start: Offset(3), end: Offset(4) }), Number(Integer(2)), Span(Span { start: Offset(3), end: Offset(4) }), Number(Integer(2))] [Number(Integer(1)), Span(Span { start: Offset(5), end: Offset(6) }), Number(Integer(3)), Span(Span { start: Offset(5), end: Offset(6) }), Number(Integer(3))]",
         )),
     },
 ];
@@ -327,6 +338,37 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             );
             let steps = [search("o", None, TextOutput::Omitted), replaced];
             plain(&steps, &[("const", span(0, 5)), ("ab", span(99, 100))])
+        }
+        Scenario::CrlfAndCrLines => {
+            let file = "a\r\nb\rc\nd";
+            let numbered = over_defines(Operation::Extend {
+                from: StepInput::Relation(Relation::Defines),
+                values: vec![ryo_values::domain::plan_parts::types::Operand::Literal(
+                    ryo_values::domain::plan_parts::types::QueryLiteral::Number(
+                        ryo_relations::domain::relations::types::Integer(1),
+                    ),
+                )],
+            });
+            let searched = over_nodes(
+                Operation::SourceMatches {
+                    from: StepInput::Step(ryo_values::domain::plan_parts::types::StepId(0)),
+                    span: ColumnIndex(6),
+                    base_line: Some(ColumnIndex(7)),
+                    pattern: literal("(?P<cap>b|c)"),
+                    capture: Some(literal("cap")),
+                    capture_text: TextOutput::Omitted,
+                    capture_line: ryo_values::domain::query_operators::types::LineOutput::Appended,
+                },
+                &[0],
+            );
+            answer(
+                &[numbered, searched],
+                &[(file, span(0, 8))],
+                &[],
+                Arc::default(),
+                &mut TextResources::new(&[file]),
+                &mut FileBuffers::default(),
+            )
         }
     }))
 }
