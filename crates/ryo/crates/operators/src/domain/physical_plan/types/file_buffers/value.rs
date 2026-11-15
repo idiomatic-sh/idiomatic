@@ -240,16 +240,6 @@ impl FileBuffers {
         !self.chunks.over
     }
 
-    /// The nodes that hold rows: the buffer high-water of a run, for the cases that bound it.
-    #[cfg(test)]
-    pub(crate) fn held(&self) -> impl Iterator<Item = PlanNodeId> + '_ {
-        self.nodes
-            .iter()
-            .zip(0..)
-            .filter(|(held, _)| held.is_some())
-            .map(|(_, at)| PlanNodeId(at))
-    }
-
     /// Keeps of `node`'s rows those `keep` holds for, in their order, and drops the rest. This is the engine's one
     /// change to rows the operators lent it: after the files, the rows an antijoin or a difference answered from the absence
     /// of rows that a partial operand could change are dropped where the step stands, before any later step reads them, as
