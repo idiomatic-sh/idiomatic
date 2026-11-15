@@ -1,9 +1,10 @@
 //! Exact physical spans, CRLF lines, capture refusals and interruption prefixes.
-use super::service::occurrences;
+use super::service::{absolute_span, occurrences};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::errors::ContractError;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::source_matches::types::{
+    OccurrenceByte, OccurrenceSpan,
     BaseLine, CaptureRequest, LineBytes, SourceBase, SourceMatchesInput, TextRowDriver,
 };
 use ryo_matching::inbound::use_cases::matching::{
@@ -205,4 +206,61 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+/// An occurrence at `start..end` of the text searched from `base`.
+type Placed = (usize, usize, usize);
+
+/// The absolute span of an occurrence: the one conversion the text_map stage's search makes of each whole and captured span.
+const SPANS: &[Case<Placed, Span, PortableOperatorFault>] = &[
+    Case {
+        name: CaseName("an_occurrence_s_span_is_its_place_past_the_base"),
+        word: Word::Succeeds,
+        input: || (10, 3, 4),
+        expect: Expect::Value(Span {
+            start: Offset(13),
+            end: Offset(14),
+        }),
+    },
+    Case {
+        name: CaseName("an_occurrence_ending_at_the_last_offset_a_span_holds_is_placed"),
+        word: Word::Succeeds,
+        input: || (4_294_967_293, 1, 2),
+        expect: Expect::Value(Span {
+            start: Offset(u32::MAX - 1),
+            end: Offset(u32::MAX),
+        }),
+    },
+    Case {
+        name: CaseName("an_occurrence_ending_past_what_a_span_holds_refuses"),
+        word: Word::Refuses,
+        input: || (4_294_967_294, 1, 2),
+        expect: Expect::Error(PortableOperatorFault::InvalidSourceMatchSpan),
+    },
+    Case {
+        name: CaseName("an_occurrence_past_the_platform_s_offsets_refuses"),
+        word: Word::Refuses,
+        input: || (usize::MAX, 0, 1),
+        expect: Expect::Error(PortableOperatorFault::InvalidSourceMatchSpan),
+    },
+];
+
+fn placed((base, start, end): Placed) -> Result<Span, PortableOperatorFault> {
+    absolute_span(
+        SourceBase(base),
+        OccurrenceSpan {
+            start: OccurrenceByte(start),
+            end: OccurrenceByte(end),
+        },
+    )
+}
+
+#[test]
+fn spans_succeed() {
+    run(SPANS, Word::Succeeds, placed);
+}
+
+#[test]
+fn spans_refuse() {
+    run(SPANS, Word::Refuses, placed);
 }

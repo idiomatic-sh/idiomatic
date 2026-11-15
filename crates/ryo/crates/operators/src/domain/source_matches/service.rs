@@ -55,6 +55,28 @@ fn advance_line(
     Ok(())
 }
 
+/// The span in the physical source of an occurrence found at `occurrence` in the text searched from `base`.
+///
+/// # Errors
+///
+/// `InvalidSourceMatchSpan` when either end lies past what a span's offset holds (`u32::MAX`).
+pub(crate) fn absolute_span(
+    base: SourceBase,
+    occurrence: OccurrenceSpan,
+) -> Result<Span, PortableOperatorFault> {
+    let at = |offset: usize| {
+        base.0
+            .checked_add(offset)
+            .and_then(|absolute| u32::try_from(absolute).ok())
+            .map(Offset)
+            .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)
+    };
+    Ok(Span {
+        start: at(occurrence.start.0)?,
+        end: at(occurrence.end.0)?,
+    })
+}
+
 /// Visits the occurrences of the input's pattern: each whole span with the span of the captured group, when one was asked for.
 pub(crate) type VisitOccurrences<'visit> =
     &'visit dyn Fn(
@@ -96,7 +118,7 @@ pub(crate) fn occurrences(
     let mut emit_one = |whole: OccurrenceSpan,
                         captured: Option<OccurrenceSpan>|
      -> Result<(), PortableOperatorFault> {
-        let (start_at, end_at) = (whole.start.0, whole.end.0);
+        let start_at = whole.start.0;
         let mut whole_line = None;
         if let Some(current) = line.as_mut() {
             advance_line(
@@ -121,44 +143,16 @@ pub(crate) fn occurrences(
                 )?;
             }
         }
-        let start = base
-            .0
-            .checked_add(start_at)
-            .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?;
-        let end = base
-            .0
-            .checked_add(end_at)
-            .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?;
-        let start =
-            u32::try_from(start).map_err(|_| PortableOperatorFault::InvalidSourceMatchSpan)?;
-        let end = u32::try_from(end).map_err(|_| PortableOperatorFault::InvalidSourceMatchSpan)?;
+        let whole_span = absolute_span(base, whole)?;
         joined.clear();
         joined.extend_from_slice(row);
-        joined.push(Value::Span(Span {
-            start: Offset(start),
-            end: Offset(end),
-        }));
+        joined.push(Value::Span(whole_span));
         if let Some(current) = whole_line {
             joined.push(Value::Number(current));
         }
         if let Some(group) = captured {
             let (capture_start, capture_end) = (group.start.0, group.end.0);
-            let absolute_start = u32::try_from(
-                base.0
-                    .checked_add(capture_start)
-                    .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?,
-            )
-            .map_err(|_| PortableOperatorFault::InvalidSourceMatchSpan)?;
-            let absolute_end = u32::try_from(
-                base.0
-                    .checked_add(capture_end)
-                    .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?,
-            )
-            .map_err(|_| PortableOperatorFault::InvalidSourceMatchSpan)?;
-            joined.push(Value::Span(Span {
-                start: Offset(absolute_start),
-                end: Offset(absolute_end),
-            }));
+            joined.push(Value::Span(absolute_span(base, group)?));
             if capture_text {
                 let captured_text = text
                     .get(capture_start..capture_end)
