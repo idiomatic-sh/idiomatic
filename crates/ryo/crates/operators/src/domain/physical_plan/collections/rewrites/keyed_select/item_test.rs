@@ -4,7 +4,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem as _;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
-use crate::domain::physical_plan::types::{NodeReaders, Retention, RowSource};
+use crate::domain::physical_plan::types::{NodeReaders, RowSource};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
@@ -49,7 +49,6 @@ fn keyed(name: &str) -> PhysicalNode {
             ),
         },
         readers: NodeReaders(0),
-        retained: Retention::Retained,
         engine: crate::domain::physical_plan::types::EngineUses(1),
         flow: crate::domain::physical_plan::types::NodeFlow::Held,
     }

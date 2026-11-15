@@ -19,7 +19,7 @@ use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
     EngineUses, KernelRun, NodeFed, NodeReaders, NodeRows, PlanNodeId, RowSource,
 };
-use ryo_values::domain::rows::types::{RowCount, Table};
+use ryo_values::domain::rows::types::RowCount;
 
 /// Makes `node`'s rows for the open file in `buffers`, and answers the fault it raised after them.
 ///
@@ -194,7 +194,7 @@ pub(super) fn made(
             Err(fault) => {
                 for (slot, count) in slots.into_iter().zip(reads) {
                     if let Some(read) = slot {
-                        returned(plan, buffers, read, count);
+                        returned(buffers, read, count);
                     }
                 }
                 return Err(fault);
@@ -243,7 +243,8 @@ pub(super) fn made(
         | Lowering::Unlowered => None,
     };
     let walked = matches!(lowering, Lowering::OrderedWalk { .. }) && blocked.is_none();
-    let mut output = Table::default();
+    // The node's table: one the worker's pool kept, its room reused.
+    let mut output = buffers.pool.fresh();
     let made = match blocked {
         Some(fault) => Ok(Some(fault)),
         None => {
@@ -263,7 +264,7 @@ pub(super) fn made(
     };
     for (slot, count) in slots.into_iter().zip(reads) {
         if let Some(read) = slot {
-            returned(plan, buffers, read, count);
+            returned(buffers, read, count);
         }
     }
     // Main's ordered walk interned the texts its keys met that the file did not hold yet, for the rest of the file: the

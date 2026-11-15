@@ -12,7 +12,7 @@ use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{KernelRun, NodeFed, NodeReaders, PlanNodeId, RowSource};
-use ryo_values::domain::rows::types::{RowCount, Table};
+use ryo_values::domain::rows::types::RowCount;
 
 /// Runs a node that renders through the resources while it reads its rows (a `render`) and holds its rows and pending fault.
 /// It holds the resources mutably, so it reads a tree relation's rows from a copy, never from the elements in place.
@@ -42,7 +42,8 @@ pub(crate) fn minted(
         *fed = NodeFed([count_of(rows_in(&input)), RowCount(0), RowCount(0)]);
     }
     let pending = pending_of(&input);
-    let mut output = Table::default();
+    // The node's table: one the worker's pool kept, its room reused.
+    let mut output = buffers.pool.fresh();
     let made = match lowering {
         // A render reads every row before it answers one: its input's fault comes before any of its rows.
         Lowering::Render { render, .. } => match &pending {
@@ -67,7 +68,7 @@ pub(crate) fn minted(
         | Lowering::ScanBound { .. }
         | Lowering::Unlowered => Err(PortableOperatorFault::WrongOperation),
     };
-    returned(plan, buffers, input, NodeReaders(1));
+    returned(buffers, input, NodeReaders(1));
     let fault = made?;
     hold(plan, buffers, node, output, fault.or(pending));
     Ok(())

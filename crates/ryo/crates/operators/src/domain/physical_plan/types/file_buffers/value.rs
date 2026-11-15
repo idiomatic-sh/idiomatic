@@ -30,6 +30,8 @@ pub struct FileBuffers {
     pub(crate) remaining: Vec<NodeReaders>,
     /// How many of each node's engine uses are not done yet in this file, by node id.
     pub(crate) engine_left: Vec<EngineUses>,
+    /// The emptied node tables kept for the next nodes, capped.
+    pub(crate) pool: crate::domain::physical_plan::types::table_pool::value::TablePool,
     /// Each filtering node's comparison scratch, by node id, kept across files.
     pub(crate) decisions: Vec<NodeDecisions>,
     /// The keyed-row table a node builds for itself: a probe's own index, a group's, or the lookups' while it answers them.
@@ -272,16 +274,19 @@ impl FileBuffers {
         if let Ok(at) = usize::try_from(node.0)
             && let Some(held) = self.nodes.get_mut(at)
         {
-            #[cfg(test)]
-            if let Some(table) = held.as_ref() {
+            if let Some(table) = held.take() {
+                #[cfg(test)]
                 self.meter.dropped(table.count);
+                self.pool.pooled(table);
             }
-            *held = None;
             if let Some(pending) = self.pending.get_mut(at) {
                 *pending = None;
             }
             if let Some(fed) = self.fed.get_mut(at) {
                 *fed = NodeFed::default();
+            }
+            if let Some(left) = self.engine_left.get_mut(at) {
+                *left = EngineUses(0);
             }
         }
     }

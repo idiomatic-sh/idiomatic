@@ -13,7 +13,7 @@ use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    EngineUses, KeyedIndex, NodeFlow, NodeReaders, PlanInput, PlanNodeId, Retention, RowSource,
+    EngineUses, KeyedIndex, NodeFlow, NodeReaders, PlanInput, PlanNodeId, RowSource,
 };
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 
@@ -119,7 +119,6 @@ pub(crate) fn plan_with(
         .map(|node| PhysicalNode {
             lowering: lowered(node.operation, node.inputs.0, node.bindings.0),
             readers: NodeReaders(0),
-            retained: Retention::Released,
             engine: EngineUses(0),
             flow: NodeFlow::Held,
         })
@@ -135,7 +134,6 @@ pub(crate) fn plan_with(
     }
     for kept in program.emitted().chain(program.held().iter().copied()) {
         if let Some(node) = place(&mut nodes, kept) {
-            node.retained = Retention::Retained;
             node.engine = EngineUses(node.engine.0.saturating_add(1));
         }
     }
@@ -215,7 +213,7 @@ fn flow_of(nodes: &[PhysicalNode], indexes: &[KeyedIndex], id: PlanNodeId) -> No
     );
     if stage
         && node.readers == NodeReaders(1)
-        && node.retained == Retention::Released
+        && node.engine == EngineUses(0)
         && read_first_by_a_stage
         && !indexes.iter().any(|index| index.source == read)
     {

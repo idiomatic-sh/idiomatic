@@ -13,6 +13,7 @@ pub(crate) mod lowering;
 pub mod physical_plan;
 pub mod rule_ordinal;
 pub(crate) mod stream_scratch;
+pub(crate) mod table_pool;
 
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::table_texts::types::Texts;
@@ -189,15 +190,6 @@ pub(crate) enum NodeFlow {
 /// D's own lists), each a rule that emits it or a consumer that holds it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct EngineUses(pub(crate) u32);
-
-/// Whether a node's rows outlive its node readers.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Retention {
-    /// Released when its last reader is done.
-    Released,
-    /// Kept until the engine releases it: a rule's emit or a held node.
-    Retained,
-}
 
 /// A `hash_index` shared by every reader of one source's key: built once per file for all of them.
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -23,7 +23,7 @@ use crate::domain::physical_plan::types::{
 };
 use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::rows::types::{RowCount, Table};
+use ryo_values::domain::rows::types::RowCount;
 
 /// Makes `tail`'s rows by pushing the rows of the chain of streamed nodes that feeds it through each stage in turn, holding
 /// only `tail`'s rows and pending fault. A node of the chain already held in `buffers` ends the chain and is read as a source;
@@ -137,7 +137,8 @@ fn chained(
             }
         }
     }
-    let mut output = Table::default();
+    // The tail's table: one the worker's pool kept, its room reused.
+    let mut output = buffers.pool.fresh();
     let mut push = Push {
         plan,
         run,
@@ -156,7 +157,7 @@ fn chained(
         }
     }
     let pending = pending_of(&head_rows);
-    given_back(plan, buffers, head_rows, rights);
+    given_back(buffers, head_rows, rights);
     if let Some(first) = hard {
         return Err(first.fault);
     }

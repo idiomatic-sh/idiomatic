@@ -1,8 +1,10 @@
 //! Buffers answer no rows for a node they do not hold, and keep answering none once it is released; `retain` keeps the rows its
-//! predicate keeps, in their order, and every row when it keeps them all.
+//! predicate keeps, in their order, and every row when it keeps them all. A released node's table goes to the worker's pool,
+//! unless it is past the pool's cap on its room.
 use super::value::FileBuffers;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PredicateOutcome;
+use crate::domain::physical_plan::types::table_pool::value::PooledTables;
 use crate::domain::physical_plan::types::{NodeRows, PlanNodeId};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::rows::service::push_row;
@@ -108,4 +110,49 @@ fn subject(released: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+/// The table of node 0 a pool case releases.
+#[derive(Clone, Copy, Debug)]
+enum Pooled {
+    /// A table of a few rows.
+    Small,
+    /// A table of 128 Ki cells of room.
+    TooManyCells,
+}
+
+/// The pool cases: how many tables the worker's pool keeps after node 0 is released.
+const POOL_CASES: &[Case<Pooled, PooledTables, Failure>] = &[
+    Case {
+        name: CaseName("a_released_nodes_table_goes_to_the_pool"),
+        word: Word::Succeeds,
+        input: || Pooled::Small,
+        expect: Expect::Value(PooledTables(1)),
+    },
+    Case {
+        name: CaseName("a_table_too_large_is_dropped_not_pooled"),
+        word: Word::Succeeds,
+        input: || Pooled::TooManyCells,
+        expect: Expect::Value(PooledTables(0)),
+    },
+];
+
+fn pooled(given: Pooled) -> Result<PooledTables, Failure> {
+    let mut buffers = FileBuffers::default();
+    let mut table = Table {
+        kinds: vec![CellKind::Number],
+        ..Table::default()
+    };
+    push_row(&mut table, &[Cell::Number(Integer(1))]);
+    if let Pooled::TooManyCells = given {
+        table.cells.reserve_exact(1 << 17);
+    }
+    buffers.nodes = vec![Some(table)];
+    buffers.release(PlanNodeId(0));
+    Ok(buffers.pool.kept())
+}
+
+#[test]
+fn pools() {
+    run(POOL_CASES, Word::Succeeds, pooled);
 }

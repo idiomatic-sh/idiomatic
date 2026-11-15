@@ -93,7 +93,6 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn right_of(
 
 /// Gives back every node the chain read: the head's source and each probe's own right side, each after all its reads.
 pub(in crate::domain::physical_plan::service::run::pipeline) fn given_back(
-    plan: &PhysicalPlan,
     buffers: &mut FileBuffers,
     head: ChainRows<'_>,
     rights: Vec<ChainRows<'_>>,
@@ -116,11 +115,11 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn given_back(
         })
         .collect();
     if let ChainRows::Node(read, taken) = head {
-        give_back(plan, buffers, read, taken, head_reads);
+        give_back(buffers, read, taken, head_reads);
     }
     for (rows, readings) in rights.into_iter().zip(right_reads) {
         if let ChainRows::Node(read, taken) = rows {
-            give_back(plan, buffers, read, taken, readings);
+            give_back(buffers, read, taken, readings);
         }
     }
 }

@@ -5,9 +5,7 @@ use crate::domain::equality_join::types::{Existence, ProbeMode};
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem as _;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
-use crate::domain::physical_plan::types::{
-    NodeReaders, PlanNodeId, ProbeIndex, Retention, RowSource,
-};
+use crate::domain::physical_plan::types::{NodeReaders, PlanNodeId, ProbeIndex, RowSource};
 use crate::domain::set_rows::types::{SetKind, SetLowering};
 
 /// Which set meaning's probe is rewritten.
@@ -49,7 +47,6 @@ fn subject(kind: Input) -> Result<Value, Failure> {
                 index: ProbeIndex::Own,
             },
             readers: NodeReaders(0),
-            retained: Retention::Retained,
             engine: crate::domain::physical_plan::types::EngineUses(1),
             flow: crate::domain::physical_plan::types::NodeFlow::Held,
         })
