@@ -109,8 +109,8 @@ impl PreparedProgram {
                     continue;
                 };
                 let root = self
-                    .rule_metadata(*rule)?
-                    .observations
+                    .rule_plan(*rule)?
+                    .roots
                     .get(output.0 as usize)
                     .ok_or(OperatingError::NotRun)?;
                 if root.phase == StepScope::CrossFile {

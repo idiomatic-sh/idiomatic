@@ -18,7 +18,6 @@ use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::plans::types::Emit;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use std::sync::Arc;
@@ -87,23 +86,17 @@ impl PreparedProgram {
     > {
         Ok(&self.interpreted()?.matchers)
     }
-    pub(crate) fn rule_metadata(&self, rule: RuleIndex) -> Result<&RuleMetadata, OperatingError> {
-        tracing::trace!(
-            target: ryo_execution_store::application::file_dag::derived::constants::TARGET,
-            event = ryo_execution_store::application::file_dag::derived::constants::RULE_METADATA,
-            rule = rule.0
-        );
-        self.interpreted()?
-            .rules
-            .get(rule.0)
-            .ok_or(OperatingError::NotRun)
-    }
     /// What `rule`'s plan states.
     ///
     /// # Errors
     ///
     /// `NotRun` for a rule the request does not hold.
     pub(crate) fn rule_plan(&self, rule: RuleIndex) -> Result<&RulePlan, OperatingError> {
+        tracing::trace!(
+            target: ryo_execution_store::application::file_dag::derived::constants::TARGET,
+            event = ryo_execution_store::application::file_dag::derived::constants::RULE_METADATA,
+            rule = rule.0
+        );
         self.rules.get(rule.0).ok_or(OperatingError::NotRun)
     }
     pub(crate) fn observation_metadata(&self) -> Option<&ObservationMetadata> {
@@ -279,13 +272,10 @@ pub(crate) fn prepare(
     let interpreted = interpreted(Interpreting {
         plans: owned.clone(),
         bindings: &bindings,
-        rules,
         hosted,
         derived,
         observations: &observations,
         request,
-        rule_plans: &rule_plans,
-        executable: &pass.program,
         partitions,
     });
     Ok(Arc::new(PreparedProgram {
@@ -304,19 +294,15 @@ pub(crate) fn prepare(
     }))
 }
 
-/// The interpreter's compile of a request, for the project phase: its walk, operators, observation graph and program, and each
-/// rule's regions.
+/// The interpreter's compile of a request, which ryo-2964.8 deletes: the pattern slots it compiled and the named outputs' graph.
 fn interpreted(input: Interpreting<'_>) -> Result<Interpreted, OperatingError> {
     let Interpreting {
         plans,
         bindings,
-        rules,
         hosted,
         derived,
         observations,
         request,
-        rule_plans,
-        executable,
         partitions,
     } = input;
     let operators =
@@ -349,12 +335,9 @@ fn interpreted(input: Interpreting<'_>) -> Result<Interpreted, OperatingError> {
             retire: named.retire.clone(),
         });
     let program = Arc::new(compile_program(&plans, graph, &partitions, &operators)?);
-    let metadata =
-        metadata::service::rules(&program, named.as_ref(), &plans, rule_plans, executable)?;
     // The program's own pattern slots: its presence fold compiled the source searches' patterns into them.
     let matchers = Arc::clone(program.matchers());
     Ok(Interpreted {
-        rules: metadata.into_boxed_slice(),
         observations: named,
         matchers,
     })

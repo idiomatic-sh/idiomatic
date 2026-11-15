@@ -1,9 +1,5 @@
 //! Immutable prepared request metadata; no runtime or lifecycle dependency.
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::file_program::types::ObservationSlot;
-use ryo_execution_domain::domain::interpreted_program::types::InputSource;
-use ryo_execution_domain::domain::interpreted_program::types::RegionId;
-use ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram;
 use ryo_execution_domain::domain::observation_schedule::types::ObservedFrontierRoot;
 use ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationBinding;
 use ryo_execution_domain::domain::observation_schedule::types::RuleSchedule;
@@ -23,10 +19,6 @@ use std::sync::Arc;
 /// How many rules the request holds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RuleTotal(pub usize);
-pub(crate) struct RootMetadata {
-    pub phase: StepScope,
-    pub reads: Box<[RelationRead]>,
-}
 /// One named output of a rule as its plan states it: where it runs and what it reads on the way.
 pub(crate) struct RootPlan {
     pub phase: StepScope,
@@ -55,14 +47,9 @@ pub(crate) struct ObservedLayout {
 /// What the interpreter's compile still answers, which ryo-2964.8 deletes: its matchers, each rule's named outputs and the named
 /// outputs' graph.
 pub(crate) struct Interpreted {
-    pub(crate) rules: Box<[RuleMetadata]>,
     pub(crate) observations: Option<ObservationMetadata>,
     pub(crate) matchers:
         Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers>,
-}
-/// A rule's named outputs, as the interpreter's compile read them: where each runs and what it reads.
-pub(crate) struct RuleMetadata {
-    pub observations: Box<[RootMetadata]>,
 }
 #[derive(Clone, Copy)]
 pub(crate) enum OutputRoot {
@@ -115,13 +102,9 @@ pub(crate) struct PreparedProgram {
 pub(crate) struct Interpreting<'a> {
     pub(crate) plans: Vec<ryo_values::domain::plans::types::Plan>,
     pub(crate) bindings: &'a [Vec<ParameterBinding>],
-    pub(crate) rules: &'a [ryo_values::domain::rule_requests::types::RuleSpec],
     pub(crate) hosted: &'a [HostRelation],
     pub(crate) derived: crate::application::file_dag::derived::program::service::ProgramDerived,
     pub(crate) observations: &'a [Vec<ResolvedObservationBinding>],
     pub(crate) request: ryo_execution_domain::domain::observation_schedule::types::ObservationRequest<'a>,
-    pub(crate) rule_plans: &'a [RulePlan],
-    pub(crate) executable:
-        &'a ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
     pub(crate) partitions: ryo_execution_domain::domain::source_partitions::types::source_partitions::value::SourcePartitions,
 }

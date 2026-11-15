@@ -33,7 +33,7 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::physical_plan::types::PlanNodeId;
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::held_rows::value::HeldRows;
-use ryo_relations::domain::relations::types::{Relation, Value};
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{Input, StepScope};
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::rows::types::Table;
@@ -120,81 +120,86 @@ pub(crate) fn run_occurrence(
         rule,
         completion: &completion,
     };
-    let emit = match emit_scope(program, rule)? {
-        StepScope::CrossFile => match nodes.emit.clone() {
-            Ok(node) => match step.answer(symbols, node, plan.emit.step) {
-                Ok(NodeAnswer { table, coverage }) => root_of(table, &coverage),
-                Err(error) => classify(error),
+    // The occurrence's answer, whatever it is: the release below runs on every path, so a failed occurrence leaves no rows
+    // it narrowed for the next occurrence of the rule.
+    let outcome = (|| -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
+        let emit = match emit_scope(program, rule)? {
+            StepScope::CrossFile => match nodes.emit.clone() {
+                Ok(node) => match step.answer(symbols, node, plan.emit.step) {
+                    Ok(NodeAnswer { table, coverage }) => root_of(table, &coverage),
+                    Err(error) => classify(error),
+                },
+                Err(error) => RootOutcome::Failed(error),
             },
-            Err(error) => RootOutcome::Failed(error),
-        },
-        phase => RootOutcome::Deferred { phase },
-    };
-    let metadata = batch.program.rule_metadata(rule)?;
-    let mut observations = Vec::new();
-    for (index, root) in metadata.observations.iter().enumerate() {
-        let output =
-            ObservationIndex(u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?);
-        if observation_scope(program, rule, output)? != StepScope::CrossFile {
-            continue;
+            phase => RootOutcome::Deferred { phase },
+        };
+        let stated = batch.program.rule_plan(rule)?;
+        let mut observations = Vec::new();
+        for (index, root) in stated.roots.iter().enumerate() {
+            let output =
+                ObservationIndex(u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?);
+            if observation_scope(program, rule, output)? != StepScope::CrossFile {
+                continue;
+            }
+            let answered = match plan.observations.get(index).map(|each| each.source) {
+                Some(Input::Step(id)) => nodes
+                    .steps
+                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+                    .ok_or(OperatingError::NotRun)
+                    .and_then(Clone::clone)
+                    .and_then(|node| step.answer(symbols, node, id)),
+                Some(Input::BoundObservation(id)) => {
+                    let place = BoundObservationPlace::of(ordinal(rule)?, id);
+                    match held_observation(&occurrence.bound, place) {
+                        HeldRows::Held(table) => Ok(NodeAnswer {
+                            table: table.clone(),
+                            coverage: bound_coverage(&occurrence.bound, id)
+                                .cloned()
+                                .unwrap_or(CoverageState::Complete),
+                        }),
+                        HeldRows::Withheld(token) => Err(reason(step.withholdings, token)),
+                    }
+                }
+                Some(Input::Relation(_)) | None => Err(OperatingError::NotRun),
+            };
+            let outcome = match answered {
+                Ok(NodeAnswer { table, coverage }) => {
+                    match with_coverage(coverage, completion.coverage(&root.reads)) {
+                        CoverageState::Complete => {
+                            let rows = Arc::new(table.clone());
+                            ProjectObservation::Complete {
+                                table,
+                                publication: ObservedPublication {
+                                    rows,
+                                    coverage: CoverageState::Complete,
+                                    stage: Arc::downgrade(batch.stage),
+                                },
+                            }
+                        }
+                        coverage @ (CoverageState::Partial { .. }
+                        | CoverageState::Inapplicable { .. }) => {
+                            let rows = Arc::new(table.clone());
+                            ProjectObservation::Partial {
+                                table,
+                                publication: ObservedPublication {
+                                    rows,
+                                    coverage,
+                                    stage: Arc::downgrade(batch.stage),
+                                },
+                            }
+                        }
+                    }
+                }
+                Err(error) => ProjectObservation::Other(classify(error)),
+            };
+            observations.push(ProjectOutputOutcome { output, outcome });
         }
-        let answered = match plan.observations.get(index).map(|each| each.source) {
-            Some(Input::Step(id)) => nodes
-                .steps
-                .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-                .ok_or(OperatingError::NotRun)
-                .and_then(Clone::clone)
-                .and_then(|node| step.answer(symbols, node, id)),
-            Some(Input::BoundObservation(id)) => {
-                let place = BoundObservationPlace::of(ordinal(rule)?, id);
-                match held_observation(&occurrence.bound, place) {
-                    HeldRows::Held(table) => Ok(NodeAnswer {
-                        table: table.clone(),
-                        coverage: bound_coverage(&occurrence.bound, id)
-                            .cloned()
-                            .unwrap_or(CoverageState::Complete),
-                    }),
-                    HeldRows::Withheld(token) => Err(reason(step.withholdings, token)),
-                }
-            }
-            Some(Input::Relation(_)) | None => Err(OperatingError::NotRun),
-        };
-        let outcome = match answered {
-            Ok(NodeAnswer { table, coverage }) => {
-                match with_coverage(coverage, completion.coverage(&root.reads)) {
-                    CoverageState::Complete => {
-                        let rows = Arc::new(table.clone());
-                        ProjectObservation::Complete {
-                            table,
-                            publication: ObservedPublication {
-                                rows,
-                                coverage: CoverageState::Complete,
-                                stage: Arc::downgrade(batch.stage),
-                            },
-                        }
-                    }
-                    coverage @ (CoverageState::Partial { .. }
-                    | CoverageState::Inapplicable { .. }) => {
-                        let rows = Arc::new(table.clone());
-                        ProjectObservation::Partial {
-                            table,
-                            publication: ObservedPublication {
-                                rows,
-                                coverage,
-                                stage: Arc::downgrade(batch.stage),
-                            },
-                        }
-                    }
-                }
-            }
-            Err(error) => ProjectObservation::Other(classify(error)),
-        };
-        observations.push(ProjectOutputOutcome { output, outcome });
-    }
-    if let Some(observer) = batch.observer {
-        let fed = step.fed(symbols, &plan, &nodes)?;
-        observer.fed(rule, fed)?;
-    }
+        if let Some(observer) = batch.observer {
+            let fed = step.fed(symbols, &plan, &nodes)?;
+            observer.fed(rule, fed)?;
+        }
+        Ok(RuleOutcome { emit, observations })
+    })();
     // A node that reads a bound observation, or whose rows this occurrence's coverage narrowed, answers this occurrence only.
     let mut node = PlanNodeId(0);
     while let Ok(reach) = observation_reach(program, node) {
@@ -203,7 +208,7 @@ pub(crate) fn run_occurrence(
         }
         node = PlanNodeId(node.0.saturating_add(1));
     }
-    Ok(RuleOutcome { emit, observations })
+    outcome
 }
 
 /// A root's answer from its rows and their coverage.

@@ -53,7 +53,7 @@ pub(crate) fn required_files(
     rule: RuleIndex,
     scoping: PhaseScoping<'_>,
 ) -> Result<RequiredPartitions, OperatingError> {
-    program.rule_metadata(rule)?;
+    let _rule = program.rule_plan(rule)?;
     RequiredPartitions::from_request(
         execution.services.request(),
         scoping.corpus,
