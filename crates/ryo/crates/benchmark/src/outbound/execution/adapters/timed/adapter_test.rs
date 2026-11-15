@@ -70,6 +70,20 @@ fn check(probe: Probe) -> Result<(), Box<dyn std::error::Error>> {
         digest = ArtifactDigest("incorrect".into());
     }
     let execution = execution::factory::timed(executable, digest);
+    if !cfg!(target_os = "linux") && !matches!(probe, Probe::ChangedCollector) {
+        // The collector observes through `direct`, whose declared platform contract refuses every launch off Linux.
+        let refused = execution.run(Invocation {
+            executable: PathBuf::from("probe"),
+            arguments: Vec::new(),
+            environment: std::collections::BTreeMap::default(),
+            directory: std::env::temp_dir(),
+        });
+        assert!(
+            matches!(&refused, Err(ReportsError::Invalid(message)) if message.starts_with("collector process failed")),
+            "off Linux the collector refuses every launch: {refused:?}"
+        );
+        return Ok(());
+    }
     if matches!(probe, Probe::Contract) {
         check_contract(&execution);
         return Ok(());
