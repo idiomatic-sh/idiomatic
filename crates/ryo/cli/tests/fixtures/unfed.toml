@@ -77,15 +77,6 @@ why = "no recorded rule uses `natural_lt`; the Python I001 query does."
 [feature."operation:FitsRendered"]
 why = "no recorded rule uses `fits-rendered`; the Python I001 query does."
 
-[feature."operation:GroupDigest"]
-why = "no recorded rule uses `group-digest`."
-
-[feature."operation:OrderedDfs"]
-why = "no recorded rule uses `ordered-dfs`; only the operator feature contracts do."
-
-[feature."operation:OrderedMatch"]
-why = "no recorded rule uses `ordered-match`; the Python suppression fragments do."
-
 [feature."operation:RenderSyntax"]
 why = "no recorded rule uses `render-syntax`."
 
@@ -94,9 +85,6 @@ why = "no recorded rule uses `source-matches`; the Python I001 query does."
 
 [feature."operation:SpanBounds"]
 why = "no recorded rule uses `span-bounds`; the Python suppression fragments do."
-
-[feature."relation:AnalyzedSource"]
-why = "read only by `orphan-rust-files` (undecided on ruff, so it feeds nothing) and `crate-dependency-depth` (recorded as pending)."
 
 [feature."relation:BytesLiteral"]
 why = "2 rows; no recorded rule reads it."
@@ -142,6 +130,3 @@ why = "no recorded rule reads it, and Python reads no regular-expression pattern
 
 [feature."relation:PatternSyntax"]
 why = "no recorded rule reads it, and Python reads no regular-expression pattern: only the TypeScript provider answers it."
-
-[feature."relation:Annotates"]
-why = "regions only rules absent on a file reach are not run there: the rules that read `annotates` cannot match most of ruff's files, so it is fed only where they can (31 rows)."
