@@ -104,4 +104,8 @@ pub enum PhaseStop<E> {
 pub struct ProjectPhase<'a> {
     pub(crate) request:
         &'a crate::application::file_dag::program::request_execution::types::RequestExecution,
+    /// The files each rule was handed over from, as the phase first declared them: the one thing a later call reads of an
+    /// earlier one.
+    pub(crate) declared:
+        std::cell::RefCell<Vec<crate::application::file_dag::project_pass::types::DeclaredFiles>>,
 }

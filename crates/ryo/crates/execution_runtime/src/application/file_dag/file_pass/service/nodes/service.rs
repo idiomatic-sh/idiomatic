@@ -4,6 +4,7 @@
 use crate::application::file_dag::file_pass::types::{
     NodeAnswer, NodeReads, PassFile, PassProgram, PassResources,
 };
+use crate::application::file_dag::frontiers::service::reason;
 use crate::application::file_dag::program::facade_runtime::file_execution::service::classify;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_domain::domain::completion::service::partial_any;
@@ -131,16 +132,43 @@ fn step_coverage(
         Input::Step(_) => None,
         Input::BoundObservation(_) => Some(Err(OperatingError::NotRun)),
     })
+    .map(|(_, coverage, _)| coverage)
 }
 
-/// The coverage of step `step` of `rule`'s plan, each input `leaf` answers covered as it says, given the scope of the step an
-/// input names or of the step reading it, and every other step passing on what its inputs lack as its operator does.
+/// `rule`'s step `step` as the steps after the files read it once the files handed it over: its cell kinds, `coverage`, and
+/// each row from the one file it was made in.
+pub(crate) fn handed_step(
+    pass: &PassProgram,
+    rule: RuleIndex,
+    step: StepId,
+    coverage: CoverageState,
+) -> StepCoverage {
+    let node = match fused_rule(&pass.program, rule) {
+        Ok(nodes) => nodes
+            .steps
+            .get(usize::try_from(step.0).unwrap_or(usize::MAX))
+            .cloned(),
+        Err(_) => None,
+    };
+    let kinds = match node {
+        Some(Ok(node)) => {
+            schema(&pass.program, node).map_or_else(|_| Vec::new(), <[CellKind]>::to_vec)
+        }
+        Some(Err(_)) | None => Vec::new(),
+    };
+    let lineage = one_file(&kinds);
+    (kinds, coverage, lineage)
+}
+
+/// The coverage of step `step` of `rule`'s plan with its cell kinds and where its rows come from, each input `leaf` answers
+/// covered as it says, given the scope of the step an input names or of the step reading it, and every other step passing on
+/// what its inputs lack as its operator does.
 pub(crate) fn step_coverage_with(
     pass: &PassProgram,
     rule: RuleIndex,
     step: StepId,
     mut leaf: impl FnMut(Input, StepScope) -> Option<Result<StepCoverage, OperatingError>>,
-) -> Result<CoverageState, OperatingError> {
+) -> Result<StepCoverage, OperatingError> {
     let plan = pass.plans.get(rule.0).ok_or(OperatingError::NotRun)?;
     let nodes = fused_rule(&pass.program, rule)?;
     let last = usize::try_from(step.0).unwrap_or(usize::MAX);
@@ -163,7 +191,9 @@ pub(crate) fn step_coverage_with(
                             .get(usize::try_from(id.0).unwrap_or(usize::MAX))
                             .cloned()
                             .ok_or(OperatingError::NotRun),
-                        Input::Relation(_) | Input::BoundObservation(_) => Err(OperatingError::NotRun),
+                        Input::Relation(_) | Input::BoundObservation(_) => {
+                            Err(OperatingError::NotRun)
+                        }
                     },
                 }
             })
@@ -198,11 +228,7 @@ pub(crate) fn step_coverage_with(
         let lineage = of_step(&each.operation, &lineages, &kinds);
         merged.push((kinds, coverage, lineage));
     }
-    merged
-        .into_iter()
-        .nth(last)
-        .map(|(_, coverage, _)| coverage)
-        .ok_or(OperatingError::NotRun)
+    merged.into_iter().nth(last).ok_or(OperatingError::NotRun)
 }
 
 /// Runs `node` for the open file through the operators.
@@ -217,7 +243,13 @@ pub(crate) fn ran_node(
         paths: at.paths,
         elements: at.inputs.lookup.tree(),
     };
-    run_node(at.pass, node, &mut at.buffers, &at.inputs, &mut resources).map_err(portable_fault)
+    run_node(at.pass, node, &mut at.buffers, &at.inputs, &mut resources).map_err(
+        |fault| match fault {
+            // A bound observation the file withheld answers the reason it was withheld, as after the files.
+            PortableOperatorFault::Withheld(token) => reason(&at.inputs.withholdings, token),
+            other => portable_fault(other),
+        },
+    )
 }
 
 /// The one node step of the request's program: `node` run by the operators over `inputs` and `resources`, in a file or after

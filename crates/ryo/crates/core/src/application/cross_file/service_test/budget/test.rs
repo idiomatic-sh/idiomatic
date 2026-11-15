@@ -82,14 +82,8 @@ fn project_budget_stops_a_later_population_after_actual_work_and_releases_the_ph
                 .is_some()
         ));
         seen.push(format!("{:?}", matches!(error, crate::application::cross_file::errors::CrossFileError::Budget(crate::domain::budget::errors::BudgetError::Exceeded { used: MemoryBytes(200), budget: MemoryBytes(100), ref plans }) if plans == &[rules.ids[order[1]].clone()])));
-        seen.push(format!(
-            "{:?}",
-            memory.actual.reductions.load(Ordering::SeqCst)
-        ));
-        seen.push(format!(
-            "{:?}",
-            memory.actual.aggregates.load(Ordering::SeqCst)
-        ));
+        seen.push(format!("{:?}", memory.actual.runs.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", memory.actual.rows.load(Ordering::SeqCst)));
         phase
             .finish()
             .expect("all scopes settle after budget refusal");
@@ -151,8 +145,8 @@ fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort()
         for result in results {
             seen.push(format!("{:?}", matches!(result.expect("the occurrence is evaluated").emit, RootOutcome::Unknown(OperatingError::ObservationIncomplete { ref reason }) if reason == "every source partition was explicitly skipped")));
         }
-        seen.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
-        seen.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.runs.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.rows.load(Ordering::SeqCst)));
         phase.finish().unwrap();
     }
     Ok(seen.join("|"))

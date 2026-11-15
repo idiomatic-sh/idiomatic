@@ -33,14 +33,15 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Gr
         inputs: &dyn ryo_operators::domain::physical_plan::types::PlanInputs,
         resources: &mut dyn ryo_operators::domain::physical_plan::types::Resources,
     ) -> Result<(), ryo_operators::domain::contract::types::PortableOperatorFault> {
-        ryo_operators::inbound::use_cases::run::fixtures::ran(
-            plan, node, buffers, inputs, resources,
-        )
+        let ran = self.actual.run(plan, node, buffers, inputs, resources);
+        // Work after the files grows what is resident.
+        if self.actual.runs.load(Ordering::SeqCst) > 0 {
+            self.resident.store(200, Ordering::SeqCst);
+        }
+        ran
     }
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
-        let answer = self.actual.operators(call);
-        self.resident.store(200, Ordering::SeqCst);
-        answer
+        self.actual.operators(call)
     }
 }
 

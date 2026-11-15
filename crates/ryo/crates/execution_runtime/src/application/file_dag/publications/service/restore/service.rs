@@ -1,23 +1,32 @@
 //! The named outputs the files kept, restored for the selected consumers: each physical bucket read and proven once, each
 //! logical output checked against the readiness the files recorded.
 
+use crate::application::file_dag::frontiers::service::validate_bucket;
+use crate::application::file_dag::program::admission::types::RequiredPartitions;
 use crate::application::file_dag::program::preparation::types::{
     ObservationMetadata, OutputRoot, PreparedProgram,
 };
-use crate::application::file_dag::program::request_identity::service::RequestIdentity;
+use crate::application::file_dag::program::request_execution::types::RequestExecution;
+use crate::application::file_dag::publications::constants::RESTORED_FRAME_REJECTED;
 use crate::application::file_dag::publications::service::{incomplete, output_place, worker_place};
 use crate::application::file_dag::publications::types::{
-    CrossRoot, FileFrontiers, FrontierCompatibility, FrontierPopulation, FrontierSlot, Publications,
-    RestoredOutput, RuleSelection,
+    CrossRoot, FileFrontiers, FrontierCompatibility, FrontierPopulation, FrontierSlot,
+    Publications, RestoredOutput, RuleSelection,
 };
 use crate::outbound::facts::interface::FactsFinish;
+use crate::outbound::facts::types::KeptBucket;
 use ryo_execution_domain::domain::completion::types::CoverageState;
-use ryo_execution_domain::domain::coverage::types::FileObservationReadiness;
+use ryo_execution_domain::domain::coverage::types::{FileObservationReadiness, RuleIndex};
+use ryo_execution_domain::domain::executable_program::service::{rule as rule_nodes, schema};
+use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::service::places_mut;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{CROSS_FILE, FileId, Origin, WorkerNumber};
+use ryo_relations::domain::relations::service::kinds as relation_kinds;
+use ryo_relations::domain::relations::types::{CROSS_FILE, CellKind, FileId, Origin, WorkerNumber};
+use ryo_values::domain::plan_parts::types::{Input, InputNumber};
 use ryo_values::domain::records::types::ProducerReadiness;
+use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::table_words::service::decode_complete;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -29,21 +38,17 @@ impl Publications<'_> {
     /// # Errors
     ///
     /// A refusal other than an incomplete observation: an unreadable program, a corpus the program cannot number.
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "the restoration reads each of the phase's scoping inputs, as the handover does"
-    )]
     pub(crate) fn restore(
         &mut self,
-        program: &PreparedProgram,
-        request: &Arc<RequestIdentity>,
+        execution: &RequestExecution,
         facts: &dyn FactsFinish,
         scoping: crate::application::file_dag::frontiers::types::PhaseScoping<'_>,
         frames: &[FileObservationReadiness],
         first_bucket: &[ryo_values::domain::stored_facts::types::Bucket],
         selected: &[RuleSelection],
-        executable: &ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
     ) -> Result<(), OperatingError> {
+        let program: &PreparedProgram = &execution.program;
+        let executable = &execution.pass.program;
         let rules = program.rule_count().0;
         if (!scoping.inapplicable.is_empty() && scoping.inapplicable.len() != rules)
             || (!scoping.refused.is_empty() && scoping.refused.len() != rules)
@@ -73,12 +78,13 @@ impl Publications<'_> {
             let consumers = &metadata
                 .outputs
                 .get(root.producer.0)
-                .and_then(|outputs| outputs.get(output_place(root.output)))
+                .and_then(|outputs| outputs.get(output_place(root.output).0))
                 .ok_or(OperatingError::NotRun)?
                 .consumers;
             let mut needed = RuleSelection::Unselected;
             for consumer in consumers {
-                if *selected.get(consumer.0).ok_or(OperatingError::NotRun)? == RuleSelection::Selected
+                if *selected.get(consumer.0).ok_or(OperatingError::NotRun)?
+                    == RuleSelection::Selected
                 {
                     needed = RuleSelection::Selected;
                     break;
@@ -97,17 +103,16 @@ impl Publications<'_> {
                     let required =
                         crate::application::file_dag::frontiers::service::required_files(
                             program,
-                            request,
+                            execution,
                             root.producer,
                             scoping,
                         )?;
-                    let payload =
-                        facts
-                            .kept(bucket)
-                            .map_err(|error| OperatingError::ObservationIncomplete {
-                                reason: error.to_string(),
-                            })?;
-                    let coverage = crate::application::file_dag::frontiers::service::restored_coverage(
+                    let payload = facts.kept(bucket).map_err(|error| {
+                        OperatingError::ObservationIncomplete {
+                            reason: error.to_string(),
+                        }
+                    })?;
+                    let coverage = restored_coverage(
                         program,
                         root.producer,
                         root.frontier,
@@ -116,12 +121,7 @@ impl Publications<'_> {
                         &required,
                         &payload,
                     )?;
-                    let kinds = crate::application::file_dag::frontiers::service::frontier_kinds(
-                        program,
-                        executable,
-                        root.producer,
-                        root.frontier,
-                    )?;
+                    let kinds = frontier_kinds(program, executable, root.producer, root.frontier)?;
                     let arenas = self.arenas_of(&payload.words)?;
                     Ok(RestoredOutput {
                         words: payload.words,
@@ -156,7 +156,7 @@ impl Publications<'_> {
         let mut arenas = Vec::new();
         for place in ryo_language::domain::names::service::places_of(&symbols) {
             if let Origin::Derived(worker) = place.origin {
-                if worker == CROSS_FILE || worker_place(worker) >= self.inherited.0 {
+                if worker == CROSS_FILE || worker_place(worker).0 >= self.inherited.0 {
                     return Err(incomplete());
                 }
                 if !arenas.contains(&worker) {
@@ -184,7 +184,7 @@ impl Publications<'_> {
             self.metadata
                 .outputs
                 .get(entry.producer.0)
-                .and_then(|outputs| outputs.get(output_place(entry.output)))
+                .and_then(|outputs| outputs.get(output_place(entry.output).0))
                 .map(|output| &output.root),
             Some(OutputRoot::PerFile)
         ) {
@@ -193,7 +193,7 @@ impl Publications<'_> {
         let root = self
             .roots
             .get_mut(entry.producer.0)
-            .and_then(|outputs| outputs.get_mut(output_place(entry.output)))
+            .and_then(|outputs| outputs.get_mut(output_place(entry.output).0))
             .ok_or_else(incomplete)?;
         if !matches!(root, CrossRoot::Unavailable) {
             return Err(incomplete());
@@ -201,7 +201,7 @@ impl Publications<'_> {
         for arena in &restored.arenas {
             let count = self
                 .references
-                .get_mut(worker_place(*arena))
+                .get_mut(worker_place(*arena).0)
                 .ok_or_else(incomplete)?;
             count.0 = count.0.checked_add(1).ok_or_else(incomplete)?;
         }
@@ -274,4 +274,67 @@ fn frontier_compatible(
         }
     }
     Ok(FrontierCompatibility::Compatible)
+}
+
+/// The coverage of a named output the files kept of `producer`'s entry `input`, proven against the files it read: a frame of a
+/// file its rule was syntax-rejected on is refused.
+///
+/// # Errors
+///
+/// `RESTORED_FRAME_REJECTED`, or a proof that does not fit the program.
+pub(crate) fn restored_coverage(
+    program: &PreparedProgram,
+    producer: RuleIndex,
+    input: InputNumber,
+    first: Bucket,
+    bucket: Bucket,
+    required: &RequiredPartitions,
+    payload: &KeptBucket,
+) -> Result<CoverageState, OperatingError> {
+    let rule_id = program.rule_id(producer)?;
+    for source in &payload.sources {
+        let path = required
+            .request
+            .path(source.file)
+            .ok_or(OperatingError::NotRead)?;
+        if required
+            .skipped
+            .iter()
+            .any(|skipped| &skipped.rule == rule_id && &skipped.path == path)
+        {
+            return Err(OperatingError::ObservationIncomplete {
+                reason: RESTORED_FRAME_REJECTED.into(),
+            });
+        }
+    }
+    validate_bucket(program, producer, input, first, bucket, required, payload)
+}
+
+/// What each column of `producer`'s frontier entry `input` holds: a step's output columns, a relation's.
+///
+/// # Errors
+///
+/// `NotRun` for an entry outside the program; `WrongOperation` for an entry the files do not keep.
+pub(crate) fn frontier_kinds(
+    program: &PreparedProgram,
+    executable: &ExecutableProgram,
+    producer: RuleIndex,
+    input: InputNumber,
+) -> Result<Box<[CellKind]>, OperatingError> {
+    match program
+        .frontiers(producer)?
+        .get(input.0)
+        .ok_or(OperatingError::NotRun)?
+    {
+        Input::Step(id) => {
+            let node = rule_nodes(executable, producer)?
+                .steps
+                .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+                .ok_or(OperatingError::NotRun)?
+                .clone()?;
+            Ok(schema(executable, node)?.into())
+        }
+        Input::Relation(relation) => Ok(relation_kinds(*relation).into()),
+        Input::BoundObservation(_) => Err(OperatingError::WrongOperation),
+    }
 }

@@ -1,23 +1,21 @@
 //! One file's rules through the planned program: its facts read once, each rule's emitted node, named outputs and frontiers,
 //! and the file finished with its named outputs' readiness.
-
 use crate::application::file_dag::fact_lookup::service::FactLookup;
 use crate::application::file_dag::fact_lookup::types::FileWants;
 use crate::application::file_dag::file_pass::constants::SOURCE_FACTS_INCOMPLETE;
 use crate::application::file_dag::file_pass::service::captures::service::captured_rule;
-use crate::application::file_dag::file_pass::service::nodes::service::{node_outcome, node_rows, released};
+use crate::application::file_dag::file_pass::service::inputs::service::{
+    hosted_in_file, in_file_bound,
+};
+use crate::application::file_dag::file_pass::service::nodes::service::{
+    node_outcome, node_rows, released,
+};
 use crate::application::file_dag::file_pass::service::{fill_roots, given_back, taken};
-use crate::application::file_dag::file_pass::constants::BOUND_PRODUCER_UNAVAILABLE;
 use crate::application::file_dag::file_pass::types::{
     CaptureAt, NodeAnswer, OutputCommit, OutputState, PassFile, PassInputs, PassProgram,
     PassRequest,
 };
-use crate::application::file_dag::frontiers::service::withheld;
 use crate::application::file_dag::frontiers::types::Withholdings;
-use crate::application::file_dag::publications::service::united;
-use crate::application::file_dag::publications::types::{BoundRows, BoundTable, BoundTables};
-use ryo_execution_domain::domain::frontier_coverage::service::affected_files;
-use ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationProducer;
 use crate::application::file_dag::program::facade_runtime::file_execution::service::{
     classify, readiness_of,
 };
@@ -26,6 +24,7 @@ use crate::application::file_dag::program::file_session::types::{
     Partiality, RanRule, RuleAfter,
 };
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::application::file_dag::publications::types::BoundTables;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsWorker;
 use crate::outbound::facts::types::fact_sources::value::FactSources;
@@ -35,15 +34,12 @@ use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::service::{rule as fused_rule, serving};
 use ryo_execution_domain::domain::executable_program::types::Serving;
 use ryo_execution_domain::domain::finish::types::Arena;
+use ryo_execution_domain::domain::frontier_coverage::service::affected_files;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::{
     DiagnosticDelivery, FileRuleIntent, ObservationDemand,
 };
-use ryo_execution_domain::domain::hosted::service::table_of_query;
-use ryo_execution_domain::domain::hosted::types::NumberedFiles;
-use ryo_execution_domain::domain::operating::types::AfterTheFiles;
-use ryo_language::domain::symbols::types::{QuerySymbols, Symbols};
-use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::observations::service::{new_frontiers, set_frontier};
@@ -282,27 +278,16 @@ pub(crate) fn delivered_rule(
                 CompletionPolicy::file_inputs(rule, at.file, at.evaluation, at.publication);
             let outcome =
                 if completion.observation_admission(&root.reads) == ObservationAdmission::Ready {
-                    match plan.observations.get(index).map(|output| output.source) {
-                        Some(Input::Step(id)) => {
-                            let step = nodes
-                                .steps
-                                .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-                                .ok_or(OperatingError::NotRun)
-                                .and_then(Clone::clone);
-                            match node_rows(at, symbols, rule, step, id) {
-                                Ok(answer) => {
-                                    let outcome = answered(&answer);
-                                    if let Some(kept) = answers.get_mut(index) {
-                                        *kept = Some(answer);
-                                    }
-                                    outcome
-                                }
-                                Err(error) => classify(error),
+                    let source = plan.observations.get(index).map(|output| output.source);
+                    match output_rows(at, symbols, rule, source) {
+                        Ok(answer) => {
+                            let outcome = answered(&answer);
+                            if let Some(kept) = answers.get_mut(index) {
+                                *kept = Some(answer);
                             }
+                            outcome
                         }
-                        Some(Input::Relation(_) | Input::BoundObservation(_)) | None => {
-                            RootOutcome::Failed(OperatingError::NotRun)
-                        }
+                        Err(error) => classify(error),
                     }
                 } else {
                     classify(OperatingError::ObservationIncomplete {
@@ -323,80 +308,23 @@ pub(crate) fn delivered_rule(
     Ok(emit)
 }
 
-/// The tables `rule`'s bound observations in the open file are bound to: each binding's producers' rows in this file, in
-/// producer order, each row once; a producer with no rows in this file withholds its binding.
-fn in_file_bound(
+/// The rows of a rule's named output `source` in the open file, with their coverage.
+fn output_rows(
     at: &mut PassFile<'_, '_, '_, '_>,
+    symbols: &mut Symbols,
     rule: RuleIndex,
-) -> Result<BoundTables, OperatingError> {
-    let Some(metadata) = at.request.program.observation_metadata() else {
-        return Ok(BoundTables::default());
-    };
-    let Some(bindings) = metadata.bindings.get(rule.0) else {
-        return Ok(BoundTables::default());
-    };
-    let mut tables = Vec::new();
-    for binding in bindings
-        .iter()
-        .filter(|binding| binding.schema.scope == StepScope::PerFile)
-    {
-        let members = binding
-            .producers
-            .iter()
-            .map(|producer| match producer {
-                ResolvedObservationProducer::Output { rule, output } => at
-                    .answers
-                    .get(rule.0)
-                    .and_then(|answers| answers.get(usize::try_from(output.0).unwrap_or(usize::MAX)))
-                    .and_then(Option::as_ref)
-                    .map(|answer| (Arc::new(answer.table.clone()), answer.coverage.clone()))
-                    .ok_or_else(|| OperatingError::ObservationIncomplete {
-                        reason: BOUND_PRODUCER_UNAVAILABLE.into(),
-                    }),
-                ResolvedObservationProducer::NoQuery { .. } => Err(OperatingError::ObservationIncomplete {
-                    reason: BOUND_PRODUCER_UNAVAILABLE.into(),
-                }),
-            })
-            .collect::<Result<Vec<_>, _>>();
-        let declared = binding.schema.columns.iter().map(|column| column.kind).collect();
-        let rows = match members.and_then(|members| united(&members, declared)) {
-            Ok((table, coverage)) => BoundRows::Held { table, coverage },
-            Err(error) => BoundRows::Withheld(withheld(&mut at.inputs.withholdings, error)),
-        };
-        tables.push(BoundTable {
-            input: binding.input,
-            rows,
-        });
-    }
-    Ok(BoundTables(tables))
-}
-
-/// The host's rows of each relation a step of `plan` in the open file reads, interned in the file's symbols once per file.
-fn hosted_in_file(at: &mut PassFile<'_, '_, '_, '_>, symbols: &mut Symbols, plan: &Plan) {
-    let declared = at.request.program.hosted();
-    for step in plan.steps.iter().filter(|step| step.scope == StepScope::PerFile) {
-        let Operation::Hosted { relation } = step.operation else {
-            continue;
-        };
-        let Some((at_place, host)) = usize::try_from(relation.0)
-            .ok()
-            .and_then(|place| declared.get(place).map(|host| (place, host)))
-        else {
-            continue;
-        };
-        if at.inputs.hosted.len() <= at_place {
-            at.inputs.hosted.resize_with(at_place.saturating_add(1), || None);
+    source: Option<Input>,
+) -> Result<NodeAnswer, OperatingError> {
+    match source {
+        Some(Input::Step(id)) => {
+            let step = fused_rule(&at.pass.program, rule)?
+                .steps
+                .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+                .ok_or(OperatingError::NotRun)
+                .and_then(Clone::clone);
+            node_rows(at, symbols, rule, step, id)
         }
-        if let Some(held) = at.inputs.hosted.get_mut(at_place)
-            && held.is_none()
-        {
-            *held = Some(table_of_query(
-                host,
-                NumberedFiles(at.paths),
-                &mut QuerySymbols::from(&mut *symbols),
-                AfterTheFiles::Before,
-            ));
-        }
+        Some(Input::Relation(_) | Input::BoundObservation(_)) | None => Err(OperatingError::NotRun),
     }
 }
 

@@ -2,8 +2,7 @@
 //! read from the store and proven against the files the rule read, in frontier order, before any step runs; then decoded once
 //! into the phase's symbols. A store refusal stops the occurrence; an entry whose producer is unavailable, whose every source
 //! was skipped or whose words do not decode is withheld, and its reason is raised where a step first reads it.
-
-use super::constants::{PRODUCER_UNAVAILABLE, PROOF_MISMATCH, RESTORED_FRAME_REJECTED, SOURCES_SKIPPED};
+use super::constants::{PRODUCER_UNAVAILABLE, PROOF_MISMATCH, SOURCES_SKIPPED};
 use super::errors::FrontiersError;
 use super::types::{
     FileAccounting, FrontierRows, HandedOver, HandoverPolicy, InputReadiness, PhaseScoping,
@@ -11,7 +10,7 @@ use super::types::{
 };
 use crate::application::file_dag::program::admission::types::RequiredPartitions;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
-use crate::application::file_dag::program::request_identity::service::RequestIdentity;
+use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use crate::application::file_dag::project_source::service::table_of;
 use crate::application::file_dag::project_source::types::ProjectSource;
 use crate::outbound::facts::interface::FactsFinish;
@@ -19,8 +18,6 @@ use crate::outbound::facts::types::KeptBucket;
 use ryo_execution_domain::domain::completion::service::partial_of_lacks;
 use ryo_execution_domain::domain::completion::types::{CoverageState, FileLacks, MissingRows};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::service::{rule as rule_nodes, schema};
-use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::frontier_coverage::service::restored_lacks;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::service::places_mut;
@@ -30,11 +27,11 @@ use ryo_operators::domain::physical_plan::types::frontier_place::value::Frontier
 use ryo_operators::domain::physical_plan::types::held_rows::value::HeldRows;
 use ryo_relations::domain::catalog::service::scope_of;
 use ryo_relations::domain::catalog::types::RowScope;
-use ryo_relations::domain::relations::service::kinds as relation_kinds;
-use ryo_relations::domain::relations::types::{CellKind, FileId};
+use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::plan_parts::types::{Input, InputNumber};
 use ryo_values::domain::records::service::is_well_formed;
 use ryo_values::domain::records::types::{FrontierCoverage, FrontierShape};
+use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::run_metadata::types::FrontierFeed;
 use ryo_values::domain::stored_facts::service::frontier_bucket;
 use ryo_values::domain::stored_facts::types::Bucket;
@@ -42,7 +39,6 @@ use ryo_values::domain::table_words::service::{
     decode_combined, decode_complete, single_table_frame,
 };
 use ryo_values::domain::table_words::types::{Framing, PackedSlice};
-use ryo_values::domain::rows::types::Table;
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
@@ -53,13 +49,13 @@ use std::sync::Arc;
 /// `NotRun` for a rule outside the program.
 pub(crate) fn required_files(
     program: &PreparedProgram,
-    request: &Arc<RequestIdentity>,
+    execution: &RequestExecution,
     rule: RuleIndex,
     scoping: PhaseScoping<'_>,
 ) -> Result<RequiredPartitions, OperatingError> {
     program.rule_metadata(rule)?;
     RequiredPartitions::from_request(
-        request,
+        execution.services.request(),
         scoping.corpus,
         scoping.covered,
         scoping.skipped,
@@ -67,7 +63,10 @@ pub(crate) fn required_files(
             .inapplicable
             .get(rule.0)
             .map_or(&[][..], |files| &files.0),
-        scoping.refused.get(rule.0).map_or(&[][..], |files| &files.0),
+        scoping
+            .refused
+            .get(rule.0)
+            .map_or(&[][..], |files| &files.0),
     )
 }
 
@@ -99,7 +98,8 @@ pub(crate) fn hand_over(
     let mut proven = Vec::with_capacity(frontier.len());
     for (place, input) in frontier.iter().copied().enumerate() {
         if let HandoverPolicy::Observations { ready } = policy
-            && ready.0.get(place).copied().ok_or(OperatingError::NotRun)? == InputReadiness::Unavailable
+            && ready.0.get(place).copied().ok_or(OperatingError::NotRun)?
+                == InputReadiness::Unavailable
         {
             proven.push(Proven::Refused(OperatingError::ObservationIncomplete {
                 reason: PRODUCER_UNAVAILABLE.into(),
@@ -119,7 +119,15 @@ pub(crate) fn hand_over(
         }
         let bucket = frontier_bucket(first, InputNumber(place));
         let words = facts.kept(bucket)?;
-        let coverage = validate_bucket(program, rule, InputNumber(place), first, bucket, required, &words)?;
+        let coverage = validate_bucket(
+            program,
+            rule,
+            InputNumber(place),
+            first,
+            bucket,
+            required,
+            &words,
+        )?;
         if words.sources.is_empty() && !required.files().is_empty() {
             proven.push(Proven::Refused(OperatingError::ObservationIncomplete {
                 reason: SOURCES_SKIPPED.into(),
@@ -201,71 +209,12 @@ pub(crate) fn withheld(withholdings: &mut Withholdings, error: OperatingError) -
 /// Why the input of `token` was withheld.
 pub(crate) fn reason(withholdings: &Withholdings, token: WithheldInput) -> OperatingError {
     match usize::try_from(token.0) {
-        Ok(at) => withholdings.0.get(at).cloned().unwrap_or(OperatingError::NotRun),
+        Ok(at) => withholdings
+            .0
+            .get(at)
+            .cloned()
+            .unwrap_or(OperatingError::NotRun),
         Err(_) => OperatingError::NotRun,
-    }
-}
-
-/// The coverage of a named output the files kept of `producer`'s entry `input`, proven against the files it read: a frame of a
-/// file its rule was syntax-rejected on is refused.
-///
-/// # Errors
-///
-/// `RESTORED_FRAME_REJECTED`, or a proof that does not fit the program.
-pub(crate) fn restored_coverage(
-    program: &PreparedProgram,
-    producer: RuleIndex,
-    input: InputNumber,
-    first: Bucket,
-    bucket: Bucket,
-    required: &RequiredPartitions,
-    payload: &KeptBucket,
-) -> Result<CoverageState, OperatingError> {
-    let rule_id = program.rule_id(producer)?;
-    for source in &payload.sources {
-        let path = required
-            .request
-            .path(source.file)
-            .ok_or(OperatingError::NotRead)?;
-        if required
-            .skipped
-            .iter()
-            .any(|skipped| &skipped.rule == rule_id && &skipped.path == path)
-        {
-            return Err(OperatingError::ObservationIncomplete {
-                reason: RESTORED_FRAME_REJECTED.into(),
-            });
-        }
-    }
-    validate_bucket(program, producer, input, first, bucket, required, payload)
-}
-
-/// What each column of `producer`'s frontier entry `input` holds: a step's output columns, a relation's.
-///
-/// # Errors
-///
-/// `NotRun` for an entry outside the program; `WrongOperation` for an entry the files do not keep.
-pub(crate) fn frontier_kinds(
-    program: &PreparedProgram,
-    executable: &ExecutableProgram,
-    producer: RuleIndex,
-    input: InputNumber,
-) -> Result<Box<[CellKind]>, OperatingError> {
-    match program
-        .frontiers(producer)?
-        .get(input.0)
-        .ok_or(OperatingError::NotRun)?
-    {
-        Input::Step(id) => {
-            let node = rule_nodes(executable, producer)?
-                .steps
-                .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-                .ok_or(OperatingError::NotRun)?
-                .clone()?;
-            Ok(schema(executable, node)?.into())
-        }
-        Input::Relation(relation) => Ok(relation_kinds(*relation).into()),
-        Input::BoundObservation(_) => Err(OperatingError::WrongOperation),
     }
 }
 

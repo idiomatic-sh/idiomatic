@@ -61,8 +61,8 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation()
             if rule == 0 {
                 first_rendered = Some(rendered);
             }
-            seen.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
-            seen.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
+            seen.push(format!("{:?}", calls.runs.load(Ordering::SeqCst)));
+            seen.push(format!("{:?}", calls.rows.load(Ordering::SeqCst)));
         }
         // A changed physical coverage declaration cannot consume a cached publication.
         let changed = [Covered {
@@ -85,8 +85,8 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation()
         seen.push(format!("{:?}", matches!(result, Err(error) if error == ryo_values::domain::rule_requests::service::failed(
                 &rules.ids[1], &OperatingError::WrongOperation,
             ))));
-        seen.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
-        seen.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.runs.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.rows.load(Ordering::SeqCst)));
         phase.finish().unwrap();
 
         rules.request =
@@ -102,8 +102,8 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation()
         )
         .unwrap();
         seen.push(format!("{:?}", (result.rendered) == (first_rendered)));
-        seen.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
-        seen.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.runs.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.rows.load(Ordering::SeqCst)));
         phase.finish().unwrap();
     }
     Ok(seen.join("|"))

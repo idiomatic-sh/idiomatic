@@ -9,8 +9,20 @@ use ryo_execution_runtime::outbound::facts::errors::FactsError;
 use ryo_execution_runtime::outbound::facts::types::fact_sources::value::{FactSource, TreeSource};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{ColumnsView, Relation, RowWriter};
+use ryo_relations::domain::catalog::service::scope_of;
+use ryo_relations::domain::catalog::types::RowScope;
+use ryo_relations::domain::relations::service::provenance_of;
+use ryo_relations::domain::relations::types::{ColumnsView, Provenance, Relation, RowWriter};
 use ryo_values::domain::stored_facts::types::ReadInPart;
+
+/// What a language serves of each file it reads: the relations of a file's scope the catalog lists before the engine's own. A
+/// relation of the project's scope is the project source's alone, read once after the files.
+pub(crate) fn language_serves(catalog: &[Relation]) -> &[Relation] {
+    let end = catalog.partition_point(|relation| {
+        scope_of(*relation) == RowScope::File && provenance_of(*relation) != Provenance::Engine
+    });
+    catalog.get(..end).unwrap_or(catalog)
+}
 
 impl LanguageSource<'_> {
     /// Keeps the refusal of what the language wrote, with the language's name, and answers the port's refusal.

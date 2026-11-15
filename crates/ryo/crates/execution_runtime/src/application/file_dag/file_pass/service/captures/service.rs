@@ -6,20 +6,14 @@ use crate::application::file_dag::file_pass::service::roots_of;
 use crate::application::file_dag::file_pass::types::{
     CaptureAt, NodeAnswer, OutputCommit, OutputState, PassFile,
 };
+use crate::application::file_dag::frontiers::service::reason;
 use crate::application::file_dag::program::file_session::types::{
     CaptureContext, FileStop, RuleAfter,
 };
-use crate::application::file_dag::frontiers::service::reason;
-use crate::application::file_dag::publications::service::bound_coverage;
+use crate::application::file_dag::publications::service::bound::service::bound_coverage;
 use crate::outbound::facts::types::WordsToKeep;
 use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
-use ryo_execution_domain::domain::table_model::service::materialize;
-use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_relations::domain::catalog::service::scope_of;
-use ryo_relations::domain::catalog::types::RowScope;
-use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::rows::types::Table;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::service::rule as fused_rule;
 use ryo_execution_domain::domain::executable_program::types::RuleNodes;
@@ -30,16 +24,22 @@ use ryo_execution_domain::domain::frontier_coverage::service::file_frontier_cove
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::{LogicalCounts, RowsFed};
 use ryo_execution_domain::domain::rule_intent::types::{CaptureIntent, FrontierPurpose};
+use ryo_execution_domain::domain::table_model::service::materialize;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::held_rows::value::HeldRows;
 use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use ryo_operators::domain::physical_plan::types::{NodeRows, PlanInputs as _};
 use ryo_operators::domain::tree_cells::service::native_form;
+use ryo_relations::domain::catalog::service::scope_of;
+use ryo_relations::domain::catalog::types::RowScope;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepScope};
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::{FrontierOrdinal, FrontierProof, ProducerRule};
+use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::stored_facts::service::frontier_bucket;
 use ryo_values::domain::table_words::service::{encode_table, pack};
 use ryo_values::domain::table_words::types::WordSlice;
@@ -106,18 +106,24 @@ pub(crate) fn captured_rule(
                     node_rows(at, symbols, rule, node, step)?
                 }
                 Input::Relation(relation) => relation_rows(at, rule, relation)?,
-                Input::BoundObservation(id) => match at.inputs.observation(BoundObservationPlace::of(
-                    RuleOrdinal(u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?),
-                    id,
-                )) {
-                    HeldRows::Held(table) => NodeAnswer {
-                        table: table.clone(),
-                        coverage: bound_coverage(&at.inputs.bound, id)
-                            .cloned()
-                            .unwrap_or(CoverageState::Complete),
-                    },
-                    HeldRows::Withheld(token) => return Err(reason(&at.inputs.withholdings, token)),
-                },
+                Input::BoundObservation(id) => {
+                    match at.inputs.observation(BoundObservationPlace::of(
+                        RuleOrdinal(
+                            u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?,
+                        ),
+                        id,
+                    )) {
+                        HeldRows::Held(table) => NodeAnswer {
+                            table: table.clone(),
+                            coverage: bound_coverage(&at.inputs.bound, id)
+                                .cloned()
+                                .unwrap_or(CoverageState::Complete),
+                        },
+                        HeldRows::Withheld(token) => {
+                            return Err(reason(&at.inputs.withholdings, token));
+                        }
+                    }
+                }
             };
             let coverage = file_frontier_coverage(coverage, at.file)?;
             let frame_places = escape_frame(
@@ -270,7 +276,9 @@ pub(crate) fn observed(
                 }
                 Input::BoundObservation(id) => {
                     let place = BoundObservationPlace::of(
-                        RuleOrdinal(u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?),
+                        RuleOrdinal(
+                            u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?,
+                        ),
                         *id,
                     );
                     match at.inputs.observation(place) {

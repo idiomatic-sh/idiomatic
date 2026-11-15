@@ -8,10 +8,6 @@ Holds the execution engine's domain, the bottom of its crates: the compiled prog
 
 Decides physical completeness independent of execution scheduling.
 
-### contributor_rows
-
-Keeps only the rows of an absence-based answer that the missing rows cannot change.
-
 ### coverage
 
 Tracks which source relations and file partitions are complete or partial.
@@ -47,10 +43,6 @@ Describes the frontier a rule retains and the scope it is captured in.
 ### frontier_coverage
 
 Carries a coverage of files to the file-frontier boundary and restores it.
-
-### frontiers
-
-Describes the retained rows and project facts read by cross-file steps.
 
 ### hosted
 
@@ -95,10 +87,6 @@ Decides which configured rules govern a source file.
 ### prepared_request
 
 Holds immutable request declarations consumed by compilation.
-
-### readiness
-
-Wakes exactly the demanded producers for the admission interpreter.
 
 ### replay
 

@@ -61,7 +61,10 @@ impl ProgramRequestExecutionPort for RequestExecution {
         )
     }
     fn project_phase(&self) -> Result<ProjectPhase<'_>, OperatingError> {
-        Ok(ProjectPhase { request: self })
+        Ok(ProjectPhase {
+            request: self,
+            declared: std::cell::RefCell::default(),
+        })
     }
 }
 /// A request begins over the prepared program and the request's files.
@@ -72,9 +75,7 @@ pub fn begin(
 ) -> RequestExecution {
     RequestExecution {
         program: Arc::clone(&program.parts.inner),
-        services: Arc::new(
-            ProgramServices::new(corpus).observed(observer),
-        ),
+        services: Arc::new(ProgramServices::new(corpus).observed(observer)),
         pass: Arc::clone(&program.parts.pass),
     }
 }

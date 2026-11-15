@@ -10,6 +10,7 @@ use ryo_execution_domain::domain::prepared_request::types::Compiled;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
+use ryo_execution_domain::domain::source_partitions::types::ProducerPartitions as _;
 use ryo_execution_domain::domain::source_partitions::types::source_partitions::value::SourcePartitions;
 use ryo_execution_domain::domain::trust::types::RelationRead;
 
@@ -226,6 +227,16 @@ pub(crate) fn prepare(
             layout: named.layout,
             frontiers: named.frontiers.clone().into_boxed_slice(),
             bindings: observations.clone(),
+            admissions: observations
+                .iter()
+                .enumerate()
+                .map(|(rule, bindings)| {
+                    bindings
+                        .iter()
+                        .map(|binding| partitions.observation(RuleIndex(rule), binding.input).map(|_| ()))
+                        .collect()
+                })
+                .collect(),
             outputs: named.outputs.iter().map(|outputs| outputs.iter().map(|output| OutputMetadata {
                 root: match output.root { ryo_execution_domain::domain::file_program::types::GraphObservationRoot::PerFile(_) => OutputRoot::PerFile,
                     ryo_execution_domain::domain::file_program::types::GraphObservationRoot::CrossFile => OutputRoot::CrossFile,
@@ -255,8 +266,7 @@ pub(crate) fn prepare(
         });
     // The compiled program is read for its rules' authoring refusals and its pattern slots, and not kept.
     let program = compile_program(&plans, graph, &partitions, &operators)?;
-    let metadata =
-        metadata::service::rules(&program, &plans, &observation_frontiers)?;
+    let metadata = metadata::service::rules(&program, &plans, &observation_frontiers)?;
     // The program's own pattern slots: its presence fold compiled the source searches' patterns into them.
     let matchers = Arc::clone(program.matchers());
     let file_frontier_outputs = demands::service::frontier_outputs(&metadata, named.as_ref());

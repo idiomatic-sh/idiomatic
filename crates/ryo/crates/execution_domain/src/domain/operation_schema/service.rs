@@ -71,12 +71,11 @@ pub fn schema_of(
             }
             Ok(left.kinds.to_vec())
         }
-        Operation::Antijoin {
-            left_on, right_on, ..
-        } => {
-            let (left, right) = (first()?, second()?);
+        // Its right keys are checked when a left row reaches them, as the interpreter does: an empty left side answers its
+        // rows' layout and reads no right key.
+        Operation::Antijoin { left_on, .. } => {
+            let (left, _right) = (first()?, second()?);
             check_columns(left.kinds, left_on)?;
-            check_columns(right.kinds, right_on)?;
             Ok(left.kinds.to_vec())
         }
         Operation::GroupCount { keys, distinct, .. } => {

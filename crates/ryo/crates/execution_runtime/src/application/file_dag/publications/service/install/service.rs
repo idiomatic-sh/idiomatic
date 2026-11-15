@@ -4,7 +4,7 @@ use crate::application::file_dag::program::observation_stage::types::AdmittedOut
 use crate::application::file_dag::program::preparation::types::OutputRoot;
 use crate::application::file_dag::publications::service::{incomplete, output_place, worker_place};
 use crate::application::file_dag::publications::types::{
-    CrossRoot, FinishState, Publications, PublicationSlot, ReferenceCount, RestoredOutput,
+    CrossRoot, FinishState, PublicationSlot, Publications, ReferenceCount, RestoredOutput,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::file_program::types::ObservationRetirement;
@@ -55,11 +55,11 @@ impl Publications<'_> {
         };
         if transfer.worker != expected
             || expected == CROSS_FILE
-            || worker_place(expected) < self.inherited.0
+            || worker_place(expected).0 < self.inherited.0
         {
             return Err(OperatingError::NotRun);
         }
-        let at = worker_place(expected);
+        let at = worker_place(expected).0;
         if self.arenas.get(at).is_none_or(|arena| !arena.0.is_empty()) {
             return Err(OperatingError::NotRun);
         }
@@ -70,7 +70,7 @@ impl Publications<'_> {
             .ok_or(OperatingError::NotRun)?;
         let mut seen = vec![false; outputs.len()];
         for root in &transfer.roots {
-            let output = output_place(root.output);
+            let output = output_place(root.output).0;
             if outputs
                 .get(output)
                 .is_none_or(|output| !matches!(output.root, OutputRoot::CrossFile))
@@ -86,12 +86,13 @@ impl Publications<'_> {
             } else if root.readiness == ProducerReadiness::Complete {
                 return Err(incomplete());
             }
-            if matches!(root.words, RootWords::Published(_)) != admitted.contains_key(&root.output.0)
+            if matches!(root.words, RootWords::Published(_))
+                != admitted.contains_key(&root.output.0)
             {
                 return Err(incomplete());
             }
             for arena in &root.arenas {
-                if *arena == CROSS_FILE || worker_place(*arena) >= self.arenas.len() {
+                if *arena == CROSS_FILE || worker_place(*arena).0 >= self.arenas.len() {
                     return Err(incomplete());
                 }
             }
@@ -100,7 +101,7 @@ impl Publications<'_> {
         let mut additions = vec![0usize; self.references.len()];
         let mut prepared = Vec::with_capacity(transfer.roots.len());
         for root in transfer.roots {
-            let output = output_place(root.output);
+            let output = output_place(root.output).0;
             if matches!(root.words, RootWords::Published(_)) {
                 // The pack boundary lists each referenced arena once: a repeat is a malformed transfer, never counted twice.
                 let mut referenced = Vec::with_capacity(root.arenas.len());
@@ -110,11 +111,11 @@ impl Publications<'_> {
                     }
                     referenced.push(arena);
                     let added = additions
-                        .get_mut(worker_place(arena))
+                        .get_mut(worker_place(arena).0)
                         .ok_or_else(incomplete)?;
                     *added = added.checked_add(1).ok_or(OperatingError::NotRun)?;
                     self.references
-                        .get(worker_place(arena))
+                        .get(worker_place(arena).0)
                         .ok_or_else(incomplete)?
                         .0
                         .checked_add(*added)
@@ -123,9 +124,7 @@ impl Publications<'_> {
                 prepared.push((
                     output,
                     CrossRoot::Named {
-                        publication: admitted
-                            .remove(&root.output.0)
-                            .ok_or_else(incomplete)?,
+                        publication: admitted.remove(&root.output.0).ok_or_else(incomplete)?,
                         arenas: referenced,
                     },
                 ));
@@ -149,7 +148,8 @@ impl Publications<'_> {
             }
         }
         for (output, declared) in outputs.iter().enumerate() {
-            if matches!(declared.root, OutputRoot::CrossFile) && !seen.get(output).copied().unwrap_or(true)
+            if matches!(declared.root, OutputRoot::CrossFile)
+                && !seen.get(output).copied().unwrap_or(true)
                 && let Some(place) = self
                     .roots
                     .get_mut(rule.0)
@@ -186,7 +186,7 @@ impl Publications<'_> {
                 self.metadata
                     .outputs
                     .get(edge.producer.0)
-                    .and_then(|outputs| outputs.get(output_place(edge.output)))
+                    .and_then(|outputs| outputs.get(output_place(edge.output).0))
                     .map(|output| output.root),
                 Some(OutputRoot::CrossFile)
             ) {
@@ -195,7 +195,7 @@ impl Publications<'_> {
             let count = self
                 .remaining
                 .get_mut(edge.producer.0)
-                .and_then(|outputs| outputs.get_mut(output_place(edge.output)))
+                .and_then(|outputs| outputs.get_mut(output_place(edge.output).0))
                 .ok_or(OperatingError::NotRun)?;
             count.0 = count.0.checked_sub(1).ok_or(OperatingError::NotRun)?;
             if count.0 == 0 {
@@ -210,18 +210,17 @@ impl Publications<'_> {
         let root = self
             .roots
             .get_mut(edge.producer.0)
-            .and_then(|outputs| outputs.get_mut(output_place(edge.output)))
+            .and_then(|outputs| outputs.get_mut(output_place(edge.output).0))
             .ok_or(OperatingError::NotRun)?;
         let arenas = match std::mem::replace(root, CrossRoot::Unavailable) {
-            CrossRoot::Restored(RestoredOutput { arenas, .. }) | CrossRoot::Named { arenas, .. } => {
-                arenas
-            }
+            CrossRoot::Restored(RestoredOutput { arenas, .. })
+            | CrossRoot::Named { arenas, .. } => arenas,
             CrossRoot::Pending | CrossRoot::Unavailable => Vec::new(),
         };
         for arena in arenas {
             let count = self
                 .references
-                .get_mut(worker_place(arena))
+                .get_mut(worker_place(arena).0)
                 .ok_or(OperatingError::NotRun)?;
             count.0 = count.0.checked_sub(1).ok_or(OperatingError::NotRun)?;
             self.release_unused_arena(arena);
@@ -231,7 +230,7 @@ impl Publications<'_> {
 
     /// Empties an arena of this invocation no retained publication references.
     pub(crate) fn release_unused_arena(&mut self, worker: WorkerNumber) {
-        let index = worker_place(worker);
+        let index = worker_place(worker).0;
         if index >= self.inherited.0
             && self.references.get(index) == Some(&ReferenceCount(0))
             && let Some(arena) = self.arenas.get_mut(index)

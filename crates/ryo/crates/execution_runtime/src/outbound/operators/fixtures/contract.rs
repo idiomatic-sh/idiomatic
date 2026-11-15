@@ -81,8 +81,10 @@ pub fn check(adapter: &impl OperatorsPort) {
 fn planned_and_run(adapter: &impl OperatorsPort) -> Result<usize, PortableOperatorFault> {
     use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
     use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
-    use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, NodeRows, PlanInput, PlanInputList, PlanNodeId};
     use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
+    use ryo_operators::domain::physical_plan::types::{
+        LogicalNode, NodeBindings, NodeRows, PlanInput, PlanInputList, PlanNodeId,
+    };
     use ryo_operators::inbound::use_cases::run::fixtures::{TableInputs, TextResources};
     use ryo_relations::domain::relations::types::Relation;
     let operation = ryo_values::domain::plans::types::Operation::Select {

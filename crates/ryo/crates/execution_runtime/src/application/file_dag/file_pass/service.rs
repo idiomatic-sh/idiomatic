@@ -6,6 +6,7 @@ use crate::application::file_dag::file_pass::types::{
     FileRoots, NodeReads, PassInputs, PassProgram, PassResources, PassScratch, PassSource,
     RootKindNodes, TreeStart,
 };
+use crate::application::file_dag::publications::service::bound::service::held_observation;
 use ryo_execution_domain::domain::executable_program::service::{assemble, logical, root_kinds};
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
@@ -21,7 +22,6 @@ use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::of_kind;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
-use crate::application::file_dag::publications::service::held_observation;
 use ryo_operators::domain::contract::types::{PortableOperatorFault, WithheldInput};
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::candidates::value::Candidates;
@@ -43,6 +43,7 @@ use ryo_values::domain::row_texts::types::CellText;
 use std::sync::{Arc, Mutex, PoisonError};
 
 pub(crate) mod captures;
+pub(crate) mod inputs;
 pub(crate) mod nodes;
 pub(crate) mod rules;
 
@@ -281,9 +282,9 @@ impl PlanInputs for PassInputs<'_, '_, '_> {
         held_observation(&self.bound, place)
     }
     fn hosted(&self, relation: HostedNumber) -> HeldRows<'_> {
-        match usize::try_from(relation.0)
-            .ok()
-            .and_then(|at| self.hosted.get(at))
+        match self
+            .hosted
+            .get(usize::try_from(relation.0).unwrap_or(usize::MAX))
             .and_then(Option::as_ref)
         {
             Some(table) => HeldRows::Held(table),

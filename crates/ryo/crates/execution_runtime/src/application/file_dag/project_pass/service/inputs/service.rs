@@ -3,8 +3,10 @@
 
 use crate::application::file_dag::frontiers::service::held_frontier;
 use crate::application::file_dag::frontiers::types::FrontierRows;
-use crate::application::file_dag::project_pass::types::{PhaseInputs, PhaseResources};
-use crate::application::file_dag::publications::service::held_observation;
+use crate::application::file_dag::project_pass::types::{
+    HandoverReads, PhaseInputs, PhaseResources,
+};
+use crate::application::file_dag::publications::service::bound::service::held_observation;
 use ryo_execution_domain::domain::operating::service::minted;
 use ryo_execution_domain::domain::operating::types::AfterTheFiles;
 use ryo_language::domain::elements::types::Elements;
@@ -29,7 +31,7 @@ use ryo_values::domain::row_texts::types::CellText;
 impl PlanInputs for PhaseInputs<'_> {
     fn facts(&self, _relation: Relation) -> FactRows<'_> {
         // After the files every relation a step reads is handed over to its rule: one no handover answers is not read.
-        self.unhanded.set(true);
+        self.unhanded.set(HandoverReads::Unhanded);
         FactRows::Refused
     }
     fn roots(&self, _root: PlanNodeId) -> Candidates<'_> {
@@ -89,7 +91,10 @@ impl Resources for PhaseResources<'_> {
     fn tree(&self) -> &Elements {
         self.elements
     }
-    fn render(&mut self, _requests: RenderRequests<'_>) -> Result<RenderOutcomes, PortableOperatorFault> {
+    fn render(
+        &mut self,
+        _requests: RenderRequests<'_>,
+    ) -> Result<RenderOutcomes, PortableOperatorFault> {
         // Rendering is the second stage's: a rule that renders is refused before any file.
         Err(PortableOperatorFault::UnsupportedRender)
     }

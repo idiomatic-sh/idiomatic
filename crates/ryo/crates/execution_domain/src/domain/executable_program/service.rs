@@ -6,8 +6,7 @@ use crate::domain::executable_program::types::executable_program::value::Executa
 use crate::domain::executable_program::types::logical_build::value::LogicalBuild;
 use crate::domain::executable_program::types::program_inputs::value::ProgramInputs;
 use crate::domain::executable_program::types::{
-    Consumers, Draft, DraftInputs, ObservationReach, RootKind, RuleInput, RuleNodes, RuleScopes,
-    Serving, StepAt,
+    Consumers, Draft, DraftInputs, RootKind, RuleInput, RuleNodes, RuleScopes, Serving, StepAt,
 };
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::service::schema_of;
@@ -16,16 +15,18 @@ use ryo_operators::domain::physical_plan::types::logical_program::value::Logical
 use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use ryo_operators::domain::physical_plan::types::{
-    LogicalNode, NodeBindings, PlanInput, PlanInputList, PlanNodeId,
+    LogicalNode, NodeBindings, PlanInputList, PlanNodeId,
 };
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::plan_parts::types::{Input, LiteralText, StepId, StepScope};
+use ryo_values::domain::plan_parts::types::{Input, LiteralText};
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::{Operation, Plan};
 use std::hash::{Hash, Hasher};
 
 pub(crate) mod logical;
-use logical::service::{derived_roots, read_inputs};
+pub mod scopes;
+use logical::service::{derived_roots, held, observation_reaches, read_inputs};
+use scopes::service::scope_at;
 
 /// The request's rules as one logical program: equal steps over equal inputs, in the same scope and with the same bindings,
 /// are one node; each rule's emitted node and the nodes its frontier and named roots keep are recorded; each node's schema
@@ -85,9 +86,8 @@ pub fn logical<'p>(
                 continue;
             };
             let host = match &step.operation {
-                Operation::Hosted { relation } => usize::try_from(relation.0)
-                    .ok()
-                    .and_then(|at| hosted.get(at))
+                Operation::Hosted { relation } => hosted
+                    .get(usize::try_from(relation.0).unwrap_or(usize::MAX))
                     .map(|kinds| InputShape { kinds, tree: None }),
                 _ => None,
             };
@@ -172,64 +172,10 @@ pub fn logical<'p>(
             scope: draft.scope,
         });
     }
-    let mut consumers = vec![Consumers(0); drafts.len()];
-    let count = |consumers: &mut Vec<Consumers>, node: PlanNodeId| {
-        if let Some(each) = consumers.get_mut(usize::try_from(node.0).unwrap_or(usize::MAX)) {
-            each.0 = each.0.saturating_add(1);
-        }
-    };
-    for list in &inputs.lists {
-        for input in list {
-            if let PlanInput::Node(read) = input {
-                count(&mut consumers, *read);
-            }
-        }
-    }
-    for (rule, (input, rule_nodes)) in rules.iter().zip(&nodes).enumerate() {
-        let ordinal = RuleOrdinal(u32::try_from(rule).map_err(|_| OperatingError::ShapeMismatch)?);
-        if let Some(Ok(node)) = rule_nodes
-            .steps
-            .get(usize::try_from(input.plan.emit.step.0).unwrap_or(usize::MAX))
-        {
-            program.emit(ordinal, *node);
-            count(&mut consumers, *node);
-        }
-        let kept = input.plan.frontier.iter().chain(
-            input
-                .plan
-                .observations
-                .iter()
-                .map(|observation| &observation.source),
-        );
-        for each in kept {
-            if let Input::Step(id) = each
-                && let Some(Ok(node)) = rule_nodes
-                    .steps
-                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-            {
-                program.hold(*node);
-                count(&mut consumers, *node);
-            }
-        }
-    }
+    let consumers = held(&mut program, rules, &nodes, &inputs.lists)?;
     let roots = derived_roots(&drafts, &inputs.lists);
     let schemas = drafts.iter().map(|draft| draft.schema.clone()).collect();
-    // A node that reads a bound observation, or a node that does, answers one occurrence's slots only.
-    let mut reach: Vec<ObservationReach> = Vec::with_capacity(inputs.lists.len());
-    for list in &inputs.lists {
-        let bound = list.iter().any(|input| match input {
-            PlanInput::Observation(_) => true,
-            PlanInput::Node(read) => {
-                reach.get(usize::try_from(read.0).unwrap_or(usize::MAX)) == Some(&ObservationReach::Occurrence)
-            }
-            PlanInput::Relation(_) | PlanInput::Frontier(_) => false,
-        });
-        reach.push(if bound {
-            ObservationReach::Occurrence
-        } else {
-            ObservationReach::Phase
-        });
-    }
+    let reach = observation_reaches(&inputs.lists);
     Ok(LogicalBuild {
         program,
         rules: nodes,
@@ -436,88 +382,4 @@ pub fn schema(
 #[must_use]
 pub fn physical(program: &ExecutableProgram) -> &PhysicalPlan {
     &program.plan
-}
-
-/// The scope the step `step` of `plan` runs in; a step the plan does not hold runs in each file.
-fn scope_at(plan: &Plan, step: StepId) -> StepScope {
-    plan.steps
-        .get(usize::try_from(step.0).unwrap_or(usize::MAX))
-        .map_or(StepScope::PerFile, |each| each.scope)
-}
-
-/// Where `rule`'s emitted step runs: in each file, or after the files.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::service::{assemble, emit_scope, logical};
-/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
-/// let program = assemble(logical(&[], &mut ProgramInputs::default()).unwrap(), Default::default());
-/// assert!(emit_scope(&program, ryo_execution_domain::domain::coverage::types::RuleIndex(0)).is_err());
-/// ```
-///
-/// # Errors
-///
-/// `NotRun` for a rule the program does not have.
-pub fn emit_scope(program: &ExecutableProgram, rule: RuleIndex) -> Result<StepScope, OperatingError> {
-    program
-        .scopes
-        .get(rule.0)
-        .map(|scopes| scopes.emit)
-        .ok_or(OperatingError::NotRun)
-}
-
-/// Where `rule`'s named output `output` is made: in each file, or after the files.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::service::{assemble, logical, observation_scope};
-/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
-/// use ryo_values::domain::records::types::ObservationIndex;
-/// let program = assemble(logical(&[], &mut ProgramInputs::default()).unwrap(), Default::default());
-/// let rule = ryo_execution_domain::domain::coverage::types::RuleIndex(0);
-/// assert!(observation_scope(&program, rule, ObservationIndex(0)).is_err());
-/// ```
-///
-/// # Errors
-///
-/// `NotRun` for a rule or an output the program does not have.
-pub fn observation_scope(
-    program: &ExecutableProgram,
-    rule: RuleIndex,
-    output: ryo_values::domain::records::types::ObservationIndex,
-) -> Result<StepScope, OperatingError> {
-    program
-        .scopes
-        .get(rule.0)
-        .and_then(|scopes| scopes.observations.get(usize::try_from(output.0).unwrap_or(usize::MAX)))
-        .copied()
-        .ok_or(OperatingError::NotRun)
-}
-
-/// Whether `node`'s rows answer one occurrence's bound observations, and so go at each occurrence's end, or the whole phase.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::service::{assemble, logical, observation_reach};
-/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
-/// use ryo_operators::domain::physical_plan::types::PlanNodeId;
-/// let program = assemble(logical(&[], &mut ProgramInputs::default()).unwrap(), Default::default());
-/// assert!(observation_reach(&program, PlanNodeId(0)).is_err());
-/// ```
-///
-/// # Errors
-///
-/// `NotRun` for a node the program does not have.
-pub fn observation_reach(
-    program: &ExecutableProgram,
-    node: PlanNodeId,
-) -> Result<ObservationReach, OperatingError> {
-    program
-        .reach
-        .get(usize::try_from(node.0).unwrap_or(usize::MAX))
-        .copied()
-        .ok_or(OperatingError::NotRun)
 }

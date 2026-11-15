@@ -54,13 +54,17 @@ impl ProjectRootExecution for ProjectPhase<'_> {
             rows: phase.project,
             symbols: phase.project_symbols,
         });
-        read(&mut project, symbols, &project_reads(&request.pass, phase.rules));
+        read(
+            &mut project,
+            symbols,
+            &project_reads(&request.pass, phase.rules),
+        );
         let arenas = phase.arenas;
         let stage = std::sync::Arc::new(());
         let batch = PhaseBatch {
             program: &request.program,
             pass: &request.pass,
-            request: request.services.request(),
+            execution: request,
             scoping: PhaseScoping {
                 corpus: phase.corpus,
                 covered: phase.covered,
@@ -75,8 +79,12 @@ impl ProjectRootExecution for ProjectPhase<'_> {
             observer: request.services.observer(),
             stage: &stage,
         };
-        let mut state = PhaseState::default();
-        run_batch(
+        // A call holds nothing of the earlier ones but the files each rule was declared to be handed over from.
+        let mut state = PhaseState {
+            declared: std::mem::take(&mut *self.declared.borrow_mut()),
+            ..PhaseState::default()
+        };
+        let ran = run_batch(
             &batch,
             &mut state,
             &occurrences,
@@ -87,7 +95,9 @@ impl ProjectRootExecution for ProjectPhase<'_> {
             |occurrence, outcome, slot, symbols: &mut Symbols| {
                 complete(occurrence, outcome, arenas, reserved(slot), symbols)
             },
-        )
+        );
+        *self.declared.borrow_mut() = std::mem::take(&mut state.declared);
+        ran
     }
 }
 

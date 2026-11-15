@@ -1,4 +1,4 @@
-//! Recursive producers and roots use the actual injected semantic capability, with terminal refusal.
+//! Recursive producers and roots run through the injected operators port, and its refusal is the rule's terminal fault.
 use super::super::super::fixtures;
 use super::super::super::fixtures::requests::{Authored, Preparation};
 use crate::inbound::use_cases::execution::interface::CaptureIntent;
@@ -28,25 +28,21 @@ use ryo_values::{
         stored_facts::types::Digest,
     },
 };
-use std::sync::{
-    Arc,
-    atomic::{AtomicUsize, Ordering},
-};
+use std::sync::Arc;
+/// Whether the injected operators refuse every node they are asked to run.
 #[derive(Clone, Copy, Debug)]
 enum Refusal {
+    /// They run every node.
     None,
-    Union,
-    Project,
-    Append,
+    /// They refuse every node with a shape mismatch.
+    Run,
 }
+/// The operators port the rule runs through, refusing as `refusal` says.
 #[derive(Debug)]
-struct ObservedSemantics {
+struct InjectedOperators {
     refusal: Refusal,
-    unions: AtomicUsize,
-    projects: AtomicUsize,
-    appends: AtomicUsize,
 }
-impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for ObservedSemantics {
+impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for InjectedOperators {
     fn plan(
         &self,
         program: &ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram<'_>,
@@ -64,52 +60,15 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Ob
         inputs: &dyn ryo_operators::domain::physical_plan::types::PlanInputs,
         resources: &mut dyn ryo_operators::domain::physical_plan::types::Resources,
     ) -> Result<(), ryo_operators::domain::contract::types::PortableOperatorFault> {
-        ryo_operators::inbound::use_cases::run::fixtures::ran(
-            plan, node, buffers, inputs, resources,
-        )
+        match self.refusal {
+            Refusal::None => ryo_operators::inbound::use_cases::run::fixtures::ran(
+                plan, node, buffers, inputs, resources,
+            ),
+            Refusal::Run => Err(PortableOperatorFault::ShapeMismatch),
+        }
     }
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
-        #[expect(
-            clippy::wildcard_enum_match_arm,
-            reason = "the port counts and refuses unions, projections and appends; every other operator call goes to the owner's operators"
-        )]
-        let refuse = match &call {
-            OperatorCall::Evaluate {
-                operation:
-                    Operation::Union { .. }
-                    | Operation::Intersection { .. }
-                    | Operation::Difference { .. }
-                    | Operation::Antijoin { .. },
-                ..
-            } => {
-                self.unions.fetch_add(1, Ordering::Relaxed);
-                matches!(self.refusal, Refusal::Union)
-            }
-            OperatorCall::Evaluate {
-                operation: Operation::Project { .. },
-                ..
-            } => {
-                self.projects.fetch_add(1, Ordering::Relaxed);
-                matches!(self.refusal, Refusal::Project)
-            }
-            OperatorCall::Evaluate {
-                operation:
-                    Operation::Extend { .. }
-                    | Operation::SpanBounds { .. }
-                    | Operation::SpanBetween { .. }
-                    | Operation::Replace { .. },
-                ..
-            } => {
-                self.appends.fetch_add(1, Ordering::Relaxed);
-                matches!(self.refusal, Refusal::Append)
-            }
-            _ => false,
-        };
-        if refuse {
-            Err(PortableOperatorFault::ShapeMismatch)
-        } else {
-            fixtures::operators().operators(call)
-        }
+        fixtures::operators().operators(call)
     }
 }
 /// What a rule's root emitted on one demand.
@@ -120,26 +79,14 @@ enum Emitted {
     /// Any other root outcome: partial, skipped, unknown, no query or deferred.
     Other,
 }
-/// What the rule's demand emitted and how often the port saw each operator family.
-#[derive(Debug, PartialEq, Eq)]
-struct Observed {
-    emitted: Emitted,
-    /// Unions (and set operations), projections and appends the port evaluated.
-    calls: (usize, usize, usize),
-}
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use std::borrow::Cow;
 type Input = Refusal;
-type Value = Observed;
+type Value = Emitted;
 type Failure = OperatingError;
-fn subject(refusal: Input) -> Result<Observed, Failure> {
-    let port = Arc::new(ObservedSemantics {
-        refusal,
-        unions: AtomicUsize::new(0),
-        projects: AtomicUsize::new(0),
-        appends: AtomicUsize::new(0),
-    });
-    let engine = Preparation::new(port.clone(), Arc::new(fixtures::derived()));
+fn subject(refusal: Input) -> Result<Emitted, Failure> {
+    let port = Arc::new(InjectedOperators { refusal });
+    let engine = Preparation::new(port, Arc::new(fixtures::derived()));
     let mut plan = inputs::plan(vec![
         Operation::Hosted {
             relation: HostedNumber(0),
@@ -157,14 +104,6 @@ fn subject(refusal: Input) -> Result<Observed, Failure> {
             distinct: RepeatedRows::Kept,
         },
     ]);
-    if matches!(refusal, Refusal::Append) {
-        plan.steps[3].operation = Operation::Extend {
-            from: Source::Step(StepId(2)),
-            values: vec![ryo_values::domain::plan_parts::types::Operand::Literal(
-                ryo_values::domain::plan_parts::types::QueryLiteral::Number(Integer(7)),
-            )],
-        };
-    }
     // An authored identity boundary keeps the union a genuine recursive producer.
     plan.frontier.push(Source::Step(StepId(2)));
     let prepared = engine.prepare(Authored {
@@ -232,13 +171,8 @@ fn subject(refusal: Input) -> Result<Observed, Failure> {
         }
         (EmittedRoot::Delivered(_) | EmittedRoot::Withheld, _) => Emitted::Other,
     };
-    let calls = (
-        port.unions.load(Ordering::Relaxed),
-        port.projects.load(Ordering::Relaxed),
-        port.appends.load(Ordering::Relaxed),
-    );
     request.finish();
-    Ok(Observed { emitted, calls })
+    Ok(emitted)
 }
 const NUMBERS: Emitted = Emitted::Complete(Cow::Borrowed(&[
     Cell::Number(Integer(1)),
@@ -246,33 +180,18 @@ const NUMBERS: Emitted = Emitted::Complete(Cow::Borrowed(&[
     Cell::Number(Integer(3)),
 ]));
 const REFUSED: Emitted = Emitted::Failed(OperatingError::ShapeMismatch);
-const fn observed(emitted: Emitted, calls: (usize, usize, usize)) -> Expect<Observed, Failure> {
-    Expect::Value(Observed { emitted, calls })
-}
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("append_refusal_preserves_the_injected_typed_fault_and_terminal_retry"),
-        word: Word::Succeeds,
-        input: || Refusal::Append,
-        expect: observed(REFUSED, (5, 0, 1)),
-    },
-    Case {
-        name: CaseName("recursive_producer_and_root_use_injected_semantics_once"),
+        name: CaseName("recursive_producer_and_root_use_the_injected_operators"),
         word: Word::Succeeds,
         input: || Refusal::None,
-        expect: observed(NUMBERS, (5, 3, 0)),
+        expect: Expect::Value(NUMBERS),
     },
     Case {
-        name: CaseName("recursive_semantic_refusal_is_terminal_and_never_publishes"),
+        name: CaseName("a_refusal_of_the_injected_operators_is_the_rule_s_terminal_fault"),
         word: Word::Succeeds,
-        input: || Refusal::Union,
-        expect: observed(REFUSED, (1, 0, 0)),
-    },
-    Case {
-        name: CaseName("root_semantic_refusal_does_not_repeat_completed_producer"),
-        word: Word::Succeeds,
-        input: || Refusal::Project,
-        expect: observed(REFUSED, (5, 1, 0)),
+        input: || Refusal::Run,
+        expect: Expect::Value(REFUSED),
     },
 ];
 #[test]

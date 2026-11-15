@@ -16,7 +16,7 @@ use crate::inbound::use_cases::plan::interface::PlanUseCase as _;
 use crate::inbound::use_cases::plan::use_case::PlanUseCaseImpl;
 use crate::inbound::use_cases::run::interface::RunUseCase as _;
 use crate::inbound::use_cases::run::use_case::RunUseCaseImpl;
-use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::plan_parts::types::{
     HostedNumber, Input as StepInput, InputNumber, LiteralText, ParameterId, StepScope, TableKey,
 };
@@ -42,10 +42,10 @@ enum Observation {
     Shape(RowCount, bool),
 }
 type Input = Scenario;
-type Answer = Observation;
+type Value = Observation;
 type Failure = PortableOperatorFault;
 
-const CASES: &[Case<Input, Answer, Failure>] = &[
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_withheld_input_faults_with_its_token"),
         word: Word::Refuses,
@@ -78,7 +78,7 @@ fn all_of(from: PlanInput) -> Step {
     }
 }
 
-fn subject(scenario: Input) -> Result<Answer, Failure> {
+fn subject(scenario: Input) -> Result<Value, Failure> {
     let mut resources = TextResources::new(&["a", "b"]);
     match scenario {
         Scenario::WithheldFrontier => {
@@ -98,8 +98,8 @@ fn subject(scenario: Input) -> Result<Answer, Failure> {
                 kinds: vec![CellKind::Number],
                 ..Table::default()
             };
-            push_row(&mut host, &[Value::Number(Integer(2))]);
-            push_row(&mut host, &[Value::Number(Integer(1))]);
+            push_row(&mut host, &[Cell::Number(Integer(2))]);
+            push_row(&mut host, &[Cell::Number(Integer(1))]);
             let inputs = TableInputs::new(&[]).with_hosted(vec![host]);
             let hosted = Step {
                 operation: Operation::Hosted {
@@ -120,7 +120,7 @@ fn subject(scenario: Input) -> Result<Answer, Failure> {
                 .unwrap_or_default();
             Ok(Observation::Hosted(
                 inputs.hosted_reads(),
-                first == [Value::Number(Integer(2)), Value::Number(Integer(1))],
+                first == [Cell::Number(Integer(2)), Cell::Number(Integer(1))],
             ))
         }
         Scenario::TableRows => {
@@ -136,7 +136,10 @@ fn subject(scenario: Input) -> Result<Answer, Failure> {
                     },
                 ])
             };
-            let bindings = [ParameterBinding::Tables(vec![table("b", "a"), table("b", "b")])];
+            let bindings = [ParameterBinding::Tables(vec![
+                table("b", "a"),
+                table("b", "b"),
+            ])];
             let operation = Operation::Rows {
                 parameter: ParameterId(0),
                 keys: vec![TableKey("a".into()), TableKey("b".into())],
@@ -152,8 +155,10 @@ fn subject(scenario: Input) -> Result<Answer, Failure> {
             let plan = PlanUseCaseImpl.plan(&program)?;
             let mut buffers = FileBuffers::default();
             let inputs = TableInputs::new(&[]);
-            RunUseCaseImpl::new(std::sync::Arc::new(crate::outbound::matching::factory::use_case()))
-                .run(&plan, node, &mut buffers, &inputs, &mut resources)?;
+            RunUseCaseImpl::new(std::sync::Arc::new(
+                crate::outbound::matching::factory::use_case(),
+            ))
+            .run(&plan, node, &mut buffers, &inputs, &mut resources)?;
             match buffers.rows(node) {
                 NodeRows::Materialized(table) => {
                     let ordered = [resources.symbol("a"), resources.symbol("b")]

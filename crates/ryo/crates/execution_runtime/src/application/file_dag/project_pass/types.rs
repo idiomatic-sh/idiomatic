@@ -1,6 +1,7 @@
 //! The types of the `project_pass` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::application::file_dag::frontiers::types::{HandedOver, ReadinessProof, Withholdings};
+use crate::application::file_dag::program::project_phase::types::PhasePartials;
 use crate::application::file_dag::publications::types::{BoundTables, PublicationSlot};
 use ryo_execution_domain::domain::coverage::types::{Partials, RuleIndex};
 use ryo_language::domain::elements::types::Elements;
@@ -64,7 +65,65 @@ pub(crate) struct PhaseState {
     pub(crate) hosted: Option<HostedTables>,
     /// The handover each rule's nodes last ran over, by rule: a rule handed over again for another readiness runs its nodes
     /// again.
-    pub(crate) last: Vec<(RuleIndex, usize)>,
+    pub(crate) last: Vec<LastHandover>,
+    /// The files each rule was handed over from, as the phase first declared them: kept across the phase's calls.
+    pub(crate) declared: Vec<DeclaredFiles>,
+}
+
+/// The files one rule was handed over from, as its phase first declared them.
+#[derive(Clone, Debug)]
+pub(crate) struct DeclaredFiles {
+    /// The rule.
+    pub(crate) rule: RuleIndex,
+    /// The files.
+    pub(crate) from: HandedFrom,
+}
+
+/// The files a rule's handover was read from and how the phase declared them: what each, covered in part, skipped, does not
+/// apply to and was refused on.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct HandedFrom {
+    /// The files the rule reads.
+    pub(crate) files: Box<[ryo_relations::domain::relations::types::FileId]>,
+    /// The files read in part.
+    pub(crate) covered: Box<[ryo_execution_domain::domain::coverage::types::Covered]>,
+    /// The files skipped.
+    pub(crate) skipped: Box<[ryo_values::domain::runs::types::Skipped]>,
+    /// The files the rule does not apply to.
+    pub(crate) inapplicable: Box<[ryo_relations::domain::relations::types::FileId]>,
+    /// The files the rule was refused on.
+    pub(crate) refused: Box<[ryo_relations::domain::relations::types::FileId]>,
+}
+
+/// The place of one rule's handover among a phase's handovers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct HandoverPlace(pub(crate) usize);
+
+/// The handover a rule's nodes last ran over.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct LastHandover {
+    /// The rule.
+    pub(crate) rule: RuleIndex,
+    /// The handover its nodes last ran over.
+    pub(crate) place: HandoverPlace,
+}
+
+/// An occurrence once its rule was handed over and its caller gave its partials.
+#[derive(Debug)]
+pub(crate) struct ReadyOccurrence {
+    /// Its rule's handover.
+    pub(crate) handover: HandoverPlace,
+    /// The partials its caller gave.
+    pub(crate) partials: PhasePartials,
+}
+
+/// Whether a step after the files read a relation no handover answers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum HandoverReads {
+    /// Every relation it read was handed over.
+    Handed,
+    /// It read one no handover answers.
+    Unhanded,
 }
 
 /// What the steps after the files read besides each other's rows: the occurrence's handover (the files' rows and the project's
@@ -79,7 +138,7 @@ pub(crate) struct PhaseInputs<'p> {
     /// The rule's frontier: a bound observation on it whose producer the stage withholds is withheld wherever it is read.
     pub(crate) frontier: &'p [ryo_values::domain::plan_parts::types::Input],
     /// Whether a step read a relation no handover answers.
-    pub(crate) unhanded: std::cell::Cell<bool>,
+    pub(crate) unhanded: std::cell::Cell<HandoverReads>,
 }
 
 /// What the steps after the files borrow besides rows: the phase's symbols, the paths of the run's files and the arenas.
@@ -98,11 +157,13 @@ pub(crate) struct PhaseResources<'r> {
 /// are read from, the project's relations and the observer.
 pub(crate) struct PhaseBatch<'b, 's> {
     /// The request's prepared program.
-    pub(crate) program: &'b crate::application::file_dag::program::preparation::types::PreparedProgram,
+    pub(crate) program:
+        &'b crate::application::file_dag::program::preparation::types::PreparedProgram,
     /// The program the file pass runs.
     pub(crate) pass: &'b crate::application::file_dag::file_pass::types::PassProgram,
-    /// The request's files.
-    pub(crate) request: &'b std::sync::Arc<crate::application::file_dag::program::request_identity::service::RequestIdentity>,
+    /// The request's execution: its files and services.
+    pub(crate) execution:
+        &'b crate::application::file_dag::program::request_execution::types::RequestExecution,
     /// What the files are scoped by.
     pub(crate) scoping: crate::application::file_dag::frontiers::types::PhaseScoping<'b>,
     /// The first bucket of each rule's frontier, by rule.

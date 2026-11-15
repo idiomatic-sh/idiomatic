@@ -1,16 +1,19 @@
 //! The `publications` service: each occurrence's publication slot and install, the arenas they publish into, the named outputs
 //! the files kept restored for their consumers, the tables each consumer's bound observations are bound to, and each output
 //! released once its last consumer is done.
-
-use crate::application::file_dag::program::preparation::types::{
-    ObservationMetadata, OutputRoot,
-};
+use crate::application::file_dag::file_pass::types::PassProgram;
 use crate::application::file_dag::frontiers::service::withheld;
 use crate::application::file_dag::frontiers::types::{InputReadiness, Withholdings};
+use crate::application::file_dag::program::preparation::types::{ObservationMetadata, OutputRoot};
 use crate::application::file_dag::publications::constants::PUBLICATION_INCOMPLETE;
+use crate::application::file_dag::publications::service::bound::service::admitted;
+use crate::application::file_dag::publications::service::lineage::service::{
+    output_lineage, union_lineage,
+};
 use crate::application::file_dag::publications::types::{
-    ArenaCount, BoundRows, BoundTable, BoundTables, ConsumerCount, CrossRoot,
-    FinishState, Publications, PublicationSlot, ReferenceCount, RestoredOutput,
+    ArenaCount, ArenaPlace, BoundRows, BoundTable, BoundTables, ConsumerCount, CrossRoot,
+    FinishState, MemberRows, OutputPlace, PublicationSlot, Publications, ReferenceCount,
+    RestoredOutput,
 };
 use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
@@ -21,9 +24,6 @@ use ryo_execution_domain::domain::output_coverage::types::{InputCoverage, Operan
 use ryo_execution_domain::domain::table_dedup::service::kept_once;
 use ryo_language::domain::symbols::service::places_mut;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_operators::domain::contract::types::WithheldInput;
-use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
-use ryo_operators::domain::physical_plan::types::held_rows::value::HeldRows;
 use ryo_relations::domain::relations::types::{CROSS_FILE, CellKind, WorkerNumber};
 use ryo_values::domain::lineage::types::Lineage;
 use ryo_values::domain::plan_parts::types::{Input, ObservationBindingId, StepId, StepScope};
@@ -35,7 +35,9 @@ use ryo_values::domain::table_words::service::decode_complete;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+pub(crate) mod bound;
 pub(crate) mod install;
+pub(crate) mod lineage;
 pub(crate) mod restore;
 
 impl<'a> Publications<'a> {
@@ -98,7 +100,7 @@ impl<'a> Publications<'a> {
                     ResolvedObservationProducer::Output { rule, output } => matches!(
                         self.roots
                             .get(rule.0)
-                            .and_then(|roots| roots.get(output_place(*output))),
+                            .and_then(|roots| roots.get(output_place(*output).0)),
                         Some(CrossRoot::Restored(_) | CrossRoot::Named { .. })
                     ),
                 });
@@ -150,6 +152,7 @@ impl<'a> Publications<'a> {
     /// The publication's refusal for a rule outside the program.
     pub(crate) fn bindings(
         &self,
+        pass: &PassProgram,
         rule: RuleIndex,
         symbols: &mut Symbols,
         withholdings: &mut Withholdings,
@@ -160,19 +163,26 @@ impl<'a> Publications<'a> {
             .iter()
             .filter(|binding| binding.schema.scope == StepScope::CrossFile)
         {
-            let members = binding
-                .producers
+            let members = admitted(self.metadata, rule, binding.input).and_then(|()| {
+                binding
+                    .producers
+                    .iter()
+                    .map(|producer| match producer {
+                        ResolvedObservationProducer::Output { rule, output } => {
+                            self.member(pass, *rule, *output, symbols)
+                        }
+                        ResolvedObservationProducer::NoQuery { .. } => Err(incomplete()),
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+            });
+            let declared = binding
+                .schema
+                .columns
                 .iter()
-                .map(|producer| match producer {
-                    ResolvedObservationProducer::Output { rule, output } => {
-                        self.member(*rule, *output, symbols)
-                    }
-                    ResolvedObservationProducer::NoQuery { .. } => Err(incomplete()),
-                })
-                .collect::<Result<Vec<_>, _>>();
-            let declared = binding.schema.columns.iter().map(|column| column.kind).collect();
+                .map(|column| column.kind)
+                .collect();
             let rows = match members.and_then(|members| united(&members, declared)) {
-                Ok((table, coverage)) => BoundRows::Held { table, coverage },
+                Ok(rows) => rows,
                 Err(error) => BoundRows::Withheld(withheld(withholdings, error)),
             };
             tables.push(BoundTable {
@@ -183,27 +193,34 @@ impl<'a> Publications<'a> {
         Ok(BoundTables(tables))
     }
 
-    /// One producer output's rows and coverage, as it published them.
+    /// One producer output's rows, coverage and lineage, as it published them.
     fn member(
         &self,
+        pass: &PassProgram,
         rule: RuleIndex,
         output: ObservationIndex,
         symbols: &mut Symbols,
-    ) -> Result<(Arc<Table>, CoverageState), OperatingError> {
+    ) -> Result<MemberRows, OperatingError> {
+        let lineage = output_lineage(pass, &self.metadata.bindings, rule, output);
         match self
             .roots
             .get(rule.0)
-            .and_then(|outputs| outputs.get(output_place(output)))
+            .and_then(|outputs| outputs.get(output_place(output).0))
         {
             Some(CrossRoot::Restored(restored)) => restored
                 .decoded
                 .get_or_init(|| decoded(restored, symbols))
                 .clone()
-                .map(|table| (table, restored.coverage.clone())),
-            Some(CrossRoot::Named { publication, .. }) => Ok((
-                Arc::clone(&publication.rows),
-                publication.coverage.clone(),
-            )),
+                .map(|rows| MemberRows {
+                    rows,
+                    coverage: restored.coverage.clone(),
+                    lineage,
+                }),
+            Some(CrossRoot::Named { publication, .. }) => Ok(MemberRows {
+                rows: Arc::clone(&publication.rows),
+                coverage: publication.coverage.clone(),
+                lineage,
+            }),
             Some(CrossRoot::Pending | CrossRoot::Unavailable) | None => Err(incomplete()),
         }
     }
@@ -215,32 +232,6 @@ impl Drop for Publications<'_> {
         self.roots.clear();
         self.arenas.truncate(self.inherited.0);
     }
-}
-
-/// The rows a bound observation of `place`'s rule answers, or the token of why they are withheld.
-pub(crate) fn held_observation(bound: &BoundTables, place: BoundObservationPlace) -> HeldRows<'_> {
-    match bound.0.iter().find(|table| table.input == place.input) {
-        Some(BoundTable {
-            rows: BoundRows::Held { table, .. },
-            ..
-        }) => HeldRows::Held(table),
-        Some(BoundTable {
-            rows: BoundRows::Withheld(token),
-            ..
-        }) => HeldRows::Withheld(*token),
-        None => HeldRows::Withheld(WithheldInput(u32::MAX)),
-    }
-}
-
-/// The coverage of a bound observation's rows, when they are held.
-pub(crate) fn bound_coverage(bound: &BoundTables, input: ObservationBindingId) -> Option<&CoverageState> {
-    bound.0.iter().find_map(|table| match table {
-        BoundTable {
-            input: found,
-            rows: BoundRows::Held { coverage, .. },
-        } if *found == input => Some(coverage),
-        BoundTable { .. } => None,
-    })
 }
 
 /// A restored output's rows in the stage's symbols, checked against the columns its producer makes.
@@ -263,22 +254,29 @@ fn decoded(restored: &RestoredOutput, symbols: &mut Symbols) -> Result<Arc<Table
     table.map(Arc::new)
 }
 
-/// The members' rows one after another, each row once, the first kept, with the coverage a union of them answers.
+/// The members' rows one after another, each row once, the first kept, with the coverage a union of them answers and where
+/// they come from.
+///
+/// # Errors
+///
+/// `ShapeMismatch` when two members' columns differ.
 pub(crate) fn united(
-    members: &[(Arc<Table>, CoverageState)],
+    members: &[MemberRows],
     declared: Vec<CellKind>,
-) -> Result<(Table, CoverageState), OperatingError> {
+) -> Result<BoundRows, OperatingError> {
     // A binding no producer feeds is authoritatively empty, of its declared columns.
     let mut table = Table {
-        kinds: members.first().map_or(declared, |(first, _)| first.kinds.clone()),
+        kinds: members
+            .first()
+            .map_or(declared, |first| first.rows.kinds.clone()),
         ..Table::default()
     };
-    for (member, _) in members {
-        if member.kinds != table.kinds {
+    for member in members {
+        if member.rows.kinds != table.kinds {
             return Err(OperatingError::ShapeMismatch);
         }
-        table.cells.extend_from_slice(&member.cells);
-        table.count.0 = table.count.0.saturating_add(member.count.0);
+        table.cells.extend_from_slice(&member.rows.cells);
+        table.count.0 = table.count.0.saturating_add(member.rows.count.0);
     }
     kept_once(&mut table);
     // Two members at a time, as the union of each pair of them answers.
@@ -288,35 +286,43 @@ pub(crate) fn united(
     };
     let mut coverage = members
         .first()
-        .map_or(CoverageState::Complete, |(_, coverage)| coverage.clone());
-    for (_, next) in members.iter().skip(1) {
+        .map_or(CoverageState::Complete, |first| first.coverage.clone());
+    let mut lineage = members
+        .first()
+        .map_or(Lineage::Mixed, |first| first.lineage.clone());
+    for next in members.iter().skip(1) {
         let inputs = [
             InputCoverage {
                 ordinal: OperandOrdinal(0),
                 kinds: &table.kinds,
                 coverage,
-                lineage: Lineage::Mixed,
+                lineage: lineage.clone(),
             },
             InputCoverage {
                 ordinal: OperandOrdinal(1),
                 kinds: &table.kinds,
-                coverage: next.clone(),
-                lineage: Lineage::Mixed,
+                coverage: next.coverage.clone(),
+                lineage: next.lineage.clone(),
             },
         ];
         coverage = output_coverage(&union, &table.kinds, &inputs)?;
+        lineage = union_lineage(lineage, next.lineage.clone());
     }
-    Ok((table, coverage))
+    Ok(BoundRows::Held {
+        table,
+        coverage,
+        lineage,
+    })
 }
 
 /// The place of an output among its rule's outputs.
-pub(crate) fn output_place(output: ObservationIndex) -> usize {
-    usize::try_from(output.0).unwrap_or(usize::MAX)
+pub(crate) fn output_place(output: ObservationIndex) -> OutputPlace {
+    OutputPlace(usize::try_from(output.0).unwrap_or(usize::MAX))
 }
 
 /// The place of an arena among the stage's arenas.
-pub(crate) fn worker_place(worker: WorkerNumber) -> usize {
-    usize::try_from(worker.0).unwrap_or(usize::MAX)
+pub(crate) fn worker_place(worker: WorkerNumber) -> ArenaPlace {
+    ArenaPlace(usize::try_from(worker.0).unwrap_or(usize::MAX))
 }
 
 /// The refusal of an unavailable or malformed publication.

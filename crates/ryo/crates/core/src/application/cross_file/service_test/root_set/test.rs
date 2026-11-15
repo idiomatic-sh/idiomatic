@@ -54,8 +54,8 @@ fn project_root_set_prepares_shared_publications_once_before_ordered_delivery()
             seen.push(count_findings(&rendered).0);
             previous.push(rendered);
         }
-        seen.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
-        seen.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.runs.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.rows.load(Ordering::SeqCst)));
         let repeated = completed_batch(evaluate_rules(
             &rules,
             &phase,
@@ -71,8 +71,8 @@ fn project_root_set_prepares_shared_publications_once_before_ordered_delivery()
                 result.unwrap().crossed.rendered.as_ref() == Some(previous)
             ));
         }
-        seen.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
-        seen.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.runs.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.rows.load(Ordering::SeqCst)));
         phase.finish().unwrap();
     }
     Ok(seen.join("|"))
@@ -135,8 +135,8 @@ fn project_root_set_preserves_distinct_actual_population_policy_in_both_orders()
             let rendered = result.rendered.unwrap();
             seen.push(count_findings(&rendered).0);
         }
-        seen.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
-        seen.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.runs.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.rows.load(Ordering::SeqCst)));
         phase.finish().unwrap();
     }
     Ok(seen.join("|"))
@@ -166,7 +166,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Given::ProjectRootSetPreparesSharedPublicationsOnceBeforeOrderedDelivery,
         expect: Expect::Value(
-            "true|true|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|1|2|true|true|true|true|1|2|true|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|1|2|true|true|true|true|1|2",
+            "true|true|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|3|6|true|true|true|true|6|12|true|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|3|6|true|true|true|true|6|12",
         ),
     },
     Case {

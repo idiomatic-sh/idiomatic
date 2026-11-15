@@ -111,9 +111,6 @@ pub(super) enum StepUse {
     /// No root reads it.
     Unread,
 }
-/// The address of the compiled regular expression an operator call was prepared with.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct RegexIdentity(pub usize);
 /// Whether a row passes the first applicable row gate of an instruction.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RowGate {

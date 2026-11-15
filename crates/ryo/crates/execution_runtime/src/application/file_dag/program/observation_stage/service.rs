@@ -64,14 +64,12 @@ impl ProgramObservationStagePort for ObservationStage<'_> {
             refused: batches.refused,
         };
         self.publications.restore(
-            &request.program,
-            request.services.request(),
+            request,
             batches.facts,
             scoping,
             batches.readiness,
             batches.first,
             &selected,
-            &request.pass.program,
         )?;
         // The project's relations are read once for the stage, every one its declared rules read after the files.
         let declared_rules = batches
@@ -83,7 +81,11 @@ impl ProgramObservationStagePort for ObservationStage<'_> {
             rows: batches.project,
             symbols: batches.project_symbols,
         });
-        read(&mut project, symbols, &project_reads(&request.pass, &declared_rules));
+        read(
+            &mut project,
+            symbols,
+            &project_reads(&request.pass, &declared_rules),
+        );
         let mut state = PhaseState::default();
         let mut start = 0;
         while let Some(BatchOccurrence { batch, .. }) = batches.occurrences.get(start) {
@@ -127,7 +129,7 @@ impl ProgramObservationStagePort for ObservationStage<'_> {
                 let batch = PhaseBatch {
                     program: &request.program,
                     pass: &request.pass,
-                    request: request.services.request(),
+                    execution: request,
                     scoping,
                     first: batches.first,
                     facts: batches.facts,
@@ -145,7 +147,13 @@ impl ProgramObservationStagePort for ObservationStage<'_> {
                     |at| partials(declared_number(at)?),
                     &mut guard,
                     |at, outcome, slot, symbols: &mut Symbols| {
-                        complete(declared_number(at)?, outcome, arenas, reserved(slot), symbols)
+                        complete(
+                            declared_number(at)?,
+                            outcome,
+                            arenas,
+                            reserved(slot),
+                            symbols,
+                        )
                     },
                 );
                 let (results, refused) = match ran {
@@ -158,7 +166,9 @@ impl ProgramObservationStagePort for ObservationStage<'_> {
             let mut outcomes = results.into_iter();
             // Past the guard's refusal no occurrence has an outcome to deliver; every one is still retired.
             let mut delivering = true;
-            for ((number, BatchOccurrence { rule, .. }), slot) in (start..end).zip(declared).zip(slots) {
+            for ((number, BatchOccurrence { rule, .. }), slot) in
+                (start..end).zip(declared).zip(slots)
+            {
                 let (outcome, slot) = match slot {
                     Err(error) if delivering => (Some(Err(PhaseStop::Unbound(error))), None),
                     Err(_) => (None, None),
@@ -169,17 +179,18 @@ impl ProgramObservationStagePort for ObservationStage<'_> {
                     }
                 };
                 if let Some(outcome) = outcome {
-                    let delivered = deliver(OccurrenceNumber(number), outcome).and_then(|install| {
-                        match (install, slot) {
-                            (None, _) => Ok(()),
-                            (Some(install), Some(slot)) => self
-                                .publications
-                                .install(*rule, slot, install.transfer, install.publications)
-                                .map_err(E::from),
-                            // An occurrence whose binding was refused reserved no slot to install in.
-                            (Some(_), None) => Err(E::from(OperatingError::NotRun)),
-                        }
-                    });
+                    let delivered =
+                        deliver(OccurrenceNumber(number), outcome).and_then(|install| {
+                            match (install, slot) {
+                                (None, _) => Ok(()),
+                                (Some(install), Some(slot)) => self
+                                    .publications
+                                    .install(*rule, slot, install.transfer, install.publications)
+                                    .map_err(E::from),
+                                // An occurrence whose binding was refused reserved no slot to install in.
+                                (Some(_), None) => Err(E::from(OperatingError::NotRun)),
+                            }
+                        });
                     if let Err(error) = delivered {
                         first_error.get_or_insert(error);
                     }
@@ -213,9 +224,12 @@ impl ObservationStage<'_> {
     ) -> Result<PhaseOccurrence, OperatingError> {
         let ready = self.frontier_readiness(rule)?;
         let slot = self.reserve(rule)?;
-        let bound = self
-            .publications
-            .bindings(rule, symbols, &mut state.withholdings)?;
+        let bound = self.publications.bindings(
+            &self.phase.request.pass,
+            rule,
+            symbols,
+            &mut state.withholdings,
+        )?;
         Ok(PhaseOccurrence {
             rule,
             slot,
@@ -226,7 +240,10 @@ impl ObservationStage<'_> {
 
     /// The readiness of each retained frontier of `rule`, from the bindings each frontier depends on: a frontier is ready only
     /// when every one of them is published in this stage.
-    pub(crate) fn frontier_readiness(&self, rule: RuleIndex) -> Result<ReadinessProof, OperatingError> {
+    pub(crate) fn frontier_readiness(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<ReadinessProof, OperatingError> {
         let readiness = self.publications.binding_readiness(rule)?;
         let dependencies = self.phase.request.program.frontier_dependencies(rule)?;
         Ok(ReadinessProof(
@@ -250,7 +267,8 @@ impl ObservationStage<'_> {
     pub(crate) fn reserve(
         &mut self,
         rule: RuleIndex,
-    ) -> Result<crate::application::file_dag::publications::types::PublicationSlot, OperatingError> {
+    ) -> Result<crate::application::file_dag::publications::types::PublicationSlot, OperatingError>
+    {
         self.publications.reserve(rule)
     }
 

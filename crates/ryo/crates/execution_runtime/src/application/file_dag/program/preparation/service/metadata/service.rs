@@ -1,7 +1,5 @@
 //! Per-rule root, read and frontier metadata taken from the compiled plans.
-use crate::application::file_dag::program::preparation::types::{
-    RootMetadata, RuleMetadata,
-};
+use crate::application::file_dag::program::preparation::types::{RootMetadata, RuleMetadata};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;

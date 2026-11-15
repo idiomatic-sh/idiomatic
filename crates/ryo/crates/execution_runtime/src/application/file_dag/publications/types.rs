@@ -6,6 +6,7 @@ use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_operators::domain::contract::types::WithheldInput;
 use ryo_relations::domain::relations::types::{CellKind, FileId, WorkerNumber};
+use ryo_values::domain::lineage::types::Lineage;
 use ryo_values::domain::observations::types::validated_frontiers::value::ValidatedFrontiers;
 use ryo_values::domain::plan_parts::types::ObservationBindingId;
 use ryo_values::domain::rows::types::Table;
@@ -58,6 +59,14 @@ pub(crate) struct FrontierPopulation<'a> {
     /// Each file's frame, in file order.
     pub(crate) frames: Vec<FileFrontiers<'a>>,
 }
+
+/// The place of an output among its rule's outputs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct OutputPlace(pub(crate) usize);
+
+/// The place of an arena among the stage's arenas.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ArenaPlace(pub(crate) usize);
 
 /// The number of arena slots the invocation inherited.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -124,18 +133,31 @@ pub(crate) struct BoundTable {
     pub(crate) rows: BoundRows,
 }
 
-/// A bound observation's rows and their coverage, or the token of why they are withheld.
+/// A bound observation's rows, their coverage and where they come from, or the token of why they are withheld.
 #[derive(Debug)]
 pub(crate) enum BoundRows {
-    /// The rows and their coverage.
+    /// The rows, their coverage and where they come from.
     Held {
         /// The rows.
         table: Table,
         /// Their coverage.
         coverage: CoverageState,
+        /// Where they come from: the union of the members'.
+        lineage: Lineage,
     },
     /// Withheld: the phase answers the token with the reason it recorded.
     Withheld(WithheldInput),
+}
+
+/// One producer output's rows as a binding reads them: the rows, their coverage and where they come from.
+#[derive(Debug)]
+pub(crate) struct MemberRows {
+    /// The rows, as the producer published them.
+    pub(crate) rows: Arc<Table>,
+    /// Their coverage.
+    pub(crate) coverage: CoverageState,
+    /// Where they come from.
+    pub(crate) lineage: Lineage,
 }
 
 /// The stage's publications: each occurrence's slot and install, the arenas, the restored outputs and how many consumers each

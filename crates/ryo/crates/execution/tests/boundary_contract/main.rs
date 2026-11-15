@@ -21,7 +21,6 @@ use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareReque
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::outbound::query_language::errors::QueryLanguageError;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
-use ryo_execution_runtime::outbound::operators::fixtures::suite::ReductionAudit;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     fixtures::{kinds, node_id},
@@ -44,9 +43,8 @@ use boundary_fixture::fixtures::{
 
 #[test]
 fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
-    let semantics = Arc::new(ReductionAudit::default());
     let engine = PrepareUseCaseImpl::new(
-        semantics.clone(),
+        Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::operators()),
         Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
     );
     let mut input = authored_request(1);

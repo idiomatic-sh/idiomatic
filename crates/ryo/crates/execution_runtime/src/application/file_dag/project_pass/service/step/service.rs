@@ -1,14 +1,18 @@
 //! One occurrence's node step after the files: a node run through the file pass's one node step, its rows' coverage, and the
 //! rows each of its rule's steps was fed.
-
-use crate::application::file_dag::file_pass::service::nodes::service::{run_node, step_coverage_with};
-use crate::application::file_dag::file_pass::types::NodeReads;
+use crate::application::file_dag::file_pass::service::nodes::service::{
+    handed_step, run_node, step_coverage_with,
+};
+use crate::application::file_dag::file_pass::types::{NodeAnswer, NodeReads};
 use crate::application::file_dag::frontiers::service::{handed_coverage, held_frontier, reason};
-use crate::application::file_dag::frontiers::types::{HandedOver, Withholdings};
+use crate::application::file_dag::frontiers::types::{FrontierRows, HandedOver, Withholdings};
 use crate::application::file_dag::project_pass::types::PhaseBatch;
-use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
-use crate::application::file_dag::project_pass::types::{PhaseInputs, PhaseResources};
-use crate::application::file_dag::publications::service::{bound_coverage, held_observation};
+use crate::application::file_dag::project_pass::types::{
+    HandoverReads, PhaseInputs, PhaseResources,
+};
+use crate::application::file_dag::publications::service::bound::service::{
+    bound_coverage, bound_lineage, held_observation,
+};
 use ryo_execution_domain::domain::completion::service::{lacks_of, partial_of_lacks};
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::completion::types::{CoverageState, RegionAdmission};
@@ -25,11 +29,10 @@ use ryo_operators::domain::physical_plan::types::bound_observation_place::value:
 use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use ryo_operators::domain::physical_plan::types::frontier_place::value::FrontierPlace;
 use ryo_operators::domain::physical_plan::types::held_rows::value::HeldRows;
+use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
 use ryo_relations::domain::relations::service::kinds as relation_kinds;
-use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::lineage::service::one_file;
-use ryo_values::domain::lineage::types::Lineage;
 use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepId, StepScope};
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::Plan;
@@ -55,7 +58,7 @@ impl StepRun<'_, '_, '_> {
         symbols: &mut Symbols,
         node: PlanNodeId,
         step: StepId,
-    ) -> Result<(Table, CoverageState), OperatingError> {
+    ) -> Result<NodeAnswer, OperatingError> {
         let empty = NodeReads::default();
         let reads = self
             .batch
@@ -67,7 +70,10 @@ impl StepRun<'_, '_, '_> {
         if self.completion.region_admission(&reads.needs) == RegionAdmission::Blocked {
             let mut table = Table::default();
             reset(&mut table, schema(&self.batch.pass.program, node)?);
-            return Ok((table, self.completion.blocked_coverage()));
+            return Ok(NodeAnswer {
+                table,
+                coverage: self.completion.blocked_coverage(),
+            });
         }
         self.ran(symbols, node)?;
         let table = match self.buffers.rows(node) {
@@ -75,19 +81,29 @@ impl StepRun<'_, '_, '_> {
             NodeRows::Absent => return Err(OperatingError::NotRun),
         };
         let coverage = self.coverage(step)?;
-        Ok((table, coverage))
+        Ok(NodeAnswer { table, coverage })
     }
 
     /// Runs `node` through the file pass's node step, a withheld input answered with the reason it was withheld.
-    pub(crate) fn ran(&mut self, symbols: &mut Symbols, node: PlanNodeId) -> Result<(), OperatingError> {
+    pub(crate) fn ran(
+        &mut self,
+        symbols: &mut Symbols,
+        node: PlanNodeId,
+    ) -> Result<(), OperatingError> {
         let mut resources = PhaseResources {
             symbols,
-            paths: self.batch.request.paths(),
+            paths: self.batch.execution.services.request().paths(),
             arenas: self.batch.arenas,
             elements: self.elements,
         };
-        let ran = run_node(self.batch.pass, node, self.buffers, self.inputs, &mut resources);
-        if self.inputs.unhanded.replace(false) {
+        let ran = run_node(
+            self.batch.pass,
+            node,
+            self.buffers,
+            self.inputs,
+            &mut resources,
+        );
+        if self.inputs.unhanded.replace(HandoverReads::Handed) == HandoverReads::Unhanded {
             return Err(OperatingError::NotRead);
         }
         ran.map_err(|fault| match fault {
@@ -102,38 +118,64 @@ impl StepRun<'_, '_, '_> {
     pub(crate) fn coverage(&self, step: StepId) -> Result<CoverageState, OperatingError> {
         let rule = self.rule;
         let program = &self.batch.pass.program;
-        let plan = self.batch.pass.plans.get(rule.0).ok_or(OperatingError::NotRun)?;
+        let plan = self
+            .batch
+            .pass
+            .plans
+            .get(rule.0)
+            .ok_or(OperatingError::NotRun)?;
         let nodes = rule_nodes(program, rule)?;
         let handed = self.inputs.handed;
         let bound = self.inputs.bound;
         let frontier = &plan.frontier;
-        step_coverage_with(self.batch.pass, rule, step, |input, scope| {
+        let walked = step_coverage_with(self.batch.pass, rule, step, |input, scope| {
             let place = frontier.iter().position(|each| *each == input);
             match input {
                 Input::Relation(relation) => {
                     let kinds = relation_kinds(relation);
-                    Some(Ok((kinds.to_vec(), handed_at(handed, place), one_file(kinds))))
+                    Some(Ok((
+                        kinds.to_vec(),
+                        handed_at(handed, place.map(InputNumber)),
+                        one_file(kinds),
+                    )))
                 }
-                Input::Step(id) if scope == StepScope::PerFile => {
-                    let kinds = match nodes.steps.get(usize::try_from(id.0).unwrap_or(usize::MAX)) {
-                        Some(Ok(node)) => schema(program, *node).map_or_else(|_| Vec::new(), <[CellKind]>::to_vec),
-                        Some(Err(_)) | None => Vec::new(),
-                    };
-                    Some(Ok((kinds, handed_at(handed, place), Lineage::Mixed)))
-                }
-                Input::Step(_) => None,
-                // A binding fed in each file was handed over with the frontier; one fed after the files was bound.
-                Input::BoundObservation(id) => Some(Ok((
-                    Vec::new(),
-                    place
-                        .and_then(|at| handed_coverage(handed, InputNumber(at)))
-                        .or_else(|| bound_coverage(bound, id))
-                        .cloned()
-                        .unwrap_or(CoverageState::Complete),
-                    Lineage::Mixed,
+                // The files handed the step over: each of its rows was made in one file.
+                Input::Step(id) if scope == StepScope::PerFile => Some(Ok(handed_step(
+                    self.batch.pass,
+                    rule,
+                    id,
+                    handed_at(handed, place.map(InputNumber)),
                 ))),
+                Input::Step(_) => None,
+                // A binding fed in each file was handed over with the frontier, each row of one file; one fed after the
+                // files was bound, its rows from where its producers' come from.
+                Input::BoundObservation(id) => Some(Ok(
+                    match place.and_then(|at| handed_coverage(handed, InputNumber(at))) {
+                        Some(coverage) => {
+                            let kinds = place
+                                .and_then(|at| match handed.0.get(at) {
+                                    Some(FrontierRows::Held { table, .. }) => {
+                                        Some(table.kinds.clone())
+                                    }
+                                    Some(FrontierRows::Withheld(_) | FrontierRows::Elsewhere)
+                                    | None => None,
+                                })
+                                .unwrap_or_default();
+                            let lineage = one_file(&kinds);
+                            (kinds, coverage.clone(), lineage)
+                        }
+                        None => (
+                            Vec::new(),
+                            bound_coverage(bound, id)
+                                .cloned()
+                                .unwrap_or(CoverageState::Complete),
+                            bound_lineage(bound, id).cloned().unwrap_or_default(),
+                        ),
+                    },
+                )),
             }
-        })
+        })?;
+        Ok(walked.1)
     }
 
     /// The rows each step of the rule was fed after the files: a step that runs in each file was fed in the files.
@@ -146,9 +188,9 @@ impl StepRun<'_, '_, '_> {
         let rule = ordinal(self.rule)?;
         let mut fed = Vec::with_capacity(plan.steps.len());
         for each in &plan.steps {
-            let mut counts = [0_u64; 3];
+            let mut counts = RowsFed::default();
             if each.scope == StepScope::CrossFile {
-                for (slot, input) in counts.iter_mut().zip(named(&inputs_of(&each.operation))) {
+                for (slot, input) in counts.0.iter_mut().zip(named(&inputs_of(&each.operation))) {
                     let place = plan.frontier.iter().position(|entry| entry == input);
                     *slot = match *input {
                         Input::Step(id)
@@ -175,26 +217,44 @@ impl StepRun<'_, '_, '_> {
                                 self.inputs.handed,
                                 FrontierPlace::of(rule, InputNumber(at)),
                             ) {
-                                HeldRows::Held(table) => u64::try_from(table.count.0).unwrap_or(u64::MAX),
+                                HeldRows::Held(table) => {
+                                    u64::try_from(table.count.0).unwrap_or(u64::MAX)
+                                }
                                 HeldRows::Withheld(_) => 0,
                             }
                         }),
-                        Input::BoundObservation(_) if place.is_some_and(|at| handed_coverage(self.inputs.handed, InputNumber(at)).is_some()) => {
-                            place.map_or(0, |at| match held_frontier(self.inputs.handed, FrontierPlace::of(rule, InputNumber(at))) {
-                                HeldRows::Held(table) => u64::try_from(table.count.0).unwrap_or(u64::MAX),
-                                HeldRows::Withheld(_) => 0,
+                        Input::BoundObservation(_)
+                            if place.is_some_and(|at| {
+                                handed_coverage(self.inputs.handed, InputNumber(at)).is_some()
+                            }) =>
+                        {
+                            place.map_or(0, |at| {
+                                match held_frontier(
+                                    self.inputs.handed,
+                                    FrontierPlace::of(rule, InputNumber(at)),
+                                ) {
+                                    HeldRows::Held(table) => {
+                                        u64::try_from(table.count.0).unwrap_or(u64::MAX)
+                                    }
+                                    HeldRows::Withheld(_) => 0,
+                                }
                             })
                         }
                         Input::BoundObservation(id) => {
-                            match held_observation(self.inputs.bound, BoundObservationPlace::of(rule, id)) {
-                                HeldRows::Held(table) => u64::try_from(table.count.0).unwrap_or(u64::MAX),
+                            match held_observation(
+                                self.inputs.bound,
+                                BoundObservationPlace::of(rule, id),
+                            ) {
+                                HeldRows::Held(table) => {
+                                    u64::try_from(table.count.0).unwrap_or(u64::MAX)
+                                }
                                 HeldRows::Withheld(_) => 0,
                             }
                         }
                     };
                 }
             }
-            fed.push(RowsFed(counts));
+            fed.push(counts);
         }
         Ok(LogicalCounts {
             fed: fed.into_boxed_slice(),
@@ -203,9 +263,9 @@ impl StepRun<'_, '_, '_> {
 }
 
 /// The coverage the handover proved for frontier entry `place`.
-fn handed_at(handed: &HandedOver, place: Option<usize>) -> CoverageState {
+fn handed_at(handed: &HandedOver, place: Option<InputNumber>) -> CoverageState {
     place
-        .and_then(|at| handed_coverage(handed, InputNumber(at)))
+        .and_then(|at| handed_coverage(handed, at))
         .cloned()
         .unwrap_or(CoverageState::Complete)
 }
@@ -223,7 +283,10 @@ pub(crate) fn with_coverage(existing: CoverageState, added: CoverageState) -> Co
                     lacks: held_lacks,
                 } => all.extend(lacks_of(held, held_lacks)),
                 CoverageState::Inapplicable { files: held } => {
-                    all.extend(lacks_of(&held.iter().copied().map(Some).collect::<Vec<_>>(), &[]));
+                    all.extend(lacks_of(
+                        &held.iter().copied().map(Some).collect::<Vec<_>>(),
+                        &[],
+                    ));
                 }
             }
             match partial_of_lacks(all) {

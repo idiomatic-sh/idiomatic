@@ -34,7 +34,8 @@ use std::sync::atomic::Ordering;
 
 #[derive(Debug)]
 struct ProjectPressure {
-    reductions: AtomicUsize,
+    /// How many nodes ran after the files.
+    runs: AtomicUsize,
     pressure: MemoryPressure,
 }
 impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for ProjectPressure {
@@ -55,21 +56,22 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Pr
         inputs: &dyn ryo_operators::domain::physical_plan::types::PlanInputs,
         resources: &mut dyn ryo_operators::domain::physical_plan::types::Resources,
     ) -> Result<(), ryo_operators::domain::contract::types::PortableOperatorFault> {
+        use ryo_operators::domain::physical_plan::types::Resources as _;
+        // After the files no file is open: a node run then reads no source.
+        let after_the_files = resources.source().0.is_empty();
         ryo_operators::inbound::use_cases::run::fixtures::ran(
             plan, node, buffers, inputs, resources,
-        )
+        )?;
+        if after_the_files {
+            let _runs = self.runs.fetch_add(1, Ordering::SeqCst);
+        }
+        Ok(())
     }
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
-        let reduction = matches!(&call, OperatorCall::ReduceCount { .. });
-        let answer =
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
-                std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
-            )
-            .operators(call)?;
-        if reduction {
-            self.reductions.fetch_add(1, Ordering::SeqCst);
-        }
-        Ok(answer)
+        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
+            std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
+        )
+        .operators(call)
     }
 }
 impl MemoryPort for ProjectPressure {
@@ -80,7 +82,7 @@ impl MemoryPort for ProjectPressure {
         }))
     }
     fn resident_bytes(&self) -> Result<MemoryBytes, MemoryError> {
-        if self.reductions.load(Ordering::SeqCst) == 0 {
+        if self.runs.load(Ordering::SeqCst) == 0 {
             return Ok(MemoryBytes(0));
         }
         match self.pressure {
@@ -190,7 +192,7 @@ fn count_columns() -> Vec<ObservationColumn> {
 
 pub(super) fn observe(scenario: BudgetScenario) -> BudgetObservation {
     let effect = Arc::new(ProjectPressure {
-        reductions: AtomicUsize::new(0),
+        runs: AtomicUsize::new(0),
         pressure: scenario.pressure,
     });
     let given = Given {
@@ -223,7 +225,7 @@ pub(super) fn observe(scenario: BudgetScenario) -> BudgetObservation {
     let report = world.use_case.lint(asked);
     BudgetObservation {
         report,
-        reductions: ReductionCount(effect.reductions.load(Ordering::SeqCst)),
+        runs: RunCount(effect.runs.load(Ordering::SeqCst)),
     }
 }
 
@@ -245,8 +247,8 @@ pub(super) struct BudgetScenario {
     pub pressure: MemoryPressure,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct ReductionCount(pub usize);
+pub(super) struct RunCount(pub usize);
 pub(super) struct BudgetObservation {
     pub report: Result<LintReport, LintError>,
-    pub reductions: ReductionCount,
+    pub runs: RunCount,
 }

@@ -47,6 +47,9 @@ pub(crate) struct ObservationMetadata {
     pub(crate) layout: ObservationReadinessLayout,
     pub(crate) frontiers: Box<[ObservedFrontierRoot]>,
     pub(crate) bindings: Vec<Vec<ResolvedObservationBinding>>,
+    /// Each binding of each rule checked against its consumer's declaration and its producers' outputs, in binding order: a
+    /// binding refused here is withheld with its refusal wherever a step reads it.
+    pub(crate) admissions: Vec<Vec<Result<(), OperatingError>>>,
     pub(crate) consumers: Vec<Vec<Vec<RuleIndex>>>,
     pub(crate) outputs: Vec<Vec<OutputMetadata>>,
     pub(crate) retire:

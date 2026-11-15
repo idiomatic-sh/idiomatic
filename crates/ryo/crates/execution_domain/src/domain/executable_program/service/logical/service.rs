@@ -1,7 +1,9 @@
 //! The parts of `logical`: the nodes and shapes a step's inputs read, and the nodes that start from the tree nodes of a kind.
 //! it and the operators' physical plan.
 
-use crate::domain::executable_program::types::{Draft, DraftInputs, StepAt};
+use crate::domain::executable_program::types::{
+    Consumers, Draft, DraftInputs, ObservationReach, RuleInput, RuleNodes, StepAt,
+};
 use crate::domain::kind_sets::service::names_a_kind;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::KindNaming;
@@ -9,6 +11,8 @@ use crate::domain::operation_schema::types::InputShape;
 use ryo_operators::domain::comparing::service::fixed_prefix;
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::frontier_place::value::FrontierPlace;
+use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
+use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_operators::domain::tree_cells::service::native_form;
 use ryo_relations::domain::relations::service::kinds;
@@ -78,7 +82,9 @@ pub(in crate::domain::executable_program) fn read_inputs<'s>(
                 (
                     match handed {
                         Some(place) if in_each_file => place,
-                        Some(_) | None => PlanInput::Observation(BoundObservationPlace::of(at.rule, *id)),
+                        Some(_) | None => {
+                            PlanInput::Observation(BoundObservationPlace::of(at.rule, *id))
+                        }
                     },
                     InputShape {
                         kinds: observed
@@ -127,4 +133,80 @@ pub(in crate::domain::executable_program) fn derived_roots(
         }
     }
     roots
+}
+
+/// How many nodes and rules read each node, its emitted, frontier and named-root nodes held in `program` for its rules.
+///
+/// # Errors
+///
+/// `ShapeMismatch` when the request has more rules than a plan can number.
+pub(in crate::domain::executable_program) fn held(
+    program: &mut LogicalProgram<'_>,
+    rules: &[RuleInput<'_>],
+    nodes: &[RuleNodes],
+    lists: &[Vec<PlanInput>],
+) -> Result<Vec<Consumers>, OperatingError> {
+    let mut consumers = vec![Consumers(0); lists.len()];
+    let count = |consumers: &mut Vec<Consumers>, node: PlanNodeId| {
+        if let Some(each) = consumers.get_mut(usize::try_from(node.0).unwrap_or(usize::MAX)) {
+            each.0 = each.0.saturating_add(1);
+        }
+    };
+    for input in lists.iter().flatten() {
+        if let PlanInput::Node(read) = input {
+            count(&mut consumers, *read);
+        }
+    }
+    for (rule, (input, rule_nodes)) in rules.iter().zip(nodes).enumerate() {
+        let ordinal = RuleOrdinal(u32::try_from(rule).map_err(|_| OperatingError::ShapeMismatch)?);
+        if let Some(Ok(node)) = rule_nodes
+            .steps
+            .get(usize::try_from(input.plan.emit.step.0).unwrap_or(usize::MAX))
+        {
+            program.emit(ordinal, *node);
+            count(&mut consumers, *node);
+        }
+        let kept = input.plan.frontier.iter().chain(
+            input
+                .plan
+                .observations
+                .iter()
+                .map(|observation| &observation.source),
+        );
+        for each in kept {
+            if let Input::Step(id) = each
+                && let Some(Ok(node)) = rule_nodes
+                    .steps
+                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+            {
+                program.hold(*node);
+                count(&mut consumers, *node);
+            }
+        }
+    }
+    Ok(consumers)
+}
+
+/// Whether each node's rows answer the whole phase or one occurrence: a node that reads a bound observation, or reads a node
+/// that does, answers one occurrence's slots only.
+pub(in crate::domain::executable_program) fn observation_reaches(
+    lists: &[Vec<PlanInput>],
+) -> Vec<ObservationReach> {
+    let mut reach: Vec<ObservationReach> = Vec::with_capacity(lists.len());
+    for list in lists {
+        let bound = list.iter().any(|input| match input {
+            PlanInput::Observation(_) => true,
+            PlanInput::Node(read) => {
+                reach.get(usize::try_from(read.0).unwrap_or(usize::MAX))
+                    == Some(&ObservationReach::Occurrence)
+            }
+            PlanInput::Relation(_) | PlanInput::Frontier(_) => false,
+        });
+        reach.push(if bound {
+            ObservationReach::Occurrence
+        } else {
+            ObservationReach::Phase
+        });
+    }
+    reach
 }
