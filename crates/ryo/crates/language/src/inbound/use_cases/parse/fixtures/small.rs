@@ -163,8 +163,8 @@ impl ParseUseCase for Small {
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn crate::domain::answers::types::Semantics<Seen>> {
-        None
+    fn semantics(&self) -> crate::domain::answers::types::SemanticAnswers<'_, Seen> {
+        crate::domain::answers::types::SemanticAnswers::Absent
     }
 
     fn completion_requirement(&self) -> crate::domain::elements::types::CompletionRequirement {

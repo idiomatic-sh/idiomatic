@@ -123,8 +123,12 @@ impl ParseUseCase for Promised {
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn crate::domain::answers::types::Semantics<Seen>> {
-        if self.0.is_empty() { None } else { Some(self) }
+    fn semantics(&self) -> crate::domain::answers::types::SemanticAnswers<'_, Seen> {
+        if self.0.is_empty() {
+            crate::domain::answers::types::SemanticAnswers::Absent
+        } else {
+            crate::domain::answers::types::SemanticAnswers::Supplied(self)
+        }
     }
 
     fn completion_requirement(&self) -> crate::domain::elements::types::CompletionRequirement {

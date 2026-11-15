@@ -1,10 +1,6 @@
 //! Runner command and artifact protocol.
 /// Refuse profiling without an explicit trace path.
 pub(crate) const MISSING_TRACE: &str = "expected explicit trace output path";
-/// Complete profile fixture-verification command.
-pub(crate) const VERIFY_CASES: &str = "verify-cases";
-/// Check authored fixtures with the pinned reference only; never runs a candidate.
-pub(crate) const VERIFY_REFERENCE_CASES: &str = "verify-reference-cases";
 /// Required argument or refusal for the clippy executable.
 pub(crate) const EXPECTED_CLIPPY: &str = "expected clippy executable";
 /// Stable command, artifact or observation identity for profile directory.
@@ -44,8 +40,6 @@ pub(crate) const REFERENCE_NAME: &str = "clippy";
 pub(crate) const AUDIT: &str = "audit";
 /// Stable command, artifact or observation identity for verify tool.
 pub(crate) const VERIFY_TOOL: &str = "verify-tool";
-/// The command comparing the configured rules over a staged request, rule by rule.
-pub(crate) const PARITY: &str = "parity";
 /// Refusal of a parity command line that is not its two paths.
 pub(crate) const PARITY_ARGUMENTS: &str = "expected parity <clippy> <output>";
 /// The state directory of one project's parity, below its output.

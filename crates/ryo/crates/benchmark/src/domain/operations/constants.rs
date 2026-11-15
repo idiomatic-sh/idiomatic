@@ -1,8 +1,6 @@
 //! The words and names of the gated operations.
 /// The collector verb of the correctness operation.
 pub(crate) const VERIFY_INVENTORY: &str = "verify-inventory";
-/// The collector verb of the parity operation, and the worker verb it drives.
-pub(crate) const PARITY: &str = "parity";
 /// The directory under the cargo target that holds every operation's output.
 pub(crate) const BENCHMARK: &str = "benchmark";
 /// The first component of a bench directory.

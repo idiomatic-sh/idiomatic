@@ -2,10 +2,10 @@
 # changes: the `tag` job runs `ci/tag/command.py --push`, which names each product whose workspace version in crates/<product>/Cargo.toml
 # differs from the parent commit's and whose tag (`idiomatic-sh-<product>-v<version>`) does not exist yet, and creates that tag at
 # the commit; the build and publish jobs then run for those products alone, each product's builds beside the others', its publish
-# in a concurrency group of its own, one product's publish at a time, ryo's first. A push runs no check: every commit to main comes through a pull request, whose `gate` (check.yml)
-# ran the same check fan-out over the same tree. A maintainer's hand run releases ONE product, the `product` input, and checks
+# in a concurrency group of its own, one product's publish at a time, ryo's first. A push runs no check: every commit to main comes through a pull request merged only after its
+# `gate` (check.yml) passed, by process, over the same check fan-out on the same tree. A maintainer's hand run releases ONE product, the `product` input, and checks
 # it first: `asymptote check --root crates/<product> --groups <group>` runs each of that product's groups (its tests and packaging
-# tests, one job per group and machine, lint from the repository's root). Tastemaker depends on ryo's crates, so a ryo version
+# tests and its lint, one job per group and machine, and the repository root's `repository` group). Tastemaker depends on ryo's crates, so a ryo version
 # it needs is on crates.io before tastemaker's publish. The `build` job builds each product's wheel (Ryo's only for
 # its binary) on each of eight targets' own machines through PyO3/maturin-action (the manylinux 2_17 and musllinux_1_2 containers
 # on Linux), one matrix whose rows run the same steps; then the `publish` job runs `ci/release/command.py --product <product>`
@@ -65,11 +65,12 @@ jobs:
       fail-fast: false
       # One job per independent build: the tools of a group share one, and no two groups do. The tests (check, release-tests) run on
       # every machine; the groups whose verdict is the same on every platform run once, on Linux, but the SDK's API, on macOS, where
-      # cargo-public-api ships a prebuilt. check.yml's pull request gate runs these rows for each product a change reaches; a hand
-      # run runs them for its product, lint from the repository's root, which runs the root's tools and every product's.
+      # cargo-public-api ships a prebuilt. check.yml's gate runs these rows for every product; a hand run runs them for
+      # its product, and the root row the repository root's `repository` group, which no product has: the root's tools alone.
       matrix:
         include:
-          - { runner: ubuntu-26.04, group: lint, root: . }
+          - { runner: ubuntu-26.04, group: repository, root: . }
+          - { runner: ubuntu-26.04, group: lint }
           - { runner: ubuntu-26.04, group: clippy }
           - { runner: macos-26, group: api }
           - { runner: ubuntu-26.04, group: check }

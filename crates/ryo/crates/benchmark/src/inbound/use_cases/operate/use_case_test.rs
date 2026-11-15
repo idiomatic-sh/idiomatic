@@ -1,6 +1,6 @@
 //! Parity runs the sealed worker on its output directory and passes its output through; measure certifies against the
-//! registration it stages; correctness verifies in process and runs no worker; a failed worker fails the operation, and an
-//! absent reference tool is refused by name before anything is sealed.
+//! registration it stages; correctness audits the whole bench, then verifies in process and runs no worker; a failed worker
+//! fails the operation, and an absent reference tool is refused by name before anything is sealed.
 use super::fixtures::{Scenario, observe};
 use super::types::OperationVerdict;
 use super::use_case::OperateUseCaseImpl;
@@ -12,8 +12,8 @@ use std::borrow::Cow;
 type Input = Scenario;
 /// The verdict, the standard output and the artifacts requests, as text.
 type Value = (OperationVerdict, Cow<'static, str>, Cow<'static, str>);
-/// The refusal and the artifacts requests, as text.
-type Failure = (Cow<'static, str>, Cow<'static, str>);
+/// The refusal, the artifacts requests, as text, and whether a registration was written.
+type Failure = (Cow<'static, str>, Cow<'static, str>, bool);
 
 /// What the scripted worker writes.
 const METRICS: &str = "{\"metric\":{}}\n";
@@ -31,6 +31,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             operation: BenchOperation::Parity,
             tool_found: true,
             verdict: OperationVerdict::Passed,
+            stray_rule: false,
         },
         expect: Expect::Value((
             OperationVerdict::Passed,
@@ -45,6 +46,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             operation: BenchOperation::Parity,
             tool_found: true,
             verdict: OperationVerdict::Failed,
+            stray_rule: false,
         },
         expect: Expect::Value((
             OperationVerdict::Failed,
@@ -61,6 +63,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             operation: BenchOperation::Measure,
             tool_found: true,
             verdict: OperationVerdict::Passed,
+            stray_rule: false,
         },
         expect: Expect::Value((
             OperationVerdict::Passed,
@@ -77,6 +80,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             operation: BenchOperation::Correctness,
             tool_found: true,
             verdict: OperationVerdict::Passed,
+            stray_rule: false,
         },
         expect: Expect::Value((
             OperationVerdict::Failed,
@@ -87,16 +91,37 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
+        name: CaseName(
+            "correctness refuses a rule dir that is neither a default nor supporting, before registering",
+        ),
+        word: Word::Refuses,
+        input: || Scenario {
+            operation: BenchOperation::Correctness,
+            tool_found: true,
+            verdict: OperationVerdict::Passed,
+            stray_rule: true,
+        },
+        expect: Expect::Error((
+            Cow::Borrowed("rule R9 is not a shipped default"),
+            Cow::Borrowed(
+                "[SealWorker(\"<root>/target/benchmark/fixture/lint/verify-inventory/worker\")]",
+            ),
+            false,
+        )),
+    },
+    Case {
         name: CaseName("an absent reference tool is refused by name before anything is sealed"),
         word: Word::Refuses,
         input: || Scenario {
             operation: BenchOperation::Parity,
             tool_found: false,
             verdict: OperationVerdict::Passed,
+            stray_rule: false,
         },
         expect: Expect::Error((
             Cow::Borrowed("reference tool not found: lint"),
             Cow::Borrowed("[]"),
+            false,
         )),
     },
 ];
@@ -112,7 +137,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             Cow::Owned(String::from_utf8_lossy(&observed.stdout).into_owned()),
             calls,
         )),
-        Err(refusal) => Err((Cow::Owned(refusal), calls)),
+        Err(refusal) => Err((Cow::Owned(refusal), calls, observed.registered)),
     }
 }
 

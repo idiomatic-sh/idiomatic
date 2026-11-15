@@ -51,6 +51,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
+        name: CaseName("verify-cases is a worker verb, not a collector operation"),
+        word: Word::Refuses,
+        input: || ("verify-cases", "languages/python/benchmarks/linters/ruff"),
+        expect: Expect::Error(Cow::Borrowed("verify-cases")),
+    },
+    Case {
+        name: CaseName("verify-reference-cases is a worker verb, not a collector operation"),
+        word: Word::Refuses,
+        input: || {
+            (
+                "verify-reference-cases",
+                "languages/typescript/benchmarks/linters/oxlint",
+            )
+        },
+        expect: Expect::Error(Cow::Borrowed("verify-reference-cases")),
+    },
+    Case {
         name: CaseName("a verb that names no operation is refused"),
         word: Word::Refuses,
         input: || ("measure", "languages/python/benchmarks/linters/ruff"),

@@ -5,8 +5,8 @@ resolver = "3"
 # then lists what its use cases lack. Their directories stay, with the part of each that a scaffold places.
 
 # The SDK's public API is held by the gate (step `sdk-api`): no type of an internal crate is reachable from it, it is the one recorded in
-# `listing`, and semver-checks finds nothing broken against its baseline. The baseline is the SDK's published crates.io version; until
-# the first publish there is none, and `baseline-rev`, a revision of this repository, stands in for it. `allow` is what the SDK exposes
+# `listing`, and semver-checks finds nothing broken against its baseline, the workspace at ryo's newest release tag merged into the
+# checkout (`ci/scripts/checks/sdk_api.py`). `allow` is what the SDK exposes
 # of an internal crate, each entry with its reason beside it. `nightly` also runs the doctests (step `test-doc`): only a nightly
 # rustdoc checks the error code of a `compile_fail,E0…` doctest.
 [workspace.metadata.api]
@@ -14,7 +14,6 @@ package = "idiomatic-sh-ryo-sdk"
 library = "ryo"
 nightly = "nightly-2026-08-01"
 listing = "crates/sdk/api.txt"
-baseline-rev = "idiomatic-sh-ryo-v0.1.2"
 allow = [
   # The deliberate language-author contract, versioned and semver-checked with the SDK.
   "ryo::resources::languages",

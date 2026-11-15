@@ -7,7 +7,7 @@
 
 use super::errors::ParseError;
 use super::types::{KindNames, ParseConfigurationIdentity, ParseRequest, SkippedDirectory};
-use crate::domain::answers::types::{Reader, Semantics, Support};
+use crate::domain::answers::types::{Reader, SemanticAnswers, Support};
 use crate::domain::elements::types::{Completion, TableBuilder, Tree};
 use crate::domain::semantics::types::SemanticSlot;
 use crate::inbound::use_cases::parse::types::Recognition;
@@ -48,9 +48,9 @@ pub trait ParseUseCase: Send + Sync {
         slot: &mut SemanticSlot,
     );
 
-    /// The language's answers to the optional semantic capabilities, or `None` when it implements no `Semantics`. It has no default,
-    /// so every language says once whether it answers them.
-    fn semantics(&self) -> Option<&dyn Semantics<Self::FileModel>>;
+    /// The language's answers to the optional semantic capabilities: `Supplied` with its `Semantics`, or `Absent` when it implements
+    /// none. It has no default, so every language says once whether it answers them.
+    fn semantics(&self) -> SemanticAnswers<'_, Self::FileModel>;
 
     /// What the language works out of a file once, when it parses it, for its readers to read: an index of the file, so that no reader
     /// searches the file again for each element it is given. A language that works out nothing has `()`. The engine makes one for each

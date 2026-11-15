@@ -1,6 +1,6 @@
-"""The root `commitizen` tool checks the commits a pushed branch holds beyond origin/main, in a clone of it as CI checks it out,
-and, run for a pull request on GitHub Actions, the pull request's title, which a squash merge makes the commit main keeps. The
-history main already holds is not checked again."""
+"""The root `commitizen` tool checks the commits a pushed branch holds beyond origin/main, in a clone of it as CI checks it out;
+the history main already holds is not checked again. The root `commitizen-title` tool, run for a pull request on GitHub Actions,
+checks the pull request's title, which a squash merge makes the commit main keeps."""
 
 from __future__ import annotations
 
@@ -15,9 +15,9 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[3]
 
 
-def run_tool() -> list[str]:
+def run_tool(identity: str) -> list[str]:
     tools = tomllib.loads((ROOT / "asymptote.toml").read_text())["tools"]
-    (argv,) = [tool["run"] for tool in tools if tool["id"] == "commitizen"]
+    (argv,) = [tool["run"] for tool in tools if tool["id"] == identity]
     return argv
 
 
@@ -42,13 +42,13 @@ def pushed_branch(tmp_path: Path, messages: list[str]) -> Path:
     return clone
 
 
-def exit_of(clone: Path, event: dict | None = None) -> int:
+def exit_of(clone: Path, event: dict | None = None, identity: str = "commitizen") -> int:
     environment = {key: value for key, value in os.environ.items() if key != "GITHUB_EVENT_PATH"}
     if event is not None:
         path = clone.parent / "event.json"
         path.write_text(json.dumps(event))
         environment["GITHUB_EVENT_PATH"] = str(path)
-    return subprocess.run(run_tool(), cwd=clone, env=environment, capture_output=True, check=False).returncode
+    return subprocess.run(run_tool(identity), cwd=clone, env=environment, capture_output=True, check=False).returncode
 
 
 def test_a_pushed_branch_with_a_bad_message_fails(tmp_path) -> None:
@@ -65,13 +65,16 @@ def test_a_branch_with_no_commit_ahead_of_main_has_none_to_check(tmp_path) -> No
 
 def test_a_pull_request_whose_title_is_no_conventional_commit_fails(tmp_path) -> None:
     event = {"pull_request": {"title": "not a conventional title"}}
-    assert exit_of(pushed_branch(tmp_path, ["fix: good"]), event) != 0
+    assert exit_of(pushed_branch(tmp_path, ["fix: good"]), event, "commitizen-title") != 0
+    # The commits' tool reads no event: its stored result stands on files and commits alone.
+    (tmp_path / "commits").mkdir()
+    assert exit_of(pushed_branch(tmp_path / "commits", ["fix: good"]), event) == 0
 
 
 def test_a_pull_request_with_a_conventional_title_passes(tmp_path) -> None:
     event = {"pull_request": {"title": "fix: a conventional title"}}
-    assert exit_of(pushed_branch(tmp_path, ["fix: good"]), event) == 0
+    assert exit_of(pushed_branch(tmp_path, ["fix: good"]), event, "commitizen-title") == 0
 
 
 def test_an_event_that_is_no_pull_request_checks_no_title(tmp_path) -> None:
-    assert exit_of(pushed_branch(tmp_path, ["fix: good"]), {"ref": "refs/heads/main"}) == 0
+    assert exit_of(pushed_branch(tmp_path, ["fix: good"]), {"ref": "refs/heads/main"}, "commitizen-title") == 0
