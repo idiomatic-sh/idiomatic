@@ -186,23 +186,14 @@ timeout-seconds = 3600
 inputs = ["Cargo.toml", "Cargo.lock", ".config", "languages/{lang}", "crates/language", "crates/sdk", "crates/core", "crates/query_language", "crates/values", "crates/benchmark", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
-id = "correctness-python-ruff"
-group = "check"
-# Each rule of the native evidence runs its authored cases alone under its own profile against
-# the pinned Ruff, with the descriptor generated into the output directory; then the
-# benchmark's Python unittests run (they are all under authoring/: the profile driver's tests went with it to the harness). The combined candidate cohort is a separate tool.
-run = ["python3", "-c", "import json, os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\ncodes = [subprocess.run([sys.executable, str(helper), '--self-test-native-standalone']).returncode]\noutput = Path(os.environ.get('RUNNER_TEMP', '/tmp')) / ('ruff-native-standalone-' + os.environ.get('GITHUB_RUN_ID', 'local') + '-' + str(os.getpid()))\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\ncodes.append(subprocess.run([sys.executable, str(helper), executable, '--native-standalone', '--output-dir', str(output)], env=environment).returncode)\nbuild = output / 'build' / 'result.json'\nworker = json.loads(build.read_text()).get('frozen_executable', {}).get('path', '') if build.is_file() else ''\ntests = {**os.environ, 'RYO_PREFLIGHT_WORKER': worker, 'RYO_PREFLIGHT_RUFF': executable}\ncodes.extend(subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', directory, '-p', 'test_*.py'], cwd=helper.parent, env=tests).returncode for directory in ('authoring',))\nsys.exit(next((code for code in codes if code), 0))"]
+id = "correctness-python-release-build"
+group = "python-release"
+# The Python provider's boolean parser payload is written in an optimized build: the one test that needs a release build,
+# kept in its own group so the check matrix does not build release on every row. Ruff correctness is the bench-correctness
+# group's (tool bench-correctness).
+run = ["cargo", "test", "--release", "--locked", "-p", "idiomatic-sh-ryo-python", "--lib", "boolean_parser_payload_is_written_in_optimized_builds"]
 timeout-seconds = 3600
-inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "correctness-python-ruff-candidates"
-group = "ruff-candidates"
-# This job checks authoring guards and optimized Python release behavior.
-# The bench-correctness CI job (tool bench-correctness) owns strict all-default verification and its receipts.
-run = ["python3", "-c", "import os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\nself_test = subprocess.run([sys.executable, str(helper), '--self-test'])\nif self_test.returncode:\n    sys.exit(self_test.returncode)\nrelease_tests = [\n    ['cargo', 'test', '--release', '--locked', '-p', 'idiomatic-sh-ryo-python', '--lib', 'boolean_parser_payload_is_written_in_optimized_builds'],\n]\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\nfor command in release_tests:\n    result = subprocess.run(command, env=environment)\n    if result.returncode:\n        sys.exit(result.returncode)\nsys.exit(0)"]
-timeout-seconds = 3600
-inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "peak"

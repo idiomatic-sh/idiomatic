@@ -42,6 +42,7 @@ OS caches. Single-rule warmup+tail median wall: 0.932598 -> 0.195501 seconds (-7
 RSS:151,257,088 ->71,163,904 bytes (-52.95%). The SEPARATE completed forms file with
 all310 rules:8.807016 ->8.486644 seconds (-3.64%), RSS effectively unchanged; all16
 diagnostics match. These bounded workloads do not establish whole-corpus completion,
-413-rule parity or subsecond project latency. `measurement-source.py` is the exact
-as-executed supervisor, not a portable production runner; all requests, native
-observations and immutable variant are `/tmp/pie794-rooted-paired-20261101`.
+413-rule parity or subsecond project latency. The as-executed supervisor of the
+paired timing (`measurement-source.py`, absolute `/tmp/pie794-rooted-paired-20261101`
+paths) was removed with the Ruff harness move; commit `981eb0d869` keeps it, and the
+harness's `measure` and `profile` runs replace it.

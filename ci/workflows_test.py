@@ -584,7 +584,7 @@ def test_a_hand_run_runs_its_product_s_check_fan_out_behind_one_gate() -> None:
     }
     assert workflow["concurrency"] == {"group": "check-${{ github.ref }}-${{ inputs.product }}", "cancel-in-progress": True}
     jobs = workflow["jobs"]
-    assert set(jobs) == {"check", "gate", "speed", "ruff-candidates", "bench-correctness", "ownership-contracts"}
+    assert set(jobs) == {"check", "gate", "speed", "python-release", "bench-correctness", "ownership-contracts"}
     assert sorted(path.parent.name for path in ROOT.glob("crates/*/Cargo.toml")) == sorted(PRODUCTS)
     check = jobs["check"]
     assert "needs" not in check and "if" not in check
@@ -603,16 +603,16 @@ def test_a_hand_run_runs_its_product_s_check_fan_out_behind_one_gate() -> None:
         step["uses"].split("@")[0] for step in release_check()["steps"] if "uses" in step
     ]
     gate = jobs["gate"]
-    assert gate["if"] == "always()" and gate["needs"] == ["check", "speed", "ruff-candidates", "ownership-contracts"]
+    assert gate["if"] == "always()" and gate["needs"] == ["check", "speed", "python-release", "ownership-contracts"]
     (deciding,) = gate["steps"]
     assert deciding["uses"].startswith("re-actors/")
-    assert deciding["with"] == {"jobs": "${{ toJSON(needs) }}", "allowed-skips": "ruff-candidates"}
+    assert deciding["with"] == {"jobs": "${{ toJSON(needs) }}", "allowed-skips": "python-release"}
 
 
-def ruff_candidates_covered(workflow: dict) -> bool:
-    """The authored Ruff subset has a real Linux runner and a required gate edge."""
+def python_release_covered(workflow: dict) -> bool:
+    """The Python release-build test has a real Linux runner and a required gate edge."""
     jobs = workflow["jobs"]
-    job = jobs.get("ruff-candidates")
+    job = jobs.get("python-release")
     if job is None:
         return False
     return (
@@ -620,27 +620,27 @@ def ruff_candidates_covered(workflow: dict) -> bool:
         and job.get("if") == "inputs.product == 'ryo'"
         and job.get("runs-on") == "ubuntu-26.04"
         and [step["run"] for step in job["steps"] if "asymptote check" in step.get("run", "")]
-        == ["asymptote check --root crates/ryo --groups ruff-candidates"]
-        and "ruff-candidates" in jobs["gate"]["needs"]
-        and "ruff-candidates" in jobs["gate"]["steps"][0]["with"]["allowed-skips"].split(", ")
+        == ["asymptote check --root crates/ryo --groups python-release"]
+        and "python-release" in jobs["gate"]["needs"]
+        and "python-release" in jobs["gate"]["steps"][0]["with"]["allowed-skips"].split(", ")
     )
 
 
-def test_ruff_authoring_guard_cannot_be_orphaned_by_product_selection() -> None:
+def test_python_release_guard_cannot_be_orphaned_by_product_selection() -> None:
     tools = tomllib.loads((ROOT / "crates/ryo/asymptote.toml").read_text())["tools"]
-    assert any(tool["id"] == "correctness-python-ruff-candidates" and tool["group"] == "ruff-candidates" for tool in tools)
+    assert any(tool["id"] == "correctness-python-release-build" and tool["group"] == "python-release" for tool in tools)
     workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
-    assert ruff_candidates_covered(workflow)
+    assert python_release_covered(workflow)
     missing = deepcopy(workflow)
-    missing["jobs"].pop("ruff-candidates")
+    missing["jobs"].pop("python-release")
     detached = deepcopy(workflow)
-    detached["jobs"]["gate"]["needs"].remove("ruff-candidates")
+    detached["jobs"]["gate"]["needs"].remove("python-release")
     skipped = deepcopy(workflow)
-    skipped["jobs"]["ruff-candidates"]["if"] = "false"
+    skipped["jobs"]["python-release"]["if"] = "false"
     wrong_group = deepcopy(workflow)
-    command = next(step for step in wrong_group["jobs"]["ruff-candidates"]["steps"] if "asymptote check" in step.get("run", ""))
+    command = next(step for step in wrong_group["jobs"]["python-release"]["steps"] if "asymptote check" in step.get("run", ""))
     command["run"] = "asymptote check --root crates/ryo --groups check"
-    assert all(not ruff_candidates_covered(changed) for changed in (missing, detached, skipped, wrong_group))
+    assert all(not python_release_covered(changed) for changed in (missing, detached, skipped, wrong_group))
 
 
 def test_rust_build_caches_keep_each_product_and_profile_separate() -> None:
@@ -649,7 +649,7 @@ def test_rust_build_caches_keep_each_product_and_profile_separate() -> None:
 
     jobs = yaml.safe_load((DIRECTORY / "check.yml").read_text())["jobs"]
     keys = set()
-    for name in ("check", "speed", "ruff-candidates", "bench-correctness"):
+    for name in ("check", "speed", "python-release", "bench-correctness"):
         cache = next(step for step in jobs[name]["steps"] if step.get("uses", "").startswith("Swatinem/rust-cache@"))["with"]
         assert "prefix-key" not in cache
         assert cache["cache-workspace-crates"] is True

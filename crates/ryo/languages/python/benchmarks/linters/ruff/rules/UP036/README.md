@@ -30,7 +30,7 @@ is used.
 All 114 intended candidate/reference case pairs passed on sealed worker
 `e0092188f1af6786f4981680a7129445f33117050343388ba9cb69016891266a`:
 111 raw exact and three explicit micro-version discrepancies, one per target.
-The [target-version supplement](../../results/full-inventory-current/up035-up036-target-supplement/README.md)
+The target-version supplement
 retains the initial grammar and tuple-position failures unchanged and binds the
 corrected query to every successful execution. Tuple components are ranked
 within `elts`; `semantic-child.ordinal` is a physical sibling position that
@@ -40,7 +40,7 @@ also counts punctuation and other fields, not a tuple-element index.
 
 **Reference:** pinned Ruff 0.16.5 (`python-target=3.10`; [profile](../../profiles/UP036/benchmark.toml)). **Scope:** Version tuple micro-index semantics versus pinned reference finding; upstream bug status unverified.
 
-The 1 certified case below retains their exact source bytes and full intended and observed finding arrays in [cases.toml](cases.toml). The [archived raw receipt](../../results/full-inventory-current/up035-up036-target-supplement/raw-receipts.tar.gz) records an executed worker snapshot; the source and reference-output hashes in each case certificate bind the precise observation. A historical combined receipt may predate a later targeted certificate; follow the certificate identity for that case. Diagnostic spans below are UTF-8 byte offsets.
+The 1 certified case below retains their exact source bytes and full intended and observed finding arrays in [cases.toml](cases.toml). The archived raw receipt records an executed worker snapshot; the source and reference-output hashes in each case certificate bind the precise observation. A historical combined receipt may predate a later targeted certificate; follow the certificate identity for that case. Diagnostic spans below are UTF-8 byte offsets.
 
 To reproduce Ruff's reference finding for `micro-varies`, write its exact named file from [cases.toml](cases.toml) into an isolated directory and run the pinned Ruff 0.16.5 executable (SHA256 `52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8`):
 
@@ -64,4 +64,4 @@ else:
 
 - Intended: none. Pinned Ruff observed: UP036 case.py:14–38.
 - Basis: Index 2 of sys.version_info denotes the micro version, not the major version. Primary evidence: [micro-version-probe.py](../../profiles/UP036/evidence/micro-version-probe.py), [micro-version-inputs.json](../../profiles/UP036/evidence/micro-version-inputs.json).
-- Reproduce: use the [profile](../../profiles/UP036/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/up035-up036-target-supplement/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+- Reproduce: use the [profile](../../profiles/UP036/benchmark.toml), exact named source in [cases.toml](cases.toml), and raw receipt; the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.

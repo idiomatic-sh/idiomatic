@@ -157,18 +157,18 @@ jobs:
             crates/${{ matrix.product }}/target/checks/
             target/checks/
           if-no-files-found: ignore
-  # The product gate also requires the independent speed and Ruff authoring guards. The strict full inventory records parity
-  # separately and remains a release acceptance requirement while rules are still being implemented.
+  # The product gate also requires the independent speed job and the Python release-build test. The strict full inventory
+  # records parity separately and remains a release acceptance requirement while rules are still being implemented.
   gate:
-    needs: [check, speed, ruff-candidates, ownership-contracts]
+    needs: [check, speed, python-release, ownership-contracts]
     if: always()
     runs-on: ubuntu-26.04
     steps:
       - uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
         with:
           jobs: ${{ toJSON(needs) }}
-          allowed-skips: ruff-candidates
-  ruff-candidates:
+          allowed-skips: python-release
+  python-release:
     if: inputs.product == 'ryo'
     runs-on: ubuntu-26.04
     defaults:
@@ -197,7 +197,7 @@ jobs:
         with:
           cache-bin: false
           cache-workspace-crates: true
-          shared-key: ubuntu-26.04-ruff-candidates-ryo
+          shared-key: ubuntu-26.04-python-release-ryo
           save-if: true
           cache-on-failure: true
           workspaces: crates/ryo -> ../../target
@@ -212,7 +212,7 @@ jobs:
         run: uv run --script tools/install.py
         env:
           GH_TOKEN: ${{ github.token }}
-      - run: asymptote check --root crates/ryo --groups ruff-candidates
+      - run: asymptote check --root crates/ryo --groups python-release
   speed:
     runs-on: ubuntu-26.04
     defaults:
