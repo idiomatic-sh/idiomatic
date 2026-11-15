@@ -58,8 +58,9 @@ sha2.workspace = true
 ignore.workspace = true
 sysinfo.workspace = true
 ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../crates/sdk" }
-# The crate itself with the language its tests and benches read, so the tests read that language whatever the defaults.
-idiomatic-sh-ryo = { path = ".", features = ["rust"] }
+# The crate itself with the language its tests and benches read, so the tests read that language whatever the defaults, and
+# with `fixtures`, so the replay links the languages the command links (`languages::linked_connections`).
+idiomatic-sh-ryo = { path = ".", features = ["rust", "fixtures"] }
 ryo_core = { package = "idiomatic-sh-ryo-core", path = "../crates/core", features = ["fixtures"] }
 dhat.workspace = true
 toml.workspace = true

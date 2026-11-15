@@ -354,3 +354,23 @@ fn a_recorded_parameter_value_decides_the_rows() {
         "the recorded value `omega` finds a row"
     );
 }
+
+#[test]
+fn a_rule_naming_a_kind_of_another_linked_language_loads_and_answers() {
+    let _beside = crate::beside();
+    // The replay links what `ryo lint` links: here a language beside Rust and TOML, whose kinds a live rule may name.
+    assert!(
+        ryo_cli::languages::linked_connections().len() > 2,
+        "the command links no language beside Rust and TOML"
+    );
+    // `keyword` is a kind of the Python and TypeScript languages, not of Rust's: over Rust files it matches nothing.
+    let query = r#"let words = select l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."kind" = "keyword";
+emit words subject "file" key("span");"#;
+    let at = recorded(&[("scope.toml", "include = [\"**\"]\n")]);
+    let recording = recording_of(at.path(), query.to_owned());
+    let repository = tempfile::tempdir().expect("a repository");
+    std::fs::write(repository.path().join("lib.rs"), "fn alpha() {}\n").expect("its lib.rs");
+    let (rows, _) = lint_over(repository.path(), vec![rule_of(&recording)])
+        .expect("a rule naming a kind of a linked language runs");
+    assert_eq!(rows, Vec::<Vec<String>>::new());
+}

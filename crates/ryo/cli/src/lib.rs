@@ -9,7 +9,7 @@
 )]
 
 pub mod edge;
-mod languages;
+pub mod languages;
 #[cfg(all(
     test,
     feature = "javascript",

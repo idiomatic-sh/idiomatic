@@ -176,7 +176,7 @@ fn a_rule_that_names_a_kind_no_language_has_fails_the_run() {
     let root = workspace();
     let rule = crate::rule_from_query(
         "misspelled",
-        "let a = select * from \"syntax-tree\" where kind = \"function-declaration\"; emit a subject file key(id);",
+        "let a = select * from \"syntax-tree\" where kind = \"funtcion-item\"; emit a subject file key(id);",
         &["**".to_owned()],
     );
     let refused = base::lint_with(
@@ -187,7 +187,9 @@ fn a_rule_that_names_a_kind_no_language_has_fails_the_run() {
     )
     .expect_err("a kind no language has fails the run");
     assert!(
-        refused.contains("rule `misspelled`: kind `function-declaration` names no kind of rust"),
+        refused.contains(
+            "rule `misspelled`: kind `funtcion-item` names no kind of css, go, html, javascript, json, markdown, python, rust, toml, typescript"
+        ),
         "{refused}"
     );
 }
