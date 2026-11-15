@@ -79,15 +79,18 @@ COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
 HANDED = {"CARGO_REGISTRY_TOKEN", "GH_TOKEN"}
 # What may start a workflow: a hand run, and a pull request to main for the workflows `REQUESTED` names, the check alone (GitHub's
 # standard hosted runners are free on a public repository). The workflows `PUSHED` names may start on a push to main too, which
-# only a merged pull request makes: the release, and the check, whose run on main saves the stores a pull request restores;
+# only a merged pull request makes: the check, whose run on main saves the stores a pull request restores;
 # `pull_request_target`, which runs a fork's code with the repository's secrets, never. A schedule starts only the workflows
-# `SCHEDULED` names: none. A workflow that publishes starts only by hand or on a push to main.
+# `SCHEDULED` names: none. The release starts on the completion of the check's run on main (`WORKFLOW_RUN`), not on a push: its jobs
+# run only when that run's `gate` passed. A workflow that publishes starts only by hand or on a completed check on main.
 ALLOWED = {"workflow_dispatch", "pull_request"}
 REQUESTED = {"check.yml"}
 # The events of a pull request that start the check: GitHub's default three, and `edited`, so a pull request whose title changes
 # after a green run is checked again (the title is read from the event, which no stored result holds).
 PULL_REQUEST = {"branches": ["main"], "types": ["opened", "synchronize", "reopened", "edited"]}
-PUSHED = {"release.yml", "check.yml"}
+PUSHED = {"check.yml"}
+RELEASED = {"release.yml"}
+WORKFLOW_RUN = {"workflows": ["check"], "types": ["completed"], "branches": ["main"]}
 SCHEDULED: set[str] = set()
 # What may follow a job's check: uploading what its tools left (a bench's documents) as the run's artifact, and saving the job's
 # asymptote store.
@@ -106,13 +109,16 @@ TOOLHASH = (
 # against crates.io's live index, api's semver baseline is the newest release tag. Their rows keep no store, nor does speed, whose
 # answer stands on origin/main.
 UNSTORED_GROUPS = ("release-resolution", "api")
-UNSTORED = " && ".join(f"matrix.check.group != '{group}'" for group in UNSTORED_GROUPS)
+# A row of the check matrix says whether it keeps a store (`store`), and the groups above are the rows that say no.
+UNSTORED = "matrix.check.store"
+# Every cache is saved by a run on main alone and restored by every run, so a pull request reads what main saved.
+MAIN = "github.ref == 'refs/heads/main'"
 # The toolchains a stored pass is replayed under: each pinned to its exact version in check.yml, which the key hashes.
 PINNED = {"actions/setup-node": "node-version", "actions/setup-python": "python-version", "astral-sh/setup-uv": "version", "actions/setup-go": "go-version"}
 STORE_KEY = re.compile(
     r"asymptote-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-(?P<product>root|\$\{\{ matrix\.product \}\}|"
     + "|".join(PRODUCTS)
-    + r")-(?P<group>[a-z][a-z-]*|\$\{\{ matrix\.check\.group \}\})-"
+    + r")-(?P<group>[a-z][a-z-]*|\$\{\{ matrix\.check\.label \}\})-"
     + re.escape(TOOLHASH)
     + r"-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}"
 )
@@ -163,7 +169,7 @@ def bench_correctness_problems(job: dict) -> list[str]:
     if any(
         "if" in step and (step.get("name"), step["if"])
         not in {
-            ("Save installed tools", "steps.cargo_bin_cache.outputs.cache-hit != 'true'"),
+            ("Save the installed tools", f"{MAIN} && steps.cargo_bin_cache.outputs.cache-hit != 'true'"),
             ("Bench summaries and per-rule receipts", "always()"),
         }
         for step in steps
@@ -206,7 +212,7 @@ def store_problems(name: str, job: dict) -> list[str]:
     unstored = name == "check" and restore.get("if") == UNSTORED
     if restore.get("if") not in (None, UNSTORED) or (restore.get("if") == UNSTORED and name != "check"):
         found.append(f"{name} restores its asymptote store under an unreviewed condition")
-    if save.get("if") != ("always() && " + UNSTORED if unstored else "always()"):
+    if save.get("if") != (f"always() && {MAIN} && {UNSTORED}" if unstored else f"always() && {MAIN}"):
         found.append(f"{name} must save its asymptote store after a failed check too, exactly where it restores one")
     path, key = save["with"].get("path", ""), save["with"].get("key", "")
     if not STORE.fullmatch(path) or not STORE_KEY.fullmatch(key):
@@ -236,10 +242,13 @@ def trigger_problems(name: str, workflow: dict) -> list[str]:
     started = triggers(workflow)
     pushed = name in PUSHED
     allowed = ALLOWED | ({"schedule"} if name in SCHEDULED else set())
-    found = [f"{name} starts on {each}" for each in sorted(started - allowed - ({"push"} if pushed else set()))]
+    extra = ({"push"} if pushed else set()) | ({"workflow_run"} if name in RELEASED else set())
+    found = [f"{name} starts on {each}" for each in sorted(started - allowed - extra)]
     on = workflow["on" if "on" in workflow else True]
     if pushed and "push" in started and (on.get("push") if isinstance(on, dict) else None) != {"branches": ["main"]}:
         found.append(f"{name} starts on a push to more than main")
+    if name in RELEASED and "workflow_run" in started and (on.get("workflow_run") if isinstance(on, dict) else None) != WORKFLOW_RUN:
+        found.append(f"{name} must start on the completion of the check on main alone")
     if "pull_request" in started and name not in REQUESTED:
         found.append(f"{name} starts on pull_request")
     elif "pull_request" in started:
@@ -249,8 +258,8 @@ def trigger_problems(name: str, workflow: dict) -> list[str]:
         elif given != PULL_REQUEST:
             found.append(f"{name} must start on {PULL_REQUEST['types']} of a pull request, an edited title among them")
     jobs = workflow["jobs"]
-    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started - {"workflow_dispatch", "push"}:
-        found.append(f"{name} publishes, so it starts only by hand or on a push to main")
+    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started - {"workflow_dispatch", "workflow_run"}:
+        found.append(f"{name} publishes, so it starts only by hand or on a completed check on main")
     return found
 
 
@@ -360,13 +369,13 @@ def test_every_workflow_checks_through_one_asymptote_call(path: Path) -> None:
 
 
 def test_speed_job_saves_installed_tools_before_quality_checks() -> None:
-    """The independent speed guard retains its installed tools even when quality fails."""
+    """The independent speed guard retains its installed tools even when quality fails: saved by main alone, under the key every
+    job of its machine shares, and restored by every run."""
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
     action = "55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
     paths = "~/.cargo/bin\n~/.cargo/.crates.toml\n~/.cargo/.crates2.json\n"
     prefix = "cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}"
-    key = f"{prefix}-${{{{ github.sha }}}}"
-    restore_keys = f"{prefix}-\ncargo-bin-${{{{ runner.os }}}}-${{{{ runner.arch }}}}-\n"
+    key = prefix
     for name in ("speed",):
         steps = workflow["jobs"][name]["steps"]
         restore = next(index for index, step in enumerate(steps) if step.get("id") == "cargo_bin_cache")
@@ -377,10 +386,9 @@ def test_speed_job_saves_installed_tools_before_quality_checks() -> None:
         assert steps[restore]["with"] == {
             "path": paths,
             "key": key,
-            "restore-keys": restore_keys,
         }
         assert save["uses"] == f"actions/cache/save@{action}"
-        assert save["if"] == "steps.cargo_bin_cache.outputs.cache-hit != 'true'"
+        assert save["if"] == f"{MAIN} && steps.cargo_bin_cache.outputs.cache-hit != 'true'"
         assert save["with"] == {"path": paths, "key": key}
         assert any("asymptote check" in step.get("run", "") for step in steps[install + 2 :])
 
@@ -531,7 +539,7 @@ def test_a_pull_request_to_main_starts_only_the_check() -> None:
     defaults = {"on": {"pull_request": {"branches": ["main"]}}, "jobs": {}}
     assert trigger_problems("check.yml", defaults) == trigger_problems("check.yml", unedited)
     assert trigger_problems("release-pr.yml", requested) == ["release-pr.yml starts on pull_request"]
-    assert trigger_problems("release.yml", requested | {"on": {"pull_request": {"branches": ["main"]}, "push": {"branches": ["main"]}}}) == [
+    assert trigger_problems("release.yml", requested | {"on": {"pull_request": {"branches": ["main"]}, "workflow_run": WORKFLOW_RUN}}) == [
         "release.yml starts on pull_request"
     ]
     every = yaml.safe_load("on:\n  pull_request:\n  workflow_dispatch:\njobs: {}\n")
@@ -541,7 +549,10 @@ def test_a_pull_request_to_main_starts_only_the_check() -> None:
     # The real release workflow, given a pull request, is refused.
     release = yaml.safe_load(read(DIRECTORY / "release.yml"))
     release["on" if "on" in release else True]["pull_request"] = {"branches": ["main"]}
-    assert trigger_problems("release.yml", release) == ["release.yml starts on pull_request", "release.yml publishes, so it starts only by hand or on a push to main"]
+    assert trigger_problems("release.yml", release) == [
+        "release.yml starts on pull_request",
+        "release.yml publishes, so it starts only by hand or on a completed check on main",
+    ]
 
 
 def test_a_pull_request_target_is_refused() -> None:
@@ -551,11 +562,11 @@ def test_a_pull_request_target_is_refused() -> None:
 
 
 def test_a_push_starts_a_workflow_only_on_main() -> None:
-    """Only the check, whose run on main seeds the stores a pull request restores, and the release start on a push, and only on
-    one to main."""
+    """Only the check, whose run on main seeds the stores a pull request restores, starts on a push, and only on one to main: the
+    release starts on that run's completion instead."""
     main = yaml.safe_load("on:\n  push:\n    branches: [main]\njobs: {}\n")
     assert trigger_problems("check.yml", main) == []
-    assert trigger_problems("release.yml", main) == []
+    assert trigger_problems("release.yml", main) == ["release.yml starts on push"]
     assert trigger_problems("benchmarks.yml", main) == ["benchmarks.yml starts on push"]
     assert trigger_problems("publish.yml", main) == ["publish.yml starts on push"]
     every = yaml.safe_load("on:\n  push:\njobs: {}\n")
@@ -567,25 +578,34 @@ def test_a_push_starts_a_workflow_only_on_main() -> None:
 
 
 def test_a_workflow_that_publishes_starts_only_by_hand_or_on_a_push_to_main() -> None:
-    """A push to main is a merged pull request; a pull request's own run never publishes."""
+    """A workflow that publishes starts only by hand or on the completion of the check on main (a merged pull request's green run,
+    which replaces the push the template names); a pull request's own run never publishes."""
     publish = {"environment": "release", "steps": [{"run": "uv run ci/release/command.py --publish"}]}
     on_a_pull_request = {"on": {"workflow_dispatch": None, "pull_request": None}, "jobs": {"publish": publish}}
     assert trigger_problems("release.yml", on_a_pull_request) == [
         "release.yml starts on pull_request",
-        "release.yml publishes, so it starts only by hand or on a push to main",
+        "release.yml publishes, so it starts only by hand or on a completed check on main",
     ]
     # The one workflow a pull request may start publishes nothing either.
     assert trigger_problems("check.yml", on_a_pull_request | {"on": {"pull_request": PULL_REQUEST}}) == [
-        "check.yml publishes, so it starts only by hand or on a push to main"
+        "check.yml publishes, so it starts only by hand or on a completed check on main"
     ]
     by_hand = {"on": {"workflow_dispatch": None}, "jobs": {"upload": {"environment": {"name": "release"}, "steps": []}}}
     assert trigger_problems("release.yml", by_hand) == []
-    on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}, "workflow_dispatch": None}}
-    assert trigger_problems("release.yml", on_a_push) == []
-    # Publishing grants no push: only the release workflow, by name, starts on one.
-    assert trigger_problems("publish.yml", on_a_push) == ["publish.yml starts on push"]
-    on_any_push = by_hand | {"on": {"push": None}}
-    assert trigger_problems("release.yml", on_any_push) == ["release.yml starts on a push to more than main"]
+    on_a_run = by_hand | {"on": {"workflow_run": WORKFLOW_RUN, "workflow_dispatch": None}}
+    assert trigger_problems("release.yml", on_a_run) == []
+    # Publishing grants no workflow run: only the release workflow, by name, starts on one.
+    assert trigger_problems("publish.yml", on_a_run) == ["publish.yml starts on workflow_run"]
+    # A publish on a push, or on any check's completion but the check's on main, is refused.
+    on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}}}
+    assert trigger_problems("release.yml", on_a_push) == [
+        "release.yml starts on push",
+        "release.yml publishes, so it starts only by hand or on a completed check on main",
+    ]
+    on_any_run = by_hand | {"on": {"workflow_run": {**WORKFLOW_RUN, "workflows": ["check", "benchmarks"]}}}
+    assert trigger_problems("release.yml", on_any_run) == ["release.yml must start on the completion of the check on main alone"]
+    any_branch = by_hand | {"on": {"workflow_run": {"workflows": ["check"], "types": ["completed"]}}}
+    assert trigger_problems("release.yml", any_branch) == ["release.yml must start on the completion of the check on main alone"]
 
 
 def test_a_job_that_decides_what_a_gated_job_runs_is_gated_by_it() -> None:
@@ -607,8 +627,8 @@ def test_only_the_release_job_that_uploads_is_handed_a_token_and_only_after_the_
     assert handed == {"publish"}
     publish = workflow["jobs"]["publish"]
     assert publish["environment"] == "release" and "RELEASE_MAINTAINER" in publish["env"]["PUBLISH"]
-    # A push to main publishes the products it tagged; a hand run, one product, only from its own tag.
-    assert publish["env"]["PUBLISH"].startswith("${{ github.event_name == 'push' || (inputs.publish && ")
+    # A green check on main publishes the products it tagged; a hand run, one product, only from its own tag.
+    assert publish["env"]["PUBLISH"].startswith("${{ github.event_name == 'workflow_run' || (inputs.publish && ")
     assert "startsWith(github.ref_name, format('idiomatic-sh-{0}-v', matrix.product))" in publish["env"]["PUBLISH"]
     (product,) = [workflow["on" if "on" in workflow else True]["workflow_dispatch"]["inputs"]["product"]]
     assert product["required"] is True and product["options"] == ["ryo", "tastemaker", "asymptote"]
@@ -693,7 +713,7 @@ def test_the_release_builds_every_target_in_one_matrix_whose_rows_run_the_same_s
         "crates/tastemaker/distribution/registries/pypi": "tastemaker",
     }
     assert workflow["jobs"]["publish"]["needs"] == ["tag", "build"]
-    released = "${{ fromJSON(github.event_name == 'push' && needs.tag.outputs.products || format('[\"{0}\"]', inputs.product)) }}"
+    released = "${{ fromJSON(github.event_name == 'workflow_run' && needs.tag.outputs.products || format('[\"{0}\"]', inputs.product)) }}"
     assert build["strategy"]["matrix"]["product"] == workflow["jobs"]["publish"]["strategy"]["matrix"]["product"] == released
 
 
@@ -716,22 +736,30 @@ def test_speed_requires_declared_timings_for_every_language_workspace_member() -
         contract = language["package"]["metadata"]["ryo"]["performance"]
         assert contract == {"schema": "divan-timing/v1", "workloads": {"generated_every_relation": [2500, 10000]}, "metrics": ["median-ns"]}
 
-def test_a_push_to_main_releases_the_products_whose_version_it_changes_without_checking_again() -> None:
-    """The pull request gate checked the tree a push to main brings, so the push tags and releases each product whose version it
-    changes, and only those, each product's publish in a concurrency group of its own; a hand run checks its product first."""
+def test_a_green_check_on_main_releases_the_products_whose_version_its_commit_changes_without_checking_again() -> None:
+    """The check's run on main passed its `gate` on the tree, so the release it starts tags and releases each product whose version
+    the commit changes, and only those, each product's publish in a concurrency group of its own; a hand run checks its product
+    first. A red, cancelled or pull request run starts no tag."""
     workflow = yaml.safe_load(read(DIRECTORY / "release.yml"))
     on = workflow["on" if "on" in workflow else True]
-    assert on["push"] == {"branches": ["main"]} and set(on["workflow_dispatch"]["inputs"]) == {"product", "publish"}
+    assert on["workflow_run"] == WORKFLOW_RUN and "push" not in on and set(on["workflow_dispatch"]["inputs"]) == {"product", "publish"}
     jobs = workflow["jobs"]
     assert "concurrency" not in workflow
     tag = jobs["tag"]
-    assert tag["if"] == "github.event_name == 'push'" and tag["permissions"] == {"contents": "write"}
+    assert tag["if"] == (
+        "github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'"
+    )
+    assert tag["permissions"] == {"contents": "write"}
+    # Every job that reads the tree reads the commit the check ran on, not the branch's newest.
+    for name in ("tag", "build", "publish"):
+        (checkout,) = [step for step in jobs[name]["steps"] if step.get("uses", "").startswith("actions/checkout@")]
+        assert checkout["with"]["ref"] == "${{ github.event.workflow_run.head_sha || github.sha }}", name
     assert [step["run"] for step in tag["steps"] if "run" in step] == ["uv run ci/tag/command.py --push"]
     assert tag["outputs"]["products"] == "${{ steps.tag.outputs.products }}"
     assert jobs["check"]["if"] == "github.event_name == 'workflow_dispatch'"
     assert jobs["build"]["needs"] == ["tag", "check"]
     assert jobs["build"]["if"].startswith("${{ !cancelled() && !failure() && ")
-    assert "needs.tag.outputs.products != '[]'" in jobs["build"]["if"]
+    assert "needs.tag.result == 'success' && needs.tag.outputs.products != '[]'" in jobs["build"]["if"]
     publish = jobs["publish"]
     assert publish["if"] == "${{ !cancelled() && needs.build.result == 'success' }}"
     assert publish["concurrency"] == {"group": "release-${{ matrix.product }}", "cancel-in-progress": False}
@@ -745,36 +773,42 @@ def test_a_push_to_main_releases_the_products_whose_version_it_changes_without_c
     assert download["with"] == {"pattern": "${{ matrix.product }}-*", "merge-multiple": True, "path": "dist"}
 
 
+# The groups a pull request runs for each product on Linux x86, in one asymptote call so that its tools share one build.
+LINUX_GROUPS = ("lint", "clippy", "check", "release-tests", "release-coverage")
 EVERY_PRODUCT = "${{ fromJSON(github.event_name == 'workflow_dispatch' && format('[\"{0}\"]', inputs.product) || '" + "[" + ",".join(
     f'"{product}"' for product in PRODUCTS
 ) + "]') }}"
-GATED = ["root", "pull-request", "check", "speed", "python-release", "bench-correctness"]
-SPEED_SKIPPED_ON_A_PUSH = "${{ github.event_name == 'push' && 'speed' || '' }}"
+GATED = ["root", "pull-request", "check-linux", "check", "speed", "python-release", "bench-correctness"]
+# A pull request runs Linux x86 alone, the fewest builds: `check-linux`, the root's and the title's jobs and the bench. The jobs that
+# run on main alone (the other machines and groups, the Python release build) are skipped on a pull request, which the gate lets
+# pass; the speed guard compares with origin/main, so only a hand run runs it, and the gate lets it skip everywhere else.
+NOT_ON_A_PULL_REQUEST = "github.event_name != 'pull_request'"
+CONDITIONS = {"check": NOT_ON_A_PULL_REQUEST, "python-release": NOT_ON_A_PULL_REQUEST, "speed": "github.event_name == 'workflow_dispatch'"}
+ALLOWED_SKIPS = "${{ github.event_name == 'pull_request' && 'check,speed,python-release' || github.event_name == 'push' && 'speed' || '' }}"
 
 
 def gate_problems(workflow: dict) -> list[str]:
     """What keeps check.yml from checking every product behind one gate, with asymptote alone deciding what runs: a job beside
     the gated ones and the gate (a `changes` job, a paths filter), a job that waits for one, a product list but every product's
     (a hand run's one), a merge to main that cancels the run seeding the stores, a gate that misses a job or lets one skip but
-    the speed guard on a push."""
+    the jobs that run on main alone, where they do not run."""
     found = []
     jobs = workflow["jobs"]
     if set(jobs) != {*GATED, "gate"}:
         found.append(f"check.yml runs {sorted(jobs)}, not {sorted([*GATED, 'gate'])}")
     found += [f"{name} waits for {needs(job)}" for name, job in jobs.items() if name != "gate" and needs(job)]
-    found += [f"{name} is skipped when {job['if']}" for name, job in jobs.items() if name not in {"gate", "speed"} and "if" in job]
-    if jobs.get("speed", {}).get("if") != "github.event_name != 'push'":
-        found.append("speed must run on every pull request and hand run and only be skipped on a push")
-    if jobs.get("check", {}).get("strategy", {}).get("matrix", {}).get("product") != EVERY_PRODUCT:
-        found.append("check must run every product, a hand run's one")
+    found += [f"{name} is skipped when {job.get('if')}" for name, job in jobs.items() if name != "gate" and job.get("if") != CONDITIONS.get(name)]
+    for name in ("check-linux", "check"):
+        if jobs.get(name, {}).get("strategy", {}).get("matrix", {}).get("product") != EVERY_PRODUCT:
+            found.append(f"{name} must run every product, a hand run's one")
     if workflow.get("concurrency", {}).get("cancel-in-progress") != "${{ github.event_name != 'push' }}":
         found.append("a merge to main must never cancel the run seeding the stores")
     gate = jobs.get("gate", {})
     if gate.get("if") != "always()" or needs(gate) != GATED:
         found.append(f"gate must wait for {GATED}, whatever their results")
     steps = gate.get("steps", [{}])
-    if len(steps) != 1 or steps[0].get("with") != {"jobs": "${{ toJSON(needs) }}", "allowed-skips": SPEED_SKIPPED_ON_A_PUSH}:
-        found.append("gate may let only the speed guard skip, and only on a push")
+    if len(steps) != 1 or steps[0].get("with") != {"jobs": "${{ toJSON(needs) }}", "allowed-skips": ALLOWED_SKIPS}:
+        found.append("gate may let only the jobs that run on main alone skip, and only where they do not run")
     return found
 
 
@@ -796,29 +830,55 @@ def test_a_pull_request_or_hand_run_checks_every_product_behind_one_gate() -> No
             "options": list(PRODUCTS),
         }
     }
-    assert workflow["concurrency"]["group"] == "check-${{ github.event.pull_request.number || github.ref }}-${{ inputs.product }}"
+    assert workflow["concurrency"]["group"] == (
+        "check-${{ github.event.pull_request.number || (github.event_name == 'push' && github.sha) || github.ref }}-${{ inputs.product }}"
+    )
     assert workflow["env"] == {"NEXTEST_PROFILE": "ci"}
     assert gate_problems(workflow) == []
     assert sorted(path.parent.name for path in listed(ROOT, "crates/*/Cargo.toml")) == sorted(PRODUCTS)
     jobs = workflow["jobs"]
-    check = jobs["check"]
+    linux, check = jobs["check-linux"], jobs["check"]
+    assert linux["runs-on"] == "ubuntu-26.04"
+    (linux_checking,) = [step["run"] for step in linux["steps"] if "asymptote check" in step.get("run", "")]
+    assert linux_checking == "asymptote check --root crates/${{ matrix.product }} --groups " + ",".join(LINUX_GROUPS)
     (checking,) = [step["run"] for step in check["steps"] if "asymptote check" in step.get("run", "")]
-    assert checking == "asymptote check --root crates/${{ matrix.product }} --groups ${{ matrix.check.group }}"
+    assert checking == "asymptote check --root crates/${{ matrix.product }} --groups ${{ matrix.check.groups }}"
+    # The same machines and groups as the release's check, split in two: the pull request's Linux job, which every event runs, and
+    # the rows a push to main and a hand run add, a row's groups sharing one asymptote call and so one build.
     release = yaml.safe_load(read(DIRECTORY / "release.yml"))["jobs"]["check"]["strategy"]["matrix"]["include"]
-    assert check["strategy"]["matrix"]["check"] == [{"runner": row["runner"], "group": row["group"]} for row in release if row.get("root") != "."]
+    here = {("ubuntu-26.04", group) for group in LINUX_GROUPS} | {
+        (row["runner"], group) for row in check["strategy"]["matrix"]["check"] for group in row["groups"].split(",")
+    }
+    assert here == {(row["runner"], row["group"]) for row in release if row.get("root") != "."}
     assert [row for row in release if row.get("root") == "."] == [{"runner": "ubuntu-26.04", "group": "repository", "root": "."}]
-    # The same caches as the release's check: per machine, group and product, and the installed tools.
-    (cache,) = [step for step in check["steps"] if step.get("uses", "").startswith("Swatinem/rust-cache@")]
-    assert cache["with"]["shared-key"] == "${{ matrix.check.runner }}-${{ matrix.check.group }}-${{ matrix.product }}"
+    rows = check["strategy"]["matrix"]["check"]
+    assert len(rows) == len({(row["runner"], row["label"]) for row in rows})
+    # A row seeds the Rust cache when it is the one of its machine that builds what the others there restore.
+    assert sorted((row["runner"], row["groups"]) for row in rows if row["save"]) == sorted(
+        [("ubuntu-26.04-arm", "check,release-tests"), ("macos-26", "check,release-tests"), ("windows-2025", "check,release-tests")]
+    )
+    assert {row["label"] for row in rows if not row["store"]} == set(UNSTORED_GROUPS)
+    # One Rust cache per machine and product, shared by the groups run there and with no job id in its key, saved by main alone; and
+    # the installed tools, restored by every run and saved by main alone when the restore missed.
+    for each, saved in ((linux, MAIN), (check, f"{MAIN} && matrix.check.save")):
+        (cache,) = [step for step in each["steps"] if step.get("uses", "").startswith("Swatinem/rust-cache@")]
+        assert cache["with"]["shared-key"] == "${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}"
+        assert cache["with"]["add-job-id-key"] is False and cache["with"]["save-if"] == "${{ " + saved + " }}"
+        (restore,) = [step for step in each["steps"] if step.get("id") == "cargo_bin_cache"]
+        (save,) = [step for step in each["steps"] if step.get("name") == "Save the installed tools"]
+        assert restore["with"]["key"] == save["with"]["key"] and "github.sha" not in save["with"]["key"]
+        assert save["if"] == f"{MAIN} && steps.cargo_bin_cache.outputs.cache-hit != 'true'"
     (released,) = [step for step in release_check()["steps"] if step.get("uses", "").startswith("Swatinem/rust-cache@")]
     assert released["with"]["shared-key"] == "${{ matrix.runner }}-${{ matrix.group }}-${{ inputs.product }}"
-    # The release's setup, and around the check its asymptote store and the upload of what its tools left.
-    stored = {index for index, _ in store_steps(check)}
-    assert [
-        step["uses"].split("@")[0]
-        for index, step in enumerate(check["steps"])
-        if "uses" in step and not step["uses"].startswith(UPLOAD) and index not in stored
-    ] == [step["uses"].split("@")[0] for step in release_check()["steps"] if "uses" in step]
+    # The release's setup, and around the check its asymptote store, the saved tools and the upload of what its tools left.
+    for each in (linux, check):
+        stored = {index for index, _ in store_steps(each)}
+        saved_tools = {index for index, step in enumerate(each["steps"]) if step.get("name") == "Save the installed tools"}
+        assert [
+            step["uses"].split("@")[0].replace("actions/cache/restore", "actions/cache")  # the tools' restore, saved apart
+            for index, step in enumerate(each["steps"])
+            if "uses" in step and not step["uses"].startswith(UPLOAD) and index not in stored | saved_tools
+        ] == [step["uses"].split("@")[0] for step in release_check()["steps"] if "uses" in step]
     (deciding,) = jobs["gate"]["steps"]
     assert deciding["uses"].startswith("re-actors/")
 
@@ -835,6 +895,8 @@ def test_a_pull_request_or_hand_run_checks_every_product_behind_one_gate() -> No
         pytest.param(lambda workflow: workflow["jobs"]["check"].update({"needs": "root"}), id="check-waits"),
         pytest.param(lambda workflow: workflow["jobs"]["python-release"].update({"if": "false"}), id="python-release-skipped"),
         pytest.param(lambda workflow: workflow["jobs"]["speed"].pop("if"), id="speed-on-a-push"),
+        pytest.param(lambda workflow: workflow["jobs"]["check"].pop("if"), id="the-other-machines-on-a-pull-request"),
+        pytest.param(lambda workflow: workflow["jobs"]["check-linux"].update({"if": "false"}), id="check-linux-skipped"),
         pytest.param(lambda workflow: workflow.update({"concurrency": {**workflow["concurrency"], "cancel-in-progress": True}}), id="a-merge-cancels-the-seed"),
         pytest.param(
             lambda workflow: workflow["jobs"]["check"]["strategy"]["matrix"].update({"product": '["ryo"]'}), id="one-product"
@@ -857,14 +919,14 @@ def test_the_gate_refuses_a_paths_filter_a_cancelled_seed_and_a_skip(change) -> 
 
 def test_root_runs_only_the_repository_s_own_groups_on_every_event() -> None:
     """The root's repository and repository-check groups run on every run, a hand run's too: groups no product has, so the root
-    job runs no product's tools, and each product's lint group runs in that product's own `lint` row."""
+    job runs no product's tools, and each product's lint group runs in its `check-linux` job."""
     jobs = yaml.safe_load(read(DIRECTORY / "check.yml"))["jobs"]
     root = jobs["root"]
     assert "if" not in root and "needs" not in root
     assert [step["run"] for step in root["steps"] if "asymptote check" in step.get("run", "")] == [
         "asymptote check --root . --groups repository,repository-check"
     ]
-    assert {"runner": "ubuntu-26.04", "group": "lint"} in jobs["check"]["strategy"]["matrix"]["check"]
+    assert "lint" in LINUX_GROUPS and any(step.get("run", "").endswith("--groups " + ",".join(LINUX_GROUPS)) for step in jobs["check-linux"]["steps"])
     # A check at the root runs every member's tools of the groups it names: the root's groups are its own, so it runs none of them.
     root_groups = {tool["group"] for tool in tomllib.loads(read(ROOT / "asymptote.toml"))["tools"]}
     assert {"repository", "repository-check"} <= root_groups
@@ -873,19 +935,19 @@ def test_root_runs_only_the_repository_s_own_groups_on_every_event() -> None:
 
 
 def python_release_covered(workflow: dict) -> bool:
-    """The Python release-build test has a real Linux runner, runs on every run and is required by the gate."""
+    """The Python release-build test has a real Linux runner, runs on every run but a pull request's (the release build is main's)
+    and is required by the gate."""
     jobs = workflow["jobs"]
     job = jobs.get("python-release")
     if job is None:
         return False
     return (
         "needs" not in job
-        and "if" not in job
+        and job.get("if") == NOT_ON_A_PULL_REQUEST
         and job.get("runs-on") == "ubuntu-26.04"
         and [step["run"] for step in job["steps"] if "asymptote check" in step.get("run", "")]
         == ["asymptote check --root crates/ryo --groups python-release"]
         and "python-release" in jobs["gate"]["needs"]
-        and "python-release" not in jobs["gate"]["steps"][0]["with"]["allowed-skips"]
     )
 
 
@@ -930,16 +992,18 @@ def test_rust_build_caches_keep_each_product_and_profile_separate() -> None:
 
     jobs = yaml.safe_load(read(DIRECTORY / "check.yml"))["jobs"]
     keys = set()
-    for name in ("check", "speed", "python-release", "bench-correctness"):
+    for name in ("check-linux", "check", "speed", "python-release", "bench-correctness"):
         cache = next(step for step in jobs[name]["steps"] if step.get("uses", "").startswith("Swatinem/rust-cache@"))["with"]
         assert "prefix-key" not in cache
         assert cache["cache-workspace-crates"] is True
-        assert one_workspace(cache, "crates/${{ matrix.product }}" if name == "check" else "crates/ryo")
-        assert cache["save-if"] is True and cache["cache-on-failure"] is True
-        assert cache["shared-key"] == (
-            "${{ matrix.check.runner }}-${{ matrix.check.group }}-${{ matrix.product }}" if name == "check"
-            else f"ubuntu-26.04-{name}-ryo"
-        )
+        shared = name in {"check-linux", "check"}
+        assert one_workspace(cache, "crates/${{ matrix.product }}" if shared else "crates/ryo")
+        # Saved by main alone, under a key with no job id; the matrix's rows save where `save` says (one row of each machine).
+        assert cache["add-job-id-key"] is False and cache["cache-on-failure"] is True
+        assert cache["save-if"] == "${{ " + MAIN + (" && matrix.check.save" if name == "check" else "") + " }}"
+        # The machine's one key, shared by the groups run there: Linux x86's `check-linux` and the matrix's rows; the other jobs
+        # build another profile or workspace and keep a key of their own.
+        assert cache["shared-key"] == ("${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}" if shared else f"ubuntu-26.04-{name}-ryo")
         keys.add(cache["shared-key"])
     assert len(keys) == 4
     duplicate_target = deepcopy(cache)
@@ -1046,7 +1110,7 @@ def store_of(job: dict, path: str, key: str) -> list[dict]:
     return [
         {"uses": RESTORE + "0" * 40, "with": {"path": path, "key": key, "restore-keys": key.split("${{ github.run_id }}")[0] + "\n"}},
         *job["steps"],
-        {"name": "Save the asymptote store", "if": "always()", "uses": SAVE + "0" * 40, "with": {"path": path, "key": key}},
+        {"name": "Save the asymptote store", "if": f"always() && {MAIN}", "uses": SAVE + "0" * 40, "with": {"path": path, "key": key}},
     ]
 
 
@@ -1055,7 +1119,7 @@ def test_a_job_saves_only_its_asymptote_store_after_its_check() -> None:
     product, group and the pins of the installed tools, the toolchains and the helpers; check.yml's jobs keep one each but the
     bench jobs and speed, and nothing else is saved after a check."""
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
-    assert {name for name, job in workflow["jobs"].items() if store_steps(job)} == {"root", "check", "python-release"}
+    assert {name for name, job in workflow["jobs"].items() if store_steps(job)} == {"root", "check-linux", "check", "python-release"}
     for path in WORKFLOWS:
         for name, defined in yaml.safe_load(read(path))["jobs"].items():
             assert store_problems(name, defined) == [], (path.name, name)
@@ -1117,18 +1181,18 @@ def test_a_group_whose_answer_stands_outside_the_repository_keeps_no_store() -> 
     """release-resolution (crates.io's live index), api (the newest release tag) and speed (origin/main) restore no store, so a
     stored pass never outlives the state it was judged on; a row restored anyway is refused."""
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
-    rows = {row["group"] for row in workflow["jobs"]["check"]["strategy"]["matrix"]["check"]}
+    rows = {row["label"] for row in workflow["jobs"]["check"]["strategy"]["matrix"]["check"]}
     assert set(UNSTORED_GROUPS) <= rows
     assert not store_steps(workflow["jobs"]["speed"])
     check = workflow["jobs"]["check"]
     assert store_problems("check", check) == []
-    for (_, step) in store_steps(check):
-        assert all(f"matrix.check.group != '{group}'" in step["if"] for group in UNSTORED_GROUPS)
+    for _, step in store_steps(check):
+        assert UNSTORED in step["if"]
     restored = deepcopy(check)
     store_steps(restored)[0][1].pop("if")
     assert store_problems("check", restored)
     unguarded_save = deepcopy(check)
-    store_steps(unguarded_save)[1][1]["if"] = "always()"
+    store_steps(unguarded_save)[1][1]["if"] = f"always() && {MAIN}"
     assert store_problems("check", unguarded_save)
 
 
@@ -1154,7 +1218,7 @@ def event_store_problems(workflow: dict, tools: list[dict]) -> list[str]:
     readers = {tool["id"]: tool["group"] for tool in tools if EVENT.search(" ".join(tool["run"]))}
     found = []
     matrix = workflow["jobs"].get("check", {}).get("strategy", {}).get("matrix", {}).get("check", [])
-    matrix_groups = {row["group"] for row in matrix} if isinstance(matrix, list) else set()
+    matrix_groups = {group for row in matrix for group in row["groups"].split(",")} if isinstance(matrix, list) else set()
     for identity, group in sorted(readers.items()):
         running = [name for name, job in workflow["jobs"].items() if group in groups_run(job, matrix_groups)]
         if not running:

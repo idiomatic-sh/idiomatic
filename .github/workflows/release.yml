@@ -1,9 +1,10 @@
-# The release workflow on GitHub Actions, its thin edge, as ruff's is. A push to main releases each product whose version it
-# changes: the `tag` job runs `ci/tag/command.py --push`, which names each product whose workspace version in crates/<product>/Cargo.toml
+# The release workflow on GitHub Actions, its thin edge, as ruff's is. A green check on main (check.yml's push run, `gate` passed) releases each
+# product whose version its commit changes: the `tag` job runs `ci/tag/command.py --push`, which names each product whose workspace version in crates/<product>/Cargo.toml
 # differs from the parent commit's and whose tag (`idiomatic-sh-<product>-v<version>`) does not exist yet, and creates that tag at
 # the commit; the build and publish jobs then run for those products alone, each product's builds beside the others', its publish
-# in a concurrency group of its own, one product's publish at a time, ryo's first. A push runs no check: every commit to main comes through a pull request merged only after its
-# `gate` (check.yml) passed, by process, over the same check fan-out on the same tree. A maintainer's hand run releases ONE product, the `product` input, and checks
+# in a concurrency group of its own, one product's publish at a time, ryo's first. A push to main starts nothing here: the release workflow starts when check.yml's run on it completes (`workflow_run`), and
+# its jobs run only when that run's `gate` passed (Linux, ARM, macOS and Windows), on that run's commit. A red or cancelled run
+# tags nothing; the next green run on main releases. A maintainer's hand run releases ONE product, the `product` input, and checks
 # it first: `asymptote check --root crates/<product> --groups <group>` runs each of that product's groups (its tests and packaging
 # tests and its lint, one job per group and machine, and the repository root's `repository` group). Tastemaker depends on ryo's crates, so a ryo version
 # it needs is on crates.io before tastemaker's publish. The `build` job builds each product's wheel (Ryo's only for
@@ -11,14 +12,18 @@
 # on Linux), one matrix whose rows run the same steps; then the `publish` job runs `ci/release/command.py --product <product>`
 # once per product over what the rows built: it makes the product's npm packages and its GitHub Release archives from the wheels'
 # binaries, hands every package to its registry's dry run, and, when it publishes, uploads to crates.io (skipping a version
-# already there), then npm and PyPI, and last creates the product's GitHub Release with `gh`. A push publishes; a hand run is a
+# already there), then npm and PyPI, and last creates the product's GitHub Release with `gh`. A green check publishes; a hand run is a
 # dry run unless all three hold: a maintainer dispatches it with `publish` from the product's own tag, the maintainer is the
 # repository variable RELEASE_MAINTAINER (unset until a maintainer sets it), and each registry trusts this workflow for
 # publishing: crates.io, npm and PyPI each through its trusted publishing (OIDC), with no token kept in the repository, which only
 # a maintainer can arrange (the `distribution` spec).
 name: release
 on:
-  push:
+  # A green check on main: the run check.yml's push to main started, completed with its `gate` passed. The jobs run on its commit.
+  # A red, cancelled or pull request run starts nothing: the next green run on main releases.
+  workflow_run:
+    workflows: [check]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -34,9 +39,9 @@ on:
 permissions:
   contents: read
 jobs:
-  # The products a push to main releases, each one's tag created at the pushed commit.
+  # The products a green check on main releases, each one's tag created at the commit the check ran on.
   tag:
-    if: github.event_name == 'push'
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-26.04
     permissions:
       contents: write
@@ -45,6 +50,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           # The pushed commit and its parent, whose versions are compared.
           fetch-depth: 2
           persist-credentials: false
@@ -58,7 +64,7 @@ jobs:
         run: uv run ci/tag/command.py --push
         env:
           GH_TOKEN: ${{ github.token }}
-  # A hand run's checks: the pull request gate already checked a push's tree.
+  # A hand run's checks: the check run a release starts on has already checked its tree.
   check:
     if: github.event_name == 'workflow_dispatch'
     strategy:
@@ -137,13 +143,13 @@ jobs:
       - run: asymptote check --root ${{ matrix.root || format('crates/{0}', inputs.product) }} --groups ${{ matrix.group }}
   build:
     needs: [tag, check]
-    # A push's products are the `tag` job's (its check skipped); a hand run's is its input, once its check passed.
-    if: ${{ !cancelled() && !failure() && (github.event_name == 'workflow_dispatch' || needs.tag.outputs.products != '[]') }}
+    # A release's products are the `tag` job's (its check skipped); a hand run's is its input, once its check passed.
+    if: ${{ !cancelled() && !failure() && (github.event_name == 'workflow_dispatch' || (needs.tag.result == 'success' && needs.tag.outputs.products != '[]')) }}
     name: build (${{ matrix.product }}, ${{ matrix.platform.target }})
     strategy:
       fail-fast: false
       matrix:
-        product: ${{ fromJSON(github.event_name == 'push' && needs.tag.outputs.products || format('["{0}"]', inputs.product)) }}
+        product: ${{ fromJSON(github.event_name == 'workflow_run' && needs.tag.outputs.products || format('["{0}"]', inputs.product)) }}
         platform:
           - { target: x86_64-unknown-linux-gnu, runner: ubuntu-26.04, manylinux: 2_17 }
           - { target: aarch64-unknown-linux-gnu, runner: ubuntu-26.04-arm, manylinux: 2_17 }
@@ -163,6 +169,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
       - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         if: matrix.product == 'asymptote'
@@ -204,7 +211,7 @@ jobs:
       # so when a push releases both, ryo's are on crates.io before tastemaker's publish starts.
       max-parallel: 1
       matrix:
-        product: ${{ fromJSON(github.event_name == 'push' && needs.tag.outputs.products || format('["{0}"]', inputs.product)) }}
+        product: ${{ fromJSON(github.event_name == 'workflow_run' && needs.tag.outputs.products || format('["{0}"]', inputs.product)) }}
     # Each product's publish in a group of its own: one product's publishes never overlap, and products publish side by side.
     concurrency:
       group: release-${{ matrix.product }}
@@ -215,12 +222,13 @@ jobs:
       contents: write
       id-token: write
     env:
-      # A push to main publishes the products its `tag` job tagged. A hand run publishes only from the product's own tag and by the
+      # A green check on main publishes the products its `tag` job tagged. A hand run publishes only from the product's own tag and by the
       # maintainer's dispatch; otherwise the job builds and dry-runs the product and uploads nothing.
-      PUBLISH: ${{ github.event_name == 'push' || (inputs.publish && github.ref_type == 'tag' && startsWith(github.ref_name, format('idiomatic-sh-{0}-v', matrix.product)) && vars.RELEASE_MAINTAINER != '' && github.triggering_actor == vars.RELEASE_MAINTAINER) }}
+      PUBLISH: ${{ github.event_name == 'workflow_run' || (inputs.publish && github.ref_type == 'tag' && startsWith(github.ref_name, format('idiomatic-sh-{0}-v', matrix.product)) && vars.RELEASE_MAINTAINER != '' && github.triggering_actor == vars.RELEASE_MAINTAINER) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
       - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
       # npm's trusted publishing needs npm 11.5.1 or later: the latest Node 24, not a runner's cached one, bundles it.
@@ -262,7 +270,7 @@ jobs:
           for archives in dist/archives/*/; do
             tag="$(basename "$archives")"
             (cd "$archives" && sha256sum -- * > SHA256SUMS)
-            gh release create "$tag" --draft --target "$GITHUB_SHA" --title "$tag" --generate-notes
+            gh release create "$tag" --draft --target "$(git rev-parse HEAD)" --title "$tag" --generate-notes
             gh release upload "$tag" "$archives"*
             gh release edit "$tag" --draft=false
           done
