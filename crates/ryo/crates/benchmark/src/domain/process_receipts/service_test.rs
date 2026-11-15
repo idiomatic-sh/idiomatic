@@ -16,7 +16,7 @@ use sha2::Digest as _;
 use super::{
     errors::ProcessReceiptsError,
     fixtures::{
-        Documents, artifacts, discrepancy, edited, passing, process, stdout_path, validation,
+        Documents, artifacts, discrepancy, edited, passing, process, root, stdout_path, validation,
     },
     service::validate,
 };
@@ -53,11 +53,11 @@ fn bytes_digest(bytes: &[u8]) -> Sha256Text {
 /// A capture that could not record its process identity.
 fn failed() -> FailedInvocation {
     FailedInvocation {
-        actual_request_root: PathText("/root".into()),
+        actual_request_root: PathText(root()),
         files: vec![PathText("case.py".into())],
         arguments: Vec::new(),
         environment: BTreeMap::new(),
-        directory: PathText("/root".into()),
+        directory: PathText(root()),
         exit: ExitStatus(2),
         signal: Signal::Absent,
         observer_no_deadline: YesNo::Yes,
