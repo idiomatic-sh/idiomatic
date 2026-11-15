@@ -1,25 +1,24 @@
-# The check workflow on GitHub Actions, its thin edge: the pull request gate, and on a push to main the run that seeds the stores a
-# pull request restores. Every run checks every product: asymptote alone decides what runs. Each job that keeps a store restores
-# its product's `.asymptote/cache` for its group and machine (a pull request's run reads main's newest through the restore keys),
-# runs one `asymptote check`, which reuses each tool whose inputs did not move and runs the rest, and saves the store after the
-# check, a failed one too. The key holds the hash of the files that pin the installed tools, the toolchains (this workflow, which
-# pins node, python and uv exactly, and rust-toolchain.toml) and the helper scripts, so any of those changing opens an empty
-# store. A job or row whose answer stands on state outside the repository keeps none: speed (origin/main), release-resolution
-# (crates.io's live index) and api (the newest release tag). The `check` job runs each product's whole check fan-out, the groups and machines release.yml's own `check` job
-# runs but its root row (`asymptote check --root crates/<product> --groups <group>`, one job per group and machine): its lint,
-# the tests on every machine the products ship to, the SDK's API on macOS, where cargo-public-api ships a prebuilt, and every
-# other group once, on Linux. The `root` job runs the repository root's `repository` and `repository-check` groups, which no
-# product has, so the root's tools alone. The `pull-request` job runs the root's `pull-request` group, the pull request's title
-# read from the event, with no store: the event is no file and no stamp holds it. A hand run checks the one product its `product` input names: the release pull request
-# workflow (release-pr.yml) starts one on its branch, since a pull request a workflow opens starts no workflow. Each job is a
-# machine, the toolchains (every sample's among them: a sample whose toolchain is missing fails its test), `tools/install.py`,
-# which installs every tool the checks run at the version declared for it, prebuilt, and one `asymptote check` call. The bench
-# jobs (the bench-correctness job) keep no store: asymptote reuses a tool's result without the receipts its run wrote, and
-# their upload requires the receipts, so every bench tool runs in full on every run. The `gate` job waits for every other and
-# fails when one failed or was cancelled; the speed guard alone is skipped, on a push, which passes. `gate` is the one verdict: a
-# pull request merges only after the `gate` of a run on its head commit passed, by process (no repository rule enforces it). The
-# commit gate stays `asymptote check --hook pre-commit`, the git hook `asymptote init` installs, which runs the products' `lint`
-# groups and the root's `repository` group.
+# The check workflow on GitHub Actions, its thin edge: the pull request gate, and on a push to main the run that seeds the caches a
+# pull request restores. Asymptote alone decides what runs. A pull request runs Linux x86 (ubuntu-26.04) only, and the fewest
+# builds: the `root` job (the repository's own groups), the `pull-request` job (the title), one `check-linux` job per product (its
+# `check`, `release-tests` and `release-coverage` groups in one asymptote call, so the tests share one build), the
+# `bench-correctness` job and `gate`. A push to main and a hand run add the rest: the `check` job's other machines (ARM, macOS,
+# Windows) and groups, `python-release` and `speed`. Every cache is saved by a run on main alone (`github.ref ==
+# refs/heads/main`) and restored by every run: the Rust cache under one key per machine and product, shared by the groups of a
+# machine (no job id in it), the installed tools under one key per machine and the hash of the files that pin them, and each
+# job's `.asymptote/cache` store under its groups and the hash of those files, this workflow, the toolchains and the helper
+# scripts, so any of them changing opens an empty store. A pull request that edits one of them starts cold, once. A job whose
+# answer stands on state outside the repository keeps no store: speed (origin/main), release-resolution (crates.io's live
+# index), api (the newest release tag) and the pull-request job (the event). The bench job keeps none either: asymptote reuses a
+# tool's result without the receipts its run wrote, and the upload requires the receipts, so every bench tool runs in full. A
+# hand run checks the one product its `product` input names: the release pull request workflow (release-pr.yml) starts one on its
+# branch, since a pull request a workflow opens starts no workflow. Each job is a machine, the toolchains (every sample's among
+# them: a sample whose toolchain is missing fails its test), `tools/install.py`, which installs every tool the checks run at the
+# version declared for it, prebuilt, and one `asymptote check` call. The `gate` job waits for every other and fails when one
+# failed or was cancelled; on a pull request the jobs that run on main alone (`check`, `python-release`, `speed`) are skipped,
+# which passes. `gate` is the one verdict: a pull request merges only after the `gate` of a run on its head commit passed, by
+# process (no repository rule enforces it). The commit gate stays `asymptote check --hook pre-commit`, the git hook `asymptote
+# init` installs, which runs the products' `lint` groups and the root's `repository` group.
 name: check
 on:
   # `edited` too: an edited title starts a run, so the pull-request job checks the title the pull request now has.
@@ -80,7 +79,8 @@ jobs:
           cache-bin: false
           cache-workspace-crates: true
           shared-key: ubuntu-26.04-root
-          save-if: true
+          add-job-id-key: false
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           workspaces: |
             crates/asymptote -> ../../target
@@ -88,7 +88,8 @@ jobs:
             crates/ryo -> ../../target
       # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
       # version as it is.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - id: cargo_bin_cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/bin
@@ -100,6 +101,16 @@ jobs:
         env:
           # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
           GH_TOKEN: ${{ github.token }}
+      # Saved by main's runs only, and only when the restore missed: a pull request restores what main saved.
+      - name: Save the installed tools
+        if: github.ref == 'refs/heads/main' && steps.cargo_bin_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
       # The root's asymptote store: main's newest for this group and machine, under the installed tools' pins.
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -109,7 +120,7 @@ jobs:
             asymptote-${{ runner.os }}-${{ runner.arch }}-root-repository-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-
       - run: asymptote check --root . --groups repository,repository-check
       - name: Save the asymptote store
-        if: always()
+        if: always() && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .asymptote/cache
@@ -145,7 +156,8 @@ jobs:
         run: rustup toolchain install
       # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
       # version as it is.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - id: cargo_bin_cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/bin
@@ -157,33 +169,132 @@ jobs:
         env:
           # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
           GH_TOKEN: ${{ github.token }}
+      # Saved by main's runs only, and only when the restore missed: a pull request restores what main saved.
+      - name: Save the installed tools
+        if: github.ref == 'refs/heads/main' && steps.cargo_bin_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
       - run: asymptote check --root . --groups pull-request
-  check:
-    name: check (${{ matrix.product }}, ${{ matrix.check.group }}, ${{ matrix.check.runner }})
+  # The tests on Linux x86, the one machine a pull request runs on: the product's `check`, `release-tests` and `release-coverage`
+  # groups in one asymptote call, so the tests share one build and the coverage run adds its instrumented one. Every event runs it;
+  # a run on main seeds the Rust cache and the stores a pull request restores.
+  check-linux:
+    name: check-linux (${{ matrix.product }})
     strategy:
       fail-fast: false
-      # Every product, a hand run's one, times release.yml's check rows but its root row, which the `root` job runs: one job per
-      # independent build, the tools of a group sharing one.
+      matrix:
+        product: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.product) || '["ryo","tastemaker","asymptote"]') }}
+    runs-on: ubuntu-26.04
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.22.2"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          # No go.mod at the root: there is nothing for the module cache to key on.
+          cache: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.16"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.13.8"
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      # Match release.yml's cache for this machine, group and product. Clean only the product's workspace.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          cache-bin: false
+          cache-workspace-crates: true
+          shared-key: ${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}
+          add-job-id-key: false
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
+          workspaces: crates/${{ matrix.product }} -> ../../target
+      # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
+      # version as it is.
+      - id: cargo_bin_cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
+      - name: The tools the checks run, each at the version declared for it
+        run: uv run --script tools/install.py
+        env:
+          # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
+          GH_TOKEN: ${{ github.token }}
+      # Saved by main's runs only, and only when the restore missed: a pull request restores what main saved.
+      - name: Save the installed tools
+        if: github.ref == 'refs/heads/main' && steps.cargo_bin_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
+      # The product's asymptote store: main's newest for these groups, under the installed tools' and this workflow's pins.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: crates/${{ matrix.product }}/.asymptote/cache
+          key: asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-check-linux-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-check-linux-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-
+      - run: asymptote check --root crates/${{ matrix.product }} --groups check,release-tests,release-coverage
+      - name: Save the asymptote store
+        if: always() && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: crates/${{ matrix.product }}/.asymptote/cache
+          key: asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-check-linux-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Preserve raw check diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: check-diagnostics-${{ matrix.product }}-check-linux
+          path: |
+            crates/${{ matrix.product }}/target/checks/
+            target/checks/
+          if-no-files-found: ignore
+  # The release's machines and groups beyond Linux x86's tests: never on a pull request, which runs `check-linux` alone.
+  check:
+    if: github.event_name != 'pull_request'
+    name: check (${{ matrix.product }}, ${{ matrix.check.label }}, ${{ matrix.check.runner }})
+    strategy:
+      fail-fast: false
+      # Everything the pull request's `check-linux` job does not run, on a push to main and a hand run: every product, a hand run's
+      # one, times these rows, one job per independent build. A row's groups share one asymptote call, so its tools share one
+      # build. `store` is whether the row keeps an asymptote store; `save` is whether its run seeds the Rust cache (one row per
+      # machine, since all of a machine's rows share the one key: the first save wins and the rest would be wasted).
       matrix:
         product: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.product) || '["ryo","tastemaker","asymptote"]') }}
         check:
-          - { runner: ubuntu-26.04, group: lint }
-          - { runner: ubuntu-26.04, group: clippy }
-          - { runner: macos-26, group: api }
-          - { runner: ubuntu-26.04, group: check }
-          - { runner: ubuntu-26.04-arm, group: check }
-          - { runner: macos-26, group: check }
-          - { runner: windows-2025, group: check }
-          - { runner: ubuntu-26.04, group: release-tests }
-          - { runner: ubuntu-26.04-arm, group: release-tests }
-          - { runner: macos-26, group: release-tests }
-          - { runner: windows-2025, group: release-tests }
-          - { runner: ubuntu-26.04, group: release-clippy }
-          - { runner: ubuntu-26.04, group: release-coverage }
-          - { runner: ubuntu-26.04, group: release-msrv }
-          - { runner: ubuntu-26.04, group: release-dylint }
-          - { runner: ubuntu-26.04, group: release-hack }
-          - { runner: ubuntu-26.04, group: release-resolution }
+          - { runner: ubuntu-26.04, groups: "lint,clippy,release-clippy", label: lint-clippy, store: true, save: false }
+          - { runner: macos-26, groups: "api", label: api, store: false, save: false }
+          - { runner: ubuntu-26.04-arm, groups: "check,release-tests", label: check-tests, store: true, save: true }
+          - { runner: macos-26, groups: "check,release-tests", label: check-tests, store: true, save: true }
+          - { runner: windows-2025, groups: "check,release-tests", label: check-tests, store: true, save: true }
+          - { runner: ubuntu-26.04, groups: "release-msrv", label: release-msrv, store: true, save: false }
+          - { runner: ubuntu-26.04, groups: "release-dylint", label: release-dylint, store: true, save: false }
+          - { runner: ubuntu-26.04, groups: "release-hack", label: release-hack, store: true, save: false }
+          - { runner: ubuntu-26.04, groups: "release-resolution", label: release-resolution, store: false, save: false }
     runs-on: ${{ matrix.check.runner }}
     defaults:
       run:
@@ -217,13 +328,15 @@ jobs:
         with:
           cache-bin: false
           cache-workspace-crates: true
-          shared-key: ${{ matrix.check.runner }}-${{ matrix.check.group }}-${{ matrix.product }}
-          save-if: true
+          shared-key: ${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}
+          add-job-id-key: false
+          save-if: ${{ github.ref == 'refs/heads/main' && matrix.check.save }}
           cache-on-failure: true
           workspaces: crates/${{ matrix.product }} -> ../../target
       # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
       # version as it is.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - id: cargo_bin_cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/bin
@@ -235,28 +348,38 @@ jobs:
         env:
           # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
           GH_TOKEN: ${{ github.token }}
+      # Saved by main's runs only, and only when the restore missed: a pull request restores what main saved.
+      - name: Save the installed tools
+        if: github.ref == 'refs/heads/main' && steps.cargo_bin_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
       # The product's asymptote store: main's newest for this group and machine, under the installed tools' and this workflow's
       # pins. None for a group whose answer stands on state outside the repository, which no stamp holds: release-resolution
       # resolves against crates.io's live index, and api's semver baseline is the newest release tag.
-      - if: matrix.check.group != 'release-resolution' && matrix.check.group != 'api'
+      - if: matrix.check.store
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: crates/${{ matrix.product }}/.asymptote/cache
-          key: asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-${{ matrix.check.group }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-${{ matrix.check.label }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-${{ matrix.check.group }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-
-      - run: asymptote check --root crates/${{ matrix.product }} --groups ${{ matrix.check.group }}
+            asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-${{ matrix.check.label }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-
+      - run: asymptote check --root crates/${{ matrix.product }} --groups ${{ matrix.check.groups }}
       - name: Save the asymptote store
-        if: always() && matrix.check.group != 'release-resolution' && matrix.check.group != 'api'
+        if: always() && github.ref == 'refs/heads/main' && matrix.check.store
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: crates/${{ matrix.product }}/.asymptote/cache
-          key: asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-${{ matrix.check.group }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-${{ matrix.check.label }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Preserve raw check diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: check-diagnostics-${{ matrix.product }}-${{ matrix.check.group }}-${{ matrix.check.runner }}
+          name: check-diagnostics-${{ matrix.product }}-${{ matrix.check.label }}-${{ matrix.check.runner }}
           path: |
             crates/${{ matrix.product }}/target/checks/
             target/checks/
@@ -264,15 +387,16 @@ jobs:
   # The one verdict: it fails when a job it waits for failed or was cancelled, and passes when each succeeded or was skipped (the
   # speed guard alone, on a push to main).
   gate:
-    needs: [root, pull-request, check, speed, python-release, bench-correctness]
+    needs: [root, pull-request, check-linux, check, speed, python-release, bench-correctness]
     if: always()
     runs-on: ubuntu-26.04
     steps:
       - uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
         with:
           jobs: ${{ toJSON(needs) }}
-          allowed-skips: ${{ github.event_name == 'push' && 'speed' || '' }}
+          allowed-skips: ${{ github.event_name == 'pull_request' && 'check,speed,python-release' || '' }}
   python-release:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-26.04
     defaults:
       run:
@@ -303,10 +427,12 @@ jobs:
           cache-bin: false
           cache-workspace-crates: true
           shared-key: ubuntu-26.04-python-release-ryo
-          save-if: true
+          add-job-id-key: false
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           workspaces: crates/ryo -> ../../target
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - id: cargo_bin_cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/bin
@@ -317,6 +443,16 @@ jobs:
         run: uv run --script tools/install.py
         env:
           GH_TOKEN: ${{ github.token }}
+      # Saved by main's runs only, and only when the restore missed: a pull request restores what main saved.
+      - name: Save the installed tools
+        if: github.ref == 'refs/heads/main' && steps.cargo_bin_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
       # Ryo's asymptote store for this group: main's newest, under the installed tools' pins.
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -326,15 +462,15 @@ jobs:
             asymptote-${{ runner.os }}-${{ runner.arch }}-ryo-python-release-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-
       - run: asymptote check --root crates/ryo --groups python-release
       - name: Save the asymptote store
-        if: always()
+        if: always() && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: crates/ryo/.asymptote/cache
           key: asymptote-${{ runner.os }}-${{ runner.arch }}-ryo-python-release-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
-  # A change's speed against main: on a pull request and a hand run, never on a push to main, which has no main to compare with.
+  # A change's speed against main: on a push to main and a hand run, never on a pull request.
   # It keeps no asymptote store: its answer stands on origin/main, which no stamp holds.
   speed:
-    if: github.event_name != 'push'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-26.04
     defaults:
       run:
@@ -367,7 +503,8 @@ jobs:
           # Keep this release-mode cache separate from check and the other Ruff jobs.
           cache-workspace-crates: true
           shared-key: ubuntu-26.04-speed-ryo
-          save-if: true
+          add-job-id-key: false
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           workspaces: crates/ryo -> ../../target
       # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
@@ -379,24 +516,22 @@ jobs:
             ~/.cargo/bin
             ~/.cargo/.crates.toml
             ~/.cargo/.crates2.json
-          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-${{ github.sha }}
-          restore-keys: |
-            cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-
-            cargo-bin-${{ runner.os }}-${{ runner.arch }}-
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
       - name: The tools the checks run, each at the version declared for it
         run: uv run --script tools/install.py
         env:
           # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
           GH_TOKEN: ${{ github.token }}
-      - name: Save the installed tools before quality checks
-        if: steps.cargo_bin_cache.outputs.cache-hit != 'true'
+      # Saved by main's runs only, and only when the restore missed: a pull request restores what main saved.
+      - name: Save the installed tools
+        if: github.ref == 'refs/heads/main' && steps.cargo_bin_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/bin
             ~/.cargo/.crates.toml
             ~/.cargo/.crates2.json
-          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-${{ github.sha }}
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
       - id: speed_check
         run: |
           mkdir -p target/benchmarks/speed
@@ -459,7 +594,8 @@ jobs:
           cache-bin: false
           cache-workspace-crates: true
           shared-key: ubuntu-26.04-bench-correctness-ryo
-          save-if: true
+          add-job-id-key: false
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           workspaces: crates/ryo -> ../../target
       - id: cargo_bin_cache
@@ -469,23 +605,21 @@ jobs:
             ~/.cargo/bin
             ~/.cargo/.crates.toml
             ~/.cargo/.crates2.json
-          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-${{ github.sha }}
-          restore-keys: |
-            cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-
-            cargo-bin-${{ runner.os }}-${{ runner.arch }}-
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
       - name: Install pinned tools
         run: uv run --script tools/install.py
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: Save installed tools
-        if: steps.cargo_bin_cache.outputs.cache-hit != 'true'
+      # Saved by main's runs only, and only when the restore missed: a pull request restores what main saved.
+      - name: Save the installed tools
+        if: github.ref == 'refs/heads/main' && steps.cargo_bin_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/bin
             ~/.cargo/.crates.toml
             ~/.cargo/.crates2.json
-          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-${{ github.sha }}
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
       - run: asymptote check --root crates/ryo --groups bench-correctness
       - name: Bench summaries and per-rule receipts
         if: always()
