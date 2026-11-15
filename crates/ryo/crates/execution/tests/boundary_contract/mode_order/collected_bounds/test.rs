@@ -1,5 +1,4 @@
-//! A collected empty rank keeps its layout without demanding its binding, which its first row checks; a span bounds whose span
-//! column is past its input is refused before any row, empty or not, as its schema refuses it.
+//! Collected empty rank and span bounds keep the layout without demanding row errors.
 use crate::mode_order::fixtures::*;
 use crate::*;
 use ryo_values::domain::{
@@ -9,7 +8,7 @@ use ryo_values::domain::{
 };
 
 #[test]
-fn collected_empty_rank_keeps_layout_and_span_bounds_past_the_input_refuse_before_rows() {
+fn collected_empty_rank_and_span_bounds_keep_layout_without_demanding_row_errors() {
     use ryo_values::domain::plan_parts::types::ParameterId;
     for rank in [false, true] {
         for populated in [false, true] {
@@ -45,20 +44,28 @@ fn collected_empty_rank_keeps_layout_and_span_bounds_past_the_input_refuse_befor
             ];
             boundary_fixture::fixtures::plans(&mut input)[0].emit.step = StepId(1);
             let outcome = evaluate(input, &mut TableFacts::new(&[]));
-            match (rank, populated) {
-                (true, true) => assert!(matches!(
-                    outcome,
-                    Ok(RootOutcome::Failed(OperatingError::Unbound))
-                )),
-                (true, false) => {
-                    let Ok(RootOutcome::Complete(table)) = outcome else {
-                        panic!("an unbound rank stays unobserved on empty input")
-                    };
-                    assert_eq!(table.kinds, vec![CellKind::Symbol, CellKind::Number]);
-                    assert_eq!(table.count, RowCount(0));
+            if populated {
+                if rank {
+                    assert!(matches!(
+                        outcome,
+                        Ok(RootOutcome::Failed(OperatingError::Unbound))
+                    ));
+                } else {
+                    assert_eq!(failed_column(outcome), Some(99));
                 }
-                // The span column is past the input: the schema refuses it, so the step is refused before any row.
-                (false, _) => assert_eq!(failed_column(outcome), Some(99)),
+            } else {
+                let Ok(RootOutcome::Complete(table)) = outcome else {
+                    panic!("row errors stay unobserved on empty input")
+                };
+                assert_eq!(
+                    table.kinds,
+                    if rank {
+                        vec![CellKind::Symbol, CellKind::Number]
+                    } else {
+                        vec![CellKind::Symbol, CellKind::Number, CellKind::Number]
+                    }
+                );
+                assert_eq!(table.count, RowCount(0));
             }
         }
     }

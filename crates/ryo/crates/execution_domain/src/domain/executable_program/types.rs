@@ -177,3 +177,20 @@ pub enum ObservationReach {
     /// Its rows answer one occurrence: its bound observations or its coverage.
     Occurrence,
 }
+
+/// Whether one of a plan's roots (its emitted step, a frontier entry or a named output) reads a step, through the steps that
+/// read it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::StepUse;
+/// assert_ne!(StepUse::Read, StepUse::Unread);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StepUse {
+    /// A root reads the step.
+    Read,
+    /// No root reads the step: its fault has no root to answer it.
+    Unread,
+}

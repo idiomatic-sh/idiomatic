@@ -6,7 +6,7 @@ use crate::domain::executable_program::types::executable_program::value::Executa
 use crate::domain::executable_program::types::logical_build::value::LogicalBuild;
 use crate::domain::executable_program::types::program_inputs::value::ProgramInputs;
 use crate::domain::executable_program::types::{
-    Consumers, Draft, DraftInputs, RootKind, RuleInput, RuleNodes, RuleScopes, StepAt,
+    Consumers, Draft, DraftInputs, RootKind, RuleInput, RuleNodes, RuleScopes, StepAt, StepUse,
 };
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::service::schema_of;
@@ -19,13 +19,16 @@ use ryo_operators::domain::physical_plan::types::{
 };
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{Input, LiteralText};
-use ryo_values::domain::plans::service::{inputs_of, named};
+use ryo_values::domain::plans::service::{inputs_of, kind_of, named};
 use ryo_values::domain::plans::types::{Operation, Plan};
 use std::hash::{Hash, Hasher};
 
 pub(crate) mod logical;
 pub mod scopes;
-use logical::service::{derived_roots, held, observation_reaches, read_inputs};
+use crate::domain::operator::contract::preflight::service::output_layout;
+use crate::domain::operator::contract::service::semantics;
+use crate::domain::operator::contract::types::PreflightOrder;
+use logical::service::{derived_roots, held, observation_reaches, read_inputs, read_steps};
 use scopes::service::scope_at;
 
 /// The request's rules as one logical program: equal steps over equal inputs, in the same scope and with the same bindings,
@@ -61,6 +64,8 @@ pub fn logical<'p>(
         let plan: &'p Plan = input.plan;
         let mut steps: Vec<Result<PlanNodeId, OperatingError>> =
             Vec::with_capacity(plan.steps.len());
+        // Each step's own schema fault, as its operation states it, before a row-by-row operand defers it.
+        let mut own_faults: Vec<Option<OperatingError>> = Vec::with_capacity(plan.steps.len());
         let ordinal = RuleOrdinal(u32::try_from(rule).map_err(|_| OperatingError::ShapeMismatch)?);
         let observed: Vec<Vec<CellKind>> = input
             .observations
@@ -81,6 +86,7 @@ pub fn logical<'p>(
                 fault,
             }) = read_inputs(named(&read), &steps, &drafts, &observed, at)
             else {
+                own_faults.push(None);
                 steps.push(Err(OperatingError::NotRun));
                 continue;
             };
@@ -96,10 +102,27 @@ pub fn logical<'p>(
             } else {
                 None
             };
-            let schema = match (fault, host) {
+            let fault_free = fault.is_none() && host.is_none();
+            let own = match (fault, host) {
                 (Some(error), _) | (None, Some(Err(error))) => Err(error),
                 (None, Some(Ok(shape))) => schema_of(&step.operation, &[shape], input.bindings.0),
                 (None, None) => schema_of(&step.operation, &shapes, input.bindings.0),
+            };
+            own_faults.push(own.as_ref().err().cloned());
+            // An operator that acquires its resources before it checks its whole schema (the contract's ResourcesFirst) reads
+            // its operands row by row, and its kernel refuses one at the first row that reaches it: the step's rows keep the
+            // layout the operator contract states, so an empty input answers them, not the refusal. An operator that checks
+            // its schema first refuses before any row. Only the step's own fault defers so: one it read from an input stays
+            // that input's.
+            let schema = match own {
+                Err(error)
+                    if fault_free
+                        && semantics(kind_of(&step.operation)).contract.preflight
+                            == PreflightOrder::ResourcesFirst =>
+                {
+                    output_layout(&step.operation, &shapes, &Err(error.clone())).map_err(|_| error)
+                }
+                Err(_) | Ok(_) => own,
             };
             let hash = {
                 let mut hasher = rustc_hash::FxHasher::default();
@@ -133,14 +156,29 @@ pub fn logical<'p>(
                 u32::try_from(at).map_err(|_| OperatingError::ShapeMismatch)?,
             )));
         }
-        // A rule with an authoring error in any of its steps answers that error, in step order, before any row: its emit may be
-        // sound while a step after it is not.
-        let authored = steps.iter().find_map(|step| match step {
-            Ok(node) => drafts
-                .get(usize::try_from(node.0).unwrap_or(usize::MAX))
-                .and_then(|draft| draft.schema.as_ref().err().cloned()),
-            Err(error) => Some(error.clone()),
-        });
+        // A step's schema fault belongs to the roots that read it (the emit, a frontier entry, a named output): each answers
+        // it in place of its rows. A step no root reads has no root to answer it, so its fault refuses the rule, in step order,
+        // before any row.
+        let read = read_steps(plan);
+        let authored =
+            steps
+                .iter()
+                .zip(&own_faults)
+                .zip(&read)
+                .find_map(|((step, fault), read)| match (read, step) {
+                    (StepUse::Read, _) => None,
+                    (StepUse::Unread, Ok(_)) => fault.clone(),
+                    (StepUse::Unread, Err(error)) => Some(error.clone()),
+                });
+        for step in &mut steps {
+            if let Ok(node) = step
+                && let Some(Err(error)) = drafts
+                    .get(usize::try_from(node.0).unwrap_or(usize::MAX))
+                    .map(|draft| &draft.schema)
+            {
+                *step = Err(error.clone());
+            }
+        }
         let emit = match (
             authored,
             steps.get(usize::try_from(plan.emit.step.0).unwrap_or(usize::MAX)),

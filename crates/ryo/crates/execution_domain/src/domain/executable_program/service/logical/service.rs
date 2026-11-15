@@ -2,7 +2,7 @@
 //! it and the operators' physical plan.
 
 use crate::domain::executable_program::types::{
-    Consumers, Draft, DraftInputs, ObservationReach, RuleInput, RuleNodes, StepAt,
+    Consumers, Draft, DraftInputs, ObservationReach, RuleInput, RuleNodes, StepAt, StepUse,
 };
 use crate::domain::kind_sets::service::names_a_kind;
 use crate::domain::operating::errors::OperatingError;
@@ -18,11 +18,12 @@ use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_operators::domain::tree_cells::service::native_form;
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plan_parts::types::{
     Input, InputNumber, LiteralText, Operand, QueryLiteral, StepScope, Test,
 };
-use ryo_values::domain::plans::service::kind_of;
-use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::plans::service::{inputs_of, kind_of, named};
+use ryo_values::domain::plans::types::{Operation, Plan};
 
 /// The inputs `named` reads, given the nodes of the rule's earlier `steps`; none when one reads a step that has no node. A step
 /// after the files reads each entry of its rule's frontier (a relation, a step in each file) at the entry's place, its rows
@@ -216,4 +217,33 @@ pub(in crate::domain::executable_program) fn observation_reaches(
         });
     }
     reach
+}
+
+/// Whether each step of `plan` is read by one of its roots (its emitted step, a frontier entry or a named output), through the
+/// steps that read it.
+pub(in crate::domain::executable_program) fn read_steps(plan: &Plan) -> Vec<StepUse> {
+    let mut read = vec![StepUse::Unread; plan.steps.len()];
+    let mut pending: Vec<StepId> = std::iter::once(Input::Step(plan.emit.step))
+        .chain(plan.frontier.iter().copied())
+        .chain(plan.observations.iter().map(|output| output.source))
+        .filter_map(|input| match input {
+            Input::Step(step) => Some(step),
+            Input::Relation(_) | Input::BoundObservation(_) => None,
+        })
+        .collect();
+    while let Some(step) = pending.pop() {
+        let at = usize::try_from(step.0).unwrap_or(usize::MAX);
+        match read.get_mut(at) {
+            Some(seen) if *seen == StepUse::Unread => *seen = StepUse::Read,
+            Some(_) | None => continue,
+        }
+        if let Some(reader) = plan.steps.get(at) {
+            for input in named(&inputs_of(&reader.operation)) {
+                if let Input::Step(earlier) = input {
+                    pending.push(*earlier);
+                }
+            }
+        }
+    }
+    read
 }
