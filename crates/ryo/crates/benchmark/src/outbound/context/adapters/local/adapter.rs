@@ -143,7 +143,6 @@ pub(crate) fn seal_existing(
     for path in tracked {
         relative(path, PathScope::Member)?;
         no_symlinked_parent(&manifest.boundary, path)?;
-        no_symlinks(&manifest.boundary, path)?;
         let actual = manifest.boundary.join(path);
         if std::fs::symlink_metadata(&actual)?.file_type().is_symlink() {
             if source_set.contains(path) {
@@ -237,6 +236,11 @@ pub(crate) fn receipt(
     for dependency in dependencies {
         let path = PathBuf::from(dependency.path.0.as_ref());
         let declared = resolve(manifest, &path)?;
+        if manifest.links.contains_key(&declared) {
+            return Err(Error::Invalid(
+                constants::CONTEXT_DEPENDENCY_IS_A_LINK.into(),
+            ));
+        }
         let sealed = manifest.auxiliary_files.contains_key(&declared)
             || manifest.source_files.contains_key(&declared);
         let state = match dependency.state {

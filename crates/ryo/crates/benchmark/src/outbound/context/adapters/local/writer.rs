@@ -119,6 +119,12 @@ pub(super) fn link_destination(link: &Path, target: &LinkTarget) -> Result<PathB
     let mut destination = link.parent().map(Path::to_path_buf).unwrap_or_default();
     let mut named = false;
     for raw in target.0.split('/') {
+        if raw
+            .chars()
+            .any(|character| character == '\\' || std::path::is_separator(character))
+        {
+            return Err(refuse());
+        }
         let segment = std::ffi::OsStr::new(raw);
         if segment.is_empty() || segment == Component::CurDir.as_os_str() {
             return Err(refuse());

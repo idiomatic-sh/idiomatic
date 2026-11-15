@@ -306,10 +306,16 @@ impl From<ManifestSchema> for ContextManifest {
             auxiliary_files: digests(wire.auxiliary_files),
             source_files: digests(wire.source_files),
             missing: wire.missing,
-            links: {
-                let _sent = wire.links;
-                BTreeMap::new()
-            },
+            links: wire
+                .links
+                .into_iter()
+                .map(|(path, target)| {
+                    (
+                        path,
+                        ryo_benchmark_contracts::domain::context::types::LinkTarget(target),
+                    )
+                })
+                .collect(),
         }
     }
 }

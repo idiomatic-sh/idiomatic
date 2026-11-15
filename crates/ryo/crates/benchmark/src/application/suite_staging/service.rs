@@ -67,5 +67,5 @@ pub(crate) fn stage(
         &definitions,
         purpose,
     )?;
-    suite.profile(ArtifactPath(directory))
+    suite.profile(ArtifactPath(destination))
 }

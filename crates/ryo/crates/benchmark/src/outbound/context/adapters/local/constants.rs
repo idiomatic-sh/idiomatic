@@ -30,5 +30,7 @@ pub(super) const CONTEXT_LINK_TARGET_NOT_CANONICAL: &str =
     "context link target is not canonical relative text";
 /// Refusal for link target text that is not UTF-8.
 pub(super) const NON_UTF8_LINK_TARGET: &str = "context link target is not UTF-8";
+/// Refusal for an observed dependency that names a sealed link.
+pub(super) const CONTEXT_DEPENDENCY_IS_A_LINK: &str = "context dependency names a sealed link";
 /// Text of the context receipt identity disagrees in this part.
 pub(super) const CONTEXT_RECEIPT_IDENTITY_DISAGREES: &str = "context receipt identity disagrees";
