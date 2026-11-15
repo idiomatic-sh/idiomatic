@@ -1,6 +1,8 @@
 //! What every replay of the recorded rules shares: the recordings, the lint over a repository with the real languages and ports,
 //! and the copy of ruff at its pin. Each suite that runs the recorded rules includes it whole.
 
+#[path = "rules.rs"]
+pub(crate) mod rules;
 #[path = "snapshot.rs"]
 pub(crate) mod snapshot;
 
@@ -45,7 +47,7 @@ pub(crate) enum Pending {
 pub(crate) struct Recording {
     /// The rule's name, the directory it was recorded in.
     pub name: String,
-    /// The rule's RyoQL query.
+    /// The rule's RyoQL query: its live rule's (`rules::query`), or the one a synthetic recording is given.
     pub query: String,
     /// The values the rule's parameters were given.
     pub parameters: Vec<RuleParameter>,
@@ -226,17 +228,32 @@ pub(crate) fn table_at(at: &Path, file: &str) -> toml::Table {
         .unwrap_or_else(|error| panic!("{}: {error}", at.join(file).display()))
 }
 
-/// The recording in the directory `at`, checked. It must hold its query and its scope. A rule that does not compile, binds a
-/// parameter ryo cannot bind, leaves a parameter its query declares without a value, reads a relation the Rust language does not
-/// provide, or is refused by the engine fails. The one exception is a `pending.txt`, which names exactly the relations the rule
-/// reads that its language does not provide: the query must fail on no other ground, and either name one relation ryo does not
-/// own (the compile refusal `no relation named`) or compile to a plan whose unprovided relations are exactly those named.
+/// The recording in the directory `at`: its name is its directory, and its query is that rule's live query (`rules::query`). A
+/// recording holding a `query.ryoql`, a copy of a query, fails.
 pub(crate) fn recording_at(at: &Path) -> Recording {
+    let copy = at.join("query.ryoql");
+    assert!(
+        !copy.exists(),
+        "{}: a recording holds no copy of its query; it replays its rule's live query",
+        copy.display()
+    );
     let name = at
         .file_name()
         .map(|each| each.to_string_lossy().into_owned())
         .unwrap_or_default();
-    let query = required_text(&at.join("query.ryoql"));
+    recording_of(at, rules::query(&name))
+}
+
+/// The recording in the directory `at`, replaying `query`, checked. It must hold its scope. A rule that does not compile, binds a
+/// parameter ryo cannot bind, leaves a parameter its query declares without a value, reads a relation the Rust language does not
+/// provide, or is refused by the engine fails. The one exception is a `pending.txt`, which names exactly the relations the rule
+/// reads that its language does not provide: the query must fail on no other ground, and either name one relation ryo does not
+/// own (the compile refusal `no relation named`) or compile to a plan whose unprovided relations are exactly those named.
+pub(crate) fn recording_of(at: &Path, query: String) -> Recording {
+    let name = at
+        .file_name()
+        .map(|each| each.to_string_lossy().into_owned())
+        .unwrap_or_default();
     let _scope_held = required_text(&at.join("scope.toml"));
     let scope = table_at(at, "scope.toml");
     // A scope says which files the rule was recorded over: its `include` globs, and the `exclude` globs it may add. Nothing else.

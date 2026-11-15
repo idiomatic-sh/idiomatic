@@ -13,11 +13,7 @@ fn a_rule_whose_include_matches_no_file_gives_no_finding_and_no_error() {
     let _beside = crate::beside();
     let root = workspace();
     // Steps that read the tree of a file, joined across files by the file they are in.
-    let query = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/recordings/workspace-completeness/query.ryoql"
-    ))
-    .expect("the recorded query");
+    let query = base::rules::query("workspace-completeness");
     let across = "let listed = project(from=\"filesystem.file\", columns=[\"path\"]);
 let parts = capture(from=listed, path=\"path\", pattern=\"{*dir}/x.rs\", captures=[\"dir\"]);
 let dirs = project(from=parts, columns=[\"dir\"]);

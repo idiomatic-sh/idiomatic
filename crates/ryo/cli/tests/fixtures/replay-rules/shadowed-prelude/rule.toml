@@ -1,0 +1,9 @@
+# A replay rule: an engine query the replay runs over ruff (tests/fixtures/recordings/shadowed-prelude), which no Tastemaker rule ships.
+description = "No struct, enum, union or trait is named like an item of the standard prelude listed in `names`."
+
+query = '''
+param names: set<string>;
+let types = select * from "defines" where glob_any(kind, "{struct,enum,union,trait}");
+let shadowing = select * from types where name in $names;
+emit shadowing subject "file" key("span");
+'''
