@@ -686,3 +686,9 @@ name="global-declared-assignment-read-in-else"
 comparison="full"
 files={"case.py"="def f(c):\n    global x\n    if c:\n        x = 1\n    else:\n        print(x)\n"}
 expected=[]
+
+[[cases]]
+name="handler-cleanup-restores-branch-import"
+comparison="full"
+files={"case.py"="import os\ndef f(c):\n    if c:\n        import os\n        try:\n            pass\n        except Exception as os:\n            pass\n    else:\n        print(os)\n"}
+expected=[{rule="F841", file="case.py", start=106, end=108}]

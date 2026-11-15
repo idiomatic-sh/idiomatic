@@ -1266,3 +1266,9 @@ name="branch-assignment-read-in-comprehension-is-defined"
 comparison="full"
 files={"case.py"="def f(c):\n    if c:\n        x = 1\n    else:\n        return [x for _ in c]\n"}
 expected=[]
+
+[[cases]]
+name="lambda-read-of-name-deleted-later"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    g = lambda: os\n    import os\n    del os\n"}
+expected=[{rule="F821", file="case.py", start=35, end=37}]
