@@ -176,7 +176,7 @@ pub fn logical<'p>(
     let consumers = held(&mut program, rules, &nodes, &inputs.lists)?;
     let roots = derived_roots(&drafts, &inputs.lists);
     let schemas = drafts.iter().map(|draft| draft.schema.clone()).collect();
-    let reach = observation_reaches(&inputs.lists);
+    let reach = observation_reaches(&drafts, &inputs.lists);
     Ok(LogicalBuild {
         program,
         rules: nodes,

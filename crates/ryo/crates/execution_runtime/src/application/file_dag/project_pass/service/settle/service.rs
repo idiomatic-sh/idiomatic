@@ -1,5 +1,5 @@
 //! A rule's steps after the files settled in plan order: the rows each antijoin or difference answered from the absence of
-//! rows that a partial operand could change are dropped where the step stands.
+//! rows that a partial operand or a file its rule skipped could change are dropped where the step stands.
 
 use crate::application::file_dag::project_pass::service::step::service::StepRun;
 use crate::application::file_dag::project_pass::types::SettledStep;
@@ -26,17 +26,22 @@ impl StepRun<'_, '_, '_> {
     ) -> Result<(), OperatingError> {
         let pass = self.batch.pass;
         let plan = pass.plans.get(self.rule.0).ok_or(OperatingError::NotRun)?;
+        // A file the rule skipped lacks input whatever an operand reads: every absence step after the files withholds its rows.
+        let skipped = self.completion.skipped_files();
         let mut pending: Vec<SettledStep> = Vec::new();
+        let mut unplanned = None;
         let _coverage = self.coverage_seen(step, |id, operands| {
             let Some(each) = plan.steps.get(usize::try_from(id.0).unwrap_or(usize::MAX)) else {
+                unplanned = Some(id);
                 return;
             };
             let absence = semantics(kind_of(&each.operation)).absence;
             if each.scope == StepScope::CrossFile
                 && absence.0 != 0
-                && operands
-                    .iter()
-                    .any(|(_, coverage, _)| *coverage != CoverageState::Complete)
+                && (!skipped.is_empty()
+                    || operands
+                        .iter()
+                        .any(|(_, coverage, _)| *coverage != CoverageState::Complete))
             {
                 pending.push(SettledStep {
                     step: id,
@@ -45,18 +50,24 @@ impl StepRun<'_, '_, '_> {
                 });
             }
         })?;
+        // A step the coverage walk reached that the plan lacks, or a pending step with no node or no rows, would leave its rows
+        // unfiltered: it is refused, never skipped.
+        if unplanned.is_some() {
+            return Err(OperatingError::NotRun);
+        }
         let nodes = rule_nodes(&pass.program, self.rule)?;
         for settled in pending {
             let at = usize::try_from(settled.step.0).unwrap_or(usize::MAX);
-            let Some(Ok(node)) = nodes.steps.get(at) else {
-                continue;
-            };
-            let Some(each) = plan.steps.get(at) else {
-                continue;
-            };
-            self.ran(symbols, *node)?;
-            let NodeRows::Materialized(table) = self.buffers.rows(*node) else {
-                continue;
+            let node = *nodes
+                .steps
+                .get(at)
+                .ok_or(OperatingError::NotRun)?
+                .as_ref()
+                .map_err(Clone::clone)?;
+            let each = plan.steps.get(at).ok_or(OperatingError::NotRun)?;
+            self.ran(symbols, node)?;
+            let NodeRows::Materialized(table) = self.buffers.rows(node) else {
+                return Err(OperatingError::NotRun);
             };
             let mut kept = table.clone();
             let inputs: Vec<InputCoverage<'_>> = settled
@@ -70,14 +81,20 @@ impl StepRun<'_, '_, '_> {
                     lineage: lineage.clone(),
                 })
                 .collect();
-            filter_contributor_rows(&each.operation, settled.absence, &inputs, &mut kept);
+            filter_contributor_rows(
+                &each.operation,
+                settled.absence,
+                &inputs,
+                &skipped,
+                &mut kept,
+            );
             if kept.count == table.count {
                 continue;
             }
             // The kept rows are the step's rows less the uncertain ones, in their order: each row is kept when it is the next.
             let width = kept.kinds.len();
             let mut next = 0_usize;
-            self.buffers.retain(*node, |row| {
+            self.buffers.retain(node, |row| {
                 let start = next.saturating_mul(width);
                 let wanted = kept.cells.get(start..start.saturating_add(width));
                 if next < kept.count.0 && wanted == Some(row) {

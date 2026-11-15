@@ -178,8 +178,9 @@ pub struct RuleScopes {
     pub observations: Vec<StepScope>,
 }
 
-/// Whether a node's rows answer the whole phase after the files, or one occurrence: a node that reads a bound observation, or
-/// reads a node that does, answers the slots its occurrence bound.
+/// Whether a node's rows answer the whole phase after the files, or one occurrence: a node that reads a bound observation
+/// answers the slots its occurrence bound, an antijoin or a difference after the files keeps the rows its occurrence's coverage
+/// vouches for, and a node that reads either answers its occurrence too.
 ///
 /// # Examples
 ///
@@ -191,6 +192,6 @@ pub struct RuleScopes {
 pub enum ObservationReach {
     /// Its rows are the same for every occurrence of the phase.
     Phase,
-    /// Its rows answer one occurrence's bound observations.
+    /// Its rows answer one occurrence: its bound observations or its coverage.
     Occurrence,
 }

@@ -6,14 +6,9 @@ use crate::domain::coverage::types::{FilePartial, Lacking};
 use crate::domain::coverage::types::{LackingKind, Partial, Partials, RuleIndex};
 use crate::domain::trust::types::RelationRead;
 use ryo_relations::domain::relations::types::FileId;
-use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input as PlanInput},
-    rows::types::RowCount,
-    stored_facts::types::PartialCause,
-};
-use ryo_values::domain::{plans::types::Operation, rows::types::Table};
+use ryo_values::domain::{plan_parts::types::ColumnIndex, stored_facts::types::PartialCause};
 use std::borrow::Cow;
 fn partial() -> Partial {
     Partial {
@@ -21,14 +16,6 @@ fn partial() -> Partial {
         cause: PartialCause("fixture missing facts".into()),
         lacking: Lacking::Any,
         at: crate::domain::coverage::types::PartialPlace::File(FileId(0)),
-    }
-}
-fn anti() -> Operation {
-    Operation::Antijoin {
-        left: PlanInput::Relation(Relation::SourceLocation),
-        right: PlanInput::Relation(Relation::SourceLocation),
-        left_on: vec![ColumnIndex(0)],
-        right_on: vec![ColumnIndex(0)],
     }
 }
 fn needs() -> Vec<RelationRead> {
@@ -82,8 +69,8 @@ enum Asked {
     /// A file policy whose evaluation is partial and whose publication inputs are complete: its
     /// admissions and its blocked coverage.
     EvaluationRefusal,
-    /// A project policy partly read in file 0 filtering an antijoin over the rows of files 0 and 1.
-    ProjectFilter,
+    /// A project policy whose rule skipped files 2, 1 and 2 again: the files it withholds the rows of.
+    SkippedFiles,
 }
 
 /// A file policy's admissions of `source_location` and the coverage it reports when blocked.
@@ -94,20 +81,12 @@ struct Admissions {
     blocked: Coverage,
 }
 
-/// The rows a project policy's filter keeps, and the coverage it reports.
-#[derive(Debug, PartialEq)]
-struct Filtered {
-    cells: Cow<'static, [Cell]>,
-    count: RowCount,
-    coverage: Coverage,
-}
-
 /// What a policy answers.
 #[derive(Debug, PartialEq)]
 enum Answer {
     Coverage(Coverage),
     Admissions(Admissions),
-    Filtered(Filtered),
+    Files(Cow<'static, [FileId]>),
 }
 
 type Input = Asked;
@@ -142,26 +121,15 @@ fn subject(asked: Input) -> Result<Value, Failure> {
                 blocked: coverage(policy.blocked_coverage()),
             })
         }
-        Asked::ProjectFilter => {
+        Asked::SkippedFiles => {
             let partials = Partials {
-                entries: vec![FilePartial {
-                    file: crate::domain::coverage::types::PartialPlace::File(FileId(0)),
-                    partial: partial(),
-                }],
-                unavailable_files: vec![],
+                entries: vec![],
+                unavailable_files: vec![FileId(2), FileId(1), FileId(2)],
             };
-            let policy = CompletionPolicy::project_inputs(RuleIndex(4), &partials, &partials);
-            let mut table = Table {
-                kinds: vec![CellKind::File],
-                cells: vec![Cell::File(FileId(0)), Cell::File(FileId(1))],
-                count: RowCount(2),
-            };
-            policy.filter_rows(&anti(), &needs(), &mut table);
-            Answer::Filtered(Filtered {
-                cells: Cow::Owned(table.cells),
-                count: table.count,
-                coverage: coverage(policy.coverage(&needs())),
-            })
+            Answer::Files(Cow::Owned(
+                CompletionPolicy::project_inputs(RuleIndex(4), &partials, &partials)
+                    .skipped_files(),
+            ))
         }
     })
 }
@@ -202,14 +170,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         })),
     },
     Case {
-        name: CaseName("project_filter_preserves_physical_coverage"),
+        name: CaseName("a_project_policy_names_each_file_its_rule_skipped_once_in_order"),
         word: Word::Succeeds,
-        input: || Asked::ProjectFilter,
-        expect: Expect::Value(Answer::Filtered(Filtered {
-            cells: Cow::Borrowed(&[Cell::File(FileId(1))]),
-            count: RowCount(1),
-            coverage: ANY_IN_FILE_0,
-        })),
+        input: || Asked::SkippedFiles,
+        expect: Expect::Value(Answer::Files(Cow::Borrowed(&[]))),
     },
 ];
 #[test]

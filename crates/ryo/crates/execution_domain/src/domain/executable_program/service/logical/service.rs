@@ -7,6 +7,7 @@ use crate::domain::executable_program::types::{
 use crate::domain::kind_sets::service::names_a_kind;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::KindNaming;
+use crate::domain::operator::contract::service::semantics;
 use crate::domain::operation_schema::types::InputShape;
 use ryo_operators::domain::comparing::service::fixed_prefix;
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
@@ -20,6 +21,7 @@ use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{
     Input, InputNumber, LiteralText, Operand, QueryLiteral, StepScope, Test,
 };
+use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::plans::types::Operation;
 
 /// The inputs `named` reads, given the nodes of the rule's earlier `steps`; none when one reads a step that has no node. A step
@@ -187,21 +189,26 @@ pub(in crate::domain::executable_program) fn held(
     Ok(consumers)
 }
 
-/// Whether each node's rows answer the whole phase or one occurrence: a node that reads a bound observation, or reads a node
-/// that does, answers one occurrence's slots only.
+/// Whether each node's rows answer the whole phase or one occurrence: a node that reads a bound observation, an antijoin or a
+/// difference after the files (whose rows its occurrence's coverage narrows where it stands), or a node that reads one of
+/// those, answers one occurrence only.
 pub(in crate::domain::executable_program) fn observation_reaches(
+    drafts: &[Draft<'_>],
     lists: &[Vec<PlanInput>],
 ) -> Vec<ObservationReach> {
     let mut reach: Vec<ObservationReach> = Vec::with_capacity(lists.len());
-    for list in lists {
-        let bound = list.iter().any(|input| match input {
-            PlanInput::Observation(_) => true,
-            PlanInput::Node(read) => {
-                reach.get(usize::try_from(read.0).unwrap_or(usize::MAX))
-                    == Some(&ObservationReach::Occurrence)
-            }
-            PlanInput::Relation(_) | PlanInput::Frontier(_) => false,
-        });
+    for (draft, list) in drafts.iter().zip(lists) {
+        let narrowed = draft.scope == StepScope::CrossFile
+            && semantics(kind_of(draft.operation)).absence.0 != 0;
+        let bound = narrowed
+            || list.iter().any(|input| match input {
+                PlanInput::Observation(_) => true,
+                PlanInput::Node(read) => {
+                    reach.get(usize::try_from(read.0).unwrap_or(usize::MAX))
+                        == Some(&ObservationReach::Occurrence)
+                }
+                PlanInput::Relation(_) | PlanInput::Frontier(_) => false,
+            });
         reach.push(if bound {
             ObservationReach::Occurrence
         } else {

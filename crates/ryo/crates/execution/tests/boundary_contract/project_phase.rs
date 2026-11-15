@@ -16,6 +16,7 @@ pub(crate) mod negative;
 mod pass;
 mod population_reads;
 mod restoration;
+mod settle;
 mod rewrites;
 mod skipped_frontier;
 pub(crate) mod source_facts;

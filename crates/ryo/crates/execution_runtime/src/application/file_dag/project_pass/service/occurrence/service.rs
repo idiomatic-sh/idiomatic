@@ -40,7 +40,8 @@ use ryo_values::domain::rows::types::Table;
 use std::sync::Arc;
 
 /// One occurrence's steps after the files: its emit when it runs after the files, then each of its named outputs that does,
-/// then its steps' fed rows reported. The rows of a node that reads a bound observation are released at the occurrence's end.
+/// then its steps' fed rows reported. The rows of a node that answers one occurrence (it reads a bound observation, or its
+/// occurrence's coverage narrows it) are released at the occurrence's end.
 pub(crate) fn run_occurrence(
     batch: &PhaseBatch<'_, '_>,
     state: &mut PhaseState,
@@ -194,7 +195,7 @@ pub(crate) fn run_occurrence(
         let fed = step.fed(symbols, &plan, &nodes)?;
         observer.fed(rule, fed)?;
     }
-    // A node that reads a bound observation answers this occurrence's slots only.
+    // A node that reads a bound observation, or whose rows this occurrence's coverage narrowed, answers this occurrence only.
     let mut node = PlanNodeId(0);
     while let Ok(reach) = observation_reach(program, node) {
         if reach == ObservationReach::Occurrence {
