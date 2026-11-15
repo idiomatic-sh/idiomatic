@@ -2,8 +2,8 @@
 # changes: the `tag` job runs `ci/tag/command.py --push`, which names each product whose workspace version in crates/<product>/Cargo.toml
 # differs from the parent commit's and whose tag (`idiomatic-sh-<product>-v<version>`) does not exist yet, and creates that tag at
 # the commit; the build and publish jobs then run for those products alone, each product's builds beside the others', its publish
-# in a concurrency group of its own, one product's publish at a time, ryo's first. A push runs no check: every commit to main comes through a pull request merged only after its
-# `gate` (check.yml) passed, by process, over the same check fan-out on the same tree. A maintainer's hand run releases ONE product, the `product` input, and checks
+# in a concurrency group of its own, one product's publish at a time, ryo's first. A push waits for check.yml's push run on the same commit (the `verify-check` job): the `gate` of that run (Linux, ARM,
+# macOS and Windows) must have passed before `build` starts. A maintainer's hand run releases ONE product, the `product` input, and checks
 # it first: `asymptote check --root crates/<product> --groups <group>` runs each of that product's groups (its tests and packaging
 # tests and its lint, one job per group and machine, and the repository root's `repository` group). Tastemaker depends on ryo's crates, so a ryo version
 # it needs is on crates.io before tastemaker's publish. The `build` job builds each product's wheel (Ryo's only for
@@ -135,8 +135,43 @@ jobs:
           # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
           GH_TOKEN: ${{ github.token }}
       - run: asymptote check --root ${{ matrix.root || format('crates/{0}', inputs.product) }} --groups ${{ matrix.group }}
+  # A push releases only what the cross-platform check passed: the `gate` job of the check.yml run a push to main started on this
+  # commit (the one the tag is at), waited for while that run is in progress. A hand run has its own `check` job instead.
+  verify-check:
+    needs: [tag]
+    if: github.event_name == 'push' && needs.tag.outputs.products != '[]'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 150
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: The gate of check.yml's push run on this commit is green
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # Up to 140 polls a minute apart: the run may not exist yet, or its gate not be done.
+          for _ in $(seq 1 140); do
+            run_id="$(gh api "repos/$REPO/actions/workflows/check.yml/runs?head_sha=$SHA&event=push" --jq '.workflow_runs | sort_by(.created_at) | last | .id // empty')"
+            if [ -n "$run_id" ]; then
+              conclusion="$(gh api "repos/$REPO/actions/runs/$run_id/jobs" --paginate --jq '.jobs[] | select(.name == "gate") | .conclusion // "pending"')"
+              case "$conclusion" in
+                success) echo "check.yml run $run_id: gate succeeded"; exit 0 ;;
+                pending|"") echo "check.yml run $run_id: gate not finished" ;;
+                *) echo "check.yml run $run_id: gate $conclusion" >&2; exit 1 ;;
+              esac
+            else
+              echo "no check.yml push run for $SHA yet"
+            fi
+            sleep 60
+          done
+          echo "check.yml's gate for $SHA did not finish in time" >&2
+          exit 1
   build:
-    needs: [tag, check]
+    needs: [tag, check, verify-check]
     # A push's products are the `tag` job's (its check skipped); a hand run's is its input, once its check passed.
     if: ${{ !cancelled() && !failure() && (github.event_name == 'workflow_dispatch' || needs.tag.outputs.products != '[]') }}
     name: build (${{ matrix.product }}, ${{ matrix.platform.target }})

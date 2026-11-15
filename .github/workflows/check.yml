@@ -1,9 +1,9 @@
 # The check workflow on GitHub Actions, its thin edge: the pull request gate, and on a push to main the run that seeds the caches a
 # pull request restores. Asymptote alone decides what runs. A pull request runs Linux x86 (ubuntu-26.04) only, and the fewest
 # builds: the `root` job (the repository's own groups), the `pull-request` job (the title), one `check-linux` job per product (its
-# `check`, `release-tests` and `release-coverage` groups in one asymptote call, so the tests share one build), the
+# `lint`, `clippy`, `check`, `release-tests` and `release-coverage` groups in one asymptote call, so the tests share one build), the
 # `bench-correctness` job and `gate`. A push to main and a hand run add the rest: the `check` job's other machines (ARM, macOS,
-# Windows) and groups, `python-release` and `speed`. Every cache is saved by a run on main alone (`github.ref ==
+# Windows) and groups and `python-release`, a hand run `speed`. Every cache is saved by a run on main alone (`github.ref ==
 # refs/heads/main`) and restored by every run: the Rust cache under one key per machine and product, shared by the groups of a
 # machine (no job id in it), the installed tools under one key per machine and the hash of the files that pin them, and each
 # job's `.asymptote/cache` store under its groups and the hash of those files, this workflow, the toolchains and the helper
@@ -15,7 +15,7 @@
 # branch, since a pull request a workflow opens starts no workflow. Each job is a machine, the toolchains (every sample's among
 # them: a sample whose toolchain is missing fails its test), `tools/install.py`, which installs every tool the checks run at the
 # version declared for it, prebuilt, and one `asymptote check` call. The `gate` job waits for every other and fails when one
-# failed or was cancelled; on a pull request the jobs that run on main alone (`check`, `python-release`, `speed`) are skipped,
+# failed or was cancelled; on a pull request the jobs that run on main alone (`check`, `python-release`, `speed`) are skipped, and on a push `speed`,
 # which passes. `gate` is the one verdict: a pull request merges only after the `gate` of a run on its head commit passed, by
 # process (no repository rule enforces it). The commit gate stays `asymptote check --hook pre-commit`, the git hook `asymptote
 # init` installs, which runs the products' `lint` groups and the root's `repository` group.
@@ -257,7 +257,7 @@ jobs:
           key: asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-check-linux-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-check-linux-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-
-      - run: asymptote check --root crates/${{ matrix.product }} --groups check,release-tests,release-coverage
+      - run: asymptote check --root crates/${{ matrix.product }} --groups lint,clippy,check,release-tests,release-coverage
       - name: Save the asymptote store
         if: always() && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -286,7 +286,7 @@ jobs:
       matrix:
         product: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.product) || '["ryo","tastemaker","asymptote"]') }}
         check:
-          - { runner: ubuntu-26.04, groups: "lint,clippy,release-clippy", label: lint-clippy, store: true, save: false }
+          - { runner: ubuntu-26.04, groups: "release-clippy", label: release-clippy, store: true, save: false }
           - { runner: macos-26, groups: "api", label: api, store: false, save: false }
           - { runner: ubuntu-26.04-arm, groups: "check,release-tests", label: check-tests, store: true, save: true }
           - { runner: macos-26, groups: "check,release-tests", label: check-tests, store: true, save: true }
@@ -394,7 +394,7 @@ jobs:
       - uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
         with:
           jobs: ${{ toJSON(needs) }}
-          allowed-skips: ${{ github.event_name == 'pull_request' && 'check,speed,python-release' || '' }}
+          allowed-skips: ${{ github.event_name == 'pull_request' && 'check,speed,python-release' || github.event_name == 'push' && 'speed' || '' }}
   python-release:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-26.04
@@ -467,10 +467,10 @@ jobs:
         with:
           path: crates/ryo/.asymptote/cache
           key: asymptote-${{ runner.os }}-${{ runner.arch }}-ryo-python-release-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
-  # A change's speed against main: on a push to main and a hand run, never on a pull request.
+  # A change's speed against main: on a hand run alone. A run on main would compare main with itself, and a pull request's is not run.
   # It keeps no asymptote store: its answer stands on origin/main, which no stamp holds.
   speed:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-26.04
     defaults:
       run:
