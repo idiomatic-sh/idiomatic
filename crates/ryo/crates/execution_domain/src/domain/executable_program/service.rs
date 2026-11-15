@@ -84,19 +84,22 @@ pub fn logical<'p>(
                 steps.push(Err(OperatingError::NotRun));
                 continue;
             };
+            // A hosted step reads the host relation the request declares at its place; one the request does not host is a
+            // relation nobody read.
             let host = if let Operation::Hosted { relation } = &step.operation {
-                hosted
-                    .get(usize::try_from(relation.0).unwrap_or(usize::MAX))
-                    .map(|kinds| InputShape { kinds, tree: None })
+                Some(
+                    hosted
+                        .get(usize::try_from(relation.0).unwrap_or(usize::MAX))
+                        .map(|kinds| InputShape { kinds, tree: None })
+                        .ok_or(OperatingError::NotRead),
+                )
             } else {
                 None
             };
-            let schema = match fault {
-                Some(error) => Err(error),
-                None => match host {
-                    Some(shape) => schema_of(&step.operation, &[shape], input.bindings.0),
-                    None => schema_of(&step.operation, &shapes, input.bindings.0),
-                },
+            let schema = match (fault, host) {
+                (Some(error), _) | (None, Some(Err(error))) => Err(error),
+                (None, Some(Ok(shape))) => schema_of(&step.operation, &[shape], input.bindings.0),
+                (None, None) => schema_of(&step.operation, &shapes, input.bindings.0),
             };
             let hash = {
                 let mut hasher = rustc_hash::FxHasher::default();
