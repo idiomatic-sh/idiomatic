@@ -1254,3 +1254,15 @@ name="future-scope-whole-stub-typevar-bound-call"
 comparison="full"
 files={"case.pyi"="from typing import TypeVar\n_T=TypeVar(\"_T\",bound=identity(Later))\ndef identity(x): ...\nclass Later: ...\n"}
 expected=[]
+
+[[cases]]
+name="branch-assignment-read-in-else-is-defined"
+comparison="full"
+files={"case.py"="def f(c):\n    if c:\n        x = 1\n    else:\n        print(x)\n"}
+expected=[]
+
+[[cases]]
+name="branch-assignment-read-in-comprehension-is-defined"
+comparison="full"
+files={"case.py"="def f(c):\n    if c:\n        x = 1\n    else:\n        return [x for _ in c]\n"}
+expected=[]

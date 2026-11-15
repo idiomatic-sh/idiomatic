@@ -731,3 +731,15 @@ expected=[]
 name = "argument-shadows-the-enclosing-binding-current-when-the-body-is-visited"
 files = { "case.py" = "try:\n    from m import sql\n    def mogrify(sql, params):\n        return sql\nexcept ImportError:\n    from n import sql  # noqa: F811\n    sql.quote = 1\n" }
 expected = []
+
+[[cases]]
+name="branch-import-read-in-else-before-redefinition"
+comparison="full"
+files={"case.py"="def f(c):\n    if c:\n        import os\n    else:\n        print(os)\n    import os\n    return os\n"}
+expected=[]
+
+[[cases]]
+name="branch-import-read-in-comprehension-before-redefinition"
+comparison="full"
+files={"case.py"="def f(c):\n    if c:\n        import os\n    else:\n        print([os for _ in c])\n    import os\n    return os\n"}
+expected=[]

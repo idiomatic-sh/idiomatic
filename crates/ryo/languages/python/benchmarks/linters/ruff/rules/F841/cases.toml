@@ -668,3 +668,21 @@ name="future-annotation-in-function-reads-module-first"
 comparison="full"
 files={"case.py"="from __future__ import annotations\n\nA = 1\n\n\ndef f():\n    A = 2\n    y: A = 3\n    return y\n"}
 expected=[{rule="F841", file="case.py", start=57, end=58}]
+
+[[cases]]
+name="branch-assignment-read-in-else-of-function"
+comparison="full"
+files={"case.py"="def f(c):\n    if c:\n        x = 1\n    else:\n        print(x)\n"}
+expected=[]
+
+[[cases]]
+name="branch-assignment-read-in-comprehension"
+comparison="full"
+files={"case.py"="def f(c):\n    if c:\n        x = 1\n    else:\n        return [x for _ in c]\n"}
+expected=[]
+
+[[cases]]
+name="global-declared-assignment-read-in-else"
+comparison="full"
+files={"case.py"="def f(c):\n    global x\n    if c:\n        x = 1\n    else:\n        print(x)\n"}
+expected=[]

@@ -489,3 +489,39 @@ name="nested-latest-branch-rebinding-is-the-one-used"
 comparison="full"
 files={"case.py"="import os\ndef f():\n    if c:\n        import os\n    elif d:\n        import os\n    else:\n        print(os)\n"}
 expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-global-declared-rebinding-read-in-else"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    global os\n    if c:\n        import os\n    else:\n        print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-comprehension-reads-through-function-rebinding"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    if c:\n        import os\n    else:\n        return [os for _ in y]\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-lambda-reads-through-function-rebinding"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    if c:\n        import os\n    else:\n        return lambda: os\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-lambda-reads-rebinding-bound-after-it"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    g = lambda: os\n    if c:\n        import os\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-function-reads-through-function-rebinding"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    if c:\n        import os\n    def g():\n        return os\n    return g\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-class-binding-is-not-visible-to-comprehension"
+comparison="full"
+files={"case.py"="import os\nclass C:\n    import os\n    def f(self):\n        return [os for _ in y]\n"}
+expected=[]
