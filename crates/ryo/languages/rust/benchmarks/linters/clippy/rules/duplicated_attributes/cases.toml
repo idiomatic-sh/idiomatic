@@ -212,3 +212,8 @@ expected = [{ file = "src/lib.rs", start = 33, end = 34 }]
 name = "byte-value"
 files = { "src/lib.rs" = "#[rustfmt::skip(v = b'x', a, a)]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 29, end = 30 }]
+
+[[cases]]
+name = "false-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = false, a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 30, end = 31 }]
