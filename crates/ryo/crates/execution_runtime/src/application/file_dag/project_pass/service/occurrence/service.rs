@@ -58,6 +58,7 @@ pub(crate) fn run_occurrence(
         hosted,
         last,
         declared: _,
+        uses: _,
     } = state;
     let program = &batch.pass.program;
     // Nodes over a rule's frontier answer the handover they ran over: another handover of the rule runs them again.

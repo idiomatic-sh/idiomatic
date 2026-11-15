@@ -2,11 +2,11 @@
 //! frontier handed over at the rule's first occurrence and its caller's partials taken, all before any evaluates; then each is
 //! guarded and evaluated through the file pass's one node step, and handed to its caller in declaration order.
 use super::types::{
-    HandoverPlace, HostedTables, OccurrenceRun, PhaseBatch, PhaseOccurrence, PhaseState,
-    ReadyOccurrence, RuleHandover,
+    HandoverPlace, HostedTables, OccurrenceRun, OccurrencesLeft, PhaseBatch, PhaseOccurrence,
+    PhaseState, ReadyOccurrence, RuleHandover, RuleUse, RuleUses,
 };
 use crate::application::file_dag::file_pass::types::PassProgram;
-use crate::application::file_dag::frontiers::service::{hand_over, required_files};
+use crate::application::file_dag::frontiers::service::{decode, prove, required_files};
 use crate::application::file_dag::frontiers::types::HandoverPolicy;
 use crate::application::file_dag::program::project_phase::types::{
     HandedFrom, HandoverDeclaration, OccurrenceNumber, PhasePartials, PhaseStop,
@@ -53,6 +53,28 @@ pub(crate) fn project_reads(pass: &PassProgram, rules: &[RuleIndex]) -> Vec<Rela
         }
     }
     reads
+}
+
+/// How many times each rule occurs among `rules`, the declared occurrences of a phase.
+pub(crate) fn uses_of(rules: impl IntoIterator<Item = RuleIndex>) -> RuleUses {
+    let mut uses = RuleUses::default();
+    for rule in rules {
+        match uses.0.iter_mut().find(|each| each.rule == rule) {
+            Some(each) => each.left = OccurrencesLeft(each.left.0.saturating_add(1)),
+            None => uses.0.push(RuleUse {
+                rule,
+                left: OccurrencesLeft(1),
+            }),
+        }
+    }
+    uses
+}
+
+/// One occurrence of `rule` was evaluated: one fewer is still to come.
+fn used(state: &mut PhaseState, rule: RuleIndex) {
+    if let Some(each) = state.uses.0.iter_mut().find(|each| each.rule == rule) {
+        each.left = OccurrencesLeft(each.left.0.saturating_sub(1));
+    }
 }
 
 /// One batch of declared occurrences in one call: each occurrence's rule handed over once `before` admits it, every
@@ -128,6 +150,7 @@ pub(crate) fn run_batch<H, T, E>(
         evaluated.push(run_occurrence(
             batch, state, *handover, occurrence, run, symbols,
         ));
+        used(state, occurrence.rule);
     }
     let mut evaluated = evaluated.into_iter();
     let mut results = Vec::with_capacity(ready.len());
@@ -206,7 +229,17 @@ fn handover_of<E>(
         Some(ready) => HandoverPolicy::Observations { ready },
         None => HandoverPolicy::Diagnostic,
     };
-    let handed = hand_over(
+    let proven = prove(
+        batch.program,
+        rule,
+        first,
+        batch.facts,
+        &required,
+        policy,
+        batch.project,
+    )
+    .map_err(PhaseStop::Frontiers)?;
+    let handed = decode(
         batch.program,
         rule,
         first,
@@ -214,7 +247,7 @@ fn handover_of<E>(
         symbols,
         &required,
         policy,
-        batch.project,
+        &proven,
         &mut state.withholdings,
     )
     .map_err(PhaseStop::Frontiers)?;

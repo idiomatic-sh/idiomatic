@@ -67,7 +67,7 @@ fn subject(entry: Input) -> Result<Value, Failure> {
     );
     let handed = HandedOver(vec![
         FrontierRows::Held {
-            table: Table::default(),
+            table: std::sync::Arc::new(Table::default()),
             coverage: CoverageState::Complete,
         },
         FrontierRows::Withheld(second),

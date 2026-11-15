@@ -70,7 +70,28 @@ pub(crate) struct PhaseState {
     pub(crate) last: Vec<LastHandover>,
     /// The files each rule was handed over from, as the phase first declared them: kept across the phase's calls.
     pub(crate) declared: Vec<HandoverDeclaration>,
+    /// The occurrences each rule has still to evaluate in the phase.
+    pub(crate) uses: RuleUses,
 }
+
+/// How many declared occurrences of each declared rule are still to evaluate in a phase, one entry per rule in first-declared
+/// order: sized by the phase's rules, never by the request's. It counts every declared occurrence, so one that never evaluates
+/// (a refused binding, a stop) leaves its rule counted: a count only ever runs late, never early.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct RuleUses(pub(crate) Vec<RuleUse>);
+
+/// One rule's occurrences still to evaluate in a phase.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct RuleUse {
+    /// The rule.
+    pub(crate) rule: RuleIndex,
+    /// Its occurrences still to evaluate.
+    pub(crate) left: OccurrencesLeft,
+}
+
+/// How many declared occurrences of a rule a phase has still to evaluate.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct OccurrencesLeft(pub(crate) u32);
 
 /// The place of one rule's handover among a phase's handovers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

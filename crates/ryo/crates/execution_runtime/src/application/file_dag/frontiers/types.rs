@@ -6,6 +6,7 @@ use ryo_operators::domain::contract::types::WithheldInput;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::runs::types::Skipped;
+use std::sync::Arc;
 
 /// What the files of a phase are scoped by: the corpus, the files each rule read in part, skipped, does not apply to or was
 /// refused on.
@@ -45,8 +46,8 @@ pub(crate) struct HandedOver(pub(crate) Vec<FrontierRows>);
 pub(crate) enum FrontierRows {
     /// The rows every file kept, and how completely they cover the rule's files.
     Held {
-        /// The rows.
-        table: Table,
+        /// The rows: a project relation's are the phase's one table, shared with every rule that reads it.
+        table: Arc<Table>,
         /// Their coverage.
         coverage: CoverageState,
     },
@@ -54,6 +55,35 @@ pub(crate) enum FrontierRows {
     Withheld(WithheldInput),
     /// Not the files' to hand over: a bound observation.
     Elsewhere,
+}
+
+/// What the store read and the proof left of one rule's frontier, by entry, before any entry is decoded: no word is held.
+#[derive(Debug, Default)]
+pub(crate) struct ProvenFrontier(pub(crate) Vec<ProvenEntry>);
+
+/// One frontier entry once the store was read and its proof checked.
+#[derive(Debug)]
+pub(crate) enum ProvenEntry {
+    /// The files kept it, with this coverage: its words are read again where it is decoded.
+    Words {
+        /// The coverage its proof gave.
+        coverage: CoverageState,
+    },
+    /// Refused before its words were read, for this reason.
+    Refused(ryo_execution_domain::domain::operating::errors::OperatingError),
+    /// A project relation's rows, as the phase read them.
+    Project(Arc<Table>),
+    /// Not the files' to hand over.
+    Elsewhere,
+}
+
+/// The words the files kept for one frontier entry, as the store gave them, and the coverage their proof gives.
+#[derive(Debug)]
+pub(crate) struct ProvenWords {
+    /// The words and the provenance of each source.
+    pub(crate) words: crate::outbound::facts::types::KeptBucket,
+    /// The coverage their proof gives.
+    pub(crate) coverage: CoverageState,
 }
 
 /// Whether the files a source proof accounts for are exactly the files the request requires.
