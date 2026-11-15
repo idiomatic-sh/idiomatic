@@ -106,26 +106,27 @@ fn misplaced_parts(tastemaker: &str, workspace: &Path) -> Vec<String> {
     // The check reports source findings by its exit code; validation errors are refused above.
     drop(checked(tastemaker, &["check", "--fix"], workspace));
     let printed = checked(tastemaker, &["check", "--format", "json"], workspace);
-    let report: serde_json::Value = serde_json::from_slice(&printed).expect("a report in JSON");
+    let report: crate::fixes::Report =
+        serde_json::from_slice(&printed).expect("a report: findings with a rule, path and message");
     let own = format!("languages/{LANGUAGE}");
     report
-        .get("findings")
-        .and_then(serde_json::Value::as_array)
+        .findings
         .into_iter()
-        .flatten()
+        .filter(|finding| finding.path.contains(&own))
         .filter(|finding| {
-            finding["path"]
-                .as_str()
-                .is_some_and(|path| path.contains(&own))
+            (finding.rule.ends_with(PARTS) && !finding.message.contains(SAMPLES))
+                || PLACEMENT.iter().any(|check| finding.rule.contains(check))
         })
-        .filter(|finding| {
-            let rule = finding["rule"].as_str().unwrap_or_default();
-            let message = finding["message"].as_str().unwrap_or_default();
-            (rule.ends_with(PARTS) && !message.contains(SAMPLES))
-                || PLACEMENT.iter().any(|check| rule.contains(check))
-        })
-        .map(ToString::to_string)
+        .map(|finding| format!("{finding:?}"))
         .collect::<Vec<_>>()
+}
+
+/// A report the scaffold rows read is `tm check`'s whole report: findings, each with its rule, path and message.
+#[test]
+fn a_report_without_its_findings_is_no_report() {
+    assert!(serde_json::from_slice::<crate::fixes::Report>(b"{}").is_err());
+    let bare = br#"{"findings": [{"rule": "x#count", "path": "languages/zz"}]}"#;
+    assert!(serde_json::from_slice::<crate::fixes::Report>(bare).is_err());
 }
 
 #[test]
@@ -249,16 +250,12 @@ specs = [{{ alias = "subject", spec = "idiomatic.arch/collection", include = ["c
     }
     run(Command::new(tastemaker).arg("validate"), directory);
     let printed = checked(tastemaker, &["--json", "check", "--fix"], directory);
-    let report: serde_json::Value = serde_json::from_slice(&printed).expect("check report");
-    let missing = report["findings"]
-        .as_array()
-        .expect("findings")
+    let report: crate::fixes::Report =
+        serde_json::from_slice(&printed).expect("a report: findings with a rule, path and message");
+    let missing = report
+        .findings
         .iter()
-        .filter(|finding| {
-            finding["rule"]
-                .as_str()
-                .is_some_and(|rule| rule.ends_with("#count"))
-        })
+        .filter(|finding| finding.rule.ends_with("#count"))
         .collect::<Vec<_>>();
     assert!(
         missing.is_empty(),
