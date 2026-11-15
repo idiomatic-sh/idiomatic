@@ -4,9 +4,10 @@
 
 mod contract;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
+use crate::fixes::root;
 use crate::languages::{
     TEMPLATE, created, given_content, initialized, over_samples, ran, reported,
 };
@@ -31,15 +32,6 @@ const PLACEMENT: [&str; 6] = [
 /// are the language's own text.
 const PARTS: &str = "language-parts";
 const SAMPLES: &str = "allocation";
-
-/// The repository root: three directories above this crate.
-fn root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .nth(3)
-        .map(Path::to_path_buf)
-        .unwrap_or_default()
-}
 
 /// Copies a tree, leaving out every `target` directory, each workspace file pinned to the built `tm`.
 fn copy(from: &Path, to: &Path) -> std::io::Result<()> {
@@ -144,11 +136,16 @@ fn a_fresh_language_compiles_and_lacks_no_part() {
     if scratch.exists() {
         std::fs::remove_dir_all(&scratch).expect("the previous scene removed");
     }
-    let crates = scratch.join("crates");
-    copy(&root().join("crates/ryo"), &crates.join("ryo")).expect("ryo copied");
-    copy(&root().join("tastemaker"), &scratch.join("tastemaker"))
-        .expect("the package tastemaker/ copied");
-    let workspace = crates.join("ryo");
+    // The workspace, the package it is placed by, the fixture package two of its scenarios read, and every lock.
+    for part in [
+        "crates/ryo",
+        "tastemaker",
+        "crates/tastemaker/cli/tests/fixtures/replay",
+    ] {
+        copy(&root().join(part), &scratch.join(part)).expect("a part of the repository copied");
+    }
+    crate::benchmark_fixture::copy_locks(&scratch).expect("every lock of the repository copied");
+    let workspace = scratch.join("crates/ryo");
     run(Command::new("git").arg("init").arg("-q"), &scratch);
     let tastemaker = env!("CARGO_BIN_EXE_tm");
     run(

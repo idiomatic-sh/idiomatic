@@ -3,8 +3,8 @@ why = "Ryo owns the concepts, the language fulfils them. The compiler holds that
 closed = false
 specs = [
   { alias = "benchmark", spec = "idiomatic.ryo/benchmark@0.2.5", include = ["benchmarks"], count = { min = 1 }, params = { lang = { param = "lang" } }, description = "Comparative lint benchmarks, when this language has begun its rollout; the shared harness audits completeness." },
-  { alias = "parse-contract", spec = "idiomatic.ryo/contract@0.6.0", include = ["src/inbound/contracts/parse"], params = { trait = "ryo::languages::Parse" }, description = "The parse contract: the language's implementation of `ryo::languages::Parse`, which answers every syntax relation of the catalog." },
-  { alias = "project-contract", spec = "idiomatic.ryo/contract@0.6.0", include = ["src/inbound/contracts/project"], params = { trait = "ryo::languages::Project" }, description = "The project contract: the language's implementation of `ryo::languages::Project`, which answers every manifest relation of the catalog." },
+  { alias = "parse-contract", spec = "idiomatic.ryo/contract@0.6.1", include = ["src/inbound/contracts/parse"], params = { trait = "ryo::languages::Parse" }, description = "The parse contract: the language's implementation of `ryo::languages::Parse`, which answers every syntax relation of the catalog." },
+  { alias = "project-contract", spec = "idiomatic.ryo/contract@0.6.1", include = ["src/inbound/contracts/project"], params = { trait = "ryo::languages::Project" }, description = "The project contract: the language's implementation of `ryo::languages::Project`, which answers every manifest relation of the catalog." },
   { alias = "domain-concept", spec = "idiomatic.arch/concept@0.1.2", include = ["src/domain/{concept}"], exclude = ["src/domain/extras", "src/domain/language", "src/domain/nodes", "src/domain/relations", "src/domain/syntax", "src/domain/tokens"], count = { min = 0 }, params = { item-trait = [] }, description = "Every other domain concept of the language is a concept, with its nested parts and groups of cases: the six this spec places itself (the extras, the language, the nodes, the relations, the syntax and the tokens) are left to it." },
 ]
 templates = [
@@ -1278,8 +1278,8 @@ impl Parse for ParseContract {
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn languages::Semantics> {
-        None
+    fn semantics(&self) -> languages::SemanticAnswers<'_> {
+        languages::SemanticAnswers::Absent
     }
 
     fn completion_requirement(&self) -> languages::CompletionRequirement {
@@ -2369,7 +2369,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -2648,7 +2648,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -2982,7 +2982,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -3303,7 +3303,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -3599,7 +3599,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -3909,7 +3909,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -4306,7 +4306,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -5287,7 +5287,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -5604,7 +5604,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -5998,7 +5998,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -6389,7 +6389,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -6780,7 +6780,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -7127,7 +7127,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -7507,7 +7507,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -7942,7 +7942,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -8340,7 +8340,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -8824,7 +8824,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -9261,7 +9261,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -9643,7 +9643,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -10033,7 +10033,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -10417,7 +10417,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -10883,7 +10883,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -11277,7 +11277,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -11793,7 +11793,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -12299,7 +12299,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -12694,7 +12694,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -13129,7 +13129,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -13540,7 +13540,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -13975,7 +13975,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -14410,7 +14410,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -14909,8 +14909,8 @@ impl Parse for ParseContract {
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn languages::Semantics> {
-        None
+    fn semantics(&self) -> languages::SemanticAnswers<'_> {
+        languages::SemanticAnswers::Absent
     }
 
     fn completion_requirement(&self) -> languages::CompletionRequirement {
@@ -15150,7 +15150,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -15909,8 +15909,8 @@ impl Parse for ParseContract {
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn languages::Semantics> {
-        None
+    fn semantics(&self) -> languages::SemanticAnswers<'_> {
+        languages::SemanticAnswers::Absent
     }
 
     fn completion_requirement(&self) -> languages::CompletionRequirement {
@@ -16151,7 +16151,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -17115,7 +17115,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -17876,8 +17876,8 @@ impl Parse for ParseContract {
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn languages::Semantics> {
-        None
+    fn semantics(&self) -> languages::SemanticAnswers<'_> {
+        languages::SemanticAnswers::Absent
     }
 
     fn completion_requirement(&self) -> languages::CompletionRequirement {
@@ -18115,7 +18115,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -18874,8 +18874,8 @@ impl Parse for ParseContract {
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn languages::Semantics> {
-        None
+    fn semantics(&self) -> languages::SemanticAnswers<'_> {
+        languages::SemanticAnswers::Absent
     }
 
     fn completion_requirement(&self) -> languages::CompletionRequirement {
@@ -19115,7 +19115,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -19786,7 +19786,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -20248,7 +20248,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -20706,7 +20706,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut Vec<languages::FilePath>,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 

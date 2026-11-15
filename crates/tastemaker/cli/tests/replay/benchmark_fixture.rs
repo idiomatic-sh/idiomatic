@@ -32,7 +32,7 @@ fn locks(root: &Path, from: &Path, found: &mut Vec<PathBuf>) -> io::Result<()> {
 }
 
 /// Copies every lock of the source repository to the same path in the scratch repository `scratch`.
-fn copy_locks(scratch: &Path) -> io::Result<()> {
+pub(crate) fn copy_locks(scratch: &Path) -> io::Result<()> {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
     let mut found = Vec::new();
     locks(&source, &source, &mut found)?;

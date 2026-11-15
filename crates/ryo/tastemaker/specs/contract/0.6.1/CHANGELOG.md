@@ -1,5 +1,9 @@
 # contract
 
+## 0.6.1
+
+`Parse` renders `semantics` answering `languages::SemanticAnswers::Absent`, in place of `None` from an `Option<&dyn languages::Semantics>`: the engine's `ParseUseCase::semantics` answers the nominal `SemanticAnswers` (`Supplied` with the language's `Semantics`, or `Absent`). The `semantics` template's `why` names `languages::SemanticAnswers::Supplied(self)`, which a language with a `semantics.rs` answers. `Project` renders `project_entries` taking `&mut languages::ProjectEntries`, the engine's buffer since the port changed, in place of `&mut Vec<languages::FilePath>`. The rendered fixtures and the scenarios carry both, so a scaffolded contract compiles against the ports as they are. Everything else is as in 0.6.0. 0.6.0 is removed with this version, not kept as published: nothing has been released, and an unreleased version keeps no copy for compatibility.
+
 ## 0.6.0
 
 A contract part may hold `semantics.rs` (`count = { min = 0 }`), rendered by the new template `semantics`: the parse contract's struct implementing `ryo::languages::Semantics`, one method for each relation the catalog declares `optional`, each answered `NotYetRead` until the language reads it. `Parse::semantics` answers `Some(self)` when the file is there and `None` when it is not. The template renders only for the `ryo::languages::Parse` contract and refuses the file under any other. The new rule `semantics-in-parse` finds an `impl Semantics` in any file of the part but the parse contract's `semantics.rs` (scenarios `semantics-in-parse-semantics`, `semantics-in-contract`, `semantics-under-project`), so `contract.rs` keeps the baseline list and `semantics.rs` the optional one. Everything else is as in 0.5.0.

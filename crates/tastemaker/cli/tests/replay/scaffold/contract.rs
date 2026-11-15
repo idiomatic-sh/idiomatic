@@ -17,10 +17,10 @@ pub(super) fn assert_contract(contract: &str) {
         );
     }
     // The optional semantic relations (identifiers, qualified names, bindings, expression shapes, ...) are answered through
-    // `Semantics` since the generated Semantics trait: a fresh language implements none of them, so it answers `None`.
+    // `Semantics` since the generated Semantics trait: a fresh language implements none of them, so it answers `Absent`.
     assert!(
         contract.contains(
-            "fn semantics(&self) -> Option<&dyn languages::Semantics> {\n        None\n    }"
+            "fn semantics(&self) -> languages::SemanticAnswers<'_> {\n        languages::SemanticAnswers::Absent\n    }"
         ),
         "a fresh language must not answer the optional semantic relations"
     );

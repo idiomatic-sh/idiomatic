@@ -1,3 +1,7 @@
+# language 0.4.12
+
+Places `contract` 0.6.1, whose parse contract answers `semantics` with `languages::SemanticAnswers::Absent` and whose project contract's `project_entries` takes `&mut languages::ProjectEntries`. The language fixtures' parse and project contracts carry them, so a freshly scaffolded language compiles against the ports as they are. Everything else is as in 0.4.10. 0.4.10 is removed with this version; 0.4.11 is held by a branch in flight, which renames the tip when it lands.
+
 # language 0.4.10
 
 Places `benchmark` 0.2.5 (and through it `benchmark-linter` 0.2.4, whose reason names DEFERRED publication). Everything else is as in 0.4.9.

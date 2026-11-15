@@ -235,8 +235,8 @@ benchmark = "0.2.5"
 benchmark-collector = "0.1.0"
 benchmark-linter = "0.2.4"
 collector-execution = "0.1.0"
-contract = "0.6.0"
-language = "0.4.10"
+contract = "0.6.1"
+language = "0.4.12"
 provider-imports = "0.1.0"
 
 [packages."idiomatic.ryo".templates]

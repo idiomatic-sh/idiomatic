@@ -274,6 +274,7 @@ pub use ryo::languages::SampleText
 pub use ryo::languages::Scope
 pub use ryo::languages::ScopeColumn
 pub use ryo::languages::ScopeRow
+pub use ryo::languages::SemanticAnswers
 pub use ryo::languages::SemanticChild
 pub use ryo::languages::SemanticChildColumn
 pub use ryo::languages::SemanticChildRow

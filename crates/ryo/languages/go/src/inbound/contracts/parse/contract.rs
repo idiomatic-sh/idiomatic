@@ -52,8 +52,8 @@ impl Parse for ParseContract {
 
     fn begin_semantics(&self, _: &ParseRequest<'_>, _: &Elements, _: &mut SemanticSlot) {}
 
-    fn semantics(&self) -> Option<&dyn languages::Semantics> {
-        None
+    fn semantics(&self) -> languages::SemanticAnswers<'_> {
+        languages::SemanticAnswers::Absent
     }
 
     fn completion_requirement(&self) -> CompletionRequirement {

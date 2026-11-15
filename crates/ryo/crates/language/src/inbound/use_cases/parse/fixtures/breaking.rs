@@ -44,8 +44,8 @@ impl ParseUseCase for Breaking {
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn crate::domain::answers::types::Semantics> {
-        None
+    fn semantics(&self) -> crate::domain::answers::types::SemanticAnswers<'_> {
+        crate::domain::answers::types::SemanticAnswers::Absent
     }
 
     fn completion_requirement(&self) -> crate::domain::elements::types::CompletionRequirement {
