@@ -31,9 +31,10 @@ use ryo_operators::domain::physical_plan::types::PlanInputs as _;
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::held_rows::value::HeldRows;
 use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
-use ryo_operators::domain::tree_cells::service::native_form;
+use ryo_operators::domain::tree_cells::service::{native_form, tree_table, with_rows};
 use ryo_relations::domain::catalog::service::scope_of;
 use ryo_relations::domain::catalog::types::RowScope;
+use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepScope};
 use ryo_values::domain::plans::types::Plan;
@@ -182,23 +183,31 @@ pub(crate) fn captured_rule(
     Ok(RuleAfter::Ran { captures })
 }
 
-/// A relation's rows in the open file, as the file's sources wrote them, and their coverage as the file's partiality says.
+/// A relation's rows in the open file, as the file's sources wrote them or, for a tree relation, as the open file's tree has
+/// them at every one of its tree nodes; and their coverage as the file's partiality says.
 fn relation_rows(
     at: &PassFile<'_, '_, '_, '_>,
     rule: RuleIndex,
     relation: Relation,
 ) -> Result<NodeAnswer, OperatingError> {
-    // A tree relation's rows are the open file's tree, not a source's columns: no step of a file hands them over.
-    if native_form(relation).is_some() {
-        return Err(OperatingError::NotRun);
-    }
-    let view = at
-        .inputs
-        .lookup
-        .columns(relation)
-        .map_err(|_| OperatingError::NotRead)?;
-    let mut table = Table::default();
-    materialize(&Rows::Stored(view), &mut table, &mut Vec::new());
+    let table = match native_form(relation) {
+        Some(form) => tree_table(
+            form,
+            kinds(relation),
+            at.inputs.lookup.tree(),
+            with_rows(form, &at.inputs.roots.all),
+        ),
+        None => {
+            let view = at
+                .inputs
+                .lookup
+                .columns(relation)
+                .map_err(|_| OperatingError::NotRead)?;
+            let mut table = Table::default();
+            materialize(&Rows::Stored(view), &mut table, &mut Vec::new());
+            table
+        }
+    };
     let completion = CompletionPolicy::file_inputs(rule, at.file, at.evaluation, at.publication);
     Ok(NodeAnswer {
         table,

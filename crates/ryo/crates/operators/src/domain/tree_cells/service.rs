@@ -6,10 +6,13 @@ use ryo_language::domain::elements::service::{
     end_at, field_name_at, kind_at, kind_names, ordinal_at, parent_at, start_at, text_at,
 };
 use ryo_language::domain::elements::types::Elements;
-use ryo_relations::domain::relations::service::node_id;
-use ryo_relations::domain::relations::types::{Flag, Integer, Position, Relation, Span, Value};
+use ryo_relations::domain::relations::service::{node_file, node_id, node_position};
+use ryo_relations::domain::relations::types::{
+    CellKind, Flag, Integer, NodeId, Position, Relation, Span, Value,
+};
 use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::types::{RowCount, Table};
 
 /// The name of the kind of the element at `at`, as the table's vocabulary names it.
 ///
@@ -139,6 +142,91 @@ pub fn native_form(relation: Relation) -> Option<TreeForm> {
         .find_map(|(native, form)| (*native == relation).then_some(*form))
 }
 
+/// The tree nodes among `candidates`, one file's in tree order, that have a row in `form`: every one for the elements, and
+/// every one but the root for the edges, as the root has no edge.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::tree_cells::service::with_rows;
+/// use ryo_operators::domain::tree_cells::types::TreeForm;
+/// use ryo_relations::domain::relations::service::node_id;
+/// use ryo_relations::domain::relations::types::{FileId, Position};
+/// let nodes = [node_id(FileId(0), Position(0)), node_id(FileId(0), Position(1))];
+/// assert_eq!(with_rows(TreeForm::Elements, &nodes), &nodes[..]);
+/// assert_eq!(with_rows(TreeForm::Edges, &nodes), &nodes[1..]);
+/// ```
+#[must_use]
+pub fn with_rows(form: TreeForm, candidates: &[NodeId]) -> &[NodeId] {
+    match (form, candidates.split_first()) {
+        (TreeForm::Edges, Some((first, rest))) if node_position(*first).0 == 0 => rest,
+        (TreeForm::Edges | TreeForm::Elements, _) => candidates,
+    }
+}
+
+/// The rows in `form` of the tree nodes `candidates`, each of which has one (see [`with_rows`]), copied into a table whose
+/// columns hold `kinds`: each cell the one [`tree_value`] reads.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
+/// use ryo_language::domain::completion::service::{completion, name_kind};
+/// use ryo_language::domain::elements::types::Elements;
+/// use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+/// use ryo_operators::domain::tree_cells::service::{edge_of, tree_table, with_rows};
+/// use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
+/// use ryo_relations::domain::relations::service::{kinds, node_id};
+/// use ryo_relations::domain::relations::types::{FileId, KindBits, Offset, Position, Relation};
+/// use ryo_relations::domain::terms::types::NameText;
+/// use ryo_values::domain::rows::types::RowCount;
+/// let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+/// let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"ab"));
+/// enter_node(&mut builder, KindBits(1), Offset(0));
+/// token(&mut builder, KindBits(2), Offset(0), Offset(1));
+/// leave_node(&mut builder, Offset(2));
+/// for (bits, name) in [(1, "file"), (2, "word")] {
+///     let mut names = completion(&mut elements, &mut symbols, ByteSlice(b"ab"), FileId(0));
+///     name_kind(&mut names, KindBits(bits), NameText(name));
+/// }
+/// let nodes = [node_id(FileId(0), Position(0)), node_id(FileId(0), Position(1))];
+/// let edges = tree_table(TreeForm::Edges, kinds(Relation::SyntaxChild), &elements, with_rows(TreeForm::Edges, &nodes));
+/// let tree = TreeRows { form: TreeForm::Edges, elements: &elements, file: FileId(0) };
+/// assert_eq!(edges.count, RowCount(1));
+/// assert_eq!(edges.cells, edge_of(&tree, Position(1)));
+/// ```
+#[must_use]
+pub fn tree_table(
+    form: TreeForm,
+    kinds: &[CellKind],
+    elements: &Elements,
+    candidates: &[NodeId],
+) -> Table {
+    let mut table = Table {
+        kinds: kinds.to_vec(),
+        ..Table::default()
+    };
+    table
+        .cells
+        .reserve(kinds.len().saturating_mul(candidates.len()));
+    for node in candidates {
+        let rows = TreeRows {
+            form,
+            elements,
+            file: node_file(*node),
+        };
+        table.cells.extend((0..kinds.len()).map(|column| {
+            tree_value(
+                &rows,
+                node_position(*node),
+                ColumnIndex(u32::try_from(column).unwrap_or(u32::MAX)),
+            )
+        }));
+    }
+    table.count = RowCount(candidates.len());
+    table
+}
+
 /// One cell of the element at `at`, in the column order of the relation the tree's rows stand for; a column
 /// past them is the lowered flag.
 ///
@@ -228,7 +316,7 @@ pub(crate) fn walked_tree(
 /// The position of a candidate's node; past every element for a candidate that is no node.
 pub(crate) fn candidate_position(candidate: Value) -> Position {
     if let Value::Node(node) = candidate {
-        ryo_relations::domain::relations::service::node_position(node)
+        node_position(node)
     } else {
         Position(u32::MAX)
     }
@@ -237,7 +325,7 @@ pub(crate) fn candidate_position(candidate: Value) -> Position {
 /// The tree rows of `form` over `elements` in the file of `candidate`'s node.
 pub(crate) fn tree_rows_at(form: TreeForm, elements: &Elements, candidate: Value) -> TreeRows<'_> {
     let file = if let Value::Node(node) = candidate {
-        ryo_relations::domain::relations::service::node_file(node)
+        node_file(node)
     } else {
         ryo_relations::domain::relations::types::FileId(u32::MAX)
     };

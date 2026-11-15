@@ -7,7 +7,7 @@ use crate::domain::physical_plan::types::file_buffers::value::{IndexedRow, NO_RO
 use crate::domain::physical_plan::types::{PlanInputs, PlanNodeId, TreeRead};
 #[cfg(test)]
 use crate::domain::physical_plan::types::{RowSource, lowering::value::Lowering};
-use crate::domain::tree_cells::service::{native_form, tree_value};
+use crate::domain::tree_cells::service::{native_form, tree_table, tree_value, with_rows};
 use crate::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_language::domain::elements::service::{children, element_count};
 use ryo_language::domain::elements::types::Elements;
@@ -39,16 +39,11 @@ pub(crate) fn roots<'a>(
     relation: Relation,
 ) -> TreeRead<'a> {
     let form = native_form(relation).unwrap_or(TreeForm::Elements);
-    let candidates = inputs.roots(node).0;
-    let candidates = match (form, candidates.split_first()) {
-        (TreeForm::Edges, Some((first, rest))) if node_position(*first).0 == 0 => rest,
-        (TreeForm::Edges | TreeForm::Elements, _) => candidates,
-    };
     TreeRead {
         form,
         kinds: kinds(relation),
         elements,
-        candidates,
+        candidates: with_rows(form, inputs.roots(node).0),
     }
 }
 
@@ -137,15 +132,5 @@ pub(crate) fn tree_row(tree: &TreeRead<'_>, row: RowIndex, into: &mut Vec<Value>
 
 /// The rows of the tree read, copied into a table: for a node that cannot read the elements in place.
 pub(crate) fn copied(tree: &TreeRead<'_>) -> Table {
-    let mut table = Table {
-        kinds: tree.kinds.to_vec(),
-        ..Table::default()
-    };
-    let mut row = Vec::with_capacity(tree.kinds.len());
-    for at in 0..tree.candidates.len() {
-        tree_row(tree, RowIndex(at), &mut row);
-        table.cells.extend_from_slice(&row);
-    }
-    table.count = tree_count(tree);
-    table
+    tree_table(tree.form, tree.kinds, tree.elements, tree.candidates)
 }
