@@ -3,15 +3,13 @@
 //! growing with the names the capture mints, and every chunk within its cell bound.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::fixtures::{over_defines, over_nodes};
+use crate::domain::physical_plan::fixtures::over_nodes;
 use crate::domain::physical_plan::types::file_buffers::value::ChunkMeter;
 use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
 use crate::domain::physical_plan::types::{NodeRows, PlanNodeId};
-use crate::inbound::use_cases::run::fixtures::cases::self_matching;
 use crate::inbound::use_cases::run::fixtures::streams::{
-    Program, against, ran_after, ran_program, select_of, span, split_names,
+    Program, against, faulting, ran_after, ran_program, select_of, span, split_names,
 };
-use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as StepInput, RepeatedRows, StepId, Test,
 };
@@ -121,35 +119,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
 ];
-
-/// Rows of the span-between stage over a filter, `rows` of them, the stage failing on row `map_fault` (its span runs
-/// backwards) and the filter on row `filter_fault` (its name is no pattern).
-fn faulting(rows: usize, map_fault: usize, filter_fault: usize) -> Program {
-    Program {
-        steps: vec![
-            over_defines(Operation::SpanBetween {
-                from: StepInput::Relation(Relation::Defines),
-                start: ColumnIndex(6),
-                end: ColumnIndex(6),
-            }),
-            select_of(0, vec![self_matching(3)]),
-        ],
-        emit: PlanNodeId(1),
-        rows: (0..rows)
-            .map(|at| {
-                (
-                    if at == filter_fault { "[" } else { "a" }.to_owned(),
-                    if at == map_fault {
-                        span(2, 1)
-                    } else {
-                        span(0, 1)
-                    },
-                )
-            })
-            .collect(),
-        texts: vec!["a".into(), "[".into()],
-    }
-}
 
 /// The program each scenario runs.
 fn program(scenario: Scenario) -> Program {
