@@ -75,11 +75,10 @@ fn path_from(tree: &Tree<'_>, first: Position, end: Position) -> Option<PathExte
     Some(PathExtent { first, last })
 }
 
-/// The second `:` of a `::` that starts at `at`, when one does.
+/// The second `:` of a `::` that starts at `at`, when one does: the very next sibling, since rustc joins only colons that touch.
 fn separator_end(tree: &Tree<'_>, at: Position, end: Position) -> Option<Position> {
     let colon = |each: &Position| kind(tree, *each) == Kind::Token(Token::Colon);
-    Some(at).filter(colon)?;
-    significant_after(tree, at, end).filter(colon)
+    Some(at).filter(colon).and_then(|first| next_sibling(tree, first, end)).filter(colon)
 }
 
 /// The first sibling from `from` on that is neither whitespace nor a comment.

@@ -27,8 +27,7 @@ These clippy findings have no query yet:
 - a comparison's constant that is a named constant or a `char`, which clippy evaluates (`x < C && x > 10`, `c > 'z' && c < 'a'`);
 - a doc comment inside a `macro_rules!` body, which clippy reports at the definition when a call expands it (`tabs_in_doc_comments` and
   the other doc-comment lints read no token tree);
-- an attribute a `cfg_attr` expands, which `duplicated_attributes` compares only when the condition holds, and an attribute list
-  nested deeper than two levels;
+- an attribute a `cfg_attr` expands, which `duplicated_attributes` compares only when the condition holds;
 - an attribute macro other than `derive` and `test`, which consumes its attribute before `empty_line_after_outer_attr` and
   `empty_line_after_doc_comments` see it;
 - a struct literal with a `..` spread whose assigned field is reached through `DerefMut` (`temporary_assignment`).
