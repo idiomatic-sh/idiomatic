@@ -25,6 +25,10 @@ enum Scenario {
     GroupDigest,
     TwoWalksOverNewTexts,
     OrderedWalkOverEqualOrders,
+    ClosureOfOnePartition,
+    ClosureOfTwoPartitions,
+    ClosureOfNoEdge,
+    OrderedWalkWithoutItsRootColumn,
 }
 #[derive(Debug, PartialEq)]
 enum Observation {
@@ -106,7 +110,51 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::OrderedWalkOverATextOrder,
         expect: Expect::Error(PortableOperatorFault::ShapeMismatch),
     },
+    Case {
+        name: CaseName("each_reached_vertex_is_one_row_after_its_key_and_source"),
+        word: Word::Succeeds,
+        input: || Scenario::ClosureOfOnePartition,
+        // A closure keyed on the ordinal: key 10, source 1, each entity it reaches (3, then 4).
+        expect: Expect::Value(Observation::Rows(std::borrow::Cow::Borrowed(&[
+            10, 1, 3, 10, 1, 4,
+        ]))),
+    },
+    Case {
+        name: CaseName("each_partition_answers_under_its_own_key"),
+        word: Word::Succeeds,
+        input: || Scenario::ClosureOfTwoPartitions,
+        expect: Expect::Value(Observation::Rows(std::borrow::Cow::Borrowed(&[
+            10, 1, 3, 11, 2, 5,
+        ]))),
+    },
+    Case {
+        name: CaseName("no_partition_answers_no_row"),
+        word: Word::Succeeds,
+        input: || Scenario::ClosureOfNoEdge,
+        expect: Expect::Value(Observation::Rows(std::borrow::Cow::Borrowed(&[]))),
+    },
+    Case {
+        name: CaseName("a_root_row_without_its_root_column_is_refused"),
+        word: Word::Refuses,
+        input: || Scenario::OrderedWalkWithoutItsRootColumn,
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
+            index: ColumnIndex(9),
+        }),
+    },
 ];
+
+/// A closure of the edges keyed on their ordinal, from each parent to each child it reaches.
+fn keyed_closure() -> Step {
+    Step {
+        operation: Operation::Closure {
+            edges: StepInput::Relation(EDGES),
+            keys: vec![ColumnIndex(2)],
+            source: ColumnIndex(0),
+            destination: ColumnIndex(1),
+        },
+        inputs: vec![PlanInput::Relation(EDGES)],
+    }
+}
 
 /// The node at position `at` of file 0.
 fn node(at: u32) -> Cell {
@@ -348,6 +396,20 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             ))
         }
         Scenario::OrderedWalkOverATextOrder => stated_rows(ordered_walk(ColumnIndex(3)), WALKED),
+        Scenario::ClosureOfOnePartition => {
+            stated_rows(keyed_closure(), &[(1, 3, 10), (1, 4, 10)])
+        }
+        Scenario::ClosureOfTwoPartitions => {
+            stated_rows(keyed_closure(), &[(1, 3, 10), (2, 5, 11)])
+        }
+        Scenario::ClosureOfNoEdge => stated_rows(keyed_closure(), &[]),
+        Scenario::OrderedWalkWithoutItsRootColumn => {
+            let mut walk = ordered_walk(ColumnIndex(2));
+            if let Operation::OrderedDfs { root, .. } = &mut walk.operation {
+                *root = ColumnIndex(9);
+            }
+            stated_rows(walk, WALKED)
+        }
     }
 }
 
