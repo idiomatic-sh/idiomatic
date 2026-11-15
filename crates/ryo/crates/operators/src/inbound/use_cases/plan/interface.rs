@@ -19,6 +19,16 @@ use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 /// use ryo_operators::domain::physical_plan::service::plan;
 /// ```
 ///
+/// Nor its kernels, nor what a node is lowered to:
+///
+/// ```compile_fail,E0603
+/// use ryo_operators::domain::physical_plan::collections::kernels::reach::item::reached;
+/// ```
+///
+/// ```compile_fail,E0603
+/// use ryo_operators::domain::physical_plan::types::lowering::value::Lowering;
+/// ```
+///
 /// Implementations must supply the planner.
 ///
 /// ```compile_fail,E0046

@@ -1,6 +1,5 @@
-//! The allocation rows, measured: the blocks a file's keyed selects allocate once the worker's buffers are warm, which the
-//! allocation test compares for a thousand rows and a hundred thousand; the blocks a seeded closure allocates, compared for
-//! a hundred chains and ten thousand; and the blocks the graph kernels allocate over a file's edges, cold and warm.
+//! The allocation rows, measured: the blocks keyed selects allocate for a thousand rows and a hundred thousand, a seeded
+//! closure for a hundred chains and ten thousand, and the graph kernels over a file's edges, cold and warm.
 
 use super::{TableInputs, TextResources, emitted};
 use crate::domain::physical_plan::fixtures::Step;
@@ -27,14 +26,21 @@ pub struct Workloads {
 
 /// Whether the rows hold for `workloads`. Within the bounds, every row holds: the keyed selects and the seeded closure
 /// allocate the same blocks for few rows and many, and the warm graph kernels none. Past them, it holds when any workload
-/// past its bound holds its row, so the allocation test's second assertion shows every row able to fail.
+/// past its bound holds its row, so the allocation test's second assertion shows every row able to fail. Every workload
+/// runs to the end before any is judged.
+///
+/// # Panics
+///
+/// When a workload faults: a program that does not run proves no row, and is no budget breach.
 #[must_use]
 pub fn held(workloads: &Workloads) -> bool {
     let past = workloads.past_bound;
     let selects = selects_held(&KeyedSelects { answering: past });
     let closure = seeded_held(&SeededClosure { fused: !past });
-    let kernels =
-        graph_kernel_blocks().is_some_and(|[cold, warm]| if past { cold == 0 } else { warm == 0 });
+    let kernels = {
+        let [cold, warm] = graph_kernel_blocks();
+        if past { cold == 0 } else { warm == 0 }
+    };
     if past {
         selects || closure || kernels
     } else {
@@ -50,13 +56,13 @@ struct KeyedSelects {
     answering: bool,
 }
 
-/// Whether the row holds for `selects`: a file of a hundred thousand rows allocates the same blocks as a file of a thousand,
-/// each measured with buffers warm from a file of the same rows. Selects that do not run do not hold it.
+/// Whether a file of a hundred thousand rows of `selects` allocates the same blocks as one of a thousand, both warm.
+///
+/// # Panics
+///
+/// When the selects fault.
 fn selects_held(selects: &KeyedSelects) -> bool {
-    match (blocks(selects, 1_000), blocks(selects, 100_000)) {
-        (Some(few), Some(many)) => few == many,
-        (None, _) | (_, None) => false,
-    }
+    blocks(selects, 1_000) == blocks(selects, 100_000)
 }
 
 /// The two keyed selects, keyed on `name`.
@@ -107,9 +113,8 @@ fn defines(rows: usize, resources: &TextResources) -> Table {
     }
 }
 
-/// The blocks one file of `rows` rows allocates in the two keyed selects, its buffers warm from a file of the same rows, or
-/// nothing when the selects do not run. The caller's global allocator is `dhat`'s.
-fn blocks(selects: &KeyedSelects, rows: usize) -> Option<u64> {
+/// The blocks one warm file of `rows` rows allocates in the two keyed selects, under the caller's `dhat` allocator.
+fn blocks(selects: &KeyedSelects, rows: usize) -> u64 {
     let _profiler = dhat::Profiler::builder().testing().build();
     let mut resources = TextResources::new(&["kind", "n0", "n1", "n2", "n3", "absent"]);
     let table = defines(rows, &resources);
@@ -117,7 +122,12 @@ fn blocks(selects: &KeyedSelects, rows: usize) -> Option<u64> {
     let steps = keyed_selects(if selects.answering { "n1" } else { "absent" });
     let emits = [PlanNodeId(0), PlanNodeId(1)];
     let mut buffers = FileBuffers::default();
-    emitted(&steps, &emits, &inputs, &mut resources, &mut buffers).ok()?;
+    #[expect(
+        clippy::expect_used,
+        reason = "a program that faults proves no allocation row: the panic is the failure"
+    )]
+    let _warm =
+        emitted(&steps, &emits, &inputs, &mut resources, &mut buffers).expect("the warm file runs");
     // The warm file ends: the engine releases every node it kept, and the next file starts with their capacity.
     for node in emits {
         buffers.release(node);
@@ -125,7 +135,12 @@ fn blocks(selects: &KeyedSelects, rows: usize) -> Option<u64> {
     let before = dhat::HeapStats::get().total_blocks;
     let measured = emitted(&steps, &emits, &inputs, &mut resources, &mut buffers);
     let after = dhat::HeapStats::get().total_blocks;
-    measured.ok().map(|_| after - before)
+    #[expect(
+        clippy::expect_used,
+        reason = "a program that faults proves no allocation row: the panic is the failure"
+    )]
+    let _measured = measured.expect("the measured file runs");
+    after - before
 }
 
 /// The relation the graph cases read edges from: parent, child, ordinal (a number), field, file.
@@ -141,14 +156,12 @@ struct SeededClosure {
 
 /// Whether a file of ten thousand chains allocates the same blocks as a file of a hundred, for the same two bound chains,
 /// each measured with buffers warm from a file of the same rows. A whole closure grows with the graph and does not hold it.
+///
+/// # Panics
+///
+/// When the program faults.
 fn seeded_held(closure: &SeededClosure) -> bool {
-    match (
-        closure_blocks(closure, 100),
-        closure_blocks(closure, 10_000),
-    ) {
-        (Some(few), Some(many)) => few == many,
-        (None, _) | (_, None) => false,
-    }
+    closure_blocks(closure, 100) == closure_blocks(closure, 10_000)
 }
 
 /// `pairs` rows of `EDGES`, parent to child, each of ordinal 0, the field `f`, file 0.
@@ -239,8 +252,8 @@ fn closure_steps(fused: bool) -> Vec<Step> {
 }
 
 /// The blocks one file of `count` chains allocates in the closure's program, its buffers warm from a file of the same rows,
-/// or nothing when the program does not run. The caller's global allocator is `dhat`'s.
-fn closure_blocks(closure: &SeededClosure, count: u32) -> Option<u64> {
+/// under the caller's `dhat` allocator.
+fn closure_blocks(closure: &SeededClosure, count: u32) -> u64 {
     let _profiler = dhat::Profiler::builder().testing().build();
     let mut resources = TextResources::new(&["f"]);
     let edges = chains(count, &resources);
@@ -252,18 +265,28 @@ fn closure_blocks(closure: &SeededClosure, count: u32) -> Option<u64> {
         u32::try_from(steps.len() - 1).unwrap_or(u32::MAX),
     )];
     let mut buffers = FileBuffers::default();
-    emitted(&steps, &emit, &inputs, &mut resources, &mut buffers).ok()?;
+    #[expect(
+        clippy::expect_used,
+        reason = "a program that faults proves no allocation row: the panic is the failure"
+    )]
+    let _warm =
+        emitted(&steps, &emit, &inputs, &mut resources, &mut buffers).expect("the warm file runs");
     buffers.release(emit[0]);
     let before = dhat::HeapStats::get().total_blocks;
     let measured = emitted(&steps, &emit, &inputs, &mut resources, &mut buffers);
     let after = dhat::HeapStats::get().total_blocks;
-    measured.ok().map(|_| after - before)
+    #[expect(
+        clippy::expect_used,
+        reason = "a program that faults proves no allocation row: the panic is the failure"
+    )]
+    let _measured = measured.expect("the measured file runs");
+    after - before
 }
 
 /// The blocks the graph kernels allocate over a file's edges, cold and then warm from a file of the same edges: `reach`
 /// from every source, `ordered_walk` from every parent and `components`, each writing into a table whose capacity is kept,
 /// as a worker's buffers keep theirs. The caller's global allocator is `dhat`'s.
-fn graph_kernel_blocks() -> Option<[u64; 2]> {
+fn graph_kernel_blocks() -> [u64; 2] {
     let _profiler = dhat::Profiler::builder().testing().build();
     let mut resources = TextResources::new(&["f"]);
     // Rings of ten nodes, each with a chord: cycles for `components`, and walks that meet entities again.
@@ -287,9 +310,9 @@ fn graph_kernel_blocks() -> Option<[u64; 2]> {
     let inputs = TableInputs::new(&[(EDGES, &edges)]);
     let mut buffers = FileBuffers::default();
     let mut output = Table::default();
-    let cold = graph_kernels_once(&edges, &inputs, &mut resources, &mut buffers, &mut output)?;
-    let warm = graph_kernels_once(&edges, &inputs, &mut resources, &mut buffers, &mut output)?;
-    Some([cold, warm])
+    let cold = graph_kernels_once(&edges, &inputs, &mut resources, &mut buffers, &mut output);
+    let warm = graph_kernels_once(&edges, &inputs, &mut resources, &mut buffers, &mut output);
+    [cold, warm]
 }
 
 /// The blocks one run of the three graph kernels over `edges` allocates.
@@ -299,7 +322,7 @@ fn graph_kernels_once(
     resources: &mut TextResources,
     buffers: &mut FileBuffers,
     output: &mut Table,
-) -> Option<u64> {
+) -> u64 {
     use crate::domain::physical_plan::collections::kernels::components::item::cyclic;
     use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visited;
     use crate::domain::physical_plan::collections::kernels::probe::item::ProbeScratch;
@@ -366,10 +389,12 @@ fn graph_kernels_once(
             1 => visited(&dfs, rows, rows, &run.resources.texts(), &mut *walk, output),
             _ => cyclic(&cycles, rows, &mut *index, &mut *cycle_scratch, output),
         };
-        if !matches!(fault, Ok(None)) {
-            return None;
-        }
+        #[expect(
+            clippy::expect_used,
+            reason = "a program that faults proves no allocation row: the panic is the failure"
+        )]
+        let _ran = fault.expect("the graph kernel runs");
     }
     let after = dhat::HeapStats::get().total_blocks;
-    Some(after - before)
+    after - before
 }

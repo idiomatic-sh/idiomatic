@@ -11,13 +11,15 @@ use super::super::scan_facts::item::{cell_of, count_of, kinds_of};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::ordered_dfs::types::DfsParts;
 use crate::domain::physical_plan::types::InputRows;
+use crate::domain::physical_plan::types::Resources;
 use crate::domain::physical_plan::types::file_buffers::value::{IndexedRow, WalkScratch};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
-use crate::domain::table_texts::service::canonical_cell;
+use crate::domain::table_texts::service::{canonical_cell, text_of_cell};
 use crate::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 use std::cmp::Ordering;
 
@@ -64,9 +66,9 @@ pub(crate) fn visited(
     walk: &mut WalkScratch,
     output: &mut Table,
 ) -> Result<Option<PortableOperatorFault>, PortableOperatorFault> {
+    walk.reached.clear();
     shaped(dfs, roots, edges, output)?;
     // Main compares a text by its canonical symbol: the root columns first, then the edge columns, rows last first.
-    walk.reached.clear();
     canonical(
         roots,
         dfs.root_keys.iter().chain([&dfs.root]),
@@ -352,6 +354,18 @@ fn canonical<'c>(
         }
     }
     Ok(())
+}
+
+/// Interns, in order, each text a walk numbered after the file's symbols, as main's engine interned it while it prepared the
+/// walk, so the next walk of the file finds it among them.
+pub(crate) fn interned(fresh: &[Value], resources: &mut dyn Resources) {
+    for value in fresh {
+        let Some(text) = text_of_cell(*value, &resources.texts()).map(|text| text.0.to_owned())
+        else {
+            continue;
+        };
+        let _symbol = resources.intern(CellText(&text));
+    }
 }
 
 /// The cell of an indexed row.

@@ -3,7 +3,7 @@
 
 pub mod file_buffers;
 pub mod logical_program;
-pub mod lowering;
+pub(crate) mod lowering;
 pub mod physical_plan;
 
 use crate::domain::contract::types::{PortableOperatorFault, RenderKind};

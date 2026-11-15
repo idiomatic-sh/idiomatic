@@ -6,6 +6,7 @@ use super::types::{KernelInputs, Reading};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::extend::item::resolved;
 use crate::domain::physical_plan::collections::kernels::lookup::item::lookups;
+use crate::domain::physical_plan::collections::kernels::ordered_walk::item::interned;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::facts;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::{give_back, hold, take};
 use crate::domain::physical_plan::collections::kernels::scan_roots::item::roots;
@@ -174,41 +175,56 @@ fn materialize(
         | Lowering::Components { .. }
         | Lowering::Unlowered => None,
     };
-    let run: &KernelRun<'_> = run;
-    // One node read on both sides is taken once and read twice.
-    let shared = second == Some(first) && matches!(first, RowSource::Node(_));
-    let left = reading(run, node, first, buffers)?;
-    let right = match second {
-        Some(second) if !shared => match reading(run, node, second, buffers) {
-            Ok(right) => Some(right),
-            Err(fault) => {
-                returned(plan, buffers, left, NodeReaders(1));
-                return Err(fault);
+    let shared: &KernelRun<'_> = run;
+    // A node read by several inputs is taken once and read by each of them, and gives back one read per input.
+    let sources = [Some(first), second, third];
+    let mut slots: [Option<Reading<'_>>; 3] = [None, None, None];
+    let mut reads = [NodeReaders(0); 3];
+    let mut slot_of = [0, 1, 2];
+    for (at, source) in sources.iter().enumerate() {
+        let Some(source) = *source else {
+            continue;
+        };
+        let earlier = (0..at).find(|before| {
+            matches!(source, RowSource::Node(_))
+                && sources.get(*before).copied().flatten() == Some(source)
+        });
+        if let Some(before) = earlier {
+            let slot = slot_of.get(before).copied().unwrap_or(before);
+            if let Some(place) = slot_of.get_mut(at) {
+                *place = slot;
             }
-        },
-        Some(_) | None => None,
-    };
-    // A third input (an axis's domain) is never the node read on another side: the planner gives it its own source.
-    let last = match third {
-        Some(third) => match reading(run, node, third, buffers) {
-            Ok(last) => Some(last),
+            if let Some(count) = reads.get_mut(slot) {
+                count.0 += 1;
+            }
+            continue;
+        }
+        match reading(shared, node, source, buffers) {
+            Ok(read) => {
+                if let (Some(slot), Some(count)) = (slots.get_mut(at), reads.get_mut(at)) {
+                    *slot = Some(read);
+                    *count = NodeReaders(1);
+                }
+            }
             Err(fault) => {
-                returned(plan, buffers, left, NodeReaders(if shared { 2 } else { 1 }));
-                if let Some(right) = right {
-                    returned(plan, buffers, right, NodeReaders(1));
+                for (slot, count) in slots.into_iter().zip(reads) {
+                    if let Some(read) = slot {
+                        returned(plan, buffers, read, count);
+                    }
                 }
                 return Err(fault);
             }
-        },
-        None => None,
-    };
-    let left_fault = pending_of(&left);
-    let last_fault = last.as_ref().and_then(pending_of);
-    let right_fault = match &right {
-        Some(right) => pending_of(right),
-        None if shared => left_fault.clone(),
-        None => None,
-    };
+        }
+    }
+    let read_at: [Option<&Reading<'_>>; 3] = std::array::from_fn(|at| {
+        let _source = sources.get(at).copied().flatten()?;
+        slots.get(slot_of.get(at).copied()?)?.as_ref()
+    });
+    let [first_read, second_read, third_read] = read_at;
+    let left = first_read.ok_or(PortableOperatorFault::WrongOperation)?;
+    let left_fault = pending_of(left);
+    let right_fault = second_read.and_then(pending_of);
+    let last_fault = third_read.and_then(pending_of);
     // A blocking kernel reads every row of an input before it answers one: an input's fault comes before any of its rows. A
     // union reads its right rows only after every left row.
     // A graph kernel reads every edge row before it walks: the edges' fault comes first, then an axis's domain's, then an
@@ -227,23 +243,25 @@ fn materialize(
         | Lowering::Lookup { .. }
         | Lowering::Unlowered => None,
     };
+    let walked = matches!(lowering, Lowering::OrderedWalk { .. }) && blocked.is_none();
     let mut output = Table::default();
     let made = match blocked {
         Some(fault) => Ok(Some(fault)),
         None => {
-            let right_rows = match (&right, left_fault.is_some()) {
-                (_, true) if matches!(lowering, Lowering::Distinct { .. }) => None,
-                (Some(right), _) => Some(rows_in(right)),
-                (None, _) => shared.then(|| rows_in(&left)),
-            };
+            let right_rows =
+                if left_fault.is_some() && matches!(lowering, Lowering::Distinct { .. }) {
+                    None
+                } else {
+                    second_read.map(rows_in)
+                };
             let inputs = KernelInputs {
-                input: rows_in(&left),
+                input: rows_in(left),
                 other: right_rows,
-                third: last.as_ref().map(rows_in),
+                third: third_read.map(rows_in),
             };
             kernels(
                 lowering,
-                run,
+                shared,
                 node,
                 inputs,
                 resolution,
@@ -252,12 +270,15 @@ fn materialize(
             )
         }
     };
-    returned(plan, buffers, left, NodeReaders(if shared { 2 } else { 1 }));
-    if let Some(right) = right {
-        returned(plan, buffers, right, NodeReaders(1));
+    for (slot, count) in slots.into_iter().zip(reads) {
+        if let Some(read) = slot {
+            returned(plan, buffers, read, count);
+        }
     }
-    if let Some(last) = last {
-        returned(plan, buffers, last, NodeReaders(1));
+    // Main's ordered walk interned the texts its keys met that the file did not hold yet, for the rest of the file: the
+    // kernel numbered them in that order, and the file's symbols now hold them so the next walk finds them.
+    if walked {
+        interned(&buffers.walk.reached, run.resources);
     }
     let fault = made?;
     hold(

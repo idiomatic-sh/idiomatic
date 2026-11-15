@@ -107,32 +107,15 @@ pub(crate) fn walked(
     } = inputs;
     let starts_count = count_of(starts).0;
     output.kinds.clear();
+    // Main declares the answer's layout before any row, empty starts or not: the start column must be there, and a
+    // declared output reads its right columns from the domain's; the reached entity is a node.
+    walk_kinds(axis, starts, domain, output)?;
     if starts_count == 0 {
-        // No start acquires the walk's resources: an axis over no start rows answers none and raises nothing, in the layout
-        // its answer would have.
-        empty_layout(axis, starts, edges, domain, output);
+        // No start acquires the walk's resources: an axis over no start rows answers none and raises nothing else.
         return Ok(None);
     }
     let mode = mode_of(axis, edges, domain)?;
-    let reached_kinds = match mode {
-        Mode::Native { tree, among } => among.unwrap_or(tree).kinds,
-        Mode::Empty | Mode::Indexed { .. } => kinds_of(edges),
-    };
     let elements = matches!(mode, Mode::Native { .. });
-    if !elements || axis.output.is_empty() {
-        output.kinds.extend_from_slice(kinds_of(starts));
-        output.kinds.push(match mode {
-            Mode::Indexed { to, .. } => kind_at(kinds_of(edges), to)?,
-            Mode::Empty | Mode::Native { .. } => CellKind::Node,
-        });
-    } else {
-        for column in &axis.output {
-            output.kinds.push(match column.side {
-                Side::Left => kind_at(kinds_of(starts), column.column)?,
-                Side::Right => kind_at(reached_kinds, column.column)?,
-            });
-        }
-    }
     let AxisTables {
         edges: index,
         domain: members,
@@ -311,38 +294,32 @@ fn mode_of<'a>(
     Ok(Mode::Indexed { from, to })
 }
 
-/// The kinds of an axis's answer when no start reads its resources; a column past its rows is left out, as no row reads it.
-fn empty_layout(
+/// The kinds of an axis's answer, as main's `walk_kinds` declares them: the start row's then a node, or the declared output's,
+/// a left column from the start rows and a right column from the domain's.
+///
+/// # Errors
+///
+/// `NoSuchColumn` for the start column, or a declared column, past its rows.
+fn walk_kinds(
     axis: &AxisParts,
     starts: InputRows<'_>,
-    edges: InputRows<'_>,
     domain: InputRows<'_>,
     output: &mut Table,
-) {
-    let reached = match (edges, domain) {
-        (InputRows::Tree(_), InputRows::Tree(among)) if among.form == TreeForm::Elements => {
-            among.kinds
-        }
-        (InputRows::Tree(tree), _) => tree.kinds,
-        (InputRows::Facts(_) | InputRows::Table(_), _) => kinds_of(edges),
-    };
-    if axis.output.is_empty() || !matches!(edges, InputRows::Tree(_)) {
+) -> Result<(), PortableOperatorFault> {
+    let _start = kind_at(kinds_of(starts), axis.id)?;
+    output.kinds.clear();
+    if axis.output.is_empty() {
         output.kinds.extend_from_slice(kinds_of(starts));
-        let KeyedColumns { to, .. } = keyed_columns(axis);
-        output.kinds.push(match edges {
-            InputRows::Tree(_) => CellKind::Node,
-            InputRows::Facts(_) | InputRows::Table(_) => {
-                kind_at(kinds_of(edges), to).unwrap_or(CellKind::Node)
-            }
-        });
-    } else {
-        output
-            .kinds
-            .extend(axis.output.iter().filter_map(|column| match column.side {
-                Side::Left => kinds_of(starts).get(usize::from(column.column)).copied(),
-                Side::Right => reached.get(usize::from(column.column)).copied(),
-            }));
+        output.kinds.push(CellKind::Node);
+        return Ok(());
     }
+    for column in &axis.output {
+        output.kinds.push(match column.side {
+            Side::Left => kind_at(kinds_of(starts), column.column)?,
+            Side::Right => kind_at(kinds_of(domain), column.column)?,
+        });
+    }
+    Ok(())
 }
 
 /// The column keyed edges are keyed by, and the one they lead to.

@@ -122,7 +122,7 @@ pub(crate) fn canonical_cell(
 }
 
 /// The text of a symbol or name cell.
-fn text_of_cell<'t>(value: Value, texts: &Texts<'t>) -> Option<TextView<'t>> {
+pub(crate) fn text_of_cell<'t>(value: Value, texts: &Texts<'t>) -> Option<TextView<'t>> {
     match value {
         Value::Symbol(symbol) => symbol_text(texts, symbol),
         Value::Name(name) => name_text(texts, name),
