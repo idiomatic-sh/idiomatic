@@ -4,8 +4,8 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::errors::ContractError;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::source_matches::types::{
-    OccurrenceByte, OccurrenceSpan,
-    BaseLine, CaptureRequest, LineBytes, SourceBase, SourceMatchesInput, TextRowDriver,
+    BaseLine, CaptureRequest, LineBytes, OccurrenceByte, OccurrenceSpan, SourceBase,
+    SourceMatchesInput, TextRowDriver,
 };
 use ryo_matching::inbound::use_cases::matching::{
     interface::MatchingUseCase,

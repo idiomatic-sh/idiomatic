@@ -396,12 +396,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             ))
         }
         Scenario::OrderedWalkOverATextOrder => stated_rows(ordered_walk(ColumnIndex(3)), WALKED),
-        Scenario::ClosureOfOnePartition => {
-            stated_rows(keyed_closure(), &[(1, 3, 10), (1, 4, 10)])
-        }
-        Scenario::ClosureOfTwoPartitions => {
-            stated_rows(keyed_closure(), &[(1, 3, 10), (2, 5, 11)])
-        }
+        Scenario::ClosureOfOnePartition => stated_rows(keyed_closure(), &[(1, 3, 10), (1, 4, 10)]),
+        Scenario::ClosureOfTwoPartitions => stated_rows(keyed_closure(), &[(1, 3, 10), (2, 5, 11)]),
         Scenario::ClosureOfNoEdge => stated_rows(keyed_closure(), &[]),
         Scenario::OrderedWalkWithoutItsRootColumn => {
             let mut walk = ordered_walk(ColumnIndex(2));

@@ -56,7 +56,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         // A projection keeping repeats, then the union, the intersection and the difference of it, a projection dropping
         // repeats, and the extension of the first: the set operations and the dropping projection answer a row once, the
         // others keep its repeats.
-        expect: Expect::Value(Cow::Borrowed("a | b | a; a | b; a | b; a; a | b; a 1 | b 1 | a 1")),
+        expect: Expect::Value(Cow::Borrowed(
+            "a | b | a; a | b; a | b; a; a | b; a 1 | b 1 | a 1",
+        )),
     },
     Case {
         name: CaseName("antijoin_with_no_right_rows_is_left"),
@@ -220,7 +222,13 @@ fn answered(steps: &[Step], emits: &[u32], pairs: &[(&str, &str)]) -> Result<Str
     let rows = defines(pairs, &texts);
     let inputs = TableInputs::new(&[(DEFINES, &rows)]);
     let emits: Vec<PlanNodeId> = emits.iter().copied().map(PlanNodeId).collect();
-    let tables = emitted(steps, &emits, &inputs, &mut texts, &mut FileBuffers::default())?;
+    let tables = emitted(
+        steps,
+        &emits,
+        &inputs,
+        &mut texts,
+        &mut FileBuffers::default(),
+    )?;
     Ok(tables
         .iter()
         .map(|table| shown(table, &texts))
@@ -426,7 +434,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             &repeated,
         )?,
         Scenario::JoinOrder => answered(
-            &[join((relation(), 3), (relation(), 3), &[(Side::Left, 0), (Side::Right, 0)])],
+            &[join(
+                (relation(), 3),
+                (relation(), 3),
+                &[(Side::Left, 0), (Side::Right, 0)],
+            )],
             &[0],
             &[("r1", "b"), ("r1", "a"), ("r1", "b")],
         )?,
@@ -461,7 +473,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             }
         }
         Scenario::GroupCount => answered(
-            &[group_count(relation(), false), group_count(relation(), true)],
+            &[
+                group_count(relation(), false),
+                group_count(relation(), true),
+            ],
             &[0, 1],
             &[("r1", "a"), ("r1", "a"), ("r1", "b"), ("r2", "a")],
         )?,
@@ -485,7 +500,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let mut through = join(
                 (relation(), 3),
                 (relation(), 0),
-                &[(Side::Left, 0), (Side::Right, 1), (Side::Right, 0), (Side::Left, 3)],
+                &[
+                    (Side::Left, 0),
+                    (Side::Right, 1),
+                    (Side::Right, 0),
+                    (Side::Left, 3),
+                ],
             );
             if let Operation::Join { view, .. } = &mut through.operation {
                 *view = vec![ColumnIndex(3), ColumnIndex(0)];
@@ -495,7 +515,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::JoinOfNoMatchPastItsOutput => answered(
             &[
                 select(relation(), vec![named("zzz")]),
-                join((relation(), 3), (node(0), 3), &[(Side::Left, 0), (Side::Right, 99)]),
+                join(
+                    (relation(), 3),
+                    (node(0), 3),
+                    &[(Side::Left, 0), (Side::Right, 99)],
+                ),
             ],
             &[1],
             &repeated,
