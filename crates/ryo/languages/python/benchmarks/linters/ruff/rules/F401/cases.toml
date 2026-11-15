@@ -303,3 +303,69 @@ name="global-import-beside-module-import"
 comparison="full"
 files={"case.py"="import os\n\n\ndef f():\n    global os\n    import os\n"}
 expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="submodule-use-inherited-by-same-submodule"
+comparison="full"
+files={"case.py"="import os as o\nimport os.path\nprint(o)\nimport os.path\n"}
+expected=[]
+
+[[cases]]
+name="submodule-use-inherited-by-other-submodule"
+comparison="full"
+files={"case.py"="import os as o\nimport os.path\nprint(o)\nimport os.sep\n"}
+expected=[]
+
+[[cases]]
+name="submodule-use-inherited-by-plain-import"
+comparison="full"
+files={"case.py"="import os as o\nimport os.path\nprint(o)\nimport os\n"}
+expected=[]
+
+[[cases]]
+name="submodule-use-inherited-by-from-import"
+comparison="full"
+files={"case.py"="import os as o\nimport os.path\nprint(o)\nfrom x import os\n"}
+expected=[]
+
+[[cases]]
+name="submodule-use-inherited-through-chain"
+comparison="full"
+files={"case.py"="import os as o\nimport os.path\nprint(o)\nimport os.sep\nimport os.curdir\n"}
+expected=[]
+
+[[cases]]
+name="submodule-use-not-inherited-across-delete"
+comparison="full"
+files={"case.py"="import os as o\nimport os.path\nprint(o)\ndel os\nimport os.path\n"}
+expected=[{rule="F401", file="case.py", start=53, end=60}]
+
+[[cases]]
+name="submodule-use-then-delete"
+comparison="full"
+files={"case.py"="import os as o\nimport os.path\nprint(o)\ndel os\n"}
+expected=[]
+
+[[cases]]
+name="global-name-must-match-import"
+comparison="full"
+files={"case.py"="def f():\n    global A\n    import B\n"}
+expected=[{rule="F401", file="case.py", start=33, end=34}]
+
+[[cases]]
+name="submodule-alias-with-plain-import-of-root"
+comparison="full"
+files={"case.py"="import pandas as pd\nimport pandas\nprint(pd)\n"}
+expected=[{rule="F401", file="case.py", start=27, end=33}]
+
+[[cases]]
+name="submodule-alias-named-as-its-root"
+comparison="full"
+files={"case.py"="import pandas as pandas\nimport pandas.io\nprint(pandas)\n"}
+expected=[]
+
+[[cases]]
+name="submodule-alias-read-in-string-annotation"
+comparison="full"
+files={"case.py"="from typing import cast\nimport pandas as pd\nimport pandas.io\n\n\ndef f(x):\n    return cast(\"pd\", x)\n"}
+expected=[]
