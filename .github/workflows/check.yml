@@ -1,8 +1,8 @@
 # The check workflow on GitHub Actions, its thin edge: the pull request gate, and on a push to main the run that seeds the caches a
 # pull request restores. Asymptote alone decides what runs. A pull request runs Linux x86 (ubuntu-26.04) only, and the fewest
-# builds: the `root` job (the repository's own groups), the `pull-request` job (the title), one `check-linux` job per product (its
-# `lint`, `clippy`, `check`, `release-tests` and `release-coverage` groups in one asymptote call, so the tests share one build), the
-# `bench-correctness` job and `gate`. A push to main and a hand run add the rest: the `check` job's other machines (ARM, macOS,
+# builds: the `root` job (the repository's own groups), the `pull-request` job (the message main keeps), one `check-linux` job per
+# product (its `lint`, `clippy`, `check`, `release-tests` and `release-coverage` groups in one asymptote call, so the tests share one
+# build), the `bench-correctness` job and `gate`. A push to main and a hand run add the rest: the `check` job's other machines (ARM, macOS,
 # Windows) and groups and `python-release`, a hand run `speed`. Every cache is saved by a run on main alone (`github.ref ==
 # refs/heads/main`) and restored by every run: the Rust cache under one key per machine and product, shared by the groups of a
 # machine (no job id in it), the installed tools under one key per machine and the hash of the files that pin them, and each
@@ -126,7 +126,8 @@ jobs:
         with:
           path: .asymptote/cache
           key: asymptote-${{ runner.os }}-${{ runner.arch }}-root-repository-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
-  # The pull request's own title (commitizen-title), from the event GitHub hands the run. The event is no file of the repository,
+  # The message main keeps (commitizen): a pull request's title, or the commits a push to main added, from the event GitHub hands
+  # the run. The event is no file of the repository,
   # and no stamp holds it, so this job keeps no asymptote store: it checks the live event every time.
   pull-request:
     runs-on: ubuntu-26.04

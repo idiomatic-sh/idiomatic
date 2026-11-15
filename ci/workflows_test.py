@@ -1228,16 +1228,16 @@ def event_store_problems(workflow: dict, tools: list[dict]) -> list[str]:
 
 
 def test_a_tool_that_reads_the_event_runs_where_no_store_is_kept() -> None:
-    """The pull request's title is read from the event, which no stamp holds: commitizen-title's group is run by check.yml's
-    pull-request job, which keeps no store, and by no job that restores one. Planted: the title tool in the root's stored
-    repository group is refused."""
+    """The message main keeps (a pull request's title, a push's commits) is read from the event, which no stamp holds:
+    commitizen's group is run by check.yml's pull-request job, which keeps no store, and by no job that restores one. Planted:
+    commitizen in the root's stored repository group is refused."""
     tools = tomllib.loads(read(ROOT / "asymptote.toml"))["tools"]
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
-    assert {tool["id"] for tool in tools if EVENT.search(" ".join(tool["run"]))} == {"commitizen-title"}
+    assert {tool["id"] for tool in tools if EVENT.search(" ".join(tool["run"]))} == {"commitizen"}
     assert event_store_problems(workflow, tools) == []
     assert groups_run(workflow["jobs"]["pull-request"], set()) == {"pull-request"} and not store_steps(workflow["jobs"]["pull-request"])
-    stored = [tool | {"group": "repository"} if tool["id"] == "commitizen-title" else tool for tool in tools]
-    assert event_store_problems(workflow, stored) == ["commitizen-title reads the event, and root restores a store for its group repository"]
+    stored = [tool | {"group": "repository"} if tool["id"] == "commitizen" else tool for tool in tools]
+    assert event_store_problems(workflow, stored) == ["commitizen reads the event, and root restores a store for its group repository"]
     kept = deepcopy(workflow)
     kept["jobs"]["pull-request"]["steps"][-1:-1] = [deepcopy(step) for _, step in store_steps(workflow["jobs"]["root"])]
     assert event_store_problems(kept, tools)

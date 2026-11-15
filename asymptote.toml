@@ -76,23 +76,14 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "repository"
-# The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
-# event, which no stamp holds.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
-timeout-seconds = 300
-
-[[tools]]
-id = "commitizen-title"
 group = "pull-request"
-# A pull request's title is a conventional commit (cz.toml): a squash merge makes it the commit main keeps. It reads the event
-# GitHub hands the run ($GITHUB_EVENT_PATH), which is no file of the repository and no stamp holds, so its group is run by a job
-# that keeps no asymptote store (check.yml's pull-request job) and it checks the live event every time. A run that is no pull
-# request's has no title to check.
-run = ["bash", "-c", "set -e; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
+# The message main keeps is a conventional commit (cz.toml). Main takes squash merges alone, so a pull request lands as its title:
+# a pull request's run checks the title, and a push to main the commits it added. Both are read from the event GitHub hands the run
+# ($GITHUB_EVENT_PATH), which is no file of the repository and no stamp holds, so its group is run by a job that keeps no asymptote
+# store (check.yml's pull-request job) and it checks the live event every time. A run with no event has no message to check.
+run = ["bash", "-c", "uv run ci/scripts/checks/commitizen.py \"${GITHUB_EVENT_PATH:-}\""]
 timeout-seconds = 300
-inputs = ["cz.toml"]
+inputs = ["cz.toml", "ci/scripts/checks/commitizen.py"]
 
 [[tools]]
 id = "gitleaks"
