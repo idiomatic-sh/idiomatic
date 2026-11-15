@@ -114,6 +114,7 @@ impl FileBuffers {
     /// ```
     /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
     /// use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
+    /// use ryo_operators::domain::contract::types::PredicateOutcome;
     /// let mut buffers = FileBuffers::default();
     /// buffers.retain(PlanNodeId(0), |_| PredicateOutcome::Fails);
     /// assert_eq!(buffers.rows(PlanNodeId(0)), NodeRows::Absent);
