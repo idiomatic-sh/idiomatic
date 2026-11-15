@@ -1,6 +1,7 @@
 //! The chain of streamed stages at seam C, through `plan`, `run` and `rows` only: each program run as planned, and as its
 //! held twin (the same program with every intermediate node held by the engine, so none streams), the two answering the same
 //! rows and the same first fault, every name compared by its text.
+use super::service::STREAM_CHUNK_CELLS;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{Step, defines_rows, over_defines, over_nodes};
@@ -235,7 +236,7 @@ fn span(start: u32, end: u32) -> Span {
 }
 
 /// Rows of the span-between stage over a filter, `rows` of them, the stage failing on row `map_fault` (its span runs
-/// backwards) and the filter on row `filter_fault` (its name is no pattern): over three chunks of the stage's rows.
+/// backwards) and the filter on row `filter_fault` (its name is no pattern).
 fn faulting(rows: usize, map_fault: usize, filter_fault: usize) -> Program {
     Program {
         steps: vec![
@@ -281,8 +282,17 @@ fn program(scenario: Scenario) -> Program {
                 .map(str::to_owned)
                 .collect(),
         },
-        Scenario::FilterFaultFirst => faulting(7_000, 5_000, 1_500),
-        Scenario::MapFaultFirst => faulting(7_000, 1_500, 5_000),
+        // The span-between stage writes rows of 8 cells: a fault in its first chunk and one in its third.
+        Scenario::FilterFaultFirst => faulting(
+            STREAM_CHUNK_CELLS / 8 * 7 / 2,
+            STREAM_CHUNK_CELLS / 8 * 5 / 2,
+            STREAM_CHUNK_CELLS / 8 * 3 / 4,
+        ),
+        Scenario::MapFaultFirst => faulting(
+            STREAM_CHUNK_CELLS / 8 * 7 / 2,
+            STREAM_CHUNK_CELLS / 8 * 3 / 4,
+            STREAM_CHUNK_CELLS / 8 * 5 / 2,
+        ),
         Scenario::NamesMintedAcrossChunks => {
             // Each name splits a hundred ways, each way minting its two halves, so the file's names grow chunk after chunk
             // while two comparisons of each name, remembered by name, decide which rows the filter keeps.
@@ -347,7 +357,13 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
         Scenario::ExpandingCapture => Observation::Bounded {
             same,
             formed: streamed.formed,
-            within: streamed.buffers.chunks_within(),
+            within: streamed.buffers.chunks_within()
+                && streamed.buffers.stream.levels.iter().all(|chain| {
+                    chain
+                        .stages
+                        .iter()
+                        .all(|stage| stage.out.cells.capacity() <= STREAM_CHUNK_CELLS)
+                }),
         },
     })
 }

@@ -296,6 +296,18 @@ pub(crate) enum RowMap {
     FitsRendered(crate::domain::fits_rendered::types::FitsParts),
 }
 
+/// The tree nodes whose rows of a tree relation one node reads, before any elements are lent: the rows' form and kinds, and
+/// the nodes, in tree order.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct TreeRoots<'a> {
+    /// Which rows of the tree these are.
+    pub(crate) form: crate::domain::tree_cells::types::TreeForm,
+    /// What each column holds.
+    pub(crate) kinds: &'static [ryo_relations::domain::relations::types::CellKind],
+    /// The tree nodes whose rows these are, in tree order.
+    pub(crate) candidates: &'a [NodeId],
+}
+
 /// A tree relation's rows as one node reads them: the open file's elements at the tree nodes the engine named, in tree order.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct TreeRead<'a> {

@@ -62,7 +62,7 @@ fn sized(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
 }
 
 /// Runs an earlier node `source` reads when it holds no rows.
-fn ready(
+pub(super) fn ready(
     plan: &PhysicalPlan,
     run: &mut KernelRun<'_>,
     source: RowSource,
@@ -162,7 +162,7 @@ pub(super) fn made(
     if let Some(third) = third {
         ready(plan, run, third, buffers)?;
     }
-    if let Lowering::TextMap { .. } | Lowering::Render { .. } = lowering {
+    if let Lowering::Render { .. } = lowering {
         return super::minted::service::minted(plan, run, node, lowering, first, buffers);
     }
     // An extension's values are made before its rows are read: making a name changes the file's names, and reading reads them.

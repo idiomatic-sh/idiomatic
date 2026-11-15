@@ -8,9 +8,6 @@ use crate::domain::physical_plan::collections::kernels::directed_walk::item::{
 };
 use crate::domain::physical_plan::collections::kernels::distinct::item::counted;
 use crate::domain::physical_plan::collections::kernels::extend::item::{extended, kind_of};
-use crate::domain::physical_plan::collections::kernels::filter::item::{
-    filter, keep, kept_kinds, readied,
-};
 use crate::domain::physical_plan::collections::kernels::group::item::{GroupScratch, grouped};
 use crate::domain::physical_plan::collections::kernels::hash_index::item::emptied;
 use crate::domain::physical_plan::collections::kernels::ordered_match::item::matched;
@@ -53,29 +50,6 @@ pub(crate) fn kernels(
     let kinds = kinds_of(input);
     let rows = count_of(input).0;
     match lowering {
-        Lowering::Filter { select, .. } => {
-            output.kinds = kept_kinds(kinds, &select.kept)?;
-            let texts = run.resources.texts();
-            let decisions = buffers
-                .decisions
-                .get_mut(place)
-                .ok_or(PortableOperatorFault::WrongOperation)?;
-            let kernel = filter(select, kinds, texts);
-            readied(select, decisions, kernel.names);
-            for row in 0..rows {
-                let cells = row_of(input, RowIndex(row), &mut buffers.row);
-                if let Err(fault) = keep(
-                    kernel,
-                    run.matcher,
-                    cells,
-                    decisions,
-                    &mut buffers.written,
-                    output,
-                ) {
-                    return Ok(Some(fault));
-                }
-            }
-        }
         Lowering::Project { project, .. } => {
             // A projection keeps exactly its columns: none is a row of no column, never every column as a filter's none is.
             output.kinds = project
@@ -230,8 +204,10 @@ pub(crate) fn kernels(
                 return Ok(Some(fault));
             }
         }
-        // Run by `minted`, which holds the resources mutably while it reads its rows.
-        Lowering::TextMap { .. }
+        // A filter and a text_map stage are run by the chain of streamed stages, a render by `minted`, which holds the
+        // resources mutably while it reads its rows.
+        Lowering::Filter { .. }
+        | Lowering::TextMap { .. }
         | Lowering::Render { .. }
         | Lowering::Lookup { .. }
         | Lowering::ScanBound { .. }

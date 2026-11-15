@@ -54,6 +54,8 @@ pub struct FileBuffers {
     pub(crate) found: Vec<NodeId>,
     /// Each probe index the plan shares, by its place, its capacity kept across files.
     pub(crate) shared: Vec<SharedIndex>,
+    /// The work of the chains of streamed stages, its capacity kept across nodes and files.
+    pub(crate) stream: StreamScratch,
     /// How many times a probe built an index, its own or a shared one: what the sharing cases count.
     #[cfg(test)]
     pub(crate) builds: IndexBuilds,
@@ -104,6 +106,39 @@ pub(crate) struct ChunkMeter {
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct IndexBuilds(pub(crate) usize);
+
+/// The work of the chains of streamed stages a worker runs: one chain's scratch for each chain running at once (a chain
+/// that readies a held source runs that source's chain inside it), kept with its capacity across nodes and files.
+#[derive(Debug, Default)]
+pub(crate) struct StreamScratch {
+    /// The scratch of each chain not running now, taken by the next chain to run and given back when it is done.
+    pub(crate) levels: Vec<ChainScratch>,
+}
+
+/// One chain's scratch: its nodes, head first, and each stage's own state.
+#[derive(Debug, Default)]
+pub(crate) struct ChainScratch {
+    /// The chain's nodes, from the head stage to the tail.
+    pub(crate) chain: Vec<PlanNodeId>,
+    /// A head row, decoded from a relation's columns or the tree.
+    pub(crate) row: Vec<Value>,
+    /// Each stage's own state, by its place in the chain.
+    pub(crate) stages: Vec<StageScratch>,
+}
+
+/// One stage's own state for one run of its chain: the chunk of rows it wrote that its reader has not read, what it read and
+/// whether it stopped at a fault.
+#[derive(Debug, Default)]
+pub(crate) struct StageScratch {
+    /// The rows it wrote that its reader has not read yet: its chunk. The tail writes its node's table instead.
+    pub(crate) out: ryo_values::domain::rows::types::Table,
+    /// Where in `out` the rows of the input row it read last start.
+    pub(crate) last: usize,
+    /// How many input rows it read.
+    pub(crate) read: ryo_values::domain::rows::types::RowCount,
+    /// The fault it stopped at; it reads no row after it.
+    pub(crate) fault: Option<PortableOperatorFault>,
+}
 
 /// A probe index the plan shares: built by the first of its probes in a file to read its rows, and emptied after the last,
 /// or when the engine releases its last probe at the file's end, so no file reads another file's index.

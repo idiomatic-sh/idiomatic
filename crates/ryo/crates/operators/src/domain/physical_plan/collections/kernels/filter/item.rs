@@ -88,6 +88,14 @@ pub(crate) fn readied(select: &SelectParts, decisions: &mut NodeDecisions, names
     );
 }
 
+/// Grows `decisions`' memo to room for `names` names, keeping every decision made: the file's names grew since it was readied.
+pub(crate) fn grown(select: &SelectParts, decisions: &mut NodeDecisions, names: NameCount) {
+    let room = select.comparisons.len().saturating_mul(names.0);
+    if decisions.memo.len() < room {
+        decisions.memo.resize(room, Memo::Unknown);
+    }
+}
+
 /// Whether every comparison holds for `row`.
 ///
 /// # Errors
