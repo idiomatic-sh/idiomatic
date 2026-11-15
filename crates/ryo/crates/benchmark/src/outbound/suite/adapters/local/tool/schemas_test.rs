@@ -65,6 +65,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error("invalid applicability"),
     },
     Case {
+        name: CaseName("an explicit policy map covers the authored rules, not a deferred one"),
+        word: Word::Succeeds,
+        input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']\ndefaults=['F401','F402']\n[deferred]\nblocked=['F402']\n[rule-applicability]\nF401='accepted-syntax'",
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("an explicit policy map cannot name a deferred rule, which has no query"),
+        word: Word::Refuses,
+        input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']\ndefaults=['F401','F402']\n[deferred]\nblocked=['F402']\n[rule-applicability]\nF401='accepted-syntax'\nF402='accepted-syntax'",
+        expect: Expect::Error("invalid applicability"),
+    },
+    Case {
+        name: CaseName("an explicit policy map cannot name a pending rule, which has no query"),
+        word: Word::Refuses,
+        input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']\ndefaults=['F401','F402']\n[pending]\nqueued=['F402']\n[rule-applicability]\nF401='accepted-syntax'\nF402='accepted-syntax'",
+        expect: Expect::Error("invalid applicability"),
+    },
+    Case {
         name: CaseName("query module paths cannot leave the profile root"),
         word: Word::Refuses,
         input: || "tool='ruff'\nversion='1'\nsha256=['abc']\ndefaults=['F401']\n[query-modules]\n'suppress'='../outside.ryoql'",
@@ -126,13 +144,26 @@ fn subject(text: Input) -> Result<Value, Failure> {
                 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
                 "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
             ]
-        && tool
-            .defaults
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
-            == ["F401"]
-        && tool.deferred.is_empty()
+        && if text.contains("[deferred]") {
+            tool.defaults
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                == ["F401", "F402"]
+                && tool
+                    .deferred
+                    .keys()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    == ["F402"]
+        } else {
+            tool.defaults
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                == ["F401"]
+                && tool.deferred.is_empty()
+        }
         && tool.pending.is_empty()
         && if text.contains("[query-modules]") {
             tool.query_modules

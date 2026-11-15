@@ -112,9 +112,15 @@ impl TryFrom<ToolSchema> for types::Tool {
                 "supporting rules must be unique and distinct from defaults".into(),
             ));
         }
+        let deferred = dispositions(wire.deferred)?;
+        let pending = dispositions(wire.pending)?;
+        // A deferred or pending rule has no query, so no policy applies to it: a map covers exactly the authored rules, the
+        // defaults and supporting producers that have one.
+        let authored = |id: &ryo::linter::RuleId| !deferred.contains_key(id) && !pending.contains_key(id);
         for (id, applicability) in &wire.rule_applicability {
             let parsed_id = rule(id)?;
             if (!defaults.contains(&parsed_id) && !supporting_rules.contains(&parsed_id))
+                || !authored(&parsed_id)
                 || !matches!(
                     applicability.as_str(),
                     crate::outbound::suite::adapters::local::constants::ALWAYS
@@ -127,7 +133,7 @@ impl TryFrom<ToolSchema> for types::Tool {
             }
         }
         if !wire.rule_applicability.is_empty() {
-            for id in defaults.iter().chain(&supporting_rules) {
+            for id in defaults.iter().chain(&supporting_rules).filter(|id| authored(id)) {
                 if !wire.rule_applicability.contains_key(id.as_ref()) {
                     return Err(Error::Invalid(format!(
                         "invalid rule applicability policy: missing declared rule {id}"
@@ -190,8 +196,8 @@ impl TryFrom<ToolSchema> for types::Tool {
             },
             rule_observations: observation_declarations(wire.rule_observations)
                 .map_err(Error::Invalid)?,
-            deferred: dispositions(wire.deferred)?,
-            pending: dispositions(wire.pending)?,
+            deferred,
+            pending,
             query_modules: query_modules
                 .into_iter()
                 .map(|(name, path)| (ryo_benchmark_contracts::domain::requests::types::QueryModuleName(name), path))
