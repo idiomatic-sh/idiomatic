@@ -226,7 +226,8 @@ impl FileBuffers {
     }
 
     /// One engine use of `node` is done: a rule that emits it, or a consumer that holds it, is finished with it. Its rows go
-    /// once no engine use and no node reader of it remains in the open file, whichever comes last.
+    /// once no engine use and no node reader of it remains in the open file, whichever comes last; a node the file holds no
+    /// rows of is left as it is.
     ///
     /// # Examples
     ///
@@ -242,6 +243,11 @@ impl FileBuffers {
         let at = usize::try_from(node.0).unwrap_or(usize::MAX);
         // A node of another plan has no engine use here.
         if plan.nodes.get(at).is_none() {
+            return;
+        }
+        // A node the open file never made, or has already given back, holds no rows: its use releases nothing, so a shared
+        // index whose last probe it is stays for the probe that makes it later in the file.
+        if self.nodes.get(at).is_none_or(Option::is_none) {
             return;
         }
         let Some(left) = self.engine_left.get_mut(at) else {

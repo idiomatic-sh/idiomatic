@@ -2,9 +2,11 @@
 //! once its last consumer is done, whichever comes last of its node readers and its engine uses (the rules that emit it, the
 //! frontiers and named outputs that hold it); never before, so no node is made twice in a file; and never past the file's end.
 use super::super::fixtures::{RUN, every, every_node, first_column, node_of, plan, ran, request};
+use ryo_execution_domain::domain::rule_intent::types::{ApplicabilityReason, FileRuleIntent};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::plan_parts::types::{Input as StepInput, StepId};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as StepInput, StepId, StepScope};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
 use std::borrow::Cow;
 use std::sync::PoisonError;
 
@@ -19,6 +21,11 @@ enum Scenario {
     ReadThenCaptured,
     /// Rule 0 and rule 2 emit the functions; rule 1's emitted comments fault, which stops the file before rule 2.
     StoppedFile,
+    /// Rule 0 keeps the functions of no comment's file, a probe of the comments keyed by file; rule 1, which does not run on
+    /// the file, and rule 2 emit one node, a second such probe. Rule 1's turn ends before any rule made that node: the later
+    /// rule makes it once and holds it. (How many indexes the probes build is counted at seam C, in operators' shared_index
+    /// cases: an_engine_use_of_a_last_probe_not_yet_made_keeps_its_shared_index.)
+    SkippedSharesALastProbe,
 }
 
 type Input = Scenario;
@@ -53,6 +60,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
+        name: CaseName("a_rule_not_run_that_shares_a_node_leaves_it_to_the_later_rule"),
+        word: Word::Succeeds,
+        input: || Scenario::SkippedSharesALastProbe,
+        expect: Expect::Value(Cow::Borrowed(
+            "run 0 before 0:absent 2:absent; lend Function; lend Comment; ran 0 after 0:held 2:absent; run 2 before 0:absent 2:absent; lend Function; lend Comment; ran 2 after 0:absent 2:held",
+        )),
+    },
+    Case {
         name: CaseName("no_buffer_outlives_the_file"),
         word: Word::Succeeds,
         input: || Scenario::StoppedFile,
@@ -84,8 +99,43 @@ fn subject(input: Input) -> Result<Value, Failure> {
             handed,
         )],
         Scenario::StoppedFile => vec![functions(), comments(), functions()],
+        Scenario::SkippedSharesALastProbe => {
+            let unremarked = |left: StepInput| PlanStep {
+                scope: StepScope::PerFile,
+                operation: Operation::Antijoin {
+                    left,
+                    right: StepInput::Relation(Relation::Comment),
+                    left_on: vec![ColumnIndex(2)],
+                    right_on: vec![ColumnIndex(2)],
+                },
+            };
+            let later = || {
+                plan(
+                    vec![
+                        every(Relation::Function),
+                        unremarked(StepInput::Step(StepId(0))),
+                    ],
+                    1,
+                    Vec::new(),
+                )
+            };
+            vec![
+                plan(
+                    vec![unremarked(StepInput::Relation(Relation::Function))],
+                    0,
+                    Vec::new(),
+                ),
+                later(),
+                later(),
+            ]
+        }
     };
-    let intents = vec![RUN; plans.len()];
+    let mut intents = vec![RUN; plans.len()];
+    if let Scenario::SkippedSharesALastProbe = input
+        && let Some(skipped) = intents.get_mut(1)
+    {
+        *skipped = FileRuleIntent::Skipped(ApplicabilityReason::DiagnosticNotApplicable);
+    }
     let (request, watch) = request(plans);
     let functions = node_of(&request, 0, 0);
     if let Scenario::StoppedFile = input {
@@ -103,7 +153,12 @@ fn subject(input: Input) -> Result<Value, Failure> {
             first.unwrap_or_default()
         )));
     }
-    watch.watch(&[functions]);
+    if let Scenario::SkippedSharesALastProbe = input {
+        // Both probes watched: the first, and the second, the shared index's last probe, which the skipped rule emits.
+        watch.watch(&[functions, node_of(&request, 1, 1)]);
+    } else {
+        watch.watch(&[functions]);
+    }
     let _ran = ran(&request, &intents, &[]);
     Ok(Cow::Owned(watch.taken().join("; ")))
 }

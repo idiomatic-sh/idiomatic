@@ -33,6 +33,9 @@ enum Scenario {
     SharedAgainstOwn,
     /// The planted counter-example: the last probe reading other right rows, still reading the shared index.
     SharedAcrossRows,
+    /// The three probes over one file, an engine use of the last probe done before any probe after the first made it: a rule
+    /// that does not run on the file and emits the node a later rule emits.
+    UsedBeforeMade,
 }
 
 /// What a case observed.
@@ -60,6 +63,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::BuildsUnshared,
         expect: Expect::Value(Observation::Builds(IndexBuilds(3))),
+    },
+    Case {
+        name: CaseName("an_engine_use_of_a_last_probe_not_yet_made_keeps_its_shared_index"),
+        word: Word::Succeeds,
+        input: || Scenario::UsedBeforeMade,
+        expect: Expect::Value(Observation::Builds(IndexBuilds(1))),
     },
     Case {
         name: CaseName("a_shared_index_answers_what_its_own_index_answers"),
@@ -173,6 +182,29 @@ fn reread(mut plan: PhysicalPlan) -> PhysicalPlan {
 /// The rows of each file, by its names: each row its own node, its kind, refinement and name the name.
 const FILES: [&[&str]; 2] = [&["n1", "n2", "n1", "a"], &["n2", "a", "n2"]];
 
+/// How many probe indexes one file of the three probes builds when an engine use of the last probe, which no probe has made
+/// yet, is done after the first probe ran.
+///
+/// # Errors
+///
+/// The first fault of a probe.
+fn used_before_made(plan: &PhysicalPlan) -> Result<IndexBuilds, Failure> {
+    let mut buffers = FileBuffers::default();
+    let mut resources = TextResources::new(TEXTS);
+    let rows: Vec<_> = FILES[0]
+        .iter()
+        .map(|name| (resources.symbol(name), span(0, 1)))
+        .collect();
+    let table = defines_rows(&rows);
+    let inputs = TableInputs::new(&[(DEFINES, &table)]);
+    ran(plan, PROBES[0], &mut buffers, &inputs, &mut resources)?;
+    buffers.used(plan, PROBES[2]);
+    for node in &PROBES[1..] {
+        ran(plan, *node, &mut buffers, &inputs, &mut resources)?;
+    }
+    Ok(buffers.builds)
+}
+
 /// Each file's answers of the three probes, in order, over one worker's buffers: the first probe released before the others
 /// run, every node released at the file's end; and how many probe indexes were built.
 ///
@@ -212,6 +244,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     Ok(match scenario {
         Scenario::Builds => Observation::Builds(answers(&plan, &FILES[..1])?.1),
         Scenario::BuildsUnshared => Observation::Builds(answers(&unshared(plan), &FILES[..1])?.1),
+        Scenario::UsedBeforeMade => Observation::Builds(used_before_made(&plan)?),
         Scenario::SharedAgainstOwn => {
             Observation::Same(answers(&plan, &FILES)?.0 == answers(&unshared(plan), &FILES)?.0)
         }
