@@ -6,8 +6,8 @@ use super::super::hash_index::item::first_of_row;
 use super::super::interface::{KernelsItem, Reach};
 use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::physical_plan::types::CellStart;
-#[cfg(test)]
 use crate::domain::physical_plan::types::file_buffers::value::KeyedRows;
+#[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::rows::types::{RowCount, Table};

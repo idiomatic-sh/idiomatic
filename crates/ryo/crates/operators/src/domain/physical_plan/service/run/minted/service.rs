@@ -10,9 +10,8 @@ use crate::domain::physical_plan::collections::kernels::scan_roots::item::{copie
 use crate::domain::physical_plan::collections::kernels::text_map::item::{RowMapRun, mapped};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-use crate::domain::physical_plan::types::{
-    KernelRun, Lowering, NodeReaders, PlanNodeId, RowSource,
-};
+use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::{KernelRun, NodeReaders, PlanNodeId, RowSource};
 use ryo_values::domain::rows::types::Table;
 
 /// Runs a node that mints or renders through the resources while it reads its rows (a `text_map` stage or a `render`) and

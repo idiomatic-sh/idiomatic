@@ -142,6 +142,7 @@ fn recognised(
                 empty_right: EmptyRight::EveryLeftRow,
                 ..
             },
+        ..
     } = &node_of(nodes, antijoin)?.lowering
     else {
         return None;
@@ -182,6 +183,7 @@ fn recognised(
                 left: source,
                 right: other,
                 probe: joined,
+                ..
             },
     } = only_read(nodes, *source)?
     else {
@@ -307,8 +309,9 @@ fn numbered(
             }),
         Lowering::Lookup { index, select, .. } => kept(&select.kept, column)
             .zip(indexes.get(index.0))
-            .map_or(NumberProof::Unproven, |(column, index)| {
-                stored(index.relation, column)
+            .map_or(NumberProof::Unproven, |(column, index)| match index.source {
+                RowSource::Facts(relation) => stored(relation, column),
+                RowSource::Node(_) | RowSource::Tree(_) => NumberProof::Unproven,
             }),
         Lowering::Project { source, project } => project
             .columns
@@ -316,7 +319,9 @@ fn numbered(
             .map_or(NumberProof::Unproven, |column| {
                 numbered(nodes, indexes, *source, *column, id)
             }),
-        Lowering::Probe { left, right, probe } => match probe.mode {
+        Lowering::Probe {
+            left, right, probe, ..
+        } => match probe.mode {
             ProbeMode::Inner => {
                 probe
                     .output

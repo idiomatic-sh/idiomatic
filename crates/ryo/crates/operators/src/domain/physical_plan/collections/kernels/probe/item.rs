@@ -224,7 +224,7 @@ pub(crate) fn probed(
                 output
                     .cells
                     .extend_from_slice(row_of(left, at, scratch.row));
-                counted(output, start, probe.repeated, scratch.seen);
+                counted(output, start, probe.repeated, scratch.repeats);
             }
             continue;
         }
