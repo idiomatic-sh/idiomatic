@@ -63,6 +63,21 @@ pub struct TableInputs {
     roots: Vec<NodeId>,
     /// The rows held for each frontier entry, bound observation and host relation.
     after: HeldInputs,
+    /// What the run asked of the inputs, in order: each relation lent or refused, each frontier and observation read.
+    demands: std::cell::RefCell<Vec<Demand>>,
+}
+
+/// One thing a run asked of the inputs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Demand {
+    /// A relation's rows, lent.
+    Lent(Relation),
+    /// A relation's rows, refused: the engine records the refusal and it decides the file's outcome.
+    Refused(Relation),
+    /// What the files handed over for a frontier entry.
+    Frontier,
+    /// The rows a bound observation answers.
+    Observation,
 }
 
 impl TableInputs {
@@ -79,7 +94,14 @@ impl TableInputs {
             reads,
             roots: Vec::new(),
             after: HeldInputs::default(),
+            demands: std::cell::RefCell::new(Vec::new()),
         }
+    }
+
+    /// What the run asked of the inputs so far, in order.
+    #[must_use]
+    pub fn demands(&self) -> Vec<Demand> {
+        self.demands.borrow().clone()
     }
 
     /// These inputs, with every node reading the tree starting from `roots`.
@@ -130,21 +152,27 @@ impl PlanInputs for TableInputs {
         {
             Some(((_, columns), count)) => {
                 count.set(count.get() + 1);
+                self.demands.borrow_mut().push(Demand::Lent(relation));
                 FactRows::Lent(ColumnsView {
                     kinds: ryo_relations::domain::relations::fixtures::kinds(relation),
                     columns,
                 })
             }
-            None => FactRows::Refused,
+            None => {
+                self.demands.borrow_mut().push(Demand::Refused(relation));
+                FactRows::Refused
+            }
         }
     }
     fn roots(&self, _root: PlanNodeId) -> Candidates<'_> {
         Candidates(&self.roots)
     }
     fn frontier(&self, _place: FrontierPlace) -> HeldRows<'_> {
+        self.demands.borrow_mut().push(Demand::Frontier);
         self.after.held()
     }
     fn observation(&self, _place: BoundObservationPlace) -> HeldRows<'_> {
+        self.demands.borrow_mut().push(Demand::Observation);
         self.after.held()
     }
     fn hosted(&self, relation: HostedNumber) -> HeldRows<'_> {

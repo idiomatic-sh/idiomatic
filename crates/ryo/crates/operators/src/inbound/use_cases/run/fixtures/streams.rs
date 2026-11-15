@@ -1,7 +1,7 @@
 //! The programs the streaming cases run at seam C, each as planned and as its held twin (the same plan with every node held,
 //! so none streams), and their answers with every name as its text, their feeds and a warm worker's second file.
 use super::cases::compared;
-use super::{TableInputs, TextResources, planned, ran};
+use super::{Demand, TableInputs, TextResources, planned, ran};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{Step, defines_rows, over_defines, over_nodes};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
@@ -40,6 +40,11 @@ pub(crate) struct Ran {
     pub(crate) fed: Vec<Option<[usize; 3]>>,
     /// Whether the same worker, warm from the run, answers the next file of the same rows alike, rows and feeds.
     pub(crate) warm: bool,
+    /// What the first file asked of the inputs, in order.
+    pub(crate) demands: Vec<Demand>,
+    /// The file's outcome as the engine reports it: the first relation the inputs refused, which the engine records and
+    /// gives precedence, or else the emit's rows or first fault.
+    pub(crate) outcome: Result<Vec<Vec<String>>, Outcome>,
     /// How many node tables the run formed.
     pub(crate) formed: u32,
     /// The worker's buffers after the run.
@@ -164,6 +169,14 @@ pub(crate) fn ran_steps(
         Ok((answer, fed))
     };
     let (answer, fed) = file(&mut buffers, &mut resources)?;
+    let demands = inputs.demands();
+    let outcome = match demands.iter().find_map(|demand| match demand {
+        Demand::Refused(relation) => Some(*relation),
+        Demand::Lent(_) | Demand::Frontier | Demand::Observation => None,
+    }) {
+        Some(relation) => Err(Outcome::Refused(relation)),
+        None => answer.clone().map_err(Outcome::Fault),
+    };
     let formed = buffers.meter.formed.0;
     // The file ends: the engine releases every node, and the warm worker runs the next file of the same rows.
     for node in (0..u32::try_from(run.steps.len()).unwrap_or(u32::MAX)).map(PlanNodeId) {
@@ -172,6 +185,8 @@ pub(crate) fn ran_steps(
     let (again, fed_again) = file(&mut buffers, &mut resources)?;
     Ok(Ran {
         warm: again == answer && fed_again == fed,
+        demands,
+        outcome,
         answer,
         fed,
         formed,
@@ -179,10 +194,22 @@ pub(crate) fn ran_steps(
     })
 }
 
-/// Whether a planned run agrees with its held twin: the same rows in order or the same first fault, the same rows fed to
+/// A file's outcome when it is no rows: the relation the inputs refused, or the operators' first fault.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum Outcome {
+    /// The inputs refused this relation.
+    Refused(Relation),
+    /// The operators' first fault.
+    Fault(PortableOperatorFault),
+}
+
+/// Whether a planned run agrees with its held twin: the same inputs asked in the same order, the same engine outcome, the
+/// same rows in order or the same first fault, the same rows fed to
 /// every node both hold (the emit always), and each warm worker answering its next file alike.
 pub(crate) fn agrees(planned: &Ran, twin: &Ran) -> bool {
     planned.answer == twin.answer
+        && planned.demands == twin.demands
+        && planned.outcome == twin.outcome
         && planned.warm
         && twin.warm
         && planned.fed.iter().zip(&twin.fed).all(|pair| match pair {
