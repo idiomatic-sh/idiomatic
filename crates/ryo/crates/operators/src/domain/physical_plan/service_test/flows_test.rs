@@ -11,7 +11,8 @@ use crate::domain::physical_plan::types::{
 };
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
-    CapturePattern, ColumnIndex, Input as StepInput, JoinColumn, Side, StepId, StepScope,
+    CapturePattern, ColumnIndex, Input as StepInput, JoinColumn, RepeatedRows, Side, StepId,
+    StepScope,
 };
 use ryo_values::domain::plans::types::Operation;
 use std::borrow::Cow;
@@ -25,6 +26,7 @@ enum Scenario {
     Held,
     ReaderBlocks,
     ReadSecond,
+    DroppingRepeatsInTheMiddle,
 }
 /// Each node's flow, in node order: `S` streamed, `H` held.
 type Value = Cow<'static, str>;
@@ -73,6 +75,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::ReadSecond,
         expect: Expect::Value(Cow::Borrowed("HHH")),
+    },
+    Case {
+        name: CaseName("a_projection_dropping_repeats_streams_only_as_a_tail"),
+        word: Word::Succeeds,
+        input: || Scenario::DroppingRepeatsInTheMiddle,
+        expect: Expect::Value(Cow::Borrowed("SHH")),
     },
 ];
 
@@ -164,6 +172,22 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
                     },
                     &[0],
                 ),
+            ],
+            &[],
+            &[],
+        ),
+        Scenario::DroppingRepeatsInTheMiddle => flows(
+            &[
+                capture(),
+                over_nodes(
+                    Operation::Project {
+                        from: StepInput::Step(StepId(0)),
+                        columns: vec![ColumnIndex(3)],
+                        distinct: RepeatedRows::Dropped,
+                    },
+                    &[0],
+                ),
+                select_of(1),
             ],
             &[],
             &[],

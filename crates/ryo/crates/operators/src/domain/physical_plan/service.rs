@@ -15,6 +15,7 @@ use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
     Flow, KeyedIndex, NodeReaders, PlanInput, PlanNodeId, Retention, RowSource,
 };
+use ryo_values::domain::plan_parts::types::RepeatedRows;
 
 /// Every rewrite, in the order the planner applies them: each an equivalence, so a plan answers the same rows with or without
 /// it.
@@ -147,9 +148,10 @@ pub(crate) fn plan_with(
 
 /// Streams each node whose rows only one streaming stage reads, first, so no one else ever asks for them. A node streams
 /// iff all hold:
-///  (1) it is an intermediate streaming stage: a `text_map` stage;
+///  (1) it is an intermediate streaming stage: a filter, an extension, a `text_map` stage, or a projection that keeps
+///      repeated rows (one that drops them keys the rows it keeps, so it streams only as a chain's tail);
 ///  (2) one node reads it, once, and no engine use keeps it (it is neither emitted nor held);
-///  (3) its one reader is a streaming stage, a filter, whose first source is this node;
+///  (3) its one reader is a streaming stage (a projection of either kind) whose first source is this node;
 ///  (4) no shared index keys its rows.
 /// Every other node is held.
 fn flows(nodes: &mut [PhysicalNode], indexes: &[KeyedIndex]) {
@@ -172,12 +174,34 @@ fn flows(nodes: &mut [PhysicalNode], indexes: &[KeyedIndex]) {
 
 /// Whether `lowering` is a stage that passes on the rows it makes as it reads them, and so may stream into its reader.
 fn streaming_stage(lowering: &Lowering) -> bool {
-    matches!(lowering, Lowering::TextMap { .. })
+    match lowering {
+        Lowering::Filter { .. } | Lowering::Extend { .. } | Lowering::TextMap { .. } => true,
+        Lowering::Project { project, .. } => project.distinct == RepeatedRows::Kept,
+        Lowering::Lookup { .. }
+        | Lowering::Probe { .. }
+        | Lowering::Distinct { .. }
+        | Lowering::Group { .. }
+        | Lowering::Reach { .. }
+        | Lowering::SeededReach { .. }
+        | Lowering::Axis { .. }
+        | Lowering::OrderedWalk { .. }
+        | Lowering::Components { .. }
+        | Lowering::OrderedMatch { .. }
+        | Lowering::Render { .. }
+        | Lowering::ScanBound { .. }
+        | Lowering::Unlowered => false,
+    }
 }
 
 /// Whether `lowering` is a stage that reads its first source row by row, and so may read a streamed node.
 fn streaming_reader(lowering: &Lowering) -> bool {
-    matches!(lowering, Lowering::Filter { .. })
+    matches!(
+        lowering,
+        Lowering::Filter { .. }
+            | Lowering::Project { .. }
+            | Lowering::Extend { .. }
+            | Lowering::TextMap { .. }
+    )
 }
 
 /// Whether exactly one source of the plan's nodes reads `id`, and that source is a streaming reader's first.

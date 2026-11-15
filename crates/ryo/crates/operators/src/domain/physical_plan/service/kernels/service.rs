@@ -7,7 +7,6 @@ use crate::domain::physical_plan::collections::kernels::directed_walk::item::{
     AxisInputs, AxisTables, walked,
 };
 use crate::domain::physical_plan::collections::kernels::distinct::item::counted;
-use crate::domain::physical_plan::collections::kernels::extend::item::{extended, kind_of};
 use crate::domain::physical_plan::collections::kernels::group::item::{GroupScratch, grouped};
 use crate::domain::physical_plan::collections::kernels::hash_index::item::emptied;
 use crate::domain::physical_plan::collections::kernels::ordered_match::item::matched;
@@ -15,7 +14,6 @@ use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visi
 use crate::domain::physical_plan::collections::kernels::probe::item::{
     IndexBuild, ProbeScratch, probed,
 };
-use crate::domain::physical_plan::collections::kernels::project::item::projected;
 use crate::domain::physical_plan::collections::kernels::reach::item::{
     ReachScratch, Starts, reached,
 };
@@ -42,54 +40,12 @@ pub(crate) fn kernels(
         other,
         third,
     }: KernelInputs<'_>,
-    resolution: Option<PortableOperatorFault>,
     buffers: &mut FileBuffers,
     output: &mut Table,
 ) -> Result<Option<PortableOperatorFault>, PortableOperatorFault> {
     let place = usize::try_from(node.0).unwrap_or(usize::MAX);
     let kinds = kinds_of(input);
-    let rows = count_of(input).0;
     match lowering {
-        Lowering::Project { project, .. } => {
-            // A projection keeps exactly its columns: none is a row of no column, never every column as a filter's none is.
-            output.kinds = project
-                .columns
-                .iter()
-                .map(|column| {
-                    kinds
-                        .get(usize::try_from(column.0).unwrap_or(usize::MAX))
-                        .copied()
-                        .ok_or(PortableOperatorFault::NoSuchColumn { index: *column })
-                })
-                .collect::<Result<_, _>>()?;
-            emptied(&mut buffers.repeats);
-            for row in 0..rows {
-                let cells = row_of(input, RowIndex(row), &mut buffers.row);
-                if let Err(fault) = projected(
-                    cells,
-                    &project.columns,
-                    project.distinct,
-                    &mut buffers.repeats,
-                    output,
-                ) {
-                    return Ok(Some(fault));
-                }
-            }
-        }
-        Lowering::Extend { .. } => {
-            if let Some(fault) = resolution {
-                return Ok(Some(fault));
-            }
-            output.kinds = kinds
-                .iter()
-                .copied()
-                .chain(buffers.values.iter().map(|value| kind_of(*value)))
-                .collect();
-            for row in 0..rows {
-                let cells = row_of(input, RowIndex(row), &mut buffers.row);
-                extended(cells, &buffers.values, &mut buffers.written, output);
-            }
-        }
         Lowering::Distinct { .. } => {
             output.kinds = kinds.to_vec();
             emptied(&mut buffers.repeats);
@@ -204,9 +160,11 @@ pub(crate) fn kernels(
                 return Ok(Some(fault));
             }
         }
-        // A filter and a text_map stage are run by the chain of streamed stages, a render by `minted`, which holds the
-        // resources mutably while it reads its rows.
+        // A filter, a projection, an extension and a text_map stage are run by the chain of streamed stages, a render by
+        // `minted`, which holds the resources mutably while it reads its rows.
         Lowering::Filter { .. }
+        | Lowering::Project { .. }
+        | Lowering::Extend { .. }
         | Lowering::TextMap { .. }
         | Lowering::Render { .. }
         | Lowering::Lookup { .. }

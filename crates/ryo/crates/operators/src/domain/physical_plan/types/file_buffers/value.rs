@@ -126,14 +126,18 @@ pub(crate) struct ChainScratch {
     pub(crate) stages: Vec<StageScratch>,
 }
 
-/// One stage's own state for one run of its chain: the chunk of rows it wrote that its reader has not read, what it read and
-/// whether it stopped at a fault.
+/// One stage's own state for one run of its chain: the chunk of rows it wrote that its reader has not read, its resolved
+/// values and kept repeats, what it read and whether it stopped at a fault.
 #[derive(Debug, Default)]
 pub(crate) struct StageScratch {
     /// The rows it wrote that its reader has not read yet: its chunk. The tail writes its node's table instead.
     pub(crate) out: ryo_values::domain::rows::types::Table,
     /// Where in `out` the rows of the input row it read last start.
     pub(crate) last: usize,
+    /// An extension's values, resolved once before its first row, its own beside every other extension's of the chain.
+    pub(crate) values: Vec<Value>,
+    /// The rows a tail that drops repeated rows kept so far, keyed by their cells in its table: kept across chunks.
+    pub(crate) repeats: KeyedRows,
     /// How many input rows it read.
     pub(crate) read: ryo_values::domain::rows::types::RowCount,
     /// The fault it stopped at; it reads no row after it.

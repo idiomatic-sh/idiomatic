@@ -27,3 +27,11 @@ pub(crate) enum Reading<'a> {
     /// Rows the engine holds for the run, read in place.
     Held(&'a ryo_values::domain::rows::types::Table),
 }
+
+/// What a stage's preparation left, before it reads any row: the fault it raised there (an extension's resolution), which
+/// stops it before its first row. Its output kinds, as far as its preparation set them, are on the table it writes.
+#[derive(Debug, Default)]
+pub(crate) struct StagePrepared {
+    /// The fault it raised before reading any row.
+    pub(crate) fault: Option<crate::domain::contract::types::PortableOperatorFault>,
+}

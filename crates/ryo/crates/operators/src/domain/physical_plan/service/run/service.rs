@@ -4,7 +4,6 @@
 use super::super::kernels::service::kernels;
 use super::types::{KernelInputs, Reading};
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::collections::kernels::extend::item::resolved;
 use crate::domain::physical_plan::collections::kernels::lookup::item::lookups;
 use crate::domain::physical_plan::collections::kernels::ordered_walk::item::interned;
 use crate::domain::physical_plan::collections::kernels::scan_bound::item::scanned;
@@ -95,7 +94,11 @@ fn materialize(
         .get(place)
         .ok_or(PortableOperatorFault::WrongOperation)?
         .lowering;
-    if let Lowering::Filter { .. } | Lowering::TextMap { .. } = lowering {
+    if let Lowering::Filter { .. }
+    | Lowering::Project { .. }
+    | Lowering::Extend { .. }
+    | Lowering::TextMap { .. } = lowering
+    {
         return super::pipeline::service::streamed(plan, run, node, buffers);
     }
     let Lowering::Probe {
@@ -165,32 +168,6 @@ pub(super) fn made(
     if let Lowering::Render { .. } = lowering {
         return super::minted::service::minted(plan, run, node, lowering, first, buffers);
     }
-    // An extension's values are made before its rows are read: making a name changes the file's names, and reading reads them.
-    let resolution = match lowering {
-        Lowering::Extend { extension, .. } => resolved(
-            &extension.values,
-            &extension.bindings,
-            run.resources,
-            &mut buffers.values,
-        )
-        .err(),
-        Lowering::Filter { .. }
-        | Lowering::Project { .. }
-        | Lowering::Group { .. }
-        | Lowering::Probe { .. }
-        | Lowering::Distinct { .. }
-        | Lowering::Lookup { .. }
-        | Lowering::TextMap { .. }
-        | Lowering::OrderedMatch { .. }
-        | Lowering::Render { .. }
-        | Lowering::Reach { .. }
-        | Lowering::SeededReach { .. }
-        | Lowering::Axis { .. }
-        | Lowering::OrderedWalk { .. }
-        | Lowering::Components { .. }
-        | Lowering::ScanBound { .. }
-        | Lowering::Unlowered => None,
-    };
     let shared: &KernelRun<'_> = run;
     // A node read by several inputs is taken once and read by each of them, and gives back one read per input.
     let sources = [Some(first), second, third];
@@ -288,15 +265,7 @@ pub(super) fn made(
                 other: right_rows,
                 third: third_read.map(rows_in),
             };
-            kernels(
-                lowering,
-                shared,
-                node,
-                inputs,
-                resolution,
-                buffers,
-                &mut output,
-            )
+            kernels(lowering, shared, node, inputs, buffers, &mut output)
         }
     };
     for (slot, count) in slots.into_iter().zip(reads) {

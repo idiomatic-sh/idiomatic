@@ -1,10 +1,16 @@
 //! The runner's chain of streamed stages: the rows of the stages that feed a node, pushed through each stage in turn in
 //! bounded chunks, only the node's own rows held. Each stage keeps the rows it wrote before its first fault and stops there;
 //! its reader reads every row before that fault, so the earliest row's fault wins whatever the chunking (D15).
+use super::super::types::StagePrepared;
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::physical_plan::collections::kernels::extend::item::{
+    extended, kind_of, resolved,
+};
 use crate::domain::physical_plan::collections::kernels::filter::item::{
     filter, grown, keep, kept_kinds, readied,
 };
+use crate::domain::physical_plan::collections::kernels::hash_index::item::emptied;
+use crate::domain::physical_plan::collections::kernels::project::item::projected;
 use crate::domain::physical_plan::collections::kernels::scan_bound::item::held;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
     decode, facts, rows_of,
@@ -323,14 +329,15 @@ fn row_at(table: &Table, row: RowIndex) -> &[Value] {
 }
 
 /// Readies each stage in chain order before any row is read, as the held plan readies each node before its rows: its
-/// output kinds from its input's, and a filter's memo for the file's names.
+/// output kinds from its input's, a filter's memo for the file's names, an extension's values, a distinct tail's repeats.
+/// A stage whose preparation faults stops before its first row; the stages after it are readied over its empty kinds.
 ///
 /// # Errors
 ///
-/// A stage's shape fault: a kept column past its input rows.
+/// A stage's shape fault: a kept or projected column past its input rows.
 fn prepared(
     plan: &PhysicalPlan,
-    run: &KernelRun<'_>,
+    run: &mut KernelRun<'_>,
     buffers: &mut FileBuffers,
     nodes: &[PlanNodeId],
     stages: &mut [StageScratch],
@@ -352,20 +359,8 @@ fn prepared(
         stage.last = 0;
         stage.read = RowCount(0);
         stage.fault = None;
-        let kinds = match lowering {
-            Lowering::Filter { select, .. } => {
-                let kinds = kept_kinds(input, &select.kept)?;
-                if let Some(decisions) = buffers
-                    .decisions
-                    .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
-                {
-                    readied(select, decisions, names);
-                }
-                kinds
-            }
-            Lowering::TextMap { map, .. } => mapped_kinds(map, input),
-            _ => return Err(PortableOperatorFault::WrongOperation),
-        };
+        let (kinds, prepared) = stage_prepared(run, buffers, *node, lowering, input, names, stage)?;
+        stage.fault = prepared.fault;
         if at == last {
             output.kinds = kinds;
         } else {
@@ -373,6 +368,70 @@ fn prepared(
         }
     }
     Ok(())
+}
+
+/// The output kinds of one stage, `node` lowered to `lowering`, over input rows of `input`, and what its preparation left: in
+/// the held kernel's own order, an extension's values resolved before its kinds, its kinds left empty when they fault.
+///
+/// # Errors
+///
+/// A stage's shape fault: a kept or projected column past its input rows.
+fn stage_prepared(
+    run: &mut KernelRun<'_>,
+    buffers: &mut FileBuffers,
+    node: PlanNodeId,
+    lowering: &Lowering,
+    input: &[CellKind],
+    names: crate::domain::comparing::types::NameCount,
+    stage: &mut StageScratch,
+) -> Result<(Vec<CellKind>, StagePrepared), PortableOperatorFault> {
+    Ok(match lowering {
+        Lowering::Filter { select, .. } => {
+            let kinds = kept_kinds(input, &select.kept)?;
+            if let Some(decisions) = buffers
+                .decisions
+                .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
+            {
+                readied(select, decisions, names);
+            }
+            (kinds, StagePrepared::default())
+        }
+        Lowering::TextMap { map, .. } => (mapped_kinds(map, input), StagePrepared::default()),
+        // A projection keeps exactly its columns: none is a row of no column, never every column as a filter's none is.
+        Lowering::Project { project, .. } => {
+            let kinds = project
+                .columns
+                .iter()
+                .map(|column| {
+                    input
+                        .get(usize::try_from(column.0).unwrap_or(usize::MAX))
+                        .copied()
+                        .ok_or(PortableOperatorFault::NoSuchColumn { index: *column })
+                })
+                .collect::<Result<_, _>>()?;
+            emptied(&mut stage.repeats);
+            (kinds, StagePrepared::default())
+        }
+        // An extension's values are made before its rows are read: making a name changes the file's names, and reading
+        // reads them.
+        Lowering::Extend { extension, .. } => match resolved(
+            &extension.values,
+            &extension.bindings,
+            run.resources,
+            &mut stage.values,
+        ) {
+            Ok(()) => (
+                input
+                    .iter()
+                    .copied()
+                    .chain(stage.values.iter().map(|value| kind_of(*value)))
+                    .collect(),
+                StagePrepared::default(),
+            ),
+            Err(fault) => (Vec::new(), StagePrepared { fault: Some(fault) }),
+        },
+        _ => return Err(PortableOperatorFault::WrongOperation),
+    })
 }
 
 /// Pushes one input row, of `kinds`, through the first stage of `stages` (the stage of `nodes`' first node): its rows are
@@ -444,6 +503,18 @@ fn pushed(
                 },
             )
             .err()
+        }
+        Lowering::Project { project, .. } => projected(
+            cells,
+            &project.columns,
+            project.distinct,
+            &mut stage.repeats,
+            out,
+        )
+        .err(),
+        Lowering::Extend { .. } => {
+            extended(cells, &stage.values, &mut push.buffers.written, out);
+            None
         }
         _ => return Err(PortableOperatorFault::WrongOperation),
     };
