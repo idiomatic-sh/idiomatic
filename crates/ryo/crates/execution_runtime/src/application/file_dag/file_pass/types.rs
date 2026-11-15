@@ -228,7 +228,8 @@ pub(crate) struct OpenedFile<'a> {
     /// Whether evaluation sees the file's physical partiality or none of it.
     pub(crate) answering: crate::application::file_dag::program::file_session::types::Partiality,
     /// The semantic session the file is read with.
-    pub(crate) semantic: crate::application::file_dag::program::file_session::types::SemanticSupport<'a>,
+    pub(crate) semantic:
+        crate::application::file_dag::program::file_session::types::SemanticSupport<'a>,
     /// The first frontier bucket of each rule, in rule order.
     pub(crate) first: &'a [ryo_values::domain::stored_facts::types::Bucket],
 }

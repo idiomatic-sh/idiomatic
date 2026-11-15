@@ -140,4 +140,3 @@ pub struct RowScratch {
     /// What the provider answered for each render request.
     pub rendered: Vec<RenderKind>,
 }
-

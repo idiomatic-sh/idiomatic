@@ -104,10 +104,6 @@ Declares the immutable producer partitions of a compiled request.
 
 Checks equal name hashes against retained text to detect collisions.
 
-### stored_graph
-
-Describes generation-bound graph population and adjacency.
-
 ### table_model
 
 Defines table representations and their physical row access.

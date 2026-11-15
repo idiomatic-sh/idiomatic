@@ -1,9 +1,5 @@
 //! What an axis reads from the engine: the candidates of a walk and whether each is admitted.
 
-
-
-
-
 /// What an axis lowers to: its direction, the start and edge columns, the domain's id column, what the domain admits (a
 /// filter's comparisons) and the columns of an answer row.
 #[derive(Clone, Debug, PartialEq)]

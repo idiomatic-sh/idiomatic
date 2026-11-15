@@ -7,9 +7,9 @@ use crate::domain::physical_plan::fixtures::Step;
 use crate::domain::physical_plan::types::ProbeIndex;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
-use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::{
     LogicalNode, NodeBindings, NodeRows, PlanInputList, PlanInputs, Resources,
 };

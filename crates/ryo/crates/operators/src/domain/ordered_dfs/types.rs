@@ -32,6 +32,3 @@ pub(crate) struct DfsParts {
     /// The partition key columns of an edge row.
     pub(crate) edge_keys: Vec<ColumnIndex>,
 }
-
-
-

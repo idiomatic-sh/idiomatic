@@ -9,24 +9,21 @@ use ryo_operators::domain::physical_plan::types::{
 };
 use ryo_operators::inbound::use_cases::run::fixtures::{TableInputs, TextResources};
 use ryo_relations::domain::relations::fixtures::{kinds, node_id};
-use ryo_relations::domain::relations::types::{FileId, Integer, Position, Relation, Value};
+use ryo_relations::domain::relations::types::{FileId, Integer, Position, Relation, Value as Cell};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepScope};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as Source, StepScope};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::{RowCount, Table};
 use std::borrow::Cow;
 
-/// The relation the cases count: parent, child, ordinal (a number), field, file.
-const EDGES: Relation = Relation::SemanticChild;
-
 /// The ordinals of the edge rows, in row order, and the column they are counted by.
-type Input_ = (Vec<i64>, ColumnIndex);
+type Input = (Vec<i64>, ColumnIndex);
 /// Each group's key and how many rows it counted, in first-occurrence order.
-type Value_ = Cow<'static, [(i64, i64)]>;
+type Value = Cow<'static, [(i64, i64)]>;
 type Failure = PortableOperatorFault;
 
 /// Observable group counts and key-column refusal across the port.
-pub const CASES: &[Case<Input_, Value_, Failure>] = &[
+pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("rows_are_counted_into_their_groups_in_first_row_order"),
         word: Word::Succeeds,
@@ -42,25 +39,6 @@ pub const CASES: &[Case<Input_, Value_, Failure>] = &[
         }),
     },
 ];
-
-/// The edge rows of `ordinals`, each from node 0 to node 1, of field `f` in file 0.
-fn edges(ordinals: &[i64], texts: &TextResources) -> Table {
-    let mut cells = Vec::with_capacity(ordinals.len() * kinds(EDGES).len());
-    for ordinal in ordinals {
-        cells.extend([
-            Value::Node(node_id(FileId(0), Position(0))),
-            Value::Node(node_id(FileId(0), Position(1))),
-            Value::Number(Integer(*ordinal)),
-            texts.symbol("f"),
-            Value::File(FileId(0)),
-        ]);
-    }
-    Table {
-        kinds: kinds(EDGES).to_vec(),
-        cells,
-        count: RowCount(ordinals.len()),
-    }
-}
 
 /// The rows the one node of `operation` answers through `adapter` over `inputs`, or the fault its `plan` or `run` answers.
 fn answered(
@@ -98,20 +76,36 @@ pub fn count(
     ordinals: &[i64],
     key: ColumnIndex,
 ) -> Result<Vec<(i64, i64)>, PortableOperatorFault> {
+    // The edge rows the cases count (parent, child, ordinal, field, file): each from node 0 to node 1, of field `f` in file 0.
+    let edges = Relation::SemanticChild;
     let mut resources = TextResources::new(&["f"]);
-    let table = edges(ordinals, &resources);
-    let inputs = TableInputs::new(&[(EDGES, &table)]);
+    let mut cells = Vec::with_capacity(ordinals.len() * kinds(edges).len());
+    for ordinal in ordinals {
+        cells.extend([
+            Cell::Node(node_id(FileId(0), Position(0))),
+            Cell::Node(node_id(FileId(0), Position(1))),
+            Cell::Number(Integer(*ordinal)),
+            resources.symbol("f"),
+            Cell::File(FileId(0)),
+        ]);
+    }
+    let table = Table {
+        kinds: kinds(edges).to_vec(),
+        cells,
+        count: RowCount(ordinals.len()),
+    };
+    let inputs = TableInputs::new(&[(edges, &table)]);
     let operation = Operation::GroupCount {
-        from: Input::Relation(EDGES),
+        from: Source::Relation(edges),
         keys: vec![key],
         distinct: None,
     };
-    let rows = answered(adapter, &operation, EDGES, &inputs, &mut resources)?;
+    let rows = answered(adapter, &operation, edges, &inputs, &mut resources)?;
     Ok(rows
         .cells
         .chunks(rows.kinds.len().max(1))
         .filter_map(|row| match row {
-            [Value::Number(Integer(key)), Value::Number(Integer(count))] => Some((*key, *count)),
+            [Cell::Number(Integer(key)), Cell::Number(Integer(count))] => Some((*key, *count)),
             _ => None,
         })
         .collect())
@@ -123,11 +117,11 @@ pub fn count(
 ///
 /// When the implementation changes the group counts or their refusal, or answers a refused relation as empty rows.
 pub fn check(adapter: &impl OperatorsPort) {
-    let subject = |(ordinals, key): Input_| count(adapter, &ordinals, key).map(Cow::Owned);
+    let subject = |(ordinals, key): Input| count(adapter, &ordinals, key).map(Cow::Owned);
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
     let select = Operation::Select {
-        from: Input::Relation(Relation::Function),
+        from: Source::Relation(Relation::Function),
         comparisons: Vec::new(),
         kept: Vec::new(),
     };

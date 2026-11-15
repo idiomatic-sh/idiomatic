@@ -20,7 +20,6 @@ pub(crate) mod describing;
 pub mod finish;
 pub mod hosted;
 pub mod rules;
-pub mod stored_graph;
 pub mod tree_walk;
 
 pub mod spelling;

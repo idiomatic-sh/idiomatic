@@ -33,4 +33,3 @@ pub(crate) struct FoldedDigest {
     /// Their digest.
     pub(crate) digest: GroupDigest,
 }
-

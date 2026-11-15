@@ -10,6 +10,7 @@ use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecu
 use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::interface::{LogicalCounts, OperatingError};
 use ryo_execution::inbound::use_cases::execution::interface::{ObserverPort, Observing};
 use ryo_execution::inbound::use_cases::execution::interface::{PhaseStop, RootOutcome};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
@@ -17,8 +18,6 @@ use ryo_execution::inbound::use_cases::metadata::interface::{
     FilePartial, Lacking, Partial, PartialPlace,
 };
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operator::types::LogicalCounts;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::ProjectFacts;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::RefusingKept as Kept;
 use ryo_execution_runtime::outbound::observer::types::FedTotals;

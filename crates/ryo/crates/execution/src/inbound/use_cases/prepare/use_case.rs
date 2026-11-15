@@ -30,7 +30,7 @@ impl PrepareUseCase for PrepareUseCaseImpl {
             }
             PlanSource::Compiled(queries) => queries.inner,
         };
-        ryo_execution_runtime::application::file_dag::derived::service::prepare(
+        ryo_execution_runtime::application::file_dag::service::prepare(
             compiled,
             &request.rules,
             &request.digests,

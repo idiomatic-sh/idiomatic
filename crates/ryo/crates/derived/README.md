@@ -78,7 +78,7 @@ Declares the finite row views and the text services a derived build reads throug
 
 ### sharing
 
-Shares immutable positions, marks, key indexes and graphs whose identity never depends on liveness.
+Shares immutable membership marks whose identity never depends on liveness.
 
 ### vertices
 

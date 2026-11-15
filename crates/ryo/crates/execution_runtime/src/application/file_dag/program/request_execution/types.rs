@@ -38,8 +38,8 @@ impl std::ops::DerefMut for ObservationArenas {
 /// The services one request's execution shares: the request's files and the observer.
 pub(crate) struct ProgramServices {
     /// The request's files.
-    pub(super) request:
+    pub request:
         Arc<crate::application::file_dag::program::request_identity::service::RequestIdentity>,
     /// The observer the request's caller asked to be told of the engine's work, if any.
-    pub(super) observer: Option<Arc<dyn crate::outbound::observer::interface::ObserverPort>>,
+    pub observer: Option<Arc<dyn crate::outbound::observer::interface::ObserverPort>>,
 }

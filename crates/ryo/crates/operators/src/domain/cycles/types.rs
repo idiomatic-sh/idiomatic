@@ -41,7 +41,6 @@ pub struct WalkStep {
     pub edge: EdgePlace,
 }
 
-
 /// The work arrays of one search, kept by the engine between invocations so they keep their capacity. The `components`
 /// kernel's adjacency is the operators' own:
 ///
@@ -73,7 +72,6 @@ pub struct CycleScratch {
     /// The node each edge leads to, the edges of a node together, in edge-row order.
     pub(crate) leaving: Vec<NodeNumber>,
 }
-
 
 /// The graph a cycle search reads: an edge row's source column and destination column.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

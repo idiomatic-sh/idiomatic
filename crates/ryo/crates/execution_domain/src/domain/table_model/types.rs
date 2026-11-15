@@ -50,8 +50,6 @@ pub struct Frontier {
 /// The number a value is for hashing: what it is stored as, apart from which kind of value it is.
 
 /// The hash of the cells that make a key.
-
-
 pub mod registered_representation;
 
 /// The representation a physical row source is held in.

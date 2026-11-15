@@ -13,7 +13,6 @@ use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::i
 use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
-use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
@@ -35,37 +34,6 @@ enum Refusal {
     /// They refuse every node with a shape mismatch.
     Run,
 }
-/// The operators port the rule runs through, refusing as `refusal` says.
-#[derive(Debug)]
-struct InjectedOperators {
-    refusal: Refusal,
-}
-impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for InjectedOperators {
-    fn plan(
-        &self,
-        program: &ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram<'_>,
-    ) -> Result<
-        ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
-    > {
-        ryo_operators::inbound::use_cases::run::fixtures::planned(program)
-    }
-    fn run(
-        &self,
-        plan: &ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
-        node: ryo_operators::domain::physical_plan::types::PlanNodeId,
-        buffers: &mut ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers,
-        inputs: &dyn ryo_operators::domain::physical_plan::types::PlanInputs,
-        resources: &mut dyn ryo_operators::domain::physical_plan::types::Resources,
-    ) -> Result<(), ryo_operators::domain::contract::types::PortableOperatorFault> {
-        match self.refusal {
-            Refusal::None => ryo_operators::inbound::use_cases::run::fixtures::ran(
-                plan, node, buffers, inputs, resources,
-            ),
-            Refusal::Run => Err(PortableOperatorFault::ShapeMismatch),
-        }
-    }
-}
 /// What a rule's root emitted on one demand.
 #[derive(Debug, PartialEq, Eq)]
 enum Emitted {
@@ -80,7 +48,9 @@ type Input = Refusal;
 type Value = Emitted;
 type Failure = OperatingError;
 fn subject(refusal: Input) -> Result<Emitted, Failure> {
-    let port = Arc::new(InjectedOperators { refusal });
+    let port = Arc::new(fixtures::RefusingOperators {
+        refuse: matches!(refusal, Refusal::Run),
+    });
     let engine = Preparation::new(port);
     let mut plan = inputs::plan(vec![
         Operation::Hosted {

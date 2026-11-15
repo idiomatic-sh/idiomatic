@@ -1,11 +1,6 @@
 //! Count/digest semantics over borrowed engine-owned populations, indexes, and reduction scratch.
-use crate::domain::reduction::types::{
-    DigestDatum, GroupDigest, HashScratch, ValueHash,
-};
-use ryo_values::domain::{
-    plan_parts::types::FlagState,
-    rows::types::RowCount,
-};
+use crate::domain::reduction::types::{DigestDatum, GroupDigest, HashScratch, ValueHash};
+use ryo_values::domain::{plan_parts::types::FlagState, rows::types::RowCount};
 use std::hash::Hasher as _;
 
 /// The digest of a group from the hashes of its values: the distinct hashes, sorted, folded in order, and how many there

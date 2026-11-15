@@ -9,8 +9,6 @@ use ryo_relations::domain::relations::types::{KindBits, TextHash};
 use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
-pub mod downstream_buffers;
-
 /// Which kinds a test asked of their names is about: the vocabulary of kinds it asked of, the test, and the hash of the text it is
 /// against.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -31,10 +29,6 @@ pub struct KindSet {
     /// The kinds, in order.
     pub kinds: Vec<KindBits>,
 }
-
-/// Comparisons of a filter, by their place among the filter's comparisons.
-#[derive(Debug, Default, PartialEq, Eq)]
-pub struct ComparisonNumbers(pub Vec<usize>);
 
 /// A test, by its place among the four that can name a kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -152,9 +146,6 @@ pub struct SelectScratch {
 
     /// The kinds each name stands for, as the sets `kind_names` numbers.
     pub kind_sets: Vec<std::sync::Arc<KindSet>>,
-
-    /// The comparisons of a filter that name a kind: the set of kinds that satisfy each.
-    pub kind_tests: ComparisonNumbers,
 }
 
 /// Compiled patterns, indexed by their exact source text.
@@ -165,7 +156,6 @@ pub struct Patterns(
         ryo_matching::inbound::use_cases::matching::types::CompiledRegex,
     >,
 );
-
 
 /// What a comparison decided about a name of the file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

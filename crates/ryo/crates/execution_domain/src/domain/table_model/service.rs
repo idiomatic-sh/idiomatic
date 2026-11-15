@@ -1,10 +1,7 @@
 //! The `table_model` service: free functions named by verb over tables, with no IO and no ports.
 
-
 use ryo_language::domain::elements::service::real_count;
-use ryo_relations::domain::relations::types::{
-    CellKind, Value,
-};
+use ryo_relations::domain::relations::types::{CellKind, Value};
 
 use super::constants::MATERIALIZED;
 use super::types::RepresentationKind;
@@ -93,7 +90,6 @@ pub fn materialize(rows: &Rows<'_>, into: &mut Table, scratch: &mut Vec<Value>) 
         capacity_bytes = into.cells.capacity().saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>()));
 }
 
-
 /// Whether a table whose columns hold `kinds` has every one of `columns`.
 ///
 /// # Errors
@@ -108,11 +104,6 @@ pub fn check_columns(kinds: &[CellKind], columns: &[ColumnIndex]) -> Result<(), 
         None => Ok(()),
     }
 }
-
-
-
-
-
 
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 

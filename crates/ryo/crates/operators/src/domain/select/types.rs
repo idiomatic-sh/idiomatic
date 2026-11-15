@@ -3,7 +3,6 @@
 use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
-
 /// What a select keeps: its comparisons, its kept columns and what its parameters are bound to.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct SelectParts {

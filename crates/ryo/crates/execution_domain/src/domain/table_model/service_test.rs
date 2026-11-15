@@ -55,8 +55,6 @@ pub(crate) fn pairs(rows: &[[i64; 2]]) -> Table {
     table
 }
 
-
-
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {

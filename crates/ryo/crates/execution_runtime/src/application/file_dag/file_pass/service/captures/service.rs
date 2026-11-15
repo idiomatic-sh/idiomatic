@@ -26,15 +26,15 @@ use ryo_execution_domain::domain::rule_intent::types::{CaptureIntent, FrontierPu
 use ryo_execution_domain::domain::table_model::service::materialize;
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_operators::domain::physical_plan::types::NodeFed;
+use ryo_operators::domain::physical_plan::types::PlanInputs as _;
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::held_rows::value::HeldRows;
 use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
-use ryo_operators::domain::physical_plan::types::PlanInputs as _;
 use ryo_operators::domain::tree_cells::service::native_form;
 use ryo_relations::domain::catalog::service::scope_of;
 use ryo_relations::domain::catalog::types::RowScope;
 use ryo_relations::domain::relations::types::Relation;
-use ryo_operators::domain::physical_plan::types::NodeFed;
 use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepScope};
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::{FrontierOrdinal, FrontierProof, ProducerRule};

@@ -142,8 +142,7 @@ pub(crate) fn probed(
         }
         (IndexBuild::Builds | IndexBuild::Built, _) => None,
     };
-    // No left row reaches the right side: an empty left answers its layout before any right key or filter is read, and a
-    // walked probe found no tree rows.
+    // An empty left answers its layout before any right key or filter is read; a walked probe found no tree rows.
     if count_of(left).0 == 0 {
         if walked.is_some()
             && let Some(slot) = fed.0.get_mut(1)

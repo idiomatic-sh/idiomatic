@@ -92,7 +92,6 @@ pub struct CheckedSource<'a> {
     pub line: BaseLine,
 }
 
-
 /// What a source search lowers to: the span and base-line columns, the pattern, the capture and the outputs.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct SourceMatchesParts {

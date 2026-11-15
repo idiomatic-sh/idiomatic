@@ -20,12 +20,12 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId, Test};
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 #[test]
 fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
-    use crate::shared_walk::fixtures::ObservedJoin;
+    use ryo_execution::inbound::use_cases::execution::fixtures::RefusingOperators;
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
     use std::sync::Arc;
     for relation in [Relation::SyntaxTree, Relation::SyntaxChild] {
         for (empty, refuse) in [(false, false), (true, false), (false, true)] {
-            let semantics = Arc::new(ObservedJoin { refuse });
+            let semantics = Arc::new(RefusingOperators { refuse });
             let engine = PrepareUseCaseImpl::new(semantics.clone());
             let mut authored = authored_request(1);
             let comparisons = if empty {

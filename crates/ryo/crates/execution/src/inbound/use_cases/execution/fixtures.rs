@@ -1,7 +1,6 @@
 //! The test support of the `execution` use case: the scenario its tests share.
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
-use ryo_execution_store::outbound::derived::interface::DerivedPort;
 use ryo_matching::inbound::use_cases::matching::{
     errors::MatchingError, interface::MatchingUseCase, types::RegexSource,
     use_case::MatchingUseCaseImpl,
@@ -31,11 +30,6 @@ pub fn regex_refusal(pattern: &str) -> Option<OperatingError> {
         .err()?;
     let (MatchingError::InvalidRegex { reason } | MatchingError::BadGlob { reason, .. }) = error;
     Some(OperatingError::InvalidRegex { reason })
-}
-/// The derived capability behind its port, as the edge composes it.
-#[must_use]
-pub fn derived() -> impl DerivedPort {
-    ryo_execution_store::outbound::derived::factory::semantics()
 }
 /// A facts worker holding the rows of each relation given to it, as a language's reader writes them, that refuses a relation it
 /// was not given and counts the reads of its rows: the facts a file runs over through `run_file` in the engine's tests.
@@ -312,4 +306,39 @@ pub fn partiality(
         Partiality::Physical
     };
     (said, answering)
+}
+
+/// An operators port that refuses every node it is asked to run, when it is told to refuse.
+#[derive(Clone, Copy, Debug)]
+pub struct RefusingOperators {
+    /// Whether every node is refused.
+    pub refuse: bool,
+}
+impl OperatorsPort for RefusingOperators {
+    fn plan(
+        &self,
+        program: &ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram<'_>,
+    ) -> Result<
+        ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
+    > {
+        ryo_operators::inbound::use_cases::run::fixtures::planned(program)
+    }
+    fn run(
+        &self,
+        plan: &ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
+        node: ryo_operators::domain::physical_plan::types::PlanNodeId,
+        buffers: &mut ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers,
+        inputs: &dyn ryo_operators::domain::physical_plan::types::PlanInputs,
+        resources: &mut dyn ryo_operators::domain::physical_plan::types::Resources,
+    ) -> Result<(), ryo_operators::domain::contract::types::PortableOperatorFault> {
+        if self.refuse {
+            return Err(
+                ryo_operators::domain::contract::types::PortableOperatorFault::ShapeMismatch,
+            );
+        }
+        ryo_operators::inbound::use_cases::run::fixtures::ran(
+            plan, node, buffers, inputs, resources,
+        )
+    }
 }

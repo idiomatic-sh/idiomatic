@@ -16,8 +16,8 @@ use crate::application::file_dag::file_pass::types::{
 };
 use crate::application::file_dag::frontiers::types::Withholdings;
 use crate::application::file_dag::program::file_session::types::{
-    CaptureContext, EmittedRoot, FileEnd, FileRules, FileStop, FinishedReadiness,
-    Partiality, RanRule, RuleAfter, SemanticSupport,
+    CaptureContext, EmittedRoot, FileEnd, FileRules, FileStop, FinishedReadiness, Partiality,
+    RanRule, RuleAfter, SemanticSupport,
 };
 use crate::application::file_dag::program::rule_outcome::service::{classify, readiness_of};
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;

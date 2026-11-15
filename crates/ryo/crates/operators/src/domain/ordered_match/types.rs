@@ -1,8 +1,5 @@
 //! Borrowed ordered match contracts; no engine authority.
 
-
-
-
 /// What an ordered match lowers to: both sides' keys and orders and the output columns.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct OrderedParts {

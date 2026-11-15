@@ -5,10 +5,7 @@ use ryo_relations::domain::relations::collections::relations::syntax_tree::item:
 use ryo_relations::domain::relations::service::{columns, relation_of};
 use ryo_relations::domain::relations::types::{Column, Relation};
 
-use super::types::{
-    Applied, BindingPlace, ColumnIndex, ObservationBindingId, Operand, ParameterId, StepId,
-    TreeLookupKey,
-};
+use super::types::{Applied, ColumnIndex, Operand, ParameterId, StepId, TreeLookupKey};
 
 /// The one of `items` that the step `id` names, when there is one.
 #[must_use]
@@ -120,12 +117,6 @@ pub fn tree_lookup_key(relation: Relation, keys: &[ColumnIndex]) -> Option<TreeL
         ] => Some(TreeLookupKey::SpanThenFile),
         _ => None,
     }
-}
-
-/// The place of an observation binding among the bindings of a request.
-#[must_use]
-pub fn binding_place(id: ObservationBindingId) -> BindingPlace {
-    BindingPlace(usize::try_from(id.0).unwrap_or(usize::MAX))
 }
 
 /// The one of `items` that the parameter `id` names, when there is one.

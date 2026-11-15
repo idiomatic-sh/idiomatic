@@ -49,7 +49,7 @@ fn subject(read: Input) -> Result<Value, Failure> {
         bindings: NodeBindings(&[]),
         scope: StepScope::PerFile,
     });
-    plan(&program).map(|planned| planned.nodes.len())
+    plan(&program).map(|planned| planned.node_count().0)
 }
 
 #[test]

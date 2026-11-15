@@ -20,6 +20,22 @@ pub struct PhysicalPlan {
     pub(crate) indexes: Vec<KeyedIndex>,
 }
 
+impl PhysicalPlan {
+    /// How many nodes the plan runs: one per node of the program it was made of.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+    /// use ryo_operators::domain::physical_plan::types::NodeTotal;
+    /// assert_eq!(PhysicalPlan::default().node_count(), NodeTotal(0));
+    /// ```
+    #[must_use]
+    pub fn node_count(&self) -> crate::domain::physical_plan::types::NodeTotal {
+        crate::domain::physical_plan::types::NodeTotal(self.nodes.len())
+    }
+}
+
 /// One node of the physical plan: its kernels and who reads its rows.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct PhysicalNode {

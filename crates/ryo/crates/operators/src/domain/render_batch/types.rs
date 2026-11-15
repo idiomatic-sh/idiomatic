@@ -1,7 +1,5 @@
 //! One provider answer per request and the engine-owned delivery of the known ones.
 
-
-
 /// What a render lowers to: the node column and the role it is rendered in.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct RenderParts {

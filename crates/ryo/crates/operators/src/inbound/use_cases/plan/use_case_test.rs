@@ -67,7 +67,9 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
         });
     }
     program.emit(RuleOrdinal(0), PlanNodeId(emit));
-    PlanUseCaseImpl.plan(&program).map(|plan| plan.nodes.len())
+    PlanUseCaseImpl
+        .plan(&program)
+        .map(|plan| plan.node_count().0)
 }
 
 #[test]

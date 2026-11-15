@@ -82,8 +82,6 @@ mod closure;
 mod closure_partitions;
 
 #[cfg(test)]
-mod graph;
-#[cfg(test)]
 mod span_join;
 
 #[cfg(test)]

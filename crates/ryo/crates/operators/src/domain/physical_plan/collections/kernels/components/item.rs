@@ -8,7 +8,8 @@ use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::cycles::types::{
-    CycleMark, CycleParts, CycleScratch, EdgePlace, EdgeStart, MeetOrder, NodeCount, NodeNumber, WalkStep,
+    CycleMark, CycleParts, CycleScratch, EdgePlace, EdgeStart, MeetOrder, NodeCount, NodeNumber,
+    WalkStep,
 };
 use crate::domain::physical_plan::types::file_buffers::value::{KeyedRows, NO_ROW};
 #[cfg(test)]

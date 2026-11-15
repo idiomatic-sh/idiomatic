@@ -1,8 +1,5 @@
 //! Closed typed requirements, construction storage and immutable borrowed access.
-use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-
-use ryo_operators::domain::tree_cells::types::TreeRows;
 
 /// The derived view an operation requests, and the columns it is built over.
 #[derive(Clone, Debug)]
@@ -72,20 +69,9 @@ pub struct IdentityHash(pub u64);
 
 pub mod contract;
 
-/// Membership semantics can address values, existing dense graph vertices or a native tree.
-#[derive(Debug)]
-pub enum MembershipSpace<'a> {
-    /// Any values.
-    Values,
-    /// The vertices of an existing dense graph.
-    Dense(&'a [Value]),
-    /// The nodes of a native tree.
-    Native(TreeRows<'a>),
-}
 /// How many of a prepared use's input places the view reads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct InputsUsed(pub u8);
-
 
 /// What an ordered depth-first search reads: its roots, edges, edge order and keys.
 #[derive(Clone, Debug)]

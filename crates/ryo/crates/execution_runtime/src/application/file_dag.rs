@@ -1,5 +1,8 @@
-//! Central generation-scoped scheduling, shared graph results and last-use release.
-pub mod derived;
+//! A request's program prepared once and run over its files: the file pass, the project phase and the publications they
+//! share.
+pub mod service;
+#[cfg(test)]
+mod service_test;
 #[cfg(any(test, feature = "fixtures"))]
 pub mod testing;
 

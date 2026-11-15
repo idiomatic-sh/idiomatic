@@ -1435,7 +1435,6 @@ dependencies = [
  "idiomatic-sh-ryo-execution",
  "idiomatic-sh-ryo-execution-domain",
  "idiomatic-sh-ryo-execution-runtime",
- "idiomatic-sh-ryo-execution-store",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-operators",
@@ -1477,7 +1476,6 @@ dependencies = [
  "idiomatic-sh-ryo-derived",
  "idiomatic-sh-ryo-execution-domain",
  "idiomatic-sh-ryo-execution-runtime",
- "idiomatic-sh-ryo-execution-store",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-operators",
@@ -1488,16 +1486,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tracing",
-]
-
-[[package]]
-name = "idiomatic-sh-ryo-execution-store"
-version = "0.1.4"
-dependencies = [
- "idiomatic-sh-ryo-derived",
- "idiomatic-sh-ryo-execution-store",
- "idiomatic-sh-ryo-relations",
- "idiomatic-sh-ryo-values",
 ]
 
 [[package]]

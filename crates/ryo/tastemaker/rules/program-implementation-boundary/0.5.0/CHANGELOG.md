@@ -1,5 +1,9 @@
 # program-implementation-boundary
 
+## 0.5.0
+
+The interpreter's facade runtime is gone (ryo-2964.8): the root outcome's classification it held now lives with the outcome, in `rule_outcome/service.rs`, so that file joins the program's open entries and the `facade_runtime` ones leave them. Everything else is as in 0.4.0.
+
 ## 0.4.0
 
 A test double of a guarded contract (`KernelInvocation`, `Inputs`, `PrimitiveExecutor`, `PrimitiveSemantics`, an operator or representation item) is accepted in a fixtures role as well as in a proof-placed file: a `fixtures.rs` or a file beneath `fixtures/` whose module, or a module above it, is declared under the test or fixtures gate, `#[cfg(test)]` or `#[cfg(any(test, feature = "fixtures"))]` exactly, as `no-runtime-fixtures` reads it; a `cfg` that names the feature without gating on it (`not(feature = "fixtures")`, or an `any` whose other arm holds in a production build) is no gate (scenarios `negated-fixtures-gate-double` and `always-true-fixtures-gate-double`, refused). A production implementation outside the registered set is still refused, and so is the same double in a fixtures file declared without the gate, so a test double needs no per-file `program-runtime-proof` placement. Scenarios `domain-double-is-production` and `ungated-fixtures-double` (refused), `gated-fixtures-double` and `gated-group-fixtures-double` (pass). Everything else is as in 0.3.0. Module files are named for their directory (`<x>.rs`, never `<x>/mod.rs`), so every module-file path the query and the scenarios name is `<x>.rs`.

@@ -1,5 +1,4 @@
-//! The `derived` application operation: a request's program prepared over the derived access, and the file preparation
-//! of the derived owner.
+//! The `file_dag` operation: a request's program prepared once over the engine's operators, for every file of the request.
 use crate::application::file_dag::program::prepared_execution::types::{
     PreparedExecutionProgram, ProgramParts,
 };
@@ -24,7 +23,7 @@ use std::sync::Arc;
 /// ```
 /// use ryo_execution_domain::domain::operating::errors::OperatingError;
 /// use ryo_execution_domain::domain::prepared_request::types::{Compiled, ObservationIdentity};
-/// use ryo_execution_runtime::application::file_dag::derived::service::prepare;
+/// use ryo_execution_runtime::application::file_dag::service::prepare;
 /// use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 /// use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 /// use std::sync::Arc;

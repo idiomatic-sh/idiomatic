@@ -8,7 +8,6 @@ use crate::domain::equality::types::KeyIndex;
 use crate::domain::membership::types::DerivedMembership;
 use crate::domain::native::types::NativeFinding;
 use crate::domain::ordered::types::OrderedMatching;
-use crate::domain::sharing::types::{SharedGraph, SharedKeyIndex, SharedMarks};
 use ryo_values::domain::rows::types::RowIndex;
 use std::sync::Arc;
 
@@ -52,33 +51,6 @@ impl DerivedPayload {
     pub fn partition_order_capacity(&self) -> Option<ElementCapacity> {
         if let PayloadData::PartitionOrder(rows) = &self.data {
             Some(ElementCapacity(rows.capacity()))
-        } else {
-            None
-        }
-    }
-    /// The shared marks of a dense membership payload.
-    #[must_use]
-    pub fn share_marks(&self) -> Option<SharedMarks> {
-        if let PayloadData::Membership(DerivedMembership::Dense(rows)) = &self.data {
-            Some(rows.clone())
-        } else {
-            None
-        }
-    }
-    /// The shared key index of an equality payload.
-    #[must_use]
-    pub fn share_equality(&self) -> Option<SharedKeyIndex> {
-        if let PayloadData::Equality(data) = &self.data {
-            Some(SharedKeyIndex(Arc::clone(data)))
-        } else {
-            None
-        }
-    }
-    /// The shared graph of an adjacency payload.
-    #[must_use]
-    pub fn share_adjacency(&self) -> Option<SharedGraph> {
-        if let PayloadData::Adjacency(data) = &self.data {
-            Some(SharedGraph(Arc::clone(data)))
         } else {
             None
         }

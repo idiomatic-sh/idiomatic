@@ -2,8 +2,6 @@
 
 pub(crate) mod constants;
 pub mod errors;
-#[cfg(any(test, feature = "fixtures"))]
-pub mod fixtures;
 pub mod service;
 pub mod types;
 

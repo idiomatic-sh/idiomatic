@@ -44,10 +44,6 @@ Keeps each row of a whole table once, the first of its kind in place, through th
 
 Combines admitted matching rows while preserving bag order, projections, and deferred physical positions.
 
-### evaluation
-
-Evaluates one plan operation of any kind over the engine's driver port: one arm per kind, each calling that kind's own meaning.
-
 ### fits_rendered
 
 Measures the physical line width of a source prefix and an already rendered candidate, with tab stops and Unicode width.
@@ -67,10 +63,6 @@ Reads typed comparison operands from rows, parameters and literals.
 ### ordered_dfs
 
 Emits each edge an ordered depth-first visit reaches from every distinct root, with the root's keys and the visit's ordinal.
-
-### ordered_existence
-
-Flags strict partition extrema over engine-admitted whole-number inputs and engine-owned scratch.
 
 ### ordered_match
 

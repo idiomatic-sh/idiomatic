@@ -169,6 +169,17 @@ pub(crate) enum RowSource {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct IndexPlace(pub(crate) usize);
 
+/// How many nodes a plan runs.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::physical_plan::types::NodeTotal;
+/// assert_eq!(NodeTotal(2), NodeTotal(2));
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct NodeTotal(pub usize);
+
 /// How many node readers a node has, or has left in the open file.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct NodeReaders(pub(crate) u32);

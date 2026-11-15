@@ -192,33 +192,3 @@ pub(crate) fn regex_error(pattern: &str) -> OperatingError {
     ryo_execution::inbound::use_cases::execution::fixtures::regex_refusal(pattern)
         .expect("intentionally malformed regular expression")
 }
-/// An operators port that refuses every node it is asked to run, when it is told to refuse.
-#[derive(Debug)]
-pub(crate) struct ObservedJoin {
-    /// Whether every node is refused.
-    pub(crate) refuse: bool,
-}
-impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for ObservedJoin {
-    fn plan(
-        &self,
-        program: &ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram<'_>,
-    ) -> Result<
-        ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
-    > {
-        ryo_operators::inbound::use_cases::run::fixtures::planned(program)
-    }
-    fn run(
-        &self,
-        plan: &ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
-        node: ryo_operators::domain::physical_plan::types::PlanNodeId,
-        buffers: &mut ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers,
-        inputs: &dyn ryo_operators::domain::physical_plan::types::PlanInputs,
-        resources: &mut dyn ryo_operators::domain::physical_plan::types::Resources,
-    ) -> Result<(), ryo_operators::domain::contract::types::PortableOperatorFault> {
-        if self.refuse {
-            return Err(ryo_operators::domain::contract::types::PortableOperatorFault::ShapeMismatch);
-        }
-        ryo_operators::inbound::use_cases::run::fixtures::ran(plan, node, buffers, inputs, resources)
-    }
-}

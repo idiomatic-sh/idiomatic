@@ -6,13 +6,13 @@
 use super::super::interface::{KernelsItem, Reach};
 use crate::domain::contract::errors::ContractError;
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::physical_plan::types::KernelRun;
+#[cfg(test)]
+use crate::domain::physical_plan::types::RowSource;
 use crate::domain::physical_plan::types::held_rows::value::HeldRows;
 use crate::domain::physical_plan::types::lowering::value::BoundScan;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
-use crate::domain::physical_plan::types::KernelRun;
-#[cfg(test)]
-use crate::domain::physical_plan::types::RowSource;
 use crate::domain::table_rows::types::{RowTexts, TableRowOutput};
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::query_bindings::types::ParameterBinding;

@@ -50,7 +50,7 @@ pub(crate) fn run(
 
 /// Grows the per-node buffers to the plan's nodes, keeping what they hold.
 fn sized(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
-    let count = plan.nodes.len();
+    let count = plan.node_count().0;
     if buffers.nodes.len() < count {
         buffers.nodes.resize_with(count, || None);
         buffers.pending.resize_with(count, || None);

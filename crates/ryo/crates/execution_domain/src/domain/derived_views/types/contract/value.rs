@@ -85,8 +85,6 @@ pub struct PreparedViewUse {
 pub struct PreparedViewGroup {
     /// The view the slot reads first.
     pub primary: Arc<PreparedViewUse>,
-    /// The second view the slot reads, when it reads two.
-    pub secondary: Option<Arc<PreparedViewUse>>,
 }
 /// The derived views an operation reads, one slot per derived kind.
 #[derive(Clone, Debug, Default)]

@@ -145,7 +145,6 @@ pub enum PreflightOrder {
     ResourcesFirst,
 }
 
-
 /// Owned by one request and aligned with the compiled operation.
 #[derive(Clone, Debug)]
 pub struct OperatorContract {
@@ -184,14 +183,6 @@ pub struct OperatorContract {
     /// Exact typed fields, not a hash-only or Debug-text key.
     pub identity: Operation,
 }
-
-
-
-
-
-
-
-
 
 /// Exact semantic program bound once; a primitive cannot substitute comparisons.
 #[derive(Clone, Debug)]
@@ -236,9 +227,3 @@ pub struct EmptyResult {
     /// The kinds of the empty result's columns, or why they could not be known.
     pub kinds: Result<Vec<CellKind>, OperatingError>,
 }
-
-
-
-
-
-

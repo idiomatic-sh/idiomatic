@@ -1,8 +1,5 @@
 //! What a closure reads from the engine: its partitions, their sources and the walk over them.
 
-
-
-
 /// The graph a closure walks: the partition columns of an edge row, its source column and its destination column.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ReachParts {
