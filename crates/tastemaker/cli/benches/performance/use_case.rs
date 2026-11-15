@@ -155,20 +155,32 @@ mod cost {
 
     /// `from` copied to `to`, its build trees left out.
     fn copy_tree(from: &Path, to: &Path) {
-        std::fs::create_dir_all(to).expect("the directory");
-        for entry in std::fs::read_dir(from)
-            .expect("the directory reads")
-            .flatten()
-        {
+        std::fs::create_dir_all(to)
+            .map_err(|error| format!("{}: {error}", to.display()))
+            .expect("the directory is created");
+        let entries = std::fs::read_dir(from)
+            .map_err(|error| format!("{}: {error}", from.display()))
+            .expect("the directory reads");
+        // Every entry copies or the bench stops: a dropped entry would time an incomplete tree.
+        for entry in entries {
+            let entry = entry
+                .map_err(|error| format!("{}: {error}", from.display()))
+                .expect("an entry of the directory reads");
             let name = entry.file_name();
             if name == "target" || name == ".tastemaker_cache" || name == ".ryo_cache" {
                 continue;
             }
             let path = entry.path();
-            if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+            let kind = entry
+                .file_type()
+                .map_err(|error| format!("{}: {error}", path.display()))
+                .expect("the entry's type reads");
+            if kind.is_dir() {
                 copy_tree(&path, &to.join(&name));
             } else {
-                let _: u64 = std::fs::copy(&path, to.join(&name)).expect("the file copies");
+                let _: u64 = std::fs::copy(&path, to.join(&name))
+                    .map_err(|error| format!("{}: {error}", path.display()))
+                    .expect("the file copies");
             }
         }
     }
