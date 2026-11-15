@@ -179,7 +179,7 @@ fn a_fresh_language_compiles_and_lacks_no_part() {
             "EXTENSION: &str = \".ts\"",
         ),
         ("src/domain/language/service_test.rs", "src/main.ts"),
-        ("benches/performance.rs", "generated.ts"),
+        ("benchmarks/provider/bench.rs", "generated.ts"),
         ("README.md", "`.ts`"),
     ] {
         let body = std::fs::read_to_string(language.join(path)).expect("generated file");
