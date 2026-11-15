@@ -14,6 +14,8 @@ use std::path::Path;
 enum Scenario {
     /// A default without a definition.
     MissingImplementation,
+    /// A default without a definition that the profile defers.
+    DeferredDefault,
     /// `profiles/<id>/benchmark.toml` names another parser configuration than the bench profile.
     DedicatedProfile,
     /// A case declares an observation produced by another rule.
@@ -77,6 +79,7 @@ fn author(bench: &Path, scenario: Scenario) {
         | Scenario::MissingEvidence
         | Scenario::StaleEvidence => copy_tree(&f821, bench),
         Scenario::MissingImplementation
+        | Scenario::DeferredDefault
         | Scenario::DedicatedProfile
         | Scenario::SupportingProducer
         | Scenario::UndeclaredModule
@@ -90,6 +93,13 @@ fn author(bench: &Path, scenario: Scenario) {
     match scenario {
         Scenario::MissingImplementation => {
             std::fs::remove_file(bench.join("rules/A1/query.ryoql")).expect("no definition");
+        }
+        Scenario::DeferredDefault => {
+            std::fs::remove_file(bench.join("rules/A1/query.ryoql")).expect("no definition");
+            write(
+                &bench.join("benchmark.toml"),
+                &format!("{PROFILE}\n[deferred]\ncontrol_flow = [\"A1\"]\n"),
+            );
         }
         Scenario::DedicatedProfile => write(
             &bench.join("profiles/A1/benchmark.toml"),
@@ -145,6 +155,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::MissingImplementation,
         expect: Expect::Value(Cow::Borrowed("missing implementation")),
+    },
+    Case {
+        name: CaseName("a deferred default without a definition is registered as deferred"),
+        word: Word::Succeeds,
+        input: || Scenario::DeferredDefault,
+        expect: Expect::Value(Cow::Borrowed("deferred: control_flow")),
     },
     Case {
         name: CaseName("profiles/<id>/benchmark.toml wins over the bench profile"),
@@ -284,6 +300,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 rule.cases.len(),
                 files.join(", ")
             )))
+        }
+        (RuleCommand::Deferred(capability), RuleReason::Unstated) => {
+            Ok(Cow::Owned(format!("deferred: {capability}")))
         }
         (_, RuleReason::Stated(reason)) if reason.0 == "missing implementation" => {
             Ok(Cow::Owned(reason.0.clone()))

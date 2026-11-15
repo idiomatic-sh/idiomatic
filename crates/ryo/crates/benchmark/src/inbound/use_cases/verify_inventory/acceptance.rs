@@ -51,7 +51,10 @@ fn missing(world: &mut crate::Behavior) {
     let (result, summary, calls) = run(&["missing"]);
     assert_eq!(result, Ok(false));
     assert_eq!(summary["run_state"], "complete");
-    assert_eq!(summary["counts"], serde_json::json!({"PASS": 0, "FAIL": 1}));
+    assert_eq!(
+        summary["counts"],
+        serde_json::json!({"PASS": 0, "FAIL": 1, "DEFERRED": 0})
+    );
     assert_eq!(
         summary["rules"][0]["reason"],
         "missing implementation registration"

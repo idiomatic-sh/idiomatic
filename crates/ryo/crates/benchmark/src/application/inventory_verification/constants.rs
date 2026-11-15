@@ -43,3 +43,6 @@ pub(super) const REGISTERED_CONTEXT_NAMESPACE_DIFFERS_FROM_PI: &str =
 /// A registered rule that fails its independent cases fails the certification.
 pub(crate) const REGISTERED_INDEPENDENT_CASE_CERTIFICATION_FA: &str =
     "registered independent case certification failed";
+/// A rule registered as deferred must be deferred by the canonical profile under the same capability.
+pub(super) const DEFERRED_RULE_NOT_DEFERRED_BY_PROFILE: &str =
+    "registered deferral differs from the canonical profile's";

@@ -20,6 +20,7 @@ use ryo_benchmark_contracts::domain::requests::constants::{
 };
 use ryo_benchmark_contracts::domain::requests::types::{ParserSelection, RuleLabel};
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
+use ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName;
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -256,6 +257,20 @@ fn unregistered(rule: &ryo::linter::RuleId, reason: ReasonText) -> RegisteredRul
     }
 }
 
+/// A default the profile defers under `capability`: nothing is pinned and nothing runs.
+fn deferred(rule: &ryo::linter::RuleId, capability: &CapabilityName) -> RegisteredRule {
+    RegisteredRule {
+        definition: RuleDefinition::Unpinned,
+        modules: BTreeMap::new(),
+        artifacts: BTreeMap::new(),
+        rule_id: RuleName(rule.to_string()),
+        command: RuleCommand::Deferred(capability.clone()),
+        reason: RuleReason::Unstated,
+        cases: Vec::new(),
+        instance: RuleInstance::Undeclared,
+    }
+}
+
 /// A digest as the registration's identity writes it.
 fn identity(value: &Sha256Text) -> CanonicalJson {
     CanonicalJson(render(&Fragment::Text(Label(value.0.clone()))).0)
@@ -294,12 +309,13 @@ pub fn register(
             ArtifactPath(&staged.root.join(crate::domain::suite::constants::RULES)),
             rule,
         )?;
-        rules.push(match query {
-            None => unregistered(
+        rules.push(match (query, staged.profile.deferred.get(rule)) {
+            (None, Some(capability)) => deferred(rule, capability),
+            (None, None) => unregistered(
                 rule,
                 ReasonText(constants::MISSING_IMPLEMENTATION.to_owned()),
             ),
-            Some(_query) => stage_rule(&staged, rule).unwrap_or_else(|error| {
+            (Some(_query), _) => stage_rule(&staged, rule).unwrap_or_else(|error| {
                 unregistered(
                     rule,
                     ReasonText(format!("{}: {error}", constants::RULE_REGISTRATION)),

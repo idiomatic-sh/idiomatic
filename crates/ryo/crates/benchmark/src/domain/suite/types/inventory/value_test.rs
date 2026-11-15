@@ -3,6 +3,7 @@ use super::value::{FailureReason, Inventory, InventoryVerdict, PassedRule};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::requests::types::RuleLabel;
+use ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName;
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 
 /// What a scenario does to a two-rule inventory.
@@ -12,6 +13,8 @@ enum Scenario {
     OnePasses,
     BothPass,
     PassThenFail,
+    PassAndDefer,
+    DeferOne,
     Duplicate,
     Empty,
     Unsafe,
@@ -44,6 +47,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("failing every rule after a pass returns the inventory to failed"),
         word: Word::Succeeds,
         input: || Scenario::PassThenFail,
+        expect: Expect::Value(InventoryVerdict::Failed),
+    },
+    Case {
+        name: CaseName("a passed rule beside a deferred one passes the inventory"),
+        word: Word::Succeeds,
+        input: || Scenario::PassAndDefer,
+        expect: Expect::Value(InventoryVerdict::Passed),
+    },
+    Case {
+        name: CaseName("a deferred rule beside one not run leaves the inventory failed"),
+        word: Word::Succeeds,
+        input: || Scenario::DeferOne,
         expect: Expect::Value(InventoryVerdict::Failed),
     },
     Case {
@@ -85,9 +100,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Duplicate => vec![label("A"), label("A")],
         Scenario::Empty => Vec::new(),
         Scenario::Unsafe => vec![label("../A")],
-        Scenario::Untouched | Scenario::OnePasses | Scenario::BothPass | Scenario::PassThenFail => {
-            vec![label("A"), label("B")]
-        }
+        Scenario::Untouched
+        | Scenario::OnePasses
+        | Scenario::BothPass
+        | Scenario::PassThenFail
+        | Scenario::PassAndDefer
+        | Scenario::DeferOne => vec![label("A"), label("B")],
     };
     let mut inventory = Inventory::new(&rules).map_err(|_| ())?;
     match scenario {
@@ -100,6 +118,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             inventory.pass(&label("A"), evidence());
             inventory.fail_all(&FailureReason("again".into()));
         }
+        Scenario::PassAndDefer => {
+            inventory.pass(&label("A"), evidence());
+            inventory.defer(&label("B"), &CapabilityName::from("control_flow"));
+        }
+        Scenario::DeferOne => inventory.defer(&label("B"), &CapabilityName::from("control_flow")),
         Scenario::Untouched | Scenario::Duplicate | Scenario::Empty | Scenario::Unsafe => {}
     }
     Ok(inventory.verdict())

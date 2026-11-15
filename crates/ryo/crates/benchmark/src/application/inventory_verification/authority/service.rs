@@ -80,12 +80,24 @@ pub fn require_authority(
     }
     for entry in &registration.rules {
         let name = entry.rule_id.0.as_str();
-        if entry.command != RuleCommand::Unregistered
-            && (tool.deferred.keys().any(|rule| rule.to_string() == name)
-                || tool.pending.keys().any(|rule| rule.to_string() == name))
+        let deferral = tool
+            .deferred
+            .iter()
+            .find(|(rule, _)| rule.to_string() == name)
+            .map(|(_, capability)| capability);
+        if matches!(entry.command, RuleCommand::Registered(_))
+            && (deferral.is_some() || tool.pending.keys().any(|rule| rule.to_string() == name))
         {
             return Err(Error::Invalid(format!(
                 "canonical profile defers an executable registered rule: {name}"
+            )));
+        }
+        if let RuleCommand::Deferred(capability) = &entry.command
+            && deferral != Some(capability)
+        {
+            return Err(Error::Invalid(format!(
+                "{}: {name}",
+                constants::DEFERRED_RULE_NOT_DEFERRED_BY_PROFILE
             )));
         }
     }

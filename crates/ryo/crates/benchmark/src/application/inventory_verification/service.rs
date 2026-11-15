@@ -28,11 +28,20 @@ use ryo_benchmark_contracts::domain::receipts::constants::{
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::{RegisteredCoverage, RuleLabel};
+use ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName;
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::Path,
 };
+
+/// What one registered rule came to without failing.
+enum Verified {
+    /// Its cases verified.
+    Passed(PassedRule),
+    /// Its profile defers it under this capability; nothing ran.
+    Deferred(CapabilityName),
+}
 
 /// The row a rule's current result publishes.
 fn row(registration: &Registration, rule: &RuleName, outcome: &RuleEvidence) -> Row {
@@ -57,6 +66,17 @@ fn row(registration: &Registration, rule: &RuleName, outcome: &RuleEvidence) -> 
             raw_exact: evidence.raw_exact,
             documented_discrepancies: evidence.documented,
             contract_only: evidence.contract_only,
+        },
+        RuleEvidence::Deferred(capability) => Row {
+            rule_id: rule.clone(),
+            status: RowStatus::Deferred,
+            reason: RowReason::Deferred(capability.clone()),
+            instance,
+            case_results_sha256: ReceiptDigest::Unrecorded,
+            case_count: CaseCount(0),
+            raw_exact: CaseCount(0),
+            documented_discrepancies: CaseCount(0),
+            contract_only: CaseCount(0),
         },
         RuleEvidence::Failed(reason) => Row {
             rule_id: rule.clone(),
@@ -84,21 +104,21 @@ fn summary(registration: &Registration, inventory: &Inventory, state: RunState) 
             )
         })
         .collect::<Vec<_>>();
-    let passed = rules
-        .iter()
-        .filter(|row| row.status == RowStatus::Pass)
-        .count();
+    let count =
+        |status: RowStatus| CaseCount(rules.iter().filter(|row| row.status == status).count());
     Summary {
         provider: registration.provider.clone(),
         run_state: state,
         identity: registration.identity.clone(),
-        passed: CaseCount(passed),
-        failed: CaseCount(rules.len() - passed),
+        passed: count(RowStatus::Pass),
+        failed: count(RowStatus::Fail),
+        deferred: count(RowStatus::Deferred),
         rules,
     }
 }
 
-/// Run every pinned rule the coverage names; one failed or missing implementation never removes another row.
+/// Run every pinned rule the coverage names; one failed or missing implementation never removes another row, and a
+/// deferred default is recorded as deferred without running.
 ///
 /// # Errors
 /// Refuses invalid registrations and propagates artifact persistence failures.
@@ -141,10 +161,13 @@ pub fn verify(
             .rules
             .iter()
             .find(|entry| entry.rule_id.0 == rule.0);
-        let outcome = (|| -> Result<PassedRule, FailureReason> {
+        let outcome = (|| -> Result<Verified, FailureReason> {
             let entry = entry.ok_or_else(|| {
                 FailureReason(constants::MISSING_IMPLEMENTATION_REGISTRATION.into())
             })?;
+            if let RuleCommand::Deferred(capability) = &entry.command {
+                return Ok(Verified::Deferred(capability.clone()));
+            }
             if let RuleReason::Stated(reason) = &entry.reason {
                 return Err(FailureReason(reason.0.clone()));
             }
@@ -233,16 +256,17 @@ pub fn verify(
             .map_err(refused)?;
             verify_context(entry, suite, store)?;
             let digest = suite.digest(ArtifactPath(&path)).map_err(refused)?;
-            Ok(PassedRule {
+            Ok(Verified::Passed(PassedRule {
                 cases: CaseCount(entry.cases.len()),
                 raw_exact: CaseCount(counts.raw_exact.0),
                 documented: CaseCount(counts.documented.0),
                 contract_only: CaseCount(counts.contract_only.0),
                 case_results_sha256: ArtifactDigest(digest.0),
-            })
+            }))
         })();
         match outcome {
-            Ok(evidence) => inventory.pass(&rule, evidence),
+            Ok(Verified::Passed(evidence)) => inventory.pass(&rule, evidence),
+            Ok(Verified::Deferred(capability)) => inventory.defer(&rule, &capability),
             Err(reason) => inventory.fail(&rule, reason),
         }
         let report = summary(registration, &inventory, RunState::Running);

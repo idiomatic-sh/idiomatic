@@ -7,6 +7,7 @@ use ryo_benchmark_contracts::domain::documents::types::text::value::{
 };
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::requests::types::ParserSelection;
+use ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName;
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -56,6 +57,8 @@ pub enum RuleCommand {
     Registered(Command),
     /// No implementation can be invoked.
     Unregistered,
+    /// The profile defers this default under the named capability; nothing is invoked.
+    Deferred(CapabilityName),
 }
 
 /// Why a registered rule cannot run, or why a row failed.
@@ -112,6 +115,8 @@ pub enum RowStatus {
     Pass,
     /// The rule failed, was missing or was not run.
     Fail,
+    /// The profile defers the default under a named capability.
+    Deferred,
 }
 
 /// The failure explanation of a row.
@@ -121,6 +126,8 @@ pub enum RowReason {
     Failed(ReasonText),
     /// The row passed.
     Passed,
+    /// The capability the profile defers the default under.
+    Deferred(CapabilityName),
 }
 
 /// The original per-rule source identity of a row.
@@ -141,14 +148,14 @@ pub enum ReceiptDigest {
     Unrecorded,
 }
 
-/// Public summary row: only PASS or FAIL.
+/// Public summary row: PASS, FAIL or DEFERRED.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Row {
     /// Rule identity from the pinned inventory.
     pub rule_id: RuleName,
-    /// PASS or FAIL only.
+    /// PASS, FAIL or DEFERRED.
     pub status: RowStatus,
-    /// Failure explanation.
+    /// Failure explanation, or the deferral's capability.
     pub reason: RowReason,
     /// Original per-rule source identity.
     pub instance: RowInstance,
@@ -184,10 +191,12 @@ pub struct Summary {
     pub run_state: RunState,
     /// Source and executable pins, as canonical JSON text.
     pub identity: BTreeMap<IdentityKey, CanonicalJson>,
-    /// How many rules passed; PASS plus FAIL always equals the declared registry length.
+    /// How many rules passed; PASS plus FAIL plus DEFERRED always equals the declared registry length.
     pub passed: CaseCount,
     /// How many rules failed.
     pub failed: CaseCount,
+    /// How many defaults the profile defers.
+    pub deferred: CaseCount,
     /// Every pinned rule, including missing implementations.
     pub rules: Vec<Row>,
 }

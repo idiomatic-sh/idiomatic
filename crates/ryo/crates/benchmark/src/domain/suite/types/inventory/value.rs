@@ -4,6 +4,7 @@ use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDi
 use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::RuleLabel;
+use ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName;
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::collections::BTreeSet;
 
@@ -36,14 +37,16 @@ pub enum RuleEvidence {
     Failed(FailureReason),
     /// Executed evidence satisfies the registered cases.
     Passed(PassedRule),
+    /// The profile defers the default under this capability; nothing ran.
+    Deferred(CapabilityName),
 }
 
-/// Whether every pinned rule passed.
+/// Whether no pinned rule failed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InventoryVerdict {
-    /// Every pinned rule passed.
+    /// Every pinned rule passed or is deferred.
     Passed,
-    /// At least one pinned rule has not passed.
+    /// At least one pinned rule failed.
     Failed,
 }
 
@@ -130,13 +133,20 @@ impl Inventory {
         }
     }
 
-    /// Strict success requires every pinned rule to pass.
+    /// Record the deferral of one pinned rule; an unpinned rule changes nothing.
+    pub fn defer(&mut self, rule: &RuleLabel, capability: &CapabilityName) {
+        for row in self.rules.iter_mut().filter(|row| row.rule == *rule) {
+            row.outcome = RuleEvidence::Deferred(capability.clone());
+        }
+    }
+
+    /// Success requires that no pinned rule failed: each passed or is deferred.
     #[must_use]
     pub fn verdict(&self) -> InventoryVerdict {
-        if self
+        if !self
             .rules
             .iter()
-            .all(|row| matches!(row.outcome, RuleEvidence::Passed(_)))
+            .any(|row| matches!(row.outcome, RuleEvidence::Failed(_)))
         {
             InventoryVerdict::Passed
         } else {

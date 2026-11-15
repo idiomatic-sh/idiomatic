@@ -30,6 +30,7 @@ pub fn summary() -> Summary {
         identity: BTreeMap::<IdentityKey, _>::new(),
         passed: CaseCount(0),
         failed: CaseCount(1),
+        deferred: CaseCount(0),
         rules: vec![row()],
     }
 }
