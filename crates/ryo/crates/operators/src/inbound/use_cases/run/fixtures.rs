@@ -34,6 +34,8 @@ pub(crate) mod cases;
 pub mod counting;
 #[cfg(test)]
 pub(crate) mod edges;
+mod graph_workloads;
+mod kernel_programs;
 #[cfg(test)]
 pub(crate) mod relational;
 pub mod texts;

@@ -1,6 +1,6 @@
 //! The kernels' allocation rows: two selects sharing one index of a name, the nodes that drop repeated rows through
 //! `hash_index`'s keyed rows, and the span kinds of `text_map`, each measured for a thousand rows and a hundred thousand.
-use super::super::{TableInputs, TextResources, emitted};
+use super::{TableInputs, TextResources, emitted};
 use crate::domain::physical_plan::fixtures::Step;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};

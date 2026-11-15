@@ -5,10 +5,12 @@ use crate::domain::source_matches::service::absolute_span;
 use crate::domain::source_matches::types::{OccurrenceByte, OccurrenceSpan, SourceBase};
 use ryo_relations::domain::relations::types::{Offset, Span};
 /// An occurrence at `start..end` of the text searched from `base`.
-type Placed = (usize, usize, usize);
+type Input = (usize, usize, usize);
+type Value = Span;
+type Failure = PortableOperatorFault;
 
 /// The absolute span of an occurrence: the one conversion the text_map stage's search makes of each whole and captured span.
-const CASES: &[Case<Placed, Span, PortableOperatorFault>] = &[
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an_occurrence_s_span_is_its_place_past_the_base"),
         word: Word::Succeeds,
@@ -41,7 +43,7 @@ const CASES: &[Case<Placed, Span, PortableOperatorFault>] = &[
     },
 ];
 
-fn placed((base, start, end): Placed) -> Result<Span, PortableOperatorFault> {
+fn subject((base, start, end): Input) -> Result<Value, Failure> {
     absolute_span(
         SourceBase(base),
         OccurrenceSpan {
@@ -53,10 +55,10 @@ fn placed((base, start, end): Placed) -> Result<Span, PortableOperatorFault> {
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, placed);
+    run(CASES, Word::Succeeds, subject);
 }
 
 #[test]
 fn refuses() {
-    run(CASES, Word::Refuses, placed);
+    run(CASES, Word::Refuses, subject);
 }

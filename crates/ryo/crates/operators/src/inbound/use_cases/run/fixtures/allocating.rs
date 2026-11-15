@@ -3,11 +3,8 @@
 //! and the span kinds of `text_map`, which write one row per row into cells reserved once), a seeded closure for a hundred
 //! chains and ten thousand, and the graph kernels over a file's edges, cold and warm.
 
-use graph::{SeededClosure, graph_kernel_blocks, seeded_held};
-use kernels::{Kernels, kernels_held};
-
-mod graph;
-mod kernels;
+use super::graph_workloads::{SeededClosure, graph_kernel_blocks, seeded_held};
+use super::kernel_programs::{Kernels, kernels_held};
 
 /// The workloads the allocation rows are proved on, within their bounds or past them.
 #[derive(Clone, Copy, Debug)]

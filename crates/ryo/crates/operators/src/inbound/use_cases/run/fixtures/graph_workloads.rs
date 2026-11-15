@@ -1,6 +1,6 @@
 //! The graph workloads' allocation rows: a seeded closure for a hundred chains and ten thousand, and the graph kernels over a
 //! file's edges, cold and warm.
-use super::super::{TableInputs, TextResources, emitted};
+use super::{TableInputs, TextResources, emitted};
 use crate::domain::physical_plan::fixtures::Step;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
