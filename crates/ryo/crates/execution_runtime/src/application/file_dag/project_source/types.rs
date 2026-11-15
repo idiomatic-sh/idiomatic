@@ -32,18 +32,11 @@ pub(crate) struct ProjectSource<'a> {
     pub(crate) written: ProjectWritten<'a>,
     /// The relations it serves, in catalog order.
     pub(crate) serves: Vec<Relation>,
-    /// What its one read made, once made.
-    pub(crate) read: PhaseRead,
-}
-
-/// Whether the phase's project relations were read, and what the read made.
-#[derive(Debug, Default)]
-pub(crate) enum PhaseRead {
-    /// Not yet.
-    #[default]
-    Unread,
-    /// Read: each relation asked for, with its columns or why the project's worker refused it.
-    Read(Vec<ProjectRelation>),
+    /// The relations its phase's rules read after the files: what its one read asks for.
+    pub(crate) wanted: Vec<Relation>,
+    /// What its one read made, each relation asked for with its rows or why the project's worker refused it; unset until the
+    /// first occurrence its caller admits.
+    pub(crate) read: std::cell::OnceCell<Vec<ProjectRelation>>,
 }
 
 /// One project relation as the phase holds it.

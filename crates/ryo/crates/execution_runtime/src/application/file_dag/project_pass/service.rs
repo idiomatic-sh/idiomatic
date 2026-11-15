@@ -14,6 +14,7 @@ use crate::application::file_dag::program::project_phase::types::{
 use crate::application::file_dag::program::rule_outcome::types::{
     ProjectBatch, ProjectOutputOutcome, RuleOutcome,
 };
+use crate::application::file_dag::project_source::service::read;
 use crate::application::file_dag::publications::types::PublicationSlot;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::service::serving;
@@ -89,6 +90,8 @@ pub(crate) fn run_batch<H, T, E>(
         .map(|(at, occurrence)| {
             // What `before` returns is held until the occurrence's rule is handed over.
             let _held = before(OccurrenceNumber(at)).map_err(PhaseStop::Caller)?;
+            // The project is read at the first occurrence its caller admits: a refused one reads nothing.
+            read(batch.project, symbols);
             handover_of(batch, state, occurrence, symbols)
         })
         .collect::<Vec<_>>();

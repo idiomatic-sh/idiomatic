@@ -40,7 +40,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// One phase over a rule whose file was skipped: its frontier keeps no rows of it.
 #[derive(Clone, Copy, Debug)]
 enum Scenario {
-    /// One occurrence, which its caller refuses before it is handed over.
+    /// One occurrence reading the project, which its caller refuses before it is handed over.
     RefusedBeforeHandover,
     /// Two occurrences of the one rule.
     TwiceInOnePhase,
@@ -178,6 +178,16 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
         plan.frontier = vec![StepInput::Step(StepId(0)), StepInput::Step(StepId(1))];
         plan.emit.step = StepId(2);
+        // The refused occurrence's emit reads the project too: the files of its module identities with the union's.
+        if matches!(scenario, Scenario::RefusedBeforeHandover) {
+            plan.steps.push(after_files(Operation::Select {
+                from: StepInput::Relation(Relation::ModuleIdentity),
+                comparisons: vec![],
+                kept: vec![ColumnIndex(0)],
+            }));
+            plan.steps.push(united(2, 3));
+            plan.emit.step = StepId(4);
+        }
         if matches!(scenario, Scenario::CompleteAntijoin) {
             plan.steps = vec![
                 after_files(Operation::Hosted {

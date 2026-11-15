@@ -67,10 +67,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     }
     let project_symbols = Symbols::default();
     let mut symbols = Symbols::default();
-    let mut source = opened(ProjectWritten {
-        rows: &facts,
-        symbols: &project_symbols,
-    });
+    let source = opened(
+        ProjectWritten {
+            rows: &facts,
+            symbols: &project_symbols,
+        },
+        vec![relation],
+    );
     match scenario {
         Scenario::Serves => {
             let catalog: Vec<Relation> = all()
@@ -81,12 +84,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             Ok(Observed::Serves(source.serves == catalog, source.serves.len()))
         }
         Scenario::RepeatedRow => {
-            read(&mut source, &mut symbols, &[relation]);
+            read(&source, &mut symbols);
             Ok(Observed::Rows(table_of(&source, relation)?.count.0))
         }
         Scenario::TwoReads => {
-            read(&mut source, &mut symbols, &[relation]);
-            read(&mut source, &mut symbols, &[relation]);
+            read(&source, &mut symbols);
+            read(&source, &mut symbols);
             Ok(Observed::Reads(facts.reads.load(Ordering::Relaxed)))
         }
     }

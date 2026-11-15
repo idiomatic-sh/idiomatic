@@ -13,7 +13,7 @@ use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::project_pass::service::{project_reads, run_batch};
 use crate::application::file_dag::project_pass::types::PhaseBatch;
 use crate::application::file_dag::project_pass::types::{PhaseOccurrence, PhaseState};
-use crate::application::file_dag::project_source::service::{opened, read};
+use crate::application::file_dag::project_source::service::opened;
 use crate::application::file_dag::project_source::types::ProjectWritten;
 use crate::application::file_dag::publications::types::{BoundTables, PublicationSlot};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
@@ -49,15 +49,14 @@ impl ProjectRootExecution for ProjectPhase<'_> {
             })
             .collect::<Vec<_>>();
         let request = self.request;
-        // The project's relations are read once for the phase, every one its rules read after the files.
-        let mut project = opened(ProjectWritten {
-            rows: phase.project,
-            symbols: phase.project_symbols,
-        });
-        read(
-            &mut project,
-            symbols,
-            &project_reads(&request.pass, phase.rules),
+        // The project's relations are read once for the phase, at its first occurrence its caller admits, every one its rules
+        // read after the files.
+        let project = opened(
+            ProjectWritten {
+                rows: phase.project,
+                symbols: phase.project_symbols,
+            },
+            project_reads(&request.pass, phase.rules),
         );
         let arenas = phase.arenas;
         let stage = std::sync::Arc::new(());

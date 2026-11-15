@@ -18,7 +18,7 @@ use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::project_pass::service::{project_reads, run_batch};
 use crate::application::file_dag::project_pass::types::PhaseBatch;
 use crate::application::file_dag::project_pass::types::{PhaseOccurrence, PhaseState};
-use crate::application::file_dag::project_source::service::{opened, read};
+use crate::application::file_dag::project_source::service::opened;
 use crate::application::file_dag::project_source::types::ProjectWritten;
 use crate::application::file_dag::publications::types::RuleSelection;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
@@ -71,20 +71,19 @@ impl ProgramObservationStagePort for ObservationStage<'_> {
             batches.first,
             &selected,
         )?;
-        // The project's relations are read once for the stage, every one its declared rules read after the files.
+        // The project's relations are read once for the stage, at its first admitted occurrence, every one its declared rules
+        // read after the files.
         let declared_rules = batches
             .occurrences
             .iter()
             .map(|occurrence| occurrence.rule)
             .collect::<Vec<_>>();
-        let mut project = opened(ProjectWritten {
-            rows: batches.project,
-            symbols: batches.project_symbols,
-        });
-        read(
-            &mut project,
-            symbols,
-            &project_reads(&request.pass, &declared_rules),
+        let project = opened(
+            ProjectWritten {
+                rows: batches.project,
+                symbols: batches.project_symbols,
+            },
+            project_reads(&request.pass, &declared_rules),
         );
         let mut state = PhaseState::default();
         let mut start = 0;
