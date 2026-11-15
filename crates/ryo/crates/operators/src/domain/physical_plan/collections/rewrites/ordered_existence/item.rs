@@ -11,7 +11,7 @@ use crate::domain::equality_join::types::{
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::{
-    KeyedIndex, NodeReaders, PlanNodeId, Retention, RowSource,
+    EngineUses, KeyedIndex, NodeReaders, PlanNodeId, RowSource,
 };
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::CellKind;
@@ -101,7 +101,7 @@ fn only_read(nodes: &[PhysicalNode], source: RowSource) -> Option<OnlyRead<'_>> 
         return None;
     };
     let node = node_of(nodes, id)?;
-    (node.readers == NodeReaders(1) && node.retained == Retention::Released).then_some(OnlyRead {
+    (node.readers == NodeReaders(1) && node.engine == EngineUses(0)).then_some(OnlyRead {
         id,
         lowering: &node.lowering,
     })

@@ -43,6 +43,8 @@ pub(crate) struct PhysicalNode {
     pub(crate) lowering: crate::domain::physical_plan::types::lowering::value::Lowering,
     /// How many nodes read its rows.
     pub(crate) readers: crate::domain::physical_plan::types::NodeReaders,
-    /// Whether a consumer that reads no node keeps it past its readers.
-    pub(crate) retained: crate::domain::physical_plan::types::Retention,
+    /// How many engine uses it has: rules that emit it and consumers that hold it.
+    pub(crate) engine: crate::domain::physical_plan::types::EngineUses,
+    /// Whether its rows are held or streamed into its one reader.
+    pub(crate) flow: crate::domain::physical_plan::types::NodeFlow,
 }

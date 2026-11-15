@@ -1,14 +1,15 @@
 //! The `lookup` item of the `kernels` collection: the rows of a shared `hash_index` whose key is a constant text, in source row
 //! order, each then kept by all its select's comparisons: what the plain `filter` keeps.
 
-use super::super::filter::item::{filter, keep, kept_kinds};
+use super::super::filter::item::{filter, keep, kept_kinds, readied};
 use super::super::hash_index::item::{find_text, next_of, texts};
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{decode, facts, rows_of};
 use super::super::scan_node::item::hold;
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, IndexKeyHash, NO_ROW};
+use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
+use crate::domain::physical_plan::types::keyed_rows::value::{IndexKeyHash, NO_ROW};
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
@@ -68,7 +69,8 @@ pub(crate) fn lookups(
             kinds: kept_kinds(view.kinds, &select.kept)?,
             ..Table::default()
         };
-        let kernel = filter(select, view.kinds, texts_of, decisions);
+        let kernel = filter(select, view.kinds, texts_of);
+        readied(select, decisions, kernel.names);
         let mut fault = None;
         let mut row =
             find_text(&buffers.index, IndexKeyHash(key.0)).map_or(NO_ROW, |run| run.first);

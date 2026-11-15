@@ -1,5 +1,5 @@
-//! The runner's nodes that mint or render through the resources while they read their rows: a `text_map` stage and a
-//! `render`, which read a tree relation's rows from a copy, never from the elements in place.
+//! The runner's node that renders through the resources while it reads its rows: a `render`, which reads a tree relation's
+//! rows from a copy, never from the elements in place.
 use super::super::reading::service::{pending_of, returned, rows_in};
 use super::super::types::Reading;
 use crate::domain::contract::types::PortableOperatorFault;
@@ -8,16 +8,14 @@ use crate::domain::physical_plan::collections::kernels::scan_bound::item::held;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::{count_of, facts};
 use crate::domain::physical_plan::collections::kernels::scan_node::item::{hold, take};
 use crate::domain::physical_plan::collections::kernels::scan_roots::item::{copied, roots};
-use crate::domain::physical_plan::collections::kernels::text_map::item::{RowMapRun, mapped};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{KernelRun, NodeFed, NodeReaders, PlanNodeId, RowSource};
-use ryo_values::domain::rows::types::{RowCount, Table};
+use ryo_values::domain::rows::types::RowCount;
 
-/// Runs a node that mints or renders through the resources while it reads its rows (a `text_map` stage or a `render`) and
-/// holds its rows and pending fault. It holds the resources mutably, so it reads a tree relation's rows from a copy, never
-/// from the elements in place.
+/// Runs a node that renders through the resources while it reads its rows (a `render`) and holds its rows and pending fault.
+/// It holds the resources mutably, so it reads a tree relation's rows from a copy, never from the elements in place.
 pub(crate) fn minted(
     plan: &PhysicalPlan,
     run: &mut KernelRun<'_>,
@@ -44,32 +42,17 @@ pub(crate) fn minted(
         *fed = NodeFed([count_of(rows_in(&input)), RowCount(0), RowCount(0)]);
     }
     let pending = pending_of(&input);
-    let mut output = Table::default();
+    // The node's table: one the worker's pool kept, its room reused.
+    let mut output = buffers.pool.fresh();
     let made = match lowering {
         // A render reads every row before it answers one: its input's fault comes before any of its rows.
         Lowering::Render { render, .. } => match &pending {
             Some(fault) => Ok(Some(fault.clone())),
             None => Ok(rendered(render, rows_in(&input), run.resources, &mut output).err()),
         },
-        Lowering::TextMap { map, .. } => match buffers
-            .decisions
-            .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
-        {
-            Some(decisions) => mapped(
-                map,
-                rows_in(&input),
-                &mut RowMapRun {
-                    resources: &mut *run.resources,
-                    matcher: run.matcher,
-                    decisions,
-                    scratch: &mut buffers.scratch,
-                    places: &mut buffers.places,
-                    output: &mut output,
-                },
-            ),
-            None => Err(PortableOperatorFault::WrongOperation),
-        },
-        Lowering::Filter { .. }
+        // A text_map stage is run by the chain of streamed stages; the other kinds by the runner.
+        Lowering::TextMap { .. }
+        | Lowering::Filter { .. }
         | Lowering::Lookup { .. }
         | Lowering::Project { .. }
         | Lowering::Extend { .. }
@@ -85,7 +68,7 @@ pub(crate) fn minted(
         | Lowering::ScanBound { .. }
         | Lowering::Unlowered => Err(PortableOperatorFault::WrongOperation),
     };
-    returned(plan, buffers, input, NodeReaders(1));
+    returned(buffers, input, NodeReaders(1));
     let fault = made?;
     hold(plan, buffers, node, output, fault.or(pending));
     Ok(())

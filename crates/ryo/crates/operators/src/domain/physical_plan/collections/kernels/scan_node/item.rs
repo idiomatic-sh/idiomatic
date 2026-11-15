@@ -6,7 +6,7 @@ use super::super::interface::{KernelsItem, Reach};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-use crate::domain::physical_plan::types::{NodeReaders, PlanNodeId, Retention, TakenRows};
+use crate::domain::physical_plan::types::{NodeReaders, PlanNodeId, TakenRows};
 #[cfg(test)]
 use crate::domain::physical_plan::types::{RowSource, lowering::value::Lowering};
 use ryo_values::domain::rows::types::Table;
@@ -44,10 +44,9 @@ pub(crate) fn take(
     Ok(TakenRows { rows, pending })
 }
 
-/// Gives a read input back after `readings` of its readers are done with it; it is released instead when they were its last readers
-/// and no consumer keeps it.
+/// Gives a read input back after `readings` of its readers are done with it; when they were its last readers and no engine
+/// use of it remains, its rows go instead, their table to the worker's pool.
 pub(crate) fn give_back(
-    plan: &PhysicalPlan,
     buffers: &mut FileBuffers,
     read: PlanNodeId,
     taken: TakenRows,
@@ -58,21 +57,22 @@ pub(crate) fn give_back(
         left.0 = left.0.saturating_sub(readings.0);
         left.0
     });
-    let retained = plan
-        .nodes
-        .get(place)
-        .is_some_and(|node| node.retained == Retention::Retained);
-    if left > 0 || retained {
+    let engine = buffers.engine_left.get(place).copied().unwrap_or_default();
+    if left > 0 || engine.0 > 0 {
         if let Some(held) = buffers.nodes.get_mut(place) {
             *held = Some(taken.rows);
         }
         if let Some(pending) = buffers.pending.get_mut(place) {
             *pending = taken.pending;
         }
+    } else {
+        #[cfg(test)]
+        buffers.meter.dropped(taken.rows.count);
+        buffers.pool.pooled(taken.rows);
     }
 }
 
-/// Holds a node's rows and pending fault, with all its readers still to come.
+/// Holds a node's rows and pending fault, with all its readers and engine uses still to come.
 pub(crate) fn hold(
     plan: &PhysicalPlan,
     buffers: &mut FileBuffers,
@@ -82,6 +82,8 @@ pub(crate) fn hold(
 ) {
     let place = usize::try_from(node.0).unwrap_or(usize::MAX);
     if let Some(held) = buffers.nodes.get_mut(place) {
+        #[cfg(test)]
+        buffers.meter.formed(rows.count);
         *held = Some(rows);
     }
     if let Some(slot) = buffers.pending.get_mut(place) {
@@ -90,5 +92,10 @@ pub(crate) fn hold(
     if let (Some(left), Some(physical)) = (buffers.remaining.get_mut(place), plan.nodes.get(place))
     {
         *left = physical.readers;
+    }
+    if let (Some(left), Some(physical)) =
+        (buffers.engine_left.get_mut(place), plan.nodes.get(place))
+    {
+        *left = physical.engine;
     }
 }

@@ -1,6 +1,5 @@
 //! The support of the `handovers` cases: two rules, each handed its file step and one project relation after the files,
 //! prepared as the engine prepares them; a store whose every read is logged; and one batch of the phase run over them.
-use crate::application::file_dag::service::prepare;
 use crate::application::file_dag::frontiers::service::handed_coverage;
 use crate::application::file_dag::frontiers::types::PhaseScoping;
 use crate::application::file_dag::program::project_phase::types::{PhasePartials, PhaseStop};
@@ -15,6 +14,7 @@ use crate::application::file_dag::project_pass::types::{
 use crate::application::file_dag::project_source::service::{opened, table_of};
 use crate::application::file_dag::project_source::types::ProjectWritten;
 use crate::application::file_dag::publications::types::{BoundTables, PublicationSlot};
+use crate::application::file_dag::service::prepare;
 use crate::outbound::facts::fixtures::project_phase_handovers::{
     FIRST_BUCKETS, Log, LoggedKept, Store,
 };

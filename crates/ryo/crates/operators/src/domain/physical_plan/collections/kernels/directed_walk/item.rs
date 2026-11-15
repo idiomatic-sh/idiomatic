@@ -2,16 +2,15 @@
 //! in its direction that the domain admits, in walk order; over the tree's edges, read in place from the elements, else
 //! over edges keyed through `hash_index`'s table.
 
-use super::super::filter::item::{filter, keep};
+use super::super::filter::item::{filter, keep, readied};
 use super::super::hash_index::item::{cells, find_value, keyed_walk};
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of};
 use crate::domain::axis::types::AxisParts;
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::types::file_buffers::value::{
-    KeyedRows, NodeDecisions, WalkScratch,
-};
+use crate::domain::physical_plan::types::file_buffers::value::{NodeDecisions, WalkScratch};
+use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::{InputRows, KernelRun, KeyedSide, TreeRead};
@@ -151,7 +150,8 @@ pub(crate) fn walked(
         } => among.kinds,
         Mode::Empty | Mode::Native { among: None, .. } | Mode::Indexed { .. } => &[],
     };
-    let verdicts = filter(&axis.domain, among_kinds, run.resources.texts(), decisions);
+    let verdicts = filter(&axis.domain, among_kinds, run.resources.texts());
+    readied(&axis.domain, decisions, verdicts.names);
     for at in 0..starts_count {
         let row = RowIndex(at);
         let start = cell_of(starts, row, axis.id)
@@ -268,7 +268,9 @@ fn mode_of<'a>(
     if let InputRows::Tree(tree) = edges {
         let among = match domain {
             InputRows::Tree(each) if each.form == TreeForm::Elements => Some(each),
-            InputRows::Tree(_) | InputRows::Facts(_) | InputRows::Table(_) => None,
+            InputRows::Tree(_) | InputRows::Facts(_) | InputRows::Table(_) | InputRows::Row(..) => {
+                None
+            }
         };
         let entity = view
             .get(usize::from(axis.domain_id))

@@ -3,8 +3,8 @@
 
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
-use crate::domain::physical_plan::types::file_buffers::value::{IndexedRow, NO_ROW};
-use crate::domain::physical_plan::types::{PlanInputs, PlanNodeId, TreeRead};
+use crate::domain::physical_plan::types::keyed_rows::value::{IndexedRow, NO_ROW};
+use crate::domain::physical_plan::types::{PlanInputs, PlanNodeId, TreeRead, TreeRoots};
 #[cfg(test)]
 use crate::domain::physical_plan::types::{RowSource, lowering::value::Lowering};
 use crate::domain::tree_cells::service::{native_form, tree_value};
@@ -30,6 +30,36 @@ impl KernelsItem for ScanRootsItem {
     }
 }
 
+/// The tree nodes whose rows of tree relation `relation` `node` reads: the nodes the engine names for the node, in tree
+/// order. The root has no edge, so the edges' rows skip it.
+pub(crate) fn rooted<'a>(
+    inputs: &'a dyn PlanInputs,
+    node: PlanNodeId,
+    relation: Relation,
+) -> TreeRoots<'a> {
+    let form = native_form(relation).unwrap_or(TreeForm::Elements);
+    let candidates = inputs.roots(node).0;
+    let candidates = match (form, candidates.split_first()) {
+        (TreeForm::Edges, Some((first, rest))) if node_position(*first).0 == 0 => rest,
+        (TreeForm::Edges | TreeForm::Elements, _) => candidates,
+    };
+    TreeRoots {
+        form,
+        kinds: kinds(relation),
+        candidates,
+    }
+}
+
+/// The rows of `roots` read from the open file's `elements`.
+pub(crate) fn tree_read<'a>(roots: TreeRoots<'a>, elements: &'a Elements) -> TreeRead<'a> {
+    TreeRead {
+        form: roots.form,
+        kinds: roots.kinds,
+        elements,
+        candidates: roots.candidates,
+    }
+}
+
 /// The rows of tree relation `relation` that `node` reads: the open file's elements at the tree nodes the engine names for
 /// the node, in tree order. The root has no edge, so the edges' rows skip it.
 pub(crate) fn roots<'a>(
@@ -38,18 +68,7 @@ pub(crate) fn roots<'a>(
     node: PlanNodeId,
     relation: Relation,
 ) -> TreeRead<'a> {
-    let form = native_form(relation).unwrap_or(TreeForm::Elements);
-    let candidates = inputs.roots(node).0;
-    let candidates = match (form, candidates.split_first()) {
-        (TreeForm::Edges, Some((first, rest))) if node_position(*first).0 == 0 => rest,
-        (TreeForm::Edges | TreeForm::Elements, _) => candidates,
-    };
-    TreeRead {
-        form,
-        kinds: kinds(relation),
-        elements,
-        candidates,
-    }
+    tree_read(rooted(inputs, node, relation), elements)
 }
 
 /// Appends the nodes of the tree read's rows whose node column `column` holds `key`, in tree order: an element by its id, an

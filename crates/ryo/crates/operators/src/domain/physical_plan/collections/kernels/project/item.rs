@@ -8,7 +8,7 @@ use crate::domain::contract::types::PortableOperatorFault;
 #[cfg(test)]
 use crate::domain::equality_join::types::ProbeMode;
 use crate::domain::physical_plan::types::CellStart;
-use crate::domain::physical_plan::types::file_buffers::value::KeyedRows;
+use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use ryo_relations::domain::relations::types::Value;

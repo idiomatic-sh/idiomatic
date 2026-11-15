@@ -192,7 +192,7 @@ fn graph_kernels_once(
 ) -> u64 {
     use crate::domain::physical_plan::collections::kernels::components::item::cyclic;
     use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visited;
-    use crate::domain::physical_plan::collections::kernels::probe::item::{
+    use crate::domain::physical_plan::collections::kernels::probe_right::item::{
         IndexBuild, ProbeScratch,
     };
     use crate::domain::physical_plan::collections::kernels::reach::item::{
@@ -234,6 +234,7 @@ fn graph_kernels_once(
         found,
         ..
     } = buffers;
+    let (mut kept, mut left_on, mut right_on) = (Table::default(), Vec::new(), Vec::new());
     for kernel in 0..3 {
         output.cells.clear();
         output.count = RowCount(0);
@@ -249,6 +250,8 @@ fn graph_kernels_once(
                     probe: ProbeScratch {
                         index: &mut *second,
                         build: IndexBuild::Builds,
+                        kept: &mut kept,
+                        whole: [&mut left_on, &mut right_on],
                         row: &mut *row,
                         written: &mut *written,
                         repeats: &mut *repeats,

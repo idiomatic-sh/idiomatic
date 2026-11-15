@@ -1,5 +1,6 @@
 //! The rows an engine holds for a run after the files, as the plan and run cases lend them: the host's rows of each relation,
 //! counted per read, and the token every withheld input answers.
+use super::demands::{Demand, Demands};
 use crate::domain::contract::types::WithheldInput;
 use crate::domain::physical_plan::types::held_rows::value::HeldRows;
 use ryo_values::domain::plan_parts::types::HostedNumber;
@@ -18,11 +19,15 @@ pub(crate) struct HeldInputs {
     pub(super) hosted_reads: Cell<usize>,
     /// The rows of an input no case holds.
     pub(super) empty: Table,
+    /// What the run asked of the inputs, in order: every relation, frontier entry and bound observation.
+    pub(crate) demands: Demands,
 }
 
 impl HeldInputs {
-    /// The rows of a frontier entry or a bound observation: none, or the token every withheld input answers.
-    pub(super) fn held(&self) -> HeldRows<'_> {
+    /// The rows of a frontier entry or a bound observation, `demand` recorded: none, or the token every withheld input
+    /// answers.
+    pub(super) fn held(&self, demand: Demand) -> HeldRows<'_> {
+        self.demands.push(demand);
         self.withheld
             .map_or(HeldRows::Held(&self.empty), HeldRows::Withheld)
     }

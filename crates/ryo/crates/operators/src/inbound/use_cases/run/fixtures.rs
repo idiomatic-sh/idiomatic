@@ -38,6 +38,7 @@ pub mod allocating;
 #[cfg(test)]
 pub(crate) mod cases;
 pub mod counting;
+pub mod demands;
 #[cfg(test)]
 pub(crate) mod edges;
 mod graph_workloads;
@@ -45,6 +46,8 @@ pub mod held;
 mod kernel_programs;
 #[cfg(test)]
 pub(crate) mod relational;
+#[cfg(test)]
+pub(crate) mod streams;
 pub mod texts;
 pub mod trees;
 pub mod unshared;
@@ -120,6 +123,9 @@ impl TableInputs {
 
 impl PlanInputs for TableInputs {
     fn facts(&self, relation: Relation) -> FactRows<'_> {
+        self.after
+            .demands
+            .asked(relation, self.held.iter().map(|(held, _)| *held));
         match self
             .held
             .iter()
@@ -140,10 +146,10 @@ impl PlanInputs for TableInputs {
         Candidates(&self.roots)
     }
     fn frontier(&self, _place: FrontierPlace) -> HeldRows<'_> {
-        self.after.held()
+        self.after.held(demands::Demand::Frontier)
     }
     fn observation(&self, _place: BoundObservationPlace) -> HeldRows<'_> {
-        self.after.held()
+        self.after.held(demands::Demand::Observation)
     }
     fn hosted(&self, relation: HostedNumber) -> HeldRows<'_> {
         self.after.hosted(relation)

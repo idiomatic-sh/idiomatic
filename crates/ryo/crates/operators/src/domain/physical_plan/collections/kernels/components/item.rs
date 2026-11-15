@@ -11,7 +11,7 @@ use crate::domain::cycles::types::{
     CycleMark, CycleParts, CycleScratch, EdgePlace, EdgeStart, MeetOrder, NodeCount, NodeNumber,
     WalkStep,
 };
-use crate::domain::physical_plan::types::file_buffers::value::{KeyedRows, NO_ROW};
+use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, NO_ROW};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::{InputRows, KeyedSide};

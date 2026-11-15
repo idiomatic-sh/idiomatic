@@ -7,7 +7,6 @@ use crate::domain::physical_plan::collections::kernels::scan_node::item::{give_b
 use crate::domain::physical_plan::collections::kernels::scan_roots::item::roots;
 use crate::domain::physical_plan::service::run::types::Reading;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
-use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
     InputRows, KernelRun, NodeReaders, PlanNodeId, RowSource,
 };
@@ -47,14 +46,9 @@ pub(crate) fn rows_in<'r>(reading: &'r Reading<'_>) -> InputRows<'r> {
 }
 
 /// Gives a reading back after `readings` of its node's readers.
-pub(crate) fn returned(
-    plan: &PhysicalPlan,
-    buffers: &mut FileBuffers,
-    reading: Reading<'_>,
-    readings: NodeReaders,
-) {
+pub(crate) fn returned(buffers: &mut FileBuffers, reading: Reading<'_>, readings: NodeReaders) {
     if let Reading::Node(read, taken) = reading {
-        give_back(plan, buffers, read, taken, readings);
+        give_back(buffers, read, taken, readings);
     }
 }
 

@@ -49,8 +49,8 @@ enum Observation {
     Reads(usize),
     /// Whether the two runs a case compares answered the same.
     Same(bool),
-    /// How many nodes hold rows after the run.
-    Held(usize),
+    /// How many node tables the run formed, and the most rows they held at once.
+    Peak { formed: u32, peak_rows: usize },
     /// How many rows the emitted node holds.
     Count(RowCount),
 }
@@ -93,7 +93,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("facts_are_never_decoded"),
         word: Word::Succeeds,
         input: || Scenario::PipelineHolds,
-        expect: Expect::Value(Observation::Held(1)),
+        expect: Expect::Value(Observation::Peak {
+            formed: 1,
+            peak_rows: 1,
+        }),
     },
     Case {
         name: CaseName("zero_column_rows_keep_their_count"),
@@ -307,15 +310,15 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
         }
         Scenario::PipelineHolds => {
             let mut resources = TextResources::new(TEXTS);
-            let table = defines(&[("a", "n1"), ("a", "n2")], &resources);
+            let table = defines(&[("a", "n1"), ("a", "n2"), ("a", "n1")], &resources);
             let inputs = TableInputs::new(&[(DEFINES, &table)]);
             let steps = [
                 select(PlanInput::Relation(DEFINES), vec![named("n1")]),
                 Step {
                     operation: Operation::Project {
                         from: input_of(PlanInput::Node(PlanNodeId(0))),
-                        columns: vec![ColumnIndex(0)],
-                        distinct: RepeatedRows::Kept,
+                        columns: vec![ColumnIndex(1)],
+                        distinct: RepeatedRows::Dropped,
                     },
                     inputs: vec![PlanInput::Node(PlanNodeId(0))],
                 },
@@ -328,7 +331,10 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
                 &mut resources,
                 &mut buffers,
             )?;
-            Ok(Observation::Held(buffers.held().count()))
+            Ok(Observation::Peak {
+                formed: buffers.meter.formed.0,
+                peak_rows: buffers.meter.peak_rows.0,
+            })
         }
         Scenario::RewritesKeepRows => rewrites_keep_rows(REWRITES),
         Scenario::RewriteChangingRows => {
@@ -388,5 +394,7 @@ mod held_rows;
 mod kinds;
 #[cfg(test)]
 mod relational;
+#[cfg(test)]
+mod streaming;
 #[cfg(test)]
 mod tree_rows;
