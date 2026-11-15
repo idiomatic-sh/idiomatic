@@ -12,8 +12,8 @@ let attribute_metas = select l.occurrence as occurrence, r.child as meta, l.file
 let values = select l.occurrence as occurrence, l.meta as meta, l.file as file from attribute_metas as l join "syntax-tree" as r on l.meta = r.id where r.kind = "key-value-meta";
 let value_children = select l.occurrence as occurrence, r.child as child, l.file as file from values as l join "syntax-child" as r on l.meta = r.parent;
 let literals = select l.occurrence as id, l.file as file, r.span as span from value_children as l join "syntax-tree" as r on l.child = r.id where r.kind = "literal";
-let blank_literals = source-matches(from=literals, span="span", pattern="\A(?:\x22\s*\x22|r#*\x22\s*\x22#*)\z", output="found");
-let blank_attributes = select id, file, span from blank_literals;
+let literal_values = select l.occurrence as id, l.file as file, r.id as literal, r.span as span from value_children as l join "syntax-tree" as r on l.child = r.id where r.kind = "literal";
+let blank_attributes = select l.id as id, l.file as file, l.span as span from literal_values as l join "string-literal" as r on l.literal = r.occurrence where matches(r.value, "^\s*$");
 let value_ids = select occurrence as id, file from values;
 let doc_trees = select l.occurrence as occurrence, r.child as tree, l.file as file from attribute_metas as l join "syntax-child" as r on l.meta = r.parent;
 let doc_attribute_ids = select occurrence as id, file from doc_attributes;
