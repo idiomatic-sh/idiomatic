@@ -2,7 +2,7 @@
 //! in its direction that the domain admits, in walk order; over the tree's edges, read in place from the elements, else
 //! over edges keyed through `hash_index`'s table.
 
-use super::super::filter::item::{filter, keep};
+use super::super::filter::item::{filter, keep, readied};
 use super::super::hash_index::item::{cells, find_value, keyed_walk};
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
@@ -151,7 +151,8 @@ pub(crate) fn walked(
         } => among.kinds,
         Mode::Empty | Mode::Native { among: None, .. } | Mode::Indexed { .. } => &[],
     };
-    let verdicts = filter(&axis.domain, among_kinds, run.resources.texts(), decisions);
+    let verdicts = filter(&axis.domain, among_kinds, run.resources.texts());
+    readied(&axis.domain, decisions, verdicts.names);
     for at in 0..starts_count {
         let row = RowIndex(at);
         let start = cell_of(starts, row, axis.id)

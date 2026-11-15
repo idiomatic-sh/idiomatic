@@ -1,7 +1,7 @@
 //! The `lookup` item of the `kernels` collection: the rows of a shared `hash_index` whose key is a constant text, in source row
 //! order, each then kept by all its select's comparisons: what the plain `filter` keeps.
 
-use super::super::filter::item::{filter, keep, kept_kinds};
+use super::super::filter::item::{filter, keep, kept_kinds, readied};
 use super::super::hash_index::item::{find_text, next_of, texts};
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
@@ -68,7 +68,8 @@ pub(crate) fn lookups(
             kinds: kept_kinds(view.kinds, &select.kept)?,
             ..Table::default()
         };
-        let kernel = filter(select, view.kinds, texts_of, decisions);
+        let kernel = filter(select, view.kinds, texts_of);
+        readied(select, decisions, kernel.names);
         let mut fault = None;
         let mut row =
             find_text(&buffers.index, IndexKeyHash(key.0)).map_or(NO_ROW, |run| run.first);

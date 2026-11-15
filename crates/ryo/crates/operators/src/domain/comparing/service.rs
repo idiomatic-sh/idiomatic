@@ -12,7 +12,7 @@ use crate::domain::comparing::collections::comparisons::interface::ComparisonsIt
 use crate::domain::comparing::collections::comparisons::membership::item::MembershipItem;
 use crate::domain::comparing::collections::comparisons::ordering::item::OrderingItem;
 use crate::domain::comparing::errors::ComparingError;
-use crate::domain::comparing::types::{ComparisonNumber, Family, NameCount};
+use crate::domain::comparing::types::{ComparisonCount, ComparisonNumber, Family, NameCount};
 use crate::domain::comparing::types::{DecisionWorkspace, NumberedComparison, RowShape};
 use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::functions::types::MadeText;
@@ -21,8 +21,8 @@ use crate::domain::patterns::types::PatternMatcher;
 use crate::domain::patterns::types::prepared::value::PreparedMatchers;
 use crate::domain::table_scratch::types::Memo;
 use crate::domain::table_scratch::types::{
-    ComparisonSlot, GlobSubject, MemoPlace, MemoSlot, SelectScratch,
-    SubjectHash, SubjectTag, VerdictKey,
+    ComparisonSlot, GlobSubject, MemoPlace, MemoSlot, SelectScratch, SubjectHash, SubjectTag,
+    VerdictKey,
 };
 use crate::domain::table_texts::types::Texts;
 use ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs;
@@ -149,10 +149,13 @@ fn glob_subject(comparison: &PlanComparison, row: &[Value]) -> Option<GlobSubjec
 }
 
 /// Where a comparison's decision about a name is remembered: the comparison compares one name
-/// column with something that does not depend on the row, and the row's cell is a name of the file.
+/// column with something that does not depend on the row, and the row's cell is a name the memo has room for.
 fn memo_place(
-    number: ComparisonNumber,
-    comparison: &PlanComparison,
+    NumberedComparison {
+        number,
+        comparison,
+        comparisons,
+    }: NumberedComparison<'_>,
     row: &[Value],
     kinds: &[CellKind],
     names: NameCount,
@@ -170,8 +173,10 @@ fn memo_place(
     let Ok(Value::Symbol(symbol)) = cell(row, column) else {
         return None;
     };
-    Some(MemoPlace {
-        place: MemoSlot(number.0 * names.0 + usize::try_from(symbol.0).unwrap_or(usize::MAX)),
+    let name = usize::try_from(symbol.0).unwrap_or(usize::MAX);
+    // Name-major: a name's decisions sit together, so the memo grows by appending as the file's names grow.
+    (name < names.0).then_some(MemoPlace {
+        place: MemoSlot(name.saturating_mul(comparisons.0).saturating_add(number.0)),
         symbol,
     })
 }
@@ -189,7 +194,7 @@ fn holds_one_bound(
     matcher: PatternMatcher<'_>,
     work: DecisionWorkspace<'_>,
 ) -> Result<PredicateOutcome, ComparingError> {
-    let NumberedComparison { number, comparison } = numbered;
+    let NumberedComparison { comparison, .. } = numbered;
     let RowShape { kinds, names } = shape;
     if let Some(verdict) = equal_to_text(comparison, row, texts) {
         return Ok(verdict);
@@ -231,7 +236,7 @@ fn holds_one_bound(
         let _: Option<PredicateOutcome> = select.verdicts.insert(key, verdict);
         return Ok(verdict);
     }
-    let place = memo_place(number, comparison, row, kinds, names);
+    let place = memo_place(numbered, row, kinds, names);
     let remembered = place.and_then(|each| memo.get(each.place.0).copied());
     Ok(match remembered {
         Some(Memo::Holds) => PredicateOutcome::Holds,
@@ -304,6 +309,7 @@ pub fn holds_bound(
             NumberedComparison {
                 number: ComparisonNumber(number),
                 comparison,
+                comparisons: ComparisonCount(comparisons.len()),
             },
             row,
             shape,

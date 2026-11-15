@@ -8,7 +8,9 @@ use crate::domain::physical_plan::collections::kernels::directed_walk::item::{
 };
 use crate::domain::physical_plan::collections::kernels::distinct::item::counted;
 use crate::domain::physical_plan::collections::kernels::extend::item::{extended, kind_of};
-use crate::domain::physical_plan::collections::kernels::filter::item::{filter, keep, kept_kinds};
+use crate::domain::physical_plan::collections::kernels::filter::item::{
+    filter, keep, kept_kinds, readied,
+};
 use crate::domain::physical_plan::collections::kernels::group::item::{GroupScratch, grouped};
 use crate::domain::physical_plan::collections::kernels::hash_index::item::emptied;
 use crate::domain::physical_plan::collections::kernels::ordered_match::item::matched;
@@ -58,7 +60,8 @@ pub(crate) fn kernels(
                 .decisions
                 .get_mut(place)
                 .ok_or(PortableOperatorFault::WrongOperation)?;
-            let kernel = filter(select, kinds, texts, decisions);
+            let kernel = filter(select, kinds, texts);
+            readied(select, decisions, kernel.names);
             for row in 0..rows {
                 let cells = row_of(input, RowIndex(row), &mut buffers.row);
                 if let Err(fault) = keep(

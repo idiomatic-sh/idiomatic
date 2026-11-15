@@ -4,7 +4,7 @@
 //! the probe's extremum (each key's extremum found once, as its first row).
 
 use super::super::distinct::item::counted;
-use super::super::filter::item::{filter, keep, kept_nodes};
+use super::super::filter::item::{filter, keep, kept_nodes, readied};
 use super::super::hash_index::item::{cells, emptied, find_cells, indexed, next_of};
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
@@ -157,7 +157,8 @@ pub(crate) fn probed(
         right
     } else {
         let kinds = kinds_of(right);
-        let kernel = filter(&probe.filter, kinds, run.resources.texts(), decisions);
+        let kernel = filter(&probe.filter, kinds, run.resources.texts());
+        readied(&probe.filter, decisions, kernel.names);
         let mut kept = Table {
             kinds: kinds.to_vec(),
             ..Table::default()
@@ -173,12 +174,9 @@ pub(crate) fn probed(
     };
     // The walked probe's right filter, which cannot fail (`tree_probe`), kept or dropped on each row it finds.
     let found_filter = (walked.is_some() && !probe.filter.comparisons.is_empty()).then(|| {
-        filter(
-            &probe.filter,
-            kinds_of(right),
-            run.resources.texts(),
-            decisions,
-        )
+        let kernel = filter(&probe.filter, kinds_of(right), run.resources.texts());
+        readied(&probe.filter, decisions, kernel.names);
+        kernel
     });
     let (every_left, every_right);
     let (left_on, right_on): (&[ColumnIndex], &[ColumnIndex]) = match &probe.key {
