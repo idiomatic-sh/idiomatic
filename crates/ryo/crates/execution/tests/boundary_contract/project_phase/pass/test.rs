@@ -21,10 +21,17 @@ use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::fixtures::kinds;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as StepInput, StepId, StepScope};
+use ryo_values::domain::hosted::types::{
+    HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
+};
+use ryo_values::domain::plan_parts::types::{
+    ColumnIndex, HostedNumber, Input as StepInput, StepId, StepScope,
+};
 use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::row_texts::types::Cell as HostCell;
 use ryo_values::domain::runs::types::{RuleApplicability, SkipReason, Skipped};
 use ryo_values::domain::stored_facts::types::Bucket;
 use std::borrow::Cow;
@@ -43,6 +50,8 @@ enum Scenario {
     StoreRefusesTheSecondRead,
     /// Two rules, the store refusing the second's frontier.
     StoreRefusesTheLaterRule,
+    /// An antijoin after the files of the host's numbers 1, 2, 2, 3 and 5 by the host's 5, every operand complete.
+    CompleteAntijoin,
 }
 
 type Input = Scenario;
@@ -91,7 +100,38 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "complete [unknown ObservationIncomplete { reason: \"every source partition was explicitly skipped\" }, stopped Frontiers(Facts(Store { reason: \"the kept frontier is unreadable\" }))]; store reads 3; project reads 0",
         )),
     },
+    Case {
+        name: CaseName("a_step_without_coverage_loss_keeps_every_row"),
+        word: Word::Succeeds,
+        input: || Scenario::CompleteAntijoin,
+        expect: Expect::Value(Cow::Borrowed(
+            "complete [complete RowCount(4)]; store reads 0; project reads 0",
+        )),
+    },
 ];
+
+/// The host's relation `name` of one number column holding `values`.
+fn numbers(name: &str, values: &[i64]) -> HostRelation {
+    HostRelation {
+        name: HostName(name.into()),
+        columns: vec![HostColumn {
+            name: HostColumnName("number".into()),
+            kind: HostKind::Number,
+        }],
+        rows: values
+            .iter()
+            .map(|value| HostRow(vec![HostCell::Number(Integer(*value))]))
+            .collect(),
+    }
+}
+
+/// A step after the files.
+fn after_files(operation: Operation) -> PlanStep {
+    PlanStep {
+        scope: StepScope::CrossFile,
+        operation,
+    }
+}
 
 /// A select in each file of the file column of the functions.
 fn files_of_functions() -> PlanStep {
@@ -138,6 +178,29 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
         plan.frontier = vec![StepInput::Step(StepId(0)), StepInput::Step(StepId(1))];
         plan.emit.step = StepId(2);
+        if matches!(scenario, Scenario::CompleteAntijoin) {
+            plan.steps = vec![
+                after_files(Operation::Hosted {
+                    relation: HostedNumber(0),
+                }),
+                after_files(Operation::Hosted {
+                    relation: HostedNumber(1),
+                }),
+                after_files(Operation::Antijoin {
+                    left: StepInput::Step(StepId(0)),
+                    right: StepInput::Step(StepId(1)),
+                    left_on: vec![ColumnIndex(0)],
+                    right_on: vec![ColumnIndex(0)],
+                }),
+            ];
+            plan.frontier = Vec::new();
+        }
+    }
+    if matches!(scenario, Scenario::CompleteAntijoin) {
+        authored.hosted = vec![
+            numbers("numbers", &[1, 2, 2, 3, 5]),
+            numbers("removed", &[5]),
+        ];
     }
     let skipped = authored
         .rules
@@ -153,7 +216,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let first = [Bucket(0), Bucket(10)];
     let refused = match scenario {
-        Scenario::RefusedBeforeHandover | Scenario::TwiceInOnePhase => None,
+        Scenario::RefusedBeforeHandover
+        | Scenario::TwiceInOnePhase
+        | Scenario::CompleteAntijoin => None,
         Scenario::StoreRefusesTheFirstRead | Scenario::StoreRefusesTheSecondRead => {
             Some(first_entry(first[0]))
         }
@@ -170,7 +235,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::StoreRefusesTheLaterRule => vec![RuleIndex(0), RuleIndex(1)],
         Scenario::RefusedBeforeHandover
         | Scenario::StoreRefusesTheFirstRead
-        | Scenario::StoreRefusesTheSecondRead => vec![RuleIndex(0)],
+        | Scenario::StoreRefusesTheSecondRead
+        | Scenario::CompleteAntijoin => vec![RuleIndex(0)],
     };
     let inapplicable = vec![
         ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default();

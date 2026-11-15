@@ -1,7 +1,7 @@
 //! One occurrence's node step after the files: a node run through the file pass's one node step, its rows' coverage, and the
 //! rows each of its rule's steps was fed.
 use crate::application::file_dag::file_pass::service::nodes::service::{
-    handed_step, run_node, step_coverage_with,
+    StepCoverage, handed_step, run_node, step_coverage_seen,
 };
 use crate::application::file_dag::file_pass::types::{NodeAnswer, NodeReads};
 use crate::application::file_dag::frontiers::service::{handed_coverage, held_frontier, reason};
@@ -17,7 +17,7 @@ use ryo_execution_domain::domain::completion::service::{lacks_of, partial_of_lac
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::completion::types::{CoverageState, RegionAdmission};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::service::{rule as rule_nodes, schema};
+use ryo_execution_domain::domain::executable_program::service::schema;
 use ryo_execution_domain::domain::executable_program::types::RuleNodes;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::portable_fault;
@@ -75,6 +75,7 @@ impl StepRun<'_, '_, '_> {
                 coverage: self.completion.blocked_coverage(),
             });
         }
+        self.settled(symbols, step)?;
         self.ran(symbols, node)?;
         let table = match self.buffers.rows(node) {
             NodeRows::Materialized(table) => table.clone(),
@@ -116,65 +117,85 @@ impl StepRun<'_, '_, '_> {
     /// each bound observation as its producers published it, and each step on the way passing on what its inputs lack as its
     /// operator does.
     pub(crate) fn coverage(&self, step: StepId) -> Result<CoverageState, OperatingError> {
+        self.coverage_seen(step, |_, _| {})
+    }
+
+    /// [`Self::coverage`], each step on the way shown to `seen` with its operands' coverage, in plan order.
+    pub(crate) fn coverage_seen(
+        &self,
+        step: StepId,
+        seen: impl FnMut(StepId, &[StepCoverage]),
+    ) -> Result<CoverageState, OperatingError> {
         let rule = self.rule;
-        let program = &self.batch.pass.program;
         let plan = self
             .batch
             .pass
             .plans
             .get(rule.0)
             .ok_or(OperatingError::NotRun)?;
-        let nodes = rule_nodes(program, rule)?;
         let handed = self.inputs.handed;
         let bound = self.inputs.bound;
         let frontier = &plan.frontier;
-        let walked = step_coverage_with(self.batch.pass, rule, step, |input, scope| {
-            let place = frontier.iter().position(|each| *each == input);
-            match input {
-                Input::Relation(relation) => {
-                    let kinds = relation_kinds(relation);
-                    Some(Ok((
-                        kinds.to_vec(),
+        let walked = step_coverage_seen(
+            self.batch.pass,
+            rule,
+            step,
+            |input, scope| {
+                let place = frontier.iter().position(|each| *each == input);
+                match input {
+                    // A relation is covered as it was handed over and as the caller's partials say of it, where it is read:
+                    // what it lacks then passes through each step on the way, as in each file.
+                    Input::Relation(relation) => {
+                        let kinds = relation_kinds(relation);
+                        Some(Ok((
+                            kinds.to_vec(),
+                            with_coverage(
+                                handed_at(handed, place.map(InputNumber)),
+                                self.completion.relation_coverage(relation),
+                            ),
+                            one_file(kinds),
+                        )))
+                    }
+                    // The files handed the step over: each of its rows was made in one file.
+                    Input::Step(id) if scope == StepScope::PerFile => Some(Ok(handed_step(
+                        self.batch.pass,
+                        rule,
+                        id,
                         handed_at(handed, place.map(InputNumber)),
-                        one_file(kinds),
-                    )))
+                    ))),
+                    Input::Step(_) => None,
+                    // A binding fed in each file was handed over with the frontier, each row of one file; one fed after the
+                    // files was bound, its rows from where its producers' come from.
+                    Input::BoundObservation(id) => Some(Ok(
+                        match place.and_then(|at| handed_coverage(handed, InputNumber(at))) {
+                            Some(coverage) => {
+                                let kinds = place
+                                    .and_then(|at| match handed.0.get(at) {
+                                        Some(FrontierRows::Held { table, .. }) => {
+                                            Some(table.kinds.clone())
+                                        }
+                                        Some(
+                                            FrontierRows::Withheld(_) | FrontierRows::Elsewhere,
+                                        )
+                                        | None => None,
+                                    })
+                                    .unwrap_or_default();
+                                let lineage = one_file(&kinds);
+                                (kinds, coverage.clone(), lineage)
+                            }
+                            None => (
+                                Vec::new(),
+                                bound_coverage(bound, id)
+                                    .cloned()
+                                    .unwrap_or(CoverageState::Complete),
+                                bound_lineage(bound, id).cloned().unwrap_or_default(),
+                            ),
+                        },
+                    )),
                 }
-                // The files handed the step over: each of its rows was made in one file.
-                Input::Step(id) if scope == StepScope::PerFile => Some(Ok(handed_step(
-                    self.batch.pass,
-                    rule,
-                    id,
-                    handed_at(handed, place.map(InputNumber)),
-                ))),
-                Input::Step(_) => None,
-                // A binding fed in each file was handed over with the frontier, each row of one file; one fed after the
-                // files was bound, its rows from where its producers' come from.
-                Input::BoundObservation(id) => Some(Ok(
-                    match place.and_then(|at| handed_coverage(handed, InputNumber(at))) {
-                        Some(coverage) => {
-                            let kinds = place
-                                .and_then(|at| match handed.0.get(at) {
-                                    Some(FrontierRows::Held { table, .. }) => {
-                                        Some(table.kinds.clone())
-                                    }
-                                    Some(FrontierRows::Withheld(_) | FrontierRows::Elsewhere)
-                                    | None => None,
-                                })
-                                .unwrap_or_default();
-                            let lineage = one_file(&kinds);
-                            (kinds, coverage.clone(), lineage)
-                        }
-                        None => (
-                            Vec::new(),
-                            bound_coverage(bound, id)
-                                .cloned()
-                                .unwrap_or(CoverageState::Complete),
-                            bound_lineage(bound, id).cloned().unwrap_or_default(),
-                        ),
-                    },
-                )),
-            }
-        })?;
+            },
+            seen,
+        )?;
         Ok(walked.1)
     }
 

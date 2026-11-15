@@ -176,7 +176,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Given::ProjectRootSetPreservesDistinctActualPopulationPolicyInBothOrders,
         expect: Expect::Value(
-            "true|true|rule,2,0,-,- rule [5] 0:0:0:0|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|2|3|true|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|rule,2,0,-,- rule [5] 0:0:0:0|2|3",
+            "true|true|rule,2,0,-,- rule [5] 0:0:0:0|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|3|4|true|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|rule,2,0,-,- rule [5] 0:0:0:0|3|4",
         ),
     },
 ];

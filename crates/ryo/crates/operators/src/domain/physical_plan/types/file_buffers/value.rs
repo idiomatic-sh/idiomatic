@@ -1,7 +1,7 @@
 //! One worker's node buffers: the rows of each materialized node of the open file, kept until its last consumer is done, and
 //! their capacity kept across files.
 
-use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
 use crate::domain::physical_plan::types::{NodeReaders, NodeRows, PlanNodeId};
 use crate::domain::table_scratch::types::{LazyScratch, Memo, SelectScratch};
 use ryo_relations::domain::relations::types::Value;
@@ -102,6 +102,46 @@ impl FileBuffers {
             .zip(0..)
             .filter(|(held, _)| held.is_some())
             .map(|(_, at)| PlanNodeId(at))
+    }
+
+    /// Keeps of `node`'s rows those `keep` holds for, in their order, and drops the rest. This is the engine's one
+    /// change to rows the operators lent it: after the files, the rows an antijoin or a difference answered from the absence
+    /// of rows that a partial operand could change are dropped where the step stands, before any later step reads them, as
+    /// the coverage filtering of the interpreter did. A node that holds no rows is left as it is.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    /// use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
+    /// let mut buffers = FileBuffers::default();
+    /// buffers.retain(PlanNodeId(0), |_| PredicateOutcome::Fails);
+    /// assert_eq!(buffers.rows(PlanNodeId(0)), NodeRows::Absent);
+    /// ```
+    pub fn retain(&mut self, node: PlanNodeId, mut keep: impl FnMut(&[Value]) -> PredicateOutcome) {
+        let Some(Some(table)) = self
+            .nodes
+            .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
+        else {
+            return;
+        };
+        let width = table.kinds.len();
+        let mut written = 0;
+        let mut kept = 0;
+        for row in 0..table.count.0 {
+            let start = row.saturating_mul(width);
+            let end = start.saturating_add(width);
+            let Some(cells) = table.cells.get(start..end) else {
+                break;
+            };
+            if keep(cells) == PredicateOutcome::Holds {
+                table.cells.copy_within(start..end, written);
+                written = written.saturating_add(width);
+                kept += 1;
+            }
+        }
+        table.cells.truncate(written);
+        table.count = ryo_values::domain::rows::types::RowCount(kept);
     }
 
     /// The node's last consumer is done: its buffer returns to the worker's pool.

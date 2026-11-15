@@ -167,7 +167,18 @@ pub(crate) fn step_coverage_with(
     pass: &PassProgram,
     rule: RuleIndex,
     step: StepId,
+    leaf: impl FnMut(Input, StepScope) -> Option<Result<StepCoverage, OperatingError>>,
+) -> Result<StepCoverage, OperatingError> {
+    step_coverage_seen(pass, rule, step, leaf, |_, _| {})
+}
+
+/// [`step_coverage_with`], each step on the way shown to `seen` with its operands' coverage, in plan order.
+pub(crate) fn step_coverage_seen(
+    pass: &PassProgram,
+    rule: RuleIndex,
+    step: StepId,
     mut leaf: impl FnMut(Input, StepScope) -> Option<Result<StepCoverage, OperatingError>>,
+    mut seen: impl FnMut(StepId, &[StepCoverage]),
 ) -> Result<StepCoverage, OperatingError> {
     let plan = pass.plans.get(rule.0).ok_or(OperatingError::NotRun)?;
     let nodes = fused_rule(&pass.program, rule)?;
@@ -198,6 +209,7 @@ pub(crate) fn step_coverage_with(
                 }
             })
             .collect::<Result<Vec<StepCoverage>, OperatingError>>()?;
+        seen(StepId(u32::try_from(place).unwrap_or(u32::MAX)), &operands);
         let output = match nodes.steps.get(place) {
             Some(Ok(node)) => schema(&pass.program, *node).map(<[CellKind]>::to_vec),
             Some(Err(error)) => Err(error.clone()),

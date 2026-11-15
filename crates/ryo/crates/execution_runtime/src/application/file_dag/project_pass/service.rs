@@ -31,6 +31,7 @@ use ryo_values::domain::plans::service::{inputs_of, named};
 
 pub(crate) mod inputs;
 pub(crate) mod occurrence;
+pub(crate) mod settle;
 pub(crate) mod step;
 use occurrence::service::run_occurrence;
 

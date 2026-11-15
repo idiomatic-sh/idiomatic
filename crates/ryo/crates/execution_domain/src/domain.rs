@@ -1,4 +1,5 @@
 //! Pure request declarations and executable-program contracts.
+pub mod contributor_rows;
 pub mod coverage;
 pub mod derived_views;
 pub mod executable_program;

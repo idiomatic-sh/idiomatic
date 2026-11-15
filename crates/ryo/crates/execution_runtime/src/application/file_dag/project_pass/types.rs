@@ -156,3 +156,16 @@ pub(crate) struct PhaseBatch<'b, 's> {
     /// The life of the stage the batch runs in: what it publishes holds it.
     pub(crate) stage: &'b std::sync::Arc<()>,
 }
+
+/// A step after the files that answers from the absence of rows, with the coverage of its operands: its rows the missing ones
+/// could change are dropped where it stands.
+#[derive(Debug)]
+pub(crate) struct SettledStep {
+    /// The rule's step.
+    pub(crate) step: ryo_values::domain::plan_parts::types::StepId,
+    /// Each operand's cell kinds, coverage and lineage, in operand order.
+    pub(crate) operands:
+        Vec<crate::application::file_dag::file_pass::service::nodes::service::StepCoverage>,
+    /// The operands whose absence of rows the step trusts.
+    pub(crate) absence: ryo_execution_domain::domain::operator::contract::types::AbsenceMask,
+}

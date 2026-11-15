@@ -8,6 +8,10 @@ Holds the execution engine's domain, the bottom of its crates: the compiled prog
 
 Decides physical completeness independent of execution scheduling.
 
+### contributor_rows
+
+Keeps only the rows of an absence-based answer that the missing rows cannot change.
+
 ### coverage
 
 Tracks which source relations and file partitions are complete or partial.
