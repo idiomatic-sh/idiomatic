@@ -376,6 +376,17 @@ pub(crate) fn provided(relation: &str) -> bool {
         .any(|answer| answer.absence == language::types::Absence::Reads)
 }
 
+/// The edge `ryo` builds for a command over `root`: the store's directory and the directories a walk skips are the command's own,
+/// so the replay reads the files `ryo` reads and keeps its store where `ryo` does.
+pub(crate) fn command_edge(root: &Path) -> ryo_cli::edge::Edge {
+    ryo_cli::resources::edge_at(
+        RootPath(root.to_string_lossy().into()),
+        RootPath(".".into()),
+        ryo_values::domain::runs::types::MachineWorkers(1),
+        ryo_cli::output::Format::Quiet,
+    )
+}
+
 /// The real store, kept in the cache directory under `root`, for the build the tests are.
 pub(crate) fn store_at(
     root: &Path,
@@ -383,7 +394,9 @@ pub(crate) fn store_at(
     Arc::new(ryo_core::outbound::lint_store::factory::postcard(
         ryo_core::outbound::lint_store::types::Store {
             directory: ryo_core::outbound::lint_store::types::CacheDirectory(
-                root.join(".ryo_cache").to_string_lossy().into(),
+                root.join(&*command_edge(root).store.0)
+                    .to_string_lossy()
+                    .into(),
             ),
             build: ryo_core::outbound::lint_store::types::BuildIdentity("replay".into()),
         },
@@ -522,7 +535,8 @@ pub(crate) fn lint_report_with_languages(
                 RootPath(root.to_string_lossy().into()),
                 ryo_values::domain::files::types::CorpusListing::Walked,
                 Vec::new(),
-                corpus::types::SkippedDirectories(vec![".ryo_cache".into()]),
+                // The directories `ryo` itself skips: the languages' own and the store's.
+                command_edge(root).skipped,
             ));
         let analysis_language: Arc<dyn language::interface::LanguagePort> =
             Arc::new(language::factory::use_case(handles));

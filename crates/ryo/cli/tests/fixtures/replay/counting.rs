@@ -169,7 +169,8 @@ pub(crate) fn lint_observing<T>(
                 RootPath(root.to_string_lossy().into()),
                 ryo_values::domain::files::types::CorpusListing::Walked,
                 Vec::new(),
-                corpus::types::SkippedDirectories(vec![".ryo_cache".into()]),
+                // The directories `ryo` itself skips: the languages' own and the store's.
+                super::base::command_edge(root).skipped,
             ));
         let analysis_language: Arc<dyn language::interface::LanguagePort> = Arc::new(Counting {
             // The replay's languages, the same the pending check asks.
