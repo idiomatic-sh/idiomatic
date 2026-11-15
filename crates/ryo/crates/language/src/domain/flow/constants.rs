@@ -41,6 +41,7 @@ pub(crate) const ITERATION_OF: &str = "iteration-of";
 /// `flow-step.step-kind` of a `for … in` step.
 pub(crate) const ITERATION_IN: &str = "iteration-in";
 /// Every word `flow-edge.edge-kind` may carry.
+#[cfg(any(test, feature = "fixtures"))]
 pub(crate) const EDGE_WORDS: [&str; 9] = [
     NORMAL,
     JUMP,
@@ -53,6 +54,7 @@ pub(crate) const EDGE_WORDS: [&str; 9] = [
     ERROR_IMPLICIT,
 ];
 /// Every word `flow-step.step-kind` may carry.
+#[cfg(any(test, feature = "fixtures"))]
 pub(crate) const STEP_WORDS: [&str; 11] = [
     STATEMENT,
     RETURN,
