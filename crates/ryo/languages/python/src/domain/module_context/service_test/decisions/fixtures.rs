@@ -154,7 +154,7 @@ pub(super) fn verbatim_markers_are_joined_with_the_native_separator() -> String 
         let source = directory.join("mod.py");
         let decision = disk(&source, &Markers::default());
         observed.push(format!(
-            "{}",
+            "marker_is_native_join={}",
             decision == ModuleDecision::Need(directory.join("__init__.py"))
         ));
     }

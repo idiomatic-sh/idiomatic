@@ -104,7 +104,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("verbatim_markers_are_joined_with_the_native_separator"),
         word: Word::Succeeds,
         input: || Given::VerbatimMarkersAreJoinedWithTheNativeSeparator,
-        expect: Expect::Value("true|true"),
+        expect: Expect::Value("marker_is_native_join=true|marker_is_native_join=true"),
     },
 ];
 
