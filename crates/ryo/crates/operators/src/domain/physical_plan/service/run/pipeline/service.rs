@@ -3,7 +3,7 @@
 //! its reader reads every row before that fault, so the earliest row's fault wins whatever the chunking (D15). A hard fault
 //! is the held plan's first: the first stage, in chain order, whose own run raises one.
 use super::super::types::{ChainFault, ChainRows, ChainStage, Push, Readied};
-use super::push::service::{first_fault, pushed_all};
+use super::push::service::pushed_all;
 use super::sources::service::{
     given_back, pending_of, physical, reading, resolved_rows, right_of, rows_kinds, walked,
 };
@@ -23,7 +23,7 @@ use crate::domain::physical_plan::types::{
 };
 use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::rows::types::RowCount;
+use ryo_values::domain::rows::types::{RowCount, Table};
 
 /// Makes `tail`'s rows by pushing the rows of the chain of streamed nodes that feeds it through each stage in turn, holding
 /// only `tail`'s rows and pending fault. A node of the chain already held in `buffers` ends the chain and is read as a source;
@@ -48,9 +48,13 @@ pub(in crate::domain::physical_plan::service::run) fn streamed(
     answered
 }
 
-/// Runs the chain into `tail` and holds its rows. In the held plan's order, before any row: the head's source and each
-/// probe's right side are readied (made when they are held nodes not made yet), then read, then each stage is prepared.
-/// Every reading is given back, and every shared index a probe opened closed, whatever the chain answers.
+/// Runs the chain into `tail` and holds its rows. Before any row, stage by stage in chain order, it does what the held plan
+/// does as it makes each node, and nothing past the first stage that fails: the head stage readies its source and its right
+/// side, then reads them; each later probe readies its right side, then reads it; then the stage is prepared. A source is
+/// asked of the inputs only where the held plan asks it, so a stage that fails first leaves every later source unasked.
+/// While a right side is readied, the held nodes the chain has taken are lent back, so the right side's own chain finds them
+/// as the held plan's would. Every reading is given back, and every shared index a probe opened closed, whatever the chain
+/// answers.
 fn chained(
     plan: &PhysicalPlan,
     run: &mut KernelRun<'_>,
@@ -72,98 +76,103 @@ fn chained(
     let stages = stages
         .get_mut(..length)
         .ok_or(PortableOperatorFault::WrongOperation)?;
-    let head = ChainStage {
-        node: *nodes.first().ok_or(PortableOperatorFault::WrongOperation)?,
-        lowering: &physical(
-            plan,
-            *nodes.first().ok_or(PortableOperatorFault::WrongOperation)?,
-        )?
-        .lowering,
-    };
-    let source = head
+    let head_node = *nodes.first().ok_or(PortableOperatorFault::WrongOperation)?;
+    let source = physical(plan, head_node)?
         .lowering
         .sources()
         .next()
         .ok_or(PortableOperatorFault::WrongOperation)?;
-    let mut hard = None;
-    // The held plan's order: the head stage readies its source and its right side before it reads either, and each later
-    // probe readies and reads its right side after the stages before it. Reading a relation demands it of the facts, so a
-    // relation is read in that order; a held node's rows are taken only once every source is readied, so a right side's own
-    // chain never finds a source this chain has taken.
-    ready(plan, run, source, buffers)?;
-    if let Some(right) = right_of(head.lowering) {
-        ready(plan, run, right, buffers)?;
+    for stage in stages.iter_mut() {
+        stage.out.cells.clear();
+        stage.out.count = RowCount(0);
+        stage.last = CellStart(0);
+        stage.read = RowCount(0);
+        // Not reached until it is prepared: a stage past the chain's first failure reads no row.
+        stage.fault = Some(PortableOperatorFault::NotRun);
     }
-    let head_read = match source {
-        RowSource::Node(_) => None,
-        RowSource::Facts(_)
-        | RowSource::Tree(_)
-        | RowSource::Frontier(_)
-        | RowSource::Observation(_) => Some(reading(run, head, source, buffers)?),
-    };
+    let mut hard = None;
+    let mut head_rows: Option<ChainRows<'_>> = None;
     let mut rights: Vec<ChainRows<'_>> = Vec::new();
-    for (node, stage) in nodes.iter().zip(stages.iter_mut()) {
-        let lowering = &physical(plan, *node)?.lowering;
-        let Some(right) = right_of(lowering) else {
-            continue;
+    // The tail's table: one the worker's pool kept, its room reused.
+    let mut output = buffers.pool.fresh();
+    for (at, node) in nodes.iter().enumerate() {
+        let stage = ChainStage {
+            node: *node,
+            lowering: &physical(plan, *node)?.lowering,
         };
-        if *node != head.node
-            && let Err(fault) = ready(plan, run, right, buffers)
-        {
-            first_fault(&mut hard, ChainFault { node: *node, fault });
-            break;
+        if at == 0 {
+            ready(plan, run, source, buffers)?;
         }
-        let rows = match right {
-            RowSource::Node(read) => Ok(ChainRows::Untaken(read)),
-            RowSource::Facts(_)
-            | RowSource::Tree(_)
-            | RowSource::Frontier(_)
-            | RowSource::Observation(_) => reading(
-                run,
-                ChainStage {
-                    node: *node,
-                    lowering,
-                },
-                right,
-                buffers,
-            ),
-        };
-        match rows {
-            Ok(rows) => {
-                stage.own.right = RightPlace(rights.len());
-                rights.push(rows);
+        let right = right_of(stage.lowering);
+        if let Some(right) = right {
+            for rows in head_rows.iter_mut().chain(rights.iter_mut()) {
+                lent(rows, buffers);
             }
-            Err(fault) => {
-                first_fault(&mut hard, ChainFault { node: *node, fault });
+            let readied = ready(plan, run, right, buffers);
+            for rows in head_rows.iter_mut().chain(rights.iter_mut()) {
+                retaken(rows, buffers)?;
+            }
+            if let Err(fault) = readied {
+                hard = Some(ChainFault { node: *node, fault });
                 break;
             }
         }
-    }
-    // Every source readied: the held nodes' rows are taken, each once, however many stages read it.
-    let head_rows = match head_read {
-        Some(rows) => rows,
-        None => reading(run, head, source, buffers)?,
-    };
-    for at in 0..rights.len() {
-        let Some(ChainRows::Untaken(read)) = rights.get(at) else {
-            continue;
-        };
-        let read = *read;
-        let earlier = rights
-            .iter()
-            .take(at)
-            .position(|taken| matches!(taken, ChainRows::Node(node, _) if *node == read));
-        let rows = match (source, earlier) {
-            (RowSource::Node(head_source), _) if head_source == read => ChainRows::Head,
-            (_, Some(earlier)) => ChainRows::Right(RightPlace(earlier)),
-            _ => ChainRows::Node(read, take(buffers, read)?),
-        };
-        if let Some(slot) = rights.get_mut(at) {
-            *slot = rows;
+        if at == 0 {
+            match reading(run, stage, source, buffers) {
+                Ok(rows) => head_rows = Some(rows),
+                Err(fault) => {
+                    hard = Some(ChainFault { node: *node, fault });
+                    break;
+                }
+            }
+        }
+        if let Some(right) = right {
+            let earlier = rights.iter().position(
+                |taken| matches!(taken, ChainRows::Node(read, _) if right == RowSource::Node(*read)),
+            );
+            let rows = match (source, earlier) {
+                (RowSource::Node(read), _) if right == RowSource::Node(read) => Ok(ChainRows::Head),
+                (_, Some(earlier)) => Ok(ChainRows::Right(RightPlace(earlier))),
+                _ => reading(run, stage, right, buffers),
+            };
+            match rows {
+                Ok(rows) => {
+                    if let Some(scratch) = stages.get_mut(at) {
+                        scratch.own.right = RightPlace(rights.len());
+                    }
+                    rights.push(rows);
+                }
+                Err(fault) => {
+                    hard = Some(ChainFault { node: *node, fault });
+                    break;
+                }
+            }
+        }
+        let head = head_rows
+            .as_ref()
+            .ok_or(PortableOperatorFault::WrongOperation)?;
+        if let Some(fault) = prepared(
+            Prepare {
+                plan,
+                head,
+                rights: &rights,
+                stage,
+                at,
+                tail: &mut output,
+            },
+            run,
+            buffers,
+            stages,
+        )? {
+            hard = Some(fault);
+            break;
         }
     }
-    // The tail's table: one the worker's pool kept, its room reused.
-    let mut output = buffers.pool.fresh();
+    let Some(head_rows) = head_rows else {
+        given_back(buffers, ChainRows::Head, rights);
+        closed_all(buffers, stages);
+        return Err(hard.map_or(PortableOperatorFault::WrongOperation, |first| first.fault));
+    };
     let mut push = Push {
         plan,
         run,
@@ -173,14 +182,9 @@ fn chained(
         tail: &mut output,
         hard,
     };
-    prepared(&mut push, nodes, stages)?;
     let answered = pushed_all(&mut push, nodes, row, stages);
     let hard = push.hard.take();
-    for stage in stages.iter_mut() {
-        if let Some(at) = stage.own.shared.take() {
-            closed(buffers, at);
-        }
-    }
+    closed_all(buffers, stages);
     let pending = pending_of(&head_rows);
     given_back(buffers, head_rows, rights);
     if let Some(first) = hard {
@@ -191,83 +195,133 @@ fn chained(
     Ok(())
 }
 
-/// Prepares each stage in chain order before any row is read, as the held plan readies each node before its rows: each one's
-/// output kinds from its input's, through `stage_prepared`. A stage whose preparation faults stops before its first row, and
-/// the stages after it are prepared over its empty kinds. A stage at or past the chain's hard fault is not reached: it, and
-/// every stage after it, reads no row. A probe of a shared index opens it.
+/// Closes every shared index a probe of the chain opened.
+fn closed_all(buffers: &mut FileBuffers, stages: &mut [StageScratch]) {
+    for stage in stages.iter_mut() {
+        if let Some(at) = stage.own.shared.take() {
+            closed(buffers, at);
+        }
+    }
+}
+
+/// Lends a held node the chain has taken back to the buffers, untouched, while a right side is readied.
+fn lent(rows: &mut ChainRows<'_>, buffers: &mut FileBuffers) {
+    let ChainRows::Node(read, _) = rows else {
+        return;
+    };
+    let read = *read;
+    if let ChainRows::Node(_, taken) = std::mem::replace(rows, ChainRows::Untaken(read)) {
+        let at = usize::try_from(read.0).unwrap_or(usize::MAX);
+        if let Some(held) = buffers.nodes.get_mut(at) {
+            *held = Some(taken.rows);
+        }
+        if let Some(pending) = buffers.pending.get_mut(at) {
+            *pending = taken.pending;
+        }
+    }
+}
+
+/// Takes a node lent back for a right side's readying again.
 ///
 /// # Errors
 ///
-/// A stage the plan does not hold; a stage's hard fault is the chain's, recorded at its node.
-fn prepared(
-    push: &mut Push<'_, '_, '_>,
-    nodes: &[PlanNodeId],
-    stages: &mut [StageScratch],
+/// `NotRun` for a node the buffers no longer hold.
+fn retaken(
+    rows: &mut ChainRows<'_>,
+    buffers: &mut FileBuffers,
 ) -> Result<(), PortableOperatorFault> {
-    let names = NameCount(name_count(push.run.resources.texts().symbols).0);
-    let head_kinds = rows_kinds(push.head);
-    let last = nodes.len().saturating_sub(1);
-    for (at, node) in nodes.iter().enumerate() {
-        let (before, from) = stages.split_at_mut(at);
-        let stage = from
-            .first_mut()
-            .ok_or(PortableOperatorFault::WrongOperation)?;
-        stage.out.cells.clear();
-        stage.out.count = RowCount(0);
-        stage.last = CellStart(0);
-        stage.read = RowCount(0);
-        stage.fault = None;
-        if push.hard.as_ref().is_some_and(|first| first.node <= *node) {
-            // Not reached: an earlier source or stage raised the chain's hard fault, or this stage's right side did.
-            stage.fault = Some(PortableOperatorFault::NotRun);
-            continue;
-        }
-        let lowering = &physical(push.plan, *node)?.lowering;
-        if let Lowering::Probe {
-            index: ProbeIndex::Shared(place),
-            ..
-        } = lowering
-        {
-            opened(push.plan, push.buffers, *place);
-            stage.own.shared = Some(*place);
-        }
-        let input: &[CellKind] = before.last().map_or(head_kinds, |stage| &stage.out.kinds);
-        let right = right_of(lowering).and_then(|_| {
-            push.rights
-                .get(stage.own.right.0)
-                .map(|rows| resolved_rows(rows, push.head, push.rights))
-        });
-        match stage_prepared(
-            push.run,
-            push.buffers,
-            ChainStage {
-                node: *node,
-                lowering,
-            },
-            input,
-            names,
-            &mut stage.own,
-            right,
-        ) {
-            Ok(prepared) => {
-                stage.fault = prepared.fault;
-                if at == last {
-                    push.tail.kinds = prepared.kinds;
-                } else {
-                    stage.out.kinds = prepared.kinds;
-                }
-            }
-            Err(fault) => {
-                first_fault(
-                    &mut push.hard,
-                    ChainFault {
-                        node: *node,
-                        fault: fault.clone(),
-                    },
-                );
-                stage.fault = Some(fault);
-            }
-        }
+    if let ChainRows::Untaken(read) = rows {
+        let read = *read;
+        *rows = ChainRows::Node(read, take(buffers, read)?);
     }
     Ok(())
+}
+
+/// What one stage's preparation reads: the plan, the chain's rows besides its stages', the stage and its place, and the tail's
+/// table.
+struct Prepare<'p, 'k, 'r> {
+    /// The plan the chain's nodes are of.
+    plan: &'p PhysicalPlan,
+    /// The head stage's source.
+    head: &'k ChainRows<'r>,
+    /// Each probe's right side read so far, in chain order.
+    rights: &'k [ChainRows<'r>],
+    /// The stage.
+    stage: ChainStage<'p>,
+    /// Its place in the chain.
+    at: usize,
+    /// The tail's table.
+    tail: &'k mut Table,
+}
+
+/// Prepares the stage at `prepare.at`, as the held plan readies a node before its rows: its output kinds from its input's,
+/// through `stage_prepared`. A stage whose preparation faults stops before its first row, and the stages after it are
+/// prepared over its empty kinds. A probe of a shared index opens it. Answers the stage's hard fault, the chain's first.
+///
+/// # Errors
+///
+/// A stage the chain does not hold.
+fn prepared(
+    prepare: Prepare<'_, '_, '_>,
+    run: &mut KernelRun<'_>,
+    buffers: &mut FileBuffers,
+    stages: &mut [StageScratch],
+) -> Result<Option<ChainFault>, PortableOperatorFault> {
+    let Prepare {
+        plan,
+        head,
+        rights,
+        stage: chain_stage,
+        at,
+        tail,
+    } = prepare;
+    let names = NameCount(name_count(run.resources.texts().symbols).0);
+    let last = stages.len().saturating_sub(1);
+    let (before, from) = stages.split_at_mut(at);
+    let stage = from
+        .first_mut()
+        .ok_or(PortableOperatorFault::WrongOperation)?;
+    stage.fault = None;
+    if let Lowering::Probe {
+        index: ProbeIndex::Shared(place),
+        ..
+    } = chain_stage.lowering
+    {
+        opened(plan, buffers, *place);
+        stage.own.shared = Some(*place);
+    }
+    let input: &[CellKind] = before
+        .last()
+        .map_or_else(|| rows_kinds(head), |stage| &stage.out.kinds);
+    let right = right_of(chain_stage.lowering).and_then(|_| {
+        rights
+            .get(stage.own.right.0)
+            .map(|rows| resolved_rows(rows, head, rights))
+    });
+    match stage_prepared(
+        run,
+        buffers,
+        chain_stage,
+        input,
+        names,
+        &mut stage.own,
+        right,
+    ) {
+        Ok(prepared) => {
+            stage.fault = prepared.fault;
+            if at == last {
+                tail.kinds = prepared.kinds;
+            } else {
+                stage.out.kinds = prepared.kinds;
+            }
+            Ok(None)
+        }
+        Err(fault) => {
+            stage.fault = Some(fault.clone());
+            Ok(Some(ChainFault {
+                node: chain_stage.node,
+                fault,
+            }))
+        }
+    }
 }
