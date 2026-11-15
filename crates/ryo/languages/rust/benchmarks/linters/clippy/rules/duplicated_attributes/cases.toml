@@ -217,3 +217,63 @@ expected = [{ file = "src/lib.rs", start = 29, end = 30 }]
 name = "false-value"
 files = { "src/lib.rs" = "#[rustfmt::skip(v = false, a, a)]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 30, end = 31 }]
+
+[[cases]]
+name = "bare-string-item"
+files = { "src/lib.rs" = "#[rustfmt::skip(\"x, a, a\")]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "byte-string-holding-items"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = b\"x, a, a\", b)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "raw-string-values-differ"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = r\"x\", v = r\"y\")]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "top-raw-string-values-differ"
+files = { "src/lib.rs" = "#[must_use = r\"x\"]\n#[must_use = r\"y\"]\npub fn f() -> u8 { 0 }\n" }
+expected = []
+
+[[cases]]
+name = "top-raw-string-same-value"
+files = { "src/lib.rs" = "#[must_use = \"x\"]\n#[must_use = r\"x\"]\npub fn f() -> u8 { 0 }\n" }
+expected = [{ file = "src/lib.rs", start = 18, end = 36 }]
+
+[[cases]]
+name = "bracket-item"
+files = { "src/lib.rs" = "#[rustfmt::skip(a[b], a, a)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "self-items"
+files = { "src/lib.rs" = "#[rustfmt::skip(self, self)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 22, end = 26 }]
+
+[[cases]]
+name = "super-items"
+files = { "src/lib.rs" = "#[rustfmt::skip(super, super)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 23, end = 28 }]
+
+[[cases]]
+name = "crate-items"
+files = { "src/lib.rs" = "#[rustfmt::skip(crate, crate)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 23, end = 28 }]
+
+[[cases]]
+name = "nested-skipped-names"
+files = { "src/lib.rs" = "#[rustfmt::skip(doc, doc, reason, reason, doc(a, a))]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "two-word-item"
+files = { "src/lib.rs" = "#[rustfmt::skip(a b, a, a)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "word-and-list"
+files = { "src/lib.rs" = "#[rustfmt::skip(a, a(b), a(b))]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 27, end = 28 }]
