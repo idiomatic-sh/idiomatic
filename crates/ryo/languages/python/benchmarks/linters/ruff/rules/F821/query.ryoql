@@ -117,8 +117,7 @@ let report_candidates = antijoin(left=candidates, right=package_path_reads, left
 let unresolved_reads = select id, name, scope, phase, file from ordinary_missing;
 let deferred_known = deferred_resolutions(missing=unresolved_reads);
 let lookup_reads = select reference, file from read_rows where state = "unbound" and context = "value";
-let provider_uses = select reference, binding, file from "binding-use";
-let lookup_hits = ordinary_uses_of(reads=lookup_reads, uses=provider_uses);
+let lookup_hits = ordinary_uses_of(reads=lookup_reads);
 let lookup_known = select reference as id, file from lookup_hits;
 let resolved_later = union(left=deferred_known, right=lookup_known);
 let final_candidates = antijoin(left=report_candidates, right=resolved_later, left-on=["id", "file"], right-on=["id", "file"]);
