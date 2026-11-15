@@ -3,6 +3,7 @@
 use crate::outbound::observer::interface::ObserverPort;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operator::types::{LogicalCounts, RowsFed};
+use ryo_relations::domain::relations::types::FileId;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
 /// What a row of the contract is given: which report to make to the adapter.
@@ -23,6 +24,10 @@ pub enum Report {
     Later,
     /// A rule whose steps were fed nothing.
     Empty,
+    /// A handover of a file after the files told before.
+    HandedLater,
+    /// A handover of a file before the files told before.
+    HandedEarlier,
 }
 
 /// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
@@ -51,11 +56,25 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Report::Empty,
         expect: Expect::Value(true),
     },
+    Case {
+        name: CaseName("a_handover_told_is_among_the_handovers"),
+        word: Word::Succeeds,
+        input: || Report::HandedLater,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("the_handovers_are_in_the_order_of_their_files_whatever_the_order_told"),
+        word: Word::Succeeds,
+        input: || Report::HandedEarlier,
+        expect: Expect::Value(true),
+    },
 ];
 
 /// Makes one report to the adapter and compares its totals after it with those before plus the report.
 fn answer(adapter: &impl ObserverPort, report: Report) -> Value {
     let (rule, fed) = match report {
+        Report::HandedLater => return handovers(adapter, FileId(9)),
+        Report::HandedEarlier => return handovers(adapter, FileId(1)),
         Report::First => (RuleIndex(0), vec![RowsFed([1, 0, 0]), RowsFed([2, 3, 0])]),
         Report::Again => (RuleIndex(0), vec![RowsFed([4, 0, 0]), RowsFed([0, 0, 5])]),
         Report::Later => (RuleIndex(7), vec![RowsFed([1, 1, 1])]),
@@ -95,4 +114,23 @@ fn answer(adapter: &impl ObserverPort, report: Report) -> Value {
 /// When the implementation breaks the contract.
 pub fn check(adapter: &impl ObserverPort) {
     run(CASES, Word::Succeeds, |report| Ok(answer(adapter, report)));
+}
+
+/// Tells the adapter one handover of `file` and compares its handovers after it with those before, the one told put in the order
+/// of the files.
+fn handovers(adapter: &impl ObserverPort, file: FileId) -> Value {
+    use crate::outbound::observer::types::FileHandover;
+    use ryo_values::domain::runs::types::{ParsedRows, RowsHanded};
+    let handover = FileHandover {
+        file,
+        rule: RuleIndex(3),
+        handed: RowsHanded(6),
+        parsed: ParsedRows(2),
+    };
+    let Ok(mut expected) = adapter.handovers() else {
+        return false;
+    };
+    expected.push(handover);
+    expected.sort_unstable();
+    adapter.handed(handover) == Ok(()) && adapter.handovers().is_ok_and(|after| after == expected)
 }

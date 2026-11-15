@@ -151,3 +151,41 @@ pub(crate) fn skipped_from(stored: &Stored, read_again: &[FilePath]) -> Vec<Skip
         .cloned()
         .collect()
 }
+
+/// The widest of the handovers `told` for each file, in the order of the files, named by the path of its file and the id of its rule:
+/// the one with the most rows handed for each row of the file's syntax tree, a tree of no rows counted as one row. `told` is in the
+/// order of the files.
+#[must_use]
+pub(crate) fn widest_each(
+    told: &[ryo_execution_runtime::outbound::observer::types::FileHandover],
+    paths: &[FilePath],
+    ids: &[RuleId],
+) -> Vec<ryo_values::domain::runs::types::Handover> {
+    let mut widest: Vec<&ryo_execution_runtime::outbound::observer::types::FileHandover> =
+        Vec::new();
+    for each in told {
+        match widest.last_mut() {
+            // handed / parsed compared without a division: a/b > c/d when a*d > c*b.
+            Some(last)
+                if last.file == each.file
+                    && u128::from(each.handed.0) * u128::from(last.parsed.0.max(1))
+                        > u128::from(last.handed.0) * u128::from(each.parsed.0.max(1)) =>
+            {
+                *last = each;
+            }
+            Some(last) if last.file == each.file => {}
+            _ => widest.push(each),
+        }
+    }
+    widest
+        .into_iter()
+        .filter_map(|each| {
+            Some(ryo_values::domain::runs::types::Handover {
+                path: file_in(paths, each.file)?.clone(),
+                rule: ids.get(each.rule.0)?.clone(),
+                handed: each.handed,
+                parsed: each.parsed,
+            })
+        })
+        .collect()
+}

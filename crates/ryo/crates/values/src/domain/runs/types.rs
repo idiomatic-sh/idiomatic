@@ -145,3 +145,47 @@ pub enum AnswerShape {
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RuleNumber(pub u32);
+
+/// The widest handover of one file: the rule whose steps after the files it handed the most rows for each row of its syntax tree.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::files::types::FilePath;
+/// use ryo_values::domain::runs::types::{Handover, ParsedRows, RowsHanded, RuleId};
+/// let widest = Handover { path: FilePath("a.rs".into()), rule: RuleId("r".into()), handed: RowsHanded(8), parsed: ParsedRows(4) };
+/// assert_eq!(widest.handed, RowsHanded(8));
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Handover {
+    /// The file.
+    pub path: FilePath,
+    /// The rule.
+    pub rule: RuleId,
+    /// The rows the file handed the rule's steps after the files, every input of it together.
+    pub handed: RowsHanded,
+    /// The rows of the file's syntax tree.
+    pub parsed: ParsedRows,
+}
+
+/// How many rows a file handed the steps after the files of a rule.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::runs::types::RowsHanded;
+/// assert!(RowsHanded(2) > RowsHanded(1));
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RowsHanded(pub u64);
+
+/// How many rows the syntax tree a language read of a file has.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::runs::types::ParsedRows;
+/// assert!(ParsedRows(2) > ParsedRows(1));
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ParsedRows(pub u64);

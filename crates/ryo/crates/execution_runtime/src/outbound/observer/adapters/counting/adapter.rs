@@ -1,18 +1,23 @@
 //! The observer port, implemented by counting the rows each step is fed.
 
 use super::constants::COUNTED_FED;
+use super::constants::COUNTED_HANDOVERS;
 use super::types::CountedFed;
+use super::types::CountedHandovers;
 use crate::outbound::observer::interface::ObserverPort;
 use crate::outbound::observer::types::FedTotals;
+use crate::outbound::observer::types::FileHandover;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::{LogicalCounts, RowsFed};
 
-/// The counting observer: what it is told is added up by rule and step, for at most `COUNTED_FED` rules. Addition commutes, so
-/// the totals do not depend on the order threads report in.
+/// The counting observer: what it is told is added up by rule and step, for at most `COUNTED_FED` rules and `COUNTED_HANDOVERS`
+/// handovers. Addition commutes, so
+/// the totals do not depend on the order threads report in; the handovers are kept as told and answered in the order of their files.
 #[derive(Debug, Default)]
 pub(crate) struct ObserverCountingAdapter {
     totals: CountedFed,
+    handovers: CountedHandovers,
 }
 
 impl ObserverPort for ObserverCountingAdapter {
@@ -44,5 +49,29 @@ impl ObserverPort for ObserverCountingAdapter {
             .lock()
             .map(|totals| totals.clone())
             .map_err(|_| OperatingError::NotRun)
+    }
+
+    fn handed(&self, handover: FileHandover) -> Result<(), OperatingError> {
+        let mut told = self
+            .handovers
+            .0
+            .lock()
+            .map_err(|_| OperatingError::NotRun)?;
+        if told.len() >= COUNTED_HANDOVERS {
+            return Err(OperatingError::ShapeMismatch);
+        }
+        told.push(handover);
+        Ok(())
+    }
+
+    fn handovers(&self) -> Result<Vec<FileHandover>, OperatingError> {
+        let mut told = self
+            .handovers
+            .0
+            .lock()
+            .map(|told| told.clone())
+            .map_err(|_| OperatingError::NotRun)?;
+        told.sort_unstable();
+        Ok(told)
     }
 }

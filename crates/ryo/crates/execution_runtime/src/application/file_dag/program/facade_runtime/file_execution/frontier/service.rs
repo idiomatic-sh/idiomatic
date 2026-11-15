@@ -94,6 +94,8 @@ impl FileRun<'_> {
             words,
         } = capture;
         let ryo_execution_domain::domain::finish::types::Retained { arena, places: _ } = retained;
+        // The rows this file hands the rule's steps after the files, every input together, for an observer that asked.
+        let mut handed = 0_u64;
         for (index, source) in sources.into_iter().enumerate() {
             if capture_intent == CaptureIntent::Observations
                 && self.program.frontier_purpose(rule, InputNumber(index))? != ryo_execution_domain::domain::rule_intent::types::FrontierPurpose::Observation
@@ -121,6 +123,7 @@ impl FileRun<'_> {
                 )?;
                 let mut table = table_of(&self.owner, &admitted, read)?;
                 let rows = table.count;
+                handed = handed.saturating_add(u64::try_from(rows.0).unwrap_or(u64::MAX));
                 let frame_places = ryo_execution_domain::domain::finish::service::escape_frame(
                     &mut table,
                     ryo_execution_domain::domain::finish::types::Leaving {
@@ -164,6 +167,23 @@ impl FileRun<'_> {
                 })
             })();
             captures.push(FrontierCapture { input, outcome });
+        }
+        if let Some(observer) = self.services.observer()
+            && handed != 0
+        {
+            observer.handed(crate::outbound::observer::types::FileHandover {
+                file,
+                rule,
+                handed: ryo_values::domain::runs::types::RowsHanded(handed),
+                parsed: ryo_values::domain::runs::types::ParsedRows(
+                    read(Relation::SyntaxTree).map_or(0, |rows| {
+                        u64::try_from(
+                            ryo_execution_domain::domain::table_model::service::count_of(&rows).0,
+                        )
+                        .unwrap_or(u64::MAX)
+                    }),
+                ),
+            })?;
         }
         Ok(captures)
     }

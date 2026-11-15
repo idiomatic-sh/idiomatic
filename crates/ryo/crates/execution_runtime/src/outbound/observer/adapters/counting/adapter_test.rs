@@ -1,7 +1,9 @@
 //! The counting adapter of the observer port: the core's contract rows run through it, then the cases specific to it.
 
 use super::constants::COUNTED_FED;
+use super::constants::COUNTED_HANDOVERS;
 use super::types::CountedFed;
+use super::types::CountedHandovers;
 use crate::outbound::observer::factory::counting;
 use crate::outbound::observer::fixtures::contract::check;
 use crate::outbound::observer::interface::ObserverPort as _;
@@ -34,6 +36,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Bound::Past,
         expect: Expect::Value(true),
     },
+    Case {
+        name: CaseName("a_fresh_counted_handovers_holds_no_handover"),
+        word: Word::Succeeds,
+        input: || Bound::FreshHandovers,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("a_handover_past_the_counted_handovers_bound_is_refused_and_not_kept"),
+        word: Word::Succeeds,
+        input: || Bound::PastHandovers,
+        expect: Expect::Value(true),
+    },
 ];
 
 /// Where the reported rule lies against `COUNTED_FED`, the bound of the `CountedFed` the adapter keeps.
@@ -42,19 +56,31 @@ enum Bound {
     Fresh,
     Within,
     Past,
+    FreshHandovers,
+    PastHandovers,
 }
 
 /// Reports two rounds of a rule and reads the totals back.
 fn subject(input: Input) -> Value {
-    if let Bound::Fresh = input {
-        return CountedFed::default()
-            .0
-            .lock()
-            .is_ok_and(|totals| totals.0.is_empty());
+    match input {
+        Bound::Fresh => {
+            return CountedFed::default()
+                .0
+                .lock()
+                .is_ok_and(|totals| totals.0.is_empty());
+        }
+        Bound::FreshHandovers => {
+            return CountedHandovers::default()
+                .0
+                .lock()
+                .is_ok_and(|told| told.is_empty());
+        }
+        Bound::PastHandovers => return past_handovers(),
+        Bound::Within | Bound::Past => {}
     }
     let observer = counting();
     let rule = match input {
-        Bound::Fresh | Bound::Within => RuleIndex(1),
+        Bound::Fresh | Bound::Within | Bound::FreshHandovers | Bound::PastHandovers => RuleIndex(1),
         Bound::Past => RuleIndex(COUNTED_FED),
     };
     let mut refused = Vec::new();
@@ -68,7 +94,7 @@ fn subject(input: Input) -> Value {
         refused.push(report.err());
     }
     match input {
-        Bound::Fresh | Bound::Within => {
+        Bound::Fresh | Bound::Within | Bound::FreshHandovers | Bound::PastHandovers => {
             refused == [None, None]
                 && observer.totals().is_ok_and(|totals| {
                     totals.0 == vec![vec![], vec![RowsFed([2, 4, 6]), RowsFed([8, 0, 0])]]
@@ -83,6 +109,27 @@ fn subject(input: Input) -> Value {
                 && observer.totals().is_ok_and(|totals| totals.0.is_empty())
         }
     }
+}
+
+/// Tells the observer `COUNTED_HANDOVERS` handovers and one more: the one past the bound is refused, and those within are kept.
+fn past_handovers() -> Value {
+    use crate::outbound::observer::types::FileHandover;
+    use ryo_values::domain::runs::types::{ParsedRows, RowsHanded};
+    let observer = counting();
+    let handover = |file: usize| FileHandover {
+        file: ryo_relations::domain::relations::types::FileId(
+            u32::try_from(file).unwrap_or(u32::MAX),
+        ),
+        rule: RuleIndex(0),
+        handed: RowsHanded(1),
+        parsed: ParsedRows(1),
+    };
+    let within = (0..COUNTED_HANDOVERS).all(|file| observer.handed(handover(file)) == Ok(()));
+    within
+        && observer.handed(handover(COUNTED_HANDOVERS)) == Err(OperatingError::ShapeMismatch)
+        && observer
+            .handovers()
+            .is_ok_and(|told| told.len() == COUNTED_HANDOVERS)
 }
 
 #[test]
