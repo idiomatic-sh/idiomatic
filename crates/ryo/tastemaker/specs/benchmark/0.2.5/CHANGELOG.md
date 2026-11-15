@@ -1,5 +1,9 @@
 # benchmark
 
+## 0.2.5
+
+Places `benchmark-linter@0.2.4`. Nothing else changes.
+
 ## 0.2.4
 
 Places `benchmark-linter` 0.2.3, whose templates give every linter bench the harness's profile run. Nothing else changes.
