@@ -40,7 +40,7 @@ use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{FileId, KindBits, Relation, Value};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::{HostedNumber, Input};
-use ryo_values::domain::plans::service::{inputs_of, named};
+use ryo_values::domain::plans::service::{inputs_of, named, reads_of};
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::row_texts::types::CellText;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -54,11 +54,9 @@ pub(crate) mod rules;
 /// reads exactly what its request's rules can read.
 pub(crate) fn demanded<P: std::borrow::Borrow<Plan>>(plans: &[P]) -> Box<[Relation]> {
     let mut demanded: Vec<Relation> = Vec::new();
-    for step in plans.iter().flat_map(|plan| &plan.borrow().steps) {
-        for input in named(&inputs_of(&step.operation)) {
-            if let Input::Relation(relation) = *input
-                && !demanded.contains(&relation)
-            {
+    for plan in plans {
+        for relation in reads_of(plan.borrow()).0 {
+            if !demanded.contains(&relation) {
                 demanded.push(relation);
             }
         }
