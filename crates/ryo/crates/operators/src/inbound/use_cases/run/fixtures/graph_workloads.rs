@@ -231,6 +231,7 @@ fn graph_kernels_once(
         row,
         written,
         repeats,
+        found,
         ..
     } = buffers;
     for kernel in 0..3 {
@@ -252,6 +253,7 @@ fn graph_kernels_once(
                         written: &mut *written,
                         repeats: &mut *repeats,
                         decisions: &mut decisions,
+                        found: &mut *found,
                     },
                 },
                 output,

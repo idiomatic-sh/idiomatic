@@ -33,6 +33,21 @@ use ryo_values::domain::rows::types::Table;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PlanNodeId(pub u32);
 
+/// The rows a node's kernels read from each of its inputs when it was made in the open file, in its inputs' order: a
+/// relation's rows, the tree rows read (the rows a tree probe found), an earlier node's rows; none past its inputs.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::physical_plan::types::NodeFed;
+/// use ryo_values::domain::rows::types::RowCount;
+/// let probe = NodeFed([RowCount(2), RowCount(3), RowCount(0)]);
+/// assert_eq!(probe.0.iter().map(|rows| rows.0).sum::<usize>(), 5);
+/// assert_eq!(NodeFed::default(), NodeFed([RowCount(0); 3]));
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct NodeFed(pub [ryo_values::domain::rows::types::RowCount; 3]);
+
 /// What one input of a node reads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PlanInput {
@@ -194,6 +209,8 @@ pub(crate) enum ProbeIndex {
     Own,
     /// The shared index at this place.
     Shared(IndexPlace),
+    /// The open file's tree is the index: each left row walks from its node.
+    Tree,
 }
 
 /// What a run lends its kernels: the engine's rows and resources, and the matching semantics.

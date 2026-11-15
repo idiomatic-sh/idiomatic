@@ -3,19 +3,21 @@
 
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
+use super::super::scan_roots::item::tree_row;
 use crate::domain::comparing::service::holds_bound;
 use crate::domain::comparing::types::{DecisionWorkspace, NameCount, RowShape};
 use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
 use crate::domain::patterns::types::PatternMatcher;
+use crate::domain::physical_plan::types::TreeRead;
 use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::select::types::SelectParts;
 use crate::domain::table_scratch::types::Memo;
 use crate::domain::table_texts::types::Texts;
-use ryo_relations::domain::relations::types::{CellKind, Value};
+use ryo_relations::domain::relations::types::{CellKind, NodeId, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::rows::types::{RowCount, Table};
+use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
 /// `filter`, one item of the `kernels` collection.
 #[cfg(test)]
@@ -81,25 +83,22 @@ pub(crate) fn filter<'f>(
     }
 }
 
-/// Appends `row`, with the kept columns, to `output` when every comparison holds for it.
+/// Whether every comparison holds for `row`.
 ///
 /// # Errors
 ///
-/// `ShapeMismatch` for a row of another width; the first comparison's fault the row raises; `NoSuchColumn` for a kept column
-/// past the row.
-pub(crate) fn keep(
+/// `ShapeMismatch` for a row of another width; the first comparison's fault the row raises.
+pub(crate) fn holds(
     filter: FilterKernel<'_>,
     matcher: PatternMatcher<'_>,
     row: &[Value],
     decisions: &mut NodeDecisions,
-    written: &mut Vec<Value>,
-    output: &mut Table,
-) -> Result<(), PortableOperatorFault> {
+) -> Result<PredicateOutcome, PortableOperatorFault> {
     let comparisons = &filter.select.comparisons;
     if !comparisons.is_empty() && row.len() != filter.kinds.len() {
         return Err(PortableOperatorFault::ShapeMismatch);
     }
-    let holds = holds_bound(
+    holds_bound(
         comparisons,
         row,
         RowShape {
@@ -115,8 +114,54 @@ pub(crate) fn keep(
             memo: &mut decisions.memo,
         },
     )
-    .map_err(PortableOperatorFault::from)?;
-    if holds == PredicateOutcome::Fails {
+    .map_err(PortableOperatorFault::from)
+}
+
+/// Keeps the nodes of `nodes` whose rows of `tree` every comparison holds for, in order, and answers the first row's fault.
+pub(crate) fn kept_nodes(
+    tree: TreeRead<'_>,
+    filter: FilterKernel<'_>,
+    matcher: PatternMatcher<'_>,
+    row: &mut Vec<Value>,
+    decisions: &mut NodeDecisions,
+    nodes: &mut Vec<NodeId>,
+) -> Option<PortableOperatorFault> {
+    let mut fault = None;
+    nodes.retain(|node| {
+        if fault.is_some() {
+            return false;
+        }
+        let one = TreeRead {
+            candidates: std::slice::from_ref(node),
+            ..tree
+        };
+        tree_row(&one, RowIndex(0), row);
+        match holds(filter, matcher, row, decisions) {
+            Ok(outcome) => outcome != PredicateOutcome::Fails,
+            Err(error) => {
+                fault = Some(error);
+                false
+            }
+        }
+    });
+    fault
+}
+
+/// Appends `row`, with the kept columns, to `output` when every comparison holds for it.
+///
+/// # Errors
+///
+/// `ShapeMismatch` for a row of another width; the first comparison's fault the row raises; `NoSuchColumn` for a kept column
+/// past the row.
+pub(crate) fn keep(
+    filter: FilterKernel<'_>,
+    matcher: PatternMatcher<'_>,
+    row: &[Value],
+    decisions: &mut NodeDecisions,
+    written: &mut Vec<Value>,
+    output: &mut Table,
+) -> Result<(), PortableOperatorFault> {
+    if holds(filter, matcher, row, decisions)? == PredicateOutcome::Fails {
         return Ok(());
     }
     if filter.select.kept.is_empty() {

@@ -2,9 +2,9 @@
 //! their capacity kept across files.
 
 use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
-use crate::domain::physical_plan::types::{NodeReaders, NodeRows, PlanNodeId};
+use crate::domain::physical_plan::types::{NodeFed, NodeReaders, NodeRows, PlanNodeId};
 use crate::domain::table_scratch::types::{LazyScratch, Memo, SelectScratch};
-use ryo_relations::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::{NodeId, Value};
 
 /// The buffers of one worker, reused across files.
 ///
@@ -22,6 +22,8 @@ pub struct FileBuffers {
     pub(crate) nodes: Vec<Option<ryo_values::domain::rows::types::Table>>,
     /// The fault each node raised after its rows, by node id: its readers raise it once they have read every row before it.
     pub(crate) pending: Vec<Option<PortableOperatorFault>>,
+    /// The rows each node's kernels read from each input when it was made in the open file, by node id.
+    pub(crate) fed: Vec<NodeFed>,
     /// How many of each node's readers have not read it yet in this file, by node id.
     pub(crate) remaining: Vec<NodeReaders>,
     /// Each filtering node's comparison scratch, by node id, kept across files.
@@ -48,6 +50,8 @@ pub struct FileBuffers {
     pub(crate) cycles: crate::domain::cycles::types::CycleScratch,
     /// The rows `distinct` kept so far, keyed by all their cells in `hash_index`'s table, its capacity kept across nodes.
     pub(crate) repeats: KeyedRows,
+    /// The tree nodes one left row of a tree probe found, its capacity kept across files.
+    pub(crate) found: Vec<NodeId>,
     /// Each probe index the plan shares, by its place, its capacity kept across files.
     pub(crate) shared: Vec<SharedIndex>,
     /// How many times a probe built an index, its own or a shared one: what the sharing cases count.
@@ -136,6 +140,23 @@ impl FileBuffers {
         })
     }
 
+    /// The rows `node`'s kernels read from each input when it was made in the open file; none for a node not made or
+    /// released.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    /// use ryo_operators::domain::physical_plan::types::{NodeFed, PlanNodeId};
+    /// assert_eq!(FileBuffers::default().fed(PlanNodeId(0)), NodeFed::default());
+    /// ```
+    #[must_use]
+    pub fn fed(&self, node: PlanNodeId) -> NodeFed {
+        usize::try_from(node.0).map_or(NodeFed::default(), |at| {
+            self.fed.get(at).copied().unwrap_or_default()
+        })
+    }
+
     /// The nodes that hold rows: the buffer high-water of a run, for the cases that bound it.
     #[cfg(test)]
     pub(crate) fn held(&self) -> impl Iterator<Item = PlanNodeId> + '_ {
@@ -211,6 +232,9 @@ impl FileBuffers {
             *held = None;
             if let Some(pending) = self.pending.get_mut(at) {
                 *pending = None;
+            }
+            if let Some(fed) = self.fed.get_mut(at) {
+                *fed = NodeFed::default();
             }
         }
     }

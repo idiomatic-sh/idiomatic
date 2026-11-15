@@ -5,15 +5,15 @@ use super::super::filter::item::{filter, keep, kept_kinds};
 use super::super::hash_index::item::{find_text, next_of, texts};
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
-use super::super::scan_facts::item::{decode, facts};
+use super::super::scan_facts::item::{decode, facts, rows_of};
 use super::super::scan_node::item::hold;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, IndexKeyHash, NO_ROW};
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-use crate::domain::physical_plan::types::{IndexKey, IndexPlace, KernelRun, RowSource};
-use ryo_values::domain::rows::types::{RowIndex, Table};
+use crate::domain::physical_plan::types::{IndexKey, IndexPlace, KernelRun, NodeFed, RowSource};
+use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
 /// `lookup`, one item of the `kernels` collection.
 #[cfg(test)]
@@ -61,6 +61,9 @@ pub(crate) fn lookups(
         else {
             continue;
         };
+        if let Some(fed) = buffers.fed.get_mut(place) {
+            *fed = NodeFed([rows_of(&view), RowCount(0), RowCount(0)]);
+        }
         let mut output = Table {
             kinds: kept_kinds(view.kinds, &select.kept)?,
             ..Table::default()

@@ -5,15 +5,15 @@ use super::super::types::Reading;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::render::item::rendered;
 use crate::domain::physical_plan::collections::kernels::scan_bound::item::held;
-use crate::domain::physical_plan::collections::kernels::scan_facts::item::facts;
+use crate::domain::physical_plan::collections::kernels::scan_facts::item::{count_of, facts};
 use crate::domain::physical_plan::collections::kernels::scan_node::item::{hold, take};
 use crate::domain::physical_plan::collections::kernels::scan_roots::item::{copied, roots};
 use crate::domain::physical_plan::collections::kernels::text_map::item::{RowMapRun, mapped};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-use crate::domain::physical_plan::types::{KernelRun, NodeReaders, PlanNodeId, RowSource};
-use ryo_values::domain::rows::types::Table;
+use crate::domain::physical_plan::types::{KernelRun, NodeFed, NodeReaders, PlanNodeId, RowSource};
+use ryo_values::domain::rows::types::{RowCount, Table};
 
 /// Runs a node that mints or renders through the resources while it reads its rows (a `text_map` stage or a `render`) and
 /// holds its rows and pending fault. It holds the resources mutably, so it reads a tree relation's rows from a copy, never
@@ -37,6 +37,12 @@ pub(crate) fn minted(
         RowSource::Frontier(place) => Reading::Held(held(inputs.frontier(place))?),
         RowSource::Observation(place) => Reading::Held(held(inputs.observation(place))?),
     };
+    if let Some(fed) = buffers
+        .fed
+        .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
+    {
+        *fed = NodeFed([count_of(rows_in(&input)), RowCount(0), RowCount(0)]);
+    }
     let pending = pending_of(&input);
     let mut output = Table::default();
     let made = match lowering {

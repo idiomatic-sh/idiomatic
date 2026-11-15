@@ -19,6 +19,7 @@ pub(crate) const REWRITES: &[&dyn RewritesItem] = &[
     &crate::domain::physical_plan::collections::rewrites::keyed_select::item::KeyedSelectItem,
     &crate::domain::physical_plan::collections::rewrites::ordered_existence::item::OrderedExistenceItem,
     &crate::domain::physical_plan::collections::rewrites::existence_probe::item::ExistenceProbeItem,
+    &crate::domain::physical_plan::collections::rewrites::tree_probe::item::TreeProbeItem,
 ];
 
 /// Declares the kernels once: the catalog the reachability case reads, each kernel by its item.

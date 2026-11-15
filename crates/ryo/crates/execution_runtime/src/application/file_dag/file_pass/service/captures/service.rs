@@ -2,7 +2,6 @@
 //! observer.
 
 use crate::application::file_dag::file_pass::service::nodes::service::{node_rows, ran_node};
-use crate::application::file_dag::file_pass::service::roots_of;
 use crate::application::file_dag::file_pass::types::{
     CaptureAt, NodeAnswer, OutputCommit, OutputState, PassFile,
 };
@@ -30,13 +29,13 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::held_rows::value::HeldRows;
 use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
-use ryo_operators::domain::physical_plan::types::{NodeRows, PlanInputs as _};
+use ryo_operators::domain::physical_plan::types::PlanInputs as _;
 use ryo_operators::domain::tree_cells::service::native_form;
 use ryo_relations::domain::catalog::service::scope_of;
 use ryo_relations::domain::catalog::types::RowScope;
 use ryo_relations::domain::relations::types::Relation;
+use ryo_operators::domain::physical_plan::types::NodeFed;
 use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepScope};
-use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::{FrontierOrdinal, FrontierProof, ProducerRule};
 use ryo_values::domain::rows::types::Table;
@@ -228,7 +227,8 @@ pub(crate) fn committed(
     Ok(())
 }
 
-/// Reports the rows each step of `rule` was fed to the request's observer; without one nothing is counted.
+/// Reports the rows each step of `rule` was fed to the request's observer, as its node's kernels read them in the open file;
+/// without an observer nothing is counted.
 pub(crate) fn observed(
     at: &mut PassFile<'_, '_, '_, '_>,
     symbols: &mut Symbols,
@@ -241,54 +241,17 @@ pub(crate) fn observed(
     };
     let mut fed = Vec::with_capacity(plan.steps.len());
     for (step, node) in plan.steps.iter().zip(&nodes.steps) {
-        let mut counts = [0_u64; 3];
         // A step after the files is fed after the files: its rows are counted there.
         if step.scope == StepScope::CrossFile {
-            fed.push(RowsFed(counts));
+            fed.push(RowsFed([0_u64; 3]));
             continue;
         }
-        for (slot, input) in counts.iter_mut().zip(named(&inputs_of(&step.operation))) {
-            *slot = match input {
-                Input::Relation(relation) if native_form(*relation).is_some() => {
-                    let node = node.clone()?;
-                    u64::try_from(roots_of(at.inputs.roots, node).0.len()).unwrap_or(u64::MAX)
-                }
-                Input::Relation(relation) => {
-                    at.inputs.lookup.columns(*relation).map_or(0, |view| {
-                        view.columns.first().map_or(0, |column| {
-                            u64::try_from(column.0.len()).unwrap_or(u64::MAX)
-                        })
-                    })
-                }
-                Input::Step(id) => {
-                    let read = nodes
-                        .steps
-                        .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-                        .ok_or(OperatingError::NotRun)?
-                        .clone()?;
-                    ran_node(at, symbols, read)?;
-                    match at.buffers.rows(read) {
-                        NodeRows::Materialized(table) => {
-                            u64::try_from(table.count.0).unwrap_or(u64::MAX)
-                        }
-                        NodeRows::Absent => 0,
-                    }
-                }
-                Input::BoundObservation(id) => {
-                    let place = BoundObservationPlace::of(
-                        RuleOrdinal(
-                            u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?,
-                        ),
-                        *id,
-                    );
-                    match at.inputs.observation(place) {
-                        HeldRows::Held(table) => u64::try_from(table.count.0).unwrap_or(u64::MAX),
-                        HeldRows::Withheld(_) => 0,
-                    }
-                }
-            };
-        }
-        fed.push(RowsFed(counts));
+        let node = node.clone()?;
+        ran_node(at, symbols, node)?;
+        let NodeFed(rows) = at.buffers.fed(node);
+        fed.push(RowsFed(
+            rows.map(|count| u64::try_from(count.0).unwrap_or(u64::MAX)),
+        ));
     }
     observer.fed(
         rule,
