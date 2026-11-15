@@ -352,12 +352,12 @@ pub(crate) fn unprovided(why: &str) -> Vec<String> {
     relations
 }
 
-/// The languages the replay links: the ones `ryo lint` links in this build (`ryo_cli::languages::linked_connections`), so a rule
+/// The languages the replay links: the ones `ryo lint` links in this build (`ryo_cli::linked_connections`), so a rule
 /// answers over ruff what a user's run answers, a kind of a language other than Rust matching nothing in ruff's Rust files.
 /// The pending check, the hosted lint and the counting lint all link these, so a relation is pending only when none of them
 /// provides it.
 pub(crate) fn replay_languages() -> Vec<LanguageConnection> {
-    ryo_cli::languages::linked_connections()
+    ryo_cli::linked_connections()
 }
 
 /// Whether a language the replay links provides the relation RyoQL calls `relation`: a relation ryo does not own (a host's)

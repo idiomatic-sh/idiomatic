@@ -17,21 +17,81 @@ fn panic_message(run: impl FnOnce() + std::panic::UnwindSafe) -> Option<String> 
     })
 }
 
+/// The directories under `root`, at any depth, named `name` and holding a `rule.toml` or a version directory holding one: every
+/// definition of the rule there, found by walking the tree, not by `base::rules`.
+fn definitions_named(root: &Path, name: &str) -> Vec<std::path::PathBuf> {
+    let holds_rule = |directory: &Path| {
+        directory.join("rule.toml").is_file()
+            || std::fs::read_dir(directory)
+                .expect("a directory of the tree")
+                .map(|entry| entry.expect("an entry of the tree").path())
+                .any(|child| child.join("rule.toml").is_file())
+    };
+    let mut found = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        for entry in std::fs::read_dir(&directory).expect("a directory of the tree") {
+            let path = entry.expect("an entry of the tree").path();
+            if path.is_dir() {
+                if path.file_name().is_some_and(|each| each == name) && holds_rule(&path) {
+                    found.push(path.clone());
+                }
+                pending.push(path);
+            }
+        }
+    }
+    found.sort();
+    found
+}
+
+/// The three numbers of a `major.minor.patch` directory name, when it is one.
+fn numbered(name: &std::ffi::OsStr) -> Option<[u64; 3]> {
+    let text = name.to_str()?;
+    let parts: Vec<u64> = text
+        .split('.')
+        .map(str::parse)
+        .collect::<Result<_, _>>()
+        .ok()?;
+    <[u64; 3]>::try_from(parts).ok()
+}
+
 #[test]
 fn every_recording_reads_its_live_rule() {
     let _beside = crate::beside();
     let all = recordings();
     assert_eq!(all.len(), 52, "every recording loads");
+    let package = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../tastemaker");
+    let replay = Roots::here().replay;
     for each in &all {
+        let directory = rules::directory(&each.name);
+        if directory.starts_with(&replay) {
+            // A replay rule is one no Tastemaker package defines, in any spec, rule or benchmark, at any version.
+            assert_eq!(
+                definitions_named(&package, &each.name),
+                Vec::<std::path::PathBuf>::new(),
+                "the replay rule `{}` copies a Tastemaker definition",
+                each.name
+            );
+            continue;
+        }
+        // A packaged rule is read at the highest version of what holds it: the rule's own versions, or its spec's.
+        let version = directory
+            .ancestors()
+            .find(|each| each.file_name().and_then(numbered).is_some())
+            .unwrap_or_else(|| panic!("{}: no version above {}", each.name, directory.display()));
+        let siblings = std::fs::read_dir(version.parent().expect("a directory of versions"))
+            .expect("the versions")
+            .map(|entry| entry.expect("a version").file_name());
+        let highest = siblings.filter_map(|name| numbered(&name)).max();
         assert_eq!(
-            each.query,
-            rules::query(&each.name),
-            "{} replays its rule's live query",
-            each.name
+            version.file_name().and_then(numbered),
+            highest,
+            "{} replays {}, not the highest version",
+            each.name,
+            directory.display()
         );
     }
-    let versions = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../tastemaker/rules/repeated-string-literals");
+    let versions = package.join("rules/repeated-string-literals");
     let live: toml::Table = std::fs::read_to_string(latest_version(&versions).join("rule.toml"))
         .expect("the live rule")
         .parse()
@@ -95,7 +155,25 @@ fn a_replay_rule_named_like_another_rule_fails() {
         &at.package
             .join("benchmarks/rules/both-replay-and-benchmark/0.1.0"),
     );
-    make(&at.replay.join("bdd-runner"));
+    // Spec rules no list names: a spec's rules are those of its highest version.
+    make(
+        &at.package
+            .join("specs/a-spec/0.10.0/rules/both-replay-and-spec"),
+    );
+    make(&at.replay.join("both-replay-and-spec"));
+    make(&at.package.join("specs/a-spec/0.10.0/rules/spec-only"));
+    make(
+        &at.package
+            .join("specs/a-spec/0.9.0/rules/in-an-older-spec-only"),
+    );
+    make(&at.replay.join("in-an-older-spec-only"));
+    make(&at.package.join("specs/a-spec/0.10.0/rules/in-two-specs"));
+    make(&at.package.join("specs/b-spec/0.1.0/rules/in-two-specs"));
+    make(
+        &at.package
+            .join("specs/b-spec/0.1.0/rules/both-spec-and-tastemaker"),
+    );
+    make(&at.package.join("rules/both-spec-and-tastemaker/0.1.0"));
     make(&at.package.join("rules/both-tastemaker-and-benchmark/0.1.0"));
     make(
         &at.package
@@ -105,8 +183,11 @@ fn a_replay_rule_named_like_another_rule_fails() {
     for name in [
         "both-replay-and-tastemaker",
         "both-replay-and-benchmark",
-        "bdd-runner",
+        "both-replay-and-spec",
+        "in-two-specs",
+        "both-spec-and-tastemaker",
         "both-tastemaker-and-benchmark",
+        "no-rule-at-all",
     ] {
         assert!(
             std::panic::catch_unwind(|| resolve(name, &at)).is_err(),
@@ -114,4 +195,13 @@ fn a_replay_rule_named_like_another_rule_fails() {
         );
     }
     assert_eq!(resolve("replay-only", &at), at.replay.join("replay-only"));
+    assert_eq!(
+        resolve("spec-only", &at),
+        at.package.join("specs/a-spec/0.10.0/rules/spec-only")
+    );
+    assert_eq!(
+        resolve("in-an-older-spec-only", &at),
+        at.replay.join("in-an-older-spec-only"),
+        "a rule only an older version of a spec holds is no live spec rule"
+    );
 }

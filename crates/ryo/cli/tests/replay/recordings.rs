@@ -360,7 +360,7 @@ fn a_rule_naming_a_kind_of_another_linked_language_loads_and_answers() {
     let _beside = crate::beside();
     // The replay links what `ryo lint` links: here a language beside Rust and TOML, whose kinds a live rule may name.
     assert!(
-        ryo_cli::languages::linked_connections().len() > 2,
+        ryo_cli::linked_connections().len() > 2,
         "the command links no language beside Rust and TOML"
     );
     // `keyword` is a kind of the Python and TypeScript languages, not of Rust's: over Rust files it matches nothing.

@@ -9,7 +9,10 @@
 )]
 
 pub mod edge;
-pub mod languages;
+mod languages;
+/// The handles of the languages this build links, as `ryo lint` links them: test support, not public API.
+#[cfg(feature = "fixtures")]
+pub use languages::linked_connections;
 #[cfg(all(
     test,
     feature = "javascript",

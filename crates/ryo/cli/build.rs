@@ -46,7 +46,7 @@ pub(crate) fn linked() -> impl LanguagePort {
 /// # Examples
 ///
 /// ```
-/// let linked = ryo_cli::languages::linked_connections();
+/// let linked = ryo_cli::linked_connections();
 /// assert!(!linked.is_empty(), \"a build links at least one language\");
 /// ```
 #[cfg(feature = \"fixtures\")]
