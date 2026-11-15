@@ -24,7 +24,24 @@ const TABLES: usize = 64;
 /// A megabyte.
 const BIG: f64 = 1_048_576.0;
 
+/// Runs the one case on libtest-mimic, which answers libtest's command line (`--list`, `--exact`, a filter) as cargo's harness does,
+/// so listing the tests runs no lint; a red exits 101, as a failed cargo test does. The case runs on this thread, so the profile is
+/// of the run alone.
 fn main() {
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    arguments.test_threads = Some(1);
+    let case = libtest_mimic::Trial::test(
+        "blocks::the_big_blocks_of_a_run_over_ruff_are_bounded_by_the_workers_and_the_rules",
+        || {
+            big_blocks();
+            Ok(())
+        },
+    );
+    libtest_mimic::run(&arguments, vec![case]).exit();
+}
+
+/// Lints ruff under the allocation profile and counts the calls that allocated a block of a megabyte or more.
+fn big_blocks() {
     let profile = std::env::temp_dir().join(format!("ryo-blocks-{}.json", std::process::id()));
     // The run keeps its store as a lint does, in a cache directory of its own.
     let cache = tempfile::tempdir().expect("a cache directory");
