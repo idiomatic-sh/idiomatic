@@ -4,8 +4,8 @@ use super::service::stored;
 use super::types::LiteralNumber;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::{service::kind, types::Kind};
 use crate::domain::syntax::constants::OPAQUE_MACROS;
+use crate::domain::syntax::{service::kind, types::Kind};
 use crate::outbound::syntax::{
     factory,
     interface::SyntaxPort as _,

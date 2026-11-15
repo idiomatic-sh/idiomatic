@@ -3,8 +3,8 @@
 use super::service::prepare;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::model::types::ReadIndexes;
-use crate::domain::syntax::{service::is_token, types::Leaf};
 use crate::domain::syntax::constants::OPAQUE_MACROS;
+use crate::domain::syntax::{service::is_token, types::Leaf};
 use crate::outbound::syntax::{
     factory,
     interface::SyntaxPort as _,
