@@ -57,8 +57,46 @@ impl ProgramRequestExecutionPort for RequestExecution {
             paths: self.services.request().paths(),
             observer: self.services.observer(),
         };
+        // The file's facts are opened here, so the pass reads them only through the lookup it is handed.
+        let FileRunInput {
+            language: _,
+            file,
+            intents,
+            source,
+            sources,
+            active,
+            said,
+            recovery,
+            answering,
+            semantic,
+            kinds: _,
+            first,
+        } = input;
+        let lookup = crate::application::file_dag::fact_lookup::service::opened(
+            sources,
+            facts,
+            crate::application::file_dag::fact_lookup::types::FileWants {
+                active,
+                said,
+                recovery,
+            },
+            symbols,
+            self.program.demanded(),
+        );
         crate::application::file_dag::file_pass::service::rules::service::run_rules(
-            request, &self.pass, input, symbols, capture, facts,
+            request,
+            &self.pass,
+            crate::application::file_dag::file_pass::types::OpenedFile {
+                file,
+                intents,
+                source,
+                answering,
+                semantic,
+                first,
+            },
+            lookup,
+            symbols,
+            capture,
         )
     }
     fn project_phase(&self) -> Result<ProjectPhase<'_>, OperatingError> {
@@ -82,7 +120,7 @@ pub fn begin(
 }
 
 impl ProgramServices {
-    pub(crate) fn new(corpus: &[ryo_values::domain::files::types::CorpusInput]) -> Self {
+    pub(crate) fn new(corpus: &[CorpusInput]) -> Self {
         Self {
             request: Arc::new(RequestIdentity::new(corpus)),
             observer: None,

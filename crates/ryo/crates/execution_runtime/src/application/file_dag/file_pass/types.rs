@@ -215,3 +215,20 @@ pub(crate) struct PassSource {
     /// The columns of each relation the host declares, by its place.
     pub(crate) hosted: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
 }
+
+/// What the pass reads of one file once its facts are open: the file, its intents and source, the partiality its rules see, its
+/// semantic session and each rule's first frontier bucket.
+pub(crate) struct OpenedFile<'a> {
+    /// The file.
+    pub(crate) file: ryo_relations::domain::relations::types::FileId,
+    /// Exactly one intent for every prepared rule.
+    pub(crate) intents: &'a [ryo_execution_domain::domain::rule_intent::types::FileRuleIntent],
+    /// The file's source text.
+    pub(crate) source: ryo_values::domain::files::types::SourceView<'a>,
+    /// Whether evaluation sees the file's physical partiality or none of it.
+    pub(crate) answering: crate::application::file_dag::program::file_session::types::Partiality,
+    /// The semantic session the file is read with.
+    pub(crate) semantic: crate::application::file_dag::program::file_session::types::SemanticSupport<'a>,
+    /// The first frontier bucket of each rule, in rule order.
+    pub(crate) first: &'a [ryo_values::domain::stored_facts::types::Bucket],
+}

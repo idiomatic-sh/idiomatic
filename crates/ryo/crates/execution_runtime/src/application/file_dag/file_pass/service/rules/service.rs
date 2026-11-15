@@ -1,7 +1,6 @@
 //! One file's rules through the planned program: its facts read once, each rule's emitted node, named outputs and frontiers,
 //! and the file finished with its named outputs' readiness.
 use crate::application::file_dag::fact_lookup::service::FactLookup;
-use crate::application::file_dag::fact_lookup::types::FileWants;
 use crate::application::file_dag::file_pass::constants::SOURCE_FACTS_INCOMPLETE;
 use crate::application::file_dag::file_pass::service::captures::service::captured_rule;
 use crate::application::file_dag::file_pass::service::inputs::service::{
@@ -12,20 +11,17 @@ use crate::application::file_dag::file_pass::service::nodes::service::{
 };
 use crate::application::file_dag::file_pass::service::{fill_roots, given_back, taken};
 use crate::application::file_dag::file_pass::types::{
-    CaptureAt, NodeAnswer, OutputCommit, OutputState, PassFile, PassInputs, PassProgram,
-    PassRequest,
+    CaptureAt, NodeAnswer, OpenedFile, OutputCommit, OutputState, PassFile, PassInputs,
+    PassProgram, PassRequest,
 };
 use crate::application::file_dag::frontiers::types::Withholdings;
 use crate::application::file_dag::program::file_session::types::{
-    CaptureContext, EmittedRoot, FileEnd, FileRules, FileRunInput, FileStop, FinishedReadiness,
+    CaptureContext, EmittedRoot, FileEnd, FileRules, FileStop, FinishedReadiness,
     Partiality, RanRule, RuleAfter, SemanticSupport,
 };
 use crate::application::file_dag::program::rule_outcome::service::{classify, readiness_of};
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::application::file_dag::publications::types::BoundTables;
-use crate::outbound::facts::errors::FactsError;
-use crate::outbound::facts::interface::FactsWorker;
-use crate::outbound::facts::types::fact_sources::value::FactSources;
 use ryo_execution_domain::domain::completion::types::ObservationAdmission;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
@@ -38,7 +34,6 @@ use ryo_execution_domain::domain::rule_intent::types::{
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::table_texts::types::Texts;
-use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::observations::service::{new_frontiers, set_frontier};
 use ryo_values::domain::plan_parts::types::{Input, StepScope};
 use ryo_values::domain::records::types::{
@@ -47,31 +42,21 @@ use ryo_values::domain::records::types::{
 use std::cell::RefCell;
 use std::sync::Arc;
 
-/// One file's rules, one after another in the program's rule order, through the planned program: the file's facts read once,
+/// One file's rules, one after another in the program's rule order, through the planned program over the file's facts, which the
+/// caller opened (`fact_lookup`'s `opened`) and read once:
 /// each rule's emitted node run by the operators, its frontiers captured, kept and committed, its steps reported to the
 /// observer, and the file finished with its named outputs' readiness. A read the facts refused stops the file as the facts' own
 /// refusal; a failed emitted node ends the file.
 pub(crate) fn run_rules(
     request: PassRequest<'_>,
     pass: &PassProgram,
-    input: FileRunInput<'_>,
+    input: OpenedFile<'_>,
+    opened: Result<FactLookup<'_, '_>, FileStop>,
     symbols: &mut Symbols,
     capture: CaptureContext<'_>,
-    facts: &mut dyn FactsWorker,
 ) -> FileRules {
     let (file, intents) = (input.file, input.intents);
-    let wants = FileWants {
-        active: input.active,
-        said: input.said,
-        recovery: input.recovery,
-    };
-    let lookup = match opened(
-        input.sources,
-        facts,
-        wants,
-        symbols,
-        request.program.demanded(),
-    ) {
+    let lookup = match opened {
         Ok(lookup) => lookup,
         Err(stop) => {
             return FileRules {
@@ -364,25 +349,4 @@ pub(crate) fn finished_readiness(at: &PassFile<'_, '_, '_, '_>) -> FinishedReadi
         }
     }
     FinishedReadiness::Observed(Arc::new(map))
-}
-
-/// Opens one file: every relation of `demanded` read, the active ones admitted. Any failure releases the rows written and stops
-/// the file.
-///
-/// # Errors
-///
-/// `Reader` when a source refused, its rows released; `Facts` with the storage's own failure otherwise.
-pub(crate) fn opened<'a, 's>(
-    sources: FactSources<'s>,
-    facts: &'a mut dyn FactsWorker,
-    wants: FileWants<'a>,
-    symbols: &mut Symbols,
-    demanded: &[Relation],
-) -> Result<FactLookup<'a, 's>, FileStop> {
-    let mut lookup = FactLookup::new(sources, facts, wants);
-    match lookup.ensure(symbols, demanded) {
-        Ok(()) => Ok(lookup),
-        Err(FactsError::Refused) => Err(FileStop::Reader),
-        Err(other) => Err(FileStop::Facts(other)),
-    }
 }

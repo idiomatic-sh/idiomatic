@@ -4,7 +4,7 @@
 
 use super::service::FactLookup;
 use super::types::FileWants;
-use crate::application::file_dag::file_pass::service::rules::service::opened;
+use super::service::opened;
 use crate::application::file_dag::program::file_session::types::FileStop;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::fixtures::fake::FactsFake;
