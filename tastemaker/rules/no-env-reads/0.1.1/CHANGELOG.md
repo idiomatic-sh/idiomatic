@@ -1,7 +1,7 @@
 # no-env-reads 0.1.1
 
 A read inside a macro's arguments is one finding, at the path, whatever the macro. The Rust
-language now reads every macro call's arguments as expressions (ryo-b1gq.27.8), so a path
+language now reads every macro call's arguments as expressions, so a path
 written there, `show!(std::env::vars_os)` or `println!("{:?}", std::env::var("X"))`, is a
 `reference` as well as `mention` tokens. 0.1.0 reported both, the path and its last token,
 as two findings for one read, and how many it reported depended on which macros the
