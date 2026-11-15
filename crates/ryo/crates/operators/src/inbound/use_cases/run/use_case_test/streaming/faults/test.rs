@@ -235,11 +235,16 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
     Ok(Observation::Faulted {
         same: agrees(&planned, &twin),
         // The engine's outcome: a refused relation before the operators' fault.
-        fault: Cow::Owned(match planned.outcome {
-            Ok(_) => String::new(),
-            Err(Outcome::Fault(fault)) => format!("{fault:?}"),
-            Err(Outcome::Refused(relation)) => format!("Refused({relation:?})"),
-        }),
+        fault: Cow::Owned(
+            planned
+                .outcome
+                .err()
+                .map(|outcome| match outcome {
+                    Outcome::Fault(fault) => format!("{fault:?}"),
+                    Outcome::Refused(relation) => format!("Refused({relation:?})"),
+                })
+                .unwrap_or_default(),
+        ),
     })
 }
 

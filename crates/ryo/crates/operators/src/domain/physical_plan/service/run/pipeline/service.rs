@@ -2,7 +2,7 @@
 //! bounded chunks, only the node's own rows held. Each stage keeps the rows it wrote before its first fault and stops there;
 //! its reader reads every row before that fault, so the earliest row's fault wins whatever the chunking (D15). A hard fault
 //! is the held plan's first: the first stage, in chain order, whose own run raises one.
-use super::super::types::{ChainFault, ChainRows, ChainStage, Push, Readied};
+use super::super::types::{ChainFault, ChainRows, ChainStage, Prepare, Push, Readied};
 use super::push::service::pushed_all;
 use super::sources::service::{
     given_back, pending_of, physical, reading, resolved_rows, right_of, rows_kinds, walked,
@@ -23,7 +23,7 @@ use crate::domain::physical_plan::types::{
 };
 use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::rows::types::{RowCount, Table};
+use ryo_values::domain::rows::types::RowCount;
 
 /// Makes `tail`'s rows by pushing the rows of the chain of streamed nodes that feeds it through each stage in turn, holding
 /// only `tail`'s rows and pending fault. A node of the chain already held in `buffers` ends the chain and is read as a source;
@@ -156,8 +156,8 @@ fn chained(
                 plan,
                 head,
                 rights: &rights,
+                nodes,
                 stage,
-                at,
                 tail: &mut output,
             },
             run,
@@ -237,24 +237,7 @@ fn retaken(
     Ok(())
 }
 
-/// What one stage's preparation reads: the plan, the chain's rows besides its stages', the stage and its place, and the tail's
-/// table.
-struct Prepare<'p, 'k, 'r> {
-    /// The plan the chain's nodes are of.
-    plan: &'p PhysicalPlan,
-    /// The head stage's source.
-    head: &'k ChainRows<'r>,
-    /// Each probe's right side read so far, in chain order.
-    rights: &'k [ChainRows<'r>],
-    /// The stage.
-    stage: ChainStage<'p>,
-    /// Its place in the chain.
-    at: usize,
-    /// The tail's table.
-    tail: &'k mut Table,
-}
-
-/// Prepares the stage at `prepare.at`, as the held plan readies a node before its rows: its output kinds from its input's,
+/// Prepares the stage `prepare.stage` of the chain `prepare.nodes`, as the held plan readies a node before its rows: its output kinds from its input's,
 /// through `stage_prepared`. A stage whose preparation faults stops before its first row, and the stages after it are
 /// prepared over its empty kinds. A probe of a shared index opens it. Answers the stage's hard fault, the chain's first.
 ///
@@ -271,10 +254,14 @@ fn prepared(
         plan,
         head,
         rights,
+        nodes,
         stage: chain_stage,
-        at,
         tail,
     } = prepare;
+    let at = nodes
+        .iter()
+        .position(|node| *node == chain_stage.node)
+        .ok_or(PortableOperatorFault::WrongOperation)?;
     let names = NameCount(name_count(run.resources.texts().symbols).0);
     let last = stages.len().saturating_sub(1);
     let (before, from) = stages.split_at_mut(at);

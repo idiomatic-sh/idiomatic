@@ -1,7 +1,8 @@
 //! The programs the streaming cases run at seam C, each as planned and as its held twin (the same plan with every node held,
 //! so none streams), and their answers with every name as its text, their feeds and a warm worker's second file.
 use super::cases::compared;
-use super::{Demand, TableInputs, TextResources, planned, ran};
+use super::demands::Demand;
+use super::{TableInputs, TextResources, planned, ran};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{Step, defines_rows, over_defines, over_nodes};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
@@ -169,7 +170,7 @@ pub(crate) fn ran_steps(
         Ok((answer, fed))
     };
     let (answer, fed) = file(&mut buffers, &mut resources)?;
-    let demands = inputs.demands();
+    let demands = inputs.after.demands.trace();
     let outcome = match demands.iter().find_map(|demand| match demand {
         Demand::Refused(relation) => Some(*relation),
         Demand::Lent(_) | Demand::Frontier | Demand::Observation => None,
