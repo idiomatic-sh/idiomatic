@@ -72,3 +72,18 @@ expected = []
 name = "pass-11"
 files = { "case.js" = "const { with: w } = { with: 4 }; w;" }
 expected = []
+
+[[cases]]
+name = "next-line-directive"
+files = { "case.js" = "function f(o) {\n  // eslint-disable-next-line no-with\n  with (o) { return x; }\n}\n" }
+expected = []
+
+[[cases]]
+name = "directive-other-rule"
+files = { "case.js" = "function f(o) {\n  // eslint-disable-next-line no-debugger\n  with (o) { return x; }\n}\n" }
+expected = [{ file = "case.js", start = 60, end = 64 }]
+
+[[cases]]
+name = "import-attributes"
+files = { "case.js" = "import data from \"./d.json\" with { type: \"json\" };\nexport default data;\n" }
+expected = []

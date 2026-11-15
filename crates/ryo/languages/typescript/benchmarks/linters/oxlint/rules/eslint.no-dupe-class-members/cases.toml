@@ -372,3 +372,73 @@ expected = []
 name = "pass-36"
 files = { "case.ts" = "class Foo { foo(a: string): string; foo(a: number): number; foo(a: any): any {} }" }
 expected = []
+
+[[cases]]
+name = "escaped-string-key"
+files = { "case.js" = "class A { [\"\\x66oo\"]() {} foo() {} }\n" }
+expected = [{ file = "case.js", start = 11, end = 19 }]
+
+[[cases]]
+name = "escaped-identifier-key"
+files = { "case.js" = "class A { \\u0066oo() {} foo() {} }\n" }
+expected = [{ file = "case.js", start = 10, end = 18 }]
+
+[[cases]]
+name = "escaped-template-key-differs"
+files = { "case.js" = "class A { [`\\u0066oo`]() {} bar() {} }\n" }
+expected = []
+
+[[cases]]
+name = "regexp-key-and-string"
+files = { "case.js" = "class A { [/x/]() {} [\"/x/\"]() {} }\n" }
+expected = [{ file = "case.js", start = 11, end = 14 }]
+
+[[cases]]
+name = "regexp-keys"
+files = { "case.js" = "class A { [/x/]() {} [/x/]() {} }\n" }
+expected = [{ file = "case.js", start = 11, end = 14 }]
+
+[[cases]]
+name = "regexp-keys-differ-in-flags"
+files = { "case.js" = "class A { [/x/g]() {} [/x/]() {} }\n" }
+expected = []
+
+[[cases]]
+name = "next-line-directive"
+files = { "case.js" = "class A {\n  // eslint-disable-next-line no-dupe-class-members\n  foo() {}\n  foo() {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "directive-on-the-redeclaration"
+files = { "case.js" = "class A {\n  foo() {}\n  // eslint-disable-next-line no-dupe-class-members\n  foo() {}\n}\n" }
+expected = [{ file = "case.js", start = 12, end = 15 }]
+
+[[cases]]
+name = "escaped-template-and-backslash-string"
+files = { "case.js" = "class A { [`\\u0066oo`]() {} [\"\\\\u0066oo\"]() {} }\n" }
+expected = []
+
+[[cases]]
+name = "private-then-public"
+files = { "case.js" = "class A { #foo; foo; }\n" }
+expected = []
+
+[[cases]]
+name = "setter-then-getter"
+files = { "case.js" = "class A { set foo(v) {} get foo() { return 1; } }\n" }
+expected = []
+
+[[cases]]
+name = "escaped-template-key"
+files = { "case.js" = "class A { [`\\u0066oo`]() {} foo() {} }\n" }
+expected = [{ file = "case.js", start = 11, end = 21 }]
+
+[[cases]]
+name = "escaped-templates"
+files = { "case.js" = "class A { [`\\u0066oo`]() {} [`\\u0066oo`]() {} }\n" }
+expected = [{ file = "case.js", start = 11, end = 21 }]
+
+[[cases]]
+name = "exponent-number-and-string"
+files = { "case.js" = "class A { [1e21]() {} [\"1e+21\"]() {} }\n" }
+expected = []
