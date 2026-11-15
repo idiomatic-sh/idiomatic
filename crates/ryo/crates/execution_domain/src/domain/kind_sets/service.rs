@@ -106,16 +106,6 @@ pub fn satisfies(
     .unwrap_or(PredicateOutcome::Fails)
 }
 
-/// The set of kinds at `place`.
-///
-/// # Panics
-///
-/// On a place no set is at: a test's place is pushed with its set, so another is a bug that must crash, not fail every kind.
-#[expect(
-    clippy::expect_used,
-    reason = "a test's place is pushed with its set; a place past the sets is a bug that must crash, not fail every kind"
-)]
-
 /// Resolve ordered names once at the file boundary; an absent spelling retains the old nonmatching behavior.
 fn vocabulary_names(
     elements: &ryo_language::domain::elements::types::Elements,

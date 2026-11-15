@@ -26,9 +26,12 @@ pub(crate) fn readiness_of(
 
 /// The answer of a root that raised `error`: unknown when its inputs were incomplete, failed otherwise.
 pub(crate) fn classify(error: OperatingError) -> RootOutcome {
-    match error {
-        OperatingError::ObservationIncomplete { .. }
-        | OperatingError::SemanticIncomplete { .. } => RootOutcome::Unknown(error),
-        other => RootOutcome::Failed(other),
+    if matches!(
+        error,
+        OperatingError::ObservationIncomplete { .. } | OperatingError::SemanticIncomplete { .. }
+    ) {
+        RootOutcome::Unknown(error)
+    } else {
+        RootOutcome::Failed(error)
     }
 }
