@@ -1308,3 +1308,21 @@ name="global-declared-in-one-function-read-in-another"
 comparison="full"
 files={"case.py"="def f():\n    global g\n    g = 1\ndef h():\n    return g\n"}
 expected=[]
+
+[[cases]]
+name="deleted-handler-target-read-after-the-handler"
+comparison="full"
+files={"case.py"="def f():\n    try:\n        pass\n    except Exception as e:\n        del e\n    print(e)\n"}
+expected=[{rule="F821", file="case.py", start=82, end=83}]
+
+[[cases]]
+name="global-declared-after-the-reading-function"
+comparison="full"
+files={"case.py"="def h():\n    return g\ndef f():\n    global g\n    g = 1\n"}
+expected=[]
+
+[[cases]]
+name="global-declared-in-function-read-at-module-level"
+comparison="full"
+files={"case.py"="def f():\n    global g\n    g = 1\nprint(g)\n"}
+expected=[]

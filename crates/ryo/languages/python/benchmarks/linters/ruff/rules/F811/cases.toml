@@ -761,3 +761,33 @@ name="handler-target-deleted-redefines-unused-assignment"
 comparison="full"
 files={"case.py"="def f():\n    e = 1\n    try:\n        pass\n    except Exception as e:\n        del e\n"}
 expected=[{rule="F811", file="case.py", start=65, end=66}]
+
+[[cases]]
+name="handler-target-redefines-unused-assignment"
+comparison="full"
+files={"case.py"="def f():\n    e = 1\n    try:\n        pass\n    except Exception as e:\n        pass\n"}
+expected=[{rule="F811", file="case.py", start=65, end=66}]
+
+[[cases]]
+name="handler-target-redefines-unused-assignment-at-module-level"
+comparison="full"
+files={"case.py"="e = 1\ntry:\n    pass\nexcept Exception as e:\n    del e\n"}
+expected=[{rule="F811", file="case.py", start=40, end=41}]
+
+[[cases]]
+name="handler-target-using-it-still-redefines-unused-assignment"
+comparison="full"
+files={"case.py"="def f():\n    e = 1\n    try:\n        pass\n    except Exception as e:\n        print(e)\n"}
+expected=[{rule="F811", file="case.py", start=65, end=66}]
+
+[[cases]]
+name="assignment-after-handler-is-not-a-redefinition"
+comparison="full"
+files={"case.py"="def f():\n    try:\n        pass\n    except Exception as e:\n        pass\n    e = 1\n"}
+expected=[]
+
+[[cases]]
+name="second-handler-target-is-not-a-redefinition"
+comparison="full"
+files={"case.py"="def f():\n    try:\n        pass\n    except Exception as e:\n        pass\n    try:\n        pass\n    except Exception as e:\n        pass\n"}
+expected=[]

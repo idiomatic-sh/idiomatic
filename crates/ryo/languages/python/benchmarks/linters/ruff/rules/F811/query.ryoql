@@ -122,7 +122,8 @@ let intervening_deletes = select p.previous as previous, p.current as current fr
 let surviving_pairs = antijoin(left=same_branch_pairs,right=intervening_deletes,left-on=["previous","current"],right-on=["previous","current"]);
 let assignment_kinds = select binding from definitions where declaration_kind = "variable";
 let old_assignments = select l.previous as previous, l.current as current from surviving_pairs as l join assignment_kinds as r on l.previous = r.binding;
-let new_assignments = select l.previous as previous, l.current as current from surviving_pairs as l join assignment_kinds as r on l.current = r.binding;
+let plain_assignment_kinds = select binding from definitions where declaration_kind = "variable" and refinement != "exception";
+let new_assignments = select l.previous as previous, l.current as current from surviving_pairs as l join plain_assignment_kinds as r on l.current = r.binding;
 let assignment_pairs = select previous, current from old_assignments as l join new_assignments as r on l.previous = r.previous and l.current = r.current;
 let non_assignment_pairs = antijoin(left=surviving_pairs,right=assignment_pairs,left-on=["previous","current"],right-on=["previous","current"]);
 let non_loop_pairs = antijoin(left=non_assignment_pairs, right=loop_variable_bindings, left-on=["current"], right-on=["binding"]);
