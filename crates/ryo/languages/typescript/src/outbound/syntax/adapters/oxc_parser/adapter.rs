@@ -63,6 +63,22 @@ impl<'a> Visit<'a> for VisitorStack<'a> {
                 token_kind: Token::PrivateIdentifierToken,
             });
         }
+        // A template with no substitution is a string: its one quasi's cooked value, which a tagged template's tag reads raw instead.
+        if let AstKind::TemplateLiteral(template) = kind
+            && template.expressions.is_empty()
+            && !self
+                .open
+                .last()
+                .is_some_and(|piece| piece.kind == Kind::Node(Node::TaggedTemplateExpression))
+            && let [quasi] = template.quasis.as_slice()
+            && let Some(cooked) = &quasi.value.cooked
+        {
+            self.decoded.push(Decoded {
+                span: template.span,
+                value: DecodedText(cooked.to_string()),
+                token_kind: Token::Template,
+            });
+        }
         if let AstKind::StringLiteral(literal) = kind {
             self.decoded.push(Decoded {
                 span: literal.span,

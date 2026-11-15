@@ -1,5 +1,6 @@
 import directives from "typescript/oxlint/eslint-directives";
 import parenthesized from "typescript/oxlint/parenthesized";
+let string_literals = select l.occurrence as occurrence, l.value as value from "string-literal" as l join "semantic-syntax" as r on l.occurrence = r.id where r.kind = "literal";
 let uses = select reference, binding, file, span, context from "binding-use";
 let reads = select reference, name, file from "binding-read";
 let named = select l.reference as reference, l.binding as binding, r.name as name, l.file as file, l.span as span, l.context as context from uses as l join reads as r on l.reference = r.reference and l.file = r.file;
@@ -41,7 +42,7 @@ let identifiers = select id, file, span from "semantic-syntax" where kind = "ide
 let names = select l.id as id, r.text as name from identifiers as l join tokens as r on l.file = r.file and l.span = r.span;
 let property_names = select l.callee as callee, r.name as method from properties as l join names as r on l.property = r.id;
 let static_names = antijoin(left=property_names, right=computed, left-on=["callee"], right-on=["callee"]);
-let literal_names = select l.callee as callee, r.value as method from properties as l join "string-literal" as r on l.property = r.occurrence;
+let literal_names = select l.callee as callee, r.value as method from properties as l join string_literals as r on l.property = r.occurrence;
 let computed_names = select l.callee as callee, l.method as method from literal_names as l join computed as r on l.callee = r.callee;
 let methods = union(left=static_names, right=computed_names);
 let mutators = select l.call as call, l.owner as owner, r.method as method from global_callees as l join methods as r on l.callee = r.callee;

@@ -1,6 +1,7 @@
 import directives from "typescript/oxlint/eslint-directives";
 import parenthesized from "typescript/oxlint/parenthesized";
 import constant_values from "typescript/oxlint/constant-values";
+let string_literals = select l.occurrence as occurrence, l.value as value from "string-literal" as l join "semantic-syntax" as r on l.occurrence = r.id where r.kind = "literal";
 let nodes = select id, file, span, kind from "semantic-syntax";
 let tokens = select file, span, text from "semantic-syntax" where kind = "identifier-token";
 let identifiers = select id, file, span from "semantic-syntax" where kind = "identifier";
@@ -8,7 +9,7 @@ let names = select l.id as id, l.file as file, l.span as span, r.text as name fr
 let then_names = select id, file, span from names where name = "then";
 let computed = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "punctuator" and r.text = "[";
 let optional = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "punctuator" and r.text = "?.";
-let then_strings = select occurrence as id from "string-literal" where value = "then";
+let then_strings = select occurrence as id from string_literals where value = "then";
 let template_literals = select id, file, span from "semantic-syntax" where kind = "template-literal";
 let then_tokens = select file, span from "semantic-syntax" where kind = "template" and matches(text, "^\x60then\x60$");
 let then_templates = select l.id as id from template_literals as l join then_tokens as r on l.file = r.file and l.span = r.span;
@@ -68,7 +69,7 @@ let callee_properties = select l.call as call, l.callee as callee, l.object as o
 let static_callees = antijoin(left=callee_properties, right=computed, left-on=["callee"], right-on=["id"]);
 let static_methods = select l.call as call, l.object as object, r.name as method from static_callees as l join names as r on l.property = r.id;
 let computed_callees = select l.call as call, l.object as object, l.property as property from callee_properties as l join computed as r on l.callee = r.id;
-let computed_methods = select l.call as call, l.object as object, r.value as method from computed_callees as l join "string-literal" as r on l.property = r.occurrence;
+let computed_methods = select l.call as call, l.object as object, r.value as method from computed_callees as l join string_literals as r on l.property = r.occurrence;
 let methods = union(left=static_methods, right=computed_methods);
 let define_calls = select call from methods where (object = "Object" or object = "Reflect") and method = "defineProperty";
 let entry_calls = select call from methods where object = "Object" and method = "fromEntries";

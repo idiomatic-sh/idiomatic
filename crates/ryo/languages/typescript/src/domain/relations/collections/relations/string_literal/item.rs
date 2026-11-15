@@ -1,4 +1,5 @@
-//! TypeScript `string_literal` rows from its standard syntax tree.
+//! TypeScript `string_literal` rows from its standard syntax tree: string literals, and template literals with no substitution,
+//! each with the value the parser decoded (a template's cooked value).
 use crate::domain::fact_notes::service::specifier;
 use crate::domain::model::types::ReadIndexes;
 use crate::domain::names::service as names;
@@ -11,7 +12,7 @@ use ryo::languages;
 pub(crate) struct StringLiteralItem;
 ryo::reads! {
  StringLiteralItem => languages::StringLiteral, model(ReadIndexes) |tree, _model, at, symbols| {
- kinds: [Kind::Node(Node::Literal)] as kind_bits,
+ kinds: [Kind::Node(Node::Literal), Kind::Node(Node::TemplateLiteral)] as kind_bits,
  given value = names::string(tree,symbols,at)?;
 
  row { occurrence: node(at), owner: value(scopes::owner(tree,at)), value: value(value), file: file, span: span(at), import: value(specifier(tree,at)) }

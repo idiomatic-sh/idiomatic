@@ -1,5 +1,6 @@
 import directives from "typescript/oxlint/eslint-directives";
 import parenthesized from "typescript/oxlint/parenthesized";
+let string_literals = select l.occurrence as occurrence, l.value as value from "string-literal" as l join "semantic-syntax" as r on l.occurrence = r.id where r.kind = "literal";
 let programs = select id, file, span from "semantic-syntax" where kind = "program";
 let body = select l.parent as program, l.child as id, l.ordinal as ordinal from "semantic-child" as l join programs as r on l.parent = r.id where l.field = "body";
 let body_rows = select l.program as program, l.id as id, l.ordinal as ordinal, r.kind as kind, r.file as file, r.span as span from body as l join "semantic-syntax" as r on l.id = r.id;
@@ -39,7 +40,7 @@ let import_sources = select l.id as statement, l.file as file, c.child as source
 let equals_references = select l.id as statement, l.file as file, c.child as reference from statements as l join "semantic-child" as c on l.id = c.parent where l.kind = "ts-import-equals-declaration" and c.field = "module-reference";
 let equals_sources = select l.statement as statement, l.file as file, c.child as source from equals_references as l join "semantic-child" as c on l.reference = c.parent where c.field = "expression";
 let sources = union(left=import_sources, right=equals_sources);
-let source_values = select l.statement as statement, l.file as file, r.value as value from sources as l join "string-literal" as r on l.source = r.occurrence;
+let source_values = select l.statement as statement, l.file as file, r.value as value from sources as l join string_literals as r on l.source = r.occurrence;
 let imported = select l.id as id, l.file as file, l.span as span, r.statement as statement from last_types as l join source_values as r on l.file = r.file and l.value = r.value;
 let path_rows = select id, file, span, id as statement from paths;
 let owned = union(left=imported, right=path_rows);

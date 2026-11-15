@@ -64,6 +64,9 @@ pub(crate) fn identifier(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -
 }
 /// The value of a string literal, decoded by the parser rather than inferred from its quotes.
 pub(crate) fn string(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Option<Symbol> {
+    if kind(tree, at) == Kind::Node(Node::TemplateLiteral) {
+        return template(tree, symbols, at);
+    }
     let token = languages::children(tree.elements, at).find(|child| {
         matches!(
             kind(tree, *child),
@@ -75,6 +78,15 @@ pub(crate) fn string(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Op
             languages::intern_derived(symbols, tree.source, value)
         }),
     )
+}
+/// A no-substitution template's cooked value, which the parser decoded on its token; none with an expression, or tagged.
+fn template(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Option<Symbol> {
+    let mut parts = nodes(tree, at);
+    let quasi = parts.next().filter(|_| parts.next().is_none())?;
+    let token = languages::children(tree.elements, quasi)
+        .find(|child| kind(tree, *child) == Kind::Token(Token::Template))?;
+    languages::decoded_at(tree.elements, token)
+        .map(|value| languages::intern_derived(symbols, tree.source, value))
 }
 /// A comment's content without delimiters.
 pub(crate) fn comment(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Symbol {
