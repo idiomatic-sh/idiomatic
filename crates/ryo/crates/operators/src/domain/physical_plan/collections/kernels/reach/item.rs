@@ -40,6 +40,9 @@ impl KernelsItem for ReachItem {
             | Lowering::Axis { .. }
             | Lowering::OrderedWalk { .. }
             | Lowering::Components { .. }
+            | Lowering::TextMap { .. }
+            | Lowering::OrderedMatch { .. }
+            | Lowering::Render { .. }
             | Lowering::Unlowered => false,
         };
         if runs { Reach::Runs } else { Reach::Skips }

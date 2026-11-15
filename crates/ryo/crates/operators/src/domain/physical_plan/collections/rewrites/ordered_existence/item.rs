@@ -309,9 +309,11 @@ fn numbered(
             }),
         Lowering::Lookup { index, select, .. } => kept(&select.kept, column)
             .zip(indexes.get(index.0))
-            .map_or(NumberProof::Unproven, |(column, index)| match index.source {
-                RowSource::Facts(relation) => stored(relation, column),
-                RowSource::Node(_) | RowSource::Tree(_) => NumberProof::Unproven,
+            .map_or(NumberProof::Unproven, |(column, index)| {
+                match index.source {
+                    RowSource::Facts(relation) => stored(relation, column),
+                    RowSource::Node(_) | RowSource::Tree(_) => NumberProof::Unproven,
+                }
             }),
         Lowering::Project { source, project } => project
             .columns

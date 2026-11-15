@@ -9,8 +9,8 @@ use crate::domain::physical_plan::collections::kernels::scan_node::item::{hold, 
 use crate::domain::physical_plan::collections::kernels::scan_roots::item::{copied, roots};
 use crate::domain::physical_plan::collections::kernels::text_map::item::{RowMapRun, mapped};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
-use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{KernelRun, NodeReaders, PlanNodeId, RowSource};
 use ryo_values::domain::rows::types::Table;
 

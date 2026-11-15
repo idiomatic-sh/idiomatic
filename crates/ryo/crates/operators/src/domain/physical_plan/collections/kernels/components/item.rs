@@ -39,6 +39,9 @@ impl KernelsItem for ComponentsItem {
             | Lowering::SeededReach { .. }
             | Lowering::Axis { .. }
             | Lowering::OrderedWalk { .. }
+            | Lowering::TextMap { .. }
+            | Lowering::OrderedMatch { .. }
+            | Lowering::Render { .. }
             | Lowering::Unlowered => false,
         };
         if runs { Reach::Runs } else { Reach::Skips }

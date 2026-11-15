@@ -165,8 +165,12 @@ fn blocks(row: KernelRow, kernels: &Kernels, rows: usize) -> u64 {
         .map(PlanNodeId)
         .collect();
     let mut buffers = FileBuffers::default();
-    #[expect(clippy::expect_used, reason = "a program that faults proves no allocation row: the panic is the failure")]
-    let _warm = emitted(&steps, &emits, &inputs, &mut resources, &mut buffers).expect("the warm file runs");
+    #[expect(
+        clippy::expect_used,
+        reason = "a program that faults proves no allocation row: the panic is the failure"
+    )]
+    let _warm =
+        emitted(&steps, &emits, &inputs, &mut resources, &mut buffers).expect("the warm file runs");
     // The warm file ends: the engine releases every node it kept, and the next file starts with their capacity.
     for node in &emits {
         buffers.release(*node);
@@ -174,7 +178,10 @@ fn blocks(row: KernelRow, kernels: &Kernels, rows: usize) -> u64 {
     let before = dhat::HeapStats::get().total_blocks;
     let measured = emitted(&steps, &emits, &inputs, &mut resources, &mut buffers);
     let after = dhat::HeapStats::get().total_blocks;
-    #[expect(clippy::expect_used, reason = "a program that faults proves no allocation row: the panic is the failure")]
+    #[expect(
+        clippy::expect_used,
+        reason = "a program that faults proves no allocation row: the panic is the failure"
+    )]
     let _measured = measured.expect("the measured file runs");
     after - before
 }
@@ -433,7 +440,9 @@ fn graph_kernels_once(
 ) -> u64 {
     use crate::domain::physical_plan::collections::kernels::components::item::cyclic;
     use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visited;
-    use crate::domain::physical_plan::collections::kernels::probe::item::{IndexBuild, ProbeScratch};
+    use crate::domain::physical_plan::collections::kernels::probe::item::{
+        IndexBuild, ProbeScratch,
+    };
     use crate::domain::physical_plan::collections::kernels::reach::item::{
         ReachScratch, Starts, reached,
     };

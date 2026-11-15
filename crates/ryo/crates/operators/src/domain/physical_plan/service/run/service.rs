@@ -121,7 +121,7 @@ fn made(
         | Lowering::TextMap { .. }
         | Lowering::OrderedMatch { .. }
         | Lowering::Render { .. } => {}
-        | Lowering::Reach { .. }
+        Lowering::Reach { .. }
         | Lowering::SeededReach { .. }
         | Lowering::Axis { .. }
         | Lowering::OrderedWalk { .. }
@@ -286,4 +286,3 @@ fn made(
     );
     Ok(())
 }
-

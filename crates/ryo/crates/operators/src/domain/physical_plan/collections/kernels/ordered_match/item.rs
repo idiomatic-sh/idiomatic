@@ -9,7 +9,7 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::ordered_match::types::OrderedParts;
 use crate::domain::physical_plan::types::InputRows;
 #[cfg(test)]
-use crate::domain::physical_plan::types::Lowering;
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::table_texts::types::Texts;
 use crate::domain::table_texts::types::derived_texts::value::DerivedTexts;
 use ryo_relations::domain::relations::types::Value;

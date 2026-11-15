@@ -10,9 +10,9 @@ use crate::domain::physical_plan::collections::kernels::distinct::item::counted;
 use crate::domain::physical_plan::collections::kernels::extend::item::{extended, kind_of};
 use crate::domain::physical_plan::collections::kernels::filter::item::{filter, keep, kept_kinds};
 use crate::domain::physical_plan::collections::kernels::group::item::{GroupScratch, grouped};
-use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visited;
 use crate::domain::physical_plan::collections::kernels::hash_index::item::emptied;
 use crate::domain::physical_plan::collections::kernels::ordered_match::item::matched;
+use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visited;
 use crate::domain::physical_plan::collections::kernels::probe::item::{
     IndexBuild, ProbeScratch, probed,
 };

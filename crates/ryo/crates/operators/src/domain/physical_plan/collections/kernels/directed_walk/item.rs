@@ -45,6 +45,9 @@ impl KernelsItem for DirectedWalkItem {
             | Lowering::SeededReach { .. }
             | Lowering::OrderedWalk { .. }
             | Lowering::Components { .. }
+            | Lowering::TextMap { .. }
+            | Lowering::OrderedMatch { .. }
+            | Lowering::Render { .. }
             | Lowering::Unlowered => false,
         };
         if runs { Reach::Runs } else { Reach::Skips }

@@ -4,9 +4,9 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::{ProbeKey, ProbeMode};
 use crate::domain::physical_plan::collections::kernels::probe::item::{IndexBuild, ProbeScratch};
 use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, SharedIndex};
-use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
+use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
     IndexKey, IndexPlace, KeyedIndex, NodeReaders, PlanNodeId, ProbeIndex,
 };

@@ -12,9 +12,9 @@ use crate::domain::contract::types::{
 };
 use crate::domain::fits_rendered::types::Fit;
 use crate::domain::patterns::types::PatternMatcher;
-#[cfg(test)]
-use crate::domain::physical_plan::types::Lowering;
 use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
+#[cfg(test)]
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::{InputRows, Resources, RowMap};
 use crate::domain::rank::types::RankLayers;
 use crate::domain::replace::types::{ReplacedText, ReplacementText};
