@@ -1,5 +1,11 @@
 # idiomatic-project
 
+## 0.3.4
+
+`manifest-placements`' `config-roles` and `manifest-roles` no longer name `idiomatic.ryo/provider-allowances`: ryo deleted that
+template (its language spec 0.4.13 places `src/tastemaker.toml` with `language-source-allowances`, which holds only `imports-allow`,
+no manifest entry), so the name matched nothing. Everything else is as in 0.3.3, which is removed with this version: no lock reads it.
+
 ## 0.3.3
 
 Places the two carve-out rules on every `tastemaker.toml` of the product, beyond its test inputs and Tastemaker's examples: `manifest-placements@0.1.0` (no one-file placement but a config role; entries and `closed = false` only in the workspace manifest or a manifest a role places, a language's own) and `manifest-excludes@0.1.0` (every exclude and allowlist path lies in a role; a test contract starts at the product's public API), with the role sets the cleanup settled. Scenarios `a-one-file-placement-in-a-side-manifest-is-reported` and `an-exclude-of-a-crate-is-reported`. Everything else is as in 0.3.2.
