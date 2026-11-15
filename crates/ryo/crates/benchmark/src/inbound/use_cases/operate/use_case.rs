@@ -122,15 +122,15 @@ impl OperateUseCase for OperateUseCaseImpl {
                     output,
                 )?)
             }
-            BenchOperation::Parity => OperationVerdict::from(self.executables.run_sealed(
-                &worker.path,
-                &RunArguments(worker_arguments(
-                    BenchOperation::Parity,
-                    &layout,
-                    &reference.path,
-                )),
-                output,
-            )?),
+            operation @ (BenchOperation::Parity
+            | BenchOperation::Cases
+            | BenchOperation::ReferenceCases) => {
+                OperationVerdict::from(self.executables.run_sealed(
+                    &worker.path,
+                    &RunArguments(worker_arguments(operation, &layout, &reference.path)),
+                    output,
+                )?)
+            }
         };
         Ok(OperationReport { verdict: answer })
     }

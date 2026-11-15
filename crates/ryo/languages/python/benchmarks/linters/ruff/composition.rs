@@ -7,10 +7,11 @@ use ryo_benchmark::domain::command_line::types::{
 };
 use ryo_benchmark::outbound::linter::interface::LinterPort as _;
 use ryo_benchmark::outbound::suite::types::ArtifactPath;
+use ryo_benchmark_contracts::domain::receipts::constants::VERIFY_CASES;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::constants::{
-    DIAGNOSTIC_RYO, MEASURE, MEASURE_ACCOUNTED_VALID, MEASURE_SCOPED, MEASURE_VALID, PROFILE_RYO,
-    RUN_RYO,
+    DIAGNOSTIC_RYO, MEASURE, MEASURE_ACCOUNTED_VALID, MEASURE_SCOPED, MEASURE_VALID, PARITY,
+    PROFILE_RYO, RUN_RYO, VERIFY_REFERENCE_CASES,
 };
 use std::{path::PathBuf, sync::Arc};
 mod certification;
@@ -39,12 +40,12 @@ pub(crate) fn run(
                 .tracing()
                 .ok_or_else(|| Error::Invalid(UNSUPPORTED_WORKER_COMMAND.into()))?,
         ),
-        Some(self::constants::VERIFY_CASES) => {
+        Some(VERIFY_CASES) => {
             let count = self::commands::verify_cases(args.map(BenchmarkArgument))?;
             writeln!(output, "{count} cases passed against both contestants")?;
             Ok(())
         }
-        Some(self::constants::VERIFY_REFERENCE_CASES) => {
+        Some(VERIFY_REFERENCE_CASES) => {
             let count = self::commands::verify_reference_cases(args.map(BenchmarkArgument))?;
             writeln!(
                 output,
@@ -60,7 +61,7 @@ pub(crate) fn run(
                 &suite_source,
             )
         }
-        Some(self::constants::PARITY) => self::parity::parity(
+        Some(PARITY) => self::parity::parity(
             &mut args.map(BenchmarkArgument),
             observations,
             &suite_source,

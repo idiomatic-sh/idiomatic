@@ -1,5 +1,5 @@
-//! Parity runs the sealed worker on its output directory and passes its output through; measure certifies against the
-//! registration it stages; correctness verifies in process and runs no worker; a failed worker fails the operation, and an
+//! Parity runs the sealed worker on its output directory and passes its output through; the two case operations run it with
+//! their verb on the reference; measure certifies against the registration it stages; correctness verifies in process and runs no worker; a failed worker fails the operation, and an
 //! absent reference tool is refused by name before anything is sealed.
 use super::fixtures::{Scenario, observe};
 use super::types::OperationVerdict;
@@ -20,6 +20,9 @@ const METRICS: &str = "{\"metric\":{}}\n";
 
 /// The requests of a parity run: the worker sealed in its output directory, then run on the reference and that directory.
 const PARITY_CALLS: &str = "[SealWorker(\"<root>/target/benchmark/fixture/lint/parity/worker\"), Run(\"<root>/target/benchmark/fixture/lint/parity/worker\", [\"parity\", \"<root>/lint\", \"<root>/target/benchmark/fixture/lint/parity\"])]";
+
+/// The requests of a cases run: the worker sealed in its output directory, then run with its verb on the reference.
+const CASES_CALLS: &str = "[SealWorker(\"<root>/target/benchmark/fixture/lint/verify-cases/worker\"), Run(\"<root>/target/benchmark/fixture/lint/verify-cases/worker\", [\"verify-cases\", \"<root>/lint\"])]";
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -50,6 +53,50 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             OperationVerdict::Failed,
             Cow::Borrowed(METRICS),
             Cow::Borrowed(PARITY_CALLS),
+        )),
+    },
+    Case {
+        name: CaseName("cases runs the sealed worker with its verb and the reference"),
+        word: Word::Succeeds,
+        input: || Scenario {
+            operation: BenchOperation::Cases,
+            tool_found: true,
+            verdict: OperationVerdict::Passed,
+        },
+        expect: Expect::Value((
+            OperationVerdict::Passed,
+            Cow::Borrowed(METRICS),
+            Cow::Borrowed(CASES_CALLS),
+        )),
+    },
+    Case {
+        name: CaseName("reference cases runs the sealed worker with its verb and the reference"),
+        word: Word::Succeeds,
+        input: || Scenario {
+            operation: BenchOperation::ReferenceCases,
+            tool_found: true,
+            verdict: OperationVerdict::Passed,
+        },
+        expect: Expect::Value((
+            OperationVerdict::Passed,
+            Cow::Borrowed(METRICS),
+            Cow::Borrowed(
+                "[SealWorker(\"<root>/target/benchmark/fixture/lint/verify-reference-cases/worker\"), Run(\"<root>/target/benchmark/fixture/lint/verify-reference-cases/worker\", [\"verify-reference-cases\", \"<root>/lint\"])]",
+            ),
+        )),
+    },
+    Case {
+        name: CaseName("a worker whose cases fail fails the operation"),
+        word: Word::Succeeds,
+        input: || Scenario {
+            operation: BenchOperation::Cases,
+            tool_found: true,
+            verdict: OperationVerdict::Failed,
+        },
+        expect: Expect::Value((
+            OperationVerdict::Failed,
+            Cow::Borrowed(METRICS),
+            Cow::Borrowed(CASES_CALLS),
         )),
     },
     Case {
