@@ -19,7 +19,9 @@ pub struct RequestExecution {
     /// Prepared frontiers of this request, one acquisition per population.
     pub(crate) frontiers: crate::application::file_dag::frontiers::cache::service::FrontierCache,
     /// The prepared program's digest port, handed to each publication scope.
-    pub(crate) digest: std::sync::Arc<dyn crate::outbound::digest::interface::DigestPort>,
+    pub(crate) digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
+    /// The program the file pass runs, planned when the program was prepared.
+    pub(crate) pass: Arc<crate::application::file_dag::file_pass::types::PassProgram>,
 }
 
 /// The arenas the cross-file observations publish their stored facts into, kept by the caller across requests.

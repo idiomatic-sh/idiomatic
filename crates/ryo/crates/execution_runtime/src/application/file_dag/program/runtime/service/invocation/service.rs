@@ -18,8 +18,8 @@ use crate::application::file_dag::program::constants::REGION_POLL;
 use crate::application::file_dag::program::runtime::types::{
     InstructionIndex, InvocationFailure, KernelInput, KernelScratch, PollMode,
 };
-use ryo_execution_domain::domain::executable_program::types::RegionId;
-use ryo_execution_domain::domain::executable_program::types::region::value::Region;
+use ryo_execution_domain::domain::interpreted_program::types::RegionId;
+use ryo_execution_domain::domain::interpreted_program::types::region::value::Region;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::Emit;
 use ryo_execution_domain::domain::operator::types::OperatorContext;

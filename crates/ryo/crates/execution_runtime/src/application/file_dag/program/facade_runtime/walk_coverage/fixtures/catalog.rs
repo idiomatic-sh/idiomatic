@@ -1,6 +1,6 @@
 //! The relation-catalog corpus: every catalog relation under every head shape.
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
+use ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::source_partitions::types::{
     PartitionRequirement, ProducerPartitions,
@@ -44,7 +44,7 @@ impl ProducerPartitions for FileSources {
     }
 }
 pub(crate) struct CompiledCorpus {
-    pub(crate) program: ExecutableProgram,
+    pub(crate) program: InterpretedProgram,
     pub(crate) walk:
         ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
 }
@@ -167,7 +167,7 @@ pub(crate) fn prepare(
     plans: &[ryo_values::domain::plans::types::Plan],
     operated: &[ryo_values::domain::plans::types::Plan],
 ) -> (
-    ExecutableProgram,
+    InterpretedProgram,
     ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
 ) {
     let bindings = vec![vec![]; plans.len()];

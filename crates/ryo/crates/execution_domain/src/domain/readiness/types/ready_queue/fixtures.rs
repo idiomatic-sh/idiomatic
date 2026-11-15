@@ -2,7 +2,7 @@
 //! queue and returns what the queue dispatched, refused and counted.
 use super::value::ReadyQueue;
 use crate::domain::{
-    executable_program::types::{RegionCount, RegionId},
+    interpreted_program::types::{RegionCount, RegionId},
     operating::errors::OperatingError,
     readiness::types::{
         ReadinessAction as Action, ReadinessCounts, ReadinessEntryCount, ReadinessEvents,

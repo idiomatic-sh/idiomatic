@@ -9,9 +9,9 @@ use ryo_execution_domain::domain::{
     },
     operating::errors::OperatingError,
     table_cells::fixtures::SMALL_SOURCE,
-    table_texts::types::Texts,
 };
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_operators::domain::table_texts::types::Texts;
 use ryo_values::domain::files::types::SourceView;
 use std::sync::Arc;
 

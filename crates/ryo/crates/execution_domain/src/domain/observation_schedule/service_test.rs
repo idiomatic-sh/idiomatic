@@ -176,7 +176,11 @@ fn subject(ask: Input) -> Result<Value, Failure> {
             schemas(&rules[1], &rules, &compiled).map(|_| Answer::Prepared)?
         }
         Ask::Following(step) => Answer::Next(following(step)?),
-        Ask::Link(plans, bindings) => link(plans, bindings).map(|_| Answer::Linked)?,
+        Ask::Link(plans, bindings) => link(
+            plans.into_iter().map(std::sync::Arc::new).collect(),
+            bindings,
+        )
+        .map(|_| Answer::Linked)?,
     })
 }
 

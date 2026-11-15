@@ -19,5 +19,3 @@ pub mod service;
 mod service_test;
 mod setup;
 pub mod types;
-#[cfg(any(test, feature = "fixtures"))]
-pub mod witness;

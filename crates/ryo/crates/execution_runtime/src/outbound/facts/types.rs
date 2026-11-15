@@ -1,22 +1,14 @@
 //! The types of the `facts` port: plain data, public fields and derives, with no constructor and
 //! no inherent impl.
 
+pub mod fact_sources;
+
 use ryo_relations::domain::relations::types::{FileId, Relation, Rows};
 
 use ryo_relations::domain::relations::types::FactColumn;
 
 use ryo_values::domain::stored_facts::types::{KeptWords, PackedWords};
 use ryo_values::domain::stored_facts::types::{PartialAt, PartialCause, PartialScope, ReadInPart};
-
-/// Whether resident fact rows remain unchanged during one file's read/keep phase.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ResidentStability {
-    /// Values, kinds, row order and population survive `rows` of any relation and `keep`,
-    /// until the next `columns_mut` or `release` call.
-    Stable,
-    /// No immutable resident snapshot is promised; callers must build invocation-local indexes.
-    Unstable,
-}
 
 /// One physical file's packed frontier, with the identity and coverage issued
 /// by the owner that captured it. The proof is required even for empty rows.

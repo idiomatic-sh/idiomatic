@@ -31,7 +31,7 @@ fn project_result(operation: &Operation, malformed: bool) -> Result<Table, Opera
         ryo_relations::domain::terms::types::NameText("function"),
     );
     let table = functions(malformed, symbol);
-    let facts = fixtures::TableFacts::new(&[(Relation::Function, &table)]);
+    let mut facts = fixtures::TableFacts::new(&[(Relation::Function, &table)]);
     let (engine, prepared) =
         fixtures::requests::prepared(inputs::plan(vec![operation.clone()]), vec![], vec![])?;
     fixtures::requests::run_prepared(
@@ -40,7 +40,7 @@ fn project_result(operation: &Operation, malformed: bool) -> Result<Table, Opera
         b"",
         &Elements::default(),
         &mut symbols,
-        &facts,
+        &mut facts,
     )
 }
 /// Canonical facts and declared projections reach the same mandatory owner, not a primitive harness.

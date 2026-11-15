@@ -1,6 +1,6 @@
 //! The types of the `operation_schema` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::table_cells::types::TreeForm;
+use ryo_operators::domain::tree_cells::types::TreeForm;
 use ryo_relations::domain::relations::types::CellKind;
 
 pub(crate) mod bindings;

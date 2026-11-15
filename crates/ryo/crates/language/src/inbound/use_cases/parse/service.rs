@@ -58,29 +58,6 @@ where
     promised
 }
 
-/// Builds the tree of the file in `table`, the worker's own: the language reads the file with its library into the builder the
-/// engine makes, and completes the table. The rows are not written here: the engine reads the tree with the readers the language
-/// answers.
-///
-/// # Errors
-///
-/// `Unsupported` when the language does not read this file, and what its library refuses.
-pub(crate) fn build_in<L>(
-    language: &L,
-    request: ParseRequest<'_>,
-    table: &mut Elements,
-    symbols: &mut Symbols,
-    requirement: CompletionRequirement,
-) -> Result<(), ParseError>
-where
-    L: ParseUseCase + ?Sized,
-{
-    if language.recognizes(&request) == Recognition::Declines {
-        return Err(ParseError::Unsupported);
-    }
-    build_recognized(language, request, table, symbols, requirement)
-}
-
 /// The language's requirement when a wanted reader looks at what completion adds; else none: no model is prepared for it.
 fn demanded<L: ParseUseCase + ?Sized>(language: &L, wanted: &[Relation]) -> CompletionRequirement {
     let mut slots = wanted
@@ -128,6 +105,55 @@ where
     language.read_tree(request, &mut builder)
 }
 
+/// Builds the tree of one file in `table`, the worker's own, completed for what the readers of `wanted` look at: the language reads
+/// the file with its library into the builder the engine makes. No row is written: the engine reads the tree with the readers the
+/// language answers.
+///
+/// # Errors
+///
+/// `Unsupported` when the language does not read this file, and what its library refuses.
+pub(crate) fn build_wanted_in<L>(
+    language: &L,
+    request: ParseRequest<'_>,
+    table: &mut Elements,
+    symbols: &mut Symbols,
+    wanted: &[Relation],
+) -> Result<(), ParseError>
+where
+    L: ParseUseCase + ?Sized,
+{
+    if language.recognizes(&request) == Recognition::Declines {
+        return Err(ParseError::Unsupported);
+    }
+    let requirement = demanded(language, wanted);
+    build_recognized(language, request, table, symbols, requirement)
+}
+
+/// Builds the tree of a file explicitly assigned to the language, completed for what the readers of `wanted` look at: no row is
+/// written.
+///
+/// # Errors
+///
+/// `Unsupported` unless the language reads the file when selected, and what its `build` answers.
+pub(crate) fn build_explicit_in<L: ParseUseCase + ?Sized>(
+    language: &L,
+    request: ParseRequest<'_>,
+    table: &mut Elements,
+    symbols: &mut Symbols,
+    wanted: &[Relation],
+) -> Result<(), ParseError> {
+    if language.recognizes_explicit(&request) == Recognition::Declines {
+        return Err(ParseError::Unsupported);
+    }
+    build_recognized(
+        language,
+        request,
+        table,
+        symbols,
+        demanded(language, wanted),
+    )
+}
+
 /// Reads one file: the language builds its tree, and the rows of the wanted relations are written into `out`.
 ///
 /// # Errors
@@ -144,13 +170,7 @@ pub(crate) fn read_in<L>(
 where
     L: ParseUseCase + ?Sized,
 {
-    build_in(
-        language,
-        request,
-        table,
-        symbols,
-        demanded(language, wanted),
-    )?;
+    build_wanted_in(language, request, table, symbols, wanted)?;
     walk_in(
         language,
         table,
@@ -172,16 +192,7 @@ pub(crate) fn read_explicit_in<L: ParseUseCase + ?Sized>(
     wanted: &[Relation],
     out: &mut dyn RowWriter,
 ) -> Result<(), ParseError> {
-    if language.recognizes_explicit(&request) == Recognition::Declines {
-        return Err(ParseError::Unsupported);
-    }
-    build_recognized(
-        language,
-        request,
-        table,
-        symbols,
-        demanded(language, wanted),
-    )?;
+    build_explicit_in(language, request, table, symbols, wanted)?;
     walk_in(
         language,
         table,
@@ -333,7 +344,7 @@ pub fn kinds_read(language: &dyn ParseEngine) -> Vec<KindBits> {
     language.reader_kinds()
 }
 
-/// Builds the tree of the file in `table`, asked of the engine's interface.
+/// Builds the whole tree of the file in `table`, completed for every reader, asked of the engine's interface.
 ///
 /// # Errors
 ///
@@ -344,7 +355,7 @@ pub fn build(
     table: &mut Elements,
     symbols: &mut Symbols,
 ) -> Result<(), ParseError> {
-    language.build_file(request, table, symbols)
+    language.build_file(request, table, symbols, all())
 }
 
 /// Reads one file and writes the rows of the wanted relations into `out`, asked of the engine's interface.

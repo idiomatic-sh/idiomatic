@@ -206,7 +206,7 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(
     // An errored rule does not refuse the request: it is refused on its own roots.
     let (_engine, prepared) = fixtures::requests::prepared_many(plans, bindings, vec![])?;
     let population = sources();
-    let facts = fixtures::TableFacts::new(&[(Relation::Function, &population)]);
+    let mut facts = fixtures::TableFacts::new(&[(Relation::Function, &population)]);
     let corpus = [CorpusInput::Available(CorpusEntry {
         path: ryo_language::domain::files::types::FilePath("errored-rule.py".into()),
         executable: ExecutablePermission::Unknown,
@@ -231,7 +231,7 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(
             semantic: None,
         },
         &mut symbols,
-        &facts,
+        &mut facts,
     )
     .rules;
     request.finish();

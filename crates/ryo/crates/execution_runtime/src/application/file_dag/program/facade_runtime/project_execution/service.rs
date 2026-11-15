@@ -58,7 +58,7 @@ pub(crate) fn open_project<'a>(
     }
     frontiers
         .ordinary
-        .validate_scope(program.program(), &required)?;
+        .validate_scope(program.program()?, &required)?;
     // The first demand of the frontiers: what preparation left packed is decoded here, before
     // the spellings are checked, so a decode refusal is recorded exactly where it used to be. The
     // scope decodes the words of one population once for every rule of its cohort.
@@ -81,10 +81,10 @@ pub(crate) fn open_project<'a>(
     let transport = scope.claim_symbols(symbols)?;
     let owner = Rc::clone(scope.owner());
     if let Some(existing) = scope.execution.get() {
-        existing.validate_project(program.program(), &required)?;
+        existing.validate_project(program.program()?, &required)?;
     } else {
         let execution = ProgramExecution::open(
-            Arc::clone(program.program()),
+            Arc::clone(program.program()?),
             Partition::Project(required.identity()),
             Rc::clone(&owner),
         );
@@ -140,26 +140,6 @@ impl ProjectRun<'_> {
             self.completion(rule)?.for_rule(RuleIndex(0)),
         )
     }
-    /// The existing runtime observer receives this run's actual bound identity.
-    #[cfg(test)]
-    pub(crate) fn observe_producer_releases(
-        &self,
-        rule: RuleIndex,
-        producer: ryo_execution_domain::domain::executable_program::types::RegionId,
-        consumers: &[ryo_execution_domain::domain::executable_program::types::RegionId],
-    ) -> Result<(), OperatingError> {
-        let state = self.execution.project_state(self.identity(rule)?);
-        self.execution
-            .observe_producer_releases(&state, producer, consumers)
-    }
-    #[cfg(test)]
-    pub(crate) fn take_producer_releases(
-        &self,
-        rule: RuleIndex,
-    ) -> Result<Vec<super::super::super::runtime::types::ProducerLeaseEvent>, OperatingError> {
-        let state = self.execution.project_state(self.identity(rule)?);
-        Ok(self.execution.take_producer_releases(&state))
-    }
     /// The rule is a declared root of its cohort: it owes the project walk one delivery, and
     /// only a declared rule's project-stage classes are admitted to the walk.
     fn declare(&self, rule: RuleIndex) {
@@ -187,15 +167,15 @@ impl ProjectRun<'_> {
         rule: RuleIndex,
         demand: RuleDemand,
     ) -> Result<
-        Vec<ryo_execution_domain::domain::executable_program::types::RegionId>,
+        Vec<ryo_execution_domain::domain::interpreted_program::types::RegionId>,
         OperatingError,
     > {
-        use ryo_execution_domain::domain::executable_program::types::InputSource;
+        use ryo_execution_domain::domain::interpreted_program::types::InputSource;
         let metadata = self.program.rule_metadata(rule)?;
         let mut roots = Vec::new();
         if demand.emit == EmitDemand::Enabled {
             if let Ok(id) = &metadata.emit_root {
-                if self.program.program().regions()[id.0].phase()
+                if self.program.program()?.regions()[id.0].phase()
                     == ryo_values::domain::plan_parts::types::StepScope::CrossFile
                 {
                     roots.push(*id);
@@ -210,12 +190,12 @@ impl ProjectRun<'_> {
                 match &root.source {
                     Ok(InputSource::Region(id)) => roots.push(*id),
                     Ok(InputSource::Observation(
-                        ryo_execution_domain::domain::executable_program::types::ObservationPlace(
+                        ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(
                             slot,
                         ),
                     )) => {
                         if let Some(Ok(id)) =
-                            self.program.program().observation_regions().get(*slot)
+                            self.program.program()?.observation_regions().get(*slot)
                         {
                             roots.push(*id);
                         }
@@ -227,23 +207,6 @@ impl ProjectRun<'_> {
         }
         Ok(roots)
     }
-    #[cfg(test)]
-    pub(crate) fn rule(
-        &mut self,
-        rule: RuleIndex,
-        demand: RuleDemand,
-        symbols: &mut ryo_language::domain::symbols::types::Symbols,
-    ) -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
-        let roots = self.roots(rule, demand)?;
-        let identity = self.identity(rule)?;
-        let state = self.execution.project_state(identity);
-        if !roots.is_empty() {
-            self.declare(rule);
-        }
-        let outcome = self.deliver(&state, rule, demand, &roots, symbols);
-        self.delivered(rule);
-        outcome
-    }
 }
 
 pub(crate) fn evaluate_roots<E>(
@@ -254,7 +217,7 @@ pub(crate) fn evaluate_roots<E>(
     Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>,
     E,
 > {
-    use ryo_execution_domain::domain::executable_program::types::RegionId;
+    use ryo_execution_domain::domain::interpreted_program::types::RegionId;
     enum RootSet {
         Pending(Vec<RegionId>),
         Prepared,

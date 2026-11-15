@@ -4,7 +4,6 @@ use super::super::invocation::service::continuation;
 use super::super::{InvocationOutcome, Poll, ProgramExecution};
 use super::super::{KernelAdmission, KernelPermit, ReadySelection};
 use crate::application::file_dag::program::admission::service::AdmittedInput;
-use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::admission::service::Representation;
 use crate::application::file_dag::program::admission::types::Emptiness;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
@@ -13,8 +12,8 @@ use crate::application::file_dag::program::runtime::types::Submission;
 use crate::application::file_dag::program::runtime::types::{
     InstructionIndex, PollMode, StageProgress,
 };
-use ryo_execution_domain::domain::executable_program::types::DemandAction;
-use ryo_execution_domain::domain::executable_program::types::InputId;
+use ryo_execution_domain::domain::interpreted_program::types::DemandAction;
+use ryo_execution_domain::domain::interpreted_program::types::InputId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::contract::types::PreflightOrder;
 
@@ -157,39 +156,6 @@ impl ProgramExecution {
             // Observe the runtime obligation before the callback can omit it.
             // Schema and scope admission above established valid source geometry;
             // no PreparedWalk class or submission result selects this inventory.
-            if tracing::enabled!(target: crate::application::file_dag::program::constants::WALK_TARGET, tracing::Level::TRACE)
-                && region.phase() == ryo_values::domain::plan_parts::types::StepScope::PerFile
-            {
-                use ryo_values::domain::{
-                    plan_parts::types::{Input, RepeatedRows},
-                    plans::types::Operation,
-                };
-                let relation = match &first.operation() {
-                    Operation::Select {
-                        from: Input::Relation(relation),
-                        ..
-                    }
-                    | Operation::Project {
-                        from: Input::Relation(relation),
-                        distinct: RepeatedRows::Kept,
-                        ..
-                    } => Some(*relation),
-                    _ => None,
-                };
-                if let (Partition::File(file), Some(relation)) = (&self.partition, relation) {
-                    let population = admitted
-                        .first()
-                        .ok_or_else(|| OperatingError::MissingInput { position: 1 })
-                        .and_then(|input| input.population(&self.owner));
-                    // Log the complete proof result: an invalid proof cannot silently
-                    // disappear from diagnostics or change execution error ordering.
-                    tracing::trace!(target: crate::application::file_dag::program::constants::WALK_TARGET,
-                        event = crate::application::file_dag::program::constants::WALK_READY,
-                        logical = first.logical().0, region = id.0, relation = ?relation,
-                        phase = ?region.phase(), file = file.file().0,
-                        generation = ?self.generation.diagnostic_address(), population = ?population);
-                }
-            }
             let joined = kernels
                 .ready(&ReadySelection { permit: &permit }, &admitted, context)
                 .map_err(InvocationFailure::Semantic)?;

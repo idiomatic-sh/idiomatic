@@ -32,6 +32,12 @@ impl MatchingPort for MatchingFake {
     ) -> Result<std::ops::ControlFlow<()>, MatchingError> {
         MatchingUseCaseImpl::new().visit_regex_captures(regex, text, name, each)
     }
+
+    fn semantics(
+        &self,
+    ) -> &dyn ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase {
+        &MatchingUseCaseImpl
+    }
 }
 
 #[cfg(test)]

@@ -116,7 +116,7 @@ pub(super) fn acquire_pair(
         .admit_view(plan, owner, &[&left, &right])
         .unwrap();
     let symbols = ryo_language::domain::symbols::types::Symbols::default();
-    let texts = ryo_execution_domain::domain::table_texts::types::Texts {
+    let texts = ryo_operators::domain::table_texts::types::Texts {
         symbols: &symbols,
         source: ryo_values::domain::files::types::SourceView(&[]),
         paths: &[],

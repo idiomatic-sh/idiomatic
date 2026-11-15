@@ -1,5 +1,4 @@
 //! Test-only observations of actual owner backing and selection state.
-use crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
 use crate::application::file_dag::derived::owner::service::*;
 use crate::application::file_dag::derived::population::service::PopulationId;
 use ryo_derived::domain::request::types::DerivedKind;
@@ -12,34 +11,7 @@ pub struct IndexObservation {
     pub available: bool,
 }
 impl DerivedOwner {
-    /// The scoped builds counted, and the storage of the last one.
-    pub fn scoped_observation(&self) -> (usize, Weak<DerivedStorage>) {
-        (
-            self.next_scope.get().0,
-            self.last_scoped_storage.borrow().clone(),
-        )
-    }
 
-    /// The counts the resource fixture reads.
-    ///
-    /// # Panics
-    ///
-    /// When the owner has no installed backend: the fixture reads a configured owner only.
-    #[expect(
-        clippy::expect_used,
-        reason = "a fixture reads the counts of an owner its proof configured: none is a broken setup that fails the proof"
-    )]
-    pub fn resource_fixture_counts(
-        &self,
-    ) -> crate::application::file_dag::derived::owner::fixtures::resources::Snapshot {
-        let backend = self.backend.borrow();
-        let cache = backend.as_ref().expect("configured actual owner");
-        crate::application::file_dag::derived::owner::fixtures::resources::Snapshot {
-            graph_builds: cache.graph_counts.builds.0,
-            graph_reuses: cache.graph_counts.reuses.0,
-            graph_early_stops: cache.graph_counts.early_stops.0,
-        }
-    }
     /// What the owner's index acquisitions observed.
     pub fn index_observation(&self) -> IndexObservation {
         self.backend
@@ -97,53 +69,5 @@ impl DerivedOwner {
             state.optional_bytes.0,
             state.unique_bytes.0,
         )
-    }
-    /// The observation follows one qualified producer's admitted populations.
-    /// Ambiguous matching requirements are refused rather than picking a view.
-    ///
-    /// # Errors
-    ///
-    /// [`OperatingError::WrongOperation`] when more than one retained view of `kind` matches the populations.
-    pub fn population_view_witness(
-        &self,
-        populations: &[PopulationId],
-        kind: DerivedKind,
-    ) -> Result<
-        Option<crate::application::file_dag::derived::owner::witness::service::BackingWitness>,
-        OperatingError,
-    > {
-        let state = self.state.borrow();
-        let mut matching = state.entries.iter().filter(|(key, entry)| {
-            entry._plan.kind == kind
-                && key.populations[..usize::from(key.len.0)]
-                    .iter()
-                    .any(|population| populations.contains(population))
-        });
-        let witness = matching.next().map(|(_, entry)| {
-            crate::application::file_dag::derived::owner::witness::service::BackingWitness::new(
-                entry.weak.clone(),
-            )
-        });
-        if matching.next().is_some() {
-            return Err(OperatingError::WrongOperation);
-        }
-        Ok(witness)
-    }
-    /// The backing witness of the retained view of `kind`, when one is retained.
-    pub fn view_witness(
-        &self,
-        kind: DerivedKind,
-    ) -> Option<crate::application::file_dag::derived::owner::witness::service::BackingWitness>
-    {
-        self.state
-            .borrow()
-            .entries
-            .values()
-            .find(|entry| entry._plan.kind == kind)
-            .map(|entry| {
-                crate::application::file_dag::derived::owner::witness::service::BackingWitness::new(
-                    entry.weak.clone(),
-                )
-            })
     }
 }

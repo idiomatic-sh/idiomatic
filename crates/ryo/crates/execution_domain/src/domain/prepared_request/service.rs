@@ -26,7 +26,10 @@ pub fn assemble(
         .iter()
         .map(|rule| schemas(rule, rules, &borrowed).map(|prepared| prepared.bindings))
         .collect::<Result<Vec<_>, _>>()?;
-    let linked = link(plans, resolved)?;
+    let linked = link(
+        plans.into_iter().map(std::sync::Arc::new).collect(),
+        resolved,
+    )?;
     Ok(Compiled {
         plans: linked.plans,
         bindings,

@@ -11,7 +11,7 @@ fn semantic_failure_discards_every_after_success_row() {
         let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
         let table = rows(second);
         let elements = ryo_language::domain::elements::types::Elements::default();
-        let facts = function_rows(&table);
+        let mut facts = function_rows(&table);
         let mut symbols = Symbols::default();
         let intents = [FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
@@ -22,7 +22,7 @@ fn semantic_failure_discards_every_after_success_row() {
             &request,
             FileRun::of(&intents, &elements),
             &mut symbols,
-            &facts,
+            &mut facts,
         );
         assert!(
             matches!(
@@ -44,7 +44,7 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
         let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
         let table = rows((1, 2));
         let elements = ryo_language::domain::elements::types::Elements::default();
-        let facts = function_rows(&table);
+        let mut facts = function_rows(&table);
         let mut symbols = Symbols::default();
         let intents = [FileRuleIntent::Run {
             diagnostic,
@@ -55,7 +55,7 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
             &request,
             FileRun::of(&intents, &elements),
             &mut symbols,
-            &facts,
+            &mut facts,
         );
         let Ok(RootOutcome::Complete(retained)) = root(ran(&mut rules, 0)) else {
             panic!("successful {diagnostic:?} publication")

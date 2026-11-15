@@ -20,3 +20,14 @@ pub(crate) fn evaluate(
     append(row, appended, joined);
     driver.emit(joined)
 }
+
+/// The one lowering of an extension: its values and bindings, for the `extend` kernel.
+pub(crate) fn lower(
+    values: &[ryo_values::domain::plan_parts::types::Operand],
+    bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
+) -> super::types::ExtendParts {
+    super::types::ExtendParts {
+        values: values.to_vec(),
+        bindings: bindings.to_vec(),
+    }
+}

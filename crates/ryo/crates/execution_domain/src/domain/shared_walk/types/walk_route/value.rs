@@ -33,7 +33,7 @@ pub enum WalkBarrier {
 /// The barrier that keeps an operation out of the shared walk, if any.
 pub fn source_barrier(
     operation: &ryo_values::domain::plans::types::Operation,
-    inputs: &[crate::domain::executable_program::types::InputSource],
+    inputs: &[crate::domain::interpreted_program::types::InputSource],
 ) -> WalkBarrier {
     use ryo_values::domain::plans::service::{inputs_of, kind_of};
     use ryo_values::domain::query_operators::types::OperationKind;
@@ -47,7 +47,7 @@ pub fn source_barrier(
             Input::Step(_)
                 if matches!(
                     inputs.first(),
-                    Some(crate::domain::executable_program::types::InputSource::Observation(_))
+                    Some(crate::domain::interpreted_program::types::InputSource::Observation(_))
                 ) =>
             {
                 WalkBarrier::Observation

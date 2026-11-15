@@ -1,6 +1,6 @@
 //! The support of the `fusion` cases.
 use super::super::super::super::fixtures::operations::corpus::Corpus;
-use ryo_execution_domain::domain::executable_program::{
+use ryo_execution_domain::domain::interpreted_program::{
     fusion::types::{Fusibility, Ineligible},
     types::LogicalInstruction,
 };

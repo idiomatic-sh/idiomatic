@@ -1,10 +1,10 @@
 //! Project populations stay separate by rule, payload and reached region.
-use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
 use crate::application::cross_file::fixtures::evaluation::count_findings;
 use crate::application::cross_file::fixtures::evaluation::evaluate_fixture;
 use crate::application::cross_file::fixtures::frontier_rows;
+use crate::application::cross_file::fixtures::project_calls::ProjectCalls;
 use crate::application::cross_file::fixtures::todo;
 use crate::application::cross_file::fixtures::world_with;
 use crate::application::cross_file::fixtures::world_with_applicability;

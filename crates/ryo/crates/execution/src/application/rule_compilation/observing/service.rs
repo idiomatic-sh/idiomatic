@@ -113,7 +113,7 @@ pub(super) fn prefix(below: &[Option<Prefix>], operation: &Operation) -> Option<
 /// Grouping predicates without origin IDs does not make their owners' error provenance interchangeable.
 pub(crate) fn compiled(
     rules: &[RuleSpec],
-    plans: &[Plan],
+    plans: &[std::sync::Arc<Plan>],
     bindings: &[Vec<ParameterBinding>],
     hosted: &[HostRelation],
     digest: &dyn DigestPort,
@@ -183,7 +183,7 @@ pub(crate) fn compiled(
 /// decide whether a repeated shape is semantically interchangeable.
 pub(super) fn subplans(
     rules: &[RuleSpec],
-    plans: &[Plan],
+    plans: &[std::sync::Arc<Plan>],
     bindings: &[Vec<ParameterBinding>],
     hosted: &[HostRelation],
     digest: &dyn DigestPort,

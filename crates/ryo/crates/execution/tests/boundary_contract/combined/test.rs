@@ -3,7 +3,7 @@ use super::fixtures::{COLLECTED, answered, over_a_shared_node, project, root_tex
 use crate::boundary_fixture::fixtures::{
     FileRun, authored_request, corpus, engine, run_file, source,
 };
-use crate::file_intents::fixtures::{named_request, partial};
+use crate::file_intents::fixtures::{consumer_before_its_producer_request, named_request, partial};
 use crate::shared_walk::fixtures::{Selector, compared, selection, text, tree};
 use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
@@ -40,7 +40,7 @@ fn shared_node_with_a_skipped_and_a_failed_rule() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
-    let facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let intents = [
         FileRuleIntent::Skipped(ApplicabilityReason::DiagnosticNotApplicable),
@@ -51,12 +51,34 @@ fn shared_node_with_a_skipped_and_a_failed_rule() {
         &request,
         FileRun::of(&intents, &elements),
         &mut Symbols::default(),
-        &facts,
+        &mut facts,
     );
     request.finish();
     assert_eq!(
         answered(rules),
         "rule 1: complete Table { kinds: [Node], cells: [Node(NodeId(2))], count: RowCount(1) }; ran, 0 captures\nrule 2: failed Table(NoSuchColumn { index: 99 }); unreached\nfile: unfinished\n",
+        "the answers main gave"
+    );
+}
+
+#[test]
+fn a_failing_first_rule_ends_the_file() {
+    let program = over_a_shared_node(&[Some(project(99)), None]);
+    let corpus = corpus();
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
+    let table = source();
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let rules = run_file(
+        &request,
+        FileRun::of(&[COLLECTED, COLLECTED], &elements),
+        &mut Symbols::default(),
+        &mut facts,
+    );
+    request.finish();
+    assert_eq!(
+        answered(rules),
+        "rule 0: failed Table(NoSuchColumn { index: 99 }); unreached\nfile: unfinished\n",
         "the answers main gave"
     );
 }
@@ -101,7 +123,7 @@ fn partial_read_with_an_antijoin_and_an_absence() {
         count: RowCount(0),
         cells: vec![],
     };
-    let facts = TableFacts::new(&[
+    let mut facts = TableFacts::new(&[
         (Relation::Function, &functions),
         (Relation::Comment, &comments),
     ]);
@@ -115,7 +137,7 @@ fn partial_read_with_an_antijoin_and_an_absence() {
             ..FileRun::of(&[COLLECTED, COLLECTED], &elements)
         },
         &mut Symbols::default(),
-        &facts,
+        &mut facts,
     );
     request.finish();
     assert_eq!(
@@ -133,7 +155,7 @@ fn observation_only_demand_beside_a_running_rule() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
-    let facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let intents = [
         FileRuleIntent::Run {
@@ -147,7 +169,7 @@ fn observation_only_demand_beside_a_running_rule() {
         &request,
         FileRun::of(&intents, &elements),
         &mut Symbols::default(),
-        &facts,
+        &mut facts,
     );
     request.finish();
     assert_eq!(
@@ -170,13 +192,13 @@ fn capture_storage_failure_after_a_shared_node() {
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     // The facts serve the shared node's rows and refuse to keep any captured frontier.
     let table = source();
-    let facts = TableFacts::new(&[(Relation::Function, &table)]).refusing_keep();
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]).refusing_keep();
     let elements = ryo_language::domain::elements::types::Elements::default();
     let rules = run_file(
         &request,
         FileRun::of(&[COLLECTED, COLLECTED], &elements),
         &mut Symbols::default(),
-        &facts,
+        &mut facts,
     );
     request.finish();
     assert_eq!(
@@ -223,7 +245,7 @@ fn failing_pipeline_stage_with_an_earlier_failing_stage_on_a_later_row() {
             ..FileRun::of(&[COLLECTED], &elements)
         },
         &mut symbols,
-        &TableFacts::new(&[]),
+        &mut TableFacts::new(&[]),
     );
     request.finish();
     assert_eq!(
@@ -256,7 +278,7 @@ fn project_root_shared_by_two_consumers_with_one_failing() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
-    let facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     let mut file = run_file(
@@ -266,7 +288,7 @@ fn project_root_shared_by_two_consumers_with_one_failing() {
             ..FileRun::of(&[COLLECTED, COLLECTED], &elements)
         },
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     let mut text = String::new();
     let mut stored = Vec::new();
@@ -323,5 +345,33 @@ fn project_root_shared_by_two_consumers_with_one_failing() {
         text,
         "project rule 0: complete Table { kinds: [File], cells: [File(FileId(0))], count: RowCount(1) }\nproject rule 1: failed Table(NoSuchColumn { index: 99 })\n",
         "the answers main gave"
+    );
+}
+
+/// Rules run in dependency order, not in the order they are written: the producer (rule 1, a capture, served at the second
+/// stage) runs before its consumer (rule 0, a bound input, served at the fourth), so the producer's refusal comes first.
+/// Each refusal is its rule's alone: the file runs on to the consumer and finishes.
+#[test]
+fn a_producer_runs_before_the_consumer_written_before_it() {
+    let program = engine()
+        .prepare(consumer_before_its_producer_request())
+        .expect("a consumer written before its producer");
+    let corpus = corpus();
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
+    let table = source();
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let rules = run_file(
+        &request,
+        FileRun::of(&[COLLECTED, COLLECTED], &elements),
+        &mut Symbols::default(),
+        &mut facts,
+    );
+    request.finish();
+    assert_eq!(
+        answered(rules),
+        "rule 1: withheld; stopped Operating(NotServedUntil(ServedAt(2)))\n\
+         rule 0: withheld; stopped Operating(NotServedUntil(ServedAt(4)))\n\
+         file: finished\n"
     );
 }

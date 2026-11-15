@@ -139,3 +139,66 @@ pub(crate) struct ProjectMaking<'a> {
     /// The rules' ids.
     pub ids: &'a [ryo_values::domain::runs::types::RuleId],
 }
+
+/// What core read of a file before its rules run: the language port that walks it, its path, what core said of its own rows, how
+/// much of it is whole and which relations are admitted.
+#[derive(Clone, Copy)]
+pub(crate) struct FileRead<'a> {
+    /// The port the language that read the file is reached through.
+    pub language: &'a dyn crate::outbound::language::interface::LanguagePort,
+    /// The file's path, relative to the root.
+    pub path: &'a ryo_language::domain::files::types::FilePath,
+    /// What core said is read in part of a failure.
+    pub said: &'a [ryo_values::domain::stored_facts::types::ReadInPart],
+    /// Whether what was read is the whole file or a recovery.
+    pub recovery: ryo_execution::inbound::use_cases::metadata::interface::Recovery,
+    /// The relations admitted, which count towards the file's partiality.
+    pub active: &'a [ryo_relations::domain::relations::types::Relation],
+    /// The engine's own rows the file's rules may read.
+    pub engine: EngineFile<'a>,
+}
+
+/// The engine's own rows of a file, before they are read: which the file's rules ask for, its executable bit as the input edge
+/// gave it, and the detail of a disk-read failure, when that is why the file has no source.
+#[derive(Clone, Copy)]
+pub(crate) struct EngineFile<'a> {
+    /// Which engine rows the file's rules ask for.
+    pub asked: crate::domain::reading::types::EngineAsked,
+    /// The file's executable bit, as the input edge gave it.
+    pub executable: ryo_values::domain::files::types::ExecutablePermission,
+    /// What the disk said when it could not be read.
+    pub failure: Option<crate::domain::reading::types::FailureDetail<'a>>,
+}
+
+/// The engine's own rows of a file, as the source of them: it writes those the run demands of what the file's rules ask for.
+pub(crate) struct EngineSource<'a> {
+    /// The relations the engine makes: the catalog's last.
+    pub serves: &'a [ryo_relations::domain::relations::types::Relation],
+    /// Which of them the file's rules ask for.
+    pub asked: crate::domain::reading::types::EngineAsked,
+    /// The file.
+    pub file: ryo_relations::domain::relations::types::FileId,
+    /// Its bytes, whose lines are counted.
+    pub bytes: &'a ryo_values::domain::files::types::FileBytes,
+    /// Its executable bit, as the input edge gave it.
+    pub executable: ryo_values::domain::files::types::ExecutablePermission,
+    /// What the disk said when it could not be read.
+    pub failure: Option<crate::domain::reading::types::FailureDetail<'a>>,
+}
+
+/// The language that read a file, as the source of its rows and its tree: it walks the file for what the run asks, admits what it
+/// wrote, and keeps the refusal it met for core to raise unchanged.
+pub(crate) struct LanguageSource<'a> {
+    /// The port the language is reached through.
+    pub language: &'a dyn crate::outbound::language::interface::LanguagePort,
+    /// Which linked language read the file.
+    pub number: ryo_values::domain::stored_facts::types::LanguageNumber,
+    /// The file as the language read it.
+    pub file: crate::outbound::language::types::FileToRead<'a>,
+    /// The tree the language read the file into, the worker's own.
+    pub tree: &'a mut ryo_language::domain::elements::types::Elements,
+    /// The relations a language's walk makes: every relation but the engine's.
+    pub serves: &'a [ryo_relations::domain::relations::types::Relation],
+    /// The refusal of the language's output, kept with its reason.
+    pub refused: &'a mut Option<FileAnalysisError>,
+}

@@ -82,7 +82,7 @@ pub(super) fn wanting(
     matching: &dyn MatchingPort,
     language: &dyn LanguagePort,
     rules: &[RuleSpec],
-    plans: &[Plan],
+    plans: &[&Plan],
     ids: &[RuleId],
 ) -> Result<Wanting, LintError> {
     let placement = kernel_metadata().decide(&scopes_of(rules));

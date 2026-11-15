@@ -169,7 +169,7 @@ pub(crate) fn buckets_of(
 
 /// The first bucket of each rule's frontier: the findings have bucket zero.
 #[must_use]
-pub(crate) fn first_buckets(plans: &[Plan]) -> Vec<Bucket> {
+pub(crate) fn first_buckets(plans: &[&Plan]) -> Vec<Bucket> {
     let mut first = Vec::with_capacity(plans.len());
     let mut next = Bucket(1);
     for plan in plans {

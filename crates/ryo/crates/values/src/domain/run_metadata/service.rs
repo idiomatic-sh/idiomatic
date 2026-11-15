@@ -16,8 +16,8 @@ use crate::domain::{
 use ryo_relations::domain::relations::{service::provenance_of, types::Provenance};
 
 #[must_use]
-pub fn from_plans(plans: &[Plan]) -> Vec<RuleRunMetadata> {
-    plans.iter().map(from_plan).collect()
+pub fn from_plans<P: std::borrow::Borrow<Plan>>(plans: &[P]) -> Vec<RuleRunMetadata> {
+    plans.iter().map(|plan| from_plan(plan.borrow())).collect()
 }
 
 fn from_plan(plan: &Plan) -> RuleRunMetadata {

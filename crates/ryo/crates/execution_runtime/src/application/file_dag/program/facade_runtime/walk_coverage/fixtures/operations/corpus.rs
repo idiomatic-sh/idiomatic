@@ -2,7 +2,7 @@
 use super::super::plan;
 use super::heads::{FUNCTION, ROW_KEY, TEXT_A, equal, from, operations};
 use super::sources::Sources;
-use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
+use ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram;
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation,
 };
@@ -121,7 +121,7 @@ pub(crate) fn shapes() -> Vec<Plan> {
     plans
 }
 pub(crate) struct Corpus {
-    pub program: ExecutableProgram,
+    pub program: InterpretedProgram,
     pub walk: ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
 }
 /// Every variant and shape through the normal operator, graph, program and walk compilers.
@@ -167,7 +167,7 @@ pub(crate) fn compiled_operations() -> Corpus {
 pub(crate) fn compile_program(
     plans: &[Plan],
     bindings: &[Vec<ParameterBinding>],
-) -> ExecutableProgram {
+) -> InterpretedProgram {
     let hosted = Vec::new();
     let operators = crate::application::file_dag::service::prepare_with_schemas(
         plans,

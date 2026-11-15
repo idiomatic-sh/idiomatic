@@ -7,9 +7,7 @@ use ryo_execution_store::application::file_dag::relations::types::{
     ProducerCapacity, ReuseEligibility,
 };
 use ryo_execution_store::application::file_dag::route_counts::profile::service::RouteProfile;
-use ryo_execution_store::outbound::route_counts::interface::RouteCountsPort;
 use std::rc::Rc;
-use std::sync::Arc;
 
 /// The request's derived views as a prepared program uses them: it binds each operator's derived views once, and opens
 /// the relation owner of every file and project scope. It lends no access and acquires no view.
@@ -35,9 +33,5 @@ impl ProgramDerived {
         routes: RouteProfile,
     ) -> Rc<RelationOwner> {
         open_program_owner(producers, self.0.clone(), reuse, routes)
-    }
-    /// The format route accounting writes in, when the edge composed one.
-    pub(crate) fn routes(&self) -> Option<Arc<dyn RouteCountsPort>> {
-        self.0.routes()
     }
 }

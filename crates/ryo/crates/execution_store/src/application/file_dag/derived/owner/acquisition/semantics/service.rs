@@ -7,7 +7,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::derived_fault;
 use ryo_execution_domain::domain::operator::contract::failure::types::FailureLatch;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_execution_domain::domain::table_texts::types::derived_texts::value::DerivedTexts;
+use ryo_operators::domain::table_texts::types::derived_texts::value::DerivedTexts;
 use std::{cell::RefCell, sync::Arc};
 
 use super::semantic_rows::{types::AdmittedRows, types::CanonicalTexts};
@@ -43,10 +43,10 @@ pub(crate) fn build(
                     return Err(OperatingError::WrongOperation);
                 };
                 let form = match tree.form {
-                    ryo_execution_domain::domain::table_cells::types::TreeForm::Elements => {
+                    ryo_operators::domain::tree_cells::types::TreeForm::Elements => {
                         ryo_derived::domain::native::types::NativeForm::Elements
                     }
-                    ryo_execution_domain::domain::table_cells::types::TreeForm::Edges => {
+                    ryo_operators::domain::tree_cells::types::TreeForm::Edges => {
                         ryo_derived::domain::native::types::NativeForm::Edges
                     }
                 };

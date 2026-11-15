@@ -191,12 +191,12 @@ fn bound(plans: &[ryo_values::domain::plans::types::Plan]) -> PreparedWalk {
     )
     .expect("the plans partition");
     let graph = crate::domain::file_program::service::compile_prepared(plans, &operators);
-    let program = crate::domain::executable_program::service::compile(
+    let program = crate::domain::interpreted_program::service::compile(
         plans,
         graph,
         &partitions,
         &operators,
-        crate::domain::matching::types::PatternMatcher(
+        ryo_operators::domain::patterns::types::PatternMatcher(
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
         ),
     )

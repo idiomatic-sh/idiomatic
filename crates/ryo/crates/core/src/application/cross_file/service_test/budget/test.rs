@@ -1,10 +1,10 @@
 //! The memory budget stops a later population, and a refused frontier keeps its compiled source.
 use super::fixtures::{GrowingMemory, ScriptedMemory};
-use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
 use crate::application::cross_file::fixtures::evaluation::evaluate_rules;
 use crate::application::cross_file::fixtures::frontier_rows;
+use crate::application::cross_file::fixtures::project_calls::ProjectCalls;
 use crate::application::cross_file::fixtures::service;
 use crate::application::cross_file::fixtures::world_with;
 use crate::application::cross_file::fixtures::world_with_applicability;

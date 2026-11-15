@@ -1,0 +1,184 @@
+//! The program the engine builds node by node and the planner reads: every rule's nodes, merged where equal, each rule's
+//! emitted node and the consumers that are not node readers.
+
+use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::physical_plan::types::{
+    Emitted, LogicalNode, PlanInput, PlanNodeId, RuleOrdinal,
+};
+
+/// A logical program. The root kinds of its nodes are the engine's: it derives them from the kind tests the plans write.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
+/// let program = LogicalProgram::new();
+/// assert_eq!(format!("{program:?}").is_empty(), false);
+/// ```
+#[derive(Clone, Debug, Default)]
+pub struct LogicalProgram<'p> {
+    /// The nodes, each reading only earlier ones.
+    nodes: Vec<LogicalNode<'p>>,
+    /// Each rule's emitted node, in rule order.
+    emits: Vec<Emitted>,
+    /// The consumers that read no node: frontier captures, observation roots, publication.
+    holds: Vec<PlanNodeId>,
+}
+
+impl<'p> LogicalProgram<'p> {
+    /// A program with no node.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
+    /// use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList, RuleOrdinal};
+    /// use ryo_relations::domain::relations::types::Relation;
+    /// use ryo_values::domain::plan_parts::types::{Input, StepScope};
+    /// use ryo_values::domain::plans::types::Operation;
+    /// let operation = Operation::Select { from: Input::Relation(Relation::Function), comparisons: Vec::new(), kept: Vec::new() };
+    /// let inputs = [PlanInput::Relation(Relation::Function)];
+    /// let mut program = LogicalProgram::new();
+    /// let node = program.node(LogicalNode {
+    ///     operation: &operation,
+    ///     inputs: PlanInputList(&inputs),
+    ///     bindings: NodeBindings(&[]),
+    ///     scope: StepScope::PerFile,
+    /// });
+    /// program.emit(RuleOrdinal(0), node);
+    /// program.hold(node);
+    /// assert_eq!(node.0, 0);
+    /// ```
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            nodes: Vec::new(),
+            emits: Vec::new(),
+            holds: Vec::new(),
+        }
+    }
+
+    /// Appends a node whose `PlanInput::Node` inputs are all earlier ids; answers its id. A node that reads a later one is
+    /// refused by `plan`, not here.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
+    /// use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList, RuleOrdinal};
+    /// use ryo_relations::domain::relations::types::Relation;
+    /// use ryo_values::domain::plan_parts::types::{Input, StepScope};
+    /// use ryo_values::domain::plans::types::Operation;
+    /// let operation = Operation::Select { from: Input::Relation(Relation::Function), comparisons: Vec::new(), kept: Vec::new() };
+    /// let inputs = [PlanInput::Relation(Relation::Function)];
+    /// let mut program = LogicalProgram::new();
+    /// let node = program.node(LogicalNode {
+    ///     operation: &operation,
+    ///     inputs: PlanInputList(&inputs),
+    ///     bindings: NodeBindings(&[]),
+    ///     scope: StepScope::PerFile,
+    /// });
+    /// program.emit(RuleOrdinal(0), node);
+    /// program.hold(node);
+    /// assert_eq!(node.0, 0);
+    /// ```
+    pub fn node(&mut self, node: LogicalNode<'p>) -> PlanNodeId {
+        let id = PlanNodeId(u32::try_from(self.nodes.len()).unwrap_or(u32::MAX));
+        self.nodes.push(node);
+        id
+    }
+
+    /// `rule`'s emitted node; rules in rule order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
+    /// use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList, RuleOrdinal};
+    /// use ryo_relations::domain::relations::types::Relation;
+    /// use ryo_values::domain::plan_parts::types::{Input, StepScope};
+    /// use ryo_values::domain::plans::types::Operation;
+    /// let operation = Operation::Select { from: Input::Relation(Relation::Function), comparisons: Vec::new(), kept: Vec::new() };
+    /// let inputs = [PlanInput::Relation(Relation::Function)];
+    /// let mut program = LogicalProgram::new();
+    /// let node = program.node(LogicalNode {
+    ///     operation: &operation,
+    ///     inputs: PlanInputList(&inputs),
+    ///     bindings: NodeBindings(&[]),
+    ///     scope: StepScope::PerFile,
+    /// });
+    /// program.emit(RuleOrdinal(0), node);
+    /// program.hold(node);
+    /// assert_eq!(node.0, 0);
+    /// ```
+    pub fn emit(&mut self, rule: RuleOrdinal, node: PlanNodeId) {
+        self.emits.push(Emitted { rule, node });
+    }
+
+    /// One more consumer that is not a node reader: frontier capture, observation root, publication.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
+    /// use ryo_operators::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList, RuleOrdinal};
+    /// use ryo_relations::domain::relations::types::Relation;
+    /// use ryo_values::domain::plan_parts::types::{Input, StepScope};
+    /// use ryo_values::domain::plans::types::Operation;
+    /// let operation = Operation::Select { from: Input::Relation(Relation::Function), comparisons: Vec::new(), kept: Vec::new() };
+    /// let inputs = [PlanInput::Relation(Relation::Function)];
+    /// let mut program = LogicalProgram::new();
+    /// let node = program.node(LogicalNode {
+    ///     operation: &operation,
+    ///     inputs: PlanInputList(&inputs),
+    ///     bindings: NodeBindings(&[]),
+    ///     scope: StepScope::PerFile,
+    /// });
+    /// program.emit(RuleOrdinal(0), node);
+    /// program.hold(node);
+    /// assert_eq!(node.0, 0);
+    /// ```
+    pub fn hold(&mut self, node: PlanNodeId) {
+        self.holds.push(node);
+    }
+
+    /// The nodes, in node order.
+    pub(crate) fn nodes(&self) -> &[LogicalNode<'p>] {
+        &self.nodes
+    }
+
+    /// Each rule's emitted node, in rule order.
+    pub(crate) fn emitted(&self) -> impl Iterator<Item = PlanNodeId> + '_ {
+        self.emits.iter().map(|emitted| emitted.node)
+    }
+
+    /// The consumers that read no node.
+    pub(crate) fn held(&self) -> &[PlanNodeId] {
+        &self.holds
+    }
+
+    /// Checks the program's shape: every node reads only earlier nodes, and every emitted or held node is one of the program's.
+    ///
+    /// # Errors
+    ///
+    /// `WrongOperation` naming no node: a program of another shape is not a program.
+    pub(crate) fn check_shape(&self) -> Result<(), PortableOperatorFault> {
+        let count = PlanNodeId(u32::try_from(self.nodes.len()).unwrap_or(u32::MAX));
+        let earlier = |at: PlanNodeId, input: &PlanInput| match input {
+            PlanInput::Node(read) => *read < at,
+            PlanInput::Relation(_) | PlanInput::Bound(_) | PlanInput::Observation(_) => true,
+        };
+        let shaped = self.emits.iter().all(|emitted| emitted.node < count)
+            && self.holds.iter().all(|held| *held < count)
+            && self
+                .nodes
+                .iter()
+                .zip((0..).map(PlanNodeId))
+                .all(|(node, at)| node.inputs.0.iter().all(|input| earlier(at, input)));
+        if shaped {
+            Ok(())
+        } else {
+            Err(PortableOperatorFault::WrongOperation)
+        }
+    }
+}

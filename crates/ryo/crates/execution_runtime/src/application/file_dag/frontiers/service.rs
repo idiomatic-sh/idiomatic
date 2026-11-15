@@ -44,7 +44,7 @@ pub(super) fn prepare(
     policy: PreparationPolicy<'_>,
 ) -> Result<PreparedFrontiers, FrontiersError> {
     let roots = &program
-        .program()
+        .program()?
         .rules()
         .get(rule.0)
         .ok_or(OperatingError::NotRead)?
@@ -136,7 +136,7 @@ pub(super) fn prepare(
         producer: rule,
         sources,
         rows: admitted.into(),
-        program: std::sync::Arc::clone(program.program()),
+        program: std::sync::Arc::clone(program.program()?),
         required: required.clone(),
         refused: refused.into(),
     })

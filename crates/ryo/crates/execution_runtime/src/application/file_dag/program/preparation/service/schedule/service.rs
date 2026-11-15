@@ -33,7 +33,7 @@ impl PreparedProgram {
         let mut demanded: Vec<_> = (0..self.rules.len())
             .map(|place| governs(RuleIndex(place)))
             .collect();
-        if let Some(observations) = &self.observations {
+        if let Some(observations) = &self.observed {
             for consumer in self.rule_order().collect::<Vec<_>>().into_iter().rev() {
                 if demanded[consumer.0] == Demand::Undemanded {
                     continue;

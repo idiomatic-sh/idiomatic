@@ -14,7 +14,7 @@ use ryo_values::domain::plans::types::Plan;
 #[derive(Debug)]
 pub struct LinkedObservationPlans {
     /// The plans, with their observation references remapped.
-    pub plans: Vec<Plan>,
+    pub plans: Vec<std::sync::Arc<Plan>>,
     /// The resolved producer bindings of each rule.
     pub bindings: Vec<Vec<ResolvedObservationBinding>>,
 }

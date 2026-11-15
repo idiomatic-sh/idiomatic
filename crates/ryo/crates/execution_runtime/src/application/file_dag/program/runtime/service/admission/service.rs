@@ -13,8 +13,8 @@ use crate::application::file_dag::program::constants::PHASE_AVAILABILITY;
 use crate::application::file_dag::program::constants::PHASE_DEPENDENCY;
 use crate::application::file_dag::program::constants::PHASE_PHYSICAL;
 use crate::application::file_dag::program::runtime::types::StageProgress;
-use ryo_execution_domain::domain::executable_program::types::RegionId;
-use ryo_execution_domain::domain::executable_program::types::region::value::Region;
+use ryo_execution_domain::domain::interpreted_program::types::RegionId;
+use ryo_execution_domain::domain::interpreted_program::types::region::value::Region;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
 
@@ -43,7 +43,7 @@ impl AdmissionProgress {
     pub(crate) fn is_empty(
         &mut self,
         inputs: &dyn Inputs,
-        source: ryo_execution_domain::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::interpreted_program::types::InputSource,
         input: &AdmittedInput,
         representation: ryo_execution_domain::domain::operator::contract::types::EmptyRepresentation,
     ) -> Result<Emptiness, OperatingError> {
@@ -83,7 +83,7 @@ impl AdmissionProgress {
     pub(crate) fn supply(
         &mut self,
         inputs: &mut dyn Inputs,
-        source: ryo_execution_domain::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::interpreted_program::types::InputSource,
         partition: &Partition,
         context: &mut OperatorContext<'_>,
     ) -> Result<(), OperatingError> {
@@ -112,7 +112,7 @@ impl AdmissionProgress {
     pub(crate) fn admit(
         &mut self,
         inputs: &mut dyn Inputs,
-        source: ryo_execution_domain::domain::executable_program::types::InputSource,
+        source: ryo_execution_domain::domain::interpreted_program::types::InputSource,
         partition: &Partition,
         context: &mut OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError> {

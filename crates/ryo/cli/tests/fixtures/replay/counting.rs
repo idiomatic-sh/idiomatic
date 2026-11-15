@@ -64,12 +64,22 @@ impl language::interface::LanguagePort for Counting {
         file: language::types::FileToRead<'_>,
         table: &mut ryo_language::domain::elements::types::Elements,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
-        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
     ) -> language::types::FileReading {
         let _before = self
             .reads
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        self.language.parse(file, table, symbols, out)
+        self.language.parse(file, table, symbols)
+    }
+
+    fn walk(
+        &self,
+        language: ryo_values::domain::stored_facts::types::LanguageNumber,
+        file: language::types::FileToRead<'_>,
+        table: &mut ryo_language::domain::elements::types::Elements,
+        symbols: &mut ryo_language::domain::symbols::types::Symbols,
+        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
+    ) {
+        self.language.walk(language, file, table, symbols, out);
     }
 
     fn project_entries(
@@ -217,8 +227,7 @@ pub(crate) fn lint_observing<T>(
             )),
             Arc::clone(&analysis_memory),
             Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
-            )),
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())), ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl::new(), ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())))),
             ryo_execution::derived(),
             Arc::new(scheduler::factory::rayon(started)),
             started,

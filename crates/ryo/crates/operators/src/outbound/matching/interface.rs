@@ -27,4 +27,10 @@ pub trait MatchingPort: Send + Sync {
         name: GroupName<'_>,
         each: &mut dyn FnMut(TextSpan, TextSpan) -> std::ops::ControlFlow<()>,
     ) -> Result<std::ops::ControlFlow<()>, MatchingError>;
+
+    /// The matching use case a filter's comparisons compile and match their patterns through: matching is pure, so every
+    /// implementation answers the matching crate's own.
+    fn semantics(
+        &self,
+    ) -> &dyn ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase;
 }

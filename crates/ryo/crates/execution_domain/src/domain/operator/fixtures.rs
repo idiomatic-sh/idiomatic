@@ -8,10 +8,10 @@ use super::contract::types::{
 use super::contract::views::types::{ClosureViews, NativeJoin, PredicateProgram, PreparedAxis};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{AfterTheFiles, PrimitiveSemantics};
-use crate::domain::table_model::types::Verdict;
 use crate::domain::table_reach::borrowed::types::IndexedRows;
 use ryo_language::domain::symbols::types::{QuerySymbols, Symbols};
 use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_operators::inbound::use_cases::operators::types::{OperatorAnswer, OperatorCall};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::files::types::SourceView;
@@ -65,10 +65,14 @@ impl PrimitiveResources for Resources {
 }
 
 /// A predicate that answers one verdict for every row.
-pub(crate) struct Judge(pub(crate) Verdict);
+pub(crate) struct Judge(pub(crate) PredicateOutcome);
 
 impl PredicateProgram for Judge {
-    fn holds(&mut self, _row: &[Value], _symbols: &Symbols) -> Result<Verdict, OperatingError> {
+    fn holds(
+        &mut self,
+        _row: &[Value],
+        _symbols: &Symbols,
+    ) -> Result<PredicateOutcome, OperatingError> {
         Ok(self.0)
     }
 }
@@ -100,7 +104,7 @@ impl RowSink for Kept {
 /// Runs `body` with a lease over `resources` and `workspace`, whose predicate answers `verdict`.
 pub(crate) fn with_lease<R>(
     resources: &dyn PrimitiveResources,
-    verdict: Verdict,
+    verdict: PredicateOutcome,
     workspace: &mut PrimitiveWorkspace,
     body: impl FnOnce(&mut PrimitiveLease<'_>) -> R,
 ) -> R {

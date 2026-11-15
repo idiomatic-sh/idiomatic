@@ -24,7 +24,7 @@ fn ordered_hosted_inputs_are_scheduled_once_before_collected_or_forwarded_delive
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
         let elements = Elements::default();
-        let facts = TableFacts::new(&[]);
+        let mut facts = TableFacts::new(&[]);
         let mut symbols = Symbols::default();
         let intents = [FileRuleIntent::Run {
             diagnostic,
@@ -35,7 +35,7 @@ fn ordered_hosted_inputs_are_scheduled_once_before_collected_or_forwarded_delive
             &request,
             FileRun::of(&intents, &elements),
             &mut symbols,
-            &facts,
+            &mut facts,
         );
         for index in [1, 0] {
             let Ok(RootOutcome::Complete(actual)) = root(ran(&mut rules, index)) else {

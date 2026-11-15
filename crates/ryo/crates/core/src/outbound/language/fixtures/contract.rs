@@ -43,12 +43,38 @@ fn a_file_no_language_reads_is_unsupported(language: &dyn LanguagePort) -> Value
         notes: NoteWriting::Unwanted,
         roles: RoleWriting::Unwanted,
     };
-    language.parse(
+    language.parse(file, &mut Elements::default(), &mut Symbols::default())
+        == FileReading::Unsupported
+}
+
+/// Whether walking a file for a language past the ones linked writes no row and says no relation is read in part.
+fn a_language_not_linked_walks_no_row(language: &dyn LanguagePort) -> Value {
+    use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
+    let path = FilePath("contract.not-a-language".into());
+    let bytes = FileBytes(b"anything".to_vec());
+    let file = FileToRead {
+        source_language: SourceSelection::Recognized,
+        path: &path,
+        file: FileId(0),
+        bytes: &bytes,
+        wanted: ryo_relations::domain::relations::service::all(),
+        notes: NoteWriting::Unwanted,
+        roles: RoleWriting::Unwanted,
+    };
+    let mut function = vec![ryo_relations::domain::relations::types::FactColumn::default(); 4];
+    let mut out = ColumnsMut {
+        function: &mut function,
+        ..ColumnsMut::default()
+    };
+    let not_linked = LanguageNumber(language.linked().0.len());
+    language.walk(
+        not_linked,
         file,
         &mut Elements::default(),
         &mut Symbols::default(),
-        &mut Discard,
-    ) == FileReading::Unsupported
+        &mut out,
+    );
+    out.partials.is_empty() && function.iter().all(|column| column.0.is_empty())
 }
 
 /// Whether every linked language says, of every relation, whether it reads it.
@@ -163,6 +189,12 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             |language: &dyn LanguagePort| Ok(a_file_no_language_reads_is_unsupported(language))
         },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("a_language_not_linked_walks_no_row"),
+        word: Word::Succeeds,
+        input: || |language: &dyn LanguagePort| Ok(a_language_not_linked_walks_no_row(language)),
         expect: Expect::Value(true),
     },
     Case {

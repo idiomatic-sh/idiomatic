@@ -56,7 +56,7 @@ pub trait MetadataUseCase {
     fn kinds_asked(&self, plan: &Plan, bound: &[ParameterBinding]) -> AskedKinds;
     fn first_unknown(
         &self,
-        plans: &[Plan],
+        plans: &[&Plan],
         bindings: PlanBindings<'_>,
         vocabularies: &KindVocabularies,
         matching: &impl ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,

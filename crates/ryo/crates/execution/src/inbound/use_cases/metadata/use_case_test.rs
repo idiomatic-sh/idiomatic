@@ -196,7 +196,7 @@ fn subject(asked: Input) -> Result<Value, Failure> {
             let plan = plan(Relation::SyntaxTree, Some("fn"));
             let vocabularies = vocabularies();
             let refusal = metadata.kind_refusal(&plan, &vocabularies, &MatchingUseCaseImpl);
-            let plans = [plan.clone()];
+            let plans = [&plan];
             let unknown = metadata.first_unknown(
                 &plans,
                 (&[Vec::new()][..]).into(),
@@ -212,7 +212,7 @@ fn subject(asked: Input) -> Result<Value, Failure> {
         Asked::UnknownKind => {
             let plan = plan(Relation::SyntaxTree, Some("ghost"));
             let vocabularies = vocabularies();
-            let plans = [plan.clone()];
+            let plans = [&plan];
             let unknown = metadata.first_unknown(
                 &plans,
                 (&[Vec::new()][..]).into(),

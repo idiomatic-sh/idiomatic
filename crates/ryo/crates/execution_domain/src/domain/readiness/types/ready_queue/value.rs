@@ -1,7 +1,7 @@
 //! A producer completion wakes exactly the admissions waiting for that producer.
 use super::super::{ReadinessAction, ReadinessCounts, ReadinessOutcome, WaitingCount};
 use crate::domain::{
-    executable_program::types::{RegionCount, RegionId},
+    interpreted_program::types::{RegionCount, RegionId},
     operating::errors::OperatingError,
 };
 use rustc_hash::FxHashMap;

@@ -161,7 +161,7 @@ impl Storing {
     pub(crate) fn stored_rules(
         &self,
         rules: &[RuleSpec],
-        plans: &[Plan],
+        plans: &[&Plan],
         hosted: &[HostRelation],
         resolved: Digest,
         source_language: Option<&ryo_values::domain::descriptions::types::LanguageName>,

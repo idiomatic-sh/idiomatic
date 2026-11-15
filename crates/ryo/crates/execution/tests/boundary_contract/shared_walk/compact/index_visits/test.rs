@@ -97,7 +97,7 @@ fn indexed_join_counts_actual_matching_rhs_visits_and_does_no_work_on_replay() {
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
         let mut symbols = Symbols::default();
         let elements = Elements::default();
-        let read = TableFacts::new(&[]);
+        let mut read = TableFacts::new(&[]);
         let intents = [FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
             observations: ObservationDemand::NotRequired,
@@ -111,7 +111,7 @@ fn indexed_join_counts_actual_matching_rhs_visits_and_does_no_work_on_replay() {
                 ..FileRun::of(&intents, &elements)
             },
             &mut symbols,
-            &read,
+            &mut read,
         );
         let expected = Table {
             kinds: vec![CellKind::Number, CellKind::Number],

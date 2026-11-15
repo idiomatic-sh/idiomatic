@@ -1,5 +1,5 @@
 //! Scheduler decisions carry region identities, never evaluation authority.
-use crate::domain::executable_program::types::RegionId;
+use crate::domain::interpreted_program::types::RegionId;
 pub mod ready_queue;
 /// Readiness entries a queue holds, one for each region it has reached.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

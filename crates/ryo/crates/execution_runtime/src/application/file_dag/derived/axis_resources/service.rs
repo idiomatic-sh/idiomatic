@@ -7,9 +7,10 @@ use ryo_derived::domain::membership::types::MembershipView;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError, operator::contract::resources::types::AxisResources,
-    table_cells::types::TreeForm, table_model::service::check_columns,
+    table_model::service::check_columns,
 };
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
+use ryo_operators::domain::tree_cells::types::TreeForm;
 use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 

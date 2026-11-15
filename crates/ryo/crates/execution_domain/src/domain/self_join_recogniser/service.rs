@@ -69,7 +69,7 @@ pub(super) fn number_origins(
         // stored number refuses it, so the shape is declined here rather than refused when it runs.
         Input::Relation(relation) => (usize::try_from(column.0)
             .is_ok_and(|at| kinds(relation).get(at) == Some(&CellKind::Number))
-            && crate::domain::table_cells::service::native_form(relation).is_none())
+            && ryo_operators::domain::tree_cells::service::native_form(relation).is_none())
         .then_some(vec![StoredNumberOrigin { relation, column }]),
         Input::Step(id) => {
             let Ok(at) = usize::try_from(id.0) else {

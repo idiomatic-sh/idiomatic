@@ -13,7 +13,7 @@ pub(crate) struct PrimitiveSemanticsBridge<'a> {
     pub(crate) port: &'a dyn PrimitiveExecutor,
     pub(crate) permit: crate::application::file_dag::program::runtime::service::SemanticPermit<'a>,
     pub(crate) binding:
-        ryo_execution_domain::domain::executable_program::physical::types::PhysicalBinding<'a>,
+        ryo_execution_domain::domain::interpreted_program::physical::types::PhysicalBinding<'a>,
     pub(crate) failure:
         &'a std::sync::OnceLock<ryo_execution_domain::domain::operating::errors::OperatingError>,
 }

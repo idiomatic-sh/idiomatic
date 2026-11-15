@@ -2,7 +2,7 @@
 use super::super::fixtures::{self, DeclaredFileProducers, Fixture, FrontierSlots, Names};
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
-    executable_program::{service::compile, types::InputSource},
+    interpreted_program::{service::compile, types::InputSource},
     observation_schedule::types::ResolvedObservationProducer,
     operating::errors::OperatingError,
 };
@@ -85,7 +85,7 @@ pub(super) fn exercise(slots: Slots) -> Result<Compiled, Refused> {
         graph,
         &partitions,
         &operators,
-        ryo_execution_domain::domain::matching::types::PatternMatcher(
+        ryo_operators::domain::patterns::types::PatternMatcher(
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
         ),
     )

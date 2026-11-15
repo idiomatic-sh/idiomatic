@@ -13,7 +13,7 @@ use crate::application::file_dag::program::project_population::types::ProjectRef
 use crate::application::file_dag::program::project_population::types::ProjectSourceMatch;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::types::InputSource;
+use ryo_execution_domain::domain::interpreted_program::types::InputSource;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
@@ -133,7 +133,7 @@ impl PublicationScope {
     > {
         let mut bindings = Vec::new();
         for binding in bound.iter().flatten() {
-            bindings.push(BoundKey::Input(InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(
+            bindings.push(BoundKey::Input(InputSource::Observation(ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(
                 crate::application::file_dag::program::facade_runtime::source_admission::service::observation_slot(prepared, rule, binding.input)?.0,
             ))));
             match &binding.members {

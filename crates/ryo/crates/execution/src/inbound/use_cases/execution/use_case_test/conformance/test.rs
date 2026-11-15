@@ -181,13 +181,6 @@ fn all_registrations_refuse_a_foreign_variant() -> Result<Value, Failure> {
         })
         .collect())
 }
-pub(crate) fn repeated(table: &Table, times: usize) -> Table {
-    Table {
-        kinds: table.kinds.clone(),
-        cells: table.cells.repeat(times),
-        count: ryo_values::domain::rows::types::RowCount(table.count.0 * times),
-    }
-}
 type Input = fn() -> Result<Value, Failure>;
 type Value = Cow<'static, [(OperationKind, Option<OperatingError>)]>;
 type Failure = OperatingError;

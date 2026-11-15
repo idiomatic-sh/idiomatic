@@ -118,7 +118,7 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let functions = source();
-    let read = TableFacts::new(&[(Relation::Function, &functions)]);
+    let mut read = TableFacts::new(&[(Relation::Function, &functions)]);
     let intents = [COLLECTED, COLLECTED, COLLECTED];
     let mut rules = run_file(
         &request,
@@ -128,7 +128,7 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
             ..FileRun::of(&intents, &elements)
         },
         &mut symbols,
-        &read,
+        &mut read,
     );
     let mut expected = readiness_expected();
     expected.count = RowCount(4);

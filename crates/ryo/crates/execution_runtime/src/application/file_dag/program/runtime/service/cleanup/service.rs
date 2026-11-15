@@ -2,10 +2,8 @@
 use super::super::{
     AdmissionProgress, ProgramExecution, RetirementWork, RuntimeState, Slot, State,
 };
-#[cfg(test)]
-use crate::application::file_dag::program::runtime::types::ConsumerReleasePoint;
 use crate::application::file_dag::program::runtime::types::{Dependencies, ReaderCount};
-use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::interpreted_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 
@@ -24,16 +22,12 @@ impl ProgramExecution {
         state: &RuntimeState,
         consumer: RegionId,
     ) -> Result<(), OperatingError> {
-        #[cfg(test)]
-        self.observe_consumer_release(state, consumer, ConsumerReleasePoint::Before);
         let result = self.retire(state, consumer);
         if let Err(error) = &result {
             self.cleanup_failure
                 .borrow_mut()
                 .get_or_insert(error.clone());
         }
-        #[cfg(test)]
-        self.observe_consumer_release(state, consumer, ConsumerReleasePoint::After);
         result
     }
     pub(crate) fn retire(
@@ -86,7 +80,7 @@ impl ProgramExecution {
                     && !slot
                         .is_some_and(|slot| slot.dependencies_consumed == Dependencies::Consumed)
                     && state.absent.borrow().presence(id)
-                        == ryo_execution_domain::domain::executable_program::presence::types::RegionPresence::Present
+                        == ryo_execution_domain::domain::interpreted_program::presence::types::RegionPresence::Present
                 {
                     work.pending
                         .extend(self.program.regions()[id.0].dependencies().iter().copied());

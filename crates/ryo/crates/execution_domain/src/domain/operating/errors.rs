@@ -84,4 +84,30 @@ pub enum OperatingError {
     /// A step reads a column its input lacks.
     #[error(transparent)]
     Table(#[from] RowsError),
+    /// A rule reads a feature no stage of the swap serves yet: a kind with no lowering, a step after the files or a bound input.
+    /// Branch only: deleted with the last unlowered kind.
+    #[error("not served until F{}", .0.0)]
+    NotServedUntil(ryo_operators::domain::physical_plan::types::ServedAt),
+}
+
+impl From<ryo_operators::domain::comparing::errors::ComparingError> for OperatingError {
+    fn from(fault: ryo_operators::domain::comparing::errors::ComparingError) -> Self {
+        use ryo_operators::domain::comparing::errors::ComparingError as Fault;
+        match fault {
+            Fault::WrongTest => Self::WrongTest,
+            Fault::Unbound => Self::Unbound,
+            Fault::WrongBinding => Self::WrongBinding,
+            Fault::InvalidRegex { reason } => Self::InvalidRegex { reason },
+            Fault::Rows(error) => Self::Table(error),
+        }
+    }
+}
+
+impl From<ryo_operators::domain::patterns::errors::PatternsError> for OperatingError {
+    fn from(fault: ryo_operators::domain::patterns::errors::PatternsError) -> Self {
+        use ryo_operators::domain::patterns::errors::PatternsError as Fault;
+        match fault {
+            Fault::InvalidRegex { reason } => Self::InvalidRegex { reason },
+        }
+    }
 }

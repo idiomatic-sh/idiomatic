@@ -189,7 +189,6 @@ impl LanguagePort for LanguageUseCaseAdapter {
         file: FileToRead<'_>,
         table: &mut Elements,
         symbols: &mut Symbols,
-        out: &mut dyn RowWriter,
     ) -> FileReading {
         let request = parse_request(file);
         if let SourceSelection::Named(selected) = file.source_language {
@@ -215,13 +214,10 @@ impl LanguagePort for LanguageUseCaseAdapter {
             {
                 return FileReading::Manifest;
             }
-            return match language.parse.read_file_explicit(
-                request,
-                table,
-                symbols,
-                file.wanted,
-                out,
-            ) {
+            return match language
+                .parse
+                .build_file_explicit(request, table, symbols, file.wanted)
+            {
                 Ok(()) => FileReading::Read(LanguageNumber(number)),
                 Err(error) => FileReading::Failed(ReadFailure(
                     format!("explicit source provider `{}`: {error}", selected.0).into(),
@@ -237,7 +233,7 @@ impl LanguagePort for LanguageUseCaseAdapter {
             }
             match language
                 .parse
-                .read_file(request, table, symbols, file.wanted, out)
+                .build_file(request, table, symbols, file.wanted)
             {
                 Ok(()) => return FileReading::Read(LanguageNumber(number)),
                 Err(ParseError::Unsupported) => {}
@@ -259,6 +255,26 @@ impl LanguagePort for LanguageUseCaseAdapter {
             },
             FileReading::Failed,
         )
+    }
+
+    fn walk(
+        &self,
+        language: LanguageNumber,
+        file: FileToRead<'_>,
+        table: &mut Elements,
+        symbols: &mut Symbols,
+        out: &mut dyn RowWriter,
+    ) {
+        if let Some(linked) = self.languages.get(language.0) {
+            linked.parse.walk_file(
+                table,
+                symbols,
+                ByteSlice(&file.bytes.0),
+                file.file,
+                file.wanted,
+                out,
+            );
+        }
     }
 
     fn begin_semantics(

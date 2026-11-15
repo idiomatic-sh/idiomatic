@@ -188,7 +188,7 @@ pub(crate) fn restore_frontiers(
     use ryo_values::domain::stored_facts::types::Bucket;
 
     // One set of inapplicable files and of refused files per rule, or none for the whole run.
-    let rules = program.program().rules().len();
+    let rules = program.program()?.rules().len();
     if (!inapplicable.is_empty() && inapplicable.len() != rules)
         || (!refused.is_empty() && refused.len() != rules)
     {

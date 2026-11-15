@@ -15,8 +15,3 @@ pub(super) enum Fate {
     Keep,
     Release,
 }
-
-/// Batches a file walk still holds.
-#[cfg(test)]
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) struct RetainedBatches(pub(crate) usize);

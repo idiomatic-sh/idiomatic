@@ -22,9 +22,18 @@ pub mod reduction;
 
 pub mod axis;
 pub mod closure;
+pub mod comparing;
 pub mod cycles;
 pub mod evaluation;
 pub mod fits_rendered;
+pub mod functions;
+pub(crate) mod numeric_values;
+pub(crate) mod operands;
 pub mod ordered_dfs;
+pub mod patterns;
+pub mod physical_plan;
 pub mod render_batch;
 pub mod table_rows;
+pub mod table_scratch;
+pub mod table_texts;
+pub mod tree_cells;

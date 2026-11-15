@@ -85,7 +85,7 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
         .expect("closed empty declaration");
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
-    let facts = TableFacts::new(&[]);
+    let mut facts = TableFacts::new(&[]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     let mut rules = run_file(
@@ -99,7 +99,7 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
             &elements,
         ),
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     let rule = ran(&mut rules, 0);
     assert!(matches!(

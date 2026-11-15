@@ -18,14 +18,12 @@ use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::table_cells::fixtures::SMALL_SOURCE;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
-    derived_views::types::contract::value::PreparedViewUse,
-    operating::errors::OperatingError,
-    operation_schema::types::InputShape,
-    table_cells::types::{TreeForm, TreeRows},
-    table_model::types::Rows,
-    table_texts::types::Texts,
+    derived_views::types::contract::value::PreparedViewUse, operating::errors::OperatingError,
+    operation_schema::types::InputShape, table_model::types::Rows,
 };
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_operators::domain::table_texts::types::Texts;
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_relations::domain::relations::types::{CellKind, FileId, NodeId, Relation, Value};
 use ryo_values::domain::files::types::SourceView;
 use std::{rc::Rc, sync::Arc};

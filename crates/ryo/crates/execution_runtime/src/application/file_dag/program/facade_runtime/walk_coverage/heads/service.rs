@@ -1,8 +1,8 @@
 //! The `heads` application operation.
 
-use ryo_execution_domain::domain::executable_program::types::{
-    LogicalInstruction, executable_program::value::ExecutableProgram,
-    instruction::value::Instruction,
+use ryo_execution_domain::domain::interpreted_program::types::{
+    LogicalInstruction, instruction::value::Instruction,
+    interpreted_program::value::InterpretedProgram,
 };
 use ryo_relations::domain::relations::{
     service::{ALL, columns},
@@ -51,7 +51,7 @@ pub(crate) fn supported_head(instruction: &Instruction) -> Option<Relation> {
     .then_some(source)
 }
 
-pub(crate) fn expected(program: &ExecutableProgram) -> HashSet<LogicalInstruction> {
+pub(crate) fn expected(program: &InterpretedProgram) -> HashSet<LogicalInstruction> {
     program
         .regions()
         .iter()

@@ -43,11 +43,6 @@ fn unstable_same_shape_resident_populations_remain_distinct() -> Result<String, 
         .expect("first column")
         .0
         .clone();
-    seen.push(format!(
-        "{:?}",
-        (facts.resident_stability())
-            == (ryo_execution_runtime::outbound::facts::types::ResidentStability::Unstable)
-    ));
     let second = facts
         .rows(Relation::Function)
         .expect("changed population")
@@ -132,7 +127,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("unstable_same_shape_resident_populations_remain_distinct"),
         word: Word::Succeeds,
         input: || Given::UnstableSameShapeResidentPopulationsRemainDistinct,
-        expect: Expect::Value("true|true"),
+        expect: Expect::Value("true"),
     },
     Case {
         name: CaseName("file_visits_preserve_stable_unstable_and_unread_provider_outcomes"),

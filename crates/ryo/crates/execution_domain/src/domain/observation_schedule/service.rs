@@ -1,6 +1,7 @@
 //! The request-level observation schedule: the declared dependency edges between rules, the schemas their bound inputs
 //! resolve to, and the plans linked beneath them. No providers or operators run here.
 
+pub mod frontiers;
 pub mod link;
 
 use super::types::{

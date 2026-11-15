@@ -5,8 +5,8 @@ use crate::application::file_dag::executor::{
 use crate::application::file_dag::program::admission::service::AdmittedInput;
 use crate::application::file_dag::program::native_walk::lease::service::PermittedWalk;
 use crate::application::file_dag::program::native_walk::{
-    service::FileWalk, service::Owed, service::SourceWork, service::WalkResult,
-    service::WalkSourceIdentity, types::Deliveries, types::Fate, types::WalkDelivery,
+    service::Owed, service::SourceWork, service::WalkResult, service::WalkSourceIdentity,
+    service::summed, types::Deliveries, types::Fate, types::WalkDelivery,
 };
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::{KernelPermit, ReadySelection};
@@ -32,13 +32,11 @@ use std::{
 /// The production invocation is explicitly bound to a file owner or project stage.
 /// An invocation of either partition cannot opt out of its shared-walk owner.
 pub(crate) enum WalkPartition<'a> {
-    File(&'a FileWalk),
     Project(&'a ProjectWalk),
 }
 impl WalkPartition<'_> {
     pub(crate) fn validate(&self, permit: &KernelPermit<'_>) -> Result<(), OperatingError> {
         match self {
-            Self::File(walk) => permit.require_file_walk(&walk.generation),
             Self::Project(_) => permit.require_project_walk(),
         }
     }
@@ -61,7 +59,6 @@ impl WalkPartition<'_> {
         let rows = input.rows(owner, read)?;
         let relation = relation_of(prepared, permit)?;
         let submitted = match self {
-            Self::File(walk) => walk.submit(prepared, ready, relation, &rows)?,
             Self::Project(walk) => walk.submit(prepared, ready, relation, &rows)?,
         };
         if submitted == Submission::Declined {
@@ -90,7 +87,6 @@ impl WalkPartition<'_> {
         let WalkDelivery::Rows = delivery;
         let relation = relation_of(prepared, permit)?;
         let prepared_batch = match self {
-            Self::File(walk) => walk.prepare(prepared, permit, relation, rows, context, kernels)?,
             Self::Project(walk) => {
                 walk.prepare(prepared, permit, relation, rows, context, kernels)?
             }
@@ -111,7 +107,7 @@ fn relation_of(
         .walk_class(permit.descriptor())
         .ok_or(OperatingError::WrongOperation)?;
     prepared
-        .walk()
+        .walk()?
         .classes()
         .get(class.0)
         .map(|class| class.source)
@@ -145,7 +141,7 @@ impl ProjectWalk {
         class: ClassPlace,
     ) -> Result<(), OperatingError> {
         let class_scope = prepared
-            .walk()
+            .walk()?
             .classes()
             .get(class.0)
             .map(|class| class.scope);
@@ -174,7 +170,7 @@ impl ProjectWalk {
         let Some(class) = prepared.walk_class(permit.descriptor()) else {
             return Ok(Submission::Declined);
         };
-        permit.validate_program(prepared.program().as_ref())?;
+        permit.validate_program(prepared.program()?.as_ref())?;
         self.admit(prepared, class)?;
         let Some(admitted) = permit.admit_walk_source(relation, rows)? else {
             return Ok(Submission::Declined);
@@ -183,10 +179,11 @@ impl ProjectWalk {
             population: admitted.population(),
             relation,
         };
+        let walk = prepared.walk()?;
         let mut sources = self.batches.borrow_mut();
         let source = sources.entry(key).or_insert_with(|| SourceWork {
             ready: BTreeSet::new(),
-            batch: NativeBatch::for_program(prepared.walk()),
+            batch: NativeBatch::for_program(walk),
         });
         if source.batch.class(class).is_none() {
             source.ready.extend([class]);
@@ -204,7 +201,7 @@ impl ProjectWalk {
     ) -> Result<Option<Ref<'walk, NativeBatch>>, OperatingError> {
         // Revalidate even a cache hit: population alone does not establish the
         // relation, current physical view, generation, or live invocation.
-        permit.validate_program(prepared.program().as_ref())?;
+        permit.validate_program(prepared.program()?.as_ref())?;
         let Some(admitted) = permit.admit_walk_source(relation, rows)? else {
             return Ok(None);
         };
@@ -247,17 +244,18 @@ impl ProjectWalk {
     /// Declare that `rule` is a root of a cohort and will make `deliveries` entry-point
     /// calls that may consume this scope's project-stage classes.
     pub(crate) fn owe(&self, prepared: &PreparedProgram, rule: RuleIndex, deliveries: Deliveries) {
-        let classes = prepared
-            .walk()
+        // A program the interpreter could not compile opens no project phase, so it owes nothing.
+        let Ok(walk) = prepared.walk() else {
+            return;
+        };
+        let classes = walk
             .class_of(rule)
             .into_iter()
             .flatten()
             .flatten()
             .copied()
             .filter(|class| {
-                prepared
-                    .walk()
-                    .classes()
+                walk.classes()
                     .get(class.0)
                     .is_some_and(|class| class.scope == StepScope::CrossFile)
             })
@@ -302,7 +300,10 @@ impl ProjectWalk {
             .borrow()
             .values()
             .flat_map(|owed| owed.classes.iter())
-            .filter_map(|class| prepared.walk().classes().get(class.0))
+            .filter_map(|class| match prepared.walk() {
+                Ok(walk) => walk.classes().get(class.0),
+                Err(_) => None,
+            })
             .map(|class| class.source)
             .collect::<Vec<_>>();
         self.retire(|identity, source| {
@@ -324,26 +325,9 @@ impl ProjectWalk {
             if matches!(release(identity, source), Fate::Keep) {
                 return true;
             }
-            retired = FileWalk::sum(retired, source.batch.counts());
+            retired = summed(retired, source.batch.counts());
             false
         });
         self.retired.set(retired);
-    }
-    #[cfg(test)]
-    pub(crate) fn retained(
-        &self,
-    ) -> crate::application::file_dag::program::native_walk::types::RetainedBatches {
-        crate::application::file_dag::program::native_walk::types::RetainedBatches(
-            self.batches.borrow().len(),
-        )
-    }
-    #[cfg(test)]
-    pub(crate) fn counts(&self) -> WalkCounts {
-        self.batches
-            .borrow()
-            .values()
-            .fold(self.retired.get(), |total, source| {
-                FileWalk::sum(total, source.batch.counts())
-            })
     }
 }

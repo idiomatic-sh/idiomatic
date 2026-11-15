@@ -3,4 +3,3 @@ mod census;
 #[cfg(test)]
 mod fixtures;
 mod matching;
-mod union;

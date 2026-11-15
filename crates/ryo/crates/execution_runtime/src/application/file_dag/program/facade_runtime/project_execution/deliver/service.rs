@@ -24,7 +24,7 @@ impl ProjectRun<'_> {
         state: &crate::application::file_dag::program::runtime::service::RuntimeState,
         rule: RuleIndex,
         demand: RuleDemand,
-        roots: &[ryo_execution_domain::domain::executable_program::types::RegionId],
+        roots: &[ryo_execution_domain::domain::interpreted_program::types::RegionId],
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
     ) -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
         let completion = self.completion(rule)?;
@@ -78,11 +78,11 @@ impl ProjectRun<'_> {
             EmitDemand::Disabled => RootOutcome::NoQuery,
             EmitDemand::Enabled => match &metadata.emit_root {
                 Ok(id)
-                    if self.program.program().regions()[id.0].phase()
+                    if self.program.program()?.regions()[id.0].phase()
                         != ryo_values::domain::plan_parts::types::StepScope::CrossFile =>
                 {
                     RootOutcome::Deferred {
-                        phase: self.program.program().regions()[id.0].phase(),
+                        phase: self.program.program()?.regions()[id.0].phase(),
                     }
                 }
                 Ok(id) => outcome_of(

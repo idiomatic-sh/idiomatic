@@ -5,15 +5,16 @@ use super::super::row_delivery::value::RowDelivery;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::failure::types::LatchState;
 use crate::domain::operator::contract::views::types::PreparedAxis;
-use crate::domain::table_cells::service::{element_of, tree_value};
-use crate::domain::table_model::types::{SetMembership, Verdict};
 use ryo_derived::domain::membership::types::MembershipView;
 use ryo_language::domain::elements::service::{
     children, next_sibling, parent_at, previous_sibling, size_at,
 };
 use ryo_operators::domain::axis::types::{AxisAdmission, AxisCandidates};
 use ryo_operators::domain::contract::types::PortableOperatorFault as Fault;
+use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_operators::domain::contract::types::VertexPlace;
+use ryo_operators::domain::table_scratch::types::SetMembership;
+use ryo_operators::domain::tree_cells::service::{element_of, tree_value};
 use ryo_relations::domain::relations::service::{node_file, node_id, node_position};
 use ryo_relations::domain::relations::types::{Count, Position, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
@@ -153,7 +154,7 @@ impl<'f> AxisWalk<'f> {
                 let position = Self::element(rows, at).ok_or(OperatingError::ShapeMismatch)?;
                 if among.is_some() {
                     let reached = among.unwrap_or(tree);
-                    rows.verdict(&element_of(&reached, position))? == Verdict::Holds
+                    rows.verdict(&element_of(&reached, position))? == PredicateOutcome::Holds
                 } else {
                     let Ok(slot) = usize::try_from(position.0) else {
                         return Err(OperatingError::ShapeMismatch);

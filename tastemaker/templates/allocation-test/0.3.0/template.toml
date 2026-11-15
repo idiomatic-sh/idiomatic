@@ -1,0 +1,268 @@
+description = "A crate's allocation test: a test of its own, with no harness, that installs `dhat` as the global allocator and counts the blocks of a run, alone in its process. Any crate that bounds its allocations places it, with its own double and fixture."
+why = "Only a count proves a run allocates no more than it should, and only a process of its own can count: a global allocator counts every thread, so the test has `harness = false` and no other test beside it, and its `main` is the whole test. The file is the `#[global_allocator]` static and the `main` that runs the one case, and nothing more: the double it judges and the function that runs the row (`held`) are the crate's fixtures, so the test names no internal of the crate and has no `use` item. The case asserts twice: the double within the bound holds the row, and the double past it does not, so the row is shown able to fail. The variables name the crate, the fixture, the double and what the row says; everything else is placed byte for byte (`match = \"text\"`): a helper, a `use` item, an assertion added to `main` or one taken out of it is a finding. The crate's manifest declares it `[[test]] harness = false`."
+match = "text"
+content = '''
+//! {{ doc }}
+
+/// Counts every allocation the test makes, so a run's allocations are read back.
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+/// Runs the one case on libtest-mimic, on this thread, so no other thread allocates beside it.
+fn main() {
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    arguments.test_threads = Some(1);
+    let case = libtest_mimic::Trial::test(
+        "allocation::{{ owner }}::{{ case }}",
+        || {
+            assert!(
+                {{ fixture }}::held(
+                    &{{ fixture }}::{{ double }} {
+                        {{ field }}: false
+                    }
+                ),
+                "{{ holds }}"
+            );
+            assert!(
+                !{{ fixture }}::held(
+                    &{{ fixture }}::{{ double }} {
+                        {{ field }}: true
+                    }
+                ),
+                "{{ breaks }}"
+            );
+            Ok(())
+        },
+    );
+    libtest_mimic::run(&arguments, vec![case]).exit();
+}
+'''
+
+[params]
+doc = { type = "string", description = "The module doc after its first `//! `: what the row judges and on which double, each later line starting `//! `." }
+owner = { type = "identifier", description = "The crate whose row it is: the second segment of the case's name." }
+case = { type = "identifier", description = "The case's own name: what the row says holds." }
+fixture = { type = "string", description = "The path of the fixture module that holds the double and `held`, e.g. `ryo_language::inbound::use_cases::parse::fixtures::allocating`." }
+double = { type = "identifier", description = "The double's type: one boolean field chooses a double within the bound or one past it." }
+field = { type = "identifier", description = "The double's boolean field: `false` is within the bound, `true` is past it." }
+holds = { type = "string", description = "The message of the assertion that the double within the bound holds the row." }
+breaks = { type = "string", description = "The message of the assertion that the double past it does not." }
+
+[given]
+file = 'tests/allocation.rs'
+params = { doc = "The allocation row of the demo crate, proved on its fixture's double.\n//! It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.", owner = "demo", case = "the_row_allocates_as_the_bound_says", fixture = "demo::fixtures::allocating", double = "Double", field = "greedy", holds = "a double within the bound holds the row", breaks = "a double past the bound does not hold the row" }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'tests/allocation.rs' = '''
+//! The allocation row of the demo crate, proved on its fixture's double.
+//! It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
+
+/// Counts every allocation the test makes, so a run's allocations are read back.
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+/// Runs the one case on libtest-mimic, on this thread, so no other thread allocates beside it.
+fn main() {
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    arguments.test_threads = Some(1);
+    let case = libtest_mimic::Trial::test(
+        "allocation::demo::the_row_allocates_as_the_bound_says",
+        || {
+            assert!(
+                demo::fixtures::allocating::held(
+                    &demo::fixtures::allocating::Double {
+                        greedy: false
+                    }
+                ),
+                "a double within the bound holds the row"
+            );
+            assert!(
+                !demo::fixtures::allocating::held(
+                    &demo::fixtures::allocating::Double {
+                        greedy: true
+                    }
+                ),
+                "a double past the bound does not hold the row"
+            );
+            Ok(())
+        },
+    );
+    libtest_mimic::run(&arguments, vec![case]).exit();
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file that carries more than its template: a helper of its own.'
+given.files.'tests/allocation.rs' = '''
+//! The allocation row of the demo crate, proved on its fixture's double.
+//! It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
+
+/// Counts every allocation the test makes, so a run's allocations are read back.
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+/// Runs the one case on libtest-mimic, on this thread, so no other thread allocates beside it.
+fn main() {
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    arguments.test_threads = Some(1);
+    let case = libtest_mimic::Trial::test(
+        "allocation::demo::the_row_allocates_as_the_bound_says",
+        || {
+            assert!(
+                demo::fixtures::allocating::held(
+                    &demo::fixtures::allocating::Double {
+                        greedy: false
+                    }
+                ),
+                "a double within the bound holds the row"
+            );
+            assert!(
+                !demo::fixtures::allocating::held(
+                    &demo::fixtures::allocating::Double {
+                        greedy: true
+                    }
+                ),
+                "a double past the bound does not hold the row"
+            );
+            Ok(())
+        },
+    );
+    libtest_mimic::run(&arguments, vec![case]).exit();
+}
+
+/// More than the template gives: a helper of the test's own.
+fn more() {}
+'''
+then.findings = [
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+]
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'allocation-test#count', path = 'tastemaker.toml' },
+]
+
+[[scenarios]]
+id = 'missing-allocator'
+scenario = 'The global allocator is not installed.'
+given.files.'tests/allocation.rs' = '''
+//! The allocation row of the demo crate, proved on its fixture's double.
+//! It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
+
+/// Runs the one case on libtest-mimic, on this thread, so no other thread allocates beside it.
+fn main() {
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    arguments.test_threads = Some(1);
+    let case = libtest_mimic::Trial::test(
+        "allocation::demo::the_row_allocates_as_the_bound_says",
+        || {
+            assert!(
+                demo::fixtures::allocating::held(
+                    &demo::fixtures::allocating::Double {
+                        greedy: false
+                    }
+                ),
+                "a double within the bound holds the row"
+            );
+            assert!(
+                !demo::fixtures::allocating::held(
+                    &demo::fixtures::allocating::Double {
+                        greedy: true
+                    }
+                ),
+                "a double past the bound does not hold the row"
+            );
+            Ok(())
+        },
+    );
+    libtest_mimic::run(&arguments, vec![case]).exit();
+}
+'''
+then.findings = [
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+]
+
+[[scenarios]]
+id = 'assertion-removed'
+scenario = 'The assertion that the double within the bound holds is taken out: the row can no longer fail.'
+given.files.'tests/allocation.rs' = '''
+//! The allocation row of the demo crate, proved on its fixture's double.
+//! It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
+
+/// Counts every allocation the test makes, so a run's allocations are read back.
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+/// Runs the one case on libtest-mimic, on this thread, so no other thread allocates beside it.
+fn main() {
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    arguments.test_threads = Some(1);
+    let case = libtest_mimic::Trial::test(
+        "allocation::demo::the_row_allocates_as_the_bound_says",
+        || {
+            assert!(
+                !demo::fixtures::allocating::held(
+                    &demo::fixtures::allocating::Double {
+                        greedy: true
+                    }
+                ),
+                "a double past the bound does not hold the row"
+            );
+            Ok(())
+        },
+    );
+    libtest_mimic::run(&arguments, vec![case]).exit();
+}
+'''
+then.findings = [
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+]
+
+[[scenarios]]
+id = 'one-character-changed'
+scenario = 'One character of the placed text changed.'
+given.files.'tests/allocation.rs' = '''
+//! The allocation row of the demo crate, proved on its fixture's double.
+//! It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
+
+/// Counts every allocation the test makes, so a run's allocations are read back.
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+/// Runs the one case on libtest-mimic, on this thread, so no other thread allocates beside it.
+fn main() {
+    let mut arguments = libtest_mimic::Arguments::from_args();
+    arguments.test_threads = Some(1);
+    let case = libtest_mimic::Trial::test(
+        "allocation::demo::the_row_allocates_as_the_bound_says",
+        || {
+            assert!(
+                demo::fixtures::allocating::held(
+                    & demo::fixtures::allocating::Double {
+                        greedy: false
+                    }
+                ),
+                "a double within the bound holds the row"
+            );
+            assert!(
+                !demo::fixtures::allocating::held(
+                    &demo::fixtures::allocating::Double {
+                        greedy: true
+                    }
+                ),
+                "a double past the bound does not hold the row"
+            );
+            Ok(())
+        },
+    );
+    libtest_mimic::run(&arguments, vec![case]).exit();
+}
+'''
+then.findings = [
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+]

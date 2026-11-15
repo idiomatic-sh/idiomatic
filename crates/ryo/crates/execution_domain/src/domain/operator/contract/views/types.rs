@@ -1,8 +1,8 @@
 //! The types of the `views` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_model::types::Verdict;
 use crate::domain::table_reach::borrowed::types::IndexedRows;
+use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_operators::domain::cycles::types::{CycleDriver, EdgePlace, NodeCount, NodeNumber};
 use ryo_operators::domain::source_matches::types::{BaseLine, SourceBase};
 use ryo_relations::domain::relations::types::Value;
@@ -92,7 +92,7 @@ pub trait PredicateProgram {
         &mut self,
         row: &[Value],
         symbols: &ryo_language::domain::symbols::types::Symbols,
-    ) -> Result<Verdict, OperatingError>;
+    ) -> Result<PredicateOutcome, OperatingError>;
 }
 
 /// The checked physical text of a source-matching span, with where it starts and the line it begins on.
@@ -140,7 +140,7 @@ pub(super) struct SourceSlice<'a> {
 #[derive(Clone, Copy, Debug)]
 pub struct NativeJoin<'a> {
     /// The tree the lookup finds candidates in.
-    pub tree: crate::domain::table_cells::types::TreeRows<'a>,
+    pub tree: ryo_operators::domain::tree_cells::types::TreeRows<'a>,
     /// How the lookup finds them.
     pub finding: ryo_derived::domain::native::types::NativeFinding,
 }
@@ -171,9 +171,9 @@ pub enum PreparedAxis<'a> {
     /// A tree of elements.
     Native {
         /// The tree walked.
-        tree: crate::domain::table_cells::types::TreeRows<'a>,
+        tree: ryo_operators::domain::tree_cells::types::TreeRows<'a>,
         /// The nodes the walk is confined to, when it is confined.
-        among: Option<crate::domain::table_cells::types::TreeRows<'a>>,
+        among: Option<ryo_operators::domain::tree_cells::types::TreeRows<'a>>,
         /// The marks of the domain's members.
         marks: ryo_derived::domain::positions::types::DenseMarks<'a>,
     },

@@ -3,7 +3,7 @@ use super::super::fixtures::FrontierSlots;
 use super::fixtures::{Compiled, Refusal, Refused, Slots, exercise};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::types::{InputSource, ObservationPlace};
+use ryo_execution_domain::domain::interpreted_program::types::{InputSource, ObservationPlace};
 use ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationProducer;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::records::types::ObservationIndex;

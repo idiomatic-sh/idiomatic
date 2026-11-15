@@ -68,7 +68,7 @@ fn population(
     eligible: &[ryo_relations::domain::relations::types::Relation],
     scope: PopulationScope,
 ) -> Option<ProvenPopulation> {
-    use ryo_execution_domain::domain::table_cells::types::TreeForm;
+    use ryo_operators::domain::tree_cells::types::TreeForm;
     use ryo_relations::domain::relations::{service::kinds, types::Relation};
     let relation = input.relation()?;
     if !eligible.contains(&relation) {

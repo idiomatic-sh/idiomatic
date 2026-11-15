@@ -2,7 +2,7 @@
 use super::super::super::super::fixtures::operations::corpus::compiled_operations;
 use super::fixtures::{Coverage, Refusal, verify};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_execution_domain::domain::executable_program::fusion::types::{Barrier, Fusibility};
+use ryo_execution_domain::domain::interpreted_program::fusion::types::{Barrier, Fusibility};
 use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::query_operators::types::OperationKind;
 use std::borrow::Cow;

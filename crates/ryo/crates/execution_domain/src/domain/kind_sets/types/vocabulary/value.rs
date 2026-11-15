@@ -1,7 +1,7 @@
 //! Prepared immutable kind masks; no provider or source lifetime is retained.
 
 use crate::domain::kind_sets::types::{ComparisonOrdinal, ListAddress};
-use crate::domain::table_scratch::types::KindSet;
+use ryo_operators::domain::table_scratch::types::KindSet;
 use ryo_values::domain::descriptions::types::KindWord;
 use ryo_values::domain::plan_parts::types::LiteralText;
 

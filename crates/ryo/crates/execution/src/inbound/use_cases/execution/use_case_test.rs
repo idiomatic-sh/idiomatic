@@ -144,7 +144,4 @@ mod admission_order_precedence;
 mod errored_rule;
 
 #[cfg(test)]
-mod interpreter;
-
-#[cfg(test)]
 mod edge_columns;

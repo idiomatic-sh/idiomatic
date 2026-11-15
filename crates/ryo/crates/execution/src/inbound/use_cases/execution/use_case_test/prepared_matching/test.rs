@@ -3,12 +3,12 @@
 use super::super::super::fixtures;
 use super::super::super::fixtures::requests::run_prepared;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_domain::domain::table_texts::types::TextView;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_operators::domain::table_texts::types::TextView;
 use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -20,7 +20,7 @@ use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::{service::push_row, types::Table};
 use std::borrow::Cow;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::Ordering::Relaxed;
 /// How the probed select compares its one text column.
 #[derive(Clone, Copy, Debug)]
 enum Pattern {
@@ -196,7 +196,7 @@ fn prepare(
 }
 /// The matchers the program has built.
 fn builds(program: &PreparedExecutionProgram) -> usize {
-    program.matchers().builds.load(Ordering::Relaxed)
+    program.matchers().map_or(0, |at| at.builds.load(Relaxed))
 }
 /// A literal regex, glob and replace (which appends one literal replacement cell and keeps its
 /// input), each compiled once across three files.
@@ -358,7 +358,7 @@ fn run_probe(probe: Probe) -> Result<Probed, Failure> {
     let (engine, program, mut symbols) = prepare(probed, probe.text, &bindings, &shadow)?;
     let before = builds(&program);
     let matcher = ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher();
-    let matchers = program.matchers();
+    let matchers = program.matchers().expect("the interpreter compiled");
     let shadow_ready = probe.shadow.map(|(test, text)| {
         if test == Test::Matches {
             matchers
@@ -369,11 +369,11 @@ fn run_probe(probe: Probe) -> Result<Probed, Failure> {
             matchers.glob(test, TextView(text), matcher).is_some()
         }
     });
-    let read = fixtures::TableFacts::new(&[]);
+    let mut read = fixtures::TableFacts::new(&[]);
     let elements = Elements::default();
     let mut answers = Vec::new();
     for _file in 0..probe.files {
-        let answer = run_prepared(&engine, &program, b"", &elements, &mut symbols, &read);
+        let answer = run_prepared(&engine, &program, b"", &elements, &mut symbols, &mut read);
         answers.push(match answer {
             Ok(table) => Answer::Rows(Cow::Owned(
                 table

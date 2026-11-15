@@ -8,16 +8,55 @@ use crate::outbound::language::fixtures::fake::LanguageFake;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-/// Visit a real fake file whose injected language emits an invalid node reference.
+/// Visit a real fake file whose injected language emits an invalid node reference, under one rule that reads what the language
+/// writes, so the language is asked for it.
 fn invalid_injected_provider_rows_prevent_an_analysis_result() -> Result<String, FileAnalysisError>
 {
+    use crate::application::file_analysis::fixtures::visit::visited_inputs_with_rule_demands;
+    use crate::outbound::corpus::fixtures::fake::CorpusFake;
+    use crate::outbound::corpus::interface::CorpusPort as _;
+    use ryo_execution::inbound::use_cases::metadata::interface::{Mask, Needs, RelationRead};
+    use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
+    use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
+    use ryo_execution_runtime::outbound::facts::interface::FactsPort as _;
+    use ryo_language::domain::files::types::FilePath;
+    use ryo_relations::domain::relations::types::Relation;
+    use ryo_values::domain::files::types::{CorpusFile, FileBytes};
+    use ryo_values::domain::runs::types::RuleId;
     let mut seen: Vec<String> = Vec::new();
-    let (worker, language) = visited(
-        &["invalid-provider.rs"],
+    let corpus = Arc::new(CorpusFake {
+        files: vec![CorpusFile {
+            executable: Default::default(),
+            path: FilePath("invalid-provider.rs".into()),
+            bytes: FileBytes(b"fn main() {}".to_vec()),
+        }],
+        ..CorpusFake::default()
+    });
+    let files = corpus.inventory()?;
+    let (worker, language) = visited_inputs_with_rule_demands(
+        corpus,
+        &files.0,
+        &[Relation::Function],
         LanguageFake {
             out_of_range: true,
             ..LanguageFake::default()
         },
+        &crate::domain::render::types::Answering::Findings,
+        crate::domain::visit::types::Keeping::Keeps,
+        Arc::new(DigestFake),
+        FactsFake::default().worker()?,
+        None,
+        1,
+        &[RuleId("reads-functions".into())],
+        &[Needs {
+            reads: vec![RelationRead {
+                relation: Relation::Function,
+                kinds: vec![],
+            }],
+            ..Needs::default()
+        }],
+        Mask(vec![1]),
+        &[ryo_values::domain::runs::types::RuleApplicability::Always],
     )?;
     seen.push(format!("{:?}", language.parses.load(Ordering::Relaxed)));
     seen.push(format!(

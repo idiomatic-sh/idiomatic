@@ -47,7 +47,7 @@ harness = false
 
 [features]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
-fixtures = ["ryo_execution_domain/fixtures", "ryo_execution_store/fixtures", "ryo_execution_runtime/fixtures", "ryo_values/fixtures", "ryo_relations/fixtures", "ryo_language/fixtures"]
+fixtures = ["ryo_execution_domain/fixtures", "ryo_execution_store/fixtures", "ryo_execution_runtime/fixtures", "ryo_operators/fixtures", "ryo_values/fixtures", "ryo_relations/fixtures", "ryo_language/fixtures"]
 diagnostic-row-progress = ["ryo_execution_domain/diagnostic-row-progress", "ryo_execution_store/diagnostic-row-progress", "ryo_execution_runtime/diagnostic-row-progress"]
 
 [lints]

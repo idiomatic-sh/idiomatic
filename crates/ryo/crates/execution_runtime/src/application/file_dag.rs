@@ -6,16 +6,17 @@ mod graph_resources;
 pub(crate) mod predicates;
 pub(crate) mod resources;
 pub mod service;
+#[cfg(test)]
+mod service_test;
 #[cfg(any(test, feature = "fixtures"))]
 pub mod testing;
 
 #[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;
 
-#[cfg(test)]
-mod service_test;
-
 pub(crate) mod executor;
+pub(crate) mod fact_lookup;
+pub(crate) mod file_pass;
 
 pub mod observations;
 mod ordered_existence;

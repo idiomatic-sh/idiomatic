@@ -11,6 +11,3 @@ pub(crate) const EXPECT_BINDING_SLOTS: &str = "request binding slots fit address
 
 /// What a prepared request asserts when a compiled binding index does not fit its id.
 pub(crate) const EXPECT_BINDING_INDEX: &str = "compiled binding index fits u32";
-
-/// What a prepared request asserts when a compiled output index does not fit its id.
-pub(crate) const EXPECT_OUTPUT_INDEX: &str = "compiled output index fits u32";

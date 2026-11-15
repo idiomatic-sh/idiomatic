@@ -153,3 +153,12 @@ pub trait SetRowsEvaluation: crate::domain::contract::types::RowDriver {
     /// The engine's membership, distinct and delivery boundary of a set row.
     fn set_rows(&mut self) -> &mut dyn SetRowDriver;
 }
+
+/// What a set meaning lowers to.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum SetLowering {
+    /// Each row of the left rows, then of the right, the first time only.
+    Distinct,
+    /// The left rows a probe of the right ones keeps.
+    Probe(crate::domain::equality_join::types::ProbeParts),
+}

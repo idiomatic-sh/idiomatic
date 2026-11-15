@@ -110,6 +110,6 @@ pub(crate) fn found<'a>(
 pub(crate) fn holds<'a>(
     lease: &mut PrimitiveLease<'a>,
     row: &[Value],
-) -> Result<crate::domain::table_model::types::Verdict, OperatingError> {
+) -> Result<ryo_operators::domain::contract::types::PredicateOutcome, OperatingError> {
     lease.predicate.holds(row, lease.derived.as_ref())
 }

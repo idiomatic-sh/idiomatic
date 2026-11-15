@@ -3,7 +3,7 @@
 
 use ryo_values::domain::rows::types::Table;
 
-use crate::domain::table_cells::types::TreeRows;
+use ryo_operators::domain::tree_cells::types::TreeRows;
 use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_values::domain::plan_parts::types::Input;
 
@@ -51,15 +51,6 @@ pub struct Frontier {
 
 /// The hash of the cells that make a key.
 
-/// Whether a value, a kind or an entity, is in a set of them.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SetMembership {
-    /// It is in the set.
-    In,
-    /// It is not.
-    Out,
-}
-
 /// Whether a row was put into a table by the call that looked for it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Addition {
@@ -67,15 +58,6 @@ pub(crate) enum Addition {
     Added,
     /// It was there already.
     Existing,
-}
-
-/// What a comparison decided about a text.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Verdict {
-    /// The comparison holds.
-    Holds,
-    /// It does not.
-    Fails,
 }
 
 /// Opaque immutable publication crossing the engine's domain port. A foreign

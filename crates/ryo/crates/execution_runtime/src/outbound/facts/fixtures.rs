@@ -9,4 +9,5 @@ pub mod project_phase_negative;
 pub mod project_phase_restoration;
 pub mod project_phase_rewrites;
 pub mod project_phase_source_facts;
+pub mod sources;
 pub mod words;

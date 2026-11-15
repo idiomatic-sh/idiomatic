@@ -7,7 +7,7 @@ mod partitions;
 use super::types::{AliasMember, AliasSlot, PartitionSupply, ProducerRoot, RequiredPartitions};
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
-    executable_program::types::{InputSource, RegionId},
+    interpreted_program::types::{InputSource, RegionId},
     operating::errors::OperatingError,
     rule_intent::types::ApplicabilityReason,
 };
@@ -22,7 +22,6 @@ use std::rc::Rc;
 #[derive(Clone)]
 pub(crate) struct FileGeneration {
     pub(super) file: FileId,
-    pub(super) generation: ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
 }
 
 /// Positive applicability is evidence, not a Complete-empty population.
@@ -90,8 +89,8 @@ pub(crate) trait Inputs {
     fn presence(
         &mut self,
         _region: RegionId,
-    ) -> ryo_execution_domain::domain::executable_program::presence::types::RegionPresence {
-        ryo_execution_domain::domain::executable_program::presence::types::RegionPresence::Present
+    ) -> ryo_execution_domain::domain::interpreted_program::presence::types::RegionPresence {
+        ryo_execution_domain::domain::interpreted_program::presence::types::RegionPresence::Present
     }
 
     fn supply(
@@ -119,12 +118,6 @@ pub(crate) trait Inputs {
         inputs: &[AdmittedInput],
         representation: Representation,
     ) -> Result<AdmittedInput, OperatingError>;
-    fn replay(
-        &self,
-        input: &AdmittedInput,
-        context: &mut ryo_execution_domain::domain::operator::types::OperatorContext<'_>,
-        output: &mut dyn ryo_execution_domain::domain::operator::types::Emit,
-    ) -> Result<(), OperatingError>;
 }
 
 /// What a publication holds, stated by the producer and never inferred by the publisher.
@@ -257,14 +250,14 @@ pub(crate) fn alias_member(
     }
     let mut alias = input.clone();
     alias.root = ProducerRoot::Input(InputSource::ObservationMember {
-        slot: ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot.0),
-        member: ryo_execution_domain::domain::executable_program::types::ProducerMember(member.0),
+        slot: ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(slot.0),
+        member: ryo_execution_domain::domain::interpreted_program::types::ProducerMember(member.0),
     });
     Ok(alias)
 }
 
 pub(crate) fn alias_observation(
-    program: &ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
+    program: &ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram,
     slot: AliasSlot,
     input: &AdmittedInput,
     owner: &Rc<RelationOwner>,
@@ -281,7 +274,7 @@ pub(crate) fn alias_observation(
     input.publication(owner)?;
     let mut alias = input.clone();
     alias.root = ProducerRoot::Input(InputSource::Observation(
-        ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot.0),
+        ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(slot.0),
     ));
     Ok(alias)
 }
@@ -289,7 +282,6 @@ pub(crate) fn alias_observation(
 #[derive(Clone)]
 pub(crate) enum Partition {
     RequestInvariant,
-    File(FileGeneration),
     Project(RequiredPartitions),
 }
 

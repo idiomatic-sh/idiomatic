@@ -1,6 +1,6 @@
 //! The types of the `admission` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_execution_domain::domain::executable_program::types::{InputSource, RegionId};
+use ryo_execution_domain::domain::interpreted_program::types::{InputSource, RegionId};
 use ryo_relations::domain::relations::types::FileId;
 use std::sync::Arc;
 

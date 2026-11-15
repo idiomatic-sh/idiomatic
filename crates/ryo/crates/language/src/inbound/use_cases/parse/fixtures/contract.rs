@@ -125,6 +125,35 @@ pub fn flow(subject: &dyn ParseEngine, samples: &[SourceFile]) {
             "the table of {} is not a well-formed pre-order tree",
             sample.path
         );
+        // The engine builds a file's tree for the relations it wants and walks it for them later: the rows are a read's.
+        let (mut built, mut symbols) = (Elements::default(), Symbols::default());
+        subject
+            .build_file(request, &mut built, &mut symbols, all())
+            .expect("a sample is a file the language builds");
+        let (mut walked, mut read) = (Collect::default(), Collect::default());
+        subject.walk_file(
+            &mut built,
+            &mut symbols,
+            request.bytes,
+            request.file,
+            all(),
+            &mut walked,
+        );
+        read_file(
+            subject,
+            request,
+            &mut Elements::default(),
+            &mut Symbols::default(),
+            all(),
+            &mut read,
+        )
+        .expect("a sample is a file the language reads");
+        assert!(
+            (walked.relations, walked.words, walked.partials)
+                == (read.relations, read.words, read.partials),
+            "{}: its tree built for every relation, then walked, writes other rows than a read of it",
+            sample.path
+        );
     }
     rows(subject, samples);
     // The module of a file is a scope that encloses itself: of the scopes of each file, exactly one is its own parent (parent == child), and every other has a

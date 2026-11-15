@@ -106,7 +106,7 @@ pub(crate) fn deliver(
         modified: Nanoseconds(0),
         executable: ExecutablePermission::Unknown,
     })];
-    let facts = owner_fixtures::TableFacts::new(
+    let mut facts = owner_fixtures::TableFacts::new(
         &authored
             .facts
             .iter()
@@ -115,8 +115,8 @@ pub(crate) fn deliver(
     );
     let request = owner_fixtures::requests::execution().execution(&program, &corpus, None.into());
     let elements = Elements::default();
-    let root = |diagnostic, symbols: &mut Symbols| -> Result<RootOutcome, OperatingError> {
-        let FileRules { rules, end } = owner_fixtures::requests::run_file(
+    let mut root = |diagnostic, symbols: &mut Symbols| -> Result<RootOutcome, OperatingError> {
+        let FileRules { rules, end, .. } = owner_fixtures::requests::run_file(
             &request,
             RunFile {
                 source,
@@ -129,7 +129,7 @@ pub(crate) fn deliver(
                 semantic,
             },
             symbols,
-            &facts,
+            &mut facts,
         );
         if let FileEnd::Refused(stop) = end {
             return Err(owner_fixtures::facts::operating(stop));

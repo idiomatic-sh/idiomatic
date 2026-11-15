@@ -36,7 +36,7 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
             let mut symbols = Symbols::default();
             let source = functions(&mut symbols);
             // A fact relation reaches the run as the worker's stored columns, the one backing `run_file` reads.
-            let read = TableFacts::new(&[(Relation::Function, &source)]);
+            let mut read = TableFacts::new(&[(Relation::Function, &source)]);
             let elements = Elements::default();
             let intents = [FileRuleIntent::Run {
                 diagnostic: DiagnosticDelivery::Collected,
@@ -51,7 +51,7 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
                     ..FileRun::of(&intents, &elements)
                 },
                 &mut symbols,
-                &read,
+                &mut read,
             );
             let expected = Table {
                 kinds: vec![
@@ -109,7 +109,7 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
                 assert_eq!(decoded, expected_frontier);
             }
             // A new run cannot answer an unavailable provider from the previous file's cache.
-            let refused = TableFacts::new(&[]);
+            let mut refused = TableFacts::new(&[]);
             let mut next = run_file(
                 &request,
                 FileRun {
@@ -117,7 +117,7 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
                     ..FileRun::of(&intents, &elements)
                 },
                 &mut symbols,
-                &refused,
+                &mut refused,
             );
             assert!(matches!(root(ran(&mut next, 0)), Err(FileStop::Facts(_))));
             request.finish();
