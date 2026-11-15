@@ -375,3 +375,69 @@ name="submodule-before-alias-named-as-its-root"
 comparison="full"
 files={"case.py"="import pandas.io\nimport pandas as pandas\nprint(pandas)\n"}
 expected=[]
+
+[[cases]]
+name="copied-use-in-else-branch-of-rebinding"
+comparison="full"
+files={"case.py"="import os\nif c:\n    import os\nelse:\n    print(os)\n"}
+expected=[]
+
+[[cases]]
+name="copied-use-in-if-branch-before-else-rebinding"
+comparison="full"
+files={"case.py"="import os\nif c:\n    print(os)\nelse:\n    import os\n"}
+expected=[]
+
+[[cases]]
+name="copied-use-after-if-with-rebinding"
+comparison="full"
+files={"case.py"="import os\nif c:\n    import os\nprint(os)\n"}
+expected=[]
+
+[[cases]]
+name="copied-use-in-except-of-try-rebinding"
+comparison="full"
+files={"case.py"="import os\ntry:\n    import os\nexcept ImportError:\n    print(os)\n"}
+expected=[]
+
+[[cases]]
+name="copied-use-in-try-body-before-except-rebinding"
+comparison="full"
+files={"case.py"="import os\ntry:\n    print(os)\nexcept ImportError:\n    import os\n"}
+expected=[]
+
+[[cases]]
+name="copied-use-in-else-of-try-rebinding"
+comparison="full"
+files={"case.py"="import os\ntry:\n    import os\nexcept ImportError:\n    pass\nelse:\n    print(os)\n"}
+expected=[]
+
+[[cases]]
+name="copied-use-in-loop-body-before-rebinding"
+comparison="full"
+files={"case.py"="import os\nfor x in y:\n    print(os)\n    import os\n"}
+expected=[]
+
+[[cases]]
+name="copied-use-in-loop-else-after-rebinding"
+comparison="full"
+files={"case.py"="import os\nfor x in y:\n    import os\nelse:\n    print(os)\n"}
+expected=[]
+
+[[cases]]
+name="copied-use-in-while-rebinding-then-use"
+comparison="full"
+files={"case.py"="import os\nwhile c:\n    import os\n    print(os)\n"}
+expected=[]
+
+[[cases]]
+name="rebinding-without-any-use"
+comparison="full"
+files={"case.py"="import os\nif c:\n    import os\n"}
+expected=[{rule="F401", file="case.py", start=27, end=29}]
+
+[[cases]]
+name="use-after-straight-line-rebinding"
+comparison="full"
+files={"case.py"="import os\nimport os\nprint(os)\n"}
+expected=[]
