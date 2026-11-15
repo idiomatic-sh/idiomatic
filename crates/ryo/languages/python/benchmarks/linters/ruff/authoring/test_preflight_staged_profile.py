@@ -53,6 +53,20 @@ class PreflightValidationScopeTest(unittest.TestCase):
             self.assertIn("not checked: query parsing/typechecking", output.getvalue())
             self.assertNotIn("checked: query parsing/typechecking and fixture", output.getvalue())
 
+    def test_a_stage_under_a_symlinked_root_names_its_modules_relative_to_that_root(self) -> None:
+        # macOS names its temporary directory through a symlink (/var -> /private/var): the staged module paths resolve
+        # through it, and the root they are named from must resolve the same way.
+        with tempfile.TemporaryDirectory() as temporary:
+            real = Path(temporary) / "real"
+            real.mkdir()
+            linked = Path(temporary) / "linked"
+            linked.symlink_to(real, target_is_directory=True)
+            self.make_stage(linked, VALID_QUERY)
+            output = io.StringIO()
+            with patch.object(sys, "argv", ["preflight", str(linked), "--active-modules"]):
+                with redirect_stdout(output):
+                    self.assertEqual(preflight.main(), 0)
+
     def test_real_worker_accepts_control_and_rejects_chained_join(self) -> None:
         # The sealed worker and the pinned Ruff are this test's input: named by the environment after the active native gate,
         # and present on disk; an absent one fails the test, never skips it.

@@ -72,7 +72,7 @@ def module_path(value: object, source_root: Path | None=None) -> str:
     resolved = source.resolve(strict=True)
     if not resolved.is_file() or not resolved.is_relative_to(root.resolve()):
         raise ValueError(f'query module is outside the Ruff profile: {value}')
-    return resolved.relative_to(profile_config.REPOSITORY if source_root is None else root).as_posix()
+    return resolved.relative_to((profile_config.REPOSITORY if source_root is None else root).resolve()).as_posix()
 
 def prepared_case_path(rule: str, recorded: dict[str, object]) -> Path:
     """Resolve a profile-specific frozen case snapshot, or its canonical rule case file."""

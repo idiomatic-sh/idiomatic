@@ -97,7 +97,7 @@ pub(crate) fn given(file: &Path, files: &BTreeSet<PathBuf>) -> ModuleDecision {
     }
 }
 
-/// A normalized absolute path expressed from the normalized absolute run root.
+/// A normalized absolute path expressed from the normalized absolute run root, as the `/`-separated text a file path is recorded in.
 pub(crate) fn relative_to(root: &Path, path: &Path) -> Option<PathBuf> {
     let root: Vec<_> = root.components().collect();
     let path: Vec<_> = path.components().collect();
@@ -113,12 +113,14 @@ pub(crate) fn relative_to(root: &Path, path: &Path) -> Option<PathBuf> {
         .zip(&path)
         .take_while(|(left, right)| left == right)
         .count();
-    let mut result = PathBuf::new();
-    for _ in common..root.len() {
-        result.push(constants::PARENT_DIRECTORY);
+    let ups = (common..root.len()).map(|_| Path::new(constants::PARENT_DIRECTORY).as_os_str());
+    let downs = path.iter().skip(common).map(|part| part.as_os_str());
+    let mut result = PathBuf::new().into_os_string();
+    for (index, part) in ups.chain(downs).enumerate() {
+        if index > 0 {
+            result.push(constants::SEPARATOR);
+        }
+        result.push(part);
     }
-    for part in path.iter().skip(common) {
-        result.push(part.as_os_str());
-    }
-    Some(result)
+    Some(PathBuf::from(result))
 }
