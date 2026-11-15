@@ -382,3 +382,28 @@ expected = []
 name = "same-name-at-two-depths"
 files = { "src/lib.rs" = "#[rustfmt::skip(c, a(c))]\npub fn f() {}\n" }
 expected = []
+
+[[cases]]
+name = "comment-inside-nested-path"
+files = { "src/lib.rs" = "#[rustfmt::skip(a /* c */ ::b, a::b)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 31, end = 35 }]
+
+[[cases]]
+name = "comment-inside-lint-path"
+files = { "src/lib.rs" = "#[allow(clippy:: /* c */ duplicated_attributes)]\n#[inline]\n#[inline]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "comment-inside-top-path"
+files = { "src/lib.rs" = "#[rustfmt /* c */ ::skip]\n#[rustfmt::skip]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 26, end = 42 }]
+
+[[cases]]
+name = "raw-multi-segment-nested"
+files = { "src/lib.rs" = "#[rustfmt::skip(r#a::b, a::b)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 24, end = 28 }]
+
+[[cases]]
+name = "raw-multi-segment-top"
+files = { "src/lib.rs" = "#[r#rustfmt::skip]\n#[rustfmt::skip]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 35 }]
