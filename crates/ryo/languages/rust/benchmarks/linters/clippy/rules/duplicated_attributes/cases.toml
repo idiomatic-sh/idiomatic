@@ -377,3 +377,8 @@ expected = [{ file = "src/lib.rs", start = 29, end = 30 }]
 name = "third-level-different-chain"
 files = { "src/lib.rs" = "#[rustfmt::skip(a(b(c)), a(d(c)))]\npub fn f() {}\n" }
 expected = []
+
+[[cases]]
+name = "same-name-at-two-depths"
+files = { "src/lib.rs" = "#[rustfmt::skip(c, a(c))]\npub fn f() {}\n" }
+expected = []
