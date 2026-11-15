@@ -7,10 +7,12 @@ pub mod fact_rows;
 pub mod file_buffers;
 pub mod frontier_place;
 pub mod held_rows;
+pub(crate) mod keyed_rows;
 pub mod logical_program;
 pub(crate) mod lowering;
 pub mod physical_plan;
 pub mod rule_ordinal;
+pub(crate) mod stream_scratch;
 
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::table_texts::types::Texts;
@@ -176,7 +178,7 @@ pub(crate) struct NodeReaders(pub(crate) u32);
 /// Whether a node's rows are held for its readers, or passed on, chunk by chunk, to its one reader as they are made, so the
 /// node never holds them: decided once by the planner, after the rewrites.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Flow {
+pub(crate) enum NodeFlow {
     /// Its rows are held until its last consumer is done.
     Held,
     /// Its rows stream into its one reader, a streaming stage that reads it first.
@@ -277,7 +279,7 @@ pub(crate) struct KeyedRowAt<'a> {
 }
 
 /// The place in a table's cells where the row being written starts.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct CellStart(pub(crate) usize);
 
 /// What a `text_map` stage does to each row: one text kind's per-row meaning, its parts built by the kind's own lowering.

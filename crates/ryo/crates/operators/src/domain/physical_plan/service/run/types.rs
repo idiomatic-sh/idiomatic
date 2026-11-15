@@ -28,10 +28,13 @@ pub(crate) enum Reading<'a> {
     Held(&'a ryo_values::domain::rows::types::Table),
 }
 
-/// What a stage's preparation left, before it reads any row: the fault it raised there (an extension's resolution), which
-/// stops it before its first row. Its output kinds, as far as its preparation set them, are on the table it writes.
+/// What a stage's preparation left, before it reads any row: its output kinds, as far as its preparation set them, and the
+/// fault it raised there (an extension's resolution, a probe's right side's), which stops it before its first row and
+/// leaves its kinds empty.
 #[derive(Debug, Default)]
 pub(crate) struct StagePrepared {
+    /// The kinds of the rows it writes.
+    pub(crate) kinds: Vec<ryo_relations::domain::relations::types::CellKind>,
     /// The fault it raised before reading any row.
     pub(crate) fault: Option<crate::domain::contract::types::PortableOperatorFault>,
 }
@@ -52,6 +55,54 @@ pub(crate) enum ChainRows<'r> {
     Held(&'r ryo_values::domain::rows::types::Table),
     /// The head's rows: a probe's right side that is the head stage's source.
     Head,
-    /// An earlier probe's right rows, by their place.
-    Right(usize),
+    /// An earlier probe's right rows.
+    Right(crate::domain::physical_plan::types::stream_scratch::value::RightPlace),
+}
+
+/// One stage of a chain: its node and what it is lowered to.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ChainStage<'p> {
+    /// The stage's node.
+    pub(crate) node: PlanNodeId,
+    /// Its kernels.
+    pub(crate) lowering: &'p crate::domain::physical_plan::types::lowering::value::Lowering,
+}
+
+/// A hard fault of a chain and the node of the stage that raised it. A node reads only earlier nodes, so of two faults the
+/// earlier node's is the one the held plan, which makes each node before its readers, raises first.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct ChainFault {
+    /// The stage's node.
+    pub(crate) node: PlanNodeId,
+    /// The fault.
+    pub(crate) fault: crate::domain::contract::types::PortableOperatorFault,
+}
+
+/// How the runner readies a source a chain reads: it makes a held node that holds no rows yet. The chain is given it by
+/// the runner that calls it, so it never names the runner.
+pub(crate) type Readied = fn(
+    &crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
+    &mut crate::domain::physical_plan::types::KernelRun<'_>,
+    crate::domain::physical_plan::types::RowSource,
+    &mut crate::domain::physical_plan::types::file_buffers::value::FileBuffers,
+) -> Result<(), crate::domain::contract::types::PortableOperatorFault>;
+
+/// What the stages of a chain write through while its rows are pushed: the plan, the run, the worker's buffers, the rows
+/// the chain reads besides its stages' own, the tail's table, and the chain's first hard fault.
+pub(crate) struct Push<'p, 'k, 'r> {
+    /// The plan the chain's nodes are of.
+    pub(crate) plan: &'p crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
+    /// The engine's rows and resources, and the matching semantics.
+    pub(crate) run: &'k mut crate::domain::physical_plan::types::KernelRun<'r>,
+    /// The worker's buffers: each node's decisions, the text scratch and the shared indexes.
+    pub(crate) buffers:
+        &'k mut crate::domain::physical_plan::types::file_buffers::value::FileBuffers,
+    /// The head stage's source.
+    pub(crate) head: &'k ChainRows<'r>,
+    /// Each probe's right side, in chain order.
+    pub(crate) rights: &'k [ChainRows<'r>],
+    /// The tail's rows.
+    pub(crate) tail: &'k mut ryo_values::domain::rows::types::Table,
+    /// The chain's first hard fault in the held plan's order.
+    pub(crate) hard: Option<ChainFault>,
 }

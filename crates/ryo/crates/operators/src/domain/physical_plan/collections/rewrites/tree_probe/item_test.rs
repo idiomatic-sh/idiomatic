@@ -128,7 +128,7 @@ fn joined(relation: RowSource, right_on: &[u32], filter: &[PlanComparison]) -> P
         },
         readers: NodeReaders(0),
         retained: Retention::Retained,
-        flow: crate::domain::physical_plan::types::Flow::Held,
+        flow: crate::domain::physical_plan::types::NodeFlow::Held,
     }
 }
 

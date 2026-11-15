@@ -1,21 +1,32 @@
 //! The chain's one row loop: each head row pushed through its stages in turn, each stage's chunk handed to its reader once it
 //! reaches the bound, a stage that faults handing on the rows before its fault and reading no more.
-use super::super::super::types::ChainRows;
-use super::super::service::{Push, STREAM_CHUNK_CELLS, hard_at};
-use super::super::sources::service::{physical, resolved_rows, right_of, shape};
+use super::super::super::types::{ChainFault, ChainRows, ChainStage, Push};
+use super::super::sources::service::{physical, resolved_rows, right_of, rows_count, rows_kinds};
 use super::super::stages::service::stage_row;
 use crate::domain::comparing::types::NameCount;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::filter::item::grown;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::decode;
 use crate::domain::physical_plan::collections::kernels::scan_roots::item::{tree_read, tree_row};
-use crate::domain::physical_plan::collections::kernels::text_map::item::one_per_row;
-use crate::domain::physical_plan::types::file_buffers::value::StageScratch;
+use crate::domain::physical_plan::collections::kernels::text_map::item::reserved;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
-use crate::domain::physical_plan::types::{NodeFed, PlanNodeId, TakenRows};
+use crate::domain::physical_plan::types::stream_scratch::value::{
+    STREAM_CHUNK_CELLS, StageScratch,
+};
+use crate::domain::physical_plan::types::{CellStart, NodeFed, PlanNodeId, TakenRows};
 use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
+
+/// Records `fault` as the chain's hard fault when it comes before the one recorded: at an earlier node.
+pub(in crate::domain::physical_plan::service::run::pipeline) fn first_fault(
+    hard: &mut Option<ChainFault>,
+    fault: ChainFault,
+) {
+    if hard.as_ref().is_none_or(|first| fault.node < first.node) {
+        *hard = Some(fault);
+    }
+}
 
 /// Pushes the head's rows through the prepared stages into the tail's table and answers the fault of the last stage that
 /// stopped at one, the one the held plan's tail raises. Once a stage stops, the stages before it run on only when one of
@@ -31,16 +42,12 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_all(
     stages: &mut [StageScratch],
 ) -> Result<Option<PortableOperatorFault>, PortableOperatorFault> {
     let length = nodes.len();
-    let (head_kinds, head_rows) = shape(push.head);
-    // A stage that writes one row per row it reads, alone on its head, has its table sized once.
+    let (head_kinds, head_rows) = (rows_kinds(push.head), rows_count(push.head));
+    // A stage alone on its head that writes one row per row it reads has its table sized once.
     if let [node] = nodes
         && let Lowering::TextMap { map, .. } = &physical(push.plan, *node)?.lowering
-        && one_per_row(map)
     {
-        let width = push.tail.kinds.len();
-        push.tail
-            .cells
-            .reserve_exact(head_rows.0.saturating_mul(width));
+        reserved(map, head_rows, push.tail);
     }
     let first_probe = nodes.iter().position(|node| {
         physical(push.plan, *node).is_ok_and(|node| matches!(node.lowering, Lowering::Probe { .. }))
@@ -145,7 +152,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed(
     let lowering = &physical(push.plan, *node)?.lowering;
     let right = right_of(lowering).and_then(|_| {
         push.rights
-            .get(stage.own.right)
+            .get(stage.own.right.0)
             .map(|rows| resolved_rows(rows, push.head, push.rights))
     });
     let out: &mut Table = if after.is_empty() {
@@ -153,11 +160,14 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed(
     } else {
         &mut stage.out
     };
-    stage.last = out.cells.len();
+    stage.last = CellStart(out.cells.len());
     let fault = match stage_row(
         push.run,
         push.buffers,
-        (*node, lowering),
+        ChainStage {
+            node: *node,
+            lowering,
+        },
         kinds,
         cells,
         &mut stage.own,
@@ -166,7 +176,13 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed(
     ) {
         Ok(fault) => fault,
         Err(fault) => {
-            hard_at(&mut push.hard, push.length - after.len() - 1, fault.clone());
+            first_fault(
+                &mut push.hard,
+                ChainFault {
+                    node: *node,
+                    fault: fault.clone(),
+                },
+            );
             Some(fault)
         }
     };
@@ -196,8 +212,9 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn flushed(
         return Ok(());
     };
     #[cfg(test)]
-    if stage.last >= STREAM_CHUNK_CELLS {
-        push.buffers.chunks.over = true;
+    if stage.last.0 >= STREAM_CHUNK_CELLS {
+        push.buffers.chunks =
+            crate::domain::physical_plan::types::file_buffers::value::ChunkMeter::Over;
     }
     if let Lowering::Filter { select, .. } = &physical(push.plan, *reader)?.lowering
         && let Some(decisions) = push
@@ -222,6 +239,6 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn flushed(
     }
     stage.out.cells.clear();
     stage.out.count = RowCount(0);
-    stage.last = 0;
+    stage.last = CellStart(0);
     Ok(())
 }

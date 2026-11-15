@@ -1,12 +1,14 @@
 //! Every streaming stage in one chain: a filter, a projection and extensions behind a capture, each against its held twin;
 //! an extension's values resolved before any row and kept per stage, the downstream resolution's fault winning, and a
 //! distinct tail dropping repeats across chunks.
-use super::super::service::STREAM_CHUNK_CELLS;
-use super::{Program, against, ran_program, select_of, span, split_names};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{Step, over_defines, over_nodes};
 use crate::domain::physical_plan::types::PlanNodeId;
+use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
+use crate::inbound::use_cases::run::fixtures::streams::{
+    Program, against, ran_program, select_of, span, split_names,
+};
 use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as StepInput, LiteralText, Operand, ParameterId, QueryLiteral, RepeatedRows,

@@ -45,6 +45,8 @@ pub mod held;
 mod kernel_programs;
 #[cfg(test)]
 pub(crate) mod relational;
+#[cfg(test)]
+pub(crate) mod streams;
 pub mod texts;
 pub mod trees;
 pub mod unshared;

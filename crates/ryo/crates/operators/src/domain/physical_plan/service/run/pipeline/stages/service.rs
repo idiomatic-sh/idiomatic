@@ -1,7 +1,7 @@
 //! Each streaming stage of a chain: its preparation before any row, in its held kernel's order, and its work on one input
 //! row, each the kernel's own per-row function. Every stage writes through its own state, never another stage's.
-use super::super::super::types::{ChainRows, StagePrepared};
-use super::super::sources::service::{in_place, pending_of, shape};
+use super::super::super::types::{ChainRows, ChainStage, StagePrepared};
+use super::super::sources::service::{in_place, pending_of, rows_count, rows_kinds};
 use crate::domain::comparing::types::NameCount;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::extend::item::{
@@ -11,17 +11,19 @@ use crate::domain::physical_plan::collections::kernels::filter::item::{
     filter, keep, kept_kinds, readied,
 };
 use crate::domain::physical_plan::collections::kernels::hash_index::item::emptied;
-use crate::domain::physical_plan::collections::kernels::probe::item::{
-    ProbeScratch, answer_kinds, probe_prepared, probe_row,
+use crate::domain::physical_plan::collections::kernels::probe::item::{answer_kinds, probe_row};
+use crate::domain::physical_plan::collections::kernels::probe_right::item::{
+    ProbeScratch, probe_prepared,
 };
 use crate::domain::physical_plan::collections::kernels::project::item::projected;
 use crate::domain::physical_plan::collections::kernels::text_map::item::{
     RowMapRun, mapped_kinds, row_mapped,
 };
-use crate::domain::physical_plan::service::indexes::service::probe_index;
-use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, StageOwn};
+use crate::domain::physical_plan::service::indexes::service::{probe_build, probe_index};
+use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
-use crate::domain::physical_plan::types::{InputRows, KernelRun, NodeFed, PlanNodeId, ProbeIndex};
+use crate::domain::physical_plan::types::stream_scratch::value::{ProbeWork, StageOwn};
+use crate::domain::physical_plan::types::{InputRows, KernelRun, NodeFed, ProbeIndex};
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
@@ -37,12 +39,13 @@ use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
     run: &mut KernelRun<'_>,
     buffers: &mut FileBuffers,
-    (node, lowering): (PlanNodeId, &Lowering),
+    stage: ChainStage<'_>,
     input: &[CellKind],
     names: NameCount,
     own: &mut StageOwn,
     right: Option<&ChainRows<'_>>,
-) -> Result<(Vec<CellKind>, StagePrepared), PortableOperatorFault> {
+) -> Result<StagePrepared, PortableOperatorFault> {
+    let ChainStage { node, lowering } = stage;
     Ok(match lowering {
         Lowering::Filter { select, .. } => {
             let kinds = kept_kinds(input, &select.kept)?;
@@ -52,9 +55,12 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
             {
                 readied(select, decisions, names);
             }
-            (kinds, StagePrepared::default())
+            StagePrepared { kinds, fault: None }
         }
-        Lowering::TextMap { map, .. } => (mapped_kinds(map, input), StagePrepared::default()),
+        Lowering::TextMap { map, .. } => StagePrepared {
+            kinds: mapped_kinds(map, input),
+            fault: None,
+        },
         // A projection keeps exactly its columns: none is a row of no column, never every column as a filter's none is.
         Lowering::Project { project, .. } => {
             let kinds = project
@@ -68,7 +74,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
                 })
                 .collect::<Result<_, _>>()?;
             emptied(&mut own.repeats);
-            (kinds, StagePrepared::default())
+            StagePrepared { kinds, fault: None }
         }
         // An extension's values are made before its rows are read: making a name changes the file's names, and reading
         // reads them.
@@ -78,33 +84,38 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
             run.resources,
             &mut own.values,
         ) {
-            Ok(()) => (
-                input
+            Ok(()) => StagePrepared {
+                kinds: input
                     .iter()
                     .copied()
                     .chain(own.values.iter().map(|value| kind_of(*value)))
                     .collect(),
-                StagePrepared::default(),
-            ),
-            Err(fault) => (Vec::new(), StagePrepared { fault: Some(fault) }),
+                fault: None,
+            },
+            Err(fault) => StagePrepared {
+                kinds: Vec::new(),
+                fault: Some(fault),
+            },
         },
         // A probe reads every right row before it answers one: its right side's fault comes before any of its rows.
         Lowering::Probe { probe, index, .. } => {
             let right = right.ok_or(PortableOperatorFault::WrongOperation)?;
             if let Some(fault) = pending_of(right) {
-                return Ok((Vec::new(), StagePrepared { fault: Some(fault) }));
+                return Ok(StagePrepared {
+                    kinds: Vec::new(),
+                    fault: Some(fault),
+                });
             }
-            let (right_kinds, right_rows) = shape(right);
-            let kinds = answer_kinds(probe, input, right_kinds)?;
+            let kinds = answer_kinds(probe, input, rows_kinds(right))?;
             emptied(&mut own.repeats);
-            own.ready = false;
+            own.work = ProbeWork::Pending;
             // What it is fed from its right side: its rows, or, walking the tree, the rows its walks find.
             own.fed = if *index == ProbeIndex::Tree {
                 RowCount(0)
             } else {
-                right_rows
+                rows_count(right)
             };
-            (kinds, StagePrepared::default())
+            StagePrepared { kinds, fault: None }
         }
         Lowering::Lookup { .. }
         | Lowering::Distinct { .. }
@@ -134,13 +145,14 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
 pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_row(
     run: &mut KernelRun<'_>,
     buffers: &mut FileBuffers,
-    (node, lowering): (PlanNodeId, &Lowering),
+    stage: ChainStage<'_>,
     kinds: &[CellKind],
     cells: &[Value],
     own: &mut StageOwn,
     right: Option<&ChainRows<'_>>,
     out: &mut Table,
 ) -> Result<Option<PortableOperatorFault>, PortableOperatorFault> {
+    let ChainStage { node, lowering } = stage;
     let place = usize::try_from(node.0).unwrap_or(usize::MAX);
     Ok(match lowering {
         Lowering::Filter { select, .. } => {
@@ -200,17 +212,18 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_row(
                 kept,
                 whole: [left_on, right_on],
                 repeats,
-                ready,
+                work,
                 fed,
                 ..
             } = own;
-            let (index, build) = probe_index(&mut buffers.shared, own_index, *index)?;
+            let build = probe_build(&buffers.shared, *index);
             #[cfg(test)]
-            if !*ready
-                && build == crate::domain::physical_plan::collections::kernels::probe::item::IndexBuild::Builds
+            if *work == ProbeWork::Pending
+                && build == crate::domain::physical_plan::collections::kernels::probe_right::item::IndexBuild::Builds
             {
                 buffers.builds.0 += 1;
             }
+            let index = probe_index(&mut buffers.shared, own_index, *index)?;
             let mut scratch = ProbeScratch {
                 index,
                 build,
@@ -225,9 +238,9 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_row(
                     .ok_or(PortableOperatorFault::WrongOperation)?,
                 found: &mut buffers.found,
             };
-            if !*ready {
-                *ready = true;
-                if let Some(fault) = probe_prepared(probe, kinds, right, run, &mut scratch)?.fault {
+            if *work == ProbeWork::Pending {
+                *work = ProbeWork::Done;
+                if let Some(fault) = probe_prepared(probe, kinds, right, run, &mut scratch)? {
                     return Ok(Some(fault));
                 }
             }

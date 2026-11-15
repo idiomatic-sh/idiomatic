@@ -2,6 +2,7 @@
 //! their capacity kept across files.
 
 use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
+use crate::domain::physical_plan::types::keyed_rows::value::{IndexKeyHash, IndexedRow, KeyedRows};
 use crate::domain::physical_plan::types::{NodeFed, NodeReaders, NodeRows, PlanNodeId};
 use crate::domain::table_scratch::types::{LazyScratch, Memo, SelectScratch};
 use ryo_relations::domain::relations::types::{NodeId, Value};
@@ -55,7 +56,7 @@ pub struct FileBuffers {
     /// Each probe index the plan shares, by its place, its capacity kept across files.
     pub(crate) shared: Vec<SharedIndex>,
     /// The work of the chains of streamed stages, its capacity kept across nodes and files.
-    pub(crate) stream: StreamScratch,
+    pub(crate) stream: crate::domain::physical_plan::types::stream_scratch::value::StreamScratch,
     /// How many times a probe built an index, its own or a shared one: what the sharing cases count.
     #[cfg(test)]
     pub(crate) builds: IndexBuilds,
@@ -67,101 +68,52 @@ pub struct FileBuffers {
     pub(crate) meter: TableMeter,
 }
 
-/// The node tables a worker held: how many it formed, the rows they hold now, and the most rows they held at once.
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct TableMeter {
-    /// How many node tables were held.
-    pub(crate) formed: u32,
-    /// The rows the held node tables hold now.
-    pub(crate) live_rows: usize,
-    /// The most rows the held node tables held at once.
-    pub(crate) peak_rows: usize,
-}
-
-#[cfg(test)]
-impl TableMeter {
-    /// A node table of `rows` rows is held.
-    pub(crate) fn formed(&mut self, rows: usize) {
-        self.formed += 1;
-        self.live_rows += rows;
-        self.peak_rows = self.peak_rows.max(self.live_rows);
-    }
-
-    /// A held node table of `rows` rows is dropped.
-    pub(crate) fn dropped(&mut self, rows: usize) {
-        self.live_rows = self.live_rows.saturating_sub(rows);
-    }
-}
-
-/// What the chunks of a worker's chains held, for the cell-bound case.
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ChunkMeter {
-    /// Whether a chunk held the bound's cells or more before the input row that wrote its last rows.
-    pub(crate) over: bool,
-}
-
 /// How many probe indexes a worker built.
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct IndexBuilds(pub(crate) usize);
 
-/// The work of the chains of streamed stages a worker runs: one chain's scratch for each chain running at once (a chain
-/// that readies a held source runs that source's chain inside it), kept with its capacity across nodes and files.
-#[derive(Debug, Default)]
-pub(crate) struct StreamScratch {
-    /// The scratch of each chain not running now, taken by the next chain to run and given back when it is done.
-    pub(crate) levels: Vec<ChainScratch>,
+/// The node tables a worker held: how many it formed, the rows they hold now, and the most rows they held at once.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct TableMeter {
+    /// How many node tables were held.
+    pub(crate) formed: TablesFormed,
+    /// The rows the held node tables hold now.
+    pub(crate) live_rows: ryo_values::domain::rows::types::RowCount,
+    /// The most rows the held node tables held at once.
+    pub(crate) peak_rows: ryo_values::domain::rows::types::RowCount,
 }
 
-/// One chain's scratch: its nodes, head first, and each stage's own state.
-#[derive(Debug, Default)]
-pub(crate) struct ChainScratch {
-    /// The chain's nodes, from the head stage to the tail.
-    pub(crate) chain: Vec<PlanNodeId>,
-    /// A head row, decoded from a relation's columns or the tree.
-    pub(crate) row: Vec<Value>,
-    /// Each stage's own state, by its place in the chain.
-    pub(crate) stages: Vec<StageScratch>,
+/// How many node tables a worker held.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct TablesFormed(pub(crate) u32);
+
+#[cfg(test)]
+impl TableMeter {
+    /// A node table of `rows` rows is held.
+    pub(crate) fn formed(&mut self, rows: ryo_values::domain::rows::types::RowCount) {
+        self.formed.0 += 1;
+        self.live_rows.0 += rows.0;
+        self.peak_rows.0 = self.peak_rows.0.max(self.live_rows.0);
+    }
+
+    /// A held node table of `rows` rows is dropped.
+    pub(crate) fn dropped(&mut self, rows: ryo_values::domain::rows::types::RowCount) {
+        self.live_rows.0 = self.live_rows.0.saturating_sub(rows.0);
+    }
 }
 
-/// One stage's state for one run of its chain: the chunk of rows it wrote that its reader has not read, what it read,
-/// whether it stopped at a fault, and what it keeps for itself across its input rows.
-#[derive(Debug, Default)]
-pub(crate) struct StageScratch {
-    /// The rows it wrote that its reader has not read yet: its chunk. The tail writes its node's table instead.
-    pub(crate) out: ryo_values::domain::rows::types::Table,
-    /// Where in `out` the rows of the input row it read last start.
-    pub(crate) last: usize,
-    /// How many input rows it read.
-    pub(crate) read: ryo_values::domain::rows::types::RowCount,
-    /// The fault it stopped at; it reads no row after it.
-    pub(crate) fault: Option<PortableOperatorFault>,
-    /// What the stage keeps for itself across its input rows, its own beside every other stage's of the chain.
-    pub(crate) own: StageOwn,
-}
-
-/// What one stage keeps for itself across its input rows and chunks: an extension's values, a tail's repeats, and a probe's
-/// right side (its own index, the right rows its filter kept and its whole-row key columns), none shared with another stage.
-#[derive(Debug, Default)]
-pub(crate) struct StageOwn {
-    /// An extension's values, resolved once before its first row.
-    pub(crate) values: Vec<Value>,
-    /// The rows a tail that drops repeated rows kept so far, keyed by their cells in its table.
-    pub(crate) repeats: KeyedRows,
-    /// A probe's own index of its right rows; a probe of a shared index or of the tree builds none.
-    pub(crate) index: KeyedRows,
-    /// The right rows a probe's filter kept, read by every left row.
-    pub(crate) kept: ryo_values::domain::rows::types::Table,
-    /// A probe's key columns of a whole-row key: its left's, then its right's.
-    pub(crate) whole: [Vec<ryo_values::domain::plan_parts::types::ColumnIndex>; 2],
-    /// Whether a probe did its work before its first left row.
-    pub(crate) ready: bool,
-    /// A probe's right rows, by their place among its chain's right sides.
-    pub(crate) right: usize,
-    /// The rows a probe was fed from its right side: its right rows, or the tree rows its walks found.
-    pub(crate) fed: ryo_values::domain::rows::types::RowCount,
+/// Whether every chunk a worker's chains handed on held less than the bound before the input row that wrote its last rows.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum ChunkMeter {
+    /// Every chunk did.
+    #[default]
+    Within,
+    /// A chunk held the bound's cells or more before it.
+    Over,
 }
 
 /// A probe index the plan shares: built by the first of its probes in a file to read its rows, and emptied after the last,
@@ -184,41 +136,6 @@ pub(crate) struct NodeDecisions {
     /// What each comparison decided about each name of the open file.
     pub(crate) memo: Vec<Memo>,
 }
-
-/// Rows keyed by the hash of their key, with no allocation per row and no key copied out: each key's first and last row and
-/// its row count in a hash table, and the next row of the same key in `next`, ascending, so a key's rows are read in source
-/// order. A key is one name column's text, or the cells of key columns, compared from the keyed rows' own cells.
-#[derive(Debug, Default)]
-pub(crate) struct KeyedRows {
-    /// Each key's hash, first row and last row.
-    pub(crate) keys: hashbrown::HashTable<KeyedRun>,
-    /// The next row of the same key after each row; `NO_ROW` after the last.
-    pub(crate) next: Vec<IndexedRow>,
-}
-
-/// One key of an index: its hash, the first and last of its rows and how many rows it has.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct KeyedRun {
-    /// The hash of the key: of its text for a name column, of its cells otherwise.
-    pub(crate) hash: IndexKeyHash,
-    /// Its first row.
-    pub(crate) first: IndexedRow,
-    /// Its last row.
-    pub(crate) last: IndexedRow,
-    /// How many rows it has.
-    pub(crate) rows: ryo_values::domain::rows::types::RowCount,
-}
-
-/// The hash of a key: of its text for a name column, of its cells otherwise.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct IndexKeyHash(pub(crate) u64);
-
-/// A row of an indexed relation, by its place in the relation's rows.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct IndexedRow(pub(crate) u32);
-
-/// The row after a key's last row.
-pub(crate) const NO_ROW: IndexedRow = IndexedRow(u32::MAX);
 
 impl FileBuffers {
     /// A node's rows, borrowed (cardinality included).
@@ -255,13 +172,6 @@ impl FileBuffers {
         usize::try_from(node.0).map_or(NodeFed::default(), |at| {
             self.fed.get(at).copied().unwrap_or_default()
         })
-    }
-
-    /// Whether every chunk a stage of a chain handed on held less than the bound before its last input row: the cell-bound
-    /// case's reading.
-    #[cfg(test)]
-    pub(crate) fn chunks_within(&self) -> bool {
-        !self.chunks.over
     }
 
     /// Keeps of `node`'s rows those `keep` holds for, in their order, and drops the rest. This is the engine's one
@@ -303,7 +213,10 @@ impl FileBuffers {
         }
         table.cells.truncate(written);
         #[cfg(test)]
-        self.meter.dropped(table.count.0 - kept);
+        self.meter
+            .dropped(ryo_values::domain::rows::types::RowCount(
+                table.count.0 - kept,
+            ));
         table.count = ryo_values::domain::rows::types::RowCount(kept);
     }
 
@@ -330,7 +243,7 @@ impl FileBuffers {
         {
             #[cfg(test)]
             if let Some(table) = held.as_ref() {
-                self.meter.dropped(table.count.0);
+                self.meter.dropped(table.count);
             }
             *held = None;
             if let Some(pending) = self.pending.get_mut(at) {
@@ -355,8 +268,7 @@ impl SharedIndex {
 
     /// Empties the index for the next file, keeping its capacity.
     pub(crate) fn emptied(&mut self) {
-        self.rows.keys.clear();
-        self.rows.next.clear();
+        self.rows.cleared();
         self.remaining = NodeReaders(0);
     }
 }

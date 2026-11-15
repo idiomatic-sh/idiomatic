@@ -7,7 +7,7 @@ use crate::domain::physical_plan::service::plan;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::{
-    Flow, LogicalNode, NodeBindings, PlanInput, PlanInputList, PlanNodeId,
+    LogicalNode, NodeBindings, NodeFlow, PlanInput, PlanInputList, PlanNodeId,
 };
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
@@ -154,8 +154,8 @@ fn flows(steps: &[Step], emitted: &[u32], held: &[u32]) -> Result<Value, Failure
         plan.nodes
             .iter()
             .map(|node| match node.flow {
-                Flow::Streamed => 'S',
-                Flow::Held => 'H',
+                NodeFlow::Streamed => 'S',
+                NodeFlow::Held => 'H',
             })
             .collect(),
     ))

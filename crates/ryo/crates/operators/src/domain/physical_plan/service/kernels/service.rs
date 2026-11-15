@@ -11,7 +11,9 @@ use crate::domain::physical_plan::collections::kernels::group::item::{GroupScrat
 use crate::domain::physical_plan::collections::kernels::hash_index::item::emptied;
 use crate::domain::physical_plan::collections::kernels::ordered_match::item::matched;
 use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visited;
-use crate::domain::physical_plan::collections::kernels::probe::item::{IndexBuild, ProbeScratch};
+use crate::domain::physical_plan::collections::kernels::probe_right::item::{
+    IndexBuild, ProbeScratch,
+};
 use crate::domain::physical_plan::collections::kernels::reach::item::{
     ReachScratch, Starts, reached,
 };

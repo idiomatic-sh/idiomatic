@@ -310,7 +310,6 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
         }
         Scenario::PipelineHolds => {
             let mut resources = TextResources::new(TEXTS);
-            // Three rows, two of them named n1, which the select keeps; the projection of their kind keeps one.
             let table = defines(&[("a", "n1"), ("a", "n2"), ("a", "n1")], &resources);
             let inputs = TableInputs::new(&[(DEFINES, &table)]);
             let steps = [
@@ -333,8 +332,8 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
                 &mut buffers,
             )?;
             Ok(Observation::Peak {
-                formed: buffers.meter.formed,
-                peak_rows: buffers.meter.peak_rows,
+                formed: buffers.meter.formed.0,
+                peak_rows: buffers.meter.peak_rows.0,
             })
         }
         Scenario::RewritesKeepRows => rewrites_keep_rows(REWRITES),
@@ -395,5 +394,7 @@ mod held_rows;
 mod kinds;
 #[cfg(test)]
 mod relational;
+#[cfg(test)]
+mod streaming;
 #[cfg(test)]
 mod tree_rows;

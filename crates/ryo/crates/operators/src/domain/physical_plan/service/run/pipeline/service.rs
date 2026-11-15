@@ -2,54 +2,32 @@
 //! bounded chunks, only the node's own rows held. Each stage keeps the rows it wrote before its first fault and stops there;
 //! its reader reads every row before that fault, so the earliest row's fault wins whatever the chunking (D15). A hard fault
 //! is the held plan's first: the first stage, in chain order, whose own run raises one.
-use super::super::types::ChainRows;
-use super::push::service::pushed_all;
+use super::super::types::{ChainFault, ChainRows, ChainStage, Push, Readied};
+use super::push::service::{first_fault, pushed_all};
 use super::sources::service::{
-    given_back, pending_of, physical, reading, resolved_rows, right_of, shape, walked,
+    given_back, pending_of, physical, reading, resolved_rows, right_of, rows_kinds, walked,
 };
 use super::stages::service::stage_prepared;
 use crate::domain::comparing::types::NameCount;
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::collections::kernels::hash_index::item::emptied;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::hold;
 use crate::domain::physical_plan::service::indexes::service::{closed, opened};
-use crate::domain::physical_plan::types::file_buffers::value::{
-    ChainScratch, FileBuffers, StageScratch,
-};
+use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
-use crate::domain::physical_plan::types::physical_plan::value::{PhysicalNode, PhysicalPlan};
-use crate::domain::physical_plan::types::{KernelRun, PlanNodeId, ProbeIndex, RowSource};
+use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+use crate::domain::physical_plan::types::stream_scratch::value::{
+    ChainScratch, RightPlace, StageScratch,
+};
+use crate::domain::physical_plan::types::{
+    CellStart, KernelRun, PlanNodeId, ProbeIndex, RowSource,
+};
 use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::rows::types::{RowCount, Table};
 
-/// The cells a stage's chunk holds before its reader reads it, checked between input rows: 16 Ki cells (256 KiB of
-/// 16-byte cells). A chunk keeps no more room than this after its chain's run.
-pub(super) const STREAM_CHUNK_CELLS: usize = 1 << 14;
-
-/// What the stages of a chain write through while its rows are pushed: the plan, the run, the worker's buffers, the rows
-/// the chain reads besides its stages' own, the tail's table, and the chain's first hard fault.
-pub(super) struct Push<'p, 'k, 'r> {
-    /// The plan the chain's nodes are of.
-    pub(super) plan: &'p PhysicalPlan,
-    /// The engine's rows and resources, and the matching semantics.
-    pub(super) run: &'k mut KernelRun<'r>,
-    /// The worker's buffers: each node's decisions, the text scratch and the shared indexes.
-    pub(super) buffers: &'k mut FileBuffers,
-    /// The head stage's source.
-    pub(super) head: &'k ChainRows<'r>,
-    /// Each probe's right side, in chain order.
-    pub(super) rights: &'k [ChainRows<'r>],
-    /// The tail's rows.
-    pub(super) tail: &'k mut Table,
-    /// How many stages the chain has.
-    pub(super) length: usize,
-    /// The first hard fault of the chain in the held plan's order: the place of its stage, and the fault.
-    pub(super) hard: Option<(usize, PortableOperatorFault)>,
-}
-
 /// Makes `tail`'s rows by pushing the rows of the chain of streamed nodes that feeds it through each stage in turn, holding
-/// only `tail`'s rows and pending fault. A node of the chain already held in `buffers` ends the chain and is read as a source.
+/// only `tail`'s rows and pending fault. A node of the chain already held in `buffers` ends the chain and is read as a source;
+/// `ready` makes each held source that holds no rows yet.
 ///
 /// # Errors
 ///
@@ -59,39 +37,15 @@ pub(in crate::domain::physical_plan::service::run) fn streamed(
     run: &mut KernelRun<'_>,
     tail: PlanNodeId,
     buffers: &mut FileBuffers,
+    ready: Readied,
 ) -> Result<(), PortableOperatorFault> {
     let mut chain = buffers.stream.levels.pop().unwrap_or_default();
-    let answered = chained(plan, run, tail, buffers, &mut chain);
+    let answered = chained(plan, run, tail, buffers, &mut chain, ready);
     for stage in &mut chain.stages {
-        settled(stage);
+        stage.settled();
     }
     buffers.stream.levels.push(chain);
     answered
-}
-
-/// Empties a stage after its chain's run, keeping no more room in its tables than the bound.
-fn settled(stage: &mut StageScratch) {
-    for table in [&mut stage.out, &mut stage.own.kept] {
-        table.kinds.clear();
-        table.cells.clear();
-        table.count = RowCount(0);
-        if table.cells.capacity() > STREAM_CHUNK_CELLS {
-            table.cells.shrink_to(STREAM_CHUNK_CELLS);
-        }
-    }
-    emptied(&mut stage.own.index);
-    stage.fault = None;
-}
-
-/// Records `fault` as the chain's hard fault when it comes before the one recorded: at an earlier stage.
-pub(super) fn hard_at(
-    hard: &mut Option<(usize, PortableOperatorFault)>,
-    at: usize,
-    fault: PortableOperatorFault,
-) {
-    if hard.as_ref().is_none_or(|(first, _)| at < *first) {
-        *hard = Some((at, fault));
-    }
 }
 
 /// Runs the chain into `tail` and holds its rows. In the held plan's order, before any row: the head's source and each
@@ -103,6 +57,7 @@ fn chained(
     tail: PlanNodeId,
     buffers: &mut FileBuffers,
     chain: &mut ChainScratch,
+    ready: Readied,
 ) -> Result<(), PortableOperatorFault> {
     walked(plan, tail, buffers, &mut chain.chain)?;
     let length = chain.chain.len();
@@ -117,59 +72,67 @@ fn chained(
     let stages = stages
         .get_mut(..length)
         .ok_or(PortableOperatorFault::WrongOperation)?;
-    let head_node = *nodes.first().ok_or(PortableOperatorFault::WrongOperation)?;
-    let head_lowering = &physical(plan, head_node)?.lowering;
-    let source = head_lowering
+    let head = ChainStage {
+        node: *nodes.first().ok_or(PortableOperatorFault::WrongOperation)?,
+        lowering: &physical(
+            plan,
+            *nodes.first().ok_or(PortableOperatorFault::WrongOperation)?,
+        )?
+        .lowering,
+    };
+    let source = head
+        .lowering
         .sources()
         .next()
         .ok_or(PortableOperatorFault::WrongOperation)?;
     let mut hard = None;
     // Every source is readied before any is read, so a right side's own chain never finds a source this chain has taken.
-    super::super::service::ready(plan, run, source, buffers)?;
-    let mut limit = length;
-    for (at, node) in nodes.iter().enumerate() {
+    ready(plan, run, source, buffers)?;
+    for node in nodes.iter() {
         if let Some(right) = right_of(&physical(plan, *node)?.lowering)
-            && let Err(fault) = super::super::service::ready(plan, run, right, buffers)
+            && let Err(fault) = ready(plan, run, right, buffers)
         {
-            hard_at(&mut hard, at, fault);
-            limit = at;
+            first_fault(&mut hard, ChainFault { node: *node, fault });
             break;
         }
     }
-    // A right side of the head stage is readied before the head's source is read.
-    if let Some((0, fault)) = hard {
-        return Err(fault);
+    // The head stage's right side is readied before the head's source is read.
+    if let Some(first) = hard.take_if(|first| first.node == head.node) {
+        return Err(first.fault);
     }
-    let head = reading(
-        run,
-        head_node,
-        matches!(head_lowering, Lowering::TextMap { .. }),
-        source,
-        buffers,
-    )?;
+    let head_rows = reading(run, head, source, buffers)?;
     let mut rights: Vec<ChainRows<'_>> = Vec::new();
-    for (at, node) in nodes.iter().enumerate().take(limit) {
-        let Some(right) = right_of(&physical(plan, *node)?.lowering) else {
+    for (node, stage) in nodes.iter().zip(stages.iter_mut()) {
+        if hard.as_ref().is_some_and(|first| first.node <= *node) {
+            break;
+        }
+        let lowering = &physical(plan, *node)?.lowering;
+        let Some(right) = right_of(lowering) else {
             continue;
         };
         let earlier = rights.iter().position(|taken| {
             matches!((taken, right), (ChainRows::Node(read, _), RowSource::Node(node)) if *read == node)
         });
         let rows = match (source, earlier) {
-            (RowSource::Node(head), _) if right == RowSource::Node(head) => Ok(ChainRows::Head),
-            (_, Some(earlier)) => Ok(ChainRows::Right(earlier)),
-            _ => reading(run, *node, false, right, buffers),
+            (RowSource::Node(read), _) if right == RowSource::Node(read) => Ok(ChainRows::Head),
+            (_, Some(earlier)) => Ok(ChainRows::Right(RightPlace(earlier))),
+            _ => reading(
+                run,
+                ChainStage {
+                    node: *node,
+                    lowering,
+                },
+                right,
+                buffers,
+            ),
         };
         match rows {
             Ok(rows) => {
-                if let Some(stage) = stages.get_mut(at) {
-                    stage.own.right = rights.len();
-                }
+                stage.own.right = RightPlace(rights.len());
                 rights.push(rows);
             }
             Err(fault) => {
-                hard_at(&mut hard, at, fault);
-                limit = at;
+                first_fault(&mut hard, ChainFault { node: *node, fault });
                 break;
             }
         }
@@ -179,56 +142,44 @@ fn chained(
         plan,
         run,
         buffers,
-        head: &head,
+        head: &head_rows,
         rights: &rights,
         tail: &mut output,
-        length,
         hard,
     };
-    let reached = prepared(&mut push, nodes, stages, limit);
-    let opened_stages = reached.as_ref().map_or(0, |reached| *reached);
-    let answered = reached.and_then(|_| pushed_all(&mut push, nodes, row, stages));
+    prepared(&mut push, nodes, stages)?;
+    let answered = pushed_all(&mut push, nodes, row, stages);
     let hard = push.hard.take();
-    for node in nodes.iter().take(opened_stages) {
-        if let Ok(PhysicalNode {
-            lowering:
-                Lowering::Probe {
-                    index: ProbeIndex::Shared(at),
-                    ..
-                },
-            ..
-        }) = physical(plan, *node)
-        {
-            closed(buffers, *at);
+    for stage in stages.iter_mut() {
+        if let Some(at) = stage.own.shared.take() {
+            closed(buffers, at);
         }
     }
-    let pending = pending_of(&head);
-    given_back(plan, buffers, head, rights);
-    if let Some((_, fault)) = hard {
-        return Err(fault);
+    let pending = pending_of(&head_rows);
+    given_back(plan, buffers, head_rows, rights);
+    if let Some(first) = hard {
+        return Err(first.fault);
     }
     let fault = answered?;
     hold(plan, buffers, tail, output, fault.or(pending));
     Ok(())
 }
 
-/// Prepares the first `limit` stages in chain order before any row is read, as the held plan readies each node before its
-/// rows: each one's output kinds from its input's, through `stage_prepared`. A stage whose preparation faults stops before
-/// its first row, and the stages after it are prepared over its empty kinds; a stage's hard fault stops the preparation
-/// there, and it and every stage after it read no row. A probe of a shared index opens it. Answers how many stages it
-/// reached, the one that raised a hard fault included.
+/// Prepares each stage in chain order before any row is read, as the held plan readies each node before its rows: each one's
+/// output kinds from its input's, through `stage_prepared`. A stage whose preparation faults stops before its first row, and
+/// the stages after it are prepared over its empty kinds. A stage at or past the chain's hard fault is not reached: it, and
+/// every stage after it, reads no row. A probe of a shared index opens it.
 ///
 /// # Errors
 ///
-/// A stage the plan does not hold; a stage's hard fault is the chain's, recorded at its place.
+/// A stage the plan does not hold; a stage's hard fault is the chain's, recorded at its node.
 fn prepared(
     push: &mut Push<'_, '_, '_>,
     nodes: &[PlanNodeId],
     stages: &mut [StageScratch],
-    limit: usize,
-) -> Result<usize, PortableOperatorFault> {
+) -> Result<(), PortableOperatorFault> {
     let names = NameCount(name_count(push.run.resources.texts().symbols).0);
-    let (head_kinds, _) = shape(push.head);
+    let head_kinds = rows_kinds(push.head);
     let last = nodes.len().saturating_sub(1);
     for (at, node) in nodes.iter().enumerate() {
         let (before, from) = stages.split_at_mut(at);
@@ -237,11 +188,11 @@ fn prepared(
             .ok_or(PortableOperatorFault::WrongOperation)?;
         stage.out.cells.clear();
         stage.out.count = RowCount(0);
-        stage.last = 0;
+        stage.last = CellStart(0);
         stage.read = RowCount(0);
         stage.fault = None;
-        if at >= limit {
-            // Not reached: an earlier stage's source or preparation raised the chain's hard fault.
+        if push.hard.as_ref().is_some_and(|first| first.node <= *node) {
+            // Not reached: an earlier source or stage raised the chain's hard fault, or this stage's right side did.
             stage.fault = Some(PortableOperatorFault::NotRun);
             continue;
         }
@@ -252,39 +203,45 @@ fn prepared(
         } = lowering
         {
             opened(push.plan, push.buffers, *place);
+            stage.own.shared = Some(*place);
         }
         let input: &[CellKind] = before.last().map_or(head_kinds, |stage| &stage.out.kinds);
         let right = right_of(lowering).and_then(|_| {
             push.rights
-                .get(stage.own.right)
+                .get(stage.own.right.0)
                 .map(|rows| resolved_rows(rows, push.head, push.rights))
         });
         match stage_prepared(
             push.run,
             push.buffers,
-            (*node, lowering),
+            ChainStage {
+                node: *node,
+                lowering,
+            },
             input,
             names,
             &mut stage.own,
             right,
         ) {
-            Ok((kinds, prepared)) => {
+            Ok(prepared) => {
                 stage.fault = prepared.fault;
                 if at == last {
-                    push.tail.kinds = kinds;
+                    push.tail.kinds = prepared.kinds;
                 } else {
-                    stage.out.kinds = kinds;
+                    stage.out.kinds = prepared.kinds;
                 }
             }
             Err(fault) => {
-                hard_at(&mut push.hard, at, fault.clone());
+                first_fault(
+                    &mut push.hard,
+                    ChainFault {
+                        node: *node,
+                        fault: fault.clone(),
+                    },
+                );
                 stage.fault = Some(fault);
-                for later in from.iter_mut().skip(1) {
-                    later.fault = Some(PortableOperatorFault::NotRun);
-                }
-                return Ok(at + 1);
             }
         }
     }
-    Ok(limit.min(nodes.len()))
+    Ok(())
 }

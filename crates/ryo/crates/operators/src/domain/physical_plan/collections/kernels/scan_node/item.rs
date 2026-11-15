@@ -71,7 +71,7 @@ pub(crate) fn give_back(
         }
     } else {
         #[cfg(test)]
-        buffers.meter.dropped(taken.rows.count.0);
+        buffers.meter.dropped(taken.rows.count);
     }
 }
 
@@ -86,7 +86,7 @@ pub(crate) fn hold(
     let place = usize::try_from(node.0).unwrap_or(usize::MAX);
     if let Some(held) = buffers.nodes.get_mut(place) {
         #[cfg(test)]
-        buffers.meter.formed(rows.count.0);
+        buffers.meter.formed(rows.count);
         *held = Some(rows);
     }
     if let Some(slot) = buffers.pending.get_mut(place) {

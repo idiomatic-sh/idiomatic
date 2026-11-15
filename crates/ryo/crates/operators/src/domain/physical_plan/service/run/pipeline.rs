@@ -3,7 +3,5 @@
 
 pub(crate) mod push;
 pub(crate) mod service;
-#[cfg(test)]
-mod service_test;
 pub(crate) mod sources;
 pub(crate) mod stages;

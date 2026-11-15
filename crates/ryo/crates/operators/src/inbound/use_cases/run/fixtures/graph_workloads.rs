@@ -192,7 +192,7 @@ fn graph_kernels_once(
 ) -> u64 {
     use crate::domain::physical_plan::collections::kernels::components::item::cyclic;
     use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visited;
-    use crate::domain::physical_plan::collections::kernels::probe::item::{
+    use crate::domain::physical_plan::collections::kernels::probe_right::item::{
         IndexBuild, ProbeScratch,
     };
     use crate::domain::physical_plan::collections::kernels::reach::item::{

@@ -1,13 +1,13 @@
 //! A probe's left rows stream into it, each against its held twin: an inner, a semi and an anti probe behind a select, the
 //! right side's fault raised before any left row, a right filter kept across every chunk of left rows, and two probes of
 //! one chain each reading its own index while both are active.
-use super::super::service::STREAM_CHUNK_CELLS;
-use super::{Program, ran_program, span};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{Step, over_defines};
+use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use crate::inbound::use_cases::run::fixtures::cases::{compared, self_matching};
+use crate::inbound::use_cases::run::fixtures::streams::{Program, ran_program, span};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as StepInput, JoinColumn, LiteralText, Operand, QueryLiteral, Side, StepId,

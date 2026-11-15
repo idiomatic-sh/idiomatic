@@ -100,7 +100,7 @@ fn materialize(
     | Lowering::TextMap { .. }
     | Lowering::Probe { .. } = lowering
     {
-        return super::pipeline::service::streamed(plan, run, node, buffers);
+        return super::pipeline::service::streamed(plan, run, node, buffers, ready);
     }
     made(plan, run, node, lowering, buffers)
 }

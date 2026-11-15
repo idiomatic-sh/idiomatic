@@ -70,9 +70,13 @@ pub(crate) fn mapped_kinds(map: &RowMap, input: &[CellKind]) -> Vec<CellKind> {
     kinds
 }
 
-/// Whether `map` writes one row per row read, so a table of its rows can be sized once from its input's rows.
-pub(crate) fn one_per_row(map: &RowMap) -> bool {
-    matches!(map, RowMap::SpanBounds(_) | RowMap::SpanBetween(_))
+/// Sizes `output` once for the rows `map` writes from `rows` input rows, when it writes one row per row read: a kind of one
+/// row per row has its cells reserved once, not grown row by row.
+pub(crate) fn reserved(map: &RowMap, rows: RowCount, output: &mut Table) {
+    if matches!(map, RowMap::SpanBounds(_) | RowMap::SpanBetween(_)) {
+        let width = output.kinds.len();
+        output.cells.reserve_exact(rows.0.saturating_mul(width));
+    }
 }
 
 /// The kinds of the columns `map` appends to each row.

@@ -7,7 +7,7 @@ use super::super::scan_facts::item::{cell_of, count_of, rows_of};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::physical_plan::types::file_buffers::value::WalkScratch;
-use crate::domain::physical_plan::types::file_buffers::value::{
+use crate::domain::physical_plan::types::keyed_rows::value::{
     IndexKeyHash, IndexedRow, KeyedRows, KeyedRun, NO_ROW,
 };
 #[cfg(test)]

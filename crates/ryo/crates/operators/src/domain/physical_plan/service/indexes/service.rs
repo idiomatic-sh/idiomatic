@@ -2,10 +2,9 @@
 //! key, decided once as the plan is built; and each shared index's life in a file, from its first probe to its last.
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::{ProbeKey, ProbeMode};
-use crate::domain::physical_plan::collections::kernels::probe::item::IndexBuild;
-use crate::domain::physical_plan::types::file_buffers::value::{
-    FileBuffers, KeyedRows, SharedIndex,
-};
+use crate::domain::physical_plan::collections::kernels::probe_right::item::IndexBuild;
+use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, SharedIndex};
+use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
@@ -88,8 +87,22 @@ pub(crate) fn closed(buffers: &mut FileBuffers, at: IndexPlace) {
     }
 }
 
-/// The index a probe of `index` reads, and whether it builds it: its stage's own `own`, built at its first left row; its
-/// shared index, built by the first probe of the file that reads its rows; or none, for a probe that walks the tree.
+/// Whether a probe of `index` builds the index it reads: its stage's own, at its first left row; a shared one, unless a probe
+/// of the open file built it; none, for a probe that walks the tree.
+pub(crate) fn probe_build(shared: &[SharedIndex], index: ProbeIndex) -> IndexBuild {
+    match index {
+        ProbeIndex::Own => IndexBuild::Builds,
+        ProbeIndex::Tree => IndexBuild::Walked,
+        // An index of no row is built again at no cost: an empty chain is an index not built in this file.
+        ProbeIndex::Shared(at) => match shared.get(at.0) {
+            Some(shared) if !shared.rows.next.is_empty() => IndexBuild::Built,
+            Some(_) | None => IndexBuild::Builds,
+        },
+    }
+}
+
+/// The index a probe of `index` reads: its stage's own `own`, or its shared index; a probe that walks the tree reads none
+/// and is lent its own, unused.
 ///
 /// # Errors
 ///
@@ -98,21 +111,12 @@ pub(crate) fn probe_index<'b>(
     shared: &'b mut [SharedIndex],
     own: &'b mut KeyedRows,
     index: ProbeIndex,
-) -> Result<(&'b mut KeyedRows, IndexBuild), PortableOperatorFault> {
-    Ok(match index {
-        ProbeIndex::Own => (own, IndexBuild::Builds),
-        ProbeIndex::Tree => (own, IndexBuild::Walked),
-        ProbeIndex::Shared(at) => {
-            let shared = shared
-                .get_mut(at.0)
-                .ok_or(PortableOperatorFault::WrongOperation)?;
-            // An index of no row is built again at no cost: an empty chain is an index not built in this file.
-            let build = if shared.rows.next.is_empty() {
-                IndexBuild::Builds
-            } else {
-                IndexBuild::Built
-            };
-            (&mut shared.rows, build)
-        }
-    })
+) -> Result<&'b mut KeyedRows, PortableOperatorFault> {
+    match index {
+        ProbeIndex::Own | ProbeIndex::Tree => Ok(own),
+        ProbeIndex::Shared(at) => shared
+            .get_mut(at.0)
+            .map(|shared| &mut shared.rows)
+            .ok_or(PortableOperatorFault::WrongOperation),
+    }
 }

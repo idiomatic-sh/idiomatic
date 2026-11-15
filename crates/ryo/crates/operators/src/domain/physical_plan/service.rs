@@ -13,7 +13,7 @@ use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    Flow, KeyedIndex, NodeReaders, PlanInput, PlanNodeId, Retention, RowSource,
+    KeyedIndex, NodeFlow, NodeReaders, PlanInput, PlanNodeId, Retention, RowSource,
 };
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 
@@ -70,6 +70,8 @@ kernels! {
     Extend => crate::domain::physical_plan::collections::kernels::extend::item::ExtendItem,
     /// The `probe` kernel.
     Probe => crate::domain::physical_plan::collections::kernels::probe::item::ProbeItem,
+    /// The `probe_right` kernel.
+    ProbeRight => crate::domain::physical_plan::collections::kernels::probe_right::item::ProbeRightItem,
     /// The `hash_index` kernel.
     HashIndex => crate::domain::physical_plan::collections::kernels::hash_index::item::HashIndexItem,
     /// The `distinct` kernel.
@@ -118,7 +120,7 @@ pub(crate) fn plan_with(
             lowering: lowered(node.operation, node.inputs.0, node.bindings.0),
             readers: NodeReaders(0),
             retained: Retention::Released,
-            flow: Flow::Held,
+            flow: NodeFlow::Held,
         })
         .collect();
     for node in logical {
@@ -146,8 +148,21 @@ pub(crate) fn plan_with(
     Ok(PhysicalPlan { nodes, indexes })
 }
 
-/// Streams each node whose rows only one streaming stage reads, first, so no one else ever asks for them. A node streams
-/// iff all hold:
+/// Streams each node whose rows only one streaming stage reads, first, so no one else ever asks for them (`flow_of`).
+fn flows(nodes: &mut [PhysicalNode], indexes: &[KeyedIndex]) {
+    for at in 0..nodes.len() {
+        let flow = flow_of(
+            nodes,
+            indexes,
+            PlanNodeId(u32::try_from(at).unwrap_or(u32::MAX)),
+        );
+        if let Some(node) = nodes.get_mut(at) {
+            node.flow = flow;
+        }
+    }
+}
+
+/// The flow of node `id`. It streams iff all hold:
 ///  (1) it is an intermediate streaming stage: a filter, an extension, a `text_map` stage, or a projection or a probe that
 ///      keeps repeated rows (one that drops them keys the rows it keeps, so it streams only as a chain's tail);
 ///  (2) one node reads it, once, and no engine use keeps it (it is neither emitted nor held);
@@ -155,27 +170,11 @@ pub(crate) fn plan_with(
 ///      is this node: a probe's right side is never streamed, its index blocks;
 ///  (4) no shared index keys its rows.
 /// Every other node is held.
-fn flows(nodes: &mut [PhysicalNode], indexes: &[KeyedIndex]) {
-    for at in 0..nodes.len() {
-        let id = PlanNodeId(u32::try_from(at).unwrap_or(u32::MAX));
-        let streams = nodes.get(at).is_some_and(|node| {
-            streaming_stage(&node.lowering)
-                && node.readers == NodeReaders(1)
-                && node.retained == Retention::Released
-                && only_first_reader(nodes, id)
-                && !indexes
-                    .iter()
-                    .any(|index| index.source == RowSource::Node(id))
-        });
-        if let Some(node) = nodes.get_mut(at) {
-            node.flow = if streams { Flow::Streamed } else { Flow::Held };
-        }
-    }
-}
-
-/// Whether `lowering` is a stage that passes on the rows it makes as it reads them, and so may stream into its reader.
-fn streaming_stage(lowering: &Lowering) -> bool {
-    match lowering {
+fn flow_of(nodes: &[PhysicalNode], indexes: &[KeyedIndex], id: PlanNodeId) -> NodeFlow {
+    let Some(node) = nodes.get(usize::try_from(id.0).unwrap_or(usize::MAX)) else {
+        return NodeFlow::Held;
+    };
+    let stage = match &node.lowering {
         Lowering::Filter { .. } | Lowering::Extend { .. } | Lowering::TextMap { .. } => true,
         Lowering::Project { project, .. } => project.distinct == RepeatedRows::Kept,
         Lowering::Probe { probe, .. } => probe.repeated == RepeatedRows::Kept,
@@ -191,35 +190,37 @@ fn streaming_stage(lowering: &Lowering) -> bool {
         | Lowering::Render { .. }
         | Lowering::ScanBound { .. }
         | Lowering::Unlowered => false,
-    }
-}
-
-/// Whether `lowering` is a stage that reads its first source row by row, and so may read a streamed node.
-fn streaming_reader(lowering: &Lowering) -> bool {
-    matches!(
-        lowering,
-        Lowering::Filter { .. }
-            | Lowering::Project { .. }
-            | Lowering::Extend { .. }
-            | Lowering::TextMap { .. }
-            | Lowering::Probe { .. }
-    )
-}
-
-/// Whether exactly one source of the plan's nodes reads `id`, and that source is a streaming reader's first.
-fn only_first_reader(nodes: &[PhysicalNode], id: PlanNodeId) -> bool {
+    };
     let read = RowSource::Node(id);
-    let mut reads = nodes.iter().flat_map(|node| {
-        node.lowering
+    let mut reads = nodes.iter().flat_map(|reader| {
+        reader
+            .lowering
             .sources()
             .enumerate()
             .filter(move |(_, source)| *source == read)
-            .map(move |(place, _)| (node, place))
+            .map(move |(place, _)| (reader, place))
     });
-    matches!(
+    let read_first_by_a_stage = matches!(
         (reads.next(), reads.next()),
-        (Some((reader, 0)), None) if streaming_reader(&reader.lowering)
-    )
+        (Some((reader, 0)), None) if matches!(
+            reader.lowering,
+            Lowering::Filter { .. }
+                | Lowering::Project { .. }
+                | Lowering::Extend { .. }
+                | Lowering::TextMap { .. }
+                | Lowering::Probe { .. }
+        )
+    );
+    if stage
+        && node.readers == NodeReaders(1)
+        && node.retained == Retention::Released
+        && read_first_by_a_stage
+        && !indexes.iter().any(|index| index.source == read)
+    {
+        NodeFlow::Streamed
+    } else {
+        NodeFlow::Held
+    }
 }
 
 /// The node at `id`, to change.

@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
-use crate::domain::physical_plan::types::file_buffers::value::{IndexedRow, NO_ROW};
+use crate::domain::physical_plan::types::keyed_rows::value::{IndexedRow, NO_ROW};
 use crate::domain::physical_plan::types::{PlanInputs, PlanNodeId, TreeRead, TreeRoots};
 #[cfg(test)]
 use crate::domain::physical_plan::types::{RowSource, lowering::value::Lowering};

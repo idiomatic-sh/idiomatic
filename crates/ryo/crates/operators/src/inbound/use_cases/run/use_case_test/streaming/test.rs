@@ -1,25 +1,18 @@
-//! The chain of streamed stages at seam C, through `plan`, `run` and `rows` only: each program run as planned, and as its
-//! held twin (the same program with every intermediate node held by the engine, so none streams), the two answering the same
-//! rows and the same first fault, every name compared by its text.
-use super::service::STREAM_CHUNK_CELLS;
+//! A capture read by one filter streams into it at seam C, through `plan`, `run` and `rows` only: each program run as
+//! planned and as its held twin, the two answering the same rows and the same first fault across chunks, the filter's memo
+//! growing with the names the capture mints, and every chunk within its cell bound.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::fixtures::{Step, defines_rows, over_defines, over_nodes};
-use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
-use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
-use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
-use crate::domain::physical_plan::types::{
-    LogicalNode, NodeBindings, NodeRows, PlanInputList, PlanNodeId, Resources,
+use crate::domain::physical_plan::fixtures::over_defines;
+use crate::domain::physical_plan::types::PlanNodeId;
+use crate::domain::physical_plan::types::file_buffers::value::ChunkMeter;
+use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
+use crate::inbound::use_cases::run::fixtures::cases::self_matching;
+use crate::inbound::use_cases::run::fixtures::streams::{
+    Program, against, ran_program, select_of, span, split_names,
 };
-use crate::inbound::use_cases::run::fixtures::cases::{compared, self_matching};
-use crate::inbound::use_cases::run::fixtures::{TableInputs, TextResources, planned, ran};
-use ryo_language::domain::symbols::service::text_of;
-use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_relations::domain::relations::types::{Offset, Relation, Span, Value as Cell};
-use ryo_values::domain::plan_parts::types::{
-    CapturePattern, ColumnIndex, Input as StepInput, LiteralText, Operand, PlanComparison,
-    QueryLiteral, StepId, StepScope, Test,
-};
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as StepInput, Test};
 use ryo_values::domain::plans::types::Operation;
 use std::borrow::Cow;
 
@@ -108,132 +101,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
 ];
-
-/// A program over Defines rows: its steps, the one it emits, and the rows and texts of the file.
-struct Program {
-    /// The steps, in node order.
-    steps: Vec<Step>,
-    /// The node the program emits.
-    emit: PlanNodeId,
-    /// The Defines rows: each name, its kind and refinement, and the row's span.
-    rows: Vec<(String, Span)>,
-    /// The file's texts, each a name of it.
-    texts: Vec<String>,
-}
-
-/// What a run answered for the emit, each name as its text: the rows, or the first fault.
-type Answer = Result<Vec<Vec<String>>, PortableOperatorFault>;
-
-/// The run of a program: its answer, the nodes holding rows after it, and the buffers it ran with.
-struct Ran {
-    /// The emit's rows, or the fault.
-    answer: Answer,
-    /// How many node tables the run formed.
-    formed: u32,
-    /// The worker's buffers after the run.
-    buffers: FileBuffers,
-}
-
-/// A cell as its text: a name by its text, anything else as it is.
-fn shown(value: Cell, resources: &TextResources) -> String {
-    let texts = resources.texts();
-    match value {
-        Cell::Symbol(symbol) => text_of(texts.symbols, ByteSlice(texts.source.0), symbol)
-            .map_or_else(|| format!("{value:?}"), |text| text.0.to_owned()),
-        Cell::Node(_)
-        | Cell::Name(_)
-        | Cell::File(_)
-        | Cell::Span(_)
-        | Cell::Number(_)
-        | Cell::Flag(_) => format!("{value:?}"),
-    }
-}
-
-/// Runs `program`, every node before its emit held by the engine as well when `twin` is set.
-fn ran_program(program: &Program, twin: bool) -> Result<Ran, Failure> {
-    let texts: Vec<&str> = program.texts.iter().map(String::as_str).collect();
-    let resources = TextResources::new(&texts);
-    let named: Vec<(Cell, Span)> = program
-        .rows
-        .iter()
-        .map(|(name, span)| (resources.symbol(name), *span))
-        .collect();
-    let table = defines_rows(&named);
-    let inputs = TableInputs::new(&[(Relation::Defines, &table)]);
-    let mut resources = resources;
-    let mut logical = LogicalProgram::new();
-    for step in &program.steps {
-        let _id = logical.node(LogicalNode {
-            operation: &step.operation,
-            inputs: PlanInputList(&step.inputs),
-            bindings: NodeBindings(&[]),
-            scope: StepScope::PerFile,
-        });
-    }
-    logical.emit(RuleOrdinal(0), program.emit);
-    if twin {
-        for node in (0..program.emit.0).map(PlanNodeId) {
-            logical.hold(node);
-        }
-    }
-    let plan = planned(&logical)?;
-    let mut buffers = FileBuffers::default();
-    let answer =
-        ran(&plan, program.emit, &mut buffers, &inputs, &mut resources).and_then(
-            |()| match buffers.rows(program.emit) {
-                NodeRows::Materialized(table) => Ok(table
-                    .cells
-                    .chunks(table.kinds.len().max(1))
-                    .take(table.count.0)
-                    .map(|row| row.iter().map(|cell| shown(*cell, &resources)).collect())
-                    .collect()),
-                NodeRows::Absent => Err(PortableOperatorFault::NotRun),
-            },
-        );
-    Ok(Ran {
-        answer,
-        formed: buffers.meter.formed,
-        buffers,
-    })
-}
-
-/// A capture of each name into the two slots of `{a}{b}`.
-fn split_names() -> Step {
-    over_defines(Operation::Capture {
-        from: StepInput::Relation(Relation::Defines),
-        path: ColumnIndex(3),
-        pattern: CapturePattern("{a}{b}".into()),
-    })
-}
-
-/// A select of every column of node `from`, kept where `comparisons` hold.
-fn select_of(from: u32, comparisons: Vec<PlanComparison>) -> Step {
-    over_nodes(
-        Operation::Select {
-            from: StepInput::Step(StepId(from)),
-            comparisons,
-            kept: Vec::new(),
-        },
-        &[from],
-    )
-}
-
-/// Whether column `column` compares by `test` with the written text `text`.
-fn against(test: Test, column: u32, text: &str) -> PlanComparison {
-    compared(
-        test,
-        Operand::Column(ColumnIndex(column)),
-        Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-    )
-}
-
-/// The span `start..end`.
-fn span(start: u32, end: u32) -> Span {
-    Span {
-        start: Offset(start),
-        end: Offset(end),
-    }
-}
 
 /// Rows of the span-between stage over a filter, `rows` of them, the stage failing on row `map_fault` (its span runs
 /// backwards) and the filter on row `filter_fault` (its name is no pattern).
@@ -357,7 +224,7 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
         Scenario::ExpandingCapture => Observation::Bounded {
             same,
             formed: streamed.formed,
-            within: streamed.buffers.chunks_within()
+            within: streamed.buffers.chunks == ChunkMeter::Within
                 && streamed.buffers.stream.levels.iter().all(|chain| {
                     chain
                         .stages
@@ -372,8 +239,3 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
-
-#[cfg(test)]
-mod probes_test;
-#[cfg(test)]
-mod stages_test;
