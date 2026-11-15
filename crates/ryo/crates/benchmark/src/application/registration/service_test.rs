@@ -16,6 +16,8 @@ enum Scenario {
     MissingImplementation,
     /// A default without a definition that the profile defers.
     DeferredDefault,
+    /// A default with a definition that the profile still defers: the definition wins.
+    AuthoredDeferredDefault,
     /// `profiles/<id>/benchmark.toml` names another parser configuration than the bench profile.
     DedicatedProfile,
     /// A case declares an observation produced by another rule.
@@ -80,6 +82,7 @@ fn author(bench: &Path, scenario: Scenario) {
         | Scenario::StaleEvidence => copy_tree(&f821, bench),
         Scenario::MissingImplementation
         | Scenario::DeferredDefault
+        | Scenario::AuthoredDeferredDefault
         | Scenario::DedicatedProfile
         | Scenario::SupportingProducer
         | Scenario::UndeclaredModule
@@ -101,6 +104,10 @@ fn author(bench: &Path, scenario: Scenario) {
                 &format!("{PROFILE}\n[deferred]\ncontrol_flow = [\"A1\"]\n"),
             );
         }
+        Scenario::AuthoredDeferredDefault => write(
+            &bench.join("benchmark.toml"),
+            &format!("{PROFILE}\n[deferred]\ncontrol_flow = [\"A1\"]\n"),
+        ),
         Scenario::DedicatedProfile => write(
             &bench.join("profiles/A1/benchmark.toml"),
             &PROFILE.replace("target=1", "target=2"),
@@ -161,6 +168,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::DeferredDefault,
         expect: Expect::Value(Cow::Borrowed("deferred: control_flow")),
+    },
+    Case {
+        name: CaseName("a deferred default with a definition is registered as executable"),
+        word: Word::Succeeds,
+        input: || Scenario::AuthoredDeferredDefault,
+        expect: Expect::Value(Cow::Borrowed(
+            "defaults = [\"A1\"]\nparser-configuration = \"target=1\"\nsha256 = [\"0000000000000000000000000000000000000000000000000000000000000000\"]\ntool = \"lint\"\nversion = \"lint 1.0.0\"\n\n[rule-applicability]\nA1 = \"always\"\n; cases: 1; files: benchmark.toml, rules/A1/cases.toml, rules/A1/query.ryoql",
+        )),
     },
     Case {
         name: CaseName("profiles/<id>/benchmark.toml wins over the bench profile"),
