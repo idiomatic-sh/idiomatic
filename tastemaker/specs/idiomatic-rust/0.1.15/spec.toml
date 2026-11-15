@@ -1295,4 +1295,3 @@ pub fn sum(rows: &[u8]) -> u8 {
 '''
 then.only = ['idiomatic.arch/client-at-adapter']
 then.findings = [{ rule = 'idiomatic.arch/client-at-adapter', path = 'demo/src/domain/x/service.rs', line = 2 }]
-
