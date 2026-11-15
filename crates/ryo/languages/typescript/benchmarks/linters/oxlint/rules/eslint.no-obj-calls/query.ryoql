@@ -32,12 +32,8 @@ let tokens = select file, span, text from "semantic-syntax" where kind = "identi
 let static_hits = select l.call as call from static_rows as l join tokens as r on l.file = r.file and l.span = r.span where r.text = "Atomics" or r.text = "Intl" or r.text = "JSON" or r.text = "Math" or r.text = "Reflect";
 let computed_properties = select l.call as call, l.property as property from member_properties as l join computed as r on l.member = r.id;
 let string_hits = select l.call as call from computed_properties as l join "string-literal" as r on l.property = r.occurrence where r.value = "Atomics" or r.value = "Intl" or r.value = "JSON" or r.value = "Math" or r.value = "Reflect";
-let computed_rows = select l.call as call, r.file as file, r.span as span from computed_properties as l join "semantic-syntax" as r on l.property = r.id where r.kind = "template-literal";
-let templates = select file, span, text from "semantic-syntax" where kind = "template";
-let template_hits = select l.call as call from computed_rows as l join templates as r on l.file = r.file and l.span = r.span where matches(r.text, "^\x60(?:Atomics|Intl|JSON|Math|Reflect)\x60$");
 let named_a = union(left=identifier_hits, right=static_hits);
-let named_b = union(left=named_a, right=string_hits);
-let named = union(left=named_b, right=template_hits);
+let named = union(left=named_a, right=string_hits);
 let found = select r.id as id, r.file as file, r.span as span from named as l join calls as r on l.call = r.id;
 let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-obj-calls(?:,|$)");
 emit violations subject file key(id);

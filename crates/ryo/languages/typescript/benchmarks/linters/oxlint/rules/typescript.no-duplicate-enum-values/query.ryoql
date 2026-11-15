@@ -1,11 +1,12 @@
 import directives from "typescript/oxlint/eslint-directives";
 import parenthesized from "typescript/oxlint/parenthesized";
-let string_literals = select l.occurrence as occurrence, l.value as value from "string-literal" as l join "semantic-syntax" as r on l.occurrence = r.id where r.kind = "literal";
+import quoted_strings from "typescript/oxlint/quoted-strings";
+let quoted = quoted_strings();
 let bodies = select id from "semantic-syntax" where kind = "ts-enum-body";
 let members = select l.parent as body, l.child as member from "semantic-child" as l join bodies as r on l.parent = r.id where l.field = "members";
 let initializers = select l.body as body, c.child as value from members as l join "semantic-child" as c on l.member = c.parent where c.field = "initializer";
 let numbers = select id, value from "numeric-literal" where kind = "float";
-let strings = select occurrence as id, value from string_literals;
+let strings = select occurrence as id, value from quoted;
 let numbered = select l.body as body, l.value as id, r.value as value from initializers as l join numbers as r on l.value = r.id;
 let stringed = select l.body as body, l.value as id, r.value as value from initializers as l join strings as r on l.value = r.id;
 let typed_numbers = extend(from=numbered, values={type: 1});

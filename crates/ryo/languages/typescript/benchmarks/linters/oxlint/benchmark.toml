@@ -127,6 +127,7 @@ defaults = [
 "typescript/oxlint/constant-values" = "fragments/constant-values.ryoql"
 "typescript/oxlint/regexp-without-global" = "fragments/regexp-without-global.ryoql"
 "typescript/oxlint/javascript-files" = "fragments/javascript-files.ryoql"
+"typescript/oxlint/quoted-strings" = "fragments/quoted-strings.ryoql"
 
 # Defaults deferred, each under the limitation that blocks it: there is no control flow relation.
 [deferred]

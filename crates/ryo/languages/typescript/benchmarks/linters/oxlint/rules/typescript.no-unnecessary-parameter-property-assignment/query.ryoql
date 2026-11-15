@@ -1,5 +1,6 @@
 import directives from "typescript/oxlint/eslint-directives";
-let string_literals = select l.occurrence as occurrence, l.value as value from "string-literal" as l join "semantic-syntax" as r on l.occurrence = r.id where r.kind = "literal";
+import quoted_strings from "typescript/oxlint/quoted-strings";
+let quoted = quoted_strings();
 let properties = select id, name, owner from "parameter" where refinement = "ts-parameter-property";
 let constructors = select owner as id from properties;
 let boundaries = select id from "semantic-syntax" where kind = "function-expression" or kind = "function-declaration" or kind = "assignment-expression";
@@ -16,7 +17,7 @@ let member_properties = select parent as member, child as property from "semanti
 let computed = select l.parent as member from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "punctuator" and r.text = "[";
 let static_names = select l.member as member, r.name as name from member_properties as l join names as r on l.property = r.id;
 let static_kept = antijoin(left=static_names, right=computed, left-on=["member"], right-on=["member"]);
-let literal_names = select l.member as member, r.value as name from member_properties as l join string_literals as r on l.property = r.occurrence;
+let literal_names = select l.member as member, r.value as name from member_properties as l join quoted as r on l.property = r.occurrence;
 let computed_names = select l.member as member, l.name as name from literal_names as l join computed as r on l.member = r.member;
 let property_names = union(left=static_kept, right=computed_names);
 let this_names = select l.member as member, l.name as name from property_names as l join this_objects as r on l.member = r.member;

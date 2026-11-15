@@ -1,6 +1,7 @@
 import directives from "typescript/oxlint/eslint-directives";
 import parenthesized from "typescript/oxlint/parenthesized";
-let string_literals = select l.occurrence as occurrence, l.value as value from "string-literal" as l join "semantic-syntax" as r on l.occurrence = r.id where r.kind = "literal";
+import quoted_strings from "typescript/oxlint/quoted-strings";
+let quoted = quoted_strings();
 let literal_types = select id from "semantic-syntax" where kind = "ts-literal-type";
 let type_literals = select l.parent as type, l.child as literal from "semantic-child" as l join literal_types as r on l.parent = r.id where l.field = "literal";
 let annotations = select id from "semantic-syntax" where kind = "ts-type-annotation";
@@ -25,7 +26,7 @@ let pairs = select l.owner as owner, l.type as type, l.literal as literal, r.val
 let numbers = select id, value from "numeric-literal" where kind = "float";
 let numbered = select l.owner as owner, l.type as type, l.literal as literal, l.value as value, r.value as number from pairs as l join numbers as r on l.literal = r.id;
 let equal_numbers = select l.type as type, l.literal as literal, l.value as value from numbered as l join numbers as r on l.value = r.id and l.number = r.value;
-let strings = select occurrence as id, value from string_literals;
+let strings = select occurrence as id, value from quoted;
 let stringed = select l.owner as owner, l.type as type, l.literal as literal, l.value as value, r.value as text from pairs as l join strings as r on l.literal = r.id;
 let equal_strings = select l.type as type, l.literal as literal, l.value as value from stringed as l join strings as r on l.value = r.id and l.text = r.value;
 let equal = union(left=equal_numbers, right=equal_strings);

@@ -13,7 +13,9 @@ answer yet.
 `fragments/constant-values.ryoql` gives the value a `const`, `let` or `var` initializer gives a reference;
 `fragments/regexp-without-global.ryoql` gives the regular expressions written without the `g` flag;
 `fragments/javascript-files.ryoql` gives the files read as JavaScript, whose `compiler-feature` `typescript.syntax` is lowered:
-the files oxlint's JavaScript-only rules run on.
+the files oxlint's JavaScript-only rules run on;
+`fragments/quoted-strings.ryoql` gives the `string-literal` values written in quotes, without the templates that relation also
+answers: the strings the rules read where oxlint reads a string literal alone.
 
 These oxlint checks have no query and no case yet:
 

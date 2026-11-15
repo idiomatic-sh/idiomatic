@@ -1,0 +1,3 @@
+output relation<occurrence: node, value: symbol>;
+let quoted = select l.occurrence as occurrence, l.value as value from "string-literal" as l join "semantic-syntax" as r on l.occurrence = r.id where r.kind = "literal";
+return quoted;
