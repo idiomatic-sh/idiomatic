@@ -177,14 +177,18 @@ pub(super) struct Ran {
     pub(super) rules: String,
 }
 
-/// File 0 run through `request` with `intents`, over a source that serves `function` and `comment` and says `said` is read in
-/// part, the file's partiality the physical one.
+/// File 0 run through `request` with `intents`, over a source that serves `function`, `comment` and `semantic_child` and says
+/// `said` is read in part, the file's partiality the physical one.
 pub(super) fn ran(
     request: &RequestExecution,
     intents: &[FileRuleIntent],
     said: &[ReadInPart],
 ) -> Ran {
-    let mut source = SourceFake::serving(&[Relation::Function, Relation::Comment]);
+    let mut source = SourceFake::serving(&[
+        Relation::Function,
+        Relation::Comment,
+        Relation::SemanticChild,
+    ]);
     source.said = said.to_vec();
     let facts = FactsFake::default();
     let mut worker = facts.open_worker().expect("a fake worker");

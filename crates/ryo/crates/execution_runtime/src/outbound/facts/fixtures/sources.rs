@@ -6,13 +6,15 @@ use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::collections::relations::comment::item::CommentRow;
 use ryo_relations::domain::relations::collections::relations::function::item::FunctionRow;
+use ryo_relations::domain::relations::collections::relations::semantic_child::item::SemanticChildRow;
 use ryo_relations::domain::relations::types::{
-    ColumnsView, FileId, Flag, NodeId, Offset, Relation, RowWriter, Span,
+    ColumnsView, FileId, Flag, Integer, NodeId, Offset, Relation, RowWriter, Span,
 };
 use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::stored_facts::types::ReadInPart;
 
-/// A source that writes one row of each relation it is asked for, `function` and `comment` alone, and answers what it was told to say.
+/// A source that writes one row of each relation it is asked for, `function`, `comment` and `semantic_child` alone, and answers
+/// what it was told to say.
 #[derive(Debug, Default)]
 pub struct SourceFake {
     /// The relations it serves.
@@ -66,6 +68,15 @@ impl FactSource for SourceFake {
                     name: Symbol(0),
                     file: FileId(0),
                     span: SPAN,
+                });
+            } else if *relation == Relation::SemanticChild {
+                // One edge: node 1's first child, node 2, in the field its first symbol names.
+                out.write(SemanticChildRow {
+                    parent: NodeId(1),
+                    child: NodeId(2),
+                    ordinal: Integer(0),
+                    field: Symbol(0),
+                    file: FileId(0),
                 });
             } else if *relation == Relation::Comment {
                 out.write(CommentRow {

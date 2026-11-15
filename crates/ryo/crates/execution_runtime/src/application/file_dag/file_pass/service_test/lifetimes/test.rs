@@ -7,8 +7,11 @@ use super::fixtures::watched;
 use ryo_execution_domain::domain::rule_intent::types::{ApplicabilityReason, FileRuleIntent};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as StepInput, StepId, StepScope};
-use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::plan_parts::types::{
+    ColumnIndex, ComparisonOrigin, Input as StepInput, JoinColumn, Operand, PlanComparison,
+    RepeatedRows, Side, StepId, StepScope, Test,
+};
+use ryo_values::domain::plans::types::{Operation, Plan, PlanStep};
 use std::borrow::Cow;
 use std::sync::PoisonError;
 
@@ -42,6 +45,11 @@ enum Scenario {
     UseBeforeMade(NotRun),
     /// Rule 0 emits the functions; rule 1, not running on the file, projects their first column; rule 2 emits the comments.
     ReaderNotRun(NotRun),
+    /// Both rules read one select of the semantic edges. Rule 0, not running on the file, keeps the edges of no later sibling
+    /// (an antijoin over a self join of the select, which the planner probes as an ordered probe, the self join and its
+    /// select and projection no longer reading); rule 1 joins the select with the projection of its parents and emits each
+    /// edge's parent.
+    OrderedNotRun(NotRun),
 }
 
 type Input = Scenario;
@@ -119,6 +127,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
+        name: CaseName("a_skipped_ordered_existence_leaves_its_select_to_the_running_rule"),
+        word: Word::Succeeds,
+        input: || Scenario::OrderedNotRun(NotRun::Skipped),
+        expect: Expect::Value(Cow::Borrowed(
+            "run 6 before 0:absent; lend SemanticChild; ran 6 after 0:absent | rule 1: complete [Node(NodeId(1))]; ran . finished; partial []",
+        )),
+    },
+    Case {
+        name: CaseName("an_undemanded_ordered_existence_leaves_its_select_to_the_running_rule"),
+        word: Word::Succeeds,
+        input: || Scenario::OrderedNotRun(NotRun::Undemanded),
+        expect: Expect::Value(Cow::Borrowed(
+            "run 6 before 0:absent; lend SemanticChild; ran 6 after 0:absent | rule 1: complete [Node(NodeId(1))]; ran . finished; partial []",
+        )),
+    },
+    Case {
         name: CaseName("no_buffer_outlives_the_file"),
         word: Word::Succeeds,
         input: || Scenario::StoppedFile,
@@ -151,6 +175,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         )],
         Scenario::StoppedFile => vec![functions(), comments(), functions()],
         Scenario::UseBeforeMade(_) => vec![functions(), functions(), comments()],
+        Scenario::OrderedNotRun(_) => vec![later_siblings_absent(), parents_joined()],
         Scenario::ReaderNotRun(_) => vec![
             functions(),
             plan(
@@ -203,6 +228,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         )),
         Scenario::UseBeforeMade(how) => Some((0, not_run(how))),
         Scenario::ReaderNotRun(how) => Some((1, not_run(how))),
+        Scenario::OrderedNotRun(how) => Some((0, not_run(how))),
         Scenario::LastEngineUse
         | Scenario::EngineUseThenReader
         | Scenario::ReadThenCaptured
@@ -243,6 +269,95 @@ fn subject(input: Input) -> Result<Value, Failure> {
         watch.taken().join("; "),
         ran.rules
     )))
+}
+
+/// A step in each file doing `operation`.
+fn per_file(operation: Operation) -> PlanStep {
+    PlanStep {
+        scope: StepScope::PerFile,
+        operation,
+    }
+}
+
+/// A column of a join's answer: `column` of the `side` input.
+const fn column_of(side: Side, column: u32) -> JoinColumn {
+    JoinColumn {
+        side,
+        column: ColumnIndex(column),
+    }
+}
+
+/// Every semantic edge (parent, child, ordinal, field, file) with no later sibling: the antijoin of the edges' select with the
+/// distinct (parent, child, ordinal) of the edges a sibling of the same parent follows, over a self join of the select on
+/// the parent; the shape the planner probes as an ordered probe.
+fn later_siblings_absent() -> Plan {
+    let select = || StepInput::Step(StepId(0));
+    let key = || vec![ColumnIndex(0), ColumnIndex(1), ColumnIndex(2)];
+    plan(
+        vec![
+            every(Relation::SemanticChild),
+            per_file(Operation::Join {
+                left: select(),
+                right: select(),
+                left_on: vec![ColumnIndex(0)],
+                right_on: vec![ColumnIndex(0)],
+                output: vec![
+                    column_of(Side::Left, 0),
+                    column_of(Side::Left, 1),
+                    column_of(Side::Left, 2),
+                    column_of(Side::Right, 2),
+                ],
+                filter: Vec::new(),
+                view: Vec::new(),
+                reach: None,
+            }),
+            per_file(Operation::Select {
+                from: StepInput::Step(StepId(1)),
+                comparisons: vec![PlanComparison {
+                    test: Test::LessThan,
+                    left: Operand::Column(ColumnIndex(2)),
+                    right: Operand::Column(ColumnIndex(3)),
+                    origin: ComparisonOrigin::Unrecorded,
+                }],
+                kept: Vec::new(),
+            }),
+            per_file(Operation::Project {
+                from: StepInput::Step(StepId(2)),
+                columns: key(),
+                distinct: RepeatedRows::Dropped,
+            }),
+            per_file(Operation::Antijoin {
+                left: select(),
+                right: StepInput::Step(StepId(3)),
+                left_on: key(),
+                right_on: key(),
+            }),
+        ],
+        4,
+        Vec::new(),
+    )
+}
+
+/// Each semantic edge's parent: the edges' select joined on the parent with the projection of its parents, repeats kept.
+fn parents_joined() -> Plan {
+    plan(
+        vec![
+            every(Relation::SemanticChild),
+            first_column(0),
+            per_file(Operation::Join {
+                left: StepInput::Step(StepId(0)),
+                right: StepInput::Step(StepId(1)),
+                left_on: vec![ColumnIndex(0)],
+                right_on: vec![ColumnIndex(0)],
+                output: vec![column_of(Side::Left, 0)],
+                filter: Vec::new(),
+                view: Vec::new(),
+                reach: None,
+            }),
+        ],
+        2,
+        Vec::new(),
+    )
 }
 
 #[test]

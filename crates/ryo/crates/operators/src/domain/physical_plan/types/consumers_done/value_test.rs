@@ -1,10 +1,13 @@
 //! A node made after some of its consumers were done waits only for the rest; what was done is forgotten with the node's
-//! release, and a node never told of a consumer done waits for all of them.
+//! release, and a node never told of a consumer done waits for all of them. A reader that does not run is done with each of
+//! its reads, unless nothing consumes it in the plan, when its sources never counted them.
 use super::value::ConsumersDone;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::{PhysicalNode, PhysicalPlan};
-use crate::domain::physical_plan::types::{EngineUses, NodeFlow, NodeReaders, PlanNodeId};
+use crate::domain::physical_plan::types::{
+    EngineUses, NodeFlow, NodeReaders, PlanNodeId, RowSource,
+};
 
 /// What a case does before node 1, of three readers and two engine uses, is made.
 #[derive(Clone, Copy, Debug)]
@@ -19,6 +22,10 @@ enum Given {
     MoreThanItHas,
     /// One reader and one engine use of node 0 done.
     AnotherNode,
+    /// Node 2, which reads node 1 on both sides and is emitted, does not run.
+    ReaderUnread,
+    /// Node 2, which reads node 1 on both sides and which no node reads and no engine use keeps, does not run.
+    UnconsumedReaderUnread,
 }
 type Input = Given;
 /// The readers and engine uses node 1 still waits for once made.
@@ -51,6 +58,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((NodeReaders(0), EngineUses(0))),
     },
     Case {
+        name: CaseName("a_reader_that_does_not_run_is_done_with_each_of_its_reads"),
+        word: Word::Succeeds,
+        input: || Given::ReaderUnread,
+        expect: Expect::Value((NodeReaders(1), EngineUses(2))),
+    },
+    Case {
+        name: CaseName("a_reader_no_consumer_keeps_retires_no_read_of_its_sources"),
+        word: Word::Succeeds,
+        input: || Given::UnconsumedReaderUnread,
+        expect: Expect::Value((NodeReaders(3), EngineUses(2))),
+    },
+    Case {
         name: CaseName("what_another_node_is_done_with_is_its_own"),
         word: Word::Succeeds,
         input: || Given::AnotherNode,
@@ -62,15 +81,28 @@ fn subject(given: Input) -> Result<Value, Failure> {
     let (zero, one) = (PlanNodeId(0), PlanNodeId(1));
     let mut done = ConsumersDone::default();
     // A plan of three nodes, as the cases count them.
+    // A plan of three nodes; node 2 reads node 1 on both sides, consumed by an engine use or by nothing as the case says.
+    let reader = |engine: EngineUses| PhysicalNode {
+        lowering: Lowering::Distinct {
+            sources: [RowSource::Node(one), RowSource::Node(one)],
+        },
+        readers: NodeReaders(0),
+        engine,
+        flow: NodeFlow::Held,
+    };
+    let plain = || PhysicalNode {
+        lowering: Lowering::Unlowered,
+        readers: NodeReaders(3),
+        engine: EngineUses(2),
+        flow: NodeFlow::Held,
+    };
+    let consumed = if matches!(given, Given::UnconsumedReaderUnread) {
+        EngineUses(0)
+    } else {
+        EngineUses(1)
+    };
     let plan = PhysicalPlan {
-        nodes: (0..3)
-            .map(|_| PhysicalNode {
-                lowering: Lowering::Unlowered,
-                readers: NodeReaders(3),
-                engine: EngineUses(2),
-                flow: NodeFlow::Held,
-            })
-            .collect(),
+        nodes: vec![plain(), plain(), reader(consumed)],
         ..PhysicalPlan::default()
     };
     let times = |count: usize, done: &mut ConsumersDone, node: PlanNodeId, engine: bool| {
@@ -95,6 +127,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
             times(5, &mut done, one, false);
             times(3, &mut done, one, true);
         }
+        Given::ReaderUnread | Given::UnconsumedReaderUnread => done.unread(&plan, PlanNodeId(2)),
         Given::AnotherNode => {
             times(1, &mut done, zero, false);
             times(1, &mut done, zero, true);
