@@ -41,7 +41,9 @@ impl ConsumersDone {
     }
 
     /// `node`, of `plan`, does not run in the open file: one reader of each node it reads is done, one per read, as a run of
-    /// it gives them back.
+    /// it gives them back. A node no node reads and no engine use keeps in the plan as rewritten reads nothing its sources
+    /// count: a rewrite that replaces a node takes it off its sources' readers (`ordered_existence`'s self join, select and
+    /// projection), so retiring its reads again would release a source its running readers still need.
     pub(crate) fn unread(&mut self, plan: &PhysicalPlan, node: PlanNodeId) {
         let Some(physical) = plan
             .nodes
@@ -49,6 +51,9 @@ impl ConsumersDone {
         else {
             return;
         };
+        if physical.readers == NodeReaders(0) && physical.engine == EngineUses(0) {
+            return;
+        }
         for source in physical.lowering.sources() {
             if let RowSource::Node(read) = source {
                 self.reader_done(plan, read);
