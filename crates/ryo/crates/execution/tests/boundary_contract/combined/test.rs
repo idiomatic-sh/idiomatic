@@ -348,9 +348,10 @@ fn project_root_shared_by_two_consumers_with_one_failing() {
     );
 }
 
-/// Rules run in dependency order, not in the order they are written: the producer (rule 1, a capture, served at the second
-/// stage) runs before its consumer (rule 0, a bound input, served at the fourth), so the producer's refusal comes first.
-/// Each refusal is its rule's alone: the file runs on to the consumer and finishes.
+/// Rules run in dependency order, not in the order they are written: the producer (rule 1, a capture) runs before its consumer
+/// (rule 0, a bound input of the producer's output), so the producer's answer comes first. Its capture names column 1 of a
+/// step that keeps one column, so its root fails, and a failed root stops the file there: the consumer, written first, never
+/// runs ahead of the producer it reads.
 #[test]
 fn a_producer_runs_before_the_consumer_written_before_it() {
     let program = engine()
@@ -370,8 +371,7 @@ fn a_producer_runs_before_the_consumer_written_before_it() {
     request.finish();
     assert_eq!(
         answered(rules),
-        "rule 1: withheld; stopped Operating(NotServedUntil(ServedAt(2)))\n\
-         rule 0: withheld; stopped Operating(NotServedUntil(ServedAt(4)))\n\
-         file: finished\n"
+        "rule 1: failed Table(NoSuchColumn { index: 1 }); unreached\n\
+         file: unfinished\n"
     );
 }
