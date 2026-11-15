@@ -339,6 +339,8 @@ mod axis;
 #[cfg(test)]
 mod axis_layout;
 #[cfg(test)]
+mod cross_kind;
+#[cfg(test)]
 mod graphs;
 #[cfg(test)]
 mod kinds;
