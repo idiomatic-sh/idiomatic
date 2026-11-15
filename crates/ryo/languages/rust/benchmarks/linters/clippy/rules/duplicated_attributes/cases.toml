@@ -389,6 +389,21 @@ files = { "src/lib.rs" = "#[rustfmt::skip(a /* c */ ::b, a::b)]\npub fn f() {}\n
 expected = [{ file = "src/lib.rs", start = 31, end = 35 }]
 
 [[cases]]
+name = "space-between-path-colons"
+files = { "src/lib.rs" = "#[rustfmt::skip(a: :b, a::b)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "comment-between-path-colons"
+files = { "src/lib.rs" = "#[rustfmt::skip(a:/* c */:b, a::b)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "line-comment-between-path-colons"
+files = { "src/lib.rs" = "#[rustfmt::skip(a: // c\n:b, a::b)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
 name = "comment-inside-lint-path"
 files = { "src/lib.rs" = "#[allow(clippy:: /* c */ duplicated_attributes)]\n#[inline]\n#[inline]\npub fn f() {}\n" }
 expected = []

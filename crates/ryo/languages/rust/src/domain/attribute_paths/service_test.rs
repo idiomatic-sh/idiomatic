@@ -37,6 +37,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value("rustfmt::skip r#a ::b::r#c"),
     },
     Case {
+        name: CaseName("colons_apart_are_not_a_separator"),
+        word: Word::Succeeds,
+        input: || "#[rustfmt::skip(a: :b, c:/* d */:e, f /* g */ ::h)]\nfn f() {}",
+        expect: Expect::Value("rustfmt::skip a b c e f::h"),
+    },
+    Case {
         name: CaseName("a_path_outside_an_attribute_is_not_an_attribute_path"),
         word: Word::Succeeds,
         input: || "fn f() { a::b(); other!(c::d); }",
