@@ -12,8 +12,8 @@ use crate::application::file_dag::project_pass::service::step::service::{
     StepRun, ordinal, with_coverage,
 };
 use crate::application::file_dag::project_pass::types::{
-    HandoverPlace, HandoverReads, HostedTables, LastHandover, OccurrenceRun, PhaseBatch,
-    PhaseInputs, PhaseOccurrence, PhaseState,
+    HandoverPlace, HandoverReads, HandoverState, HostedTables, LastHandover, OccurrenceRun,
+    PhaseBatch, PhaseInputs, PhaseOccurrence, PhaseState,
 };
 use crate::application::file_dag::publications::service::bound::service::{
     bound_coverage, held_observation,
@@ -77,10 +77,13 @@ pub(crate) fn run_occurrence(
             place: handover,
         }),
     }
-    let handed = &handovers
+    let HandoverState::Handed(handed) = &handovers
         .get(handover.0)
         .ok_or(OperatingError::NotRun)?
-        .handed;
+        .handed
+    else {
+        return Err(OperatingError::NotRun);
+    };
     // Names the files handed over that share a hash are spelled the same, before any step reads them.
     check_name_spellings(
         handed

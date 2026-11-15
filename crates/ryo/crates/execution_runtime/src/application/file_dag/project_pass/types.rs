@@ -1,6 +1,9 @@
 //! The types of the `project_pass` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::application::file_dag::frontiers::types::{HandedOver, ReadinessProof, Withholdings};
+use crate::application::file_dag::frontiers::types::{
+    HandedOver, ProvenFrontier, ReadinessProof, Withholdings,
+};
+use crate::application::file_dag::program::admission::types::RequiredPartitions;
 use crate::application::file_dag::program::project_phase::types::{
     HandoverDeclaration, PhasePartials,
 };
@@ -43,19 +46,34 @@ pub(crate) struct OccurrenceRun<'a> {
 pub(crate) struct HostedTables(pub(crate) Vec<Table>);
 
 /// One rule's handover, kept for the later occurrences of the rule handed over for the same readiness.
-#[derive(Debug)]
 pub(crate) struct RuleHandover {
     /// The rule.
     pub(crate) rule: RuleIndex,
     /// The readiness it was handed over for; none for the diagnostic.
     pub(crate) ready: Option<ReadinessProof>,
-    /// What the files handed over.
-    pub(crate) handed: HandedOver,
+    /// Where its handover stands: proven, decoded or released.
+    pub(crate) handed: HandoverState,
+}
+
+/// Where one rule's handover stands in a phase: proven before any occurrence evaluates, decoded at the first occurrence of the
+/// rule that evaluates, and released after the rule's last declared occurrence.
+pub(crate) enum HandoverState {
+    /// The store was read and every proof checked; no entry is decoded yet.
+    Proven {
+        /// What the proof left of each entry.
+        proven: ProvenFrontier,
+        /// The files the rule is handed over from.
+        required: RequiredPartitions,
+    },
+    /// What the files handed over, decoded into the phase's symbols.
+    Handed(HandedOver),
+    /// The rule has no occurrence left in the phase: its handover is gone.
+    Released,
 }
 
 /// What a phase holds from its first occurrence to its last: its nodes' rows, the rules' handovers, why each withheld input is
 /// withheld and the host's rows.
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub(crate) struct PhaseState {
     /// The nodes' rows.
     pub(crate) buffers: FileBuffers,

@@ -159,7 +159,7 @@ pub(crate) fn decode(
         handed.push(match entry {
             ProvenEntry::Elsewhere => FrontierRows::Elsewhere,
             ProvenEntry::Project(table) => FrontierRows::Held {
-                table: Arc::new(Table::clone(table)),
+                table: Arc::clone(table),
                 coverage: CoverageState::Complete,
             },
             ProvenEntry::Refused(error) => {
