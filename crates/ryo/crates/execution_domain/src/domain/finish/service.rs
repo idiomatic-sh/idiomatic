@@ -21,13 +21,20 @@ pub(crate) fn escape(table: &mut Table, leaving: Leaving<'_>, kept: Retained<'_>
         text,
     } = leaving;
     let Retained { arena, places } = kept;
+    // A symbol in many cells is one name: its place is pushed and its text kept once, and every cell reads that one.
+    let mut named_once = std::collections::BTreeMap::new();
     for value in &mut table.cells {
         if let Value::Symbol(symbol) = value {
+            if let Some(name) = named_once.get(symbol) {
+                *value = Value::Name(*name);
+                continue;
+            }
+            let symbol = *symbol;
             let mut made = Bytes(std::mem::take(&mut *arena.0));
             let named = name_of(
                 symbols,
                 ByteSlice(source.0),
-                *symbol,
+                symbol,
                 file,
                 worker,
                 &mut made,
@@ -40,6 +47,7 @@ pub(crate) fn escape(table: &mut Table, leaving: Leaving<'_>, kept: Retained<'_>
             {
                 *place = in_arena(*place, source, worker, Arena(&mut *arena.0));
             }
+            let _first = named_once.insert(symbol, name);
             *value = Value::Name(name);
         }
     }
@@ -80,9 +88,19 @@ fn normalize_frame(
         return Err(PublicationReason::ReservedArena);
     }
     let mut places = Vec::new();
+    // A place in many cells is published once, its text kept once, and every cell names that one.
+    let mut published_once = std::collections::BTreeMap::new();
     for value in &mut table.cells {
         let Value::Name(name) = *value else { continue };
         let name_hash = name.hash;
+        if let Some(index) = published_once.get(&(name.place, name_hash)) {
+            *value = Value::Name(ryo_relations::domain::relations::types::Name {
+                hash: name_hash,
+                place: *index,
+            });
+            continue;
+        }
+        let local_place = name.place;
         if name.place.0 & CROSS_PLACE != 0 {
             let symbol = Symbol(name.place.0 & !CROSS_PLACE);
             if name_made_across(leaving.symbols, symbol).map(|made| made.hash) != Some(name_hash) {
@@ -160,6 +178,7 @@ fn normalize_frame(
             return Err(PublicationReason::PortablePlaceLogFull);
         }
         places.push(place);
+        let _first = published_once.insert((local_place, name_hash), PlaceNumber(index));
         *value = Value::Name(ryo_relations::domain::relations::types::Name {
             hash: name_hash,
             place: PlaceNumber(index),
