@@ -21,7 +21,7 @@ impl ParseUseCase for SelectedParser {
 
     fn begin_semantics(
         &self,
-        _request: &crate::inbound::use_cases::parse::types::ParseRequest<'_>,
+        _request: &ParseRequest<'_>,
         _tree: &crate::domain::elements::types::Elements,
         _slot: &mut crate::domain::semantics::types::SemanticSlot,
     ) {
@@ -37,17 +37,14 @@ impl ParseUseCase for SelectedParser {
 
     fn extend_file_model(
         &self,
-        _tree: &crate::domain::elements::types::Tree<'_>,
+        _tree: &Tree<'_>,
         _from: ryo_relations::domain::relations::types::Position,
         _model: &mut (),
     ) {
     }
 
-    fn recognizes_explicit(
-        &self,
-        _request: &crate::inbound::use_cases::parse::types::ParseRequest<'_>,
-    ) -> crate::inbound::use_cases::parse::types::Recognition {
-        crate::inbound::use_cases::parse::types::Recognition::Declines
+    fn recognizes_explicit(&self, _request: &ParseRequest<'_>) -> Recognition {
+        Recognition::Declines
     }
     fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
         &[]

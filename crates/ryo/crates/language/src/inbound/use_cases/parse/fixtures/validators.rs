@@ -1,23 +1,11 @@
 //! What a contract checks of the rows and trees a language wrote: each check answers whether they are well formed.
 
-use super::super::errors::ParseError;
-use super::super::service::{absence, build, read as read_file};
-use super::super::types::ParseEngine;
-use super::super::types::{ParseRequest, Recognition, SourceFile};
 use super::collect::Collect;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::elements::service::{end_of, positions};
 use crate::domain::elements::types::Elements;
-use crate::domain::files::types::SourcePath;
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
-use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest};
-use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
-use ryo_relations::domain::relations::service::{all, columns, is_declaring, provenance_of};
-use ryo_relations::domain::relations::types::Provenance;
-use ryo_relations::domain::relations::types::{
-    Bits, FileId, Missing, Relation, RelationDeclaring, Rows,
-};
+use ryo_relations::domain::relations::types::{FileId, Relation};
 
 /// Without embedded expressions, projection must not add, omit, or alter native syntax.
 pub(super) fn projection_preserves_native(out: &Collect) -> bool {

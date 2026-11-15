@@ -14,39 +14,26 @@
 //! - every relation answered `NotYetRead` is listed by name on every run, a pass included;
 //! - a folder that names no relation of the catalog is a failure, and so are more kinds than a walk can tell apart.
 
-use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest};
-use std::collections::BTreeSet;
 use std::io::Write as _;
 use std::path::Path;
 
-use super::super::service::{absence as parse_absence, build, kinds_read};
+use super::super::service::absence as parse_absence;
 use super::super::types::ParseEngine;
-use super::super::types::Sample;
-use super::super::types::{ParseRequest, Recognition};
 use super::configuration::{Configuration, Selection};
 use super::contract::{check, flow};
-use super::expected::{Cell, Expected, Fixtures};
-use super::findings::{Findings, folders_in, input_in, inputs_in};
-use super::judging::{Blessing, extension_of, judge_kinds, judge_presence, judge_syntax};
+use super::expected::Fixtures;
+use super::findings::{Findings, folders_in};
+use super::judging::{Blessing, judge_kinds, judge_presence, judge_syntax};
 use super::judgments::{judge_classes, judge_columns, judge_reasons, judge_unknowns};
 use super::manifests::manifest_rows;
 use super::not_yet_read::report_not_yet_read;
 use super::rails::judge_rails;
-use super::rendered::{expected_source, shown as row_shown};
-use super::rows::{compare, rows_of_inputs_with};
 use super::samples::samples_in;
 use super::semantics::judge as judge_semantics;
-use super::unread;
-use crate::domain::elements::service::{kind_at, positions};
-use crate::domain::elements::types::Elements;
-use crate::domain::files::types::SourcePath;
-use crate::domain::symbols::types::ByteSlice;
-use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::project::types::ProjectEngine;
-use ryo_relations::domain::relations::constants::TOKEN;
 use ryo_relations::domain::relations::service::{KIND_LIMIT, all, folder_of, provenance_of};
 use ryo_relations::domain::relations::types::Provenance;
-use ryo_relations::domain::relations::types::{FileId, Relation};
+use ryo_relations::domain::relations::types::Relation;
 
 /// Holds a language to the whole catalog, with its fixtures under `fixtures`.
 ///
