@@ -128,6 +128,7 @@ defaults = [
 "typescript/oxlint/regexp-without-global" = "fragments/regexp-without-global.ryoql"
 "typescript/oxlint/javascript-files" = "fragments/javascript-files.ryoql"
 "typescript/oxlint/quoted-strings" = "fragments/quoted-strings.ryoql"
+"typescript/oxlint/control-flow" = "fragments/control-flow.ryoql"
 
 # oxlint runs no rule on a file that does not parse or that its semantic syntax check rejects: it reports only the parse error
 # there, as the `invalid-syntax` diagnostic. Each default therefore runs on the files the parser accepts.

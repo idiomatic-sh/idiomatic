@@ -14,7 +14,9 @@ cases; none is deferred.
 `fragments/javascript-files.ryoql` gives the files read as JavaScript, whose `compiler-feature` `typescript.syntax` is lowered:
 the files oxlint's JavaScript-only rules run on;
 `fragments/quoted-strings.ryoql` gives the `string-literal` values written in quotes, without the templates that relation also
-answers: the strings the rules read where oxlint reads a string literal alone.
+answers: the strings the rules read where oxlint reads a string literal alone;
+`fragments/control-flow.ryoql` gives each class constructor with its function, the block of the control flow graph it starts in
+and its superclass as oxlint's constructor-super classifies it: none, `null`, invalid or valid.
 
 These oxlint checks have no query and no case yet:
 
