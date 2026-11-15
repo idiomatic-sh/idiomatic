@@ -2,7 +2,9 @@
 
 ## 0.2.4
 
-The Ruff bench moves its Python implementation into the shared harness (ryo-b1gq.40). This entry opens the version; its definitions are those of 0.2.3 until the harness changes land.
+The Ruff bench moves its Python implementation into the shared harness (ryo-b1gq.40).
+
+No bench has a `host.rs` or `host_policy.rs`: the shared harness observes the host and decides (`outbound/host`, `domain/host_applicability`). The roles `host-probe` and `host-policy`, the `import-directions` entry on `host_policy.rs`, the scenarios `host-probe-and-policy-have-shared-roles` and `host-policy-cannot-probe-environment`, and the `host-probe`/`host-policy` branches of the `bench-entry` template are removed; the template renders `bench.rs` without them.
 
 ## 0.2.3
 

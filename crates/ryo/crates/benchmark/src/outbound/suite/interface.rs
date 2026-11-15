@@ -52,6 +52,17 @@ pub trait SuitePort: Send + Sync {
     ///
     /// Returns an error for unreadable, malformed, or inconsistent profile artifacts.
     fn profile(&self, directory: ArtifactPath<'_>) -> Result<Tool, Error>;
+    /// The directory holding the settings profile of one rule: `profiles/<id>` below the bench when it holds a profile, else
+    /// the bench itself.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the dedicated profile's manifest exists but cannot be read.
+    fn settings_directory(
+        &self,
+        bench: ArtifactPath<'_>,
+        rule: &ryo::linter::RuleId,
+    ) -> Result<std::path::PathBuf, Error>;
     /// Decode the shared language project manifest below its artifact directory.
     ///
     /// # Errors

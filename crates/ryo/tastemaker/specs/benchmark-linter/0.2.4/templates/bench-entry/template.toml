@@ -9,12 +9,6 @@ mod constants;
 {%- if present["frontend-projection-module"] | default(false) %}
 mod frontend_projection;
 {%- endif %}
-{%- if present["host-probe"] | default(false) %}
-mod host;
-{%- endif %}
-{%- if present["host-policy"] | default(false) %}
-mod host_policy;
-{%- endif %}
 mod schemas;
 mod settings;
 

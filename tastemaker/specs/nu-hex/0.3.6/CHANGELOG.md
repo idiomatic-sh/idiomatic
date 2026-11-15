@@ -1,3 +1,7 @@
+# nu-hex 0.3.6
+
+Places `io-at-boundary@0.3.0`, which no longer exempts a benchmark linter's `host.rs`. Everything else is as in 0.3.5.
+
 # nu-hex 0.3.5
 
 Places its ports at `port@0.3.3`, which places its adapters at `adapter@0.4.0`. Everything else is as in 0.3.4.

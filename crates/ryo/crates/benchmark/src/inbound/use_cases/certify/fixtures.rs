@@ -67,6 +67,7 @@ pub fn exercise(
     change: Change,
     constructor: impl FnOnce(
         std::sync::Arc<dyn crate::outbound::suite::interface::SuitePort>,
+        std::sync::Arc<dyn crate::outbound::host::interface::HostPort>,
         std::sync::Arc<dyn crate::outbound::receipts::interface::ReceiptsPort>,
         std::sync::Arc<dyn crate::outbound::context::interface::ContextPort>,
         std::sync::Arc<dyn LinterPort>,
@@ -144,6 +145,7 @@ pub fn exercise(
     ));
     let operation = constructor(
         suite.clone(),
+        std::sync::Arc::new(crate::outbound::host::fixtures::fake::HostFake::default()),
         std::sync::Arc::new(crate::outbound::receipts::fixtures::fake::ReceiptsFake::default()),
         std::sync::Arc::new(crate::outbound::context::factory::local()),
         reference.clone(),

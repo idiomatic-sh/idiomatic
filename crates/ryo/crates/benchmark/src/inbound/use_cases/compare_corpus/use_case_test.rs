@@ -2,6 +2,7 @@
 use super::fixtures::{
     Outside, Scenario, configured, corpus, projects_use_case, syntax, use_case_with,
 };
+use super::fixtures::unreliable_host;
 use super::interface::CompareCorpusUseCase as _;
 use super::types::{
     AcceptedDifferencesFile, AcceptedSuffix, Corpus, CorpusParity, ProjectsParity, SourceExtension,
@@ -15,6 +16,9 @@ use ryo_benchmark_contracts::domain::workloads::types::{
     project_revision::value::ProjectRevision, repository_url::value::RepositoryUrl,
 };
 
+/// The bench directory the fixture's settings profiles are read from.
+const BENCH: &str = "bench";
+
 /// What a row compares.
 #[derive(Clone, Copy, Debug)]
 enum Given {
@@ -22,6 +26,8 @@ enum Given {
     Request(Scenario, Outside),
     /// A project of two sources, one of which the reference refuses to parse and the candidate leaves unanswered.
     Projects,
+    /// A request whose rules' profile requires file observations, on a host whose file permissions are unreliable.
+    UnreliableHost,
 }
 
 type Input = Given;
@@ -129,6 +135,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
     Case {
         name: CaseName(
+            "a parity whose rules include a profile requiring file observations is refused on an unreliable host",
+        ),
+        word: Word::Refuses,
+        input: || Given::UnreliableHost,
+        expect: Expect::Error((
+            "the pinned reference does not evaluate file permissions on this host",
+            "",
+        )),
+    },
+    Case {
+        name: CaseName(
             "a source the reference refuses to parse is left out of parity and counted, as measure-valid leaves it out",
         ),
         word: Word::Succeeds,
@@ -144,6 +161,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
     match given {
         Given::Request(scenario, outside) => request(scenario, outside),
         Given::Projects => projects(),
+        Given::UnreliableHost => unreliable_host(),
     }
 }
 
@@ -153,6 +171,27 @@ fn request(scenario: Scenario, outside: Outside) -> Result<Value, Failure> {
     let mut observations = Vec::new();
     let result = use_case_with(outside).compare_corpus(
         &CorpusParity {
+            bench: std::path::Path::new(BENCH),
+            corpus: Corpus::Request {
+                request: &corpus.request,
+                accepted: AcceptedDifferencesFile::Declared(&corpus.accepted),
+            },
+            configured: &configured(),
+            reference: ContestantName("fixture"),
+            syntax: &syntax(),
+        },
+        &mut observations,
+    );
+    answer(result, &observations, &corpus.digest.0)
+}
+
+/// Compares the fixture corpus where the host cannot be trusted with the file permissions the profile requires.
+fn unreliable_host() -> Result<Value, Failure> {
+    let corpus = corpus(ACCEPTED);
+    let mut observations = Vec::new();
+    let result = unreliable_host::use_case().compare_corpus(
+        &CorpusParity {
+            bench: std::path::Path::new(BENCH),
             corpus: Corpus::Request {
                 request: &corpus.request,
                 accepted: AcceptedDifferencesFile::Declared(&corpus.accepted),
@@ -183,6 +222,7 @@ fn projects() -> Result<Value, Failure> {
     let mut observations = Vec::new();
     let result = projects_use_case(directory.path()).compare_corpus(
         &CorpusParity {
+            bench: std::path::Path::new(BENCH),
             corpus: Corpus::Projects(ProjectsParity {
                 projects: std::slice::from_ref(&project),
                 suffixes: &[SourceExtension(".py")],

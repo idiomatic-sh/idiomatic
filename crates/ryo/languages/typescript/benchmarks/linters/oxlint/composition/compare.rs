@@ -73,6 +73,7 @@ pub(super) fn parity(
         Arc::new(ryo_benchmark::outbound::workspace::factory::git(
             output.join(constants::PROJECTS_DIRECTORY),
         )),
+        Arc::new(ryo_benchmark::outbound::host::factory::local()),
     );
     let suite = suite_source.projects(ArtifactPath(&workload))?;
     CorpusShape {
@@ -84,6 +85,7 @@ pub(super) fn parity(
         .map_err(|error| Error::Invalid(error.to_string()))?;
     let result = compare.compare_corpus(
         &CorpusParity {
+            bench: &directory(),
             corpus: Corpus::Projects(ProjectsParity {
                 projects: &suite.projects,
                 suffixes: &constants::SOURCE_SUFFIXES.map(SourceExtension),

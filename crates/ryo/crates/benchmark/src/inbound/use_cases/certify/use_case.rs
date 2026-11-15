@@ -14,6 +14,8 @@ use std::sync::Arc;
 pub struct CertifyUseCaseImpl {
     /// Artifact validation and exact content fingerprinting boundary.
     suite: Arc<dyn SuitePort>,
+    /// The host's file-permission facts.
+    host: Arc<dyn crate::outbound::host::interface::HostPort>,
     /// Case receipt recording boundary.
     receipts: Arc<dyn crate::outbound::receipts::interface::ReceiptsPort>,
     /// Sealed disk context validation and fingerprinting boundary.
@@ -36,6 +38,7 @@ impl CertifyUseCaseImpl {
     )]
     pub fn new(
         suite: Arc<dyn SuitePort>,
+        host: Arc<dyn crate::outbound::host::interface::HostPort>,
         receipts: Arc<dyn crate::outbound::receipts::interface::ReceiptsPort>,
         context: Arc<dyn crate::outbound::context::interface::ContextPort>,
         reference: Arc<dyn LinterPort>,
@@ -46,6 +49,7 @@ impl CertifyUseCaseImpl {
     ) -> Self {
         Self {
             suite,
+            host,
             receipts,
             context,
             reference,
@@ -165,6 +169,7 @@ impl CertifyUseCase for CertifyUseCaseImpl {
                 )?;
                 super::service::verify_prepared_shard(
                     suite,
+                    self.host.as_ref(),
                     receipts,
                     context,
                     reference,

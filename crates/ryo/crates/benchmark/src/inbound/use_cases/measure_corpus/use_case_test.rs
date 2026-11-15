@@ -1,6 +1,6 @@
 //! A corpus run reports every project's refusal after the others, and publishes only accounted samples.
 use super::{
-    fixtures::{use_case, with_cohort},
+    fixtures::{unreliable_host_use_case, use_case, with_cohort},
     interface::MeasureCorpusUseCase as _,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -18,8 +18,17 @@ enum Cohort {
     },
 }
 
-/// How many projects the corpus holds, whether the run is held to the accounted inventory, and its cohort.
-type Input = (BenchmarkCoverage, usize, Cohort);
+/// The host the corpus is measured on.
+#[derive(Clone, Copy)]
+enum Host {
+    /// A host whose file permissions are honoured, over a suite whose profile requires none.
+    Honouring,
+    /// A Microsoft kernel outside a container, over a suite whose profile requires executable bits.
+    Unreliable,
+}
+
+/// How many projects the corpus holds, whether the run is held to the accounted inventory, its cohort and its host.
+type Input = (BenchmarkCoverage, usize, Cohort, Host);
 /// What the observation lines say.
 type Value = &'static str;
 /// The refusal and the observation lines written before it.
@@ -29,19 +38,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a diagnostic corpus says its samples are not metrics"),
         word: Word::Succeeds,
-        input: || (BenchmarkCoverage::Interim, 0, Cohort::Frozen),
+        input: || (BenchmarkCoverage::Interim, 0, Cohort::Frozen, Host::Honouring),
         expect: Expect::Value("diagnostic-only: scoped samples are not benchmark metrics\n"),
     },
     Case {
         name: CaseName("an accounted corpus without samples refuses publication"),
         word: Word::Refuses,
-        input: || (BenchmarkCoverage::Accounted, 0, Cohort::Frozen),
+        input: || (BenchmarkCoverage::Accounted, 0, Cohort::Frozen, Host::Honouring),
         expect: Expect::Error(("no measured evidence", "")),
     },
     Case {
         name: CaseName("a project that cannot be prepared is reported after the diagnostic line"),
         word: Word::Fails,
-        input: || (BenchmarkCoverage::Interim, 1, Cohort::Frozen),
+        input: || (BenchmarkCoverage::Interim, 1, Cohort::Frozen, Host::Honouring),
         expect: Expect::Error((
             "corpus comparisons failed: [ProjectName(\"project-0\")]",
             "project-0: corpus comparison failed: invalid pin\ndiagnostic-only: scoped samples are not benchmark metrics\n",
@@ -58,6 +67,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     covered: &["A"],
                     selected: &["B"],
                 },
+                Host::Honouring,
             )
         },
         expect: Expect::Error((super::constants::COHORT_OUTSIDE_CERTIFICATE, "")),
@@ -73,6 +83,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     covered: &["A", "B"],
                     selected: &["A"],
                 },
+                Host::Honouring,
             )
         },
         expect: Expect::Error((
@@ -80,9 +91,39 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "project-0: corpus comparison failed: invalid pin\ndiagnostic-only: scoped samples are not benchmark metrics\n",
         )),
     },
+    Case {
+        name: CaseName(
+            "a measure whose rules include a profile requiring file observations is refused on an unreliable host",
+        ),
+        word: Word::Refuses,
+        input: || {
+            (
+                BenchmarkCoverage::Interim,
+                1,
+                Cohort::Explicit {
+                    covered: &["A", "B"],
+                    selected: &["A"],
+                },
+                Host::Unreliable,
+            )
+        },
+        expect: Expect::Error((
+            "the pinned reference does not evaluate file permissions on this host",
+            "",
+        )),
+    },
+    Case {
+        name: CaseName("a frozen cohort is judged by the certificate's authored rules"),
+        word: Word::Refuses,
+        input: || (BenchmarkCoverage::Interim, 1, Cohort::Frozen, Host::Unreliable),
+        expect: Expect::Error((
+            "the pinned reference does not evaluate file permissions on this host",
+            "",
+        )),
+    },
 ];
 
-fn subject((scope, projects, cohort): Input) -> Result<Value, Failure> {
+fn subject((scope, projects, cohort, host): Input) -> Result<Value, Failure> {
     let mut observations = Vec::new();
     let (covered, cohort) = match cohort {
         Cohort::Frozen => (&["A"][..], CohortSelection::Frozen),
@@ -97,7 +138,11 @@ fn subject((scope, projects, cohort): Input) -> Result<Value, Failure> {
         ),
     };
     let result = with_cohort(scope, projects, covered, &cohort, |corpus| {
-        use_case().measure_corpus(corpus, &mut observations)
+        match host {
+            Host::Honouring => use_case(),
+            Host::Unreliable => unreliable_host_use_case(),
+        }
+        .measure_corpus(corpus, &mut observations)
     });
     let observations = String::from_utf8_lossy(&observations).into_owned().leak();
     match result {

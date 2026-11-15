@@ -1,6 +1,6 @@
 # language 0.4.10
 
-Places `benchmark@0.2.5` (which places `benchmark-linter@0.2.4`). Everything else is as in 0.4.9.
+Places `benchmark@0.2.5` (which places `benchmark-linter@0.2.4`) and `io-at-boundary@0.3.0`. Everything else is as in 0.4.9.
 
 # language 0.4.9
 

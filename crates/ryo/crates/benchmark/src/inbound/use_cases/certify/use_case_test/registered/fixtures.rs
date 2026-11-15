@@ -189,6 +189,7 @@ impl Fixture {
     ) -> Result<crate::domain::suite::types::certificate::value::Certificate, ReportsError> {
         let operation = crate::inbound::use_cases::certify::use_case::CertifyUseCaseImpl::new(
             Arc::new(crate::outbound::suite::factory::local()),
+            Arc::new(crate::outbound::host::fixtures::fake::HostFake::default()),
             Arc::new(crate::outbound::receipts::fixtures::fake::ReceiptsFake::default()),
             Arc::new(crate::outbound::context::factory::local()),
             Arc::new(crate::outbound::linter::fixtures::fake::LinterFake::default()),
@@ -239,7 +240,6 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn copy_measured_profi
         );
     }
 }
-
 /// The refusal named by `reason` when the error says it, else the error in full; no contestant ran beyond `launches`.
 pub(in crate::inbound::use_cases::certify::use_case_test) fn refusal(
     f: &Fixture,

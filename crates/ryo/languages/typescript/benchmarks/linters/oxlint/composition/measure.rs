@@ -127,6 +127,7 @@ pub(super) fn measure(
         default_scratch(suite_source.as_ref(), ArtifactText(constants::CASE_SCRATCH))?;
     let certificate = CertifyUseCaseImpl::new(
         Arc::<_>::clone(&suite_source),
+        Arc::new(ryo_benchmark::outbound::host::factory::local()),
         Arc::new(ryo_benchmark::outbound::receipts::factory::local(
             ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded,
         )),
@@ -255,9 +256,11 @@ fn compare(
         Arc::new(ryo_benchmark::outbound::workspace::factory::git(
             cache.join(constants::PROJECTS_DIRECTORY),
         )),
+        Arc::new(ryo_benchmark::outbound::host::factory::local()),
     )
     .measure_corpus(
         &CorpusMeasurement {
+            bench: &directory(),
             projects: suite.projects,
             scope,
             profile,

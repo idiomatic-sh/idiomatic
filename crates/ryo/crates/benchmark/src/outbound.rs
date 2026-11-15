@@ -3,6 +3,7 @@ pub mod discovery;
 pub mod engine;
 pub mod evidence;
 pub mod execution;
+pub mod host;
 pub mod linter;
 pub mod profile_tools;
 pub mod receipts;

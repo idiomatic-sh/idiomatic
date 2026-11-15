@@ -10,7 +10,6 @@ use crate::outbound::suite::{
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-
 #[derive(Clone, Copy, Debug)]
 pub enum Operation {
     Profile,
@@ -21,6 +20,7 @@ pub enum Operation {
     Stage,
     StageProjects,
     RuleIds,
+    SettingsDirectory,
     RuleQuery,
     RuleCases,
     MetadataUndeclared,
@@ -49,7 +49,6 @@ pub enum Refusal {
     Refused,
 }
 type Failure = Refusal;
-
 pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("missing profile is refused"),
@@ -98,6 +97,12 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Operation::RuleIds,
         expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("a rule without a dedicated profile is settled by its bench"),
+        word: Word::Succeeds,
+        input: || Operation::SettingsDirectory,
+        expect: Expect::Value(1),
     },
     Case {
         name: CaseName("missing query remains absent"),
@@ -208,7 +213,6 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Failure::Refused),
     },
 ];
-
 /// Exercise actual physical observations, panicking where the adapter breaks the contract; policy expectations are
 /// proved by the application tests.
 ///
@@ -274,6 +278,9 @@ pub fn check(adapter: &impl SuitePort) -> std::io::Result<()> {
                 .rule_ids(ArtifactPath(&rules))
                 .map(|ids| ids.len())
                 .map_err(classify),
+            Operation::SettingsDirectory => Ok(usize::from(
+                adapter.settings_directory(ArtifactPath(&missing), &tool.defaults[0]).map_err(classify)? == missing,
+            )),
             Operation::RuleQuery => adapter
                 .rule_query(ArtifactPath(&rules), &tool.defaults[0])
                 .map(|query| usize::from(query.is_some()))
