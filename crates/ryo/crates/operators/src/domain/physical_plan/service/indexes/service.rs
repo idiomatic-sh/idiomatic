@@ -10,6 +10,8 @@ use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
     IndexKey, IndexPlace, KeyedIndex, NodeReaders, PlanNodeId, ProbeIndex,
 };
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::types::Table;
 
 /// Shares one `hash_index` between the probes of one right source and key: a planning step, not a rewrite, since an unshared
 /// plan answers the same rows. A probe that filters its right rows indexes rows of its own and keeps its own index, as does an
@@ -92,11 +94,13 @@ pub(crate) fn closed(buffers: &mut FileBuffers, at: IndexPlace) {
 /// # Errors
 ///
 /// `WrongOperation` for a node or an index the buffers do not hold.
-pub(crate) fn probe_scratch(
-    buffers: &mut FileBuffers,
+pub(crate) fn probe_scratch<'b>(
+    buffers: &'b mut FileBuffers,
     index: ProbeIndex,
     node: PlanNodeId,
-) -> Result<ProbeScratch<'_>, PortableOperatorFault> {
+    kept: &'b mut Table,
+    whole: [&'b mut Vec<ColumnIndex>; 2],
+) -> Result<ProbeScratch<'b>, PortableOperatorFault> {
     let decisions = buffers
         .decisions
         .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
@@ -125,6 +129,8 @@ pub(crate) fn probe_scratch(
     Ok(ProbeScratch {
         index,
         build,
+        kept,
+        whole,
         row: &mut buffers.row,
         written: &mut buffers.written,
         repeats: &mut buffers.repeats,

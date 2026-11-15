@@ -7,7 +7,7 @@ use crate::domain::physical_plan::service::plan;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::{
-    Flow, LogicalNode, NodeBindings, PlanInputList, PlanNodeId,
+    Flow, LogicalNode, NodeBindings, PlanInput, PlanInputList, PlanNodeId,
 };
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
@@ -27,6 +27,7 @@ enum Scenario {
     ReaderBlocks,
     ReadSecond,
     DroppingRepeatsInTheMiddle,
+    ProbeDroppingRepeatsInTheMiddle,
 }
 /// Each node's flow, in node order: `S` streamed, `H` held.
 type Value = Cow<'static, str>;
@@ -82,6 +83,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::DroppingRepeatsInTheMiddle,
         expect: Expect::Value(Cow::Borrowed("SHH")),
     },
+    Case {
+        name: CaseName("a_probe_dropping_repeats_streams_only_as_a_tail"),
+        word: Word::Succeeds,
+        input: || Scenario::ProbeDroppingRepeatsInTheMiddle,
+        expect: Expect::Value(Cow::Borrowed("SHH")),
+    },
 ];
 
 /// A capture of each name of Defines.
@@ -91,6 +98,17 @@ fn capture() -> Step {
         path: ColumnIndex(3),
         pattern: CapturePattern("{x}".into()),
     })
+}
+
+/// A step of `operation` reading node 0, then Defines.
+fn over_nodes_and_defines(operation: Operation) -> Step {
+    Step {
+        operation,
+        inputs: vec![
+            PlanInput::Node(PlanNodeId(0)),
+            PlanInput::Relation(Relation::Defines),
+        ],
+    }
 }
 
 /// A select of every row of node `from`.
@@ -187,6 +205,18 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
                     },
                     &[0],
                 ),
+                select_of(1),
+            ],
+            &[],
+            &[],
+        ),
+        Scenario::ProbeDroppingRepeatsInTheMiddle => flows(
+            &[
+                capture(),
+                over_nodes_and_defines(Operation::Intersection {
+                    left: StepInput::Step(StepId(0)),
+                    right: StepInput::Relation(Relation::Defines),
+                }),
                 select_of(1),
             ],
             &[],

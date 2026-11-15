@@ -14,6 +14,7 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::{
     EmptyRight, Existence, OrderedProbe, PartitionExtremum, ProbeKey, ProbeMode, ProbeParts,
 };
+use crate::domain::physical_plan::service::run::types::StagePrepared;
 use crate::domain::physical_plan::types::file_buffers::value::{
     KeyedRows, KeyedRun, NO_ROW, NodeDecisions,
 };
@@ -22,7 +23,7 @@ use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::{
     CellStart, InputRows, KernelRun, KeyedRowAt, KeyedSide, NodeFed, TreeRead,
 };
-use ryo_relations::domain::relations::types::{NodeId, Value};
+use ryo_relations::domain::relations::types::{CellKind, NodeId, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Side};
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
@@ -50,12 +51,17 @@ pub(crate) enum IndexBuild {
     Walked,
 }
 
-/// The scratch a probe writes through.
+/// The scratch a probe writes through, its own across its left rows: its index, the right rows its filter kept and the key
+/// columns of a probe of whole rows, beside the worker's row buffers.
 pub(crate) struct ProbeScratch<'s> {
-    /// The index it reads: the worker's own keyed-row table, or a shared index.
+    /// The index it reads: its own keyed-row table, or a shared index.
     pub(crate) index: &'s mut KeyedRows,
     /// Whether it builds that index.
     pub(crate) build: IndexBuild,
+    /// The right rows its filter kept, read by every left row; empty when it filters none.
+    pub(crate) kept: &'s mut Table,
+    /// The key columns of a probe of whole rows, its left's and its right's: every column.
+    pub(crate) whole: [&'s mut Vec<ColumnIndex>; 2],
     /// The row read, decoded from the facts.
     pub(crate) row: &'s mut Vec<Value>,
     /// The row a filter writes.
@@ -77,18 +83,18 @@ enum Matched<'a> {
     Walked(TreeRead<'a>),
 }
 
-/// The kinds of a probe's answer.
+/// The kinds of a probe's answer over left rows of `left` and right rows of `right`.
 ///
 /// # Errors
 ///
 /// `NoSuchColumn` for an answer column past its side's rows.
-fn answer_kinds(
+pub(crate) fn answer_kinds(
     probe: &ProbeParts,
-    left: InputRows<'_>,
-    right: InputRows<'_>,
-) -> Result<Vec<ryo_relations::domain::relations::types::CellKind>, PortableOperatorFault> {
+    left: &[CellKind],
+    right: &[CellKind],
+) -> Result<Vec<CellKind>, PortableOperatorFault> {
     if probe.mode != ProbeMode::Inner {
-        return Ok(kinds_of(left).to_vec());
+        return Ok(left.to_vec());
     }
     probe
         .output
@@ -98,8 +104,7 @@ fn answer_kinds(
                 Side::Left => left,
                 Side::Right => right,
             };
-            kinds_of(side)
-                .get(usize::try_from(column.column.0).unwrap_or(usize::MAX))
+            side.get(usize::try_from(column.column.0).unwrap_or(usize::MAX))
                 .copied()
                 .ok_or(PortableOperatorFault::NoSuchColumn {
                     index: column.column,
@@ -108,9 +113,277 @@ fn answer_kinds(
         .collect()
 }
 
+/// The tree a walked probe reads its right rows from in place; none for a probe of an index.
+///
+/// # Errors
+///
+/// `WrongOperation` for a walked probe whose right rows are not the tree's.
+fn walked_tree<'a>(
+    build: IndexBuild,
+    right: InputRows<'a>,
+) -> Result<Option<TreeRead<'a>>, PortableOperatorFault> {
+    match (build, right) {
+        (IndexBuild::Walked, InputRows::Tree(tree)) => Ok(Some(*tree)),
+        (IndexBuild::Walked, InputRows::Facts(_) | InputRows::Table(_)) => {
+            Err(PortableOperatorFault::WrongOperation)
+        }
+        (IndexBuild::Builds | IndexBuild::Built, _) => Ok(None),
+    }
+}
+
+/// Whether the probe reads the right rows its filter kept, not `right` as it is: it filters and does not walk the tree.
+fn filters(probe: &ProbeParts, build: IndexBuild) -> bool {
+    !probe.filter.comparisons.is_empty() && build != IndexBuild::Walked
+}
+
+/// The probe's work before it reads its first left row, in its held order: its right filter over `right` into its kept rows,
+/// its key columns, its index build and an ordered probe's extremes. A walked probe readies its found-row filter. A probe
+/// whose left has no row does none of it.
+///
+/// # Errors
+///
+/// `NoSuchColumn` for a right key column past its rows; `ShapeMismatch` for an ordered probe's order that is no number.
+pub(crate) fn probe_prepared(
+    probe: &ProbeParts,
+    left: &[CellKind],
+    right: InputRows<'_>,
+    run: &KernelRun<'_>,
+    scratch: &mut ProbeScratch<'_>,
+) -> Result<StagePrepared, PortableOperatorFault> {
+    let walked = walked_tree(scratch.build, right)?;
+    scratch.kept.kinds.clear();
+    scratch.kept.cells.clear();
+    scratch.kept.count = RowCount(0);
+    if filters(probe, scratch.build) {
+        let kinds = kinds_of(right);
+        let kernel = filter(&probe.filter, kinds, run.resources.texts());
+        readied(&probe.filter, scratch.decisions, kernel.names);
+        scratch.kept.kinds.extend_from_slice(kinds);
+        for at in 0..count_of(right).0 {
+            let read = row_of(right, RowIndex(at), scratch.row);
+            if let Err(fault) = keep(
+                kernel,
+                run.matcher,
+                read,
+                scratch.decisions,
+                scratch.written,
+                scratch.kept,
+            ) {
+                return Ok(StagePrepared { fault: Some(fault) });
+            }
+        }
+    }
+    if walked.is_some() && !probe.filter.comparisons.is_empty() {
+        let kernel = filter(&probe.filter, kinds_of(right), run.resources.texts());
+        readied(&probe.filter, scratch.decisions, kernel.names);
+    }
+    let right = if filters(probe, scratch.build) {
+        InputRows::Table(&*scratch.kept)
+    } else {
+        right
+    };
+    let [left_on, right_on] = &mut scratch.whole;
+    if matches!(probe.key, ProbeKey::Whole) {
+        every(left, left_on);
+        every(kinds_of(right), right_on);
+    }
+    let on = match &probe.key {
+        ProbeKey::Columns { right, .. } => right.as_slice(),
+        ProbeKey::Whole => right_on.as_slice(),
+    };
+    if scratch.build == IndexBuild::Builds
+        && let Err(fault) = cells(KeyedSide { rows: right, on }, scratch.index)
+    {
+        // A partial index is no index: the next probe of a shared one builds it again.
+        emptied(scratch.index);
+        return Err(fault);
+    }
+    // An ordered probe keeps its own index (`shared_indexes`), which it builds: its keys' first rows become their extremes.
+    if let ProbeMode::Ordered(order) = probe.mode {
+        extremes(right, order, scratch.index)?;
+    }
+    Ok(StagePrepared::default())
+}
+
+/// Appends the answer of row `at` of `left` probing the right rows to `output`, readied by `probe_prepared` from `right`, and
+/// answers the row's fault. A probe that walks the tree finds the row's rows from its node and counts them as the rows of
+/// `right` it was fed.
+///
+/// # Errors
+///
+/// `ShapeMismatch` for an ordered probe's order that is no number, `NoSuchColumn` for one past its row.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the left row, the right rows, the run, the probe's own scratch, its feed and its answer: one row's probe"
+)]
+pub(crate) fn probe_row(
+    probe: &ProbeParts,
+    left: InputRows<'_>,
+    at: RowIndex,
+    right: InputRows<'_>,
+    run: &KernelRun<'_>,
+    scratch: &mut ProbeScratch<'_>,
+    fed: &mut NodeFed,
+    output: &mut Table,
+) -> Result<Option<PortableOperatorFault>, PortableOperatorFault> {
+    let walked = walked_tree(scratch.build, right)?;
+    let right = if filters(probe, scratch.build) {
+        InputRows::Table(&*scratch.kept)
+    } else {
+        right
+    };
+    let ProbeScratch {
+        index,
+        whole: [every_left, every_right],
+        row,
+        repeats,
+        decisions,
+        found: nodes,
+        ..
+    } = scratch;
+    let (left_on, right_on): (&[ColumnIndex], &[ColumnIndex]) = match &probe.key {
+        ProbeKey::Columns { left, right } => (left, right),
+        ProbeKey::Whole => (every_left.as_slice(), every_right.as_slice()),
+    };
+    let indexed_side = KeyedSide {
+        rows: right,
+        on: right_on,
+    };
+    if probe.mode == ProbeMode::Anti
+        && probe.empty_right == EmptyRight::EveryLeftRow
+        && count_of(right).0 == 0
+    {
+        let start = CellStart(output.cells.len());
+        output.cells.extend_from_slice(row_of(left, at, row));
+        counted(output, start, probe.repeated, repeats);
+        return Ok(None);
+    }
+    let matched = match walked {
+        None => match find_cells(
+            index,
+            indexed_side,
+            KeyedRowAt {
+                side: KeyedSide {
+                    rows: left,
+                    on: left_on,
+                },
+                row: at,
+            },
+        ) {
+            Ok(found) => Matched::Indexed(found),
+            Err(fault) => return Ok(Some(fault)),
+        },
+        Some(tree) => {
+            let (Some(left_key), Some(right_key)) = (left_on.first(), right_on.first()) else {
+                return Err(PortableOperatorFault::WrongOperation);
+            };
+            let Some(key) = cell_of(left, at, *left_key) else {
+                return Ok(Some(PortableOperatorFault::NoSuchColumn {
+                    index: *left_key,
+                }));
+            };
+            nodes.clear();
+            keyed_roots(&tree, *right_key, key, nodes);
+            if let Some(slot) = fed.0.get_mut(1) {
+                *slot = RowCount(slot.0.saturating_add(nodes.len()));
+            }
+            // The walked probe's right filter, which cannot fail (`tree_probe`), keeps or drops each row it finds.
+            if !probe.filter.comparisons.is_empty() {
+                let kernel = filter(&probe.filter, kinds_of(right), run.resources.texts());
+                if let Some(fault) = kept_nodes(tree, kernel, run.matcher, row, decisions, nodes) {
+                    return Ok(Some(fault));
+                }
+            }
+            Matched::Walked(tree)
+        }
+    };
+    if probe.mode == ProbeMode::Inner {
+        let walked_rows;
+        let (rows, mut matched_row) = match matched {
+            Matched::Indexed(key) => (right, key.map_or(NO_ROW, |key| key.first)),
+            Matched::Walked(tree) => {
+                walked_rows = TreeRead {
+                    candidates: nodes.as_slice(),
+                    ..tree
+                };
+                (
+                    InputRows::Tree(&walked_rows),
+                    next_found(None, RowCount(nodes.len())),
+                )
+            }
+        };
+        while matched_row != NO_ROW {
+            let start = CellStart(output.cells.len());
+            for column in &probe.output {
+                let cell = match column.side {
+                    Side::Left => cell_of(left, at, column.column),
+                    Side::Right => cell_of(rows, indexed(matched_row), column.column),
+                };
+                let Some(cell) = cell else {
+                    output.cells.truncate(start.0);
+                    return Ok(Some(PortableOperatorFault::NoSuchColumn {
+                        index: column.column,
+                    }));
+                };
+                output.cells.push(cell);
+            }
+            counted(output, start, probe.repeated, repeats);
+            matched_row = match matched {
+                Matched::Indexed(_) => next_of(index, matched_row),
+                Matched::Walked(_) => next_found(Some(matched_row), RowCount(nodes.len())),
+            };
+        }
+        return Ok(None);
+    }
+    if let ProbeMode::Ordered(order) = probe.mode {
+        // An ordered probe keeps its index (`tree_probe`): it never walks.
+        let Matched::Indexed(found) = matched else {
+            return Err(PortableOperatorFault::WrongOperation);
+        };
+        let passed = match found {
+            None => false,
+            Some(key) => {
+                let bound = number_at(right, indexed(key.first), order.right_order)?;
+                let own = number_at(left, at, order.left_order)?;
+                match order.extremum {
+                    PartitionExtremum::Maximum => bound > own,
+                    PartitionExtremum::Minimum => bound < own,
+                }
+            }
+        };
+        if !passed {
+            let start = CellStart(output.cells.len());
+            output.cells.extend_from_slice(row_of(left, at, row));
+            counted(output, start, probe.repeated, repeats);
+        }
+        return Ok(None);
+    }
+    let exists = match (probe.existence, matched) {
+        (_, Matched::Walked(_)) => !nodes.is_empty(),
+        (_, Matched::Indexed(None)) => false,
+        (Existence::First, Matched::Indexed(Some(_))) => true,
+        (Existence::Every, Matched::Indexed(Some(key))) => {
+            let mut rows = RowCount(0);
+            let mut matched_row = key.first;
+            while matched_row != NO_ROW {
+                rows = RowCount(rows.0.saturating_add(1));
+                matched_row = next_of(index, matched_row);
+            }
+            rows.0 > 0
+        }
+    };
+    if exists == (probe.mode == ProbeMode::Semi) {
+        let start = CellStart(output.cells.len());
+        output.cells.extend_from_slice(row_of(left, at, row));
+        counted(output, start, probe.repeated, repeats);
+    }
+    Ok(None)
+}
+
 /// Appends the answer of each row of `left` probing the rows of `right` to `output`, and answers the first row's fault: the
-/// right filter's, before any answer, or a left row's, after the answers of the rows before it. A probe that walks the tree
-/// finds each left row's rows from its node and counts them as the rows of `right` it was fed.
+/// right filter's, before any answer, or a left row's, after the answers of the rows before it. A left of no row reaches no
+/// right row: it answers its layout before any right key or filter is read. A blocking kernel's join over rows it made (a
+/// seeded closure's): a streamed probe's rows are pushed through `probe_row` by the chain of streamed stages.
 ///
 /// # Errors
 ///
@@ -120,220 +393,34 @@ pub(crate) fn probed(
     left: InputRows<'_>,
     right: InputRows<'_>,
     run: &KernelRun<'_>,
-    scratch: ProbeScratch<'_>,
+    mut scratch: ProbeScratch<'_>,
     fed: &mut NodeFed,
     output: &mut Table,
 ) -> Result<Option<PortableOperatorFault>, PortableOperatorFault> {
-    output.kinds = answer_kinds(probe, left, right)?;
-    let ProbeScratch {
-        index,
-        build,
-        row,
-        written,
-        repeats,
-        decisions,
-        found: nodes,
-    } = scratch;
-    // A walked probe reads the tree in place: no filter pass and no index, each left row's rows found from its node.
-    let walked = match (build, right) {
-        (IndexBuild::Walked, InputRows::Tree(tree)) => Some(*tree),
-        (IndexBuild::Walked, InputRows::Facts(_) | InputRows::Table(_)) => {
-            return Err(PortableOperatorFault::WrongOperation);
-        }
-        (IndexBuild::Builds | IndexBuild::Built, _) => None,
-    };
-    // No left row reaches the right side: an empty left answers its layout before any right key or filter is read, and a
-    // walked probe found no tree rows.
-    if count_of(left).0 == 0 {
-        if walked.is_some()
-            && let Some(slot) = fed.0.get_mut(1)
-        {
-            *slot = RowCount(0);
-        }
-        return Ok(None);
-    }
-    let filtered;
-    let right = if probe.filter.comparisons.is_empty() || walked.is_some() {
-        right
-    } else {
-        let kinds = kinds_of(right);
-        let kernel = filter(&probe.filter, kinds, run.resources.texts());
-        readied(&probe.filter, decisions, kernel.names);
-        let mut kept = Table {
-            kinds: kinds.to_vec(),
-            ..Table::default()
-        };
-        for at in 0..count_of(right).0 {
-            let read = row_of(right, RowIndex(at), row);
-            if let Err(fault) = keep(kernel, run.matcher, read, decisions, written, &mut kept) {
-                return Ok(Some(fault));
-            }
-        }
-        filtered = kept;
-        InputRows::Table(&filtered)
-    };
-    // The walked probe's right filter, which cannot fail (`tree_probe`), kept or dropped on each row it finds.
-    let found_filter = (walked.is_some() && !probe.filter.comparisons.is_empty()).then(|| {
-        let kernel = filter(&probe.filter, kinds_of(right), run.resources.texts());
-        readied(&probe.filter, decisions, kernel.names);
-        kernel
-    });
-    let (every_left, every_right);
-    let (left_on, right_on): (&[ColumnIndex], &[ColumnIndex]) = match &probe.key {
-        ProbeKey::Columns { left, right } => (left, right),
-        ProbeKey::Whole => {
-            every_left = every(left);
-            every_right = every(right);
-            (&every_left, &every_right)
-        }
-    };
-    let indexed_side = KeyedSide {
-        rows: right,
-        on: right_on,
-    };
-    if build == IndexBuild::Builds
-        && let Err(fault) = cells(indexed_side, index)
-    {
-        // A partial index is no index: the next probe of a shared one builds it again.
-        emptied(index);
-        return Err(fault);
-    }
-    // An ordered probe keeps its own index (`shared_indexes`), which it builds: its keys' first rows become their extremes.
-    if let ProbeMode::Ordered(order) = probe.mode {
-        extremes(right, order, index)?;
-    }
-    let empty = count_of(right).0 == 0;
-    emptied(repeats);
-    if walked.is_some()
-        && let Some(slot) = fed.0.get_mut(1)
-    {
+    output.kinds = answer_kinds(probe, kinds_of(left), kinds_of(right))?;
+    let walked = walked_tree(scratch.build, right)?.is_some();
+    if walked && let Some(slot) = fed.0.get_mut(1) {
         *slot = RowCount(0);
     }
+    if count_of(left).0 == 0 {
+        return Ok(None);
+    }
+    if let Some(fault) = probe_prepared(probe, kinds_of(left), right, run, &mut scratch)?.fault {
+        return Ok(Some(fault));
+    }
+    emptied(scratch.repeats);
     for at in 0..count_of(left).0 {
-        let at = RowIndex(at);
-        if probe.mode == ProbeMode::Anti && probe.empty_right == EmptyRight::EveryLeftRow && empty {
-            let start = CellStart(output.cells.len());
-            output.cells.extend_from_slice(row_of(left, at, row));
-            counted(output, start, probe.repeated, repeats);
-            continue;
-        }
-        let matched = match walked {
-            None => match find_cells(
-                index,
-                indexed_side,
-                KeyedRowAt {
-                    side: KeyedSide {
-                        rows: left,
-                        on: left_on,
-                    },
-                    row: at,
-                },
-            ) {
-                Ok(found) => Matched::Indexed(found),
-                Err(fault) => return Ok(Some(fault)),
-            },
-            Some(tree) => {
-                let (Some(left_key), Some(right_key)) = (left_on.first(), right_on.first()) else {
-                    return Err(PortableOperatorFault::WrongOperation);
-                };
-                let Some(key) = cell_of(left, at, *left_key) else {
-                    return Ok(Some(PortableOperatorFault::NoSuchColumn {
-                        index: *left_key,
-                    }));
-                };
-                nodes.clear();
-                keyed_roots(&tree, *right_key, key, nodes);
-                if let Some(slot) = fed.0.get_mut(1) {
-                    *slot = RowCount(slot.0.saturating_add(nodes.len()));
-                }
-                if let Some(kernel) = found_filter
-                    && let Some(fault) =
-                        kept_nodes(tree, kernel, run.matcher, row, decisions, nodes)
-                {
-                    return Ok(Some(fault));
-                }
-                Matched::Walked(tree)
-            }
-        };
-        if probe.mode == ProbeMode::Inner {
-            let walked_rows;
-            let (rows, mut matched_row) = match matched {
-                Matched::Indexed(key) => (right, key.map_or(NO_ROW, |key| key.first)),
-                Matched::Walked(tree) => {
-                    walked_rows = TreeRead {
-                        candidates: nodes.as_slice(),
-                        ..tree
-                    };
-                    (
-                        InputRows::Tree(&walked_rows),
-                        next_found(None, RowCount(nodes.len())),
-                    )
-                }
-            };
-            while matched_row != NO_ROW {
-                let start = CellStart(output.cells.len());
-                for column in &probe.output {
-                    let cell = match column.side {
-                        Side::Left => cell_of(left, at, column.column),
-                        Side::Right => cell_of(rows, indexed(matched_row), column.column),
-                    };
-                    let Some(cell) = cell else {
-                        output.cells.truncate(start.0);
-                        return Ok(Some(PortableOperatorFault::NoSuchColumn {
-                            index: column.column,
-                        }));
-                    };
-                    output.cells.push(cell);
-                }
-                counted(output, start, probe.repeated, repeats);
-                matched_row = match matched {
-                    Matched::Indexed(_) => next_of(index, matched_row),
-                    Matched::Walked(_) => next_found(Some(matched_row), RowCount(nodes.len())),
-                };
-            }
-            continue;
-        }
-        if let ProbeMode::Ordered(order) = probe.mode {
-            // An ordered probe keeps its index (`tree_probe`): it never walks.
-            let Matched::Indexed(found) = matched else {
-                return Err(PortableOperatorFault::WrongOperation);
-            };
-            let passed = match found {
-                None => false,
-                Some(key) => {
-                    let bound = number_at(right, indexed(key.first), order.right_order)?;
-                    let own = number_at(left, at, order.left_order)?;
-                    match order.extremum {
-                        PartitionExtremum::Maximum => bound > own,
-                        PartitionExtremum::Minimum => bound < own,
-                    }
-                }
-            };
-            if !passed {
-                let start = CellStart(output.cells.len());
-                output.cells.extend_from_slice(row_of(left, at, row));
-                counted(output, start, probe.repeated, repeats);
-            }
-            continue;
-        }
-        let exists = match (probe.existence, matched) {
-            (_, Matched::Walked(_)) => !nodes.is_empty(),
-            (_, Matched::Indexed(None)) => false,
-            (Existence::First, Matched::Indexed(Some(_))) => true,
-            (Existence::Every, Matched::Indexed(Some(key))) => {
-                let mut rows = RowCount(0);
-                let mut matched_row = key.first;
-                while matched_row != NO_ROW {
-                    rows = RowCount(rows.0.saturating_add(1));
-                    matched_row = next_of(index, matched_row);
-                }
-                rows.0 > 0
-            }
-        };
-        if exists == (probe.mode == ProbeMode::Semi) {
-            let start = CellStart(output.cells.len());
-            output.cells.extend_from_slice(row_of(left, at, row));
-            counted(output, start, probe.repeated, repeats);
+        if let Some(fault) = probe_row(
+            probe,
+            left,
+            RowIndex(at),
+            right,
+            run,
+            &mut scratch,
+            fed,
+            output,
+        )? {
+            return Ok(Some(fault));
         }
     }
     Ok(None)
@@ -391,9 +478,8 @@ fn number_at(
     }
 }
 
-/// Every column of the rows, in order.
-fn every(rows: InputRows<'_>) -> Vec<ColumnIndex> {
-    (0..kinds_of(rows).len())
-        .map(|at| ColumnIndex(u32::try_from(at).unwrap_or(u32::MAX)))
-        .collect()
+/// Every column of rows of `kinds`, in order, into `into`.
+fn every(kinds: &[CellKind], into: &mut Vec<ColumnIndex>) {
+    into.clear();
+    into.extend((0..kinds.len()).map(|at| ColumnIndex(u32::try_from(at).unwrap_or(u32::MAX))));
 }

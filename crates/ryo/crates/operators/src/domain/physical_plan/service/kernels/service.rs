@@ -71,7 +71,14 @@ pub(crate) fn kernels(
             let right = other.ok_or(PortableOperatorFault::WrongOperation)?;
             // The rows the node was fed, read as `made` wrote them: a probe that walks the tree counts what it found.
             let mut fed = buffers.fed(node);
-            let scratch = probe_scratch(buffers, *index, node)?;
+            let (mut kept, mut left_on, mut right_on) = (Table::default(), Vec::new(), Vec::new());
+            let scratch = probe_scratch(
+                buffers,
+                *index,
+                node,
+                &mut kept,
+                [&mut left_on, &mut right_on],
+            )?;
             let answer = probed(probe, input, right, run, scratch, &mut fed, output);
             if let Some(held) = buffers.fed.get_mut(place) {
                 *held = fed;
@@ -102,12 +109,16 @@ pub(crate) fn kernels(
                 .decisions
                 .get_mut(place)
                 .ok_or(PortableOperatorFault::WrongOperation)?;
+            // The seeded join's own right rows and key columns, for this run.
+            let (mut kept, mut left_on, mut right_on) = (Table::default(), Vec::new(), Vec::new());
             let scratch = ReachScratch {
                 index: &mut buffers.index,
                 walk: &mut buffers.walk,
                 probe: ProbeScratch {
                     index: &mut buffers.second,
                     build: IndexBuild::Builds,
+                    kept: &mut kept,
+                    whole: [&mut left_on, &mut right_on],
                     row: &mut buffers.row,
                     written: &mut buffers.written,
                     repeats: &mut buffers.repeats,

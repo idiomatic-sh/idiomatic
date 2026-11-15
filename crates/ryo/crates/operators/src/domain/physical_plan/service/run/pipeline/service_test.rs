@@ -374,4 +374,6 @@ fn succeeds() {
 }
 
 #[cfg(test)]
+mod probes_test;
+#[cfg(test)]
 mod stages_test;

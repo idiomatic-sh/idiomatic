@@ -234,6 +234,7 @@ fn graph_kernels_once(
         found,
         ..
     } = buffers;
+    let (mut kept, mut left_on, mut right_on) = (Table::default(), Vec::new(), Vec::new());
     for kernel in 0..3 {
         output.cells.clear();
         output.count = RowCount(0);
@@ -249,6 +250,8 @@ fn graph_kernels_once(
                     probe: ProbeScratch {
                         index: &mut *second,
                         build: IndexBuild::Builds,
+                        kept: &mut kept,
+                        whole: [&mut left_on, &mut right_on],
                         row: &mut *row,
                         written: &mut *written,
                         repeats: &mut *repeats,
