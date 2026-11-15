@@ -42,3 +42,8 @@ expected = []
 name = "warn-reenables"
 files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n#[warn(clippy::blanket_clippy_restriction_lints)]\n#[deny(clippy::restriction)]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 87, end = 106 }]
+
+[[cases]]
+name = "reason-mentions-restriction"
+files = { "src/lib.rs" = "#[warn(dead_code, reason = \"x, clippy::restriction)\")]\npub fn f() {}\n" }
+expected = []

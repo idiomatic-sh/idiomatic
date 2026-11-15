@@ -10,6 +10,9 @@ pub use ryo::languages::AnnotatesRow
 pub use ryo::languages::Assigns
 pub use ryo::languages::AssignsColumn
 pub use ryo::languages::AssignsRow
+pub use ryo::languages::AttributePath
+pub use ryo::languages::AttributePathColumn
+pub use ryo::languages::AttributePathRow
 pub use ryo::languages::BindingEvent
 pub use ryo::languages::BindingEventColumn
 pub use ryo::languages::BindingEventRow
@@ -468,6 +471,7 @@ pub mod ryo::languages::contract
 pub use ryo::languages::contract::AnalyzedSourceExpectedRow
 pub use ryo::languages::contract::AnnotatesExpectedRow
 pub use ryo::languages::contract::AssignsExpectedRow
+pub use ryo::languages::contract::AttributePathExpectedRow
 pub use ryo::languages::contract::BindingEventExpectedRow
 pub use ryo::languages::contract::BindingReadExpectedRow
 pub use ryo::languages::contract::BindingShadowExpectedRow

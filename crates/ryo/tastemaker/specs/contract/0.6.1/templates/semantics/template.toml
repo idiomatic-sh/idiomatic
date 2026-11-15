@@ -66,6 +66,10 @@ impl languages::Semantics for {{ part | pascal }}Contract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn attribute_path(&self) -> Support<Reader<languages::AttributePath, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -215,6 +219,10 @@ impl languages::Semantics for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn attribute_path(&self) -> Support<Reader<languages::AttributePath, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -297,6 +305,7 @@ use ryo::languages::{self, AbsenceCause, Reader, Support};
 use super::contract::ParseContract;
 '''
 then.findings = [
+  { rule = 'semantics#template', path = 'semantics.rs' },
   { rule = 'semantics#template', path = 'semantics.rs' },
   { rule = 'semantics#template', path = 'semantics.rs' },
   { rule = 'semantics#template', path = 'semantics.rs' },

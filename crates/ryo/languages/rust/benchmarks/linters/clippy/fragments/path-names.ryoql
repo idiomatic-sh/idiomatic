@@ -1,0 +1,5 @@
+output relation<id: node, file: file, name: symbol>;
+let written = select id, file, name from "attribute-path";
+let unraw = replace(from=written, text="name", pattern="\br#", replacement="", output="bare");
+let names = select id, file, bare as name from unraw;
+return names;

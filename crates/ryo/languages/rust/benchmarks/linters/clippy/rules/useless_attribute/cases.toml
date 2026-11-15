@@ -57,3 +57,13 @@ expected = []
 name = "warn-reenables"
 files = { "src/lib.rs" = "#![allow(clippy::correctness)]\npub mod m {\n    #![warn(clippy::useless_attribute)]\n    #[allow(clippy::len_zero)]\n    pub use std::fmt;\n}\n" }
 expected = [{ file = "src/lib.rs", start = 87, end = 113 }]
+
+[[cases]]
+name = "reason-with-comma"
+files = { "src/lib.rs" = "#[allow(clippy::len_zero, reason = \"a, b\")]\nuse std::fmt;\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 43 }]
+
+[[cases]]
+name = "reason-names-an-exempt-lint"
+files = { "src/lib.rs" = "#[allow(clippy::len_zero, reason = \"unused_imports\")]\nuse std::fmt;\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 53 }]
