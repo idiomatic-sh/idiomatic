@@ -1,5 +1,5 @@
 description = "No Rust source file lies on a cycle of semantic written-path dependencies between two or more source files."
-why = "Files that name each other's modules in a ring cannot be read, tested or moved one at a time: a change to any of them reaches all of them. Edges are the provider's source dependencies (a written path in one file naming a module another file owns), after excluding only occurrences whose exact file and span identify a path inside a visibility restriction. A visibility path names the scope that restricts access, not data or work consumed by the file. Other occurrences of the same path, including imports, types and calls, remain dependencies. These semantic edges are mapped onto each file's syntax root so the engine's cycle search runs over entities. A file on a cycle is reported once, at its root. Not seen: a cycle through a macro invocation's tokens or through a glob import the provider cannot resolve to a file; a file naming its own modules is no edge."
+why = "Files that name each other's modules in a ring cannot be read, tested or moved one at a time: a change to any of them reaches all of them. Edges are the provider's source dependencies (a written path in one file naming a module another file owns), after excluding only occurrences whose exact file and span identify a path inside a visibility restriction. A visibility path names the scope that restricts access, not data or work consumed by the file. Occurrences written inside an item gated `#[cfg(test)]` are excluded too, by their exact file and span: an edge written only inside `#[cfg(test)]` code is no part of a module cycle, since production never compiles it (owner, checkpoint 336). Test code is an item whose `cfg` attribute's arguments are exactly `test`, as the `decorates` relation reads them; `#[cfg(not(test))]` and `#[cfg(any(test, ..))]` code is production code. Other occurrences of the same path, including imports, types and calls, remain dependencies. These semantic edges are mapped onto each file's syntax root so the engine's cycle search runs over entities. A file on a cycle is reported once, at its root. Not seen: a cycle through a macro invocation's tokens or through a glob import the provider cannot resolve to a file; a file naming its own modules is no edge."
 
 query = '''
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
@@ -9,7 +9,12 @@ let visibility-children = axis(from=visibilities, relation="syntax-child", direc
 let restrictions = select r.file as source, r.span as span from visibility-children as l join paths as r on l.related = r.id;
 let written-dependencies = select source, target, span from "source-dependency";
 let semantic-dependencies = antijoin(left=written-dependencies, right=restrictions, left-on=["source", "span"], right-on=["source", "span"]);
-let dependencies = project(from=semantic-dependencies, columns=["source", "target"]);
+let test-items = select l."declaration" as "id" from "decorates" as l where l."target" = "cfg" and l."arguments" = "test";
+let written-kinds = select * from tree-nodes where glob_any(kind, "{path,use-tree}");
+let test-code = axis(from=test-items, relation="syntax-child", direction=descendant, domain=written-kinds);
+let test-written = select r.file as source, r.span as span from test-code as l join written-kinds as r on l.related = r.id;
+let compiled-dependencies = antijoin(left=semantic-dependencies, right=test-written, left-on=["source", "span"], right-on=["source", "span"]);
+let dependencies = project(from=compiled-dependencies, columns=["source", "target"]);
 let foreign = select * from dependencies where source != target;
 let files = select * from tree-nodes where kind = "source-file";
 let from-files = select r."id" as "from", l."target" as "target" from foreign as l join files as r on l."source" = r."file";
@@ -120,3 +125,124 @@ scenario = "A newly declared module receives no file-level exemption for restric
 given.files.'src/first.rs' = 'pub mod future; pub struct First(pub future::Child);'
 given.files.'src/first/future.rs' = 'use super::First; pub(in super) struct Child(pub Option<Box<First>>);'
 then.findings = [{ path = "src/first.rs", line = 1 }, { path = "src/first/future.rs", line = 1 }]
+
+[[scenarios]]
+id = "edge-only-in-cfg-test-code-is-no-part-of-a-cycle"
+scenario = "`a.rs` and `b.rs` name each other in production code; `c.rs` names `d.rs`, and `d.rs` names `c.rs` only inside a `#[cfg(test)]` module."
+given.files.'src/lib.rs' = '''
+mod a;
+mod b;
+mod c;
+mod d;
+'''
+given.files.'src/a.rs' = '''
+pub(crate) fn alpha() {
+    crate::b::beta();
+}
+'''
+given.files.'src/b.rs' = '''
+pub(crate) fn beta() {
+    crate::a::alpha();
+}
+'''
+given.files.'src/c.rs' = '''
+pub(crate) fn gamma() {
+    crate::d::delta();
+}
+'''
+given.files.'src/d.rs' = '''
+pub(crate) fn delta() {}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn calls_gamma() {
+        crate::c::gamma();
+    }
+}
+'''
+then.findings = [
+  { path = 'src/a.rs', line = 1 },
+  { path = 'src/b.rs', line = 1 },
+]
+
+[[scenarios]]
+id = "production-edge-beside-test-code-still-closes-the-cycle"
+scenario = "`d.rs` names `c.rs` inside a `#[cfg(test)]` module and in production code too: the production edge closes the cycle."
+given.files.'src/lib.rs' = '''
+mod c;
+mod d;
+'''
+given.files.'src/c.rs' = '''
+pub(crate) fn gamma() {
+    crate::d::delta();
+}
+'''
+given.files.'src/d.rs' = '''
+pub(crate) fn delta() {
+    crate::c::gamma();
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn calls_gamma() {
+        crate::c::gamma();
+    }
+}
+'''
+then.findings = [
+  { path = 'src/c.rs', line = 1 },
+  { path = 'src/d.rs', line = 1 },
+]
+
+[[scenarios]]
+id = "test-only-import-is-no-part-of-a-cycle"
+scenario = "`d.rs` imports from `c.rs` only inside a `#[cfg(test)]` module: no cycle."
+given.files.'src/lib.rs' = '''
+mod c;
+mod d;
+'''
+given.files.'src/c.rs' = '''
+pub(crate) fn gamma() {
+    crate::d::delta();
+}
+'''
+given.files.'src/d.rs' = '''
+pub(crate) fn delta() {}
+
+#[cfg(test)]
+mod tests {
+    use crate::c::gamma;
+
+    #[test]
+    fn calls_gamma() {
+        gamma();
+    }
+}
+'''
+
+[[scenarios]]
+id = "negated-test-cfg-edge-still-closes-the-cycle"
+scenario = "An edge inside `#[cfg(not(test))]` code is production code and closes the cycle."
+given.files.'src/lib.rs' = '''
+mod c;
+mod d;
+'''
+given.files.'src/c.rs' = '''
+pub(crate) fn gamma() {
+    crate::d::delta();
+}
+'''
+given.files.'src/d.rs' = '''
+pub(crate) fn delta() {}
+
+#[cfg(not(test))]
+pub(crate) fn production() {
+    crate::c::gamma();
+}
+'''
+then.findings = [
+  { path = 'src/c.rs', line = 1 },
+  { path = 'src/d.rs', line = 1 },
+]
