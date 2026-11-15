@@ -1,3 +1,37 @@
+# no-env-reads 0.1.1
+
+A read inside a macro's arguments is one finding, at the path, whatever the macro. The Rust
+language now reads every macro call's arguments as expressions (ryo-b1gq.27.8), so a path
+written there, `show!(std::env::vars_os)` or `println!("{:?}", std::env::var("X"))`, is a
+`reference` as well as `mention` tokens. 0.1.0 reported both, the path and its last token,
+as two findings for one read, and how many it reported depended on which macros the
+language reads.
+
+A token read (`option_env`, or `var_os`/`vars_os`, or `var`/`vars` beside `env` in a token
+tree) is now dropped where its span lies inside an env path read's span in the same file:
+that token is a name of the path, already reported. A turbofish
+(`std::env::var::<&str>("X")` inside `println!`'s arguments), whose path runs past its last
+name, is one finding too. The match needs only the spans of `reference` and `static-import`,
+so it holds whether or not a build of the language also lays the arguments out as semantic
+syntax. A token the language reads as no path still has no `reference`, so its read stays a
+finding: a `macro_rules!` body, an opaque built-in macro, arguments that do not parse.
+
+Classification: a fix that tightens. Fewer duplicate findings, and no read is lost: a token
+is dropped only where its path is reported. The pager exception is unchanged.
+
+Scenarios: `var-in-macro` expects one finding where it expected two; `vars-os-in-macro`
+keeps its one finding and no longer says the language leaves the arguments unread. Added:
+`turbofish-var-in-macro` (one finding where the path runs past its last name),
+`vars-os-in-macro-rules-body` (the token branch still reports what no path covers),
+`token-read-and-path-read-in-two-files` (a token read in one file with the span of a covered
+token in another file is a finding: the match is per file) and
+`token-reads-before-and-after-a-path-read` (a token read outside a path read's span, before
+or after it in the same file, is a finding).
+
+0.1.0 is removed with this version, not kept as published: no lock names it, nothing has
+been released, and an unreleased version keeps no copy for compatibility (as with
+idiomatic-rust 0.1.13's removal in 0.1.14).
+
 # no-env-reads 0.1.0
 
 The first release. It replaces the `no_env_reads` dylint lint of the deleted

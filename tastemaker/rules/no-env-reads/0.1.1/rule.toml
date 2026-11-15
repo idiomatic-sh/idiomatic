@@ -1,5 +1,5 @@
 description = "No code reads an environment variable: no `std::env::{var,var_os,vars,vars_os}`, called, passed as a value or imported under any name, and no `option_env!`, including inside another macro's arguments, except a read of a variable one of the rule's exceptions names."
-why = "Behavior changes through a command or a flag, never an environment variable, except the few conventions the rule names as its exceptions, each with why: a read written `std::env::var(\"PAGER\")` (or `var_os`, `env::var`), whose variable is a string literal one exception admits, is not a finding. `env!` (a compile-time Cargo constant) and `std::env::args` are not reads. Paths are matched as written: a read through a renamed `std` (`use std as s; s::env::var`) is not seen, and inside a macro's arguments `var`/`vars` count when the same token tree names `env`. No attribute reaches the rule; a Tastemaker in-source ignore with its reason is the only way to silence one finding."
+why = "Behavior changes through a command or a flag, never an environment variable, except the few conventions the rule names as its exceptions, each with why: a read written `std::env::var(\"PAGER\")` (or `var_os`, `env::var`), whose variable is a string literal one exception admits, is not a finding. `env!` (a compile-time Cargo constant) and `std::env::args` are not reads. Paths are matched as written: a read through a renamed `std` (`use std as s; s::env::var`) is not seen, and inside a macro's arguments `var`/`vars` count when the same token tree names `env`. A read the language also sees as a path, inside a macro's arguments, is one finding, at the path. No attribute reaches the rule; a Tastemaker in-source ignore with its reason is the only way to silence one finding."
 
 query = '''
 param exceptions: set<string>;
@@ -24,6 +24,12 @@ let tree-env = project(from=tree-env-tokens, columns=["parent"]);
 let tree-var-env = select l."file" as "file", l."span" as "span", l."target" as "target" from tree-vars as l join tree-env as r on l."parent" = r."parent";
 let macro-reads = union(left=tree-os, right=tree-var-env);
 let token-reads = union(left=option-env, right=macro-reads);
+let path-bounds = span-bounds(from=path-reads, span="span", start-output="path-start", end-output="path-end");
+let token-bounds = span-bounds(from=token-reads, span="span", start-output="start", end-output="end");
+let token-paths = select l."file" as "file", l."span" as "span", l."start" as "start", l."end" as "end", r."path-start" as "path-start", r."path-end" as "path-end" from token-bounds as l join path-bounds as r on l."file" = r."file";
+let covered-tokens = select * from token-paths where start >= path-start and end <= path-end;
+let unread-token-bounds = antijoin(left=token-bounds, right=covered-tokens, left-on=["file", "span"], right-on=["file", "span"]);
+let unread-tokens = project(from=unread-token-bounds, columns=["file", "span", "target"]);
 let literals = project(from="string-literal", columns=["span", "value"]);
 let admitted-literals = select * from literals where value in $exceptions;
 let literal-nodes = select r."id" as "literal" from admitted-literals as l join tree-nodes as r on l."span" = r."span";
@@ -38,7 +44,7 @@ let callee-children = select r."child" as "node" from callee-exprs as l join "sy
 let paths = select * from tree-nodes where kind = "path";
 let admitted-paths = select r."span" as "span" from callee-children as l join paths as r on l."node" = r."id";
 let named-reads = antijoin(left=path-reads, right=admitted-paths, left-on=["span"], right-on=["span"]);
-let reads = union(left=named-reads, right=token-reads);
+let reads = union(left=named-reads, right=unread-tokens);
 emit reads subject "file" key("span");
 '''
 
@@ -151,7 +157,7 @@ then.findings = [
 
 [[scenarios]]
 id = 'var-in-macro'
-scenario = "Std::env::var inside another macro's arguments."
+scenario = "Std::env::var inside println!'s arguments, which the language reads as expressions: one finding, at the path."
 given.files.'src/main.rs' = '''
 fn main() {
     println!("{:?}", std::env::var("PRODUCT_MODE"));
@@ -159,12 +165,11 @@ fn main() {
 '''
 then.findings = [
   { path = 'src/main.rs', line = 2 },
-  { path = 'src/main.rs', line = 2 },
 ]
 
 [[scenarios]]
 id = 'vars-os-in-macro'
-scenario = 'Std::env::vars_os mentioned in the tokens of a macro that does not read them as expressions.'
+scenario = "Std::env::vars_os in the arguments of a macro that discards them: one finding, though the language reads the arguments as a path and the macro's tokens name it too."
 given.files.'src/main.rs' = '''
 macro_rules! show {
     ($($tokens:tt)*) => {};
@@ -176,6 +181,86 @@ fn main() {
 '''
 then.findings = [
   { path = 'src/main.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'turbofish-var-in-macro'
+scenario = "Std::env::var with a turbofish inside println!'s arguments: one finding, though the path runs past its last name."
+given.files.'src/main.rs' = '''
+fn main() {
+    println!("{:?}", std::env::var::<&str>("PRODUCT_MODE"));
+}
+'''
+then.findings = [
+  { path = 'src/main.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'vars-os-in-macro-rules-body'
+scenario = "Std::env::vars_os written in a macro_rules! body, which no syntax reads as a path: its tokens are the read."
+given.files.'src/main.rs' = '''
+macro_rules! read {
+    () => {
+        std::env::vars_os().count()
+    };
+}
+
+fn main() {
+    let _ = read!();
+}
+'''
+then.findings = [
+  { path = 'src/main.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'token-read-and-path-read-in-two-files'
+scenario = "A read only a macro_rules! body's tokens name, in one file, has the span of a read inside println!'s arguments, a path and its tokens, in another file: both are findings."
+given.files.'src/lib.rs' = '''
+macro_rules! read {
+    () => {
+        std::env::vars_os().count()
+    };
+}
+
+pub fn count() -> usize {
+    read!()
+}
+'''
+given.files.'src/print.rs' = '''
+pub fn print_all() {
+    println!("{}", std::env::vars_os().count());
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 3 },
+  { path = 'src/print.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'token-reads-before-and-after-a-path-read'
+scenario = "Reads only macro_rules! bodies' tokens name, one before and one after a path read in the same file: each is a finding, as the path read is."
+given.files.'src/lib.rs' = '''
+macro_rules! before {
+    () => {
+        std::env::vars_os().count()
+    };
+}
+
+pub fn count() -> usize {
+    std::env::vars().count() + before!()
+}
+
+macro_rules! after {
+    () => {
+        std::env::vars_os().count()
+    };
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 3 },
+  { path = 'src/lib.rs', line = 8 },
+  { path = 'src/lib.rs', line = 13 },
 ]
 
 [[scenarios]]
