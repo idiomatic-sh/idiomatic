@@ -52,3 +52,13 @@ expected = [{ file = "src/lib.rs", start = 79, end = 96 }]
 name = "note-mentions-since"
 files = { "src/lib.rs" = "#[deprecated(note = r#\"a, since = \"nope\"\"#, since = \"1.0.0\")]\npub fn f() {}\n" }
 expected = []
+
+[[cases]]
+name = "raw-string-version"
+files = { "src/lib.rs" = "#[deprecated(since = r\"1.0.0\")]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "escaped-version"
+files = { "src/lib.rs" = "#[deprecated(since = \"1.0.\\x30\")]\npub fn f() {}\n" }
+expected = []

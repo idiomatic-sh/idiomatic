@@ -82,3 +82,8 @@ expected = [{ file = "src/lib.rs", start = 0, end = 3 }]
 name = "inline-is-not-hidden"
 files = { "src/lib.rs" = "///\n#[doc(inline)]\npub use std::fmt;\n" }
 expected = [{ file = "src/lib.rs", start = 0, end = 3 }]
+
+[[cases]]
+name = "escaped-newline-doc"
+files = { "src/lib.rs" = "#[doc = \"\\n\"]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 8, end = 12 }]

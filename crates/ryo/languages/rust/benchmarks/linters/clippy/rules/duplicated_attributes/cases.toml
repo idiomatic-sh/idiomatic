@@ -317,3 +317,33 @@ expected = []
 name = "path-then-literal"
 files = { "src/lib.rs" = "#[rustfmt::skip(a \"x\", d, d)]\npub fn f() {}\n" }
 expected = []
+
+[[cases]]
+name = "raw-and-plain-string-same-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = \"x\", v = r\"x\")]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 25, end = 33 }]
+
+[[cases]]
+name = "escaped-string-same-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = \"A\", v = \"\\x41\")]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 25, end = 35 }]
+
+[[cases]]
+name = "trailing-path-separator"
+files = { "src/lib.rs" = "#[rustfmt::skip(a::, d, d)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "triple-colon-path"
+files = { "src/lib.rs" = "#[rustfmt::skip(a:::b, d, d)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "leading-path-separator"
+files = { "src/lib.rs" = "#[rustfmt::skip(::a, ::a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 21, end = 24 }]
+
+[[cases]]
+name = "raw-identifier-items"
+files = { "src/lib.rs" = "#[rustfmt::skip(r#a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 21, end = 22 }]
