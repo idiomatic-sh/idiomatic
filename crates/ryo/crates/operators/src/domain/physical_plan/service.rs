@@ -148,10 +148,11 @@ pub(crate) fn plan_with(
 
 /// Streams each node whose rows only one streaming stage reads, first, so no one else ever asks for them. A node streams
 /// iff all hold:
-///  (1) it is an intermediate streaming stage: a filter, an extension, a `text_map` stage, or a projection that keeps
-///      repeated rows (one that drops them keys the rows it keeps, so it streams only as a chain's tail);
+///  (1) it is an intermediate streaming stage: a filter, an extension, a `text_map` stage, or a projection or a probe that
+///      keeps repeated rows (one that drops them keys the rows it keeps, so it streams only as a chain's tail);
 ///  (2) one node reads it, once, and no engine use keeps it (it is neither emitted nor held);
-///  (3) its one reader is a streaming stage (a projection of either kind) whose first source is this node;
+///  (3) its one reader is a streaming stage (a projection or a probe of either kind) whose first source, a probe's left,
+///      is this node: a probe's right side is never streamed, its index blocks;
 ///  (4) no shared index keys its rows.
 /// Every other node is held.
 fn flows(nodes: &mut [PhysicalNode], indexes: &[KeyedIndex]) {
@@ -177,8 +178,8 @@ fn streaming_stage(lowering: &Lowering) -> bool {
     match lowering {
         Lowering::Filter { .. } | Lowering::Extend { .. } | Lowering::TextMap { .. } => true,
         Lowering::Project { project, .. } => project.distinct == RepeatedRows::Kept,
+        Lowering::Probe { probe, .. } => probe.repeated == RepeatedRows::Kept,
         Lowering::Lookup { .. }
-        | Lowering::Probe { .. }
         | Lowering::Distinct { .. }
         | Lowering::Group { .. }
         | Lowering::Reach { .. }
@@ -201,6 +202,7 @@ fn streaming_reader(lowering: &Lowering) -> bool {
             | Lowering::Project { .. }
             | Lowering::Extend { .. }
             | Lowering::TextMap { .. }
+            | Lowering::Probe { .. }
     )
 }
 

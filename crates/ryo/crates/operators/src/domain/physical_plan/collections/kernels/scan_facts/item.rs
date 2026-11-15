@@ -81,6 +81,7 @@ pub(crate) fn kinds_of<'a>(rows: InputRows<'a>) -> &'a [CellKind] {
         InputRows::Facts(view) => view.kinds,
         InputRows::Tree(tree) => tree_kinds(tree),
         InputRows::Table(table) => &table.kinds,
+        InputRows::Row(_, kinds) => kinds,
     }
 }
 
@@ -90,6 +91,7 @@ pub(crate) fn count_of(rows: InputRows<'_>) -> RowCount {
         InputRows::Facts(view) => rows_of(view),
         InputRows::Tree(tree) => tree_count(tree),
         InputRows::Table(table) => table.count,
+        InputRows::Row(..) => RowCount(1),
     }
 }
 
@@ -109,6 +111,7 @@ pub(crate) fn cell_of(rows: InputRows<'_>, row: RowIndex, column: ColumnIndex) -
                 .then(|| table.cells.get(row.0 * width + at).copied())
                 .flatten()
         }
+        InputRows::Row(cells, _) => (row.0 == 0).then(|| cells.get(at).copied()).flatten(),
     }
 }
 
@@ -133,6 +136,13 @@ pub(crate) fn row_of<'r>(
                 .cells
                 .get(row.0 * width..row.0 * width + width)
                 .unwrap_or_default()
+        }
+        InputRows::Row(cells, _) => {
+            if row.0 == 0 {
+                cells
+            } else {
+                &[]
+            }
         }
     }
 }

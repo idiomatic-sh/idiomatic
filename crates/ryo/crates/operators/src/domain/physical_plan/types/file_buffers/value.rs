@@ -126,22 +126,42 @@ pub(crate) struct ChainScratch {
     pub(crate) stages: Vec<StageScratch>,
 }
 
-/// One stage's own state for one run of its chain: the chunk of rows it wrote that its reader has not read, its resolved
-/// values and kept repeats, what it read and whether it stopped at a fault.
+/// One stage's state for one run of its chain: the chunk of rows it wrote that its reader has not read, what it read,
+/// whether it stopped at a fault, and what it keeps for itself across its input rows.
 #[derive(Debug, Default)]
 pub(crate) struct StageScratch {
     /// The rows it wrote that its reader has not read yet: its chunk. The tail writes its node's table instead.
     pub(crate) out: ryo_values::domain::rows::types::Table,
     /// Where in `out` the rows of the input row it read last start.
     pub(crate) last: usize,
-    /// An extension's values, resolved once before its first row, its own beside every other extension's of the chain.
-    pub(crate) values: Vec<Value>,
-    /// The rows a tail that drops repeated rows kept so far, keyed by their cells in its table: kept across chunks.
-    pub(crate) repeats: KeyedRows,
     /// How many input rows it read.
     pub(crate) read: ryo_values::domain::rows::types::RowCount,
     /// The fault it stopped at; it reads no row after it.
     pub(crate) fault: Option<PortableOperatorFault>,
+    /// What the stage keeps for itself across its input rows, its own beside every other stage's of the chain.
+    pub(crate) own: StageOwn,
+}
+
+/// What one stage keeps for itself across its input rows and chunks: an extension's values, a tail's repeats, and a probe's
+/// right side (its own index, the right rows its filter kept and its whole-row key columns), none shared with another stage.
+#[derive(Debug, Default)]
+pub(crate) struct StageOwn {
+    /// An extension's values, resolved once before its first row.
+    pub(crate) values: Vec<Value>,
+    /// The rows a tail that drops repeated rows kept so far, keyed by their cells in its table.
+    pub(crate) repeats: KeyedRows,
+    /// A probe's own index of its right rows; a probe of a shared index or of the tree builds none.
+    pub(crate) index: KeyedRows,
+    /// The right rows a probe's filter kept, read by every left row.
+    pub(crate) kept: ryo_values::domain::rows::types::Table,
+    /// A probe's key columns of a whole-row key: its left's, then its right's.
+    pub(crate) whole: [Vec<ryo_values::domain::plan_parts::types::ColumnIndex>; 2],
+    /// Whether a probe did its work before its first left row.
+    pub(crate) ready: bool,
+    /// A probe's right rows, by their place among its chain's right sides.
+    pub(crate) right: usize,
+    /// The rows a probe was fed from its right side: its right rows, or the tree rows its walks found.
+    pub(crate) fed: ryo_values::domain::rows::types::RowCount,
 }
 
 /// A probe index the plan shares: built by the first of its probes in a file to read its rows, and emptied after the last,

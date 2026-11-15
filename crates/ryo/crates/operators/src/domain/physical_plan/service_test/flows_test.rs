@@ -75,7 +75,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_node_read_as_a_probes_right_is_held"),
         word: Word::Succeeds,
         input: || Scenario::ReadSecond,
-        expect: Expect::Value(Cow::Borrowed("HHH")),
+        expect: Expect::Value(Cow::Borrowed("SHH")),
     },
     Case {
         name: CaseName("a_projection_dropping_repeats_streams_only_as_a_tail"),

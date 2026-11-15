@@ -9,7 +9,7 @@ use crate::domain::physical_plan::collections::kernels::ordered_walk::item::inte
 use crate::domain::physical_plan::collections::kernels::scan_bound::item::scanned;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::count_of;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::hold;
-use crate::domain::physical_plan::service::indexes::service::{closed, opened, sized_shared};
+use crate::domain::physical_plan::service::indexes::service::sized_shared;
 use crate::domain::physical_plan::service::run::reading::service::{
     pending_of, reading, returned, rows_in,
 };
@@ -17,7 +17,7 @@ use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, Node
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    KernelRun, NodeFed, NodeReaders, NodeRows, PlanNodeId, ProbeIndex, RowSource,
+    KernelRun, NodeFed, NodeReaders, NodeRows, PlanNodeId, RowSource,
 };
 use ryo_values::domain::rows::types::{RowCount, Table};
 
@@ -79,8 +79,8 @@ pub(super) fn ready(
     }
 }
 
-/// Runs `node`'s kernels and holds its rows and pending fault; a lookup's build answers every lookup of its index. A probe of
-/// a shared index counts down its probes in the file whatever it answers, and the last empties the index.
+/// Runs `node`'s kernels and holds its rows and pending fault: a streaming stage through the chain of streamed stages that
+/// ends at it; a lookup's build answers every lookup of its index.
 fn materialize(
     plan: &PhysicalPlan,
     run: &mut KernelRun<'_>,
@@ -97,21 +97,12 @@ fn materialize(
     if let Lowering::Filter { .. }
     | Lowering::Project { .. }
     | Lowering::Extend { .. }
-    | Lowering::TextMap { .. } = lowering
+    | Lowering::TextMap { .. }
+    | Lowering::Probe { .. } = lowering
     {
         return super::pipeline::service::streamed(plan, run, node, buffers);
     }
-    let Lowering::Probe {
-        index: ProbeIndex::Shared(at),
-        ..
-    } = lowering
-    else {
-        return made(plan, run, node, lowering, buffers);
-    };
-    opened(plan, buffers, *at);
-    let answered = made(plan, run, node, lowering, buffers);
-    closed(buffers, *at);
-    answered
+    made(plan, run, node, lowering, buffers)
 }
 
 /// Runs the kernels of `node`, lowered to `lowering`, over its inputs, and holds its rows and pending fault.
@@ -232,7 +223,7 @@ pub(super) fn made(
     // A graph kernel reads every edge row before it walks: the edges' fault comes first, then an axis's domain's, then an
     // ordered walk's roots' (sorted before use).
     let blocked = match lowering {
-        Lowering::Probe { .. } | Lowering::SeededReach { .. } => right_fault.clone(),
+        Lowering::SeededReach { .. } => right_fault.clone(),
         Lowering::Group { .. }
         | Lowering::Render { .. }
         | Lowering::Reach { .. }
@@ -243,6 +234,7 @@ pub(super) fn made(
         Lowering::Filter { .. }
         | Lowering::Project { .. }
         | Lowering::Extend { .. }
+        | Lowering::Probe { .. }
         | Lowering::Distinct { .. }
         | Lowering::TextMap { .. }
         | Lowering::Lookup { .. }

@@ -11,16 +11,13 @@ use crate::domain::physical_plan::collections::kernels::group::item::{GroupScrat
 use crate::domain::physical_plan::collections::kernels::hash_index::item::emptied;
 use crate::domain::physical_plan::collections::kernels::ordered_match::item::matched;
 use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visited;
-use crate::domain::physical_plan::collections::kernels::probe::item::{
-    IndexBuild, ProbeScratch, probed,
-};
+use crate::domain::physical_plan::collections::kernels::probe::item::{IndexBuild, ProbeScratch};
 use crate::domain::physical_plan::collections::kernels::reach::item::{
     ReachScratch, Starts, reached,
 };
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
     count_of, kinds_of, row_of,
 };
-use crate::domain::physical_plan::service::indexes::service::probe_scratch;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::{CellStart, KernelRun, PlanNodeId};
@@ -66,24 +63,6 @@ pub(crate) fn kernels(
                     );
                 }
             }
-        }
-        Lowering::Probe { probe, index, .. } => {
-            let right = other.ok_or(PortableOperatorFault::WrongOperation)?;
-            // The rows the node was fed, read as `made` wrote them: a probe that walks the tree counts what it found.
-            let mut fed = buffers.fed(node);
-            let (mut kept, mut left_on, mut right_on) = (Table::default(), Vec::new(), Vec::new());
-            let scratch = probe_scratch(
-                buffers,
-                *index,
-                node,
-                &mut kept,
-                [&mut left_on, &mut right_on],
-            )?;
-            let answer = probed(probe, input, right, run, scratch, &mut fed, output);
-            if let Some(held) = buffers.fed.get_mut(place) {
-                *held = fed;
-            }
-            return answer;
         }
         Lowering::Group { group, .. } => {
             let scratch = GroupScratch {
@@ -171,11 +150,12 @@ pub(crate) fn kernels(
                 return Ok(Some(fault));
             }
         }
-        // A filter, a projection, an extension and a text_map stage are run by the chain of streamed stages, a render by
+        // A filter, a projection, an extension, a probe and a text_map stage are run by the chain of streamed stages, a render by
         // `minted`, which holds the resources mutably while it reads its rows.
         Lowering::Filter { .. }
         | Lowering::Project { .. }
         | Lowering::Extend { .. }
+        | Lowering::Probe { .. }
         | Lowering::TextMap { .. }
         | Lowering::Render { .. }
         | Lowering::Lookup { .. }

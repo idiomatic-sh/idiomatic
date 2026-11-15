@@ -27,11 +27,15 @@ enum Scenario {
     TwoIndexes,
 }
 
-/// Whether the program run as planned answered as its held twin did, how many node tables it formed, and its fault.
+/// Whether the program run as planned answered as its held twin did, how many rows it answered, how many node tables it
+/// formed, and its fault. The row count holds a probe's own state to its answer, which a twin sharing the probe's kernel
+/// cannot.
 #[derive(Debug, PartialEq, Eq)]
 struct Observation {
     /// Whether the two runs answered the same.
     same: bool,
+    /// How many rows the planned run answered.
+    rows: usize,
     /// How many node tables the planned run formed.
     formed: u32,
     /// The planned run's fault; none when it answered rows.
@@ -48,6 +52,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::Inner,
         expect: Expect::Value(Observation {
             same: true,
+            rows: 14_040,
             formed: 1,
             fault: Cow::Borrowed(""),
         }),
@@ -58,6 +63,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::Semi,
         expect: Expect::Value(Observation {
             same: true,
+            rows: 7_020,
             formed: 1,
             fault: Cow::Borrowed(""),
         }),
@@ -68,6 +74,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::AntiOfEmptyRight,
         expect: Expect::Value(Observation {
             same: true,
+            rows: 7_020,
             formed: 2,
             fault: Cow::Borrowed(""),
         }),
@@ -78,6 +85,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::RightFaultFirst,
         expect: Expect::Value(Observation {
             same: true,
+            rows: 0,
             formed: 2,
             fault: Cow::Borrowed(
                 "Pattern(InvalidRegex { reason: \"regex parse error:\\n    [\\n    ^\\nerror: unclosed character class\" })",
@@ -90,6 +98,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::RightFilter,
         expect: Expect::Value(Observation {
             same: true,
+            rows: 1_404,
             formed: 1,
             fault: Cow::Borrowed(""),
         }),
@@ -100,6 +109,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::TwoIndexes,
         expect: Expect::Value(Observation {
             same: true,
+            rows: 4_680,
             formed: 1,
             fault: Cow::Borrowed(""),
         }),
@@ -318,6 +328,7 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
     let twin = ran_program(&program, true)?;
     Ok(Observation {
         same: streamed.answer == twin.answer,
+        rows: streamed.answer.as_ref().map_or(0, Vec::len),
         formed: streamed.formed,
         fault: Cow::Owned(
             streamed

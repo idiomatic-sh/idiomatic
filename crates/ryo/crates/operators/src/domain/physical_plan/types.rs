@@ -251,6 +251,11 @@ pub(crate) enum InputRows<'a> {
     Tree(&'a TreeRead<'a>),
     /// A table of rows.
     Table(&'a Table),
+    /// One row of a chain of streamed stages, read in place: its cells and what each holds.
+    Row(
+        &'a [Value],
+        &'a [ryo_relations::domain::relations::types::CellKind],
+    ),
 }
 
 /// Rows keyed by key columns: the rows and their key columns.

@@ -269,7 +269,9 @@ fn mode_of<'a>(
     if let InputRows::Tree(tree) = edges {
         let among = match domain {
             InputRows::Tree(each) if each.form == TreeForm::Elements => Some(each),
-            InputRows::Tree(_) | InputRows::Facts(_) | InputRows::Table(_) => None,
+            InputRows::Tree(_) | InputRows::Facts(_) | InputRows::Table(_) | InputRows::Row(..) => {
+                None
+            }
         };
         let entity = view
             .get(usize::from(axis.domain_id))

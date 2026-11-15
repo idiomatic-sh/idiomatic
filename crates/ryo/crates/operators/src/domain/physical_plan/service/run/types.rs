@@ -35,3 +35,23 @@ pub(crate) struct StagePrepared {
     /// The fault it raised before reading any row.
     pub(crate) fault: Option<crate::domain::contract::types::PortableOperatorFault>,
 }
+
+/// The rows a chain of streamed stages reads besides its stages' own: its head stage's source and each probe's right side.
+/// A tree relation's rows are read from the elements row by row, so a stage that mints between them holds no borrow of them.
+#[derive(Debug)]
+pub(crate) enum ChainRows<'r> {
+    /// A relation's columns, lent in place.
+    Facts(ColumnsView<'r>),
+    /// A tree relation's nodes; their elements are lent row by row.
+    Tree(crate::domain::physical_plan::types::TreeRoots<'r>),
+    /// A tree relation's rows copied out, for a head stage that mints while it reads.
+    Copied(ryo_values::domain::rows::types::Table),
+    /// A held node and its rows and pending fault, taken while the chain reads them.
+    Node(PlanNodeId, TakenRows),
+    /// Rows the engine holds for the run.
+    Held(&'r ryo_values::domain::rows::types::Table),
+    /// The head's rows: a probe's right side that is the head stage's source.
+    Head,
+    /// An earlier probe's right rows, by their place.
+    Right(usize),
+}

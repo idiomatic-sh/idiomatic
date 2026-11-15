@@ -1,0 +1,184 @@
+//! The rows a chain of streamed stages reads besides its stages' own: its nodes, walked back from its tail; its head stage's
+//! source and each probe's right side, read for the chain and given back after it; and those rows read in place.
+use super::super::super::types::ChainRows;
+use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::physical_plan::collections::kernels::scan_bound::item::held;
+use crate::domain::physical_plan::collections::kernels::scan_facts::item::{facts, rows_of};
+use crate::domain::physical_plan::collections::kernels::scan_node::item::{give_back, take};
+use crate::domain::physical_plan::collections::kernels::scan_roots::item::{
+    copied, rooted, roots, tree_read,
+};
+use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
+use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::physical_plan::value::{PhysicalNode, PhysicalPlan};
+use crate::domain::physical_plan::types::{
+    Flow, InputRows, KernelRun, NodeReaders, NodeRows, PlanNodeId, RowSource, TakenRows, TreeRead,
+};
+use ryo_language::domain::elements::types::Elements;
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::rows::types::RowCount;
+
+/// The node at `node`.
+pub(in crate::domain::physical_plan::service::run::pipeline) fn physical(
+    plan: &PhysicalPlan,
+    node: PlanNodeId,
+) -> Result<&PhysicalNode, PortableOperatorFault> {
+    plan.nodes
+        .get(usize::try_from(node.0).unwrap_or(usize::MAX))
+        .ok_or(PortableOperatorFault::WrongOperation)
+}
+
+/// Fills `chain` with the nodes that stream into `tail`, from the head stage to `tail`: each first source that streams and
+/// holds no rows in this file.
+pub(in crate::domain::physical_plan::service::run::pipeline) fn walked(
+    plan: &PhysicalPlan,
+    tail: PlanNodeId,
+    buffers: &FileBuffers,
+    chain: &mut Vec<PlanNodeId>,
+) -> Result<(), PortableOperatorFault> {
+    chain.clear();
+    let mut at = tail;
+    loop {
+        chain.push(at);
+        match physical(plan, at)?.lowering.sources().next() {
+            Some(RowSource::Node(read))
+                if physical(plan, read)?.flow == Flow::Streamed
+                    && buffers.rows(read) == NodeRows::Absent =>
+            {
+                at = read;
+            }
+            Some(_) => break,
+            None => return Err(PortableOperatorFault::WrongOperation),
+        }
+    }
+    chain.reverse();
+    Ok(())
+}
+
+/// Reads `source` for `reader`: a tree relation's rows copied for a stage that mints while it reads.
+pub(in crate::domain::physical_plan::service::run::pipeline) fn reading<'r>(
+    run: &KernelRun<'r>,
+    reader: PlanNodeId,
+    mints: bool,
+    source: RowSource,
+    buffers: &mut FileBuffers,
+) -> Result<ChainRows<'r>, PortableOperatorFault> {
+    let inputs = run.inputs;
+    Ok(match source {
+        RowSource::Facts(relation) => ChainRows::Facts(facts(inputs, relation)?),
+        RowSource::Tree(relation) if mints => ChainRows::Copied(copied(&roots(
+            inputs,
+            run.resources.tree(),
+            reader,
+            relation,
+        ))),
+        RowSource::Tree(relation) => ChainRows::Tree(rooted(inputs, reader, relation)),
+        RowSource::Node(read) => ChainRows::Node(read, take(buffers, read)?),
+        // A withheld input faults where it is first read, never as empty rows.
+        RowSource::Frontier(place) => ChainRows::Held(held(inputs.frontier(place))?),
+        RowSource::Observation(place) => ChainRows::Held(held(inputs.observation(place))?),
+    })
+}
+
+/// A probe's right source: its lowering's second.
+pub(in crate::domain::physical_plan::service::run::pipeline) fn right_of(
+    lowering: &Lowering,
+) -> Option<RowSource> {
+    match lowering {
+        Lowering::Probe { right, .. } => Some(*right),
+        _ => None,
+    }
+}
+
+/// Gives back every node the chain read: the head's source and each probe's own right side, each after all its reads.
+pub(in crate::domain::physical_plan::service::run::pipeline) fn given_back(
+    plan: &PhysicalPlan,
+    buffers: &mut FileBuffers,
+    head: ChainRows<'_>,
+    rights: Vec<ChainRows<'_>>,
+) {
+    let reads = |of: &dyn Fn(&ChainRows<'_>) -> bool| {
+        NodeReaders(
+            1 + u32::try_from(rights.iter().filter(|rows| of(rows)).count()).unwrap_or(u32::MAX),
+        )
+    };
+    let head_reads = reads(&|rows| matches!(rows, ChainRows::Head));
+    let right_reads: Vec<NodeReaders> = (0..rights.len())
+        .map(|at| reads(&|rows| matches!(rows, ChainRows::Right(earlier) if *earlier == at)))
+        .collect();
+    if let ChainRows::Node(read, taken) = head {
+        give_back(plan, buffers, read, taken, head_reads);
+    }
+    for (rows, readings) in rights.into_iter().zip(right_reads) {
+        if let ChainRows::Node(read, taken) = rows {
+            give_back(plan, buffers, read, taken, readings);
+        }
+    }
+}
+
+/// The rows `rows` stands for: a probe's right side that is the head's rows, or an earlier probe's, followed to them.
+pub(in crate::domain::physical_plan::service::run::pipeline) fn resolved_rows<'a, 'r>(
+    rows: &'a ChainRows<'r>,
+    head: &'a ChainRows<'r>,
+    rights: &'a [ChainRows<'r>],
+) -> &'a ChainRows<'r> {
+    match rows {
+        ChainRows::Head => head,
+        ChainRows::Right(at) => rights
+            .get(*at)
+            .filter(|earlier| !matches!(earlier, ChainRows::Right(_)))
+            .map_or(rows, |earlier| resolved_rows(earlier, head, rights)),
+        ChainRows::Facts(_)
+        | ChainRows::Tree(_)
+        | ChainRows::Copied(_)
+        | ChainRows::Node(..)
+        | ChainRows::Held(_) => rows,
+    }
+}
+
+/// The kinds and the row count of `rows`; none for rows that stand for others.
+pub(in crate::domain::physical_plan::service::run::pipeline) fn shape<'a>(
+    rows: &'a ChainRows<'_>,
+) -> (&'a [CellKind], RowCount) {
+    match rows {
+        ChainRows::Facts(view) => (view.kinds, rows_of(view)),
+        ChainRows::Tree(roots) => (roots.kinds, RowCount(roots.candidates.len())),
+        ChainRows::Copied(table) | ChainRows::Node(_, TakenRows { rows: table, .. }) => {
+            (&table.kinds, table.count)
+        }
+        ChainRows::Held(table) => (&table.kinds, table.count),
+        ChainRows::Head | ChainRows::Right(_) => (&[], RowCount(0)),
+    }
+}
+
+/// The fault `rows` raised after their rows: a held node's.
+pub(in crate::domain::physical_plan::service::run::pipeline) fn pending_of(
+    rows: &ChainRows<'_>,
+) -> Option<PortableOperatorFault> {
+    match rows {
+        ChainRows::Node(_, taken) => taken.pending.clone(),
+        ChainRows::Facts(_)
+        | ChainRows::Tree(_)
+        | ChainRows::Copied(_)
+        | ChainRows::Held(_)
+        | ChainRows::Head
+        | ChainRows::Right(_) => None,
+    }
+}
+
+/// `rows` read in place: a tree relation's from `elements`, its read kept in `tree`.
+pub(in crate::domain::physical_plan::service::run::pipeline) fn in_place<'a>(
+    rows: &'a ChainRows<'_>,
+    elements: &'a Elements,
+    tree: &'a mut Option<TreeRead<'a>>,
+) -> InputRows<'a> {
+    match rows {
+        ChainRows::Facts(view) => InputRows::Facts(view),
+        ChainRows::Tree(roots) => InputRows::Tree(tree.insert(tree_read(*roots, elements))),
+        ChainRows::Copied(table) | ChainRows::Node(_, TakenRows { rows: table, .. }) => {
+            InputRows::Table(table)
+        }
+        ChainRows::Held(table) => InputRows::Table(table),
+        ChainRows::Head | ChainRows::Right(_) => InputRows::Row(&[], &[]),
+    }
+}

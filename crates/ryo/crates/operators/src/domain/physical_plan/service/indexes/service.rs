@@ -2,16 +2,16 @@
 //! key, decided once as the plan is built; and each shared index's life in a file, from its first probe to its last.
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::{ProbeKey, ProbeMode};
-use crate::domain::physical_plan::collections::kernels::probe::item::{IndexBuild, ProbeScratch};
-use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, SharedIndex};
+use crate::domain::physical_plan::collections::kernels::probe::item::IndexBuild;
+use crate::domain::physical_plan::types::file_buffers::value::{
+    FileBuffers, KeyedRows, SharedIndex,
+};
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
     IndexKey, IndexPlace, KeyedIndex, NodeReaders, PlanNodeId, ProbeIndex,
 };
-use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::rows::types::Table;
 
 /// Shares one `hash_index` between the probes of one right source and key: a planning step, not a rewrite, since an unshared
 /// plan answers the same rows. A probe that filters its right rows indexes rows of its own and keeps its own index, as does an
@@ -88,29 +88,22 @@ pub(crate) fn closed(buffers: &mut FileBuffers, at: IndexPlace) {
     }
 }
 
-/// What probe `node` writes through: its own index, built by this run, its shared index, built by the first probe of the
-/// file that reads its rows, or no index, for a probe that walks the tree.
+/// The index a probe of `index` reads, and whether it builds it: its stage's own `own`, built at its first left row; its
+/// shared index, built by the first probe of the file that reads its rows; or none, for a probe that walks the tree.
 ///
 /// # Errors
 ///
-/// `WrongOperation` for a node or an index the buffers do not hold.
-pub(crate) fn probe_scratch<'b>(
-    buffers: &'b mut FileBuffers,
+/// `WrongOperation` for a shared index the buffers do not hold.
+pub(crate) fn probe_index<'b>(
+    shared: &'b mut [SharedIndex],
+    own: &'b mut KeyedRows,
     index: ProbeIndex,
-    node: PlanNodeId,
-    kept: &'b mut Table,
-    whole: [&'b mut Vec<ColumnIndex>; 2],
-) -> Result<ProbeScratch<'b>, PortableOperatorFault> {
-    let decisions = buffers
-        .decisions
-        .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
-        .ok_or(PortableOperatorFault::WrongOperation)?;
-    let (index, build) = match index {
-        ProbeIndex::Own => (&mut buffers.index, IndexBuild::Builds),
-        ProbeIndex::Tree => (&mut buffers.index, IndexBuild::Walked),
+) -> Result<(&'b mut KeyedRows, IndexBuild), PortableOperatorFault> {
+    Ok(match index {
+        ProbeIndex::Own => (own, IndexBuild::Builds),
+        ProbeIndex::Tree => (own, IndexBuild::Walked),
         ProbeIndex::Shared(at) => {
-            let shared = buffers
-                .shared
+            let shared = shared
                 .get_mut(at.0)
                 .ok_or(PortableOperatorFault::WrongOperation)?;
             // An index of no row is built again at no cost: an empty chain is an index not built in this file.
@@ -121,20 +114,5 @@ pub(crate) fn probe_scratch<'b>(
             };
             (&mut shared.rows, build)
         }
-    };
-    #[cfg(test)]
-    if build == IndexBuild::Builds {
-        buffers.builds.0 += 1;
-    }
-    Ok(ProbeScratch {
-        index,
-        build,
-        kept,
-        whole,
-        row: &mut buffers.row,
-        written: &mut buffers.written,
-        repeats: &mut buffers.repeats,
-        decisions,
-        found: &mut buffers.found,
     })
 }

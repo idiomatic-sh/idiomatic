@@ -124,7 +124,7 @@ fn walked_tree<'a>(
 ) -> Result<Option<TreeRead<'a>>, PortableOperatorFault> {
     match (build, right) {
         (IndexBuild::Walked, InputRows::Tree(tree)) => Ok(Some(*tree)),
-        (IndexBuild::Walked, InputRows::Facts(_) | InputRows::Table(_)) => {
+        (IndexBuild::Walked, InputRows::Facts(_) | InputRows::Table(_) | InputRows::Row(..)) => {
             Err(PortableOperatorFault::WrongOperation)
         }
         (IndexBuild::Builds | IndexBuild::Built, _) => Ok(None),
