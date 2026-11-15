@@ -276,22 +276,6 @@ pub(crate) fn collapsed(
     languages::end_name(symbols, tree.source, begun)
 }
 
-/// The string token a string literal is written with: the `string` child of a literal expression, or a `string` token written
-/// on its own where the language reads a value: in an attribute's arguments, in a `cfg` predicate and in an ABI. A string in
-/// the token tree of any other macro is the macro's input, not a literal.
-#[must_use]
-pub(crate) fn string_token(tree: &Tree<'_>, at: languages::Position) -> Option<languages::Position> {
-    if kind(tree, at) != Kind::Token(Token::String) {
-        return child(tree, at, Kind::Token(Token::String));
-    }
-    let holder = kind(tree, parent(tree, at));
-    let read = holder == Kind::Node(Node::CfgAtom)
-        || holder == Kind::Node(Node::Abi)
-        || (holder == Kind::Node(Node::TokenTree)
-            && is_inside(tree, at, Kind::Node(Node::Attr)) == Containment::Inside);
-    read.then_some(at)
-}
-
 /// Whether an ancestor of the element at `at` is of `wanted` kind.
 #[must_use]
 pub(crate) fn is_inside(tree: &Tree<'_>, at: languages::Position, wanted: Kind) -> Containment {

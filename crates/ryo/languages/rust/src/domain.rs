@@ -28,6 +28,7 @@ pub(crate) mod relations;
 pub(crate) mod resolutions;
 pub(crate) mod scopes;
 pub(crate) mod shapes;
+pub(crate) mod string_literals;
 pub(crate) mod syntax;
 pub(crate) mod targets;
 pub(crate) mod tokens;
