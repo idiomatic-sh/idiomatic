@@ -57,7 +57,11 @@ let first_aliases = antijoin(left=import_aliases, right=later_aliases, left-on=[
 let alias_counts = group-count(from=import_aliases, keys=["statement","file"], count="count", distinct="alias");
 let multiple_aliases = select statement, file from alias_counts where count > 1;
 let from_import_nodes = select id, file, span from syntax where kind = "import-from";
-let as_import_nodes = source-matches(from=from_import_nodes, span="span", pattern="[ \t]as[ \t]", output="as_word");
+let as_tokens = select id, file from "semantic-syntax" where kind = "name-token" and text = "as";
+let alias_as_tokens = select l.parent as alias, l.file as file from "semantic-child" as l join as_tokens as r on l.child = r.id and l.file = r.file;
+let statements_with_as = select l.statement as statement, l.file as file from import_aliases as l join alias_as_tokens as r on l.alias = r.alias and l.file = r.file;
+let statement_as_counts = group-count(from=statements_with_as, keys=["statement","file"], count="count");
+let as_import_nodes = select l.id as id, l.file as file from from_import_nodes as l join statement_as_counts as r on l.id = r.statement and l.file = r.file;
 let from_split_alias_statements = select l.id as statement, l.file as file from as_import_nodes as l join multiple_aliases as r on l.id = r.statement and l.file = r.file;
 let plain_import_nodes = select id, file from syntax where kind = "import";
 let plain_split_alias_statements = select l.id as statement, l.file as file from plain_import_nodes as l join multiple_aliases as r on l.id = r.statement and l.file = r.file;
