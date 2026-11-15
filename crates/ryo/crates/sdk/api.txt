@@ -384,6 +384,8 @@ pub use ryo::languages::enter_implied_node
 pub use ryo::languages::enter_node
 pub use ryo::languages::entry_state
 pub use ryo::languages::exact_digits
+pub use ryo::languages::expanded_semantic_child
+pub use ryo::languages::expanded_semantic_syntax
 pub use ryo::languages::field_at
 pub use ryo::languages::field_name_at
 pub use ryo::languages::fill_to

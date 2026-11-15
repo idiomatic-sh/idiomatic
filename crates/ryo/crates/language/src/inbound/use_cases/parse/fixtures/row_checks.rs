@@ -6,8 +6,9 @@ use super::super::types::ParseEngine;
 use super::super::types::{ParseRequest, Recognition, SourceFile};
 use super::collect::Collect;
 use super::validators::{
-    embedded_roots_valid, filtered_projection_valid, identifier_valid, projection_preserves_native,
-    qualified_name_valid, semantic_spans_valid, shape_representatives_valid, well_formed,
+    embedded_roots_valid, filtered_projection_valid, identifier_valid, projection_extends_native,
+    projection_preserves_native, qualified_name_valid, semantic_spans_valid,
+    shape_representatives_valid, well_formed,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::elements::service::{end_of, positions};
@@ -245,17 +246,33 @@ pub(super) fn read(
             "semantic occurrences must retain bounded physical spans and matching source coordinates"
         );
     }
-    if wanted.contains(&Relation::SemanticSyntax)
+    let projected = wanted.contains(&Relation::SemanticSyntax)
         && wanted.contains(&Relation::SyntaxTree)
         && wanted.contains(&Relation::SemanticChild)
-        && wanted.contains(&Relation::SyntaxChild)
+        && wanted.contains(&Relation::SyntaxChild);
+    if projected {
+        let added: std::collections::BTreeSet<u64> =
+            crate::domain::elements::service::expanded_positions(&elements)
+                .map(|position| {
+                    ryo_relations::domain::relations::service::node_id(FileId(0), position).0
+                })
+                .collect();
+        assert!(
+            projection_extends_native(&out, |id| added.contains(&id)),
+            "the semantic view must keep every native row and edge, and add only rows of the elements the language added"
+        );
+    }
+    if projected
         && crate::domain::expansions::service::embedded_expressions(&elements)
+            .next()
+            .is_none()
+        && crate::domain::elements::service::expanded_positions(&elements)
             .next()
             .is_none()
     {
         assert!(
             projection_preserves_native(&out),
-            "without embedded expressions the semantic view must preserve every native row and edge exactly"
+            "without embedded expressions or expansions the semantic view must preserve every native row and edge exactly"
         );
         let mut fields: Vec<_> = out
             .rows()

@@ -25,11 +25,18 @@
 //!
 //! # Macros
 //!
-//! A token tree has no structure of its own. The names the adapter is built with as `Expanding` are the macros whose arguments are
-//! expressions; for a call of one of them the adapter reads the arguments again, and adds the trees it finds after the file's own
-//! tree, each under its call: `adopt(builder, call)`, then `mark_expansion(builder, ..)` for each element and the writes of its
-//! steps, then `release(builder)`. The file's own tree keeps the token tree as it was. A call that does not parse as the macro's
-//! grammar adds nothing.
+//! A token tree has no structure of its own. The adapter reads the arguments of a macro call again, and adds the trees it finds after
+//! the file's own tree, each under its call: `adopt(builder, call)`, then `mark_expansion(builder, ..)` for each element and the writes
+//! of its steps, then `release(builder)`. A call is read when all of these hold:
+//!
+//! | condition | what is read, or why not |
+//! | --- | --- |
+//! | it is a macro call of a tree read: the file's own, or an argument read before | a `name!(..)` inside a token tree (a `macro_rules!` body, an argument not read) is no call |
+//! | its token tree opens and closes with a matching delimiter pair | a call left open at the end of a file adds nothing |
+//! | its name, the last segment of its path, is not one the adapter is built with as `OpaqueMacros` | the built-ins whose arguments are never code (`stringify!`, `cfg!`) |
+//! | the whole token tree is of the call's grammar, with no error | each argument of a list of expressions (a named one, `width = 3`, as its value); `vec!`'s elements or element and count; `matches!`'s expression, pattern and guard |
+//!
+//! A call inside an argument is read the same way, under its own call. The file's own tree keeps the token tree as it was.
 //!
 //! # String literals
 //!
@@ -53,7 +60,8 @@ use ryo::languages::TableBuilder;
 /// What every `syntax` adapter implements.
 pub(crate) trait SyntaxPort: Send + Sync {
     /// Reads Rust source into the table `builder` builds, a pre-order table of its nodes and tokens, each token's text interned as a
-    /// place in `text`; the macros the adapter was built to expand have their arguments read again under the call. Each byte of `text`
-    /// that is not part of a character is read as a character the lexer reports, so the rest keeps its tree, at the same offsets.
+    /// place in `text`; the arguments of each macro call are read again under the call, but for the macros the adapter was built to hold
+    /// opaque. Each byte of `text` that is not part of a character is read as a character the lexer reports, so the rest keeps its tree,
+    /// at the same offsets.
     fn read(&self, text: SourceText<'_>, builder: &mut TableBuilder<'_>);
 }

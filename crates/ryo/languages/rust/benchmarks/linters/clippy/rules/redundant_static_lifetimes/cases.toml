@@ -57,3 +57,28 @@ expected = []
 name = "warn-reenables"
 files = { "src/lib.rs" = "#![allow(clippy::style)]\n#[warn(clippy::redundant_static_lifetimes)]\npub const A: &'static str = \"a\";\n" }
 expected = [{ file = "src/lib.rs", start = 83, end = 90 }]
+
+[[cases]]
+name = "user-macro-argument"
+files = { "src/lib.rs" = "macro_rules! run {\n    ($n:ident, $f:expr) => {\n        pub fn $n() {\n            $f(1, 2)\n        }\n    };\n}\nrun!(go, |a: u8, b: u8| {\n    const S: &'static str = \"s\";\n    let _ = (a, b, S);\n});\n" }
+expected = [{ file = "src/lib.rs", start = 150, end = 157 }]
+
+[[cases]]
+name = "standard-macro-argument"
+files = { "src/lib.rs" = "pub fn f() {\n    assert!({\n        const S: &'static str = \"s\";\n        !S.is_empty()\n    });\n}\n" }
+expected = [{ file = "src/lib.rs", start = 45, end = 52 }]
+
+[[cases]]
+name = "nested-macro-argument"
+files = { "src/lib.rs" = "macro_rules! run {\n    ($n:ident, $f:expr) => {\n        pub fn $n() {\n            $f(1, 2)\n        }\n    };\n}\nrun!(go, |a: u8, b: u8| {\n    assert!({\n        const S: &'static str = \"s\";\n        S.len() > usize::from(a + b)\n    });\n});\n" }
+expected = [{ file = "src/lib.rs", start = 168, end = 175 }]
+
+[[cases]]
+name = "allowed-around-a-macro-call"
+files = { "src/lib.rs" = "#[allow(clippy::redundant_static_lifetimes)]\npub mod m {\n    macro_rules! run {\n        ($n:ident, $f:expr) => {\n            pub fn $n() {\n                $f(1, 2)\n            }\n        };\n    }\n    run!(go, |a: u8, b: u8| {\n        const S: &'static str = \"s\";\n        let _ = (a, b, S);\n    });\n}\n" }
+expected = []
+
+[[cases]]
+name = "arguments-that-are-not-expressions"
+files = { "src/lib.rs" = "macro_rules! drop_items {\n    ($($t:tt)*) => {};\n}\ndrop_items!(pub const S: &'static str = \"s\";);\n" }
+expected = []

@@ -25,9 +25,12 @@ kinds are `SyntaxKind` of `ra_ap_parser` 0.0.347 and the tree is the one that pa
   comparison reads node or token from the element, as the parser's tree does.
 - The `error` lines of a pinned dump are not compared as tree: the errors are the `syntax_error` relation's, one row for each message
   the parser reports.
-- A macro call's arguments are also read again as expressions when the call is of a standard macro (`println!`, `vec!` and the like):
-  those elements are the expansion's, marked as such under their call, and not in the standard's tree, which holds the call's token tree
-  only. The comparison with the standard is made with no macro read again.
+- A macro call's arguments are also read again, whatever the macro, but for the built-ins whose arguments are never code
+  (`stringify!`, `concat!`, `env!`, `cfg!`, `include_str!` and the like): the whole token tree, when it opens and closes with a matching
+  delimiter pair, is read as one list of expressions (an array for `vec!`; an expression, a pattern and a guard for `matches!`), and a
+  call inside an argument is read the same way. A token tree that is not wholly of that grammar (items, statements, `json!` objects)
+  adds nothing. Those elements are the expansion's, marked as such under their call, and not in the standard's tree, which holds the
+  call's token tree only. The comparison with the standard prints the file's own tree.
 - The four suite files of other editions than 2024 are left out (`tests/fixtures/corpus/NOTICE`): the language reads one edition.
 
 ## Domains
