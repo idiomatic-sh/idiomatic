@@ -24,6 +24,7 @@ enum Scenario {
     OrderedExistence,
     GroupDigest,
     TwoWalksOverNewTexts,
+    OrderedWalkOverEqualOrders,
 }
 #[derive(Debug, PartialEq)]
 enum Observation {
@@ -35,6 +36,12 @@ type Value = Observation;
 type Failure = PortableOperatorFault;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("an_ordered_walk_over_two_edges_of_one_source_of_equal_order_is_refused"),
+        word: Word::Refuses,
+        input: || Scenario::OrderedWalkOverEqualOrders,
+        expect: Expect::Error(PortableOperatorFault::DuplicateOrder),
+    },
     Case {
         name: CaseName("a_second_ordered_walk_numbers_texts_as_the_first_interned_them"),
         word: Word::Succeeds,
@@ -257,6 +264,9 @@ fn two_walks() -> Result<Value, Failure> {
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::TwoWalksOverNewTexts => two_walks(),
+        Scenario::OrderedWalkOverEqualOrders => {
+            stated_rows(ordered_walk(ColumnIndex(2)), &[(1, 2, 0), (1, 3, 0)])
+        }
         Scenario::GroupDigest => {
             let mut resources = TextResources::new(&["f"]);
             let table = edges(
