@@ -31,6 +31,8 @@ enum Handover {
     Carry,
     /// A frame of one row whose symbol is this, published by worker 2 with its text.
     Frame(Symbol),
+    /// A frame of two rows of the name, published by worker 2 with its text.
+    Repeated,
 }
 
 /// What leaving its file made of a name.
@@ -112,6 +114,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Handover::Frame(Symbol(7)),
         expect: Expect::Error(PublicationReason::ProducerSymbolUnescaped),
+    },
+    Case {
+        name: CaseName("a_name_in_many_rows_of_a_frame_leaves_its_text_once"),
+        word: Word::Succeeds,
+        input: || Handover::Repeated,
+        expect: Expect::Value(Left::Escaped {
+            place: Some(0),
+            places: Cow::Borrowed(&[NamePlace {
+                origin: Origin::Derived(WorkerNumber(2)),
+                file: FileId(0),
+                start: Offset(0),
+                end: Offset(3),
+            }]),
+            arena: Cow::Borrowed(b"bee"),
+        }),
     },
 ];
 fn names(name: Cell) -> Table {
@@ -218,11 +235,41 @@ fn framed(symbol: Symbol) -> Result<Value, Failure> {
         kept: matches!(row_in(&table, RowIndex(0)), Some([Cell::Symbol(kept)]) if *kept == symbol),
     })
 }
+/// A frame of two rows of the name `bee`, published by worker 2 with its text: the place of the second row's name, the places
+/// published and the text the worker kept.
+fn repeated() -> Result<Value, Failure> {
+    let mut symbols = Symbols::default();
+    let name = intern(&mut symbols, ByteSlice(SOURCE), Offset(13), Offset(16));
+    let mut table = names(Cell::Symbol(name));
+    push_row(&mut table, &[Cell::Symbol(name)]);
+    let mut arena = Vec::new();
+    let published = escape_frame(
+        &mut table,
+        Leaving {
+            symbols: &symbols,
+            source: SourceView(SOURCE),
+            file: FileId(0),
+            worker: WorkerNumber(2),
+            text: Leaves::WithText,
+        },
+        Arena(&mut arena),
+    )?;
+    let place = match row_in(&table, RowIndex(1)) {
+        Some([Cell::Name(kept)]) => Some(kept.place.0),
+        _ => None,
+    };
+    Ok(Left::Escaped {
+        place,
+        places: published.into(),
+        arena: arena.into(),
+    })
+}
 fn subject(handover: Input) -> Result<Value, Failure> {
     match handover {
         Handover::Escape(text) => Ok(escaped(text)),
         Handover::Carry => Ok(carried()),
         Handover::Frame(symbol) => framed(symbol),
+        Handover::Repeated => repeated(),
     }
 }
 #[test]
