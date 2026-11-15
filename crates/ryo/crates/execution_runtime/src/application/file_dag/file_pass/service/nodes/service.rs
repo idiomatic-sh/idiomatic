@@ -200,13 +200,15 @@ pub(crate) fn ran_node(
         &mut resources,
     );
     // A refused rendering answers the engine's reason for the node it came from, whichever rule ran that node.
-    ran.map_err(|fault| match fault {
-        PortableOperatorFault::RenderRefused { refusal } => at
-            .refusals
-            .get(usize::try_from(refusal.0).unwrap_or(usize::MAX))
-            .cloned()
-            .unwrap_or_else(|| portable_fault(fault)),
-        other => portable_fault(other),
+    ran.map_err(|fault| {
+        if let PortableOperatorFault::RenderRefused { refusal } = fault {
+            at.refusals
+                .get(usize::try_from(refusal.0).unwrap_or(usize::MAX))
+                .cloned()
+                .unwrap_or_else(|| portable_fault(fault))
+        } else {
+            portable_fault(fault)
+        }
     })
 }
 
