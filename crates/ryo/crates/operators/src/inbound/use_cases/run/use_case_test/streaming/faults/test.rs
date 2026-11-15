@@ -1,12 +1,14 @@
 //! A chain's faults at seam C, each against its held twin: the earliest row's fault wins whatever the chunk it falls in
 //! (the scenarios of the scope's Gherkin, 2,500 rows over the 2,048-row chunks of the span-between stage); a probe's hard
 //! fault on its first left row comes before a later stage's preparation fault, the held plan's first, though the later
-//! stage is prepared first; and a faulting tail is fed only the rows it read, where its held twin is fed all of them.
+//! stage is prepared first; and a faulting tail is fed every row its input makes, as its held twin and the base are.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{Step, over_defines, over_nodes};
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
-use crate::inbound::use_cases::run::fixtures::streams::{Program, faulting, ran_program, span};
+use crate::inbound::use_cases::run::fixtures::streams::{
+    Program, agrees, faulting, ran_program, span,
+};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as StepInput, JoinColumn, RepeatedRows, Side, StepId,
@@ -80,11 +82,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
-        name: CaseName("a_faulting_tail_is_fed_only_the_rows_it_read"),
+        name: CaseName("a_faulting_tail_is_fed_every_row_its_input_makes"),
         word: Word::Succeeds,
         input: || Scenario::FaultingTailFeed,
         expect: Expect::Value(Observation::Fed {
-            planned: 6,
+            planned: 10,
             twin: 10,
         }),
     },
@@ -164,7 +166,7 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
         });
     }
     Ok(Observation::Faulted {
-        same: planned.answer == twin.answer,
+        same: agrees(&planned, &twin),
         fault: Cow::Owned(
             planned
                 .answer

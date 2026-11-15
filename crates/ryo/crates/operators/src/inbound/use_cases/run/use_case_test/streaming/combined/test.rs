@@ -15,7 +15,7 @@ use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::{
     LogicalNode, NodeBindings, NodeFlow, PlanInput, PlanInputList, PlanNodeId,
 };
-use crate::inbound::use_cases::run::fixtures::streams::{Steps, ran_steps, span};
+use crate::inbound::use_cases::run::fixtures::streams::{Steps, agrees, ran_steps, span};
 use crate::inbound::use_cases::run::fixtures::{TextResources, planned};
 use ryo_relations::domain::relations::types::{Relation, Value as Cell};
 use ryo_values::domain::plan_parts::types::{Input as StepInput, StepId, StepScope, Test};
@@ -110,7 +110,7 @@ fn compared(
         };
         let planned_run = ran_steps(&run, false, TEXTS, &tables)?;
         let twin = ran_steps(&run, true, TEXTS, &tables)?;
-        if planned_run.answer != twin.answer {
+        if !agrees(&planned_run, &twin) {
             differing.push(format!("{label}:{at}"));
         }
         if planned_run.formed < twin.formed {
@@ -209,7 +209,7 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
             Ok(Observation::Ordered {
                 ordered,
                 streams,
-                same: planned_run.answer == twin.answer,
+                same: agrees(&planned_run, &twin),
                 formed: planned_run.formed,
                 rows: planned_run.answer.as_ref().map_or(0, Vec::len),
             })

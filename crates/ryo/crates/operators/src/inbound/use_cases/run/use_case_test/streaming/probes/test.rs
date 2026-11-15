@@ -7,7 +7,7 @@ use crate::domain::physical_plan::fixtures::{Step, over_defines};
 use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use crate::inbound::use_cases::run::fixtures::cases::{compared, self_matching};
-use crate::inbound::use_cases::run::fixtures::streams::{Program, ran_program, span};
+use crate::inbound::use_cases::run::fixtures::streams::{Program, agrees, ran_after, span};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as StepInput, JoinColumn, LiteralText, Operand, QueryLiteral, Side, StepId,
@@ -25,6 +25,8 @@ enum Scenario {
     RightFaultFirst,
     RightFilter,
     TwoIndexes,
+    RightPendingFed,
+    RightPendingFedAfterAnotherProbe,
 }
 
 /// Whether the program run as planned answered as its held twin did, how many rows it answered, how many node tables it
@@ -40,6 +42,8 @@ struct Observation {
     formed: u32,
     /// The planned run's fault; none when it answered rows.
     fault: Cow<'static, str>,
+    /// The rows the planned run's emit was fed from each input.
+    fed: [usize; 3],
 }
 type Input = Scenario;
 type Value = Observation;
@@ -55,6 +59,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: 14_040,
             formed: 1,
             fault: Cow::Borrowed(""),
+            fed: [7_020, 7_020, 0],
         }),
     },
     Case {
@@ -66,6 +71,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: 7_020,
             formed: 1,
             fault: Cow::Borrowed(""),
+            fed: [7_020, 7_020, 0],
         }),
     },
     Case {
@@ -77,6 +83,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: 7_020,
             formed: 2,
             fault: Cow::Borrowed(""),
+            fed: [7_020, 0, 0],
         }),
     },
     Case {
@@ -90,6 +97,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             fault: Cow::Borrowed(
                 "Pattern(InvalidRegex { reason: \"regex parse error:\\n    [\\n    ^\\nerror: unclosed character class\" })",
             ),
+            fed: [3, 0, 0],
         }),
     },
     Case {
@@ -101,6 +109,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: 1_404,
             formed: 1,
             fault: Cow::Borrowed(""),
+            fed: [7_020, 7_020, 0],
         }),
     },
     Case {
@@ -112,6 +121,35 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: 4_680,
             formed: 1,
             fault: Cow::Borrowed(""),
+            fed: [9_360, 4_680, 0],
+        }),
+    },
+    Case {
+        name: CaseName("a_probe_of_a_faulting_right_is_fed_its_left_and_its_right_rows"),
+        word: Word::Succeeds,
+        input: || Scenario::RightPendingFed,
+        expect: Expect::Value(Observation {
+            same: true,
+            rows: 0,
+            formed: 2,
+            fault: Cow::Borrowed(
+                "Pattern(InvalidRegex { reason: \"regex parse error:\\n    [\\n    ^\\nerror: unclosed character class\" })",
+            ),
+            fed: [8, 4, 0],
+        }),
+    },
+    Case {
+        name: CaseName("a_probe_of_a_faulting_right_is_fed_its_own_rows_after_another_probe"),
+        word: Word::Succeeds,
+        input: || Scenario::RightPendingFedAfterAnotherProbe,
+        expect: Expect::Value(Observation {
+            same: true,
+            rows: 0,
+            formed: 4,
+            fault: Cow::Borrowed(
+                "Pattern(InvalidRegex { reason: \"regex parse error:\\n    [\\n    ^\\nerror: unclosed character class\" })",
+            ),
+            fed: [8, 4, 0],
         }),
     },
 ];
@@ -296,6 +334,26 @@ fn program(scenario: Scenario) -> Program {
             ],
             chunk * 3,
         ),
+        Scenario::RightPendingFed | Scenario::RightPendingFedAfterAnotherProbe => {
+            // The review's input: eight Defines rows, the fifth named `[`, so the right select faults after four rows; the
+            // join reads every row on its left. After another probe, a join of the left with Defines runs first in the
+            // same worker.
+            let mut steps = vec![
+                select_of_defines_matching(),
+                every_define(),
+                join(node(1), node(0), both_nodes(), Vec::new()),
+            ];
+            if let Scenario::RightPendingFedAfterAnotherProbe = scenario {
+                steps.push(join(node(1), defines(), both_nodes(), Vec::new()));
+            }
+            let mut program = paired(steps, 8);
+            program.emit = PlanNodeId(2);
+            if let Some(fifth) = program.rows.get_mut(4) {
+                fifth.0 = "[".into();
+            }
+            program.texts.push("[".into());
+            program
+        }
         Scenario::TwoIndexes => paired(
             vec![
                 every_define(),
@@ -324,12 +382,23 @@ fn select_of_defines_matching() -> Step {
 
 fn subject(scenario: Scenario) -> Result<Value, Failure> {
     let program = program(scenario);
-    let streamed = ran_program(&program, false)?;
-    let twin = ran_program(&program, true)?;
+    let first: &[PlanNodeId] = if let Scenario::RightPendingFedAfterAnotherProbe = scenario {
+        &[PlanNodeId(3)]
+    } else {
+        &[]
+    };
+    let streamed = ran_after(&program, false, first)?;
+    let twin = ran_after(&program, true, first)?;
     Ok(Observation {
-        same: streamed.answer == twin.answer,
+        same: agrees(&streamed, &twin),
         rows: streamed.answer.as_ref().map_or(0, Vec::len),
         formed: streamed.formed,
+        fed: streamed
+            .fed
+            .get(usize::try_from(program.emit.0).unwrap_or(usize::MAX))
+            .copied()
+            .flatten()
+            .unwrap_or_default(),
         fault: Cow::Owned(
             streamed
                 .answer

@@ -8,7 +8,7 @@ use crate::domain::physical_plan::types::file_buffers::value::ChunkMeter;
 use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
 use crate::domain::physical_plan::types::{NodeRows, PlanNodeId};
 use crate::inbound::use_cases::run::fixtures::streams::{
-    Program, against, faulting, ran_after, ran_program, select_of, span, split_names,
+    Program, against, agrees, faulting, ran_after, ran_program, select_of, span, split_names,
 };
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as StepInput, RepeatedRows, StepId, Test,
@@ -219,7 +219,7 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
         let streamed = ran_after(&program, false, &[PlanNodeId(1)])?;
         let twin = ran_after(&program, true, &[PlanNodeId(1)])?;
         return Ok(Observation::Started {
-            same: streamed.answer == twin.answer,
+            same: agrees(&streamed, &twin),
             formed: streamed.formed,
             middle: Cow::Borrowed(match streamed.buffers.rows(PlanNodeId(1)) {
                 NodeRows::Materialized(_) => "held",
@@ -229,7 +229,7 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
     }
     let streamed = ran_program(&program, false)?;
     let twin = ran_program(&program, true)?;
-    let same = streamed.answer == twin.answer;
+    let same = agrees(&streamed, &twin);
     Ok(match scenario {
         Scenario::CaptureIntoFilter | Scenario::NamesMintedAcrossChunks => Observation::Streamed {
             same,

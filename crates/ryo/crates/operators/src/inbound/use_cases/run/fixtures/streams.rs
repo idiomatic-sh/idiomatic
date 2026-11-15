@@ -36,6 +36,10 @@ pub(crate) struct Program {
 pub(crate) struct Ran {
     /// The emit's rows, each name as its text, or the first fault.
     pub(crate) answer: Result<Vec<Vec<String>>, PortableOperatorFault>,
+    /// The rows each node was fed, by node, for the emit and every node that holds rows after the run; none for another.
+    pub(crate) fed: Vec<Option<[usize; 3]>>,
+    /// Whether the same worker, warm from the run, answers the next file of the same rows alike, rows and feeds.
+    pub(crate) warm: bool,
     /// How many node tables the run formed.
     pub(crate) formed: u32,
     /// The worker's buffers after the run.
@@ -131,25 +135,58 @@ pub(crate) fn ran_steps(
     }
     let plan = planned(&logical)?;
     let mut buffers = FileBuffers::default();
-    for node in run.first {
-        ran(&plan, *node, &mut buffers, &inputs, &mut resources)?;
-    }
-    let answer = ran(&plan, run.emit, &mut buffers, &inputs, &mut resources).and_then(|()| {
-        match buffers.rows(run.emit) {
+    let file = |buffers: &mut FileBuffers,
+                resources: &mut TextResources|
+     -> Result<_, PortableOperatorFault> {
+        for node in run.first {
+            ran(&plan, *node, buffers, &inputs, resources)?;
+        }
+        let answer = ran(&plan, run.emit, buffers, &inputs, resources).and_then(|()| match buffers
+            .rows(run.emit)
+        {
             NodeRows::Materialized(table) => Ok(table
                 .cells
                 .chunks(table.kinds.len().max(1))
                 .take(table.count.0)
-                .map(|row| row.iter().map(|cell| shown(*cell, &resources)).collect())
+                .map(|row| row.iter().map(|cell| shown(*cell, resources)).collect())
                 .collect()),
             NodeRows::Absent => Err(PortableOperatorFault::NotRun),
-        }
-    });
+        });
+        let fed: Vec<Option<[usize; 3]>> = (0..u32::try_from(run.steps.len()).unwrap_or(u32::MAX))
+            .map(PlanNodeId)
+            .map(|node| {
+                (node == run.emit || buffers.rows(node) != NodeRows::Absent)
+                    .then(|| buffers.fed(node).0.map(|rows| rows.0))
+            })
+            .collect();
+        Ok((answer, fed))
+    };
+    let (answer, fed) = file(&mut buffers, &mut resources)?;
+    let formed = buffers.meter.formed.0;
+    // The file ends: the engine releases every node, and the warm worker runs the next file of the same rows.
+    for node in (0..u32::try_from(run.steps.len()).unwrap_or(u32::MAX)).map(PlanNodeId) {
+        buffers.release(node);
+    }
+    let (again, fed_again) = file(&mut buffers, &mut resources)?;
     Ok(Ran {
+        warm: again == answer && fed_again == fed,
         answer,
-        formed: buffers.meter.formed.0,
+        fed,
+        formed,
         buffers,
     })
+}
+
+/// Whether a planned run agrees with its held twin: the same rows in order or the same first fault, the same rows fed to
+/// every node both hold (the emit always), and each warm worker answering its next file alike.
+pub(crate) fn agrees(planned: &Ran, twin: &Ran) -> bool {
+    planned.answer == twin.answer
+        && planned.warm
+        && twin.warm
+        && planned.fed.iter().zip(&twin.fed).all(|pair| match pair {
+            (Some(planned), Some(twin)) => planned == twin,
+            (None, _) | (_, None) => true,
+        })
 }
 
 /// A capture of each name into the two slots of `{a}{b}`.
