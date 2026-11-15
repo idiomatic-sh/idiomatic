@@ -10,14 +10,18 @@ use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecu
 use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::interface::{ObserverPort, Observing};
 use ryo_execution::inbound::use_cases::execution::interface::{PhaseStop, RootOutcome};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::metadata::interface::{
     FilePartial, Lacking, Partial, PartialPlace,
 };
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::types::LogicalCounts;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::ProjectFacts;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::RefusingKept as Kept;
+use ryo_execution_runtime::outbound::observer::types::FedTotals;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -37,6 +41,8 @@ enum Scenario {
     CompleteThenPartial,
     /// One occurrence, which skipped the file of their row.
     Skipped,
+    /// Two occurrences, the first in part and the second whole, an observer refusing the first occurrence's counts.
+    RefusedCountsThenComplete,
 }
 
 /// What one occurrence's partials say of the file of the project's row.
@@ -80,7 +86,37 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "complete [complete RowCount(0)]; project reads 1",
         )),
     },
+    Case {
+        name: CaseName("an_occurrence_that_fails_leaves_no_narrowed_rows_for_the_next"),
+        word: Word::Succeeds,
+        input: || Scenario::RefusedCountsThenComplete,
+        // The first occurrence stops where the observer refuses its counts; the second, whole, answers every row, as it does
+        // after a partial occurrence that succeeded.
+        expect: Expect::Value(Cow::Borrowed(
+            "complete [stopped Operating(NotRun), complete RowCount(1)]; project reads 1",
+        )),
+    },
 ];
+
+/// An observer that refuses the first counts it is told and keeps none: the first occurrence it observes fails.
+#[derive(Default)]
+struct RefusesFirst {
+    /// How many counts it was told.
+    told: AtomicUsize,
+}
+
+impl ObserverPort for RefusesFirst {
+    fn fed(&self, _: RuleIndex, _: LogicalCounts) -> Result<(), OperatingError> {
+        if self.told.fetch_add(1, Ordering::SeqCst) == 0 {
+            Err(OperatingError::NotRun)
+        } else {
+            Ok(())
+        }
+    }
+    fn totals(&self) -> Result<FedTotals, OperatingError> {
+        Ok(FedTotals(Vec::new()))
+    }
+}
 
 /// A step after the files.
 fn after_files(operation: Operation) -> PlanStep {
@@ -149,10 +185,19 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::PartialThenComplete => &[Said::InPart, Said::Whole],
         Scenario::CompleteThenPartial => &[Said::Whole, Said::InPart],
         Scenario::Skipped => &[Said::Skipped],
+        Scenario::RefusedCountsThenComplete => &[Said::InPart, Said::Whole],
+    };
+    let observing: Observing<dyn ObserverPort> = match scenario {
+        Scenario::RefusedCountsThenComplete => {
+            Observing::Observer(std::sync::Arc::new(RefusesFirst::default()))
+        }
+        Scenario::PartialThenComplete | Scenario::CompleteThenPartial | Scenario::Skipped => {
+            Observing::Unobserved
+        }
     };
     let prepared = engine().prepare(authored).map_err(|_| ())?;
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, observing);
     let stored = Kept {
         refused: None,
         reads: AtomicUsize::new(0),
