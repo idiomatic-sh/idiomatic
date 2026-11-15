@@ -7,9 +7,9 @@ use crate::domain::comparing::service::holds_bound;
 use crate::domain::comparing::types::{DecisionWorkspace, NameCount, RowShape};
 use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
 use crate::domain::patterns::types::PatternMatcher;
-#[cfg(test)]
-use crate::domain::physical_plan::types::Lowering;
 use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
+#[cfg(test)]
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::select::types::SelectParts;
 use crate::domain::table_scratch::types::Memo;
 use crate::domain::table_texts::types::Texts;
@@ -28,6 +28,8 @@ impl KernelsItem for FilterItem {
             match lowering {
                 Lowering::Filter { .. } | Lowering::Lookup { .. } => true,
                 Lowering::Probe { probe, .. } => !probe.filter.comparisons.is_empty(),
+                Lowering::SeededReach { join, .. } => !join.probe.filter.comparisons.is_empty(),
+                Lowering::Axis { axis, .. } => !axis.domain.comparisons.is_empty(),
                 Lowering::Project { .. }
                 | Lowering::Extend { .. }
                 | Lowering::Distinct { .. }
@@ -35,6 +37,9 @@ impl KernelsItem for FilterItem {
                 | Lowering::TextMap { .. }
                 | Lowering::OrderedMatch { .. }
                 | Lowering::Render { .. }
+                | Lowering::Reach { .. }
+                | Lowering::OrderedWalk { .. }
+                | Lowering::Components { .. }
                 | Lowering::Unlowered => false,
             }
         };

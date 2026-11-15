@@ -8,8 +8,9 @@ use crate::domain::physical_plan::service::{
     Kernel, REWRITES, SERVED, lowered, plan_with, stage_of_kind,
 };
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::{
-    LogicalNode, Lowering, NodeBindings, PlanInput, PlanInputList, RuleOrdinal,
+    LogicalNode, NodeBindings, PlanInput, PlanInputList, RuleOrdinal,
 };
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::service::kind_of;
@@ -44,7 +45,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_kind_lowers_once"),
         word: Word::Succeeds,
         input: || Scenario::KindsLower,
-        expect: Expect::Value(19),
+        expect: Expect::Value(24),
     },
     Case {
         name: CaseName("a_kind_left_unlowered_fails_every_kind_lowers_once"),
@@ -56,7 +57,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_kernel_is_reached"),
         word: Word::Succeeds,
         input: || Scenario::KernelsReached,
-        expect: Expect::Value(14),
+        expect: Expect::Value(18),
     },
     Case {
         name: CaseName("a_kernel_no_lowering_runs_fails_every_kernel_is_reached"),
@@ -134,7 +135,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::KernelNoLoweringRuns => {
             let steps: Vec<Step> = text_program()
                 .into_iter()
-                .filter(|step| !matches!(step.operation, Operation::GroupCount { .. }))
+                .filter(|step| {
+                    !matches!(
+                        step.operation,
+                        Operation::GroupCount { .. } | Operation::GroupDigest { .. }
+                    )
+                })
                 .collect();
             kernels_reached(&steps)
         }

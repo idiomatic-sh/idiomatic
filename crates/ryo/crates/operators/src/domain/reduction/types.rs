@@ -104,6 +104,19 @@ pub struct ValueHash(pub u64);
 /// The engine-owned scratch the distinct value hashes of one group are collected in.
 pub struct HashScratch<'a>(pub &'a mut Vec<u64>);
 
+/// The hashes of a group's values a worker keeps between groups, for a group digest.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct GroupHashes(pub(crate) Vec<u64>);
+
+/// What a group digest folds a group's value hashes to: how many distinct values, and their digest.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FoldedDigest {
+    /// How many distinct values.
+    pub(crate) counted: ryo_values::domain::rows::types::RowCount,
+    /// Their digest.
+    pub(crate) digest: GroupDigest,
+}
+
 /// The row count each group of a streamed reduction reached, in group order.
 #[derive(Clone, Copy, Debug)]
 pub struct GroupCounts<'a>(pub &'a [usize]);

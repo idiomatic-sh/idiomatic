@@ -260,3 +260,6 @@ mod traversing;
 
 #[cfg(test)]
 mod closures_and_axes;
+
+#[cfg(test)]
+mod fusing;

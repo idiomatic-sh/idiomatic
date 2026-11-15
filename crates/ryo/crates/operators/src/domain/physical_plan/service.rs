@@ -1,20 +1,26 @@
 //! The planner's one dispatch over the operation kinds, each kind lowered once by its own concept; the registry of the rewrites
 //! it applies over what it lowered, and the `kernels!` catalog of the kernels the lowerings run.
 pub(crate) mod indexes;
+pub(crate) mod kernels;
 pub(crate) mod run;
 
+use crate::domain::aggregate::types::GroupMeasure;
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::ordered_dfs::types::DfsShape;
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem;
 use crate::domain::physical_plan::constants::{
     BOUND_STAGE, GRAPH_STAGE, RELATIONAL_STAGE, TEXT_STAGE,
 };
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
+use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    Lowering, NodeReaders, PhysicalNode, PlanInput, PlanNodeId, ProbeIndex, Retention, RowMap,
-    RowSource, ServedAt, Unserved,
+    NodeReaders, PlanInput, PlanNodeId, ProbeIndex, Retention, RowMap, RowSource, ServedAt,
+    Unserved,
 };
 use crate::domain::set_rows::types::{SetKind, SetLowering};
+use crate::domain::{aggregate, closure, cycles, ordered_dfs};
 use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -24,6 +30,7 @@ use ryo_values::domain::query_operators::types::OperationKind;
 /// it.
 pub(crate) const REWRITES: &[&dyn RewritesItem] = &[
     &crate::domain::physical_plan::collections::rewrites::keyed_select::item::KeyedSelectItem,
+    &crate::domain::physical_plan::collections::rewrites::ordered_existence::item::OrderedExistenceItem,
     &crate::domain::physical_plan::collections::rewrites::existence_probe::item::ExistenceProbeItem,
 ];
 
@@ -81,6 +88,14 @@ kernels! {
     OrderedMatch => crate::domain::physical_plan::collections::kernels::ordered_match::item::OrderedMatchItem,
     /// The `render` kernel.
     Render => crate::domain::physical_plan::collections::kernels::render::item::RenderItem,
+    /// The `reach` kernel.
+    Reach => crate::domain::physical_plan::collections::kernels::reach::item::ReachItem,
+    /// The `directed_walk` kernel.
+    DirectedWalk => crate::domain::physical_plan::collections::kernels::directed_walk::item::DirectedWalkItem,
+    /// The `ordered_walk` kernel.
+    OrderedWalk => crate::domain::physical_plan::collections::kernels::ordered_walk::item::OrderedWalkItem,
+    /// The `components` kernel.
+    Components => crate::domain::physical_plan::collections::kernels::components::item::ComponentsItem,
 }
 
 /// The physical plan of `program`: each node lowered once, every registered rewrite applied, and every node of a kind of a
@@ -136,10 +151,11 @@ pub(crate) fn plan_with(
         }
     }
     let mut indexes = Vec::new();
-    indexes::service::shared_indexes(&mut nodes, &mut indexes);
     for rewrite in rewrites {
         rewrite.rewrite(&mut nodes, &mut indexes);
     }
+    // After the rewrites: a rewrite changes a probe's right rows, key and mode, and replaces probes.
+    indexes::service::shared_indexes(&mut nodes, &mut indexes);
     Ok(PhysicalPlan {
         nodes,
         indexes,
@@ -239,7 +255,10 @@ pub(crate) fn lowered(
         } => set(SetKind::Antijoin, left_on, right_on),
         Operation::GroupCount { keys, distinct, .. } => first.map(|source| Lowering::Group {
             source,
-            group: crate::domain::aggregate::service::lower(keys, *distinct),
+            group: aggregate::service::lower(
+                keys,
+                distinct.map_or(GroupMeasure::Rows, GroupMeasure::DistinctValues),
+            ),
         }),
         Operation::Capture { path, pattern, .. } => map(RowMap::Capture(
             crate::domain::capture::service::lower(*path, pattern),
@@ -318,19 +337,110 @@ pub(crate) fn lowered(
             source,
             render: crate::domain::render_batch::service::lower(*node, *context),
         }),
-        Operation::Join { reach: Some(_), .. }
-        | Operation::GroupDigest { .. }
-        | Operation::Axis { .. }
-        | Operation::Closure { .. }
-        | Operation::OrderedDfs { .. }
-        | Operation::Cycles { .. }
-        | Operation::Rows { .. }
-        | Operation::Hosted { .. } => None,
+        Operation::Join {
+            left_on,
+            right_on,
+            output,
+            filter,
+            view,
+            reach: Some(reach),
+            ..
+        } => both().map(|(left, edges)| Lowering::SeededReach {
+            left,
+            edges,
+            graph: closure::service::lower(&reach.keys, reach.source, reach.destination),
+            join: crate::domain::equality_join::service::seeded(
+                crate::domain::equality_join::types::JoinShape {
+                    left_on,
+                    right_on,
+                    output,
+                    view,
+                    reach: Some(reach),
+                },
+                filter,
+                bindings,
+            ),
+        }),
+        Operation::GroupDigest { keys, over, .. } => first.map(|source| Lowering::Group {
+            source,
+            group: aggregate::service::lower(keys, GroupMeasure::Digest(*over)),
+        }),
+        Operation::Closure {
+            keys,
+            source,
+            destination,
+            ..
+        } => first.map(|edges| Lowering::Reach {
+            edges,
+            graph: closure::service::lower(keys, *source, *destination),
+        }),
+        Operation::Axis {
+            direction,
+            id,
+            parent,
+            child,
+            domain_id,
+            domain_filter,
+            domain_view,
+            output,
+            ..
+        } => {
+            let third = inputs.get(2).and_then(source_of);
+            both()
+                .zip(third)
+                .map(|((starts, edges), domain)| Lowering::Axis {
+                    starts,
+                    edges,
+                    domain,
+                    axis: crate::domain::axis::service::lower(
+                        crate::domain::axis::types::AxisShape {
+                            direction: *direction,
+                            id: *id,
+                            parent: *parent,
+                            child: *child,
+                            domain_id: *domain_id,
+                            output,
+                        },
+                        domain_filter,
+                        domain_view,
+                        bindings,
+                    ),
+                })
+        }
+        Operation::OrderedDfs {
+            root,
+            source,
+            destination,
+            order,
+            edge,
+            root_keys,
+            edge_keys,
+            ..
+        } => both().map(|(roots, edges)| Lowering::OrderedWalk {
+            roots,
+            edges,
+            dfs: ordered_dfs::service::lower(DfsShape {
+                root: *root,
+                edge_columns: [*source, *destination, *order, *edge],
+                root_keys,
+                edge_keys,
+            }),
+        }),
+        Operation::Cycles {
+            source,
+            destination,
+            ..
+        } => first.map(|edges| Lowering::Components {
+            edges,
+            cycles: cycles::service::lower(*source, *destination),
+        }),
+        Operation::Rows { .. } | Operation::Hosted { .. } => None,
     };
     lowering.unwrap_or(Lowering::Unlowered)
 }
 
-/// The stage of the swap whose kernels lower a kind: the relational kinds are `RELATIONAL_STAGE`, the text kinds `TEXT_STAGE`.
+/// The stage of the swap whose kernels lower a kind: the relational kinds are `RELATIONAL_STAGE`, the text kinds `TEXT_STAGE`,
+/// the graph kinds `GRAPH_STAGE`.
 pub(crate) fn stage_of_kind(kind: OperationKind) -> ServedAt {
     match kind {
         OperationKind::Select
@@ -362,10 +472,9 @@ pub(crate) fn stage_of_kind(kind: OperationKind) -> ServedAt {
 }
 
 /// The stage that lowers a node this branch does not: its kind's, or for a kind of a served stage, the stage that reads what
-/// it reads: a join's closure demand at the third, a bound table or an observation at the fourth.
+/// it reads: a bound table or an observation at the fourth.
 fn stage_of(operation: &Operation) -> ServedAt {
     match (stage_of_kind(kind_of(operation)), operation) {
-        (_, Operation::Join { reach: Some(_), .. }) => GRAPH_STAGE,
         (stage, _) if SERVED.contains(&stage) => BOUND_STAGE,
         (stage, _) => stage,
     }
@@ -373,4 +482,4 @@ fn stage_of(operation: &Operation) -> ServedAt {
 
 /// The stages whose kinds this branch lowers: a node of one of their kinds that is not lowered reads what a later stage
 /// serves. Branch only: deleted with `ServedAt`.
-pub(crate) const SERVED: &[ServedAt] = &[RELATIONAL_STAGE, TEXT_STAGE];
+pub(crate) const SERVED: &[ServedAt] = &[RELATIONAL_STAGE, TEXT_STAGE, GRAPH_STAGE];

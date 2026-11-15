@@ -7,8 +7,8 @@ use super::super::interface::{KernelsItem, Reach};
 use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::physical_plan::types::CellStart;
 #[cfg(test)]
-use crate::domain::physical_plan::types::Lowering;
 use crate::domain::physical_plan::types::file_buffers::value::KeyedRows;
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::rows::types::{RowCount, Table};
 
@@ -31,6 +31,11 @@ impl KernelsItem for DistinctItem {
                 | Lowering::TextMap { .. }
                 | Lowering::OrderedMatch { .. }
                 | Lowering::Render { .. }
+                | Lowering::Reach { .. }
+                | Lowering::SeededReach { .. }
+                | Lowering::Axis { .. }
+                | Lowering::OrderedWalk { .. }
+                | Lowering::Components { .. }
                 | Lowering::Unlowered => false,
             }
         };

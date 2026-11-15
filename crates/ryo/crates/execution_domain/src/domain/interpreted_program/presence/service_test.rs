@@ -885,6 +885,7 @@ fn portable(fault: &ryo_operators::domain::contract::types::PortableOperatorFaul
         Interrupted | NotRun | RenderRefused { .. } => Fault::Engine,
         // A comparison's fault is the operating error it maps to, variant for variant.
         WrongTest => operating(&OperatingError::WrongTest),
+        DuplicateOrder => operating(&OperatingError::DuplicateDfsOrder),
         Pattern(_) => operating(&OperatingError::InvalidRegex {
             reason: String::new(),
         }),
@@ -1072,7 +1073,8 @@ fn located_proof(raised: Raised<'_>) -> Option<LocatedProof> {
             | P::WrongBinding
             | P::Unbound
             | P::Interrupted
-            | P::NotRun,
+            | P::NotRun
+            | P::DuplicateOrder,
         ) => None,
         Raised::Portable(P::Pattern(_)) => Some(LocatedProof::MatcherSlot),
         Raised::Portable(P::WrongTest | P::Derived(_) | P::RenderRefused { .. }) => None,
@@ -1117,20 +1119,21 @@ fn portable_position(
         Interrupted => 0,
         NoSuchColumn { .. } => 1,
         ShapeMismatch => 2,
-        InvalidSpanBounds => 3,
-        InvalidSpan => 4,
-        InvalidSourceMatchSpan => 5,
-        MissingCapture { .. } => 6,
-        WrongOperation => 7,
-        UnboundKey => 8,
-        UnsupportedRender => 9,
-        WrongBinding => 10,
-        Unbound => 11,
-        NotRun => 12,
-        WrongTest => 13,
-        Pattern(_) => 14,
-        Derived(_) => 15,
-        RenderRefused { .. } => 16,
+        DuplicateOrder => 3,
+        InvalidSpanBounds => 4,
+        InvalidSpan => 5,
+        InvalidSourceMatchSpan => 6,
+        MissingCapture { .. } => 7,
+        WrongOperation => 8,
+        UnboundKey => 9,
+        UnsupportedRender => 10,
+        WrongBinding => 11,
+        Unbound => 12,
+        NotRun => 13,
+        WrongTest => 14,
+        Pattern(_) => 15,
+        Derived(_) => 16,
+        RenderRefused { .. } => 17,
     }
 }
 
@@ -1217,6 +1220,7 @@ fn verdicts() -> Verdicts {
             index: ColumnIndex(0),
         },
         PortableOperatorFault::ShapeMismatch,
+        PortableOperatorFault::DuplicateOrder,
         PortableOperatorFault::InvalidSpanBounds,
         PortableOperatorFault::InvalidSpan,
         PortableOperatorFault::InvalidSourceMatchSpan,

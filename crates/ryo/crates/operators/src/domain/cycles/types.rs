@@ -13,6 +13,11 @@ pub struct NodeCount(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct EdgePlace(pub usize);
 
+/// Where a node's edges start among the edges of every node, laid out node after node.
+///
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct EdgeStart(pub(crate) usize);
+
 /// The order a node was first met in, or `UNMET` before it was.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MeetOrder(pub usize);
@@ -46,7 +51,13 @@ pub trait CycleDriver {
     fn edge(&self, node: NodeNumber, place: EdgePlace) -> Option<NodeNumber>;
 }
 
-/// The work arrays of one search, kept by the engine between invocations so they keep their capacity.
+/// The work arrays of one search, kept by the engine between invocations so they keep their capacity. The `components`
+/// kernel's adjacency is the operators' own:
+///
+/// ```compile_fail,E0616
+/// let scratch = ryo_operators::domain::cycles::types::CycleScratch::default();
+/// let _starts = scratch.starts.len();
+/// ```
 #[derive(Debug, Default)]
 pub struct CycleScratch {
     /// The order each node was met in.
@@ -65,6 +76,11 @@ pub struct CycleScratch {
     pub walk: Vec<WalkStep>,
     /// The values of the nodes on a cycle, ascending: the answer.
     pub ordered: Vec<Value>,
+    /// Where each node's edges start in `leaving`, by node number, and their end after the last node: the `components`
+    /// kernel's adjacency.
+    pub(crate) starts: Vec<EdgeStart>,
+    /// The node each edge leads to, the edges of a node together, in edge-row order.
+    pub(crate) leaving: Vec<NodeNumber>,
 }
 
 /// An engine driver that lends the prepared adjacency of a cycle search.
@@ -77,4 +93,13 @@ pub trait CyclesEvaluation: crate::domain::contract::types::RowDriver {
     fn cycles(
         &mut self,
     ) -> Result<&dyn CycleDriver, crate::domain::contract::types::PortableOperatorFault>;
+}
+
+/// The graph a cycle search reads: an edge row's source column and destination column.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CycleParts {
+    /// The source column of an edge row.
+    pub(crate) source: ryo_values::domain::plan_parts::types::ColumnIndex,
+    /// The destination column of an edge row.
+    pub(crate) destination: ryo_values::domain::plan_parts::types::ColumnIndex,
 }

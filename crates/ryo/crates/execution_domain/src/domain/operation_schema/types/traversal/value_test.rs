@@ -125,16 +125,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(OperatingError::ShapeMismatch),
     },
     Case {
-        name: CaseName("computed_axis_projection_remains_unsupported"),
-        word: Word::Refuses,
+        // The schema declares the layout; the walk refuses the shape when a start reads it, after main's empty gates
+        // (execution contract_timing a_nonempty_unsupported_walk_is_not_a_no_op).
+        name: CaseName("computed_axis_projection_declares_its_layout_for_the_walk_to_refuse"),
+        word: Word::Succeeds,
         input: || over_three(axis(Direction::Descendant, &[0]), KINDS),
-        expect: Expect::Error(OperatingError::WrongOperation),
+        expect: Expect::Value(Cow::Borrowed(&[CellKind::Node])),
     },
     Case {
-        name: CaseName("computed_deep_axis_remains_unsupported"),
-        word: Word::Refuses,
+        name: CaseName("computed_deep_axis_declares_its_layout_for_the_walk_to_refuse"),
+        word: Word::Succeeds,
         input: || over_three(axis(Direction::Deep, &[]), KINDS),
-        expect: Expect::Error(OperatingError::WrongOperation),
+        expect: Expect::Value(Cow::Borrowed(&[
+            CellKind::Node,
+            CellKind::Number,
+            CellKind::Number,
+            CellKind::Node,
+        ])),
     },
     Case {
         name: CaseName("ordered_match_requires_numeric_order"),

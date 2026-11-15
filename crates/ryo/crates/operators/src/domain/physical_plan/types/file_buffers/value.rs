@@ -38,6 +38,14 @@ pub struct FileBuffers {
     pub(crate) scratch: crate::domain::contract::types::RowScratch,
     /// The places of a text kind's slots or words in their text, their capacity kept across files.
     pub(crate) places: crate::domain::contract::types::RangeScratch,
+    /// The hashes of a group's values, which a group digest folds.
+    pub(crate) hashes: crate::domain::reduction::types::GroupHashes,
+    /// The second keyed-row table a kernel reads beside `index`: an axis's domain. The same table, a second instance.
+    pub(crate) second: KeyedRows,
+    /// The work of the graph walks, its capacity kept across nodes and files.
+    pub(crate) walk: WalkScratch,
+    /// The work arrays of a cycle search, kept across files.
+    pub(crate) cycles: crate::domain::cycles::types::CycleScratch,
     /// The rows `distinct` kept so far, keyed by all their cells in `hash_index`'s table, its capacity kept across nodes.
     pub(crate) repeats: KeyedRows,
     /// Each probe index the plan shares, by its place, its capacity kept across files.
@@ -184,3 +192,62 @@ impl SharedIndex {
         self.remaining = NodeReaders(0);
     }
 }
+
+/// The work of the graph walks: what one walk met and has left to expand, and, for a seeded closure, what each walked start
+/// reached, so a start is walked once per file however many rows bind it.
+#[derive(Debug, Default)]
+pub(crate) struct WalkScratch {
+    /// The entities the walk from one start has met.
+    pub(crate) visited: hashbrown::HashTable<Value>,
+    /// The edge rows whose destinations it has left to expand.
+    pub(crate) frontier: Vec<ryo_values::domain::rows::types::RowIndex>,
+    /// What each walked start reached, ascending, run after run.
+    pub(crate) reached: Vec<Value>,
+    /// Each walked start's run of `reached`, by the hash of its partition and source.
+    pub(crate) runs: hashbrown::HashTable<ReachedRun>,
+    /// One edge row of each start, in the order the walks start from them.
+    pub(crate) starts: Vec<IndexedRow>,
+    /// The key columns a walk reads: of the rows it starts from, of the edges it keys, and of an edge's far end.
+    pub(crate) columns: WalkColumns,
+    /// The rows a seeded closure reached, each as the join's logical right row, for the join's probe; an axis's verdict
+    /// on one domain element.
+    pub(crate) rows: ryo_values::domain::rows::types::Table,
+    /// The entities of a breadth-first walk's level, or the cells of an axis's domain element.
+    pub(crate) entities: Vec<Value>,
+    /// The entities of the next level of a breadth-first walk.
+    pub(crate) next: Vec<Value>,
+    /// The row an axis's domain filter writes.
+    pub(crate) written: Vec<Value>,
+}
+
+/// The key columns a walk reads, kept with their capacity between nodes.
+#[derive(Debug, Default)]
+pub(crate) struct WalkColumns {
+    /// The columns of a start row that bind a start: a left row's for a seeded closure.
+    pub(crate) seed: Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
+    /// The columns an edge is keyed by: its partition, then its near end.
+    pub(crate) near: Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
+    /// The columns of an edge's partition and its far end, which key the edges walked next.
+    pub(crate) far: Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
+}
+
+/// One walked start's place in `WalkScratch::reached`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ReachedRun {
+    /// The hash of the start's partition and source.
+    pub(crate) hash: IndexKeyHash,
+    /// The left row that bound it first, whose cells hold its partition and source.
+    pub(crate) first: IndexedRow,
+    /// Where its run starts in `reached`.
+    pub(crate) start: ReachedPlace,
+    /// How many entities it reached.
+    pub(crate) count: ReachedCount,
+}
+
+/// A place in `WalkScratch::reached`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ReachedPlace(pub(crate) u32);
+
+/// How many entities one walked start reached.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ReachedCount(pub(crate) u32);

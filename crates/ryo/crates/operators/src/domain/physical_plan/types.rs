@@ -3,13 +3,10 @@
 
 pub mod file_buffers;
 pub mod logical_program;
+pub(crate) mod lowering;
 pub mod physical_plan;
 
-use crate::domain::aggregate::types::GroupParts;
-use crate::domain::append::types::ExtendParts;
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::equality_join::types::ProbeParts;
-use crate::domain::project::types::ProjectParts;
 use crate::domain::select::types::SelectParts;
 use crate::domain::table_texts::types::Texts;
 use ryo_language::domain::elements::types::Elements;
@@ -166,89 +163,6 @@ pub(crate) enum RowSource {
     Node(PlanNodeId),
 }
 
-/// The kernels one node is lowered to.
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) enum Lowering {
-    /// `filter`: the rows of the source the comparisons hold for, with the kept columns.
-    Filter {
-        /// What it reads.
-        source: RowSource,
-        /// The comparisons, the kept columns and the bindings.
-        select: SelectParts,
-    },
-    /// `lookup` of a constant in a relation's shared `hash_index`, then `filter` of all the select's comparisons.
-    Lookup {
-        /// The index it reads.
-        index: IndexPlace,
-        /// The hash of the constant the key equals.
-        key: TextHash,
-        /// The comparisons, the kept columns and the bindings.
-        select: SelectParts,
-    },
-    /// `project`: the columns in order, repeated rows dropped when asked.
-    Project {
-        /// What it reads.
-        source: RowSource,
-        /// The columns and whether a repeated row is kept once.
-        project: ProjectParts,
-    },
-    /// `extend`: each row followed by the values, resolved once per file.
-    Extend {
-        /// What it reads.
-        source: RowSource,
-        /// The values and what their parameters are bound to.
-        extension: ExtendParts,
-    },
-    /// `hash_index` of the right rows, then `probe` of it with each left row.
-    Probe {
-        /// The rows probed with, in their order.
-        left: RowSource,
-        /// The rows indexed.
-        right: RowSource,
-        /// What the probe keeps.
-        probe: ProbeParts,
-        /// The index it probes: its own, or the one every probe of its right rows and key shares.
-        index: ProbeIndex,
-    },
-    /// `distinct` over the rows of each source in turn: a row the first time only.
-    Distinct {
-        /// What it reads, in order.
-        sources: [RowSource; 2],
-    },
-    /// `group`: the rows keyed through `hash_index`'s table, one row per group in the order of its first row, with its count.
-    Group {
-        /// What it reads.
-        source: RowSource,
-        /// The keys and what is counted.
-        group: GroupParts,
-    },
-    /// `text_map`: each row of the source through one text kind's per-row meaning, giving none, one or many rows.
-    TextMap {
-        /// What it reads.
-        source: RowSource,
-        /// The kind's parts.
-        map: RowMap,
-    },
-    /// `ordered_match`: both sources ordered by key then order, each left row paired with the earliest later right row.
-    OrderedMatch {
-        /// The left rows.
-        left: RowSource,
-        /// The right rows.
-        right: RowSource,
-        /// The keys, the orders and the output.
-        ordered: crate::domain::ordered_match::types::OrderedParts,
-    },
-    /// `render`: one batch of renderings for every row of the source, refused whole on one unsupported answer.
-    Render {
-        /// What it reads.
-        source: RowSource,
-        /// The node column and the role.
-        render: crate::domain::render_batch::types::RenderParts,
-    },
-    /// No kernel at this stage: the plan's `unserved` names the stage that lowers it.
-    Unlowered,
-}
-
 /// The place of a shared index among a plan's indexes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct IndexPlace(pub(crate) usize);
@@ -256,17 +170,6 @@ pub(crate) struct IndexPlace(pub(crate) usize);
 /// How many node readers a node has, or has left in the open file.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct NodeReaders(pub(crate) u32);
-
-/// One node of the physical plan: its kernels and who reads its rows.
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct PhysicalNode {
-    /// Its kernels.
-    pub(crate) lowering: Lowering,
-    /// How many nodes read its rows.
-    pub(crate) readers: NodeReaders,
-    /// Whether a consumer that reads no node keeps it past its readers.
-    pub(crate) retained: Retention,
-}
 
 /// Whether a node's rows outlive its node readers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

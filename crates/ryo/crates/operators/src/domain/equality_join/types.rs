@@ -159,6 +159,46 @@ pub(crate) enum ProbeMode {
     Semi,
     /// A left row with no right row of its key.
     Anti,
+    /// A left row with no right row of its key strictly past it in an order: `ordered_existence`'s strategy for an antijoin
+    /// of a self join, deciding by each key's extremum instead of pairing rows.
+    Ordered(OrderedProbe),
+}
+
+/// Which end of an order an ordered probe keeps. `pub` until F3 commit 4: the engine's runtime names it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::equality_join::types::PartitionExtremum;
+///
+/// assert_ne!(PartitionExtremum::Maximum, PartitionExtremum::Minimum);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PartitionExtremum {
+    /// The greatest: a left row is kept when no right row of its key orders after it.
+    Maximum,
+    /// The least: a left row is kept when no right row of its key orders before it.
+    Minimum,
+}
+
+/// The order an ordered probe compares by: a numeric column of each side, and the end it keeps.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct OrderedProbe {
+    /// The order column of a left row.
+    pub(crate) left_order: ColumnIndex,
+    /// The order column of a right row.
+    pub(crate) right_order: ColumnIndex,
+    /// The end it keeps.
+    pub(crate) extremum: PartitionExtremum,
+}
+
+/// The join a seeded closure answers: the left rows' probe of the reached rows, as the logical join over the closure.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct SeededJoin {
+    /// The probe of the reached rows by the left rows: its keys, its output and its remaining comparisons.
+    pub(crate) probe: ProbeParts,
+    /// The logical right row the probe reads, over the partition's keys, then the source, then the vertex reached.
+    pub(crate) columns: Vec<ColumnIndex>,
 }
 
 /// How a semi or anti probe decides that a key has a right row.

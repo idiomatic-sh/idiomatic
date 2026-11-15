@@ -9,8 +9,8 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::ProbeMode;
 use crate::domain::physical_plan::types::CellStart;
 #[cfg(test)]
-use crate::domain::physical_plan::types::Lowering;
 use crate::domain::physical_plan::types::file_buffers::value::KeyedRows;
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, RepeatedRows};
 use ryo_values::domain::rows::types::Table;
@@ -34,6 +34,11 @@ impl KernelsItem for ProjectItem {
                 | Lowering::TextMap { .. }
                 | Lowering::OrderedMatch { .. }
                 | Lowering::Render { .. }
+                | Lowering::Reach { .. }
+                | Lowering::SeededReach { .. }
+                | Lowering::Axis { .. }
+                | Lowering::OrderedWalk { .. }
+                | Lowering::Components { .. }
                 | Lowering::Unlowered => false,
             }
         };

@@ -1,23 +1,27 @@
 //! The probe indexes a plan shares: the planning step that shares one `hash_index` between the probes of one right side and
 //! key, decided once as the plan is built; and each shared index's life in a file, from its first probe to its last.
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::equality_join::types::ProbeKey;
+use crate::domain::equality_join::types::{ProbeKey, ProbeMode};
 use crate::domain::physical_plan::collections::kernels::probe::item::{IndexBuild, ProbeScratch};
 use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, SharedIndex};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::{
-    IndexKey, IndexPlace, KeyedIndex, Lowering, NodeReaders, PhysicalNode, PlanNodeId, ProbeIndex,
+    IndexKey, IndexPlace, KeyedIndex, NodeReaders, PlanNodeId, ProbeIndex,
 };
 
 /// Shares one `hash_index` between the probes of one right source and key: a planning step, not a rewrite, since an unshared
-/// plan answers the same rows. A probe that filters its right rows indexes rows of its own and keeps its own index, as does a
-/// probe alone on its right source and key.
+/// plan answers the same rows. A probe that filters its right rows indexes rows of its own and keeps its own index, as does an
+/// ordered probe, which turns each key's first row into its extremum, and a probe alone on its right source and key. Run after
+/// the rewrites, which change a probe's right rows, key and mode.
 pub(crate) fn shared_indexes(nodes: &mut [PhysicalNode], indexes: &mut Vec<KeyedIndex>) {
     let mut keyed: Vec<KeyedIndex> = Vec::new();
     for (node, id) in nodes.iter().zip((0..).map(PlanNodeId)) {
         if let Lowering::Probe { right, probe, .. } = &node.lowering
             && let ProbeKey::Columns { right: on, .. } = &probe.key
             && probe.filter.comparisons.is_empty()
+            && !matches!(probe.mode, ProbeMode::Ordered(_))
         {
             let key = IndexKey::Cells(on.clone());
             match keyed

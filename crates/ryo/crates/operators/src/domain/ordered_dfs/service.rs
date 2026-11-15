@@ -75,7 +75,8 @@ pub(crate) fn evaluate(
             }
             joined.clear();
             joined.extend_from_slice(prefix);
-            for column in shape.edge_columns {
+            let [source, destination, _, edge] = shape.edge_columns;
+            for column in [source, destination, edge] {
                 joined.push(
                     ryo_values::domain::rows::service::column_in(edge_row, column)
                         .copied()
@@ -105,4 +106,18 @@ pub(crate) fn evaluate(
         }
     }
     Ok(())
+}
+
+/// The one lowering of an ordered depth-first visit: its root and edge columns.
+pub(crate) fn lower(shape: DfsShape<'_>) -> super::types::DfsParts {
+    let [source, destination, order, edge] = shape.edge_columns;
+    super::types::DfsParts {
+        root: shape.root,
+        source,
+        destination,
+        order,
+        edge,
+        root_keys: shape.root_keys.to_vec(),
+        edge_keys: shape.edge_keys.to_vec(),
+    }
 }

@@ -1,4 +1,4 @@
-//! The runner's own types: what one node's kernels read.
+//! The runner's own data: the rows a node's kernels read, taken from the buffers while they read them.
 use crate::domain::physical_plan::types::{InputRows, PlanNodeId, TakenRows, TreeRead};
 use ryo_relations::domain::relations::types::ColumnsView;
 
@@ -9,6 +9,8 @@ pub(crate) struct KernelInputs<'a> {
     pub(crate) input: InputRows<'a>,
     /// The second input's rows, when the node reads two.
     pub(crate) other: Option<InputRows<'a>>,
+    /// The third input's rows, when the node reads three: an axis's domain.
+    pub(crate) third: Option<InputRows<'a>>,
 }
 
 /// The rows a node's kernel reads: a relation's, lent in place, or an earlier node's, taken while it reads them.

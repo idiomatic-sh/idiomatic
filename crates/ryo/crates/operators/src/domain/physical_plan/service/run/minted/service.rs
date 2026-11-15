@@ -68,6 +68,11 @@ pub(crate) fn minted(
         | Lowering::Distinct { .. }
         | Lowering::Group { .. }
         | Lowering::OrderedMatch { .. }
+        | Lowering::Reach { .. }
+        | Lowering::SeededReach { .. }
+        | Lowering::Axis { .. }
+        | Lowering::OrderedWalk { .. }
+        | Lowering::Components { .. }
         | Lowering::Unlowered => Err(PortableOperatorFault::WrongOperation),
     };
     returned(plan, buffers, input, NodeReaders(1));

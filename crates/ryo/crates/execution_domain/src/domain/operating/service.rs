@@ -31,6 +31,7 @@ pub fn portable_fault(
             ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: index.0 }.into()
         }
         PortableOperatorFault::ShapeMismatch => OperatingError::ShapeMismatch,
+        PortableOperatorFault::DuplicateOrder => OperatingError::DuplicateDfsOrder,
         PortableOperatorFault::InvalidSpanBounds => OperatingError::InvalidSpanBounds,
         PortableOperatorFault::InvalidSpan => OperatingError::InvalidSpan,
         PortableOperatorFault::InvalidSourceMatchSpan => OperatingError::InvalidSourceMatchSpan,
