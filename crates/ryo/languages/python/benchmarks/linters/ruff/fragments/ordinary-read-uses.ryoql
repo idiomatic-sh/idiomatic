@@ -1,9 +1,13 @@
 import lookup_events from "python/ruff/lookup-read-events";
 input reads: relation<reference: node, file: file>;
 output relation<reference: node, binding: node, file: file>;
-let read_events = select occurrence as reference, scope as initial_scope, ordinal as point, file from "binding-event" where kind = "read";
-let read_contexts = select l.reference as context, r.initial_scope as initial_scope, r.point as point, l.file as file from reads as l join read_events as r on l.reference = r.reference and l.file = r.file;
-let staged_contexts = extend(from=read_contexts, values={stage: 2});
+let reference_events = select occurrence as reference, scope as initial_scope, ordinal as point, kind, file from "binding-event" where kind = "read" or kind = "delete";
+let reference_contexts = select l.reference as context, r.initial_scope as initial_scope, r.point as point, r.kind as kind, l.file as file from reads as l join reference_events as r on l.reference = r.reference and l.file = r.file;
+let read_contexts = select context, initial_scope, point, file from reference_contexts where kind = "read";
+let delete_contexts = select context, initial_scope, point, file from reference_contexts where kind = "delete";
+let read_stages = extend(from=read_contexts, values={stage: 2});
+let delete_stages = extend(from=delete_contexts, values={stage: 3});
+let staged_contexts = union(left=read_stages, right=delete_stages);
 let contexts = select context, initial_scope, point, point as header_point, stage, file from staged_contexts;
 let expressions = select reference as id, file from reads;
 let lookups = lookup_events(ordered_contexts=contexts, expressions=expressions);

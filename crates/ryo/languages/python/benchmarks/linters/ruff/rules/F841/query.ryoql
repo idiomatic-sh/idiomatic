@@ -61,7 +61,7 @@ let embedded_root_reads = select l.id as reference, l.file as file from embedded
 let embedded_reads = union(left=embedded_descendant_reads, right=embedded_root_reads);
 let all_read_contexts = select reference as id, name, scope, phase, file from "binding-read";
 let deferred_resolutions = deferred_events(missing=all_read_contexts);
-let read_ids = select occurrence as reference, file from "binding-event" where kind = "read";
+let read_ids = select occurrence as reference, file from "binding-event" where kind = "read" or kind = "delete";
 let lexical_reads = antijoin(left=read_ids, right=deferred_resolutions, left-on=["reference", "file"], right-on=["reference", "file"]);
 let ordinary_binding_uses0 = ordinary_uses_of(reads=lexical_reads);
 let nonlocal_reference_ids = select occurrence as reference, file from "binding-event" where kind = "nonlocal";

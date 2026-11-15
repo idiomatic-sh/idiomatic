@@ -113,7 +113,7 @@ let replacement_edges = select earlier, later from local_replacements;
 let inherited = closure(edges=replacement_edges,source="earlier",destination="later");
 let all_reads = select reference as id, name, scope, phase, file from "binding-read";
 let deferred_resolutions = deferred_events(missing=all_reads);
-let read_ids = select occurrence as reference, file from events where kind = "read";
+let read_ids = select occurrence as reference, file from events where kind = "read" or kind = "delete";
 let lexical_reads = antijoin(left=read_ids, right=deferred_resolutions, left-on=["reference", "file"], right-on=["reference", "file"]);
 let ordinary_uses = ordinary_uses_of(reads=lexical_reads);
 let ordinary_direct_uses = select binding from ordinary_uses;
