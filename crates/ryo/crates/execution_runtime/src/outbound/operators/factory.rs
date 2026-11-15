@@ -11,7 +11,7 @@ use crate::outbound::operators::interface::OperatorsPort;
 /// use ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl;
 /// let matching = || std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case());
 /// let _port = ryo_execution_runtime::outbound::operators::factory::use_case(
-///     ///     PlanUseCaseImpl::new(),
+///     PlanUseCaseImpl::new(),
 ///     RunUseCaseImpl::new(matching()),
 /// );
 /// ```
