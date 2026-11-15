@@ -147,15 +147,14 @@ fn ordered_over_a_select() -> Vec<Step> {
                 *input = select.1;
             }
         }
-        match &mut step.operation {
-            Operation::Join { left, right, .. } | Operation::Antijoin { left, right, .. } => {
-                for side in [left, right] {
-                    if *side == edges.0 {
-                        *side = select.0;
-                    }
+        if let Operation::Join { left, right, .. } | Operation::Antijoin { left, right, .. } =
+            &mut step.operation
+        {
+            for side in [left, right] {
+                if *side == edges.0 {
+                    *side = select.0;
                 }
             }
-            _ => {}
         }
         steps.push(step);
     }
