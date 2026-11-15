@@ -5,6 +5,7 @@ use super::given::Given;
 use super::given::SOURCES;
 use super::given::request;
 use super::given::violations;
+use super::lifecycle::a_rule_turned_on_for_a_kept_file_reads_it_again_with_its_parts;
 use super::lifecycle::counted_twice;
 use super::lifecycle::crossed_after;
 use super::lifecycle::deleted;
@@ -75,6 +76,8 @@ pub(crate) enum Scenario {
     EditedBesideAnExcludedFile,
     /// Lists a file before one used again whose relation is read in part: the part stays that file's, as a cold run keeps it.
     PartialOfAReusedFileAfterAFileIsListedBeforeIt,
+    /// Turns a rule on for a kept, unchanged file: the file is read again, with the rule's parts, as a cold run reads it.
+    RuleTurnedOnForAKeptFile,
     /// Two runs naming different rules, one after the other twice over plans one session shares, as concurrent `tm validate` calls do.
     InterleavedRuns,
     /// Lints with the host's relation, counting how many times the language was asked to read the manifests.
@@ -211,6 +214,9 @@ pub(crate) fn scenario(scenario: Scenario) -> Result<(usize, usize), LintError> 
         Scenario::EditedBesideAnExcludedFile => edited_beside_an_excluded_file(),
         Scenario::PartialOfAReusedFileAfterAFileIsListedBeforeIt => {
             partial_of_a_reused_file_after_a_file_is_listed_before_it()
+        }
+        Scenario::RuleTurnedOnForAKeptFile => {
+            a_rule_turned_on_for_a_kept_file_reads_it_again_with_its_parts()
         }
         Scenario::InterleavedRuns => interleaved_runs(),
         Scenario::ManyRuns => many_runs(),

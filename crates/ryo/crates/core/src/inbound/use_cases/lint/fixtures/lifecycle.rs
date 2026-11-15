@@ -8,6 +8,7 @@ use super::given::World;
 use super::given::request;
 use super::given::violations;
 use super::worlds::again;
+use super::worlds::compiled_lint;
 use super::worlds::lint;
 use super::worlds::read_and_unread;
 use super::worlds::world;
@@ -261,4 +262,74 @@ pub(crate) fn counted_twice() -> Result<(usize, usize), Failure> {
     let first = fed(counted.lint(first_asked)?);
     let second = fed(counted.lint(second_asked)?);
     Ok((first, second))
+}
+
+/// Lints [`a.rs`, `b.rs`] with two rules over one store: `files` governs both files and reads `filesystem.file`; `exec` governs
+/// `a.rs` alone and reads `filesystem.executable`, which every file of the fake corpus has read in part (its permission is
+/// unknown). Then the configuration turns `exec` on for `b.rs` (its include widens to every file) and the lint runs again over
+/// the same store, `b.rs` unchanged. A file's run asks its sources only for the relations of the rules that run on it, so the
+/// first run's record of `b.rs` holds no part read for `exec`; the config change must not replay that record. Answers 1 when
+/// the warm run reads `b.rs` again and answers what a cold run of the new configuration answers, `exec`'s part of `b.rs`
+/// among it.
+pub(crate) fn a_rule_turned_on_for_a_kept_file_reads_it_again_with_its_parts()
+-> Result<(usize, usize), LintError> {
+    const FILES: &str = "let files = capture(from=\"filesystem.file\", path=\"path\", pattern=\"{name}.rs\", captures=[\"name\"]);\nemit files subject \"path\" key(\"path\");";
+    const EXEC: &str = "let exec = capture(from=\"filesystem.executable\", path=\"path\", pattern=\"{name}.rs\", captures=[\"name\"]);\nemit exec subject \"path\" key(\"path\");";
+    let given = |store: Arc<LintStoreFake>| Given {
+        files: vec![("a.rs", "fn a() {}"), ("b.rs", "fn b() {}")],
+        rules: vec![FILES, EXEC],
+        ids: vec!["files", "exec"],
+        include: vec!["**"],
+        store,
+        ..violations()
+    };
+    // The rule `exec`, governing `a.rs` alone or, after the change, every file.
+    let asked = |given: &Given, exec: &str| {
+        let mut asked = request(given);
+        if let Some(rule) = asked.rules.get_mut(1) {
+            rule.include = vec![ryo_values::domain::files::types::Glob(exec.into())];
+        }
+        asked
+    };
+    let linted = |given: Given, exec: &str| -> Result<(String, String, usize), LintError> {
+        let request = asked(&given, exec);
+        let (world, report) = compiled_lint(given, request)?;
+        let rows = std::mem::take(
+            &mut world
+                .collected
+                .0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .rows,
+        );
+        Ok((
+            format!("{rows:?}"),
+            format!("{:?}", report.unknowns),
+            world.language.parses.load(Ordering::SeqCst),
+        ))
+    };
+    let store = Arc::new(LintStoreFake::default());
+    let before = linted(given(Arc::clone(&store)), "a.rs")?;
+    assert!(
+        !before.1.contains("b.rs"),
+        "before the change no rule reading the executable bit governs `b.rs`: {}",
+        before.1
+    );
+    let changed = linted(given(Arc::clone(&store)), "**")?;
+    let cold = linted(given(Arc::new(LintStoreFake::default())), "**")?;
+    assert!(
+        cold.1.contains("exec") && cold.1.contains("b.rs"),
+        "a cold run of the new configuration names `exec`'s part of `b.rs`: the case has a part to place: {}",
+        cold.1
+    );
+    assert_eq!(
+        changed.2, 2,
+        "the config change reads both files again: a kept record of `b.rs` is not replayed"
+    );
+    assert_eq!(
+        (&changed.0, &changed.1),
+        (&cold.0, &cold.1),
+        "the run after the change answers what a cold run of the new configuration answers"
+    );
+    Ok((usize::from(changed.1 == cold.1), 0))
 }
