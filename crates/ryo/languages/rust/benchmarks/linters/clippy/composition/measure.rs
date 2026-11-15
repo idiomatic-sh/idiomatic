@@ -61,7 +61,7 @@ pub(super) fn measure(
         cache,
         collector_path,
     } = paths(args, suite_source)?;
-    let mut tool = suite_source.profile(ArtifactPath(&directory()))?;
+    let tool = suite_source.profile(ArtifactPath(&directory()))?;
     let declared_inventory = tool.defaults.clone();
     let audit = ryo_benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(
         Arc::clone(&suite_source),
@@ -93,36 +93,36 @@ pub(super) fn measure(
     let tally = RuleTally::of(&tool, authored_total);
     let project_context_mode = tool.project_context_mode;
     let project_search_roots = tool.project_search_roots.clone();
-    tool.defaults = audit.authored().to_vec();
     let declared_rule_context = tool.rule_context.clone();
+    let staged = stage(suite_source, &cache, audit.authored())?;
     let configured_cohort =
         ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
-            tool.defaults.clone(),
+            staged.tool.defaults.clone(),
         );
-    let StagedSuite {
-        scratch: selected_scratch,
-        profile: selected_profile,
-        workload: frozen_workload,
-    } = stage(suite_source, &cache, audit.authored())?;
-    let expected =
-        commands::reference(executable.clone(), tool.clone(), targets(&selected_scratch))
-            .version_line(&tool);
+    let expected = commands::reference(executable.clone(), tool.clone(), targets(&staged.scratch))
+        .version_line(&tool);
     suite_source.verify_tool(ArtifactPath(&executable), &tool, &expected)?;
-    let selected_rules = selected_profile.join(constants::RULES_DIRECTORY);
-    let candidate_executable = selected_scratch.join(constants::CANDIDATE_EXECUTABLE);
+    let candidate_executable = staged.scratch.join(constants::CANDIDATE_EXECUTABLE);
     suite_source.copy_file(
         ArtifactPath(&std::env::current_exe()?),
         ArtifactPath(&candidate_executable),
     )?;
-    let candidate = candidate_linter(&tool, candidate_executable.clone(), selected_rules.clone());
+    let candidate = candidate_linter(&staged, candidate_executable.clone());
+    let StagedSuite {
+        scratch: selected_scratch,
+        profile: selected_profile,
+        workload: frozen_workload,
+        tool: staged_tool,
+    } = staged;
+    let selected_rules = selected_profile.join(constants::RULES_DIRECTORY);
     let discovery: Arc<dyn DiscoveryPort> = Arc::new(commands::reference(
         executable.clone(),
-        tool.clone(),
+        staged_tool.clone(),
         targets(&selected_scratch),
     ));
     let reference = Arc::new(commands::reference(
         executable.clone(),
-        tool,
+        staged_tool,
         targets(&selected_scratch),
     ));
     // Composition is not DRY: this port wiring repeats in each linter's composition by the owner's rule; only pure values are shared.

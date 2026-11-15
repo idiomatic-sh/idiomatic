@@ -94,6 +94,7 @@ pub fn sealed_request() -> WorkerRequest {
                     ArtifactDigest("fixture".into()),
                 )]),
                 missing: Vec::new(),
+                links: std::collections::BTreeMap::new(),
             },
         ),
         root: boundary,

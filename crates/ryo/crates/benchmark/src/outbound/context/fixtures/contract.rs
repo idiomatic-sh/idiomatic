@@ -1,5 +1,5 @@
 //! What every `context` adapter must pass.
-use super::data::{context, missing, present, sources};
+use super::data::{ALIAS, LINK_VARIANTS, context, linked, missing, present, sources};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::context::interface::ContextPort;
 use crate::outbound::context::types::CorpusFiles;
@@ -26,6 +26,11 @@ pub enum Operation {
     EscapingDependency,
     /// A receipt is assembled from the manifest alone, after its snapshot is gone.
     ReceiptReadsNoFile,
+    /// The seal binds each sealed link's path and exact target text, and every link: no two of a manifest without
+    /// links, with one, and with each of its variants share a seal.
+    FingerprintBindsLinks,
+    /// A dependency observed at a sealed link, present or missing, is refused.
+    DependencyAtLinkRefused,
 }
 
 /// What a contract row is refused with.
@@ -87,6 +92,18 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Operation::ReceiptReadsNoFile,
         expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("the seal binds each link's path, exact target text and count"),
+        word: Word::Succeeds,
+        input: || Operation::FingerprintBindsLinks,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a dependency at a sealed link is refused"),
+        word: Word::Refuses,
+        input: || Operation::DependencyAtLinkRefused,
+        expect: Expect::Error(Refusal::Invalid),
     },
     Case {
         name: CaseName("an auxiliary path outside the snapshot is refused"),
@@ -193,6 +210,34 @@ fn observe(adapter: &impl ContextPort, operation: Operation) -> Result<(), Error
             adapter
                 .receipt(&manifest, &root, vec![missing("../../escape")])
                 .map(|_| ())
+        }
+        Operation::FingerprintBindsLinks => {
+            let manifest = materialized("pkg/__init__.py")?;
+            let seals: Vec<_> = [linked(&manifest, &[]), linked(&manifest, &[ALIAS])]
+                .into_iter()
+                .chain(LINK_VARIANTS.iter().map(|links| linked(&manifest, links)))
+                .map(|variant| adapter.fingerprint(&variant))
+                .collect();
+            let distinct: std::collections::BTreeSet<_> =
+                seals.iter().map(|seal| &seal.0).collect();
+            if distinct.len() == seals.len() {
+                Ok(())
+            } else {
+                Err(Error::Invalid(
+                    "the seal ignores a link's path, target text or count".into(),
+                ))
+            }
+        }
+        Operation::DependencyAtLinkRefused => {
+            let manifest = linked(&materialized("pkg/__init__.py")?, &[ALIAS]);
+            let root = manifest.boundary.join("pkg");
+            // Both observations must be refused: a present one that passes makes the row fail.
+            match adapter.receipt(&manifest, &root, vec![present("alias.py")]) {
+                Ok(_) => Ok(()),
+                Err(_refused) => adapter
+                    .receipt(&manifest, &root, vec![missing("alias.py")])
+                    .map(|_| ()),
+            }
         }
         Operation::ReceiptReadsNoFile => {
             let manifest = materialized("pkg/__init__.py")?;

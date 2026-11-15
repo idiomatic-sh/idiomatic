@@ -34,21 +34,16 @@ pub(super) fn parity(
     };
     let clippy = clippy.canonicalize()?;
     let output = suite_source.ensure_directory(ArtifactPath(&output))?;
-    let mut tool = suite_source.profile(ArtifactPath(&directory()))?;
+    let tool = suite_source.profile(ArtifactPath(&directory()))?;
     let audit = ryo_benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(
         Arc::clone(suite_source),
     )
     .audit(&directory(), &tool)?;
-    tool.defaults = audit.authored().to_vec();
-    let StagedSuite {
-        scratch,
-        profile,
-        workload,
-    } = stage(suite_source, &output, audit.authored())?;
-    let expected =
-        commands::reference(clippy.clone(), tool.clone(), targets(&scratch)).version_line(&tool);
+    let staged = stage(suite_source, &output, audit.authored())?;
+    let expected = commands::reference(clippy.clone(), tool.clone(), targets(&staged.scratch))
+        .version_line(&tool);
     suite_source.verify_tool(ArtifactPath(&clippy), &tool, &expected)?;
-    let candidate_executable = scratch.join(constants::CANDIDATE_EXECUTABLE);
+    let candidate_executable = staged.scratch.join(constants::CANDIDATE_EXECUTABLE);
     suite_source.copy_file(
         ArtifactPath(&std::env::current_exe()?),
         ArtifactPath(&candidate_executable),
@@ -56,14 +51,10 @@ pub(super) fn parity(
     let compare = CompareCorpusUseCaseImpl::new(
         Arc::new(commands::reference(
             clippy.clone(),
-            tool.clone(),
-            targets(&scratch),
+            staged.tool.clone(),
+            targets(&staged.scratch),
         )),
-        candidate_linter(
-            &tool,
-            candidate_executable,
-            profile.join(constants::RULES_DIRECTORY),
-        ),
+        candidate_linter(&staged, candidate_executable),
         Arc::new(ryo_benchmark::outbound::execution::factory::process()),
         Arc::new(ryo_benchmark::outbound::context::factory::local()),
         Arc::clone(suite_source),
@@ -71,11 +62,20 @@ pub(super) fn parity(
             Box::new(std::io::stdout()),
             suite_source.create_text(ArtifactPath(&output.join(constants::PER_RULE)))?,
         )),
-        Arc::new(commands::reference(clippy, tool.clone(), targets(&scratch))),
+        Arc::new(commands::reference(
+            clippy,
+            staged.tool.clone(),
+            targets(&staged.scratch),
+        )),
         Arc::new(ryo_benchmark::outbound::workspace::factory::git(
             output.join(constants::PROJECTS_DIRECTORY),
         )),
     );
+    let StagedSuite {
+        workload,
+        tool: staged_tool,
+        ..
+    } = staged;
     let suite = suite_source.projects(ArtifactPath(&workload))?;
     CorpusShape {
         language: &constants::RUST.into(),
@@ -89,7 +89,7 @@ pub(super) fn parity(
             corpus: Corpus::Projects(ProjectsParity {
                 projects: &suite.projects,
                 suffixes: &constants::SOURCE_SUFFIXES.map(SourceExtension),
-                cohort: &CohortSelection::Explicit(tool.defaults.clone()),
+                cohort: &CohortSelection::Explicit(staged_tool.defaults.clone()),
                 rule_context: &tool.rule_context,
                 search_roots: &tool.project_search_roots,
                 context_mode: tool.project_context_mode,
@@ -97,7 +97,7 @@ pub(super) fn parity(
                 accepted: &directory().join(constants::EVIDENCE_DIRECTORY),
                 accepted_suffix: AcceptedSuffix(constants::ACCEPTED_SUFFIX),
             }),
-            configured: &tool.defaults,
+            configured: &staged_tool.defaults,
             reference: ContestantName(constants::REFERENCE_NAME),
             syntax: &syntax,
         },
