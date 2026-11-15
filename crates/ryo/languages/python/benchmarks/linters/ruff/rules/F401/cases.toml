@@ -525,3 +525,21 @@ name="nested-class-binding-is-not-visible-to-comprehension"
 comparison="full"
 files={"case.py"="import os\nclass C:\n    import os\n    def f(self):\n        return [os for _ in y]\n"}
 expected=[]
+
+[[cases]]
+name="nested-function-reads-later-branch-rebinding"
+comparison="full"
+files={"case.py"="import os\ndef f(c):\n    def g():\n        return os\n    if c:\n        import os\n    else:\n        pass\n    return g\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-lambda-reads-later-branch-rebinding"
+comparison="full"
+files={"case.py"="import os\ndef f(c):\n    g = lambda: os\n    if c:\n        import os\n    else:\n        pass\n    return g\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-lambda-in-comprehension-reads-later-rebinding"
+comparison="full"
+files={"case.py"="import os\ndef f(c):\n    return [lambda: os for _ in c]\n    import os\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]

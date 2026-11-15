@@ -41,7 +41,7 @@ let nearest = antijoin(left=last_binds, right=farther_binds, left-on=["reference
 let provided = select l.reference as reference, r.home as provided_home, l.file as file from uses as l join home_binds1 as r on l.binding = r.binding and l.file = r.file;
 let nearest_binds = select reference, binding, home, file from nearest where kind = "bind";
 let nearest_homes = select l.reference as reference, l.binding as binding, l.home as home, r.provided_home as provided_home, l.file as file from nearest_binds as l join provided as r on l.reference = r.reference and l.file = r.file;
-let overriding = select l.reference as reference, l.binding as binding, l.file as file from nearest_homes as l join ancestors as r on l.home = r.origin and l.provided_home = r.destination and l.file = r.file;
+let overriding = select l.reference as reference, l.binding as binding, l.file as file from nearest_homes as l join ancestors as r on l.home = r.origin and l.provided_home = r.destination and l.file = r.file where l.home != l.provided_home;
 let overridden = select reference, file from overriding;
 let unprovided = antijoin(left=nearest_binds, right=uses, left-on=["reference", "file"], right-on=["reference", "file"]);
 let fresh = select reference, binding, file from unprovided;
