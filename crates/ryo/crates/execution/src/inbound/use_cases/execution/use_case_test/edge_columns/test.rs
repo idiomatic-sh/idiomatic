@@ -126,7 +126,7 @@ fn an_edge_field_kept_through_a_parent_lookup_is_the_edge_field(
     })];
     let request = fixtures::requests::execution().execution(&prepared, &corpus, None.into());
     let (elements, mut symbols, pat) = tree();
-    let facts = fixtures::TableFacts::new(&[]);
+    let mut facts = fixtures::TableFacts::new(&[]);
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
         observations: ObservationDemand::NotRequired,
@@ -141,7 +141,7 @@ fn an_edge_field_kept_through_a_parent_lookup_is_the_edge_field(
             semantic: None,
         },
         &mut symbols,
-        &facts,
+        &mut facts,
     )
     .rules;
     request.finish();
