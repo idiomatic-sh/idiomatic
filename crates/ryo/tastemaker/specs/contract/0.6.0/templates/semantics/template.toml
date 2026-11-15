@@ -337,6 +337,7 @@ then.findings = [
   { rule = 'semantics#template', path = 'semantics.rs' },
   { rule = 'semantics#template', path = 'semantics.rs' },
   { rule = 'semantics#template', path = 'semantics.rs' },
+  { rule = 'semantics#template', path = 'semantics.rs' },
 ]
 
 [[scenarios]]

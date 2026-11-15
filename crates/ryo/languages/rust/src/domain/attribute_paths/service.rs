@@ -4,7 +4,7 @@
 
 use ryo::languages::{self, Position, Tree};
 
-use super::types::{WrittenPath, WrittenPaths};
+use super::types::{PathExtent, Segmenthood, Significance};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{end, is_inside, is_token, kind, last_descendant, parent, start};
 use crate::domain::syntax::types::{Containment, Kind, Leaf};
@@ -13,54 +13,41 @@ use crate::domain::tokens::types::Token;
 /// The paths the element at `at` writes when it is part of an attribute: the path of a meta (the outermost path node, not one of
 /// its qualifiers), or every path written among the tokens directly in a token tree, a run of segments joined by `::` with an
 /// optional leading `::`. Any other element writes none.
-#[must_use]
-pub(crate) fn written_paths<'a>(tree: &'a Tree<'a>, at: Position) -> WrittenPaths<'a> {
-    let none = WrittenPaths { tree, single: None, cursor: None, end: at };
-    if is_inside(tree, at, Kind::Node(Node::Attr)) != Containment::Inside {
-        return none;
-    }
-    match kind(tree, at) {
-        Kind::Node(Node::Path) if kind(tree, parent(tree, at)) != Kind::Node(Node::Path) => WrittenPaths {
-            single: Some(WrittenPath { first: at, last: at }),
-            ..none
-        },
-        Kind::Node(Node::TokenTree) => WrittenPaths {
-            cursor: languages::children(tree.elements, at).next(),
-            end: last_descendant(tree, at),
-            ..none
-        },
-        _ => none,
-    }
-}
-
-impl Iterator for WrittenPaths<'_> {
-    type Item = WrittenPath;
-
-    fn next(&mut self) -> Option<WrittenPath> {
-        if let Some(single) = self.single.take() {
-            return Some(single);
+pub(crate) fn written_paths<'a>(tree: &'a Tree<'a>, at: Position) -> impl Iterator<Item = PathExtent> + 'a {
+    let inside = is_inside(tree, at, Kind::Node(Node::Attr)) == Containment::Inside;
+    let mut single = (inside
+        && kind(tree, at) == Kind::Node(Node::Path)
+        && kind(tree, parent(tree, at)) != Kind::Node(Node::Path))
+    .then_some(PathExtent { first: at, last: at });
+    let mut cursor = (inside && kind(tree, at) == Kind::Node(Node::TokenTree))
+        .then(|| languages::children(tree.elements, at).next())
+        .flatten();
+    let end = last_descendant(tree, at);
+    std::iter::from_fn(move || {
+        if let Some(path) = single.take() {
+            return Some(path);
         }
         loop {
-            let first = significant(self.tree, self.cursor, self.end)?;
-            match path_from(self.tree, first, self.end) {
+            let first = significant(tree, cursor, end)?;
+            match path_from(tree, first, end) {
                 Some(path) => {
-                    self.cursor = next_sibling(self.tree, path.last, self.end);
+                    cursor = next_sibling(tree, path.last, end);
                     return Some(path);
                 }
-                None => self.cursor = next_sibling(self.tree, first, self.end),
+                None => cursor = next_sibling(tree, first, end),
             }
         }
-    }
+    })
 }
 
 /// The name a path is written as: the text of each of its tokens but whitespace and comments, in order. A segment keeps the `r#`
 /// it is written with; a token tree's `::`, two `:` tokens, reads `::`.
 #[must_use]
-pub(crate) fn path_name(tree: &Tree<'_>, symbols: &mut languages::Symbols, path: WrittenPath) -> languages::Symbol {
+pub(crate) fn path_name(tree: &Tree<'_>, symbols: &mut languages::Symbols, path: PathExtent) -> languages::Symbol {
     let begun = languages::begin_name(symbols);
     for each in path.first.0..=last_descendant(tree, path.last).0 {
         let each = Position(each);
-        if is_token(tree, each) == Leaf::Token && !is_trivia(tree, each) {
+        if is_token(tree, each) == Leaf::Token && significance(tree, each) == Significance::Read {
             languages::push_span(symbols, tree.source, start(tree, each), end(tree, each));
         }
     }
@@ -69,23 +56,23 @@ pub(crate) fn path_name(tree: &Tree<'_>, symbols: &mut languages::Symbols, path:
 
 /// The path that starts at `first` among a token tree's children, when one does: an optional `::`, a segment, then `::` and a
 /// segment as long as they follow.
-fn path_from(tree: &Tree<'_>, first: Position, end: Position) -> Option<WrittenPath> {
+fn path_from(tree: &Tree<'_>, first: Position, end: Position) -> Option<PathExtent> {
     let segment = match separator_end(tree, first, end) {
         Some(second) => significant_after(tree, second, end)?,
         None => first,
     };
-    if !is_segment(tree, segment) {
+    if segmenthood(tree, segment) != Segmenthood::Segment {
         return None;
     }
     let mut last = segment;
     while let Some(next) = significant_after(tree, last, end)
         .and_then(|colon| separator_end(tree, colon, end))
         .and_then(|second| significant_after(tree, second, end))
-        .filter(|each| is_segment(tree, *each))
+        .filter(|each| segmenthood(tree, *each) == Segmenthood::Segment)
     {
         last = next;
     }
-    Some(WrittenPath { first, last })
+    Some(PathExtent { first, last })
 }
 
 /// The second `:` of a `::` that starts at `at`, when one does.
@@ -99,7 +86,7 @@ fn separator_end(tree: &Tree<'_>, at: Position, end: Position) -> Option<Positio
 fn significant(tree: &Tree<'_>, from: Option<Position>, end: Position) -> Option<Position> {
     let mut at = from;
     while let Some(each) = at {
-        if !is_trivia(tree, each) {
+        if significance(tree, each) == Significance::Read {
             return Some(each);
         }
         at = next_sibling(tree, each, end);
@@ -118,15 +105,23 @@ fn next_sibling(tree: &Tree<'_>, at: Position, end: Position) -> Option<Position
     (next.0 <= end.0).then_some(next)
 }
 
-/// Whether the element at `at` is whitespace or a comment.
-fn is_trivia(tree: &Tree<'_>, at: Position) -> bool {
-    matches!(kind(tree, at), Kind::Token(Token::Whitespace | Token::Comment))
+/// Whether a path reads the element at `at` or skips it as whitespace or a comment.
+fn significance(tree: &Tree<'_>, at: Position) -> Significance {
+    if matches!(kind(tree, at), Kind::Token(Token::Whitespace | Token::Comment)) {
+        Significance::Skipped
+    } else {
+        Significance::Read
+    }
 }
 
 /// Whether the token at `at` can be a path segment: an identifier, `self`, `super`, `crate` or `Self`.
-fn is_segment(tree: &Tree<'_>, at: Position) -> bool {
-    matches!(
+fn segmenthood(tree: &Tree<'_>, at: Position) -> Segmenthood {
+    if matches!(
         kind(tree, at),
         Kind::Token(Token::Ident | Token::SelfKw | Token::SuperKw | Token::CrateKw | Token::SelfTypeKw)
-    )
+    ) {
+        Segmenthood::Segment
+    } else {
+        Segmenthood::Other
+    }
 }
