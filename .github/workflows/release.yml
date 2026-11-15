@@ -65,7 +65,7 @@ jobs:
       fail-fast: false
       # One job per independent build: the tools of a group share one, and no two groups do. The tests (check, release-tests) run on
       # every machine; the groups whose verdict is the same on every platform run once, on Linux, but the SDK's API, on macOS, where
-      # cargo-public-api ships a prebuilt. check.yml's gate runs these rows for each product a change reaches; a hand run runs them for
+      # cargo-public-api ships a prebuilt. check.yml's gate runs these rows for every product; a hand run runs them for
       # its product, and the root row the repository root's `repository` group, which no product has: the root's tools alone.
       matrix:
         include:

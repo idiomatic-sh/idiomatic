@@ -78,17 +78,19 @@ inputs = [".github"]
 id = "commitizen"
 group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
+# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
+# event, which no stamp holds.
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
 timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
 group = "repository-check"
-# The CI code's own tests, which read the workflows and the products' manifests.
+# The CI code's own tests. They read the workflows, every product's manifests, the secret scanner's and commit checker's
+# settings, and cargo's metadata of every workspace: the whole tree is their input, so no file they read can change unseen.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
-inputs = ["ci", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
+inputs = ["."]
 '''
 
 [given]
@@ -175,17 +177,19 @@ inputs = [".github"]
 id = "commitizen"
 group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
+# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
+# event, which no stamp holds.
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
 timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
 group = "repository-check"
-# The CI code's own tests, which read the workflows and the products' manifests.
+# The CI code's own tests. They read the workflows, every product's manifests, the secret scanner's and commit checker's
+# settings, and cargo's metadata of every workspace: the whole tree is their input, so no file they read can change unseen.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
-inputs = ["ci", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
+inputs = ["."]
 '''
 
 [[scenarios]]
@@ -275,17 +279,19 @@ inputs = [".github"]
 id = "commitizen"
 group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
+# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
+# event, which no stamp holds.
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
 timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
 group = "repository-check"
-# The CI code's own tests, which read the workflows and the products' manifests.
+# The CI code's own tests. They read the workflows, every product's manifests, the secret scanner's and commit checker's
+# settings, and cargo's metadata of every workspace: the whole tree is their input, so no file they read can change unseen.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
-inputs = ["ci", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
+inputs = ["."]
 '''
 then.findings = [
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
@@ -363,20 +369,21 @@ inputs = [".github"]
 id = "commitizen"
 group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
+# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
+# event, which no stamp holds.
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
 timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
 group = "repository-check"
-# The CI code's own tests, which read the workflows and the products' manifests.
+# The CI code's own tests. They read the workflows, every product's manifests, the secret scanner's and commit checker's
+# settings, and cargo's metadata of every workspace: the whole tree is their input, so no file they read can change unseen.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
-inputs = ["ci", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
+inputs = ["."]
 '''
 then.findings = [
-  { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
@@ -458,17 +465,19 @@ inputs = [".github"]
 id = "commitizen"
 group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
+# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
+# event, which no stamp holds.
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
 timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
 group = "repository-check"
-# The CI code's own tests, which read the workflows and the products' manifests.
+# The CI code's own tests. They read the workflows, every product's manifests, the secret scanner's and commit checker's
+# settings, and cargo's metadata of every workspace: the whole tree is their input, so no file they read can change unseen.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
-inputs = ["ci", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
+inputs = ["."]
 '''
 then.findings = [
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
@@ -553,17 +562,19 @@ inputs = [".github"]
 id = "commitizen"
 group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
+# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
+# event, which no stamp holds.
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
 timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
 group = "repository-check"
-# The CI code's own tests, which read the workflows and the products' manifests.
+# The CI code's own tests. They read the workflows, every product's manifests, the secret scanner's and commit checker's
+# settings, and cargo's metadata of every workspace: the whole tree is their input, so no file they read can change unseen.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
-inputs = ["ci", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
+inputs = ["."]
 '''
 then.findings = [
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
@@ -645,17 +656,19 @@ inputs = [".github"]
 id = "commitizen"
 group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
+# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
+# event, which no stamp holds.
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
 timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
 group = "repository-check"
-# The CI code's own tests, which read the workflows and the products' manifests.
+# The CI code's own tests. They read the workflows, every product's manifests, the secret scanner's and commit checker's
+# settings, and cargo's metadata of every workspace: the whole tree is their input, so no file they read can change unseen.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
-inputs = ["ci", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
+inputs = ["."]
 '''
 then.findings = [
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
@@ -735,17 +748,19 @@ inputs = [".github"]
 id = "commitizen"
 group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
+# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
+# event, which no stamp holds.
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
 timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
 group = "repository-check"
-# The CI code's own tests, which read the workflows and the products' manifests.
+# The CI code's own tests. They read the workflows, every product's manifests, the secret scanner's and commit checker's
+# settings, and cargo's metadata of every workspace: the whole tree is their input, so no file they read can change unseen.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
-inputs = ["ci", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
+inputs = ["."]
 '''
 then.findings = [
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
@@ -825,17 +840,19 @@ inputs = [".github"]
 id = "commitizen"
 group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
+# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
+# event, which no stamp holds.
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
 timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
 group = "repository-check"
-# The CI code's own tests, which read the workflows and the products' manifests.
+# The CI code's own tests. They read the workflows, every product's manifests, the secret scanner's and commit checker's
+# settings, and cargo's metadata of every workspace: the whole tree is their input, so no file they read can change unseen.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
-inputs = ["ci", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
+inputs = ["."]
 '''
 then.findings = [
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
@@ -917,17 +934,19 @@ timeout-seconds = 600
 id = "commitizen"
 group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
+# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
+# event, which no stamp holds.
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
 timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
 group = "repository-check"
-# The CI code's own tests, which read the workflows and the products' manifests.
+# The CI code's own tests. They read the workflows, every product's manifests, the secret scanner's and commit checker's
+# settings, and cargo's metadata of every workspace: the whole tree is their input, so no file they read can change unseen.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
-inputs = ["ci", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
+inputs = ["."]
 '''
 then.findings = [
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
@@ -1008,17 +1027,19 @@ inputs = [".github"]
 id = "commitizen"
 group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
+# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
+# event, which no stamp holds.
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
 timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
 group = "repository-check"
-# The CI code's own tests, which read the workflows and the products' manifests.
+# The CI code's own tests. They read the workflows, every product's manifests, the secret scanner's and commit checker's
+# settings, and cargo's metadata of every workspace: the whole tree is their input, so no file they read can change unseen.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
-inputs = ["ci", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
+inputs = ["."]
 '''
 then.findings = [
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
@@ -1105,10 +1126,11 @@ inputs = [".github"]
 [[tools]]
 id = "ci-tests"
 group = "repository-check"
-# The CI code's own tests, which read the workflows and the products' manifests.
+# The CI code's own tests. They read the workflows, every product's manifests, the secret scanner's and commit checker's
+# settings, and cargo's metadata of every workspace: the whole tree is their input, so no file they read can change unseen.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
-inputs = ["ci", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
+inputs = ["."]
 '''
 then.findings = [
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
@@ -1196,18 +1218,12 @@ inputs = [".github"]
 id = "commitizen"
 group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
+# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
+# event, which no stamp holds.
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
 timeout-seconds = 300
 '''
 then.findings = [
-  { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
-  { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
-  { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
-  { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
-  { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
-  { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
-  { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },

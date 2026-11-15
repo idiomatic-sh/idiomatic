@@ -10,10 +10,11 @@ inputs = [".", "../../rustfmt.toml", "../../rust-toolchain.toml"]
 id = "tastemaker"
 group = "lint"
 # asymptote is checked by Tastemaker, the release the root's tastemaker.toml pins, over the package it is placed by.
+# `tm check` reads every tastemaker.lock of the repository (a version no lock reads is refused), so the whole tree is its input.
 run = ["tm", "check", "--format", "sarif"]
 output = "sarif"
 timeout-seconds = 1800
-inputs = [".", "../../tastemaker"]
+inputs = [".", "../../tastemaker", "../.."]
 
 [[tools]]
 id = "cargo-machete"
@@ -48,12 +49,12 @@ inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo",
 [[tools]]
 id = "test-core"
 group = "check"
-# The core crates' tests, every feature on: each test tool builds the workspace once, as the others do, and runs the
-# packages its filter names, so its run is kept while its own inputs did not move. The BDD runners and the doctests,
+# The core crates' tests, every feature on. `--workspace` builds every member whatever the filter names, and the tests read
+# beyond the workspace (ci/workflows_test.py RUN_TIME_READS), so its inputs name all of that. The BDD runners and the doctests,
 # which nextest cannot list, run in `test-bdd` and `test-doc`.
 run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-asymptote-core)"]
 timeout-seconds = 3600
-inputs = ["Cargo.toml", "Cargo.lock", ".config", "crates", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = ["Cargo.toml", "Cargo.lock", ".config", "crates", "../../rust-toolchain.toml", "../../.cargo", ".", "../tastemaker", "../.."]
 
 [[tools]]
 id = "test-cli"
@@ -61,7 +62,7 @@ group = "check"
 # The command line's tests: it links every crate of the product, so the product is its input.
 run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-asymptote)"]
 timeout-seconds = 3600
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../.."]
 
 [[tools]]
 id = "test-bdd"
@@ -69,14 +70,14 @@ group = "check"
 # The cucumber runners (`tests/bdd.rs`, `harness = false`), which nextest's default filter leaves out.
 run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "bdd"]
 timeout-seconds = 3600
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../.."]
 
 [[tools]]
 id = "test-doc"
 group = "check"
 run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--doc"]
 timeout-seconds = 3600
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../.."]
 
 [[tools]]
 id = "cargo-doc"
@@ -102,7 +103,7 @@ group = "release-tests"
 # doctests, which it cannot list, run in `test-bdd` and `test-doc`.
 run = ["cargo", "nextest", "run", "--workspace", "--locked"]
 timeout-seconds = 3600
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../.."]
 
 [[tools]]
 id = "cargo-hack"
@@ -125,7 +126,7 @@ group = "release-coverage"
 # Line coverage, a report with no threshold: the run fails only when a test does.
 run = ["cargo", "llvm-cov", "--workspace", "--all-features", "--locked"]
 timeout-seconds = 3600
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../.."]
 
 [[tools]]
 id = "cargo-msrv"
@@ -141,7 +142,7 @@ group = "release-tests"
 # The `distribution` test target's findings: each target checked through the crate installed with its registry's languages.
 run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "distribution", "--", "target_test::", "targets_have_their_findings", "every_registry_is_declared"]
 timeout-seconds = 3600
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../.."]
 
 [[tools]]
 id = "release-smoke"
@@ -149,7 +150,7 @@ group = "release-tests"
 # Each registry's package is built from the crate, installed in a scratch directory and run. Only the release workflow runs the `release-*` groups.
 run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "distribution", "--", "cargo::", "npm::", "pypi::"]
 timeout-seconds = 7200
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../.."]
 
 [[tools]]
 id = "fresh-resolution"
@@ -167,7 +168,7 @@ group = "perf"
 run = ["cargo", "bench", "--locked", "--workspace", "--bench", "commands"]
 output = "bmf"
 timeout-seconds = 3600
-inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../.."]
 
 [[tools]]
 id = "performance-distribution"
@@ -176,7 +177,7 @@ group = "perf"
 run = ["cargo", "bench", "--locked", "--workspace", "--all-features", "--bench", "distribution"]
 output = "bmf"
 timeout-seconds = 7200
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../.."]
 
 [[tools]]
 id = "build"
@@ -185,4 +186,4 @@ group = "build"
 # Clippy remains mandatory in its quality group; denied style findings do not gate Rust speed execution.
 run = ["bash", "-c", "set -eo pipefail; mkdir -p target/checks/build; cargo check --workspace --all-targets --all-features --locked 2>&1 | tee target/checks/build/compile.log; cargo test --workspace --locked --all-features --no-run 2>&1 | tee target/checks/build/test.log; cargo doc --workspace --no-deps --all-features --locked 2>&1 | tee target/checks/build/doc.log"]
 timeout-seconds = 7200
-inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../.."]

@@ -1,24 +1,33 @@
-# The check workflow on GitHub Actions, its thin edge: the pull request gate. A `changes` job reads which products a pull request to
-# main reaches: a product's own directory, crates/<product>/, and the directory of every product its manifests path-depend on
-# (tastemaker patches ryo's crates, so a change to crates/ryo/ reaches tastemaker too; ci/workflows_test.py derives each filter from
-# the Cargo path dependencies and tastemaker.lock paths). A change to a file outside the products' directories (tools/, ci/, .github/,
-# tastemaker/, the root's configurations) is every product's, so it runs all three, and the `root` job's repository-check group
-# (the ci/ tests) beside its repository group. For each product reached, the `check` job runs that product's whole check fan-out,
-# the groups and machines release.yml's own `check` job runs but its root row (`asymptote check --root crates/<product> --groups
-# <group>`, one job per group and machine): its lint, the tests on every machine the products ship to, the SDK's API on macOS, where
-# cargo-public-api ships a prebuilt, and every other group once, on Linux. The `root` job runs the repository root's repository group
-# on every run, a hand run's too: groups no product has, so the root's tools alone. A hand run checks the one product its `product` input names: the
-# release pull request workflow (release-pr.yml) starts one on its branch, since a pull request a workflow opens starts no workflow.
-# Each job is a machine, the toolchains (every sample's among them: a sample whose toolchain is missing fails its test),
-# `tools/install.py`, which installs every tool the checks run at the version declared for it, prebuilt, and one `asymptote check`
-# call. The `gate` job waits for every other, the speed, ownership and bench-correctness guards among them, and fails when one
-# failed or was cancelled; the Ruff authoring guard, ryo's alone, is skipped when ryo is not reached, which passes. `gate` is the
-# one verdict: a pull request merges only after the `gate` of a run on its head commit passed, by process (no repository rule
-# enforces it). The commit gate stays `asymptote check --hook pre-commit`, the git hook `asymptote init` installs, which runs the
-# products' `lint` groups and the root's `repository` group.
+# The check workflow on GitHub Actions, its thin edge: the pull request gate, and on a push to main the run that seeds the stores a
+# pull request restores. Every run checks every product: asymptote alone decides what runs. Each job that keeps a store restores
+# its product's `.asymptote/cache` for its group and machine (a pull request's run reads main's newest through the restore keys),
+# runs one `asymptote check`, which reuses each tool whose inputs did not move and runs the rest, and saves the store after the
+# check, a failed one too. The key holds the hash of the files that pin the installed tools, the toolchains (this workflow, which
+# pins node, python and uv exactly, and rust-toolchain.toml) and the helper scripts, so any of those changing opens an empty
+# store. A job or row whose answer stands on state outside the repository keeps none: speed (origin/main), release-resolution
+# (crates.io's live index) and api (the newest release tag). The `check` job runs each product's whole check fan-out, the groups and machines release.yml's own `check` job
+# runs but its root row (`asymptote check --root crates/<product> --groups <group>`, one job per group and machine): its lint,
+# the tests on every machine the products ship to, the SDK's API on macOS, where cargo-public-api ships a prebuilt, and every
+# other group once, on Linux. The `root` job runs the repository root's `repository` and `repository-check` groups, which no
+# product has, so the root's tools alone. The `pull-request` job runs the root's `pull-request` group, the pull request's title
+# read from the event, with no store: the event is no file and no stamp holds it. A hand run checks the one product its `product` input names: the release pull request
+# workflow (release-pr.yml) starts one on its branch, since a pull request a workflow opens starts no workflow. Each job is a
+# machine, the toolchains (every sample's among them: a sample whose toolchain is missing fails its test), `tools/install.py`,
+# which installs every tool the checks run at the version declared for it, prebuilt, and one `asymptote check` call. The bench
+# jobs (the bench-correctness job) keep no store: asymptote reuses a tool's result without the receipts its run wrote, and
+# their upload requires the receipts, so every bench tool runs in full on every run. The `gate` job waits for every other and
+# fails when one failed or was cancelled; the speed guard alone is skipped, on a push, which passes. `gate` is the one verdict: a
+# pull request merges only after the `gate` of a run on its head commit passed, by process (no repository rule enforces it). The
+# commit gate stays `asymptote check --hook pre-commit`, the git hook `asymptote init` installs, which runs the products' `lint`
+# groups and the root's `repository` group.
 name: check
 on:
+  # `edited` too: an edited title starts a run, so the pull-request job checks the title the pull request now has.
   pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+  # A merge to main: its run saves the stores every pull request to main restores.
+  push:
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -34,42 +43,12 @@ env:
   NEXTEST_PROFILE: ci
 concurrency:
   group: check-${{ github.event.pull_request.number || github.ref }}-${{ inputs.product }}
-  cancel-in-progress: true
+  # A newer push to a pull request, or a newer hand run, cancels the one in progress; a merge to main never cancels the run
+  # seeding the stores.
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 jobs:
-  changes:
-    runs-on: ubuntu-26.04
-    permissions:
-      contents: read
-      pull-requests: read
-    outputs:
-      # A hand run's product; every product when the pull request changes a file outside the products; otherwise the ones it reaches.
-      products: ${{ github.event_name != 'pull_request' && format('["{0}"]', inputs.product) || (steps.filter.outputs.repository == 'true' && '["ryo","tastemaker","asymptote"]' || steps.filter.outputs.changes) }}
-      repository: ${{ github.event_name == 'pull_request' && steps.filter.outputs.repository == 'true' }}
-    steps:
-      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        id: filter
-        if: github.event_name == 'pull_request'
-        with:
-          # A file is the repository's when it matches `**` and none of the products' directories. A product's filter is its own
-          # directory and the directory of every product its manifests path-depend on (ci/workflows_test.py derives it).
-          predicate-quantifier: some-with-excludes
-          filters: |
-            ryo:
-              - "crates/ryo/**"
-            tastemaker:
-              - "crates/tastemaker/**"
-              - "crates/ryo/**"
-            asymptote:
-              - "crates/asymptote/**"
-            repository:
-              - "**"
-              - "!crates/ryo/**"
-              - "!crates/tastemaker/**"
-              - "!crates/asymptote/**"
-  # The repository root's repository group on every run, its repository-check group too when a pull request changes the
-  # repository's files: groups no product has, so the root's tools alone.
+  # The repository root's own groups, which no product has, so the root's tools alone.
   root:
-    needs: changes
     runs-on: ubuntu-26.04
     defaults:
       run:
@@ -82,7 +61,7 @@ jobs:
       - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version: "24.22.2"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.26.5"
@@ -90,8 +69,10 @@ jobs:
           cache: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.12"
+          python-version: "3.12.16"
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.13.8"
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -119,9 +100,27 @@ jobs:
         env:
           # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
           GH_TOKEN: ${{ github.token }}
-      - run: asymptote check --root . --groups ${{ needs.changes.outputs.repository == 'true' && 'repository,repository-check' || 'repository' }}
-  ownership-contracts:
+      # The root's asymptote store: main's newest for this group and machine, under the installed tools' pins.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .asymptote/cache
+          key: asymptote-${{ runner.os }}-${{ runner.arch }}-root-repository-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            asymptote-${{ runner.os }}-${{ runner.arch }}-root-repository-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-
+      - run: asymptote check --root . --groups repository,repository-check
+      - name: Save the asymptote store
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .asymptote/cache
+          key: asymptote-${{ runner.os }}-${{ runner.arch }}-root-repository-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
+  # The pull request's own title (commitizen-title), from the event GitHub hands the run. The event is no file of the repository,
+  # and no stamp holds it, so this job keeps no asymptote store: it checks the live event every time.
+  pull-request:
     runs-on: ubuntu-26.04
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -130,52 +129,43 @@ jobs:
       - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version: "24.22.2"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.26.5"
+          # No go.mod at the root: there is nothing for the module cache to key on.
           cache: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.12"
+          python-version: "3.12.16"
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.13.8"
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup toolchain install
-      - name: Install declared check tools
+      # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
+      # version as it is.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
+      - name: The tools the checks run, each at the version declared for it
         run: uv run --script tools/install.py
         env:
+          # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
           GH_TOKEN: ${{ github.token }}
-      - name: Check placed architecture and rule definitions
-        run: |
-          tm validate --root crates/ryo
-          tm check --root crates/ryo
-      - name: Run real crate contract suites
-        run: |
-          set -euo pipefail
-          required_suite() {
-            listing=$(mktemp)
-            "$@" -- --include-ignored --list | tee "$listing"
-            if ! grep -Eq ': test$' "$listing"; then
-              echo "required suite has no tests: $*" >&2
-              exit 1
-            fi
-            "$@" -- --include-ignored
-          }
-          required_suite cargo test --locked --manifest-path crates/ryo/Cargo.toml -p idiomatic-sh-ryo-execution --test boundary_contract
-          required_suite cargo test --locked --manifest-path crates/ryo/Cargo.toml -p idiomatic-sh-ryo-execution --lib inbound::use_cases::execution
-          required_suite cargo test --locked --manifest-path crates/ryo/Cargo.toml -p idiomatic-sh-ryo-operators --doc
-          cargo test --locked --manifest-path crates/ryo/Cargo.toml --workspace --all-targets
-          cargo test --locked --manifest-path crates/ryo/Cargo.toml --workspace --doc
-
+      - run: asymptote check --root . --groups pull-request
   check:
-    needs: changes
     name: check (${{ matrix.product }}, ${{ matrix.check.group }}, ${{ matrix.check.runner }})
     strategy:
       fail-fast: false
-      # Each product the run reaches, times release.yml's check rows but its root row, which the `root` job runs: one job per
+      # Every product, a hand run's one, times release.yml's check rows but its root row, which the `root` job runs: one job per
       # independent build, the tools of a group sharing one.
       matrix:
-        product: ${{ fromJSON(needs.changes.outputs.products) }}
+        product: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.product) || '["ryo","tastemaker","asymptote"]') }}
         check:
           - { runner: ubuntu-26.04, group: lint }
           - { runner: ubuntu-26.04, group: clippy }
@@ -207,7 +197,7 @@ jobs:
         if: runner.os == 'Linux'
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version: "24.22.2"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.26.5"
@@ -215,8 +205,11 @@ jobs:
           cache: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.12"
+          # Exact per platform: Python's 3.12 builds for macOS and Windows stop at 3.12.10, Linux's go on to 3.12.16.
+          python-version: ${{ runner.os == 'Linux' && '3.12.16' || '3.12.10' }}
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.13.8"
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup toolchain install
       # Match release.yml's cache for this machine, group and product. Clean only the product's workspace.
@@ -242,7 +235,23 @@ jobs:
         env:
           # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
           GH_TOKEN: ${{ github.token }}
+      # The product's asymptote store: main's newest for this group and machine, under the installed tools' and this workflow's
+      # pins. None for a group whose answer stands on state outside the repository, which no stamp holds: release-resolution
+      # resolves against crates.io's live index, and api's semver baseline is the newest release tag.
+      - if: matrix.check.group != 'release-resolution' && matrix.check.group != 'api'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: crates/${{ matrix.product }}/.asymptote/cache
+          key: asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-${{ matrix.check.group }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-${{ matrix.check.group }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-
       - run: asymptote check --root crates/${{ matrix.product }} --groups ${{ matrix.check.group }}
+      - name: Save the asymptote store
+        if: always() && matrix.check.group != 'release-resolution' && matrix.check.group != 'api'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: crates/${{ matrix.product }}/.asymptote/cache
+          key: asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-${{ matrix.check.group }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Preserve raw check diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -253,19 +262,17 @@ jobs:
             target/checks/
           if-no-files-found: ignore
   # The one verdict: it fails when a job it waits for failed or was cancelled, and passes when each succeeded or was skipped (the
-  # Ruff authoring guard alone, when ryo is not reached).
+  # speed guard alone, on a push to main).
   gate:
-    needs: [changes, root, check, speed, ruff-candidates, ownership-contracts, bench-correctness]
+    needs: [root, pull-request, check, speed, ruff-candidates, bench-correctness]
     if: always()
     runs-on: ubuntu-26.04
     steps:
       - uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
         with:
           jobs: ${{ toJSON(needs) }}
-          allowed-skips: ruff-candidates
+          allowed-skips: ${{ github.event_name == 'push' && 'speed' || '' }}
   ruff-candidates:
-    needs: changes
-    if: contains(fromJSON(needs.changes.outputs.products), 'ryo')
     runs-on: ubuntu-26.04
     defaults:
       run:
@@ -278,15 +285,17 @@ jobs:
       - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version: "24.22.2"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.26.5"
           cache: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.12"
+          python-version: "3.12.16"
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.13.8"
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -308,8 +317,24 @@ jobs:
         run: uv run --script tools/install.py
         env:
           GH_TOKEN: ${{ github.token }}
+      # Ryo's asymptote store for this group: main's newest, under the installed tools' pins.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: crates/ryo/.asymptote/cache
+          key: asymptote-${{ runner.os }}-${{ runner.arch }}-ryo-ruff-candidates-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            asymptote-${{ runner.os }}-${{ runner.arch }}-ryo-ruff-candidates-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-
       - run: asymptote check --root crates/ryo --groups ruff-candidates
+      - name: Save the asymptote store
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: crates/ryo/.asymptote/cache
+          key: asymptote-${{ runner.os }}-${{ runner.arch }}-ryo-ruff-candidates-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
+  # A change's speed against main: on a pull request and a hand run, never on a push to main, which has no main to compare with.
+  # It keeps no asymptote store: its answer stands on origin/main, which no stamp holds.
   speed:
+    if: github.event_name != 'push'
     runs-on: ubuntu-26.04
     defaults:
       run:
@@ -322,7 +347,7 @@ jobs:
       - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version: "24.22.2"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.26.5"
@@ -330,8 +355,10 @@ jobs:
           cache: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.12"
+          python-version: "3.12.16"
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.13.8"
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -393,9 +420,11 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
   bench-correctness:
-    # Every default of every linter bench, verified by the shared collector on one Linux runner (asymptote group
-    # bench-correctness, never a check matrix row). The job's limit is above the tool's 21600-second timeout, so asymptote
-    # reports a timeout before the runner cancels the job.
+    # Each linter bench verified by the shared collector on one Linux runner (never a check matrix row), its one asymptote group:
+    # every default of each bench, each case under its own rule's settings profile, after the whole-bench audit. It restores no
+    # asymptote store: a reused tool writes no receipts, and the upload requires them, so every bench tool runs in full on every
+    # run. The job's limit is above the bench tools' timeouts, so asymptote reports a timeout before the runner cancels the job.
+    name: bench-correctness
     runs-on: ubuntu-26.04
     timeout-minutes: 390
     env:
@@ -412,15 +441,17 @@ jobs:
       - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version: "24.22.2"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.26.5"
           cache: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.12"
+          python-version: "3.12.16"
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.13.8"
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -456,7 +487,7 @@ jobs:
             ~/.cargo/.crates2.json
           key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-${{ github.sha }}
       - run: asymptote check --root crates/ryo --groups bench-correctness
-      - name: Bench correctness summaries and per-rule receipts
+      - name: Bench summaries and per-rule receipts
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
