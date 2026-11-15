@@ -48,13 +48,14 @@ expected = [{{ rule = "T001", file = "positive.txt", start = 0, end = 1 }}]
     let adapter = local();
     let tool = adapter.profile(ArtifactPath(&source))?;
     let audit = crate::application::suite_auditing::service::audit(&adapter, &source, &tool)?;
-    crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(&adapter)
-        .stage_suite(
-            &source,
-            &staged,
-            &audit.implemented,
-            ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
-        )?;
+    let _staged =
+        crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(&adapter)
+            .stage_suite(
+                &source,
+                &staged,
+                &audit.implemented,
+                ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
+            )?;
     let materialized = crate::application::case_preparation::service::cases(
         &adapter,
         &crate::outbound::context::factory::local(),

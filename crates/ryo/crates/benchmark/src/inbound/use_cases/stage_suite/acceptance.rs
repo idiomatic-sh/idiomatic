@@ -12,12 +12,14 @@ use std::path::Path;
 
 /// Stage a profile directory through the public use case.
 fn stage(suite: &dyn SuitePort, directory: &Path, destination: &Path) -> Result<(), ReportsError> {
-    StageSuiteUseCaseImpl::new(suite).stage_suite(
-        directory,
-        destination,
-        &[],
-        ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
-    )
+    StageSuiteUseCaseImpl::new(suite)
+        .stage_suite(
+            directory,
+            destination,
+            &[],
+            ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
+        )
+        .map(|_staged| ())
 }
 
 #[then("stage_suite subset preserves its promised result")]
@@ -42,6 +44,18 @@ fn supporting(world: &mut crate::Behavior) -> Result<(), Box<dyn std::error::Err
 fn discrepancy(world: &mut crate::Behavior) -> Result<(), Box<dyn std::error::Error>> {
     let _: &mut crate::Behavior = world;
     exercise(Scenario::Discrepancy)
+}
+
+#[then("stage_suite staged profile preserves its promised result")]
+fn staged_profile(world: &mut crate::Behavior) -> Result<(), Box<dyn std::error::Error>> {
+    let _: &mut crate::Behavior = world;
+    exercise(Scenario::StagedProfile)
+}
+
+#[then("stage_suite full profile preserves its promised result")]
+fn full_profile(world: &mut crate::Behavior) -> Result<(), Box<dyn std::error::Error>> {
+    let _: &mut crate::Behavior = world;
+    exercise(Scenario::FullProfile)
 }
 
 #[then("stage_suite missing preserves its promised result")]

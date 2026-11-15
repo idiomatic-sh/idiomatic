@@ -7,3 +7,6 @@ mod writer;
 
 #[cfg(test)]
 mod adapter_test;
+
+#[cfg(test)]
+mod fixtures;

@@ -34,7 +34,17 @@ pub struct ContextManifest {
     pub source_files: BTreeMap<PathBuf, ArtifactDigest>,
     /// Paths explicitly sealed as missing, relative to the boundary.
     pub missing: Vec<PathBuf>,
+    /// Tracked symbolic links, relative to the boundary, each with the target text it holds; each target names a sealed file.
+    pub links: BTreeMap<PathBuf, LinkTarget>,
 }
+
+/// The target text a sealed symbolic link holds, exactly as the filesystem reads it back. Equality is byte-for-byte
+/// text equality, never path equality: `../a/img.png` and `../a/img.png/` are different targets.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LinkTarget(
+    /// The link's target text, UTF-8, relative to the link's own directory, unnormalized.
+    pub String,
+);
 
 /// The context actually used by one candidate invocation.
 #[derive(Clone, Debug, PartialEq, Eq)]

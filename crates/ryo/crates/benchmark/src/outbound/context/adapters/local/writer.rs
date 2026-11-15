@@ -1,6 +1,6 @@
 //! The adapter's traversal of the snapshot it seals: lexical path resolution and symlink walks.
 use super::constants;
-use ryo_benchmark_contracts::domain::context::types::ContextManifest;
+use ryo_benchmark_contracts::domain::context::types::{ContextManifest, LinkTarget};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::{Component, Path, PathBuf};
 
@@ -99,6 +99,48 @@ pub(super) fn walked_dependency(manifest: &ContextManifest, path: &Path) -> Resu
         }
     }
     Ok(resolved)
+}
+
+/// The exact target text of the link at `actual`, as the filesystem holds it; never normalized.
+pub(super) fn link_text(actual: &Path) -> Result<LinkTarget, Error> {
+    std::fs::read_link(actual)?
+        .into_os_string()
+        .into_string()
+        .map(LinkTarget)
+        .map_err(|_text| Error::Invalid(constants::NON_UTF8_LINK_TARGET.into()))
+}
+
+/// The sealed path a link's target text names, read from the raw text and never from normalizing path components:
+/// the link's directory, one parent popped per leading `..` segment, then the names that follow.
+/// The grammar is slash-only: refuses empty text, a leading, repeated or trailing `/`, any `.` segment, `..` after a
+/// name, an escape, and a segment holding a backslash or any other separator the platform's paths know.
+pub(super) fn link_destination(link: &Path, target: &LinkTarget) -> Result<PathBuf, Error> {
+    let refuse = || Error::Invalid(constants::CONTEXT_LINK_TARGET_NOT_CANONICAL.into());
+    let mut destination = link.parent().map(Path::to_path_buf).unwrap_or_default();
+    let mut named = false;
+    for raw in target.0.split('/') {
+        let segment = std::ffi::OsStr::new(raw);
+        if segment.is_empty() || segment == Component::CurDir.as_os_str() {
+            return Err(refuse());
+        }
+        if segment == Component::ParentDir.as_os_str() {
+            if named || !destination.pop() {
+                return Err(refuse());
+            }
+        } else {
+            named = true;
+            destination.push(segment);
+        }
+    }
+    relative(&destination, PathScope::Member)?;
+    Ok(destination)
+}
+
+/// Reject symlinks on the way to a path, the path itself excepted: the walk a sealed link's own directory must pass.
+pub(super) fn no_symlinked_parent(boundary: &Path, relative: &Path) -> Result<(), Error> {
+    relative
+        .parent()
+        .map_or(Ok(()), |parent| no_symlinks(boundary, parent))
 }
 
 /// Reject symlinks within the snapshot, including missing paths with a symlinked parent.

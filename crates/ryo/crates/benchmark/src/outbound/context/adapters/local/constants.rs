@@ -21,5 +21,14 @@ pub(super) const MISSING_SOURCE_PARENT: &str = "missing source parent";
 /// Text of the project dependency fingerprint disagrees in this part.
 pub(super) const PROJECT_DEPENDENCY_FINGERPRINT_DISAGREES: &str =
     "project dependency fingerprint disagrees";
+/// Refusal for a requested lint source that is a symbolic link.
+pub(super) const SEALED_SOURCE_IS_A_LINK: &str = "requested lint source is a symbolic link";
+/// Refusal for a link whose target is not a sealed file of the same snapshot.
+pub(super) const CONTEXT_LINK_TARGET_UNSEALED: &str = "context link target is not a sealed file";
+/// Refusal for link target text that is not canonical: empty, absolute, a repeated or trailing separator, `.`, or `..` after a name.
+pub(super) const CONTEXT_LINK_TARGET_NOT_CANONICAL: &str =
+    "context link target is not canonical relative text";
+/// Refusal for link target text that is not UTF-8.
+pub(super) const NON_UTF8_LINK_TARGET: &str = "context link target is not UTF-8";
 /// Text of the context receipt identity disagrees in this part.
 pub(super) const CONTEXT_RECEIPT_IDENTITY_DISAGREES: &str = "context receipt identity disagrees";

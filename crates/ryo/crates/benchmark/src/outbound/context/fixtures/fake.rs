@@ -108,6 +108,7 @@ impl ContextPort for ContextFake {
             auxiliary_files: BTreeMap::new(),
             source_files: BTreeMap::new(),
             missing: Vec::new(),
+            links: BTreeMap::new(),
         };
         for path in tracked.0 {
             let identity = seal(&ContextBytes(path.as_os_str().as_encoded_bytes().to_vec()));
@@ -138,6 +139,7 @@ impl ContextPort for ContextFake {
                 .collect(),
             source_files: BTreeMap::new(),
             missing: context.missing.clone(),
+            links: BTreeMap::new(),
         };
         for (path, source) in sources {
             let resolved = resolve(&manifest, Path::new(path.0.as_ref()))?;

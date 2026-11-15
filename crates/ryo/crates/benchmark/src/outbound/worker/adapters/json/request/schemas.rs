@@ -290,6 +290,7 @@ struct ManifestSchema {
     auxiliary_files: BTreeMap<PathBuf, String>,
     source_files: BTreeMap<PathBuf, String>,
     missing: Vec<PathBuf>,
+    links: BTreeMap<PathBuf, String>,
 }
 impl From<ManifestSchema> for ContextManifest {
     fn from(wire: ManifestSchema) -> Self {
@@ -305,6 +306,10 @@ impl From<ManifestSchema> for ContextManifest {
             auxiliary_files: digests(wire.auxiliary_files),
             source_files: digests(wire.source_files),
             missing: wire.missing,
+            links: {
+                let _sent = wire.links;
+                BTreeMap::new()
+            },
         }
     }
 }

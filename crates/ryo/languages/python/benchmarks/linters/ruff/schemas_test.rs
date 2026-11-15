@@ -170,6 +170,7 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() -> usize
                 auxiliary_files: Default::default(),
                 source_files: Default::default(),
                 missing: vec!["project/missing.py".into()],
+                links: Default::default(),
             },
         ),
         root: root.clone(),

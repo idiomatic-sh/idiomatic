@@ -47,5 +47,17 @@ pub fn sealed_manifest() -> ContextManifest {
         auxiliary_files: BTreeMap::new(),
         source_files: BTreeMap::new(),
         missing: Vec::new(),
+        links: BTreeMap::new(),
     }
+}
+
+/// The manifest with one more sealed link, `pkg/alias.py`, to its sealed `__init__.py`.
+#[must_use]
+pub fn linked(manifest: &ContextManifest) -> ContextManifest {
+    let mut linked = manifest.clone();
+    let _absent = linked.links.insert(
+        "pkg/alias.py".into(),
+        ryo_benchmark_contracts::domain::context::types::LinkTarget("__init__.py".into()),
+    );
+    linked
 }

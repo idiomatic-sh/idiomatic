@@ -12,7 +12,7 @@ pub(crate) fn stage(
     destination: &Path,
     authored: &[ryo::linter::RuleId],
     purpose: StagePurpose,
-) -> Result<(), Error> {
+) -> Result<ryo_benchmark_contracts::domain::workloads::types::Tool, Error> {
     let tool = suite.profile(ArtifactPath(directory))?;
     suite.verify_query_modules(ArtifactPath(directory), &tool)?;
     let mut definitions: BTreeSet<_> = authored
@@ -66,5 +66,6 @@ pub(crate) fn stage(
         authored,
         &definitions,
         purpose,
-    )
+    )?;
+    suite.profile(ArtifactPath(directory))
 }
