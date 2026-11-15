@@ -1,3 +1,4 @@
+import scope_lookup from "python/ruff/scope-lookup-uses";
 import noqa_line_map from "python/ruff/noqa-line-map";
 import noqa_locations from "python/ruff/noqa-locations";
 import suppression_edges from "python/ruff/noqa-suppressions-with-additional-lines";
@@ -60,7 +61,11 @@ let embedded_root_reads = select l.id as reference, l.file as file from embedded
 let embedded_reads = union(left=embedded_descendant_reads, right=embedded_root_reads);
 let all_read_contexts = select reference as id, name, scope, phase, file from "binding-read";
 let deferred_resolutions = deferred_events(missing=all_read_contexts);
-let ordinary_binding_uses0 = antijoin(left="binding-use", right=deferred_resolutions, left-on=["reference", "file"], right-on=["reference", "file"]);
+let lexical_use_rows = antijoin(left="binding-use", right=deferred_resolutions, left-on=["reference", "file"], right-on=["reference", "file"]);
+let lexical_binding_uses = select reference, binding, file from lexical_use_rows;
+let read_ids = select occurrence as reference, file from "binding-event" where kind = "read";
+let lexical_reads = antijoin(left=read_ids, right=deferred_resolutions, left-on=["reference", "file"], right-on=["reference", "file"]);
+let ordinary_binding_uses0 = scope_lookup(reads=lexical_reads, uses=lexical_binding_uses);
 let nonlocal_reference_ids = select occurrence as reference, file from "binding-event" where kind = "nonlocal";
 let ordinary_binding_uses = antijoin(left=ordinary_binding_uses0, right=nonlocal_reference_ids, left-on=["reference", "file"], right-on=["reference", "file"]);
 let ordinary_use_rows = select binding, reference, file from ordinary_binding_uses;

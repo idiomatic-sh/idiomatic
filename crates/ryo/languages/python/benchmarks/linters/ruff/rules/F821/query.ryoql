@@ -1,3 +1,4 @@
+import scope_lookup from "python/ruff/scope-lookup-uses";
 import noqa_line_map from "python/ruff/noqa-line-map";
 import noqa_locations from "python/ruff/noqa-locations";
 import suppression_edges from "python/ruff/noqa-suppressions-with-additional-lines";
@@ -115,7 +116,12 @@ let package_path_reads = select l.reference as id, l.file as file from "binding-
 let report_candidates = antijoin(left=candidates, right=package_path_reads, left-on=["id", "file"], right-on=["id", "file"]);
 let unresolved_reads = select id, name, scope, phase, file from ordinary_missing;
 let deferred_known = deferred_resolutions(missing=unresolved_reads);
-let final_candidates = antijoin(left=report_candidates, right=deferred_known, left-on=["id", "file"], right-on=["id", "file"]);
+let lookup_reads = select reference, file from read_rows where state = "unbound" and context = "value";
+let provider_uses = select reference, binding, file from "binding-use";
+let lookup_hits = scope_lookup(reads=lookup_reads, uses=provider_uses);
+let lookup_known = select reference as id, file from lookup_hits;
+let resolved_later = union(left=deferred_known, right=lookup_known);
+let final_candidates = antijoin(left=report_candidates, right=resolved_later, left-on=["id", "file"], right-on=["id", "file"]);
 let reportable = select id, file, span from final_candidates;
 let candidate_locations = line_located(candidates=reportable);
 let suppression_mappings = noqa_line_map();

@@ -25,6 +25,7 @@ sha256 = [
 defaults = ["F401"]
 
 [query-modules]
+"python/ruff/scope-lookup-uses" = "fragments/scope-lookup-uses.ryoql"
 "python/ruff/deferred-read-events" = "fragments/deferred-read-events.ryoql"
 "python/ruff/deferred-type-reads" = "fragments/deferred-type-reads.ryoql"
 "python/ruff/future-annotation-context" = "fragments/future-annotation-context.ryoql"
