@@ -8,6 +8,7 @@ mod declared_empty;
 #[cfg(test)]
 pub(crate) mod fixtures;
 mod grouping;
+mod lineage;
 mod members;
 mod merged;
 mod named_selection;
