@@ -343,6 +343,8 @@ mod closure;
 #[cfg(test)]
 mod cross_kind;
 #[cfg(test)]
+mod fed;
+#[cfg(test)]
 mod graphs;
 #[cfg(test)]
 mod kinds;

@@ -7,6 +7,7 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::extend::item::resolved;
 use crate::domain::physical_plan::collections::kernels::lookup::item::lookups;
 use crate::domain::physical_plan::collections::kernels::ordered_walk::item::interned;
+use crate::domain::physical_plan::collections::kernels::scan_facts::item::count_of;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::hold;
 use crate::domain::physical_plan::service::indexes::service::{closed, opened, sized_shared};
 use crate::domain::physical_plan::service::run::reading::service::{
@@ -16,7 +17,7 @@ use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, Node
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    KernelRun, NodeReaders, NodeRows, PlanNodeId, ProbeIndex, RowSource,
+    KernelRun, NodeFed, NodeReaders, NodeRows, PlanNodeId, ProbeIndex, RowSource,
 };
 use ryo_values::domain::rows::types::Table;
 
@@ -52,6 +53,7 @@ fn sized(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
     if buffers.nodes.len() < count {
         buffers.nodes.resize_with(count, || None);
         buffers.pending.resize_with(count, || None);
+        buffers.fed.resize(count, NodeFed::default());
         buffers.remaining.resize(count, NodeReaders(0));
         buffers.decisions.resize_with(count, NodeDecisions::default);
     }
@@ -213,6 +215,15 @@ fn made(
         let _source = sources.get(at).copied().flatten()?;
         slots.get(slot_of.get(at).copied()?)?.as_ref()
     });
+    // What the node was fed: each input's rows, a node read by two inputs in both.
+    if let Some(fed) = buffers
+        .fed
+        .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
+    {
+        *fed = NodeFed(
+            read_at.map(|read| read.map_or_else(Default::default, |read| count_of(rows_in(read)))),
+        );
+    }
     let [first_read, second_read, third_read] = read_at;
     let left = first_read.ok_or(PortableOperatorFault::WrongOperation)?;
     let left_fault = pending_of(left);

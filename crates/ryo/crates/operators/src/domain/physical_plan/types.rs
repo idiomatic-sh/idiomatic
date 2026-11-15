@@ -22,6 +22,21 @@ use ryo_values::domain::rows::types::Table;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PlanNodeId(pub u32);
 
+/// The rows a node's kernels read from each of its inputs when it was made in the open file, in its inputs' order: a
+/// relation's rows, the tree rows read (the rows a tree probe found), an earlier node's rows; none past its inputs.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::physical_plan::types::NodeFed;
+/// use ryo_values::domain::rows::types::RowCount;
+/// let probe = NodeFed([RowCount(2), RowCount(3), RowCount(0)]);
+/// assert_eq!(probe.0.iter().map(|rows| rows.0).sum::<usize>(), 5);
+/// assert_eq!(NodeFed::default(), NodeFed([RowCount(0); 3]));
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct NodeFed(pub [ryo_values::domain::rows::types::RowCount; 3]);
+
 /// A rule of a program, by its place in rule order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RuleOrdinal(pub u32);
