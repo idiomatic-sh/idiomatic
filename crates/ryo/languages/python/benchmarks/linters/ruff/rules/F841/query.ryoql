@@ -63,7 +63,8 @@ let all_read_contexts = select reference as id, name, scope, phase, file from "b
 let deferred_resolutions = deferred_events(missing=all_read_contexts);
 let read_ids = select occurrence as reference, file from "binding-event" where kind = "read" or kind = "delete";
 let lexical_reads = antijoin(left=read_ids, right=deferred_resolutions, left-on=["reference", "file"], right-on=["reference", "file"]);
-let ordinary_binding_uses0 = ordinary_uses_of(reads=lexical_reads);
+let ordinary_lookups = ordinary_uses_of(reads=lexical_reads);
+let ordinary_binding_uses0 = select reference, binding, file from ordinary_lookups where kind = "bind";
 let nonlocal_reference_ids = select occurrence as reference, file from "binding-event" where kind = "nonlocal";
 let ordinary_binding_uses = antijoin(left=ordinary_binding_uses0, right=nonlocal_reference_ids, left-on=["reference", "file"], right-on=["reference", "file"]);
 let ordinary_use_rows = select binding, reference, file from ordinary_binding_uses;

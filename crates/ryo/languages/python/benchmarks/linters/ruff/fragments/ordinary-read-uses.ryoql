@@ -1,10 +1,14 @@
 import lookup_events from "python/ruff/lookup-read-events";
 input reads: relation<reference: node, file: file>;
-output relation<reference: node, binding: node, file: file>;
-let reference_events = select occurrence as reference, scope as initial_scope, ordinal as point, kind, file from "binding-event" where kind = "read" or kind = "delete";
-let reference_contexts = select l.reference as context, r.initial_scope as initial_scope, r.point as point, r.kind as kind, l.file as file from reads as l join reference_events as r on l.reference = r.reference and l.file = r.file;
-let read_contexts = select context, initial_scope, point, file from reference_contexts where kind = "read";
-let delete_contexts = select context, initial_scope, point, file from reference_contexts where kind = "delete";
+output relation<reference: node, binding: node, kind: symbol, file: file>;
+let reference_events = select occurrence as reference, scope as raw_scope, ordinal as point, kind, file from "binding-event" where kind = "read" or kind = "delete";
+let read_events = select reference, raw_scope as initial_scope, point, file from reference_events where kind = "read";
+let delete_events = select reference as id, point, file from reference_events where kind = "delete";
+let owner_scopes = select child as id, file from "scope";
+let delete_owners = axis(from=delete_events, relation="semantic-child", direction=nearest-ancestor, domain=owner_scopes);
+let delete_scopes = select l.id as reference, r.related as initial_scope, l.point as point, l.file as file from delete_events as l join delete_owners as r on l.id = r.id and l.file = r.file;
+let read_contexts = select l.reference as context, r.initial_scope as initial_scope, r.point as point, l.file as file from reads as l join read_events as r on l.reference = r.reference and l.file = r.file;
+let delete_contexts = select l.reference as context, r.initial_scope as initial_scope, r.point as point, l.file as file from reads as l join delete_scopes as r on l.reference = r.reference and l.file = r.file;
 let read_stages = extend(from=read_contexts, values={stage: 2});
 let delete_stages = extend(from=delete_contexts, values={stage: 3});
 let staged_contexts = union(left=read_stages, right=delete_stages);
@@ -12,5 +16,5 @@ let contexts = select context, initial_scope, point, point as header_point, stag
 let expressions = select reference as id, file from reads;
 let lookups = lookup_events(ordered_contexts=contexts, expressions=expressions);
 let own_lookups = select context as reference, occurrence, kind, file from lookups where context = expression;
-let lookup_binds = select reference, occurrence as binding, file from own_lookups where kind = "bind";
-return lookup_binds;
+let resolved_lookups = select reference, occurrence as binding, kind, file from own_lookups where kind = "bind" or kind = "global" or kind = "nonlocal";
+return resolved_lookups;
