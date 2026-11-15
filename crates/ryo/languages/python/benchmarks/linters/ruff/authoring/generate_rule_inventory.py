@@ -19,7 +19,7 @@ def render_full_inventory(path: Path) -> str:
     worker_sha256 = summary.get("worker_sha256") or summary.get("identity", {}).get("worker_sha256")
     rows = summary.get("rules", [])
     ids = [row.get("rule_id") for row in rows]
-    if (summary.get("schema") not in {"ruff-full-inventory/v1", "benchmark-inventory/v1"} or len(defaults) != 413
+    if (summary.get("schema") not in {"ruff-full-inventory/v1", "benchmark-inventory/v1", "benchmark-inventory/v2"} or len(defaults) != 413
         or len(set(defaults)) != 413 or set(defaults) != set(phases["shipped_default_rules"])
         or len(ids) != 413 or len(set(ids)) != 413 or set(ids) != set(defaults)
         or any(row.get("status") not in {"PASS", "FAIL"} for row in rows)):

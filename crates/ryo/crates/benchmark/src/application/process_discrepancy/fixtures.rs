@@ -1,6 +1,7 @@
 //! A case declaring a completed process failure, the proof that validated it and the capture that satisfies both.
 use crate::domain::discrepancy::fixtures::case;
 use crate::domain::discrepancy::types::{OptionalDigest, ReferenceKind, ReferenceProof};
+use crate::domain::process_receipts::fixtures::{root, state};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
     ArgumentText, CompleteInvocation, InvocationDocument, NormalizedSettings,
@@ -52,7 +53,7 @@ fn path(text: &str) -> PathText {
 /// The captured invocation record of a completed failure.
 pub(super) fn record() -> CompleteInvocation {
     CompleteInvocation {
-        actual_request_root: path("/root"),
+        actual_request_root: path(&root()),
         files: vec![path("case.py")],
         executable_sha256: Sha256Text(repeated('a')),
         settings_sha256: Sha256Text(repeated('d')),
@@ -65,10 +66,10 @@ pub(super) fn record() -> CompleteInvocation {
         profile_sha256: Sha256Text(repeated('c')),
         tool: ReasonText("fixture".into()),
         version: ReasonText("1".into()),
-        state: path("/state"),
+        state: path(&state()),
         arguments: vec![ArgumentText("--check".into())],
         environment: BTreeMap::new(),
-        directory: path("/root"),
+        directory: path(&root()),
         exit: ExitStatus(2),
         signal: Signal::Absent,
         observer_no_deadline: YesNo::Yes,
@@ -80,7 +81,7 @@ pub(super) fn record() -> CompleteInvocation {
 /// A process failure whose bytes are both literal.
 pub(super) fn passing() -> Actual {
     let mut prepared = case();
-    prepared.request.root = "/root".into();
+    prepared.request.root = root().into();
     let ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(
         discrepancy,
     ) = &mut prepared.reference_discrepancy

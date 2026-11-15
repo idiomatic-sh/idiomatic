@@ -26,6 +26,19 @@ class InventoryRendererTests(unittest.TestCase):
             with self.subTest(expected=expected):
                 self.assertEqual(renderer.failure_category(reason), expected)
 
+    def test_a_v2_summary_renders_and_a_deferred_row_is_refused(self):
+        summary = json.loads(renderer.LATEST_FULL_RESULT.read_text())
+        summary["schema"] = "benchmark-inventory/v2"
+        with tempfile.TemporaryDirectory(prefix="ryo-inventory-render-") as temporary:
+            fixture = Path(temporary) / "summary.json"
+            fixture.write_text(json.dumps(summary))
+            rows = re.findall(r"^\| [A-Z]+[0-9]+ \| (?:PASS|FAIL) \|", renderer.render_full_inventory(fixture), re.MULTILINE)
+            self.assertEqual(len(rows), 413)
+            summary["rules"][0]["status"] = "DEFERRED"
+            fixture.write_text(json.dumps(summary))
+            with self.assertRaises(ValueError):
+                renderer.render_full_inventory(fixture)
+
     def test_render_lists_every_pinned_id_with_short_receipt_links_and_demotes_stale_proof(self):
         receipt = renderer.LATEST_FULL_RESULT
         before = hashlib.sha256(receipt.read_bytes()).hexdigest()

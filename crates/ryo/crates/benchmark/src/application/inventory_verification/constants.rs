@@ -43,3 +43,14 @@ pub(super) const REGISTERED_CONTEXT_NAMESPACE_DIFFERS_FROM_PI: &str =
 /// A registered rule that fails its independent cases fails the certification.
 pub(crate) const REGISTERED_INDEPENDENT_CASE_CERTIFICATION_FA: &str =
     "registered independent case certification failed";
+/// A rule registered as deferred must be deferred by the canonical profile under the same capability.
+pub(super) const DEFERRED_RULE_NOT_DEFERRED_BY_PROFILE: &str =
+    "registered deferral differs from the canonical profile's";
+/// A registered deferral states a failure, so it is not a deferral.
+pub(super) const DEFERRED_RULE_STATES_A_FAILURE: &str = "registered deferral states a failure";
+/// A registered deferral pins a definition, modules, artifacts or cases, the evidence of an executable rule.
+pub(super) const DEFERRED_RULE_CARRIES_EXECUTABLE_EVIDENCE: &str =
+    "registered deferral carries executable evidence";
+/// A registered deferral's rule now has an authored query, so it must be registered as executable.
+pub(super) const DEFERRED_RULE_HAS_AN_AUTHORED_QUERY: &str =
+    "registered deferral has an authored query";

@@ -36,13 +36,7 @@ fn process_child(bencher: divan::Bencher<'_, '_>) {
 /// Measure the isolated collector boundary using its actual built executable.
 fn timed_child(bencher: divan::Bencher<'_, '_>) {
     use sha2::{Digest as _, Sha256};
-    let bench = std::env::current_exe().expect("running benchmark executable");
-    let executable = bench
-        .parent()
-        .expect("deps directory")
-        .parent()
-        .expect("profile directory")
-        .join("ryo-benchmark-collector");
+    let executable = std::path::PathBuf::from(env!("CARGO_BIN_EXE_ryo-benchmark-collector"));
     let digest =
         ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(format!(
             "{:x}",
