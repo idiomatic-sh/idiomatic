@@ -77,12 +77,15 @@ pub(crate) fn run_occurrence(
             place: handover,
         }),
     }
-    let HandoverState::Handed(handed) = &handovers
+    let handed = match &handovers
         .get(handover.0)
         .ok_or(OperatingError::NotRun)?
         .handed
-    else {
-        return Err(OperatingError::NotRun);
+    {
+        HandoverState::Handed(handed) => handed,
+        HandoverState::Released => return Err(OperatingError::HandoverReleased),
+        // Every occurrence that evaluates decodes its rule's handover first.
+        HandoverState::Proven { .. } => return Err(OperatingError::NotRun),
     };
     // Names the files handed over that share a hash are spelled the same, before any step reads them.
     check_name_spellings(

@@ -27,6 +27,8 @@ enum Phase {
     CoverageChanged,
     /// Rule 0, its file frontier proven empty and decoded as a file the run does not have: its outcome, and the store reads.
     OutsiderOnDecode,
+    /// Rules 0, 1, then 0 again, rule 0 counted as occurring once: each outcome.
+    Undercounted,
 }
 
 type Input = Phase;
@@ -89,6 +91,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "[\"stopped frontiers named producer is incomplete: frontier source proof does not match the prepared program\"]; [\"sources 0\", \"guard 0 holders 2\", \"kept 0\"]",
         )),
     },
+    Case {
+        name: CaseName("an_occurrence_past_its_rules_count_reads_a_released_handover"),
+        word: Word::Succeeds,
+        input: || Phase::Undercounted,
+        expect: Expect::Value(Cow::Borrowed(
+            "[\"complete RowCount(1)\", \"complete RowCount(1)\", \"stopped Operating(HandoverReleased)\"]",
+        )),
+    },
 ];
 
 fn subject(phase: Input) -> Result<Value, Failure> {
@@ -128,6 +138,15 @@ fn subject(phase: Input) -> Result<Value, Failure> {
         Phase::OutsiderOnDecode => {
             let Ran { log, outcomes, .. } = ran(&[RuleIndex(0)], None, Store::OutsiderOnDecode);
             format!("{outcomes:?}; {log:?}")
+        }
+        Phase::Undercounted => {
+            let counted = uses_of(both.iter().copied());
+            let Ran { outcomes, .. } = ran(
+                &[RuleIndex(0), RuleIndex(1), RuleIndex(0)],
+                Some(counted),
+                Store::Empty,
+            );
+            format!("{outcomes:?}")
         }
     };
     Ok(Cow::Owned(text))
