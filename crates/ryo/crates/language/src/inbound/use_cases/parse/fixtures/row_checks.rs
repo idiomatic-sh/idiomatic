@@ -7,8 +7,8 @@ use super::super::types::{ParseRequest, Recognition, SourceFile};
 use super::collect::Collect;
 use super::validators::{
     embedded_roots_valid, filtered_projection_valid, identifier_valid, projection_extends_native,
-    projection_preserves_native,
-    qualified_name_valid, semantic_spans_valid, shape_representatives_valid, well_formed,
+    projection_preserves_native, qualified_name_valid, semantic_spans_valid,
+    shape_representatives_valid, well_formed,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::elements::service::{end_of, positions};
@@ -251,9 +251,15 @@ pub(super) fn read(
         && wanted.contains(&Relation::SemanticChild)
         && wanted.contains(&Relation::SyntaxChild);
     if projected {
+        let added: std::collections::BTreeSet<u64> =
+            crate::domain::elements::service::expanded_positions(&elements)
+                .map(|position| {
+                    ryo_relations::domain::relations::service::node_id(FileId(0), position).0
+                })
+                .collect();
         assert!(
-            projection_extends_native(&out),
-            "the semantic view must keep every native row and edge, and only add the trees read again"
+            projection_extends_native(&out, |id| added.contains(&id)),
+            "the semantic view must keep every native row and edge, and add only rows of the elements the language added"
         );
     }
     if projected
