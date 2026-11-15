@@ -26,7 +26,7 @@ use ryo_relations::domain::catalog::service::scope_of;
 use ryo_relations::domain::catalog::types::RowScope;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::Input;
-use ryo_values::domain::plans::service::{inputs_of, named};
+use ryo_values::domain::plans::service::reads_of;
 
 pub(crate) mod inputs;
 pub(crate) mod occurrence;
@@ -42,17 +42,12 @@ pub(crate) fn project_reads(pass: &PassProgram, rules: &[RuleIndex]) -> Vec<Rela
         let Some(plan) = pass.plans.get(rule.0) else {
             continue;
         };
-        let stepped = plan.steps.iter().flat_map(|step| {
-            named(&inputs_of(&step.operation))
-                .into_iter()
-                .copied()
-                .collect::<Vec<_>>()
+        let framed = plan.frontier.iter().filter_map(|input| match input {
+            Input::Relation(relation) => Some(*relation),
+            Input::Step(_) | Input::BoundObservation(_) => None,
         });
-        for input in plan.frontier.iter().copied().chain(stepped) {
-            if let Input::Relation(relation) = input
-                && scope_of(relation) == RowScope::Project
-                && !reads.contains(&relation)
-            {
+        for relation in framed.chain(reads_of(plan).0) {
+            if scope_of(relation) == RowScope::Project && !reads.contains(&relation) {
                 reads.push(relation);
             }
         }
