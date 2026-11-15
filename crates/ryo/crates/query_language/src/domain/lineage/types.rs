@@ -2,7 +2,6 @@
 
 use std::collections::BTreeMap;
 
-use crate::domain::lowering::types::Uniqueness;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::lineage::types::Lineage;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -29,17 +28,6 @@ pub(crate) struct LineageMemo {
     pub origins: BTreeMap<StepColumn, Option<Vec<ValueOrigin>>>,
     /// The lineage of each step found so far.
     pub lineages: BTreeMap<StepId, Lineage>,
-    /// Whether the rows of a step are distinct on each set of its columns followed so far.
-    pub distinct: BTreeMap<StepKeys, Uniqueness>,
-}
-
-/// A set of columns of a step of the plan, in ascending order.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct StepKeys {
-    /// The step.
-    pub step: StepId,
-    /// Its columns, each once, in ascending order.
-    pub columns: Vec<ColumnIndex>,
 }
 
 /// A column of a step of the plan.
