@@ -77,3 +77,8 @@ expected = [{ file = "src/lib.rs", start = 0, end = 3 }]
 name = "hidden-with-value"
 files = { "src/lib.rs" = "///\n#[doc(hidden = \"x\")]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 0, end = 3 }]
+
+[[cases]]
+name = "inline-is-not-hidden"
+files = { "src/lib.rs" = "///\n#[doc(inline)]\npub use std::fmt;\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 3 }]

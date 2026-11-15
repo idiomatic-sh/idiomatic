@@ -292,3 +292,28 @@ expected = [{ file = "src/lib.rs", start = 57, end = 66 }]
 name = "reason-names-the-lint"
 files = { "src/lib.rs" = "#[allow(dead_code, reason = \"clippy::duplicated_attributes\")]\n#[inline]\n#[inline]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 72, end = 81 }]
+
+[[cases]]
+name = "comment-in-lint-list"
+files = { "src/lib.rs" = "#[allow(clippy::duplicated_attributes /* why */)]\n#[inline]\n#[inline]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "path-after-list"
+files = { "src/lib.rs" = "#[rustfmt::skip(a(b) c, d, d)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "literal-after-list"
+files = { "src/lib.rs" = "#[rustfmt::skip(a(b) \"x\", d, d)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "operator-then-literal"
+files = { "src/lib.rs" = "#[rustfmt::skip(v - 1, d, d)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "path-then-literal"
+files = { "src/lib.rs" = "#[rustfmt::skip(a \"x\", d, d)]\npub fn f() {}\n" }
+expected = []
