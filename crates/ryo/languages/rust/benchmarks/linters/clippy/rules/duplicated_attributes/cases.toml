@@ -277,3 +277,8 @@ expected = []
 name = "word-and-list"
 files = { "src/lib.rs" = "#[rustfmt::skip(a, a(b), a(b))]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 27, end = 28 }]
+
+[[cases]]
+name = "single-colon-item"
+files = { "src/lib.rs" = "#[rustfmt::skip(a:b, a, a)]\npub fn f() {}\n" }
+expected = []
