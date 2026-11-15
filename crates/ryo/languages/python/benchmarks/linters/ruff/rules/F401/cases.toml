@@ -543,3 +543,39 @@ name="nested-lambda-in-comprehension-reads-later-rebinding"
 comparison="full"
 files={"case.py"="import os\ndef f(c):\n    return [lambda: os for _ in c]\n    import os\n"}
 expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="handler-restores-module-import-for-later-read"
+comparison="full"
+files={"case.py"="import os\ndef f(c):\n    if c:\n        import os\n        try:\n            pass\n        except Exception as os:\n            pass\n    else:\n        print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="handler-restoration-second-shape"
+comparison="full"
+files={"case.py"="def f():\n    import os\n    try:\n        pass\n    except Exception as os:\n        pass\n    return os\n"}
+expected=[]
+
+[[cases]]
+name="deleted-module-import-is-used"
+comparison="full"
+files={"case.py"="import os\ndel os\n"}
+expected=[]
+
+[[cases]]
+name="deleted-function-import-is-used"
+comparison="full"
+files={"case.py"="def f():\n    import os\n    del os\n"}
+expected=[]
+
+[[cases]]
+name="deleted-import-in-conditional"
+comparison="full"
+files={"case.py"="import os\nif c:\n    del os\n"}
+expected=[]
+
+[[cases]]
+name="long-rebinding-chain"
+comparison="full"
+files={"case.py"="import os\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\n"}
+expected=[]

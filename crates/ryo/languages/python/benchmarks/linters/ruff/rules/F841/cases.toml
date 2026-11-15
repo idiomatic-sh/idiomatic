@@ -692,3 +692,21 @@ name="handler-cleanup-restores-branch-import"
 comparison="full"
 files={"case.py"="import os\ndef f(c):\n    if c:\n        import os\n        try:\n            pass\n        except Exception as os:\n            pass\n    else:\n        print(os)\n"}
 expected=[{rule="F841", file="case.py", start=106, end=108}]
+
+[[cases]]
+name="deleted-handler-target-at-module-level"
+comparison="full"
+files={"case.py"="try:\n    pass\nexcept Exception as e:\n    del e\n"}
+expected=[]
+
+[[cases]]
+name="deleted-handler-target-in-function"
+comparison="full"
+files={"case.py"="def f():\n    try:\n        pass\n    except Exception as e:\n        del e\n"}
+expected=[]
+
+[[cases]]
+name="conditionally-deleted-handler-target"
+comparison="full"
+files={"case.py"="def f(c):\n    try:\n        pass\n    except Exception as e:\n        if c:\n            del e\n"}
+expected=[]
