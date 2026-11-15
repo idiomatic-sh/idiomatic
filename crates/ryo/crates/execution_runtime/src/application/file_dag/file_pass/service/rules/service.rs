@@ -122,7 +122,7 @@ pub(crate) fn run_rules(
             SemanticSupport::Supplied(lookup) => Some(lookup),
             SemanticSupport::Absent => None,
         },
-        rendering: None,
+        refusals: Vec::new(),
         outputs: std::mem::take(&mut scratch.outputs),
     };
     for outputs in &mut at.outputs {

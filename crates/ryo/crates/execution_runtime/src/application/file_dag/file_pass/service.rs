@@ -28,7 +28,7 @@ use ryo_language::domain::kind_index::service::of_kind;
 use ryo_language::domain::semantics::types::RenderOutcome;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::domain::contract::types::{PortableOperatorFault, RenderRefusal};
 use ryo_operators::domain::physical_plan::types::{
     Candidates, FactRows, OpenFileBytes, PlanInputs, PlanNodeId, RenderOutcomes, RenderRequests,
     Resources,
@@ -315,21 +315,21 @@ impl Resources for PassResources<'_> {
     ) -> Result<RenderOutcomes, PortableOperatorFault> {
         // The engine's reason is kept for the run's error: no session, a refused batch, a batch of another length, or an
         // answer the language cannot render.
-        match rendered_batch(self.semantic, requests.0, self.source) {
-            Ok(answers) => {
-                if answers
+        let refused = match rendered_batch(self.semantic, requests.0, self.source) {
+            Ok(answers)
+                if !answers
                     .iter()
-                    .any(|answer| matches!(answer, RenderOutcome::Unsupported(_)))
-                {
-                    self.refusal = Some(unsupported_render(&answers));
-                }
-                Ok(RenderOutcomes(answers))
+                    .any(|answer| matches!(answer, RenderOutcome::Unsupported(_))) =>
+            {
+                return Ok(RenderOutcomes(answers));
             }
-            Err(error) => {
-                self.refusal = Some(error);
-                Err(PortableOperatorFault::UnsupportedRender)
-            }
-        }
+            Ok(answers) => unsupported_render(&answers),
+            Err(error) => error,
+        };
+        // The refusal is recorded once, and its place travels with the node's fault to every reader.
+        let refusal = RenderRefusal(u32::try_from(self.refusals.len()).unwrap_or(u32::MAX));
+        self.refusals.push(refused);
+        Err(PortableOperatorFault::RenderRefused { refusal })
     }
 }
 

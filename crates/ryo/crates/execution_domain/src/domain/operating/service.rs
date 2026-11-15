@@ -52,9 +52,10 @@ pub fn portable_fault(
             reason: format!("missing named capture `{}`", capture.0),
         },
         PortableOperatorFault::Derived(fault) => derived_fault(fault),
-        PortableOperatorFault::WrongOperation | PortableOperatorFault::UnsupportedRender => {
-            OperatingError::WrongOperation
-        }
+        // A refused rendering is answered from the engine's record of it; one no record holds is a wrong operation.
+        PortableOperatorFault::WrongOperation
+        | PortableOperatorFault::UnsupportedRender
+        | PortableOperatorFault::RenderRefused { .. } => OperatingError::WrongOperation,
     }
 }
 

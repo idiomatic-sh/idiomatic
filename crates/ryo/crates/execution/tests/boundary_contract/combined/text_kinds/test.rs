@@ -203,3 +203,172 @@ fn a_shared_render_refuses_every_rule_with_the_engine_s_reason() {
         "both rules answer the engine's reason: {shown}"
     );
 }
+
+/// The session's answer for each role: a role it cannot render (reason 24 or 25), and a role whose batch comes back one
+/// answer short.
+#[derive(Debug)]
+struct ByRole;
+
+impl ryo_execution::inbound::use_cases::execution::interface::SemanticLookup for ByRole {
+    fn render_batch(
+        &self,
+        requests: &[ryo_language::domain::semantics::types::RenderRequest],
+        _: ryo_values::domain::files::types::SourceView<'_>,
+    ) -> Result<
+        Vec<ryo_language::domain::semantics::types::RenderOutcome>,
+        ryo_execution::inbound::use_cases::execution::interface::OperatingError,
+    > {
+        use ryo_language::domain::semantics::types::{RenderContext, RenderOutcome};
+        use ryo_relations::domain::terms::types::UnknownReason;
+        Ok(requests
+            .iter()
+            .filter_map(|request| match request.context {
+                RenderContext::PositionalArgument => {
+                    Some(RenderOutcome::Unsupported(UnknownReason(24)))
+                }
+                RenderContext::AttributeReceiver => {
+                    Some(RenderOutcome::Unsupported(UnknownReason(25)))
+                }
+                RenderContext::AssignmentTarget => None,
+            })
+            .collect())
+    }
+}
+
+/// A rendering of Function's node (step 0) in `context`.
+fn rendered_as(context: ryo_language::domain::semantics::types::RenderContext) -> Operation {
+    Operation::RenderSyntax {
+        from: Input::Step(StepId(0)),
+        node: ColumnIndex(0),
+        context,
+    }
+}
+
+/// The answers over file 0 of one rule per entry of `rules`, each a select of Function's node followed by its steps, its last
+/// step emitted, rendered through `ByRole`.
+fn rendered_rules(rules: &[Vec<Operation>]) -> String {
+    use ryo_execution::inbound::use_cases::execution::interface::SemanticSupport;
+    let mut input = authored_request(rules.len());
+    for (plan, steps) in crate::boundary_fixture::fixtures::plans(&mut input)
+        .iter_mut()
+        .zip(rules)
+    {
+        plan.steps.truncate(1);
+        plan.steps.extend(steps.iter().map(|operation| PlanStep {
+            scope: StepScope::PerFile,
+            operation: operation.clone(),
+        }));
+        plan.emit.step = StepId(u32::try_from(steps.len()).unwrap_or(u32::MAX));
+    }
+    use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
+    let program = crate::boundary_fixture::fixtures::engine()
+        .prepare(input)
+        .expect("prepare the rendering rules");
+    let corpus = corpus();
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
+    let table = source();
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let intents = vec![COLLECTED; rules.len()];
+    let rules = run_file(
+        &request,
+        FileRun {
+            semantic: SemanticSupport::Supplied(&ByRole),
+            ..FileRun::of(&intents, &elements)
+        },
+        &mut Symbols::default(),
+        &mut facts,
+    );
+    request.finish();
+    answered(rules)
+}
+
+/// The union of steps 1 and 2.
+fn union_of_both() -> Operation {
+    Operation::Union {
+        left: Input::Step(StepId(1)),
+        right: Input::Step(StepId(2)),
+    }
+}
+
+/// Rule 0 renders A (unrenderable) and B (a short batch) and answers A's refusal, its union's left; rule 1 reads B, held, and
+/// answers B's own refusal: failed with the batch's shape.
+#[test]
+fn a_reader_of_a_short_batch_answers_its_shape_after_an_unrenderable_one() {
+    use ryo_language::domain::semantics::types::RenderContext::{
+        AssignmentTarget, PositionalArgument,
+    };
+    let shown = rendered_rules(&[
+        vec![
+            rendered_as(PositionalArgument),
+            rendered_as(AssignmentTarget),
+            union_of_both(),
+        ],
+        vec![rendered_as(AssignmentTarget)],
+    ]);
+    let lines: Vec<&str> = shown.lines().collect();
+    assert!(
+        lines.first().is_some_and(
+            |line| line.starts_with("rule 0: unknown SemanticIncomplete")
+                && line.contains("(reason 24)")
+        ) && lines
+            .get(1)
+            .is_some_and(|line| line.starts_with("rule 1: failed SemanticBatchShape")),
+        "each rule answers the refusal of the node it reads: {shown}"
+    );
+}
+
+/// The reverse order of categories: rule 0's union reads the unrenderable node, then the short batch; rule 1 reads the
+/// unrenderable node, held, and answers its refusal, not the short batch's.
+#[test]
+fn a_reader_of_an_unrenderable_node_answers_its_reason_after_a_short_batch() {
+    use ryo_language::domain::semantics::types::RenderContext::{
+        AssignmentTarget, PositionalArgument,
+    };
+    let shown = rendered_rules(&[
+        vec![
+            rendered_as(PositionalArgument),
+            rendered_as(AssignmentTarget),
+            union_of_both(),
+        ],
+        vec![rendered_as(PositionalArgument)],
+    ]);
+    let lines: Vec<&str> = shown.lines().collect();
+    assert!(
+        lines.get(1).is_some_and(
+            |line| line.starts_with("rule 1: unknown SemanticIncomplete")
+                && line.contains("(reason 24)")
+        ),
+        "the reader of the unrenderable node answers its reason: {shown}"
+    );
+}
+
+/// Two unrenderable nodes of other reasons: each reader answers its own node's reason.
+#[test]
+fn each_reader_answers_the_reason_of_the_node_it_reads() {
+    use ryo_language::domain::semantics::types::RenderContext::{
+        AttributeReceiver, PositionalArgument,
+    };
+    let shown = rendered_rules(&[
+        vec![
+            rendered_as(PositionalArgument),
+            rendered_as(AttributeReceiver),
+            union_of_both(),
+        ],
+        vec![rendered_as(AttributeReceiver)],
+        vec![rendered_as(PositionalArgument)],
+    ]);
+    let lines: Vec<&str> = shown.lines().collect();
+    assert!(
+        lines
+            .first()
+            .is_some_and(|line| line.contains("(reason 24)"))
+            && lines
+                .get(1)
+                .is_some_and(|line| line.contains("(reason 25)"))
+            && lines
+                .get(2)
+                .is_some_and(|line| line.contains("(reason 24)")),
+        "each rule answers its own node's reason: {shown}"
+    );
+}

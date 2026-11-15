@@ -881,7 +881,8 @@ fn portable(fault: &ryo_operators::domain::contract::types::PortableOperatorFaul
         NoSuchColumn { .. } | WrongOperation | UnboundKey | WrongBinding | Unbound => Fault::Fixed,
         // A named capture the matcher lacks, raised when a row first reaches the search.
         MissingCapture { .. } => Fault::RowFallible(CAPTURE),
-        Interrupted | NotRun => Fault::Engine,
+        // The engine's record of a rendering it refused: raised by the engine's own resources, never by an operator's row.
+        Interrupted | NotRun | RenderRefused { .. } => Fault::Engine,
         // A comparison's fault is the operating error it maps to, variant for variant.
         WrongTest => operating(&OperatingError::WrongTest),
         Pattern(_) => operating(&OperatingError::InvalidRegex {
@@ -1074,7 +1075,7 @@ fn located_proof(raised: Raised<'_>) -> Option<LocatedProof> {
             | P::NotRun,
         ) => None,
         Raised::Portable(P::Pattern(_)) => Some(LocatedProof::MatcherSlot),
-        Raised::Portable(P::WrongTest | P::Derived(_)) => None,
+        Raised::Portable(P::WrongTest | P::Derived(_) | P::RenderRefused { .. }) => None,
     }
 }
 
@@ -1129,6 +1130,7 @@ fn portable_position(
         WrongTest => 13,
         Pattern(_) => 14,
         Derived(_) => 15,
+        RenderRefused { .. } => 16,
     }
 }
 

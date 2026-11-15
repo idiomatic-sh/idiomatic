@@ -190,7 +190,7 @@ pub(crate) fn ran_node(
         paths: at.paths,
         elements: at.inputs.lookup.tree(),
         semantic: at.semantic,
-        refusal: None,
+        refusals: &mut at.refusals,
     };
     let ran = at.pass.operators.run(
         physical(&at.pass.program),
@@ -199,15 +199,14 @@ pub(crate) fn ran_node(
         &at.inputs,
         &mut resources,
     );
-    if let (Some(refusal), None) = (&resources.refusal, &at.rendering) {
-        at.rendering = Some(refusal.clone());
-    }
-    // A rendering the engine refused reports the engine's reason, not the operators' fault: the one this call met, or the one
-    // a node it reads met when another rule ran it.
-    ran.map_err(|fault| match (fault, resources.refusal, &at.rendering) {
-        (_, Some(refusal), _) => refusal,
-        (PortableOperatorFault::UnsupportedRender, None, Some(refusal)) => refusal.clone(),
-        (fault, None, _) => portable_fault(fault),
+    // A refused rendering answers the engine's reason for the node it came from, whichever rule ran that node.
+    ran.map_err(|fault| match fault {
+        PortableOperatorFault::RenderRefused { refusal } => at
+            .refusals
+            .get(usize::try_from(refusal.0).unwrap_or(usize::MAX))
+            .cloned()
+            .unwrap_or_else(|| portable_fault(fault)),
+        other => portable_fault(other),
     })
 }
 
