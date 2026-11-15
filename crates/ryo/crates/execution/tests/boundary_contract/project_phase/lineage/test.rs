@@ -90,7 +90,10 @@ fn subject(refused_file: Input) -> Result<Value, Failure> {
     let mut places = vec![];
     let mut words = Words::default();
     let mut captured_files = vec![];
-    for file_id in [FileId(0), FileId(1)].into_iter().filter(|each| *each != refused_file) {
+    for file_id in [FileId(0), FileId(1)]
+        .into_iter()
+        .filter(|each| *each != refused_file)
+    {
         let mut symbols = Symbols::default();
         let mut table = crate::boundary_fixture::fixtures::named_functions(&mut symbols);
         let width = table.kinds.len();

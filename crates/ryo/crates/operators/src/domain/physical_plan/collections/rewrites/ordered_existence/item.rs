@@ -293,7 +293,9 @@ fn numbered(
     let id = match source {
         RowSource::Facts(relation) | RowSource::Tree(relation) => return stored(relation, column),
         RowSource::Node(id) if id.0 < before.0 => id,
-        RowSource::Node(_) => return NumberProof::Unproven,
+        RowSource::Node(_) | RowSource::Frontier(_) | RowSource::Observation(_) => {
+            return NumberProof::Unproven;
+        }
     };
     let Some(node) = node_of(nodes, id) else {
         return NumberProof::Unproven;
@@ -312,7 +314,10 @@ fn numbered(
             .map_or(NumberProof::Unproven, |(column, index)| {
                 match index.source {
                     RowSource::Facts(relation) => stored(relation, column),
-                    RowSource::Node(_) | RowSource::Tree(_) => NumberProof::Unproven,
+                    RowSource::Node(_)
+                    | RowSource::Tree(_)
+                    | RowSource::Frontier(_)
+                    | RowSource::Observation(_) => NumberProof::Unproven,
                 }
             }),
         Lowering::Project { source, project } => project

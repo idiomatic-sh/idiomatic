@@ -333,7 +333,6 @@ impl PreparedWalk {
         }
     }
 
-
     /// The classes of the walk.
     pub fn classes(&self) -> &[StepClass] {
         &self.classes.classes

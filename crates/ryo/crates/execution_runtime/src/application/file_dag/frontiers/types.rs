@@ -50,7 +50,11 @@ pub(crate) enum FrontierRows {
         /// Their coverage.
         coverage: CoverageState,
     },
-eirs }
+    /// Withheld: the phase answers the token with the reason it recorded.
+    Withheld(WithheldInput),
+    /// Not the files' to hand over: a bound observation.
+    Elsewhere,
+}
 
 /// Whether the files a source proof accounts for are exactly the files the request requires.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -77,4 +81,6 @@ pub(crate) struct ReadinessProof(pub(crate) Vec<InputReadiness>);
 
 /// Why each withheld input of a phase is withheld, by its token.
 #[derive(Debug, Default)]
-pub(crate) struct Withholdings(pub(crate) Vec<ryo_execution_domain::domain::operating::errors::OperatingError>);
+pub(crate) struct Withholdings(
+    pub(crate) Vec<ryo_execution_domain::domain::operating::errors::OperatingError>,
+);

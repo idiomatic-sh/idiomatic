@@ -41,12 +41,12 @@ pub mod counting;
 #[cfg(test)]
 pub(crate) mod edges;
 mod graph_workloads;
+pub mod held;
 mod kernel_programs;
 #[cfg(test)]
 pub(crate) mod relational;
 pub mod texts;
 pub mod unshared;
-pub mod held;
 use held::HeldInputs;
 
 /// The rows of relations, held as a worker's columns, lent to a run and counted per read.

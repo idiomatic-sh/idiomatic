@@ -8,14 +8,12 @@ type Input = Vec<NodeId>;
 type Value = (usize, Option<NodeId>);
 type Failure = ();
 
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("candidates_answer_their_nodes_in_order"),
-        word: Word::Succeeds,
-        input: || vec![NodeId(3), NodeId(5)],
-        expect: Expect::Value((2, Some(NodeId(3)))),
-    },
-];
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("candidates_answer_their_nodes_in_order"),
+    word: Word::Succeeds,
+    input: || vec![NodeId(3), NodeId(5)],
+    expect: Expect::Value((2, Some(NodeId(3)))),
+}];
 
 fn subject(nodes: Input) -> Result<Value, Failure> {
     let nodes = Candidates(&nodes).nodes();

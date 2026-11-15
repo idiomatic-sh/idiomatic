@@ -146,6 +146,16 @@ pub(super) fn fixture(
             plans: compiled.plans.clone(),
             bindings: compiled.bindings.clone(),
             operators,
+            hosted: hosted
+                .iter()
+                .map(|relation| {
+                    relation
+                        .columns
+                        .iter()
+                        .map(|column| ryo_values::domain::hosted::service::kind_of(column.kind))
+                        .collect()
+                })
+                .collect(),
         },
     )
     .expect("the file pass plans the request");

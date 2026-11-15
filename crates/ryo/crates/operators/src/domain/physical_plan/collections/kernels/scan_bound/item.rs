@@ -7,8 +7,9 @@ use super::super::interface::{KernelsItem, Reach};
 use crate::domain::contract::errors::ContractError;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::held_rows::value::HeldRows;
+use crate::domain::physical_plan::types::lowering::value::BoundScan;
 #[cfg(test)]
-use crate::domain::physical_plan::types::lowering::value::{BoundScan, Lowering};
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::{KernelRun, RowSource};
 use crate::domain::table_rows::types::{RowTexts, TableRowOutput};
 use ryo_relations::domain::relations::types::{CellKind, Value};
@@ -24,7 +25,8 @@ pub(crate) struct ScanBoundItem;
 impl KernelsItem for ScanBoundItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
         let runs = matches!(lowering, Lowering::ScanBound { .. })
-            || super::super::scan_node::item::sources_of(lowering)
+            || lowering
+                .sources()
                 .any(|source| matches!(source, RowSource::Frontier(_) | RowSource::Observation(_)));
         if runs { Reach::Runs } else { Reach::Skips }
     }
@@ -46,7 +48,10 @@ pub(crate) fn held(rows: HeldRows<'_>) -> Result<&Table, PortableOperatorFault> 
 ///
 /// `Withheld` for host rows the engine withheld; `Unbound`, `WrongBinding` or `UnboundKey` for a parameter bound to no table
 /// list or a table lacking a key.
-pub(crate) fn scanned(scan: &BoundScan, run: &mut KernelRun<'_>) -> Result<Table, PortableOperatorFault> {
+pub(crate) fn scanned(
+    scan: &BoundScan,
+    run: &mut KernelRun<'_>,
+) -> Result<Table, PortableOperatorFault> {
     match scan {
         BoundScan::Hosted(relation) => held(run.inputs.hosted(*relation)).cloned(),
         BoundScan::Rows {
@@ -54,20 +59,23 @@ pub(crate) fn scanned(scan: &BoundScan, run: &mut KernelRun<'_>) -> Result<Table
             keys,
             bindings,
         } => {
-            let tables = match ryo_values::domain::plan_parts::service::parameter_in(bindings, *parameter)
-                .ok_or(PortableOperatorFault::Unbound)?
-            {
-                ParameterBinding::Tables(tables) => tables.as_slice(),
-                ParameterBinding::Texts(items) if items.is_empty() => &[],
-                ParameterBinding::Numbers(items) if items.is_empty() => &[],
-                ParameterBinding::TextSets(items) if items.is_empty() => &[],
-                ParameterBinding::Number(_)
-                | ParameterBinding::Flag(_)
-                | ParameterBinding::Text(_)
-                | ParameterBinding::Numbers(_)
-                | ParameterBinding::Texts(_)
-                | ParameterBinding::TextSets(_) => return Err(PortableOperatorFault::WrongBinding),
-            };
+            let tables =
+                match ryo_values::domain::plan_parts::service::parameter_in(bindings, *parameter)
+                    .ok_or(PortableOperatorFault::Unbound)?
+                {
+                    ParameterBinding::Tables(tables) => tables.as_slice(),
+                    ParameterBinding::Texts(items) if items.is_empty() => &[],
+                    ParameterBinding::Numbers(items) if items.is_empty() => &[],
+                    ParameterBinding::TextSets(items) if items.is_empty() => &[],
+                    ParameterBinding::Number(_)
+                    | ParameterBinding::Flag(_)
+                    | ParameterBinding::Text(_)
+                    | ParameterBinding::Numbers(_)
+                    | ParameterBinding::Texts(_)
+                    | ParameterBinding::TextSets(_) => {
+                        return Err(PortableOperatorFault::WrongBinding);
+                    }
+                };
             let mut output = Table {
                 kinds: vec![CellKind::Symbol; keys.len()],
                 ..Table::default()

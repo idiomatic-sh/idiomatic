@@ -21,7 +21,6 @@ pub(crate) fn add_found(
     }
 }
 
-
 pub(crate) fn distinct<'a, 'r>(
     lease: &'r mut PrimitiveLease<'a>,
 ) -> Result<&'r mut DistinctWorkspace, OperatingError> {

@@ -257,7 +257,6 @@ pub fn intern_derived(symbols: &mut Symbols, source: ByteSlice<'_>, text: NameTe
     derive(symbols.as_mut(), source, text)
 }
 
-
 /// Adds a value computed by a query, retaining existing source and derived identities.
 ///
 /// ```
@@ -349,7 +348,6 @@ pub fn transport_permit(symbols: &mut Symbols) -> super::types::TransportPermit 
     let symbols: &SymbolsEngine = symbols.as_ref();
     super::types::TransportPermit(std::sync::Arc::clone(&symbols.transport_generation))
 }
-
 
 /// Check a semantic query borrow against an application-held frame key without
 /// granting the query a way to mint keys or mutate transported name places.

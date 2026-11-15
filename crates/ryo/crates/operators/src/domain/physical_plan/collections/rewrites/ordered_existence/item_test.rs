@@ -7,8 +7,9 @@ use crate::domain::physical_plan::fixtures::ordered::{EDGES, OrderedShape, order
 use crate::domain::physical_plan::service::plan_with;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::{
-    LogicalNode, NodeBindings, NodeReaders, PlanInputList, PlanNodeId, RowSource, RuleOrdinal,
+    LogicalNode, NodeBindings, NodeReaders, PlanInputList, PlanNodeId, RowSource,
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepScope, Test};
 

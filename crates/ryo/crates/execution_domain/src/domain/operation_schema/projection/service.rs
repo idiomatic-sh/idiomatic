@@ -24,7 +24,6 @@ pub(crate) fn projected(
         .collect()
 }
 
-
 /// Read one input's metadata in the same input order as execution.
 pub(crate) fn schema_input<'a>(
     inputs: &[InputShape<'a>],

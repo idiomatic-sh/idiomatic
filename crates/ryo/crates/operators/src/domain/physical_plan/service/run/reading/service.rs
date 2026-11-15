@@ -1,9 +1,9 @@
 //! What a node's kernels read: each input's rows, lent in place, read from the tree or taken from an earlier node, and given
 //! back after.
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::physical_plan::collections::kernels::scan_bound::item::held;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::facts;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::{give_back, take};
-use crate::domain::physical_plan::collections::kernels::scan_bound::item::held;
 use crate::domain::physical_plan::collections::kernels::scan_roots::item::roots;
 use crate::domain::physical_plan::service::run::types::Reading;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;

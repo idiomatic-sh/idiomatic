@@ -21,9 +21,7 @@ use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Input as StepInput, StepId, StepScope,
-};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as StepInput, StepId, StepScope};
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::runs::types::RuleApplicability;
 use ryo_values::domain::stored_facts::types::{Bucket, PartialCause};

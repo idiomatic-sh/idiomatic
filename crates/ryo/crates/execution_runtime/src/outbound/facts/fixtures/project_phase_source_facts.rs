@@ -155,4 +155,3 @@ pub fn first_entry(first: Bucket) -> Bucket {
         ryo_values::domain::plan_parts::types::InputNumber(0),
     )
 }
-

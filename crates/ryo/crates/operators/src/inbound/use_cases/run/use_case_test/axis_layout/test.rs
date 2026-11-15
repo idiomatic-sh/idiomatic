@@ -206,7 +206,7 @@ fn axis(inputs: [PlanInput; 3], id: u32, child: u32, output: Vec<JoinColumn>) ->
     let input_of = |input: PlanInput| match input {
         PlanInput::Node(PlanNodeId(at)) => StepInput::Step(StepId(at)),
         PlanInput::Relation(relation) => StepInput::Relation(relation),
-        PlanInput::Bound(_) | PlanInput::Observation(_) => StepInput::Relation(EDGES),
+        PlanInput::Frontier(_) | PlanInput::Observation(_) => StepInput::Relation(EDGES),
     };
     let [from, edges, domain] = inputs;
     Step {

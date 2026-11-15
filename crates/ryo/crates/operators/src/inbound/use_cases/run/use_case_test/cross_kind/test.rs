@@ -10,16 +10,20 @@ use super::super::super::fixtures::{TableInputs, TextResources, planned, ran};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{Step, text_program};
+use crate::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
+use crate::domain::physical_plan::types::candidates::value::Candidates;
+use crate::domain::physical_plan::types::fact_rows::value::FactRows;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
+use crate::domain::physical_plan::types::frontier_place::value::FrontierPlace;
+use crate::domain::physical_plan::types::held_rows::value::HeldRows;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
+use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::{
-    Candidates, FactRows, LogicalNode, NodeBindings, PlanInput, PlanInputList, PlanInputs,
-    PlanNodeId, RuleOrdinal,
+    LogicalNode, NodeBindings, PlanInput, PlanInputList, PlanInputs, PlanNodeId,
 };
 use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ObservationBindingId, Operand, ParameterId, QueryLiteral, RepeatedRows, Side,
-    StepScope,
+    ColumnIndex, HostedNumber, Operand, QueryLiteral, RepeatedRows, Side, StepScope,
 };
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::Table;
@@ -87,10 +91,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_meaning_never_reads_past_its_inputs"),
         word: Word::Succeeds,
         input: || Scenario::ReadsOnlyItsInputs,
-        // Every lowered kind over `DEFINES`, its inputs holding another relation too: the other relation, the bound tables
-        // and the observations are never read; `DEFINES` is.
+        // Every lowered kind over `DEFINES`, its inputs holding another relation too: the other relation, the frontiers, the bound
+        // observations and the host's tables are never read; `DEFINES` is.
         expect: Expect::Value(Cow::Borrowed(
-            "defines read: true; other reads: 0; bound reads: 0; observation reads: 0",
+            "defines read: true; other reads: 0; frontier reads: 0; observation reads: 0; hosted reads: 0",
         )),
     },
     Case {
@@ -112,10 +116,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 struct Watched {
     /// The relations held.
     inner: TableInputs,
-    /// How many bound tables were read.
-    bound: std::cell::Cell<usize>,
-    /// How many observations were read.
-    observation: std::cell::Cell<usize>,
+    /// How many frontiers, bound observations and host tables were read, in that order.
+    held: [std::cell::Cell<usize>; 3],
+}
+
+impl Watched {
+    /// Counts one read of the held input at `at`.
+    fn read(&self, at: usize) {
+        if let Some(count) = self.held.get(at) {
+            count.set(count.get() + 1);
+        }
+    }
 }
 
 impl PlanInputs for Watched {
@@ -125,13 +136,17 @@ impl PlanInputs for Watched {
     fn roots(&self, root: PlanNodeId) -> Candidates<'_> {
         self.inner.roots(root)
     }
-    fn bound(&self, parameter: ParameterId) -> &Table {
-        self.bound.set(self.bound.get() + 1);
-        self.inner.bound(parameter)
+    fn frontier(&self, place: FrontierPlace) -> HeldRows<'_> {
+        self.read(0);
+        self.inner.frontier(place)
     }
-    fn observation(&self, input: ObservationBindingId) -> &Table {
-        self.observation.set(self.observation.get() + 1);
-        self.inner.observation(input)
+    fn observation(&self, place: BoundObservationPlace) -> HeldRows<'_> {
+        self.read(1);
+        self.inner.observation(place)
+    }
+    fn hosted(&self, relation: HostedNumber) -> HeldRows<'_> {
+        self.read(2);
+        self.inner.hosted(relation)
     }
 }
 
@@ -144,8 +159,7 @@ fn reads_of_every_kind() -> Result<String, Failure> {
     let rows = defines(&[("r1", "a"), ("r2", "b")], &texts);
     let inputs = Watched {
         inner: TableInputs::new(&[(DEFINES, &rows), (OTHER, &rows)]),
-        bound: std::cell::Cell::new(0),
-        observation: std::cell::Cell::new(0),
+        held: Default::default(),
     };
     let mut program = LogicalProgram::new();
     for step in &steps {
@@ -169,11 +183,12 @@ fn reads_of_every_kind() -> Result<String, Failure> {
         let _answer = ran(&plan, node, &mut buffers, &inputs, &mut texts);
     }
     Ok(format!(
-        "defines read: {}; other reads: {}; bound reads: {}; observation reads: {}",
+        "defines read: {}; other reads: {}; frontier reads: {}; observation reads: {}; hosted reads: {}",
         inputs.inner.reads(DEFINES) > 0,
         inputs.inner.reads(OTHER),
-        inputs.bound.get(),
-        inputs.observation.get()
+        inputs.held[0].get(),
+        inputs.held[1].get(),
+        inputs.held[2].get()
     ))
 }
 

@@ -4,6 +4,7 @@ use super::super::reading::service::{pending_of, returned, rows_in};
 use super::super::types::Reading;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::render::item::rendered;
+use crate::domain::physical_plan::collections::kernels::scan_bound::item::held;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::facts;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::{hold, take};
 use crate::domain::physical_plan::collections::kernels::scan_roots::item::{copied, roots};
@@ -32,6 +33,9 @@ pub(crate) fn minted(
         }
         RowSource::Facts(relation) => Reading::Facts(facts(inputs, relation)?),
         RowSource::Node(read) => Reading::Node(read, take(buffers, read)?),
+        // A withheld input faults where it is first read, never as empty rows.
+        RowSource::Frontier(place) => Reading::Held(held(inputs.frontier(place))?),
+        RowSource::Observation(place) => Reading::Held(held(inputs.observation(place))?),
     };
     let pending = pending_of(&input);
     let mut output = Table::default();

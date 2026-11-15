@@ -81,7 +81,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 .copied()
                 .filter(|each| scope_of(*each) == RowScope::Project)
                 .collect();
-            Ok(Observed::Serves(source.serves == catalog, source.serves.len()))
+            Ok(Observed::Serves(
+                source.serves == catalog,
+                source.serves.len(),
+            ))
         }
         Scenario::RepeatedRow => {
             read(&source, &mut symbols);

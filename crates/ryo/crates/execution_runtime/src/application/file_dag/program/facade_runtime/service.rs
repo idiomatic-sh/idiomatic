@@ -2,7 +2,7 @@
 use crate::application::file_dag::program::request_identity::service::RequestIdentity;
 use std::sync::Arc;
 
-eirs pub(crate) struct ProgramServices {
+pub(crate) struct ProgramServices {
     pub(super) request: Arc<RequestIdentity>,
     /// The observer the request's caller asked to be told of the engine's work, if any.
     pub(super) observer: Option<Arc<dyn crate::outbound::observer::interface::ObserverPort>>,

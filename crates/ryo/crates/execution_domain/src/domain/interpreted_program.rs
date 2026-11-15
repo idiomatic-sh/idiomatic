@@ -9,7 +9,6 @@ mod merge;
 mod observed;
 mod origins;
 
-
 pub mod fusion;
 
 #[cfg(test)]

@@ -35,7 +35,9 @@ pub(crate) fn read(source: &ProjectSource<'_>, symbols: &mut Symbols) {
     }
     let mut relations: Vec<ProjectRelation> = Vec::new();
     for relation in &source.wanted {
-        if !source.serves.contains(relation) || relations.iter().any(|read| read.relation == *relation) {
+        if !source.serves.contains(relation)
+            || relations.iter().any(|read| read.relation == *relation)
+        {
             continue;
         }
         let rows = source
@@ -56,7 +58,10 @@ pub(crate) fn read(source: &ProjectSource<'_>, symbols: &mut Symbols) {
 /// # Errors
 ///
 /// The project worker's refusal of it, or `NotEnsured` when the phase did not read it.
-pub(crate) fn table_of<'s>(source: &'s ProjectSource<'_>, relation: Relation) -> Result<&'s Arc<Table>, FactsError> {
+pub(crate) fn table_of<'s>(
+    source: &'s ProjectSource<'_>,
+    relation: Relation,
+) -> Result<&'s Arc<Table>, FactsError> {
     let Some(read) = source.read.get() else {
         return Err(FactsError::NotEnsured { relation });
     };

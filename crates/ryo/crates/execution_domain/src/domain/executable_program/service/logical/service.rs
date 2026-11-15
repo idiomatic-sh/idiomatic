@@ -7,8 +7,8 @@ use crate::domain::executable_program::types::{
 use crate::domain::kind_sets::service::names_a_kind;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::KindNaming;
-use crate::domain::operator::contract::service::semantics;
 use crate::domain::operation_schema::types::InputShape;
+use crate::domain::operator::contract::service::semantics;
 use ryo_operators::domain::comparing::service::fixed_prefix;
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::frontier_place::value::FrontierPlace;

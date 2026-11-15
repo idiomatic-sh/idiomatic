@@ -2,6 +2,7 @@
 //! a node's output.
 use crate::domain::physical_plan::collections::kernels::distinct::item::counted;
 use crate::domain::physical_plan::types::CellStart;
+use crate::domain::physical_plan::types::file_buffers::value::KeyedRows;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::rows::types::{RowCount, Table};
 
@@ -20,7 +21,7 @@ pub fn kept_once(table: &mut Table) {
     let rows = std::mem::take(&mut table.cells);
     let count = std::mem::replace(&mut table.count, RowCount(0));
     let width = table.kinds.len();
-    let mut seen = hashbrown::HashTable::new();
+    let mut seen = KeyedRows::default();
     for at in 0..count.0 {
         let start = at.saturating_mul(width);
         let Some(row) = rows.get(start..start.saturating_add(width)) else {

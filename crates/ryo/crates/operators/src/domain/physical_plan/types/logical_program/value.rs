@@ -2,8 +2,8 @@
 //! emitted node and the consumers that are not node readers.
 
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::types::{Emitted, LogicalNode, PlanInput, PlanNodeId};
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
+use crate::domain::physical_plan::types::{Emitted, LogicalNode, PlanInput, PlanNodeId};
 
 /// A logical program. The root kinds of its nodes are the engine's: it derives them from the kind tests the plans write.
 ///

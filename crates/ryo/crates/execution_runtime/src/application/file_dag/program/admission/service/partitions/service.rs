@@ -88,7 +88,6 @@ impl RequiredPartitions {
     }
 }
 
-
 impl ApplicabilityProof {}
 
 impl ApplicabilityProof {

@@ -18,6 +18,7 @@ use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use std::sync::Arc;
@@ -47,26 +48,6 @@ impl PreparedProgram {
     pub(crate) fn interpreted(&self) -> Result<&Interpreted, OperatingError> {
         self.interpreted.as_ref().map_err(Clone::clone)
     }
-    pub(crate) fn walk(
-        &self,
-    ) -> Result<
-        &ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
-        OperatingError,
-    > {
-        Ok(&self.interpreted()?.walk)
-    }
-    pub(crate) fn all_bindings(&self) -> &[Box<[ParameterBinding]>] {
-        &self.bindings
-    }
-    pub(crate) fn walk_class(
-        &self,
-        instruction: &ryo_execution_domain::domain::interpreted_program::types::instruction::value::Instruction,
-    ) -> Option<ryo_execution_domain::domain::step_classes::types::ClassPlace> {
-        match &self.interpreted {
-            Ok(interpreted) => interpreted.walk.class_for(instruction),
-            Err(_) => None,
-        }
-    }
     pub(crate) fn rule_id(
         &self,
         rule: RuleIndex,
@@ -90,9 +71,6 @@ impl PreparedProgram {
             .get(rule.0)
             .copied()
             .ok_or(OperatingError::NotRun)
-    }
-    pub(crate) fn program(&self) -> Result<&Arc<InterpretedProgram>, OperatingError> {
-        Ok(&self.interpreted()?.program)
     }
     /// The relations each file's sources are asked for: those the request's plans read.
     pub(crate) fn demanded(&self) -> &[ryo_relations::domain::relations::types::Relation] {
@@ -314,7 +292,6 @@ pub(crate) fn prepare(
         rule_ids: rules.iter().map(|rule| rule.id.clone()).collect(),
         applicability: rules.iter().map(|rule| rule.applicability).collect(),
         rule_digests: rule_digests.to_vec().into_boxed_slice(),
-        bindings: bindings.into_iter().map(Vec::into_boxed_slice).collect(),
         rules: rule_plans.into_boxed_slice(),
         semantic_needed,
         file_frontier_outputs,
@@ -342,9 +319,6 @@ fn interpreted(input: Interpreting<'_>) -> Result<Interpreted, OperatingError> {
         executable,
         partitions,
     } = input;
-    let mut walk = ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(
-        &plans, bindings,
-    );
     let operators =
         crate::application::file_dag::service::prepare(&plans, bindings, hosted, derived)?;
     let graph = ryo_execution_domain::domain::file_program::service::compile_prepared_observations(
@@ -375,17 +349,13 @@ fn interpreted(input: Interpreting<'_>) -> Result<Interpreted, OperatingError> {
             retire: named.retire.clone(),
         });
     let program = Arc::new(compile_program(&plans, graph, &partitions, &operators)?);
-    walk.retain_program_consumers(&program)?;
-    census::service::trace(rules, &walk, &program);
     let metadata =
         metadata::service::rules(&program, named.as_ref(), &plans, rule_plans, executable)?;
     // The program's own pattern slots: its presence fold compiled the source searches' patterns into them.
     let matchers = Arc::clone(program.matchers());
     Ok(Interpreted {
-        program,
         rules: metadata.into_boxed_slice(),
         observations: named,
         matchers,
-        walk,
     })
 }

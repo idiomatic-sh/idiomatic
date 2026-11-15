@@ -2,7 +2,9 @@
 
 mod partitions;
 
-use ryo_execution_domain::domain::{coverage::types::RuleIndex, rule_intent::types::ApplicabilityReason};
+use ryo_execution_domain::domain::{
+    coverage::types::RuleIndex, rule_intent::types::ApplicabilityReason,
+};
 use ryo_relations::domain::relations::types::FileId;
 
 /// The file a proof names.

@@ -19,15 +19,27 @@ impl ObservedPublication {
         stage: &Arc<()>,
     ) -> Result<(), OperatingError> {
         // A publication is the stage's that made it: one held past its stage is no publication of the next.
-        if self.stage.upgrade().is_none() || !std::sync::Weak::ptr_eq(&self.stage, &Arc::downgrade(stage)) {
+        if self.stage.upgrade().is_none()
+            || !std::sync::Weak::ptr_eq(&self.stage, &Arc::downgrade(stage))
+        {
             return Err(OperatingError::NotRead);
         }
         match (&self.coverage, readiness) {
             (CoverageState::Complete, ProducerReadiness::Complete) => Ok(()),
-            (CoverageState::Partial { files, .. }, ProducerReadiness::Unknown(_)) if !files.is_empty() => Ok(()),
-            (CoverageState::Inapplicable { files }, ProducerReadiness::Unknown(_)) if !files.is_empty() => Ok(()),
+            (CoverageState::Partial { files, .. }, ProducerReadiness::Unknown(_))
+                if !files.is_empty() =>
+            {
+                Ok(())
+            }
+            (CoverageState::Inapplicable { files }, ProducerReadiness::Unknown(_))
+                if !files.is_empty() =>
+            {
+                Ok(())
+            }
             _ => Err(OperatingError::ObservationIncomplete {
-                reason: crate::application::file_dag::program::constants::PACKED_READINESS_DISAGREES.into(),
+                reason:
+                    crate::application::file_dag::program::constants::PACKED_READINESS_DISAGREES
+                        .into(),
             }),
         }
     }

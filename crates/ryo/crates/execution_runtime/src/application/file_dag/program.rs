@@ -10,9 +10,6 @@ pub mod project_phase;
 pub mod request_execution;
 pub mod rule_outcome;
 
-
 pub(crate) mod request_identity;
-
-
 
 pub(crate) mod constants;

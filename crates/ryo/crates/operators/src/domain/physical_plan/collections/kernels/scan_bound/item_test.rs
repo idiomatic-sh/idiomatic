@@ -3,8 +3,9 @@ use super::item::ScanBoundItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
 use crate::domain::physical_plan::types::frontier_place::value::FrontierPlace;
+use crate::domain::physical_plan::types::lowering::value::{BoundScan, Lowering};
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
-use crate::domain::physical_plan::types::{BoundScan, Lowering, PlanNodeId, RowSource};
+use crate::domain::physical_plan::types::{PlanNodeId, RowSource};
 use ryo_values::domain::plan_parts::types::{HostedNumber, InputNumber};
 
 /// The lowering a node was given.

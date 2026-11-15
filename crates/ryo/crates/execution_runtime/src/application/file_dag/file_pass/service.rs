@@ -4,11 +4,7 @@
 
 use crate::application::file_dag::file_pass::types::{
     FileRoots, NodeReads, PassInputs, PassProgram, PassResources, PassScratch, PassSource,
-    RootKindNodes, RulesHeld, Stages, TreeStart,
-};
-use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::service::{
-    assemble, logical, root_kinds, serving,
+    RootKindNodes, TreeStart,
 };
 use crate::application::file_dag::publications::service::bound::service::held_observation;
 use ryo_execution_domain::domain::executable_program::service::{assemble, logical, root_kinds};
@@ -30,7 +26,6 @@ use ryo_language::domain::semantics::types::RenderOutcome;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_operators::domain::contract::types::{PortableOperatorFault, RenderRefusal, WithheldInput};
-use ryo_operators::domain::physical_plan::constants::BOUND_STAGE;
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::candidates::value::Candidates;
 use ryo_operators::domain::physical_plan::types::fact_rows::value::FactRows;
