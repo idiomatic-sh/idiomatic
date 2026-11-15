@@ -1,5 +1,5 @@
-//! The programs the streaming cases run at seam C, each as planned and as its held twin (the same program with every node
-//! before its emit held by the engine, so none streams), and their answers with every name as its text.
+//! The programs the streaming cases run at seam C, each as planned and as its held twin (the same plan with every node held,
+//! so none streams), and their answers with every name as its text, their feeds and a warm worker's second file.
 use super::cases::compared;
 use super::{TableInputs, TextResources, planned, ran};
 use crate::domain::contract::types::PortableOperatorFault;
@@ -8,7 +8,7 @@ use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::{
-    LogicalNode, NodeBindings, NodeRows, PlanInputList, PlanNodeId, Resources,
+    LogicalNode, NodeBindings, NodeFlow, NodeRows, PlanInputList, PlanNodeId, Resources,
 };
 use ryo_language::domain::symbols::service::text_of;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -61,7 +61,7 @@ pub(crate) fn shown(value: Cell, resources: &TextResources) -> String {
     }
 }
 
-/// Runs `program`, every node before its emit held by the engine as well when `twin` is set.
+/// Runs `program`, as planned or, with `twin`, as its held twin.
 pub(crate) fn ran_program(program: &Program, twin: bool) -> Result<Ran, PortableOperatorFault> {
     ran_after(program, twin, &[])
 }
@@ -104,7 +104,7 @@ pub(crate) struct Steps<'a> {
 }
 
 /// Runs `run.steps` over the relations `tables` makes from the file of `texts`, emitting `run.emit` after running
-/// `run.first`; with `twin`, every node before the emit is held by the engine too, so none streams.
+/// `run.first`; with `twin`, the same plan with every node held, so none streams.
 pub(crate) fn ran_steps(
     run: &Steps<'_>,
     twin: bool,
@@ -128,12 +128,14 @@ pub(crate) fn ran_steps(
         });
     }
     logical.emit(RuleOrdinal(0), run.emit);
+    let mut plan = planned(&logical)?;
+    // The held twin is the same plan, the same rewrites and indexes, with no node streamed: what the engine ran before
+    // the chain of streamed stages. Holding the nodes as engine uses instead would change what the rewrites may do.
     if twin {
-        for node in (0..run.emit.0).map(PlanNodeId) {
-            logical.hold(node);
+        for node in &mut plan.nodes {
+            node.flow = NodeFlow::Held;
         }
     }
-    let plan = planned(&logical)?;
     let mut buffers = FileBuffers::default();
     let file = |buffers: &mut FileBuffers,
                 resources: &mut TextResources|

@@ -100,6 +100,15 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
         // A probe reads every right row before it answers one: its right side's fault comes before any of its rows.
         Lowering::Probe { probe, index, .. } => {
             let right = right.ok_or(PortableOperatorFault::WrongOperation)?;
+            // The probe's own state for this run, whatever it answers: what it is fed from its right side (its rows, as
+            // read before their fault, or, walking the tree, the rows its walks find), no answer kept and no work done.
+            own.fed = if *index == ProbeIndex::Tree {
+                RowCount(0)
+            } else {
+                rows_count(right)
+            };
+            emptied(&mut own.repeats);
+            own.work = ProbeWork::Pending;
             if let Some(fault) = pending_of(right) {
                 return Ok(StagePrepared {
                     kinds: Vec::new(),
@@ -107,14 +116,6 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
                 });
             }
             let kinds = answer_kinds(probe, input, rows_kinds(right))?;
-            emptied(&mut own.repeats);
-            own.work = ProbeWork::Pending;
-            // What it is fed from its right side: its rows, or, walking the tree, the rows its walks find.
-            own.fed = if *index == ProbeIndex::Tree {
-                RowCount(0)
-            } else {
-                rows_count(right)
-            };
             StagePrepared { kinds, fault: None }
         }
         Lowering::Lookup { .. }

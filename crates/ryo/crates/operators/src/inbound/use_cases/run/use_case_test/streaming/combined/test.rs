@@ -61,7 +61,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Observation::Equivalent {
             compared: 38,
             differing: Cow::Borrowed(""),
-            streamed: 6,
+            streamed: 4,
         }),
     },
     Case {
