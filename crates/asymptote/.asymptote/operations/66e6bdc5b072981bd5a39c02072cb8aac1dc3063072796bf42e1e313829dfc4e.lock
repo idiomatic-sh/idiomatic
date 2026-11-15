@@ -1,8 +1,0 @@
-version = 1
-parents = ["b855c6995c389f7c44f8397beab459758e6e7895da824eb449e36cb648194da8"]
-
-suppressed-removed = [
-  { tool = "tastemaker", rule = "idiomatic.arch/no-ok-on-result", path = "crates/core/src/outbound/check_store/adapters/postcard/schemas.rs", level = "error", fingerprint = "0305c24993fa3c35" },
-  { tool = "tastemaker", rule = "idiomatic.arch/no-ok-on-result", path = "crates/core/src/outbound/check_store/adapters/postcard/schemas.rs", level = "error", fingerprint = "9129bf3c730b31e2" },
-  { tool = "tastemaker", rule = "idiomatic.arch/no-json-in-process", path = "crates/core/Cargo.toml", level = "error", fingerprint = "c4f036d84c7a03b4" },
-]
