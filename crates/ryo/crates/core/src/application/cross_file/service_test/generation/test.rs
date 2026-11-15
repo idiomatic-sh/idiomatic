@@ -128,7 +128,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     word: Word::Succeeds,
     input: || Given::OrdinaryProjectRulesShareOnePreparationAndRejectAnotherGeneration,
     expect: Expect::Value(
-        "2|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|1|2|2|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|1|2|true|1|2|true|2|4|2|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|1|2|2|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|true|1|2|true|1|2|true|2|4",
+        "2|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|1|2|2|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|2|4|true|2|4|true|3|6|2|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|1|2|2|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|true|2|4|true|2|4|true|3|6",
     ),
 }];
 
