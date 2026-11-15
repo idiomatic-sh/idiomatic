@@ -67,3 +67,8 @@ expected = []
 name = "warn-reenables"
 files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n///\n#[warn(clippy::empty_docs)]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 30, end = 33 }]
+
+[[cases]]
+name = "alias-mentions-hidden"
+files = { "src/lib.rs" = "///\n#[doc(alias = \"a, hidden\")]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 3 }]

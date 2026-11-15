@@ -282,3 +282,13 @@ expected = [{ file = "src/lib.rs", start = 27, end = 28 }]
 name = "single-colon-item"
 files = { "src/lib.rs" = "#[rustfmt::skip(a:b, a, a)]\npub fn f() {}\n" }
 expected = []
+
+[[cases]]
+name = "reason-mentions-warnings"
+files = { "src/lib.rs" = "#[allow(dead_code, reason = \"a, warnings, b\")]\n#[inline]\n#[inline]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 57, end = 66 }]
+
+[[cases]]
+name = "reason-names-the-lint"
+files = { "src/lib.rs" = "#[allow(dead_code, reason = \"clippy::duplicated_attributes\")]\n#[inline]\n#[inline]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 72, end = 81 }]

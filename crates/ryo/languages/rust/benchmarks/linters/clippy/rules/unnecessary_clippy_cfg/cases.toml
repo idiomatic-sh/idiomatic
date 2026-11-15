@@ -47,3 +47,8 @@ expected = []
 name = "warn-reenables"
 files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n#[warn(clippy::unnecessary_clippy_cfg)]\n#[cfg_attr(clippy, allow(clippy::len_zero))]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 70, end = 114 }]
+
+[[cases]]
+name = "reason-with-comma"
+files = { "src/lib.rs" = "#[cfg_attr(clippy, allow(clippy::len_zero, reason = \"a, b\"))]\npub struct S;\n" }
+expected = [{ file = "src/lib.rs", start = 25, end = 41 }]

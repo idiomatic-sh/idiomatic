@@ -47,3 +47,8 @@ expected = []
 name = "warn-reenables"
 files = { "src/lib.rs" = "#![allow(clippy::correctness)]\n#[warn(clippy::deprecated_semver)]\n#[deprecated(since = \"forever\")]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 79, end = 96 }]
+
+[[cases]]
+name = "note-mentions-since"
+files = { "src/lib.rs" = "#[deprecated(note = r#\"a, since = \"nope\"\"#, since = \"1.0.0\")]\npub fn f() {}\n" }
+expected = []
