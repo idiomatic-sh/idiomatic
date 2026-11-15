@@ -137,12 +137,12 @@ const CASES: &[Case<Input, Value, OperatingError>] = &[
             Answer::ProjectSparse {
                 accesses: [
                     Access {
-                        reads: 5,
-                        read_rules: 5,
+                        reads: 3,
+                        read_rules: 3,
                     },
                     Access {
-                        reads: 5,
-                        read_rules: 645,
+                        reads: 3,
+                        read_rules: 387,
                     },
                 ],
                 same_cost: true,
@@ -158,7 +158,7 @@ const CASES: &[Case<Input, Value, OperatingError>] = &[
         expect: Expect::Value((
             windows(&[Window::opened(2), Window::opened(262)]),
             Answer::ProjectDense {
-                reads: [5, 655],
+                reads: [3, 393],
                 grows: true,
                 oracle: [true, false],
             },
