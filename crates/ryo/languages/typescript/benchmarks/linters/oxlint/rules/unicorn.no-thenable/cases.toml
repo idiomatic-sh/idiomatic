@@ -147,3 +147,13 @@ expected = []
 name = "directive"
 files = { "case.ts" = "// eslint-disable-next-line unicorn/no-thenable\nconst a = { then: 1 };\n" }
 expected = []
+
+[[cases]]
+name = "define-property-computed-template"
+files = { "case.ts" = "Object[`defineProperty`](o, \"then\", {});\n" }
+expected = [{ file = "case.ts", start = 28, end = 34 }]
+
+[[cases]]
+name = "define-property-computed-escaped-template"
+files = { "case.ts" = "Object[`define\\u0050roperty`](o, \"then\", {});\n" }
+expected = [{ file = "case.ts", start = 33, end = 39 }]

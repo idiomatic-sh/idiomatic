@@ -193,3 +193,72 @@ pub(super) fn embedded_roots_valid(elements: &Elements) -> bool {
             && parent_at(elements, embedded.root) == embedded.host
     })
 }
+
+/// Whether the control-flow rows of a file read as file 0 hold together: every row is of file 0; the blocks are numbered from
+/// zero in the order written, with flags that are 0 or 1; every edge, step and member names a block the file has; every step and
+/// member names an element `node` accepts; and every edge and step kind is a word of its relation, as `word` reads the cell.
+pub(super) fn flow_valid(
+    rows: &[(Relation, Vec<u64>)],
+    node: impl Fn(u64) -> bool,
+    word: impl Fn(Relation, u64) -> bool,
+) -> bool {
+    let mut blocks = 0_u64;
+    for (relation, row) in rows {
+        if *relation != Relation::FlowBlock {
+            continue;
+        }
+        let [block, reachable, live, implicit_return, file] = row.as_slice() else {
+            return false;
+        };
+        if *block != blocks || *reachable > 1 || *live > 1 || *implicit_return > 1 || *file != 0 {
+            return false;
+        }
+        blocks += 1;
+    }
+    rows.iter().all(|(relation, row)| {
+        if *relation == Relation::FlowEdge {
+            return matches!(row.as_slice(), [source, target, kind, 0]
+                if *source < blocks && *target < blocks && word(*relation, *kind));
+        }
+        if *relation == Relation::FlowStep {
+            return matches!(row.as_slice(), [block, _, kind, at, 0]
+                if *block < blocks && word(*relation, *kind) && node(*at));
+        }
+        if *relation == Relation::FlowMember {
+            return matches!(row.as_slice(), [at, block, 0] if *block < blocks && node(*at));
+        }
+        true
+    })
+}
+
+/// Whether an empty file's rows of the flow relation `relation` are its module's own graph: one member, the module's root element
+/// `root`; at least one block; and edges only out of the block the root is in.
+pub(super) fn empty_module_flow(
+    rows: &[(Relation, Vec<u64>)],
+    relation: Relation,
+    root: u64,
+) -> bool {
+    let members: Vec<&[u64]> = rows
+        .iter()
+        .filter(|(each, _)| *each == Relation::FlowMember)
+        .map(|(_, row)| row.as_slice())
+        .collect();
+    let [[node, entry, _]] = members.as_slice() else {
+        return false;
+    };
+    if *node != root {
+        return false;
+    }
+    let mut kept = rows.iter().filter(|(each, _)| *each == relation);
+    if relation == Relation::FlowBlock {
+        return kept.next().is_some();
+    }
+    if relation == Relation::FlowEdge {
+        return kept.all(|(_, row)| row.first() == Some(entry));
+    }
+    relation == Relation::FlowMember
+}
+
+#[cfg(test)]
+#[path = "validators_test.rs"]
+mod tests;

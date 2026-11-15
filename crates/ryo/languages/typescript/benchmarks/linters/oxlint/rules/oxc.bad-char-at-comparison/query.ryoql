@@ -1,5 +1,7 @@
 import directives from "typescript/oxlint/eslint-directives";
 import parenthesized from "typescript/oxlint/parenthesized";
+import quoted_strings from "typescript/oxlint/quoted-strings";
+let quoted = quoted_strings();
 let operators = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "operator" and (r.text = "==" or r.text = "===" or r.text = "!=" or r.text = "!==");
 let comparisons = select l.id as id from operators as l join "semantic-syntax" as r on l.id = r.id where r.kind = "binary-expression";
 let sides = select l.id as comparison, c.child as id, c.field as field from comparisons as l join "semantic-child" as c on l.id = c.parent where c.field = "left" or c.field = "right";
@@ -22,17 +24,14 @@ let computed_properties = select l.member as member, l.property as property, l.f
 let char_at_names = select file, span from "semantic-syntax" where kind = "identifier-token" and text = "charAt";
 let static_char_at = select l.member as member from static_properties as l join char_at_names as r on l.file = r.file and l.span = r.span where l.kind = "identifier";
 let string_char_at = select l.member as member from computed_properties as l join "string-literal" as r on l.property = r.occurrence where r.value = "charAt";
-let template_names = select file, span from "semantic-syntax" where kind = "template" and text = "\x60charAt\x60";
-let template_char_at = select l.member as member from computed_properties as l join template_names as r on l.file = r.file and l.span = r.span;
-let char_at_a = union(left=static_char_at, right=string_char_at);
-let char_at_members = union(left=char_at_a, right=template_char_at);
+let char_at_members = union(left=static_char_at, right=string_char_at);
 let char_at_calls = select l.id as id from members as l join char_at_members as r on l.member = r.member;
 let compared_calls = select l.comparison as comparison, l.field as field, r.id as id, r.file as file, r.span as span from sides as l join unary_calls as r on l.id = r.id;
 let compared = select l.comparison as comparison, l.field as field, l.id as id, l.file as file, l.span as span from compared_calls as l join char_at_calls as r on l.id = r.id;
 let other_right = select l.comparison as comparison, l.id as call, l.file as file, l.span as span, r.id as other from compared as l join sides as r on l.comparison = r.comparison where l.field = "left" and r.field = "right";
 let other_left = select l.comparison as comparison, l.id as call, l.file as file, l.span as span, r.id as other from compared as l join sides as r on l.comparison = r.comparison where l.field = "right" and r.field = "left";
 let others = union(left=other_right, right=other_left);
-let long_strings = select occurrence as id from "string-literal" where matches(value, "(?s)^..");
+let long_strings = select occurrence as id from quoted where matches(value, "(?s)^..");
 let with_long = select l.call as call, l.file as file, l.span as span, l.other as other from others as l join long_strings as r on l.other = r.id;
 let call_rows = select call as id, file, span from with_long;
 let other_rows = select l.other as id, r.file as file, r.span as span from with_long as l join "semantic-syntax" as r on l.other = r.id;

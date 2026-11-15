@@ -17,6 +17,8 @@ pub(crate) mod syntax_error;
 
 pub(crate) mod comment;
 
+pub(crate) mod compiler_feature;
+
 pub(crate) mod string_literal;
 
 pub(crate) mod numeric_literal;
@@ -51,3 +53,8 @@ pub(crate) mod visibility;
 pub(crate) mod pattern_child;
 pub(crate) mod pattern_parse;
 pub(crate) mod pattern_syntax;
+
+pub(crate) mod flow_block;
+pub(crate) mod flow_edge;
+pub(crate) mod flow_member;
+pub(crate) mod flow_step;

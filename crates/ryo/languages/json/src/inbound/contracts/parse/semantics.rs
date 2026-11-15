@@ -144,4 +144,20 @@ impl languages::Semantics<Model> for ParseContract {
     fn pattern_child(&self) -> Support<Reader<languages::PatternChild, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn flow_edge(&self) -> Support<Reader<languages::FlowEdge, Model>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn flow_block(&self) -> Support<Reader<languages::FlowBlock, Model>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn flow_member(&self) -> Support<Reader<languages::FlowMember, Model>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn flow_step(&self) -> Support<Reader<languages::FlowStep, Model>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }

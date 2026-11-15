@@ -30,8 +30,6 @@ pub(crate) fn linked() -> impl LanguagePort {
     languages.push(handles!(ryo_go::linked()));
     #[cfg(feature = "html")]
     languages.push(handles!(ryo_html::linked()));
-    #[cfg(feature = "javascript")]
-    languages.push(handles!(ryo_javascript::linked()));
     #[cfg(feature = "json")]
     languages.push(handles!(ryo_json::linked()));
     #[cfg(feature = "markdown")]
@@ -57,8 +55,6 @@ pub(crate) fn skipped() -> SkippedDirectories {
     skipped.extend(skips!(ryo_go::linked()));
     #[cfg(feature = "html")]
     skipped.extend(skips!(ryo_html::linked()));
-    #[cfg(feature = "javascript")]
-    skipped.extend(skips!(ryo_javascript::linked()));
     #[cfg(feature = "json")]
     skipped.extend(skips!(ryo_json::linked()));
     #[cfg(feature = "markdown")]

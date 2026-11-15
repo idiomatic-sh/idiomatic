@@ -22,7 +22,6 @@ const LANGUAGES: &[&str] = &[
     "css",
     "go",
     "html",
-    "javascript",
     "json",
     "markdown",
     "python",

@@ -97,3 +97,24 @@ expected = [{ file = "case.ts", start = 0, end = 9 }]
 name = "directive-name-is-case-sensitive"
 files = { "case.ts" = "// eslint-disable-next-line NO-DEBUGGER\ndebugger;\n" }
 expected = [{ file = "case.ts", start = 40, end = 49 }]
+
+[[cases]]
+name = "jsx-in-js"
+files = { "case.js" = "const a = <div/>;\ndebugger;\n" }
+expected = [{ file = "case.js", start = 18, end = 27 }]
+
+[[cases]]
+name = "jsx-in-mjs"
+files = { "case.mjs" = "const a = <div/>;\ndebugger;\n" }
+expected = [{ file = "case.mjs", start = 18, end = 27 }]
+
+[[cases]]
+name = "jsx-in-cjs"
+files = { "case.cjs" = "const a = <div/>;\ndebugger;\n" }
+expected = [{ file = "case.cjs", start = 18, end = 27 }]
+
+[[cases]]
+name = "generic-arrow-in-js"
+comparison = "full"
+files = { "case.js" = "const c = <T,>(x) => x;\ndebugger;\n" }
+expected = [{ rule = "invalid-syntax", file = "case.js", start = 10, end = 11 }]

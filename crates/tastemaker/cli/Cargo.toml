@@ -34,7 +34,6 @@ tracing-subscriber.workspace = true
 tastemaker_core = { package = "idiomatic-sh-tastemaker-core", path = "../crates/core", version = "0.1.3" }
 ryo = { package = "idiomatic-sh-ryo-sdk", version = "0.1.4" }
 tempfile = { workspace = true, optional = true }
-ryo_javascript = { package = "idiomatic-sh-ryo-javascript", optional = true, version = "0.1.4" }
 ryo_json = { package = "idiomatic-sh-ryo-json", optional = true, version = "0.1.4" }
 ryo_css = { package = "idiomatic-sh-ryo-css", optional = true, version = "0.1.4" }
 ryo_go = { package = "idiomatic-sh-ryo-go", optional = true, version = "0.1.4" }
@@ -78,11 +77,10 @@ harness = false
 # a registry's build or a check names its own set with `--no-default-features --features ...`.
 [features]
 distribution = []
-default = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+default = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 fixtures = ["dep:tempfile"]
 # A diagnostic build: `--timings=phases` prints the outer phases of a command and when each began and ended (Linux).
 phase-diagnostic = []
-javascript = ["dep:ryo_javascript"]
 json = ["dep:ryo_json"]
 css = ["dep:ryo_css"]
 go = ["dep:ryo_go"]

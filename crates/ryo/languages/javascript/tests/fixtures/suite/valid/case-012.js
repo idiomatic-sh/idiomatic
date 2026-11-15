@@ -1,1 +1,0 @@
-import "./foo.json" with { foo: "bar" };

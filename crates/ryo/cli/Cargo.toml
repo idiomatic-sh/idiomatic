@@ -39,7 +39,6 @@ ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../c
 ryo_css = { package = "idiomatic-sh-ryo-css", path = "../languages/css", optional = true, version = "0.1.4" }
 ryo_go = { package = "idiomatic-sh-ryo-go", path = "../languages/go", optional = true, version = "0.1.4" }
 ryo_html = { package = "idiomatic-sh-ryo-html", path = "../languages/html", optional = true, version = "0.1.4" }
-ryo_javascript = { package = "idiomatic-sh-ryo-javascript", path = "../languages/javascript", optional = true, version = "0.1.4" }
 ryo_json = { package = "idiomatic-sh-ryo-json", path = "../languages/json", optional = true, version = "0.1.4" }
 ryo_markdown = { package = "idiomatic-sh-ryo-markdown", path = "../languages/markdown", optional = true, version = "0.1.4" }
 ryo_python = { package = "idiomatic-sh-ryo-python", path = "../languages/python", optional = true, version = "0.1.4" }
@@ -91,7 +90,7 @@ harness = false
 # Every language is a default: a plain `cargo install` reads all of them, and a registry's build or a check names its own set with `--no-default-features --features ...`.
 [features]
 distribution = []
-default = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+default = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = []
 # A diagnostic build: `--timings=phases` prints the outer phases of a command and when each began and ended (Linux).
@@ -99,7 +98,6 @@ phase-diagnostic = []
 css = ["dep:ryo_css"]
 go = ["dep:ryo_go"]
 html = ["dep:ryo_html"]
-javascript = ["dep:ryo_javascript"]
 json = ["dep:ryo_json"]
 markdown = ["dep:ryo_markdown"]
 python = ["dep:ryo_python"]

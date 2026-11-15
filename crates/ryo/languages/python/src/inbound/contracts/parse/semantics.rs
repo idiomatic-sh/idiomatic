@@ -155,4 +155,20 @@ impl languages::Semantics<Declarations> for ParseContract {
     fn pattern_child(&self) -> Support<Reader<languages::PatternChild, Declarations>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn flow_edge(&self) -> Support<Reader<languages::FlowEdge, Declarations>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn flow_block(&self) -> Support<Reader<languages::FlowBlock, Declarations>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn flow_member(&self) -> Support<Reader<languages::FlowMember, Declarations>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn flow_step(&self) -> Support<Reader<languages::FlowStep, Declarations>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }

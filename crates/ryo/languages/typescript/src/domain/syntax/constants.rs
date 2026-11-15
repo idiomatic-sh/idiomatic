@@ -53,6 +53,14 @@ pub(crate) const PATTERN_ERROR_START: ryo::languages::PropertyId = ryo::language
 pub(crate) const PATTERN_ERROR_END: ryo::languages::PropertyId = ryo::languages::PropertyId(10);
 /// The property a carrier holds when the library refused the flags it was given, and so never read its pattern: the library's message.
 pub(crate) const PATTERN_FLAGS_ERROR: ryo::languages::PropertyId = ryo::languages::PropertyId(11);
+/// The property a file's `Program` holds: [`RAISED_FLAG`] when the file is read as TypeScript, any other text when it is read as
+/// JavaScript, as Oxc's source type says (`is_typescript`).
+pub(crate) const TYPESCRIPT_SYNTAX_FLAG: ryo::languages::PropertyId =
+    ryo::languages::PropertyId(12);
+/// The text of a raised flag property.
+pub(crate) const RAISED_FLAG: &str = "1";
+/// The text of a lowered flag property.
+pub(crate) const LOWERED_FLAG: &str = "0";
 
 /// An expression whose children could not all be read has no class a query could compare.
 pub(crate) const SHAPES_INCOMPLETE: &str = "expression shapes require a complete syntax tree";

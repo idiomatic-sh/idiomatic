@@ -1,0 +1,5 @@
+import directives from "typescript/oxlint/eslint-directives";
+let keywords = select l.parent as statement, r.id as id, r.file as file, r.span as span from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "keyword" and r.text = "with";
+let statements = select l.id as id, l.file as file, l.span as span from keywords as l join "semantic-syntax" as r on l.statement = r.id where r.kind = "with-statement";
+let violations = directives(candidates=statements, names="(?:^|,)(?:[^,]*/)?no-with(?:,|$)");
+emit violations subject file key(id);

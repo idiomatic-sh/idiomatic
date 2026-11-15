@@ -20,7 +20,7 @@ Packages are `idiomatic-sh-ryo-<crate>` with lib `ryo_<crate>`; the SDK is `idio
 | `crates/language` | `idiomatic-sh-ryo-language`, lib `ryo_language` | nu-hex | holds `ParseUseCase`, the one contract every language implements |
 | `languages/<lang>` | `idiomatic-sh-ryo-<lang>`, lib `ryo_<lang>` | nu-hex with `implements` | an add-on, installed separately: a language is not part of ryo's core architecture |
 
-Languages built: rust, python, typescript, javascript, go, css, html, markdown, toml, json. Each is ported as it is today behind `ParseUseCase`: the same library, kinds, relations and expected findings; a language crate has the `parse` use case only, with no `link` use case and no semantic relations, and nothing semantic is in the SDK. The order of work is: ryo works; then Tastemaker's new version on the three SDK calls; only then semantic analysis. The library each `outbound/syntax/adapters/<lib>` names is the one the language's parser already used.
+Languages built: rust, python, typescript, go, css, html, markdown, toml, json. Each is ported as it is today behind `ParseUseCase`: the same library, kinds, relations and expected findings; a language crate has the `parse` use case only, with no `link` use case and no semantic relations, and nothing semantic is in the SDK. The order of work is: ryo works; then Tastemaker's new version on the three SDK calls; only then semantic analysis. The library each `outbound/syntax/adapters/<lib>` names is the one the language's parser already used.
 
 ## A2. How crates call each other
 
@@ -182,7 +182,7 @@ Ryo owns an abstracted layer of relations and names no language. A language crat
 | 2. the language's model | `domain/syntax/types.rs` (`NodeKind`, the language's one vocabulary of kinds, seeded once from the first parser's grammar; never a directory for each kind), and `scopes`, `declarations`, `references`, `imports`, `bindings`, `literals`, `refinements` | the language's own concepts over its kinds |
 | 3. the mapping onto ryo | `domain/relations/collections/relations/<relation>/item.rs`, `domain/manifests/collections/manifests/<relation>/item.rs`, and `inbound/contracts/{parse,project}/contract.rs` (the answers) | the only places that name the catalog (`Relation`, `CatalogRelation`, the `*Row` types, `Rows`, `Reader`, `ManifestReader`), and only through `ryo::languages` |
 
-Tree of one language (`<lang>` = rust, python, typescript, javascript, go, css, html, markdown, toml, json; a programming language has all of it, css, html, markdown, toml and json have `language`, `syntax` without keywords and operators, `unknowns` and `relations`):
+Tree of one language (`<lang>` = rust, python, typescript, go, css, html, markdown, toml, json; a programming language has all of it, css, html, markdown, toml and json have `language`, `syntax` without keywords and operators, `unknowns` and `relations`):
 
 ```
 languages/<lang>/src/

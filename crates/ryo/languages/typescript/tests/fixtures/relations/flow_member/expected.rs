@@ -1,0 +1,75 @@
+// The rows `relations/flow_member/input.ts` must give.
+// The unprojected nodes are the formal parameters of `f(x)` and `e(y)`, which the projection writes no element for: they have
+// no row, and the module's own row (node 0) is the only one at position 0.
+
+use ryo::languages::contract::{Expected, FlowMemberExpectedRow, expected_rows, file, node, number};
+
+/// The rows, in the order the language gives them.
+const ROWS: &[FlowMemberExpectedRow] = &[
+    FlowMemberExpectedRow { node: node(0), block: number(1), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(1), block: number(3), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(4), block: number(3), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(7), block: number(3), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(11), block: number(3), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(14), block: number(3), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(18), block: number(4), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(22), block: number(5), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(26), block: number(6), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(30), block: number(7), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(34), block: number(8), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(37), block: number(8), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(38), block: number(8), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(39), block: number(8), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(49), block: number(9), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(52), block: number(9), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(53), block: number(9), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(54), block: number(9), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(62), block: number(10), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(63), block: number(10), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(64), block: number(10), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(72), block: number(13), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(75), block: number(13), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(80), block: number(13), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(83), block: number(13), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(87), block: number(14), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(88), block: number(14), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(89), block: number(14), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(97), block: number(17), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(100), block: number(17), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(105), block: number(17), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(108), block: number(17), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(111), block: number(20), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(114), block: number(20), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(115), block: number(20), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(116), block: number(20), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(124), block: number(21), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(127), block: number(21), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(130), block: number(21), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(131), block: number(21), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(132), block: number(21), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(142), block: number(22), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(145), block: number(22), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(146), block: number(22), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(147), block: number(22), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(157), block: number(26), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(160), block: number(26), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(165), block: number(26), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(168), block: number(26), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(169), block: number(26), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(173), block: number(26), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(181), block: number(29), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(184), block: number(29), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(187), block: number(29), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(195), block: number(35), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(198), block: number(35), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(201), block: number(35), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(205), block: number(35), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(208), block: number(35), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(209), block: number(35), file: file("flow_member/input.ts") },
+    FlowMemberExpectedRow { node: node(210), block: number(35), file: file("flow_member/input.ts") },
+];
+
+/// The rows the fixture's input must give, as the relations contract compares them.
+pub(super) fn expected() -> Expected {
+    expected_rows(ROWS)
+}

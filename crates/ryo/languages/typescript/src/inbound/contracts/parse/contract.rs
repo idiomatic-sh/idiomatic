@@ -123,7 +123,7 @@ impl Parse for ParseContract {
     }
 
     fn recognizes(&self, request: &ParseRequest<'_>) -> Recognition {
-        // The two languages share the files that carry blocks: this one reads a file with a typed block, the script language the rest.
+        // A file of another format is read when it carries a block of script, typed or plain.
         recognized(reads(request.path), self.stretches(request).as_deref())
     }
 

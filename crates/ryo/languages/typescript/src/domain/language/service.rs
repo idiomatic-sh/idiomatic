@@ -3,9 +3,11 @@
 
 use super::constants::{
     COMMONJS_EXTENSION, DECLARATIONS_END, DECLARATIONS_MARK, EXTENSIONS, JSX_EXTENSION,
-    MODULE_EXTENSION, PLAIN_EXTENSION,
+    MODULE_EXTENSION, PLAIN_EXTENSION, SCRIPT_COMMONJS_EXTENSION, SCRIPT_EXTENSION,
+    SCRIPT_JSX_EXTENSION, SCRIPT_MODULE_EXTENSION,
 };
 use crate::domain::packages::constants::SEPARATOR;
+use crate::domain::syntax::constants::RAISED_FLAG;
 use crate::domain::syntax::types::{Dialect, Scripting, Stretch, Written};
 use ryo::languages;
 
@@ -24,10 +26,23 @@ pub(crate) fn reads(path: languages::SourcePath<'_>) -> languages::Recognition {
 
 /// The dialect the file at `path` is read in, as TypeScript reads its extension: `.tsx` with JSX, `.mts` always a module, `.cts` always
 /// `CommonJS`, and a file whose name marks it as declarations (`index.d.ts`, `index.d.mts`, `styles.d.css.ts`) as declarations of its
-/// kind; any other file is plain TypeScript.
+/// kind; a JavaScript file in the JavaScript dialect its extension names; any other file is plain TypeScript.
 #[must_use]
 pub(crate) fn dialect(path: languages::SourcePath<'_>) -> Dialect {
     let name = path.0.rsplit(SEPARATOR).next().unwrap_or(path.0);
+    // `.mjs` and `.cjs` end in `js` too, so they are asked first.
+    if name.ends_with(SCRIPT_MODULE_EXTENSION) {
+        return Dialect::JavaScriptModule;
+    }
+    if name.ends_with(SCRIPT_COMMONJS_EXTENSION) {
+        return Dialect::JavaScriptCommonJs;
+    }
+    if name.ends_with(SCRIPT_JSX_EXTENSION) {
+        return Dialect::Jsx;
+    }
+    if name.ends_with(SCRIPT_EXTENSION) {
+        return Dialect::JavaScript;
+    }
     if name.ends_with(JSX_EXTENSION) {
         return Dialect::Tsx;
     }
@@ -59,15 +74,14 @@ pub(crate) fn dialect(path: languages::SourcePath<'_>) -> Dialect {
     }
 }
 
-/// How a file is recognised: the language reads the files it owns, and a file of another format with a typed block.
+/// How a file is recognised: the language reads the files it owns, and a file of another format with a block of script, typed or
+/// plain.
 #[must_use]
 pub(crate) fn recognized(
     own: languages::Recognition,
     blocks: Option<&[Stretch<'_>]>,
 ) -> languages::Recognition {
-    if own == languages::Recognition::Reads
-        || blocks.is_some_and(|each| each.iter().any(|block| block.written != Written::Script))
-    {
+    if own == languages::Recognition::Reads || blocks.is_some_and(|each| !each.is_empty()) {
         languages::Recognition::Reads
     } else {
         languages::Recognition::Declines
@@ -75,7 +89,8 @@ pub(crate) fn recognized(
 }
 
 /// How the file at `path` is read: as it is, or, when it is not a typescript file and carries blocks, as the script they make, as
-/// TypeScript with JSX when one block is and as plain TypeScript when none is. Everything outside the blocks reads as white space,
+/// TypeScript with JSX when one block is, as plain TypeScript when one block is typed, and as JavaScript when every block is plain
+/// script. Everything outside the blocks reads as white space,
 /// line ends kept, so every offset and line of the tree is the file's and a line comment ends at its own line, not at the next block.
 #[must_use]
 pub(crate) fn reading_of(
@@ -105,8 +120,23 @@ pub(crate) fn reading_of(
     }
     let read_as = if blocks.iter().any(|block| block.written == Written::Tsx) {
         Dialect::Tsx
-    } else {
+    } else if blocks
+        .iter()
+        .any(|block| block.written == Written::TypeScript)
+    {
         Dialect::TypeScript
+    } else {
+        Dialect::JavaScript
     };
     Scripting::Script(languages::Bytes(script), read_as)
+}
+
+/// Whether a file is TypeScript, from the text of its `Program`'s syntax flag: raised for [`RAISED_FLAG`], lowered for any other.
+#[must_use]
+pub(crate) fn syntax_flag(flag: languages::NameText<'_>) -> languages::Flag {
+    if flag.0 == RAISED_FLAG {
+        languages::Flag::Raised
+    } else {
+        languages::Flag::Lowered
+    }
 }

@@ -10,6 +10,8 @@ pub mod diagnostics;
 pub mod elements;
 pub mod expansions;
 pub mod files;
+pub mod flow;
+pub mod flow_table;
 pub mod keys;
 pub mod kind_index;
 pub mod location;

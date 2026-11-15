@@ -1,0 +1,672 @@
+[[cases]]
+name = "duplicate-in-cjs"
+files = { "case.cjs" = "class A { foo() {} foo() {} }\n" }
+expected = [{ file = "case.cjs", start = 10, end = 13 }]
+
+[[cases]]
+name = "fail-01"
+files = { "case.js" = "class A { foo() {} foo() {} }" }
+expected = [{ file = "case.js", start = 10, end = 13 }]
+
+[[cases]]
+name = "fail-01-ts"
+comparison = "full"
+files = { "case.ts" = "class A { foo() {} foo() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 10, end = 13 }]
+
+[[cases]]
+name = "fail-02"
+files = { "case.js" = "!class A { foo() {} foo() {} };" }
+expected = [{ file = "case.js", start = 11, end = 14 }]
+
+[[cases]]
+name = "fail-02-ts"
+comparison = "full"
+files = { "case.ts" = "!class A { foo() {} foo() {} };" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "fail-03"
+files = { "case.js" = "class A { 'foo'() {} 'foo'() {} }" }
+expected = [{ file = "case.js", start = 10, end = 15 }]
+
+[[cases]]
+name = "fail-03-ts"
+comparison = "full"
+files = { "case.ts" = "class A { 'foo'() {} 'foo'() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 10, end = 15 }]
+
+[[cases]]
+name = "fail-04"
+files = { "case.js" = "class A { 10() {} 1e1() {} }" }
+expected = [{ file = "case.js", start = 10, end = 12 }]
+
+[[cases]]
+name = "fail-04-ts"
+comparison = "full"
+files = { "case.ts" = "class A { 10() {} 1e1() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 10, end = 12 }]
+
+[[cases]]
+name = "fail-05"
+files = { "case.js" = "class A { ['foo']() {} ['foo']() {} }" }
+expected = [{ file = "case.js", start = 11, end = 16 }]
+
+[[cases]]
+name = "fail-05-ts"
+comparison = "full"
+files = { "case.ts" = "class A { ['foo']() {} ['foo']() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 11, end = 16 }]
+
+[[cases]]
+name = "fail-06"
+files = { "case.js" = "class A { static ['foo']() {} static foo() {} }" }
+expected = [{ file = "case.js", start = 18, end = 23 }]
+
+[[cases]]
+name = "fail-06-ts"
+comparison = "full"
+files = { "case.ts" = "class A { static ['foo']() {} static foo() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 18, end = 23 }]
+
+[[cases]]
+name = "fail-07"
+files = { "case.js" = "class A { set 'foo'(value) {} set ['foo'](val) {} }" }
+expected = [{ file = "case.js", start = 14, end = 19 }]
+
+[[cases]]
+name = "fail-07-ts"
+comparison = "full"
+files = { "case.ts" = "class A { set 'foo'(value) {} set ['foo'](val) {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 14, end = 19 }]
+
+[[cases]]
+name = "fail-08"
+files = { "case.js" = "class A { ''() {} ['']() {} }" }
+expected = [{ file = "case.js", start = 10, end = 12 }]
+
+[[cases]]
+name = "fail-08-ts"
+comparison = "full"
+files = { "case.ts" = "class A { ''() {} ['']() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 10, end = 12 }]
+
+[[cases]]
+name = "fail-09"
+files = { "case.js" = "class A { [`foo`]() {} [`foo`]() {} }" }
+expected = [{ file = "case.js", start = 11, end = 16 }]
+
+[[cases]]
+name = "fail-09-ts"
+comparison = "full"
+files = { "case.ts" = "class A { [`foo`]() {} [`foo`]() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 11, end = 16 }]
+
+[[cases]]
+name = "fail-10"
+files = { "case.js" = "class A { static get [`foo`]() {} static get ['foo']() {} }" }
+expected = [{ file = "case.js", start = 22, end = 27 }]
+
+[[cases]]
+name = "fail-10-ts"
+comparison = "full"
+files = { "case.ts" = "class A { static get [`foo`]() {} static get ['foo']() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 22, end = 27 }]
+
+[[cases]]
+name = "fail-11"
+files = { "case.js" = "class A { foo() {} [`foo`]() {} }" }
+expected = [{ file = "case.js", start = 10, end = 13 }]
+
+[[cases]]
+name = "fail-11-ts"
+comparison = "full"
+files = { "case.ts" = "class A { foo() {} [`foo`]() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 10, end = 13 }]
+
+[[cases]]
+name = "fail-12"
+files = { "case.js" = "class A { get [`foo`]() {} 'foo'() {} }" }
+expected = [{ file = "case.js", start = 15, end = 20 }]
+
+[[cases]]
+name = "fail-12-ts"
+comparison = "full"
+files = { "case.ts" = "class A { get [`foo`]() {} 'foo'() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 15, end = 20 }]
+
+[[cases]]
+name = "fail-13"
+files = { "case.js" = "class A { static 'foo'() {} static [`foo`]() {} }" }
+expected = [{ file = "case.js", start = 17, end = 22 }]
+
+[[cases]]
+name = "fail-13-ts"
+comparison = "full"
+files = { "case.ts" = "class A { static 'foo'() {} static [`foo`]() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 17, end = 22 }]
+
+[[cases]]
+name = "fail-14"
+files = { "case.js" = "class A { ['constructor']() {} ['constructor']() {} }" }
+expected = [{ file = "case.js", start = 11, end = 24 }]
+
+[[cases]]
+name = "fail-14-ts"
+comparison = "full"
+files = { "case.ts" = "class A { ['constructor']() {} ['constructor']() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 11, end = 24 }]
+
+[[cases]]
+name = "fail-15"
+files = { "case.js" = "class A { static [`constructor`]() {} static constructor() {} }" }
+expected = [{ file = "case.js", start = 18, end = 31 }]
+
+[[cases]]
+name = "fail-15-ts"
+comparison = "full"
+files = { "case.ts" = "class A { static [`constructor`]() {} static constructor() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 18, end = 31 }]
+
+[[cases]]
+name = "fail-16"
+files = { "case.js" = "class A { static constructor() {} static 'constructor'() {} }" }
+expected = [{ file = "case.js", start = 17, end = 28 }]
+
+[[cases]]
+name = "fail-16-ts"
+comparison = "full"
+files = { "case.ts" = "class A { static constructor() {} static 'constructor'() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 17, end = 28 }]
+
+[[cases]]
+name = "fail-17"
+files = { "case.js" = "class A { [123]() {} [123]() {} }" }
+expected = [{ file = "case.js", start = 11, end = 14 }]
+
+[[cases]]
+name = "fail-17-ts"
+comparison = "full"
+files = { "case.ts" = "class A { [123]() {} [123]() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "fail-18"
+files = { "case.js" = "class A { [0x10]() {} 16() {} }" }
+expected = [{ file = "case.js", start = 11, end = 15 }]
+
+[[cases]]
+name = "fail-18-ts"
+comparison = "full"
+files = { "case.ts" = "class A { [0x10]() {} 16() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 11, end = 15 }]
+
+[[cases]]
+name = "fail-19"
+files = { "case.js" = "class A { [100]() {} [1e2]() {} }" }
+expected = [{ file = "case.js", start = 11, end = 14 }]
+
+[[cases]]
+name = "fail-19-ts"
+comparison = "full"
+files = { "case.ts" = "class A { [100]() {} [1e2]() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "fail-20"
+files = { "case.js" = "class A { [123.00]() {} [`123`]() {} }" }
+expected = [{ file = "case.js", start = 11, end = 17 }]
+
+[[cases]]
+name = "fail-20-ts"
+comparison = "full"
+files = { "case.ts" = "class A { [123.00]() {} [`123`]() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 11, end = 17 }]
+
+[[cases]]
+name = "fail-21"
+files = { "case.js" = "class A { [123n]() {} 123() {} }" }
+expected = [{ file = "case.js", start = 11, end = 15 }]
+
+[[cases]]
+name = "fail-21-ts"
+comparison = "full"
+files = { "case.ts" = "class A { [123n]() {} 123() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 11, end = 15 }]
+
+[[cases]]
+name = "fail-22"
+files = { "case.js" = "class A { static '65'() {} static [0o101]() {} }" }
+expected = [{ file = "case.js", start = 17, end = 21 }]
+
+[[cases]]
+name = "fail-22-ts"
+comparison = "full"
+files = { "case.ts" = "class A { static '65'() {} static [0o101]() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 17, end = 21 }]
+
+[[cases]]
+name = "fail-23"
+files = { "case.js" = "class A { [null]() {} 'null'() {} }" }
+expected = [{ file = "case.js", start = 11, end = 15 }]
+
+[[cases]]
+name = "fail-23-ts"
+comparison = "full"
+files = { "case.ts" = "class A { [null]() {} 'null'() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 11, end = 15 }]
+
+[[cases]]
+name = "fail-24"
+files = { "case.js" = "class A { foo() {} foo() {} foo() {} }" }
+expected = [{ file = "case.js", start = 10, end = 13 }, { file = "case.js", start = 19, end = 22 }]
+
+[[cases]]
+name = "fail-24-ts"
+comparison = "full"
+files = { "case.ts" = "class A { foo() {} foo() {} foo() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 10, end = 13 }, { rule = "invalid-syntax", file = "case.ts", start = 19, end = 22 }]
+
+[[cases]]
+name = "fail-25"
+files = { "case.js" = "class A { static foo() {} static foo() {} }" }
+expected = [{ file = "case.js", start = 17, end = 20 }]
+
+[[cases]]
+name = "fail-25-ts"
+comparison = "full"
+files = { "case.ts" = "class A { static foo() {} static foo() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 17, end = 20 }]
+
+[[cases]]
+name = "fail-26"
+files = { "case.js" = "class A { foo() {} get foo() {} }" }
+expected = [{ file = "case.js", start = 10, end = 13 }]
+
+[[cases]]
+name = "fail-26-ts"
+comparison = "full"
+files = { "case.ts" = "class A { foo() {} get foo() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 10, end = 13 }]
+
+[[cases]]
+name = "fail-27"
+files = { "case.js" = "class A { set foo(value) {} foo() {} }" }
+expected = [{ file = "case.js", start = 14, end = 17 }]
+
+[[cases]]
+name = "fail-27-ts"
+comparison = "full"
+files = { "case.ts" = "class A { set foo(value) {} foo() {} }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 14, end = 17 }]
+
+[[cases]]
+name = "fail-28"
+files = { "case.js" = "class A { foo; foo; }" }
+expected = [{ file = "case.js", start = 10, end = 13 }]
+
+[[cases]]
+name = "fail-28-ts"
+comparison = "full"
+files = { "case.ts" = "class A { foo; foo; }" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 10, end = 13 }]
+
+[[cases]]
+name = "fail-29"
+files = { "case.js" = "class A { foo() {}  foo() {}}" }
+expected = [{ file = "case.js", start = 10, end = 13 }]
+
+[[cases]]
+name = "fail-29-ts"
+comparison = "full"
+files = { "case.ts" = "class A { foo() {}  foo() {}}" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 10, end = 13 }]
+
+[[cases]]
+name = "fail-30"
+files = { "case.js" = "!class A { foo() {}  foo() {}};" }
+expected = [{ file = "case.js", start = 11, end = 14 }]
+
+[[cases]]
+name = "fail-30-ts"
+comparison = "full"
+files = { "case.ts" = "!class A { foo() {}  foo() {}};" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 11, end = 14 }]
+
+[[cases]]
+name = "fail-31"
+files = { "case.js" = "class A { 'foo'() {}  'foo'() {}}" }
+expected = [{ file = "case.js", start = 10, end = 15 }]
+
+[[cases]]
+name = "fail-31-ts"
+comparison = "full"
+files = { "case.ts" = "class A { 'foo'() {}  'foo'() {}}" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 10, end = 15 }]
+
+[[cases]]
+name = "fail-32"
+files = { "case.js" = "class A { 10() {}  1e1() {}}" }
+expected = [{ file = "case.js", start = 10, end = 12 }]
+
+[[cases]]
+name = "fail-32-ts"
+comparison = "full"
+files = { "case.ts" = "class A { 10() {}  1e1() {}}" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 10, end = 12 }]
+
+[[cases]]
+name = "fail-33"
+files = { "case.js" = "class A { foo() {}  foo() {}  foo() {}}" }
+expected = [{ file = "case.js", start = 10, end = 13 }, { file = "case.js", start = 20, end = 23 }]
+
+[[cases]]
+name = "fail-33-ts"
+comparison = "full"
+files = { "case.ts" = "class A { foo() {}  foo() {}  foo() {}}" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 10, end = 13 }, { rule = "invalid-syntax", file = "case.ts", start = 20, end = 23 }]
+
+[[cases]]
+name = "fail-34"
+files = { "case.js" = "class A { static foo() {}  static foo() {}}" }
+expected = [{ file = "case.js", start = 17, end = 20 }]
+
+[[cases]]
+name = "fail-34-ts"
+comparison = "full"
+files = { "case.ts" = "class A { static foo() {}  static foo() {}}" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 17, end = 20 }]
+
+[[cases]]
+name = "fail-35"
+files = { "case.js" = "class A { foo() {}  get foo() {}}" }
+expected = [{ file = "case.js", start = 10, end = 13 }]
+
+[[cases]]
+name = "fail-35-ts"
+comparison = "full"
+files = { "case.ts" = "class A { foo() {}  get foo() {}}" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 10, end = 13 }]
+
+[[cases]]
+name = "fail-36"
+files = { "case.js" = "class A { set foo(value) {}  foo() {}}" }
+expected = [{ file = "case.js", start = 14, end = 17 }]
+
+[[cases]]
+name = "fail-36-ts"
+comparison = "full"
+files = { "case.ts" = "class A { set foo(value) {}  foo() {}}" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 14, end = 17 }]
+
+[[cases]]
+name = "fail-37"
+files = { "case.js" = "class A { foo;  foo = 42;}" }
+expected = [{ file = "case.js", start = 10, end = 13 }]
+
+[[cases]]
+name = "fail-37-ts"
+comparison = "full"
+files = { "case.ts" = "class A { foo;  foo = 42;}" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 10, end = 13 }]
+
+[[cases]]
+name = "fail-38"
+files = { "case.js" = "class A { foo;  foo() {}}" }
+expected = [{ file = "case.js", start = 10, end = 13 }]
+
+[[cases]]
+name = "fail-38-ts"
+comparison = "full"
+files = { "case.ts" = "class A { foo;  foo() {}}" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 10, end = 13 }]
+
+[[cases]]
+name = "pass-01"
+files = { "case.js" = "class A { foo() {} bar() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-02"
+files = { "case.js" = "class A { static foo() {} foo() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-03"
+files = { "case.js" = "class A { get foo() {} set foo(value) {} }" }
+expected = []
+
+[[cases]]
+name = "pass-04"
+files = { "case.js" = "class A { static foo() {} get foo() {} set foo(value) {} }" }
+expected = []
+
+[[cases]]
+name = "pass-05"
+files = { "case.js" = "class A { foo() { } } class B { foo() { } }" }
+expected = []
+
+[[cases]]
+name = "pass-06"
+files = { "case.js" = "class A { [foo]() {} foo() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-07"
+files = { "case.js" = "class A { 'foo'() {} 'bar'() {} baz() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-08"
+files = { "case.js" = "class A { *'foo'() {} *'bar'() {} *baz() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-09"
+files = { "case.js" = "class A { get 'foo'() {} get 'bar'() {} get baz() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-10"
+files = { "case.js" = "class A { 1() {} 2() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-11"
+files = { "case.js" = "class A { ['foo']() {} ['bar']() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-12"
+files = { "case.js" = "class A { [`foo`]() {} [`bar`]() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-13"
+files = { "case.js" = "class A { [12]() {} [123]() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-14"
+files = { "case.js" = "class A { [1.0]() {} ['1.0']() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-15"
+files = { "case.js" = "class A { [0x1]() {} [`0x1`]() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-16"
+files = { "case.js" = "class A { [null]() {} ['']() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-17"
+files = { "case.js" = "class A { get ['foo']() {} set ['foo'](value) {} }" }
+expected = []
+
+[[cases]]
+name = "pass-18"
+files = { "case.js" = "class A { ['foo']() {} static ['foo']() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-19"
+files = { "case.js" = "class A { ['constructor']() {} constructor() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-20"
+files = { "case.js" = "class A { 'constructor'() {} [`constructor`]() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-21"
+files = { "case.js" = "class A { constructor() {} get [`constructor`]() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-22"
+files = { "case.js" = "class A { 'constructor'() {} set ['constructor'](value) {} }" }
+expected = []
+
+[[cases]]
+name = "pass-23"
+files = { "case.js" = "class A { ['foo' + '']() {} ['foo']() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-24"
+files = { "case.js" = "class A { [`foo${''}`]() {} [`foo`]() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-25"
+files = { "case.js" = "class A { [-1]() {} ['-1']() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-26"
+files = { "case.js" = "class A { [foo]() {} [foo]() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-27"
+files = { "case.js" = "class A { foo; static foo; }" }
+expected = []
+
+[[cases]]
+name = "pass-28"
+files = { "case.js" = "class A { static foo() {}; foo() {}; }" }
+expected = []
+
+[[cases]]
+name = "pass-29"
+files = { "case.js" = "class A { foo; #foo; }" }
+expected = []
+
+[[cases]]
+name = "pass-30"
+files = { "case.js" = "class A { '#foo'; #foo; }" }
+expected = []
+
+[[cases]]
+name = "pass-31"
+files = { "case.js" = "class A { foo() {} } class B { foo() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-32"
+files = { "case.js" = "class A { [foo]() {} foo() {} } " }
+expected = []
+
+[[cases]]
+name = "pass-33"
+files = { "case.js" = "class A { foo() {} bar() {} baz() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-34"
+files = { "case.js" = "class A { *foo() {} *bar() {} *baz() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-35"
+files = { "case.js" = "class A { get foo() {} get bar() {} get baz() {} }" }
+expected = []
+
+[[cases]]
+name = "pass-36"
+files = { "case.ts" = "class Foo { foo(a: string): string; foo(a: number): number; foo(a: any): any {} }" }
+expected = []
+
+[[cases]]
+name = "escaped-string-key"
+files = { "case.js" = "class A { [\"\\x66oo\"]() {} foo() {} }\n" }
+expected = [{ file = "case.js", start = 11, end = 19 }]
+
+[[cases]]
+name = "escaped-identifier-key"
+files = { "case.js" = "class A { \\u0066oo() {} foo() {} }\n" }
+expected = [{ file = "case.js", start = 10, end = 18 }]
+
+[[cases]]
+name = "escaped-template-key-differs"
+files = { "case.js" = "class A { [`\\u0066oo`]() {} bar() {} }\n" }
+expected = []
+
+[[cases]]
+name = "regexp-key-and-string"
+files = { "case.js" = "class A { [/x/]() {} [\"/x/\"]() {} }\n" }
+expected = [{ file = "case.js", start = 11, end = 14 }]
+
+[[cases]]
+name = "regexp-keys"
+files = { "case.js" = "class A { [/x/]() {} [/x/]() {} }\n" }
+expected = [{ file = "case.js", start = 11, end = 14 }]
+
+[[cases]]
+name = "regexp-keys-differ-in-flags"
+files = { "case.js" = "class A { [/x/g]() {} [/x/]() {} }\n" }
+expected = []
+
+[[cases]]
+name = "next-line-directive"
+files = { "case.js" = "class A {\n  // eslint-disable-next-line no-dupe-class-members\n  foo() {}\n  foo() {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "directive-on-the-redeclaration"
+files = { "case.js" = "class A {\n  foo() {}\n  // eslint-disable-next-line no-dupe-class-members\n  foo() {}\n}\n" }
+expected = [{ file = "case.js", start = 12, end = 15 }]
+
+[[cases]]
+name = "escaped-template-and-backslash-string"
+files = { "case.js" = "class A { [`\\u0066oo`]() {} [\"\\\\u0066oo\"]() {} }\n" }
+expected = []
+
+[[cases]]
+name = "private-then-public"
+files = { "case.js" = "class A { #foo; foo; }\n" }
+expected = []
+
+[[cases]]
+name = "setter-then-getter"
+files = { "case.js" = "class A { set foo(v) {} get foo() { return 1; } }\n" }
+expected = []
+
+[[cases]]
+name = "escaped-template-key"
+files = { "case.js" = "class A { [`\\u0066oo`]() {} foo() {} }\n" }
+expected = [{ file = "case.js", start = 11, end = 21 }]
+
+[[cases]]
+name = "escaped-templates"
+files = { "case.js" = "class A { [`\\u0066oo`]() {} [`\\u0066oo`]() {} }\n" }
+expected = [{ file = "case.js", start = 11, end = 21 }]
+
+[[cases]]
+name = "exponent-number-and-string"
+files = { "case.js" = "class A { [1e21]() {} [\"1e+21\"]() {} }\n" }
+expected = []

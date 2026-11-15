@@ -1,6 +1,6 @@
 project-context-mode = "isolated"
-# The standalone oxlint executable of the GitHub release apps_v1.76.0, built on oxc_parser 0.142.0, the parser both ryo providers
-# link. Each SHA-256 is of the executable inside the release archive tools/install.py pins for the machine; the archive's own
+# The standalone oxlint executable of the GitHub release apps_v1.76.0, built on oxc_parser 0.142.0, the parser the TypeScript
+# provider links. Each SHA-256 is of the executable inside the release archive tools/install.py pins for the machine; the archive's own
 # SHA-256 is beside it there.
 tool = "oxlint"
 version = "1.76.0"
@@ -126,19 +126,111 @@ defaults = [
 "typescript/oxlint/unique-bindings" = "fragments/unique-bindings.ryoql"
 "typescript/oxlint/constant-values" = "fragments/constant-values.ryoql"
 "typescript/oxlint/regexp-without-global" = "fragments/regexp-without-global.ryoql"
+"typescript/oxlint/javascript-files" = "fragments/javascript-files.ryoql"
+"typescript/oxlint/quoted-strings" = "fragments/quoted-strings.ryoql"
 
-# Defaults deferred, each under the limitation that blocks it: there is no control flow relation; oxlint reports the
-# `typescript_silent` rules on no TypeScript file.
+# oxlint runs no rule on a file that does not parse or that its semantic syntax check rejects: it reports only the parse error
+# there, as the `invalid-syntax` diagnostic. Each default with a query therefore runs on the files the parser accepts; the deferred
+# ones have no query, so no policy applies to them.
+[rule-applicability]
+"eslint.for-direction" = "accepted-syntax"
+"eslint.getter-return" = "accepted-syntax"
+"eslint.no-async-promise-executor" = "accepted-syntax"
+"eslint.no-caller" = "accepted-syntax"
+"eslint.no-class-assign" = "accepted-syntax"
+"eslint.no-compare-neg-zero" = "accepted-syntax"
+"eslint.no-cond-assign" = "accepted-syntax"
+"eslint.no-const-assign" = "accepted-syntax"
+"eslint.no-constant-binary-expression" = "accepted-syntax"
+"eslint.no-constant-condition" = "accepted-syntax"
+"eslint.no-control-regex" = "accepted-syntax"
+"eslint.no-debugger" = "accepted-syntax"
+"eslint.no-delete-var" = "accepted-syntax"
+"eslint.no-dupe-class-members" = "accepted-syntax"
+"eslint.no-dupe-else-if" = "accepted-syntax"
+"eslint.no-dupe-keys" = "accepted-syntax"
+"eslint.no-duplicate-case" = "accepted-syntax"
+"eslint.no-empty-character-class" = "accepted-syntax"
+"eslint.no-empty-pattern" = "accepted-syntax"
+"eslint.no-empty-static-block" = "accepted-syntax"
+"eslint.no-eval" = "accepted-syntax"
+"eslint.no-ex-assign" = "accepted-syntax"
+"eslint.no-extra-boolean-cast" = "accepted-syntax"
+"eslint.no-func-assign" = "accepted-syntax"
+"eslint.no-global-assign" = "accepted-syntax"
+"eslint.no-import-assign" = "accepted-syntax"
+"eslint.no-invalid-regexp" = "accepted-syntax"
+"eslint.no-irregular-whitespace" = "accepted-syntax"
+"eslint.no-iterator" = "accepted-syntax"
+"eslint.no-loss-of-precision" = "accepted-syntax"
+"eslint.no-misleading-character-class" = "accepted-syntax"
+"eslint.no-new-native-nonconstructor" = "accepted-syntax"
+"eslint.no-nonoctal-decimal-escape" = "accepted-syntax"
+"eslint.no-obj-calls" = "accepted-syntax"
+"eslint.no-self-assign" = "accepted-syntax"
+"eslint.no-setter-return" = "accepted-syntax"
+"eslint.no-shadow-restricted-names" = "accepted-syntax"
+"eslint.no-sparse-arrays" = "accepted-syntax"
+"eslint.no-unassigned-vars" = "accepted-syntax"
+"eslint.no-unsafe-finally" = "accepted-syntax"
+"eslint.no-unsafe-negation" = "accepted-syntax"
+"eslint.no-unsafe-optional-chaining" = "accepted-syntax"
+"eslint.no-unused-expressions" = "accepted-syntax"
+"eslint.no-unused-labels" = "accepted-syntax"
+"eslint.no-unused-private-class-members" = "accepted-syntax"
+"eslint.no-unused-vars" = "accepted-syntax"
+"eslint.no-useless-backreference" = "accepted-syntax"
+"eslint.no-useless-catch" = "accepted-syntax"
+"eslint.no-useless-escape" = "accepted-syntax"
+"eslint.no-useless-rename" = "accepted-syntax"
+"eslint.no-with" = "accepted-syntax"
+"eslint.require-yield" = "accepted-syntax"
+"eslint.use-isnan" = "accepted-syntax"
+"eslint.valid-typeof" = "accepted-syntax"
+"oxc.bad-array-method-on-arguments" = "accepted-syntax"
+"oxc.bad-char-at-comparison" = "accepted-syntax"
+"oxc.bad-comparison-sequence" = "accepted-syntax"
+"oxc.bad-match-all-arg" = "accepted-syntax"
+"oxc.bad-min-max-func" = "accepted-syntax"
+"oxc.bad-object-literal-comparison" = "accepted-syntax"
+"oxc.bad-replace-all-arg" = "accepted-syntax"
+"oxc.const-comparisons" = "accepted-syntax"
+"oxc.double-comparisons" = "accepted-syntax"
+"oxc.erasing-op" = "accepted-syntax"
+"oxc.missing-throw" = "accepted-syntax"
+"oxc.number-arg-out-of-range" = "accepted-syntax"
+"oxc.only-used-in-recursion" = "accepted-syntax"
+"oxc.uninvoked-array-callback" = "accepted-syntax"
+"typescript.no-duplicate-enum-values" = "accepted-syntax"
+"typescript.no-extra-non-null-assertion" = "accepted-syntax"
+"typescript.no-misused-new" = "accepted-syntax"
+"typescript.no-non-null-asserted-optional-chain" = "accepted-syntax"
+"typescript.no-this-alias" = "accepted-syntax"
+"typescript.no-unnecessary-parameter-property-assignment" = "accepted-syntax"
+"typescript.no-unsafe-declaration-merging" = "accepted-syntax"
+"typescript.no-useless-empty-export" = "accepted-syntax"
+"typescript.no-wrapper-object-types" = "accepted-syntax"
+"typescript.prefer-as-const" = "accepted-syntax"
+"typescript.prefer-namespace-keyword" = "accepted-syntax"
+"typescript.triple-slash-reference" = "accepted-syntax"
+"unicorn.no-await-in-promise-methods" = "accepted-syntax"
+"unicorn.no-empty-file" = "accepted-syntax"
+"unicorn.no-invalid-fetch-options" = "accepted-syntax"
+"unicorn.no-invalid-remove-event-listener" = "accepted-syntax"
+"unicorn.no-new-array" = "accepted-syntax"
+"unicorn.no-single-promise-in-promise-methods" = "accepted-syntax"
+"unicorn.no-thenable" = "accepted-syntax"
+"unicorn.no-unnecessary-await" = "accepted-syntax"
+"unicorn.no-useless-fallback-in-spread" = "accepted-syntax"
+"unicorn.no-useless-length-check" = "accepted-syntax"
+"unicorn.no-useless-spread" = "accepted-syntax"
+"unicorn.prefer-set-size" = "accepted-syntax"
+"unicorn.prefer-string-starts-ends-with" = "accepted-syntax"
+
+# Defaults deferred, each under the limitation that blocks it: there is no control flow relation.
 [deferred]
 control_flow = [
   "eslint.constructor-super",
   "eslint.no-this-before-super",
   "eslint.no-unreachable",
-]
-# oxlint 1.76.0 reports none of these on `.ts`, `.mts`, `.cts` or `.tsx`: getter-return runs on JavaScript only, oxc's
-# TypeScript check reports a duplicate class member with no rule attached, and `with` does not parse in TypeScript.
-typescript_silent = [
-  "eslint.getter-return",
-  "eslint.no-dupe-class-members",
-  "eslint.no-with",
 ]

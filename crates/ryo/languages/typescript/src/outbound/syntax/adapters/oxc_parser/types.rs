@@ -32,6 +32,8 @@ pub(super) struct Piece {
     pub properties: Vec<NodeProperty>,
     /// Whether it carries a regular-expression pattern, and which.
     pub carries: Carries,
+    /// The parser's id of the node it projects, for the node's control flow; none for a token or a gap.
+    pub node: Option<oxc_semantic::NodeId>,
 }
 
 /// A visitor's stack and completed root nodes.
@@ -159,3 +161,30 @@ pub(super) struct PatternWriter<'b, 't> {
     /// The table being written.
     pub builder: &'b mut ryo::languages::TableBuilder<'t>,
 }
+
+/// The graphs of a file's functions as the semantic pass built them, by the parser's node and block ids, kept until the projection
+/// has written every element.
+#[derive(Debug, Default)]
+pub(super) struct FlowDraft {
+    /// Every block's marks, by block id.
+    pub blocks: Vec<ryo::languages::FlowBlockFact>,
+    /// Every edge, by block ids.
+    pub edges: Vec<ryo::languages::FlowEdgeFact>,
+    /// Every step with a node: its block, place and kind, and the node's id.
+    pub steps: Vec<DraftStep>,
+    /// Every node's block, by node id.
+    pub members: Vec<ryo::languages::BlockNumber>,
+}
+
+/// A step with a node, by the node's id.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct DraftStep {
+    /// The step, its node not yet placed.
+    pub step: ryo::languages::FlowStepFact,
+    /// The parser's id of its node.
+    pub node: oxc_semantic::NodeId,
+}
+
+/// The position the projection wrote each parser node's element at, by node id; none for a node with no element of its own.
+#[derive(Debug, Default)]
+pub(super) struct NodePositions(pub Vec<Option<ryo::languages::Position>>);

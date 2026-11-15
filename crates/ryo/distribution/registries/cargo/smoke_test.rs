@@ -12,7 +12,6 @@ const FEATURES: &[&str] = &[
     "css",
     "go",
     "html",
-    "javascript",
     "json",
     "markdown",
     "python",

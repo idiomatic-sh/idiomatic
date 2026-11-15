@@ -77,15 +77,45 @@ fn certificate(covered: &[&str]) -> Certificate {
 /// The use case wired to the fakes of every boundary it calls.
 #[must_use]
 pub fn use_case() -> MeasureCorpusUseCaseImpl {
+    wired(&[], Arc::new(WorkspaceFake), Arc::new(SuiteFake::default()))
+}
+
+/// The use case of `use_case`, its discovery answering every project with `files`, its workspace checking out `root`, tracking
+/// exactly them, and the local suite reading their bytes.
+#[must_use]
+pub fn discovering(root: &std::path::Path, files: &[&str]) -> MeasureCorpusUseCaseImpl {
+    wired(
+        files,
+        Arc::new(
+            crate::inbound::use_cases::compare_corpus::fixtures::ProjectWorkspace {
+                root: root.to_owned(),
+                tracked: files.iter().map(|file| (*file).to_owned()).collect(),
+            },
+        ),
+        Arc::new(crate::outbound::suite::factory::local()),
+    )
+}
+
+/// The use case over the fakes of every boundary, its discovery answering `files` and its workspace `workspace`.
+fn wired(
+    files: &[&str],
+    workspace: Arc<dyn crate::outbound::workspace::interface::WorkspacePort>,
+    suite: Arc<dyn crate::outbound::suite::interface::SuitePort>,
+) -> MeasureCorpusUseCaseImpl {
     MeasureCorpusUseCaseImpl::new(
         Arc::new(LinterFake::default()),
         Arc::new(LinterFake::default()),
-        Arc::new(DiscoveryFake::default()),
+        Arc::new(DiscoveryFake {
+            files: files
+                .iter()
+                .map(|file| ryo::linter::RelativePath((*file).into()))
+                .collect(),
+        }),
         Arc::new(ExecutionFake::default()),
-        Arc::new(SuiteFake::default()),
+        suite,
         Arc::new(ContextFake),
         Arc::new(EvidenceFake),
-        Arc::new(WorkspaceFake),
+        workspace,
     )
 }
 
@@ -112,21 +142,62 @@ pub fn with_cohort<R>(
     cohort: &CohortSelection,
     operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
 ) -> R {
+    measured(
+        scope,
+        pinned(projects, "main"),
+        covered,
+        cohort,
+        (std::path::Path::new("cache"), &[SourceSuffix(".fixture")]),
+        operate,
+    )
+}
+
+/// Hand `operate` a diagnostic corpus of one project pinned to a full commit, which the workspace checks out, matching the sources
+/// that end in one of `suffixes`, its trials kept under `cache`.
+pub fn with_suffixes<R>(
+    cache: &std::path::Path,
+    suffixes: &[SourceSuffix<'_>],
+    operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
+) -> R {
+    measured(
+        BenchmarkCoverage::Interim,
+        pinned(1, &"0".repeat(40)),
+        &["A"],
+        &CohortSelection::Frozen,
+        (cache, suffixes),
+        operate,
+    )
+}
+
+/// `count` projects, each pinned to `revision`.
+fn pinned(count: usize, revision: &str) -> Vec<Project> {
+    (0..count)
+        .map(|index| Project {
+            name: format!("project-{index}").into(),
+            repository: "https://example.invalid/project.git".into(),
+            revision: revision.into(),
+            patch: "project.patch".into(),
+        })
+        .collect()
+}
+
+/// Hand `operate` the corpus of `projects` under `scope`, certified for the `covered` rules, measuring `cohort` over the sources
+/// that end in one of `suffixes`.
+fn measured<R>(
+    scope: BenchmarkCoverage,
+    projects: Vec<Project>,
+    covered: &[&str],
+    cohort: &CohortSelection,
+    (cache, suffixes): (&std::path::Path, &[SourceSuffix<'_>]),
+    operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
+) -> R {
     let certificate = certificate(covered);
     let invalid_syntax = ryo::linter::RuleId::try_from("invalid-syntax").expect("rule identifier");
-    let suffixes = [SourceSuffix(".fixture")];
     operate(&CorpusMeasurement {
-        projects: (0..projects)
-            .map(|index| Project {
-                name: format!("project-{index}").into(),
-                repository: "https://example.invalid/project.git".into(),
-                revision: "main".into(),
-                patch: "project.patch".into(),
-            })
-            .collect(),
+        projects,
         scope,
         profile: SourceProfile::Full,
-        cache: std::path::Path::new("cache"),
+        cache,
         frozen_workload: std::path::Path::new("workload"),
         certificate: &certificate,
         mode: &MeasurementMode::Diagnostic,
@@ -140,10 +211,23 @@ pub fn with_cohort<R>(
             reference_name: SampleLabel(
                 ryo_benchmark_contracts::domain::receipts::constants::REFERENCE,
             ),
-            suffixes: &suffixes,
+            suffixes,
             invalid_syntax: &invalid_syntax,
             valid_profile: ProfileLabel("accepted-fixture"),
             full_profile: ProfileLabel("all-fixture"),
         },
     })
+}
+
+/// A project directory holding `files`, each one line long, removed on drop.
+///
+/// # Panics
+/// When the directory or a file cannot be written.
+#[must_use]
+pub fn project_of(files: &[&str]) -> tempfile::TempDir {
+    let root = tempfile::tempdir().expect("a project directory");
+    for file in files {
+        std::fs::write(root.path().join(file), "a\n").expect("a source");
+    }
+    root
 }

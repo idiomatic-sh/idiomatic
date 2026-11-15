@@ -245,7 +245,6 @@ idiomatic-sh-ryo-core = { path = "../ryo/crates/core" }
 idiomatic-sh-ryo-css = { path = "../ryo/languages/css" }
 idiomatic-sh-ryo-go = { path = "../ryo/languages/go" }
 idiomatic-sh-ryo-html = { path = "../ryo/languages/html" }
-idiomatic-sh-ryo-javascript = { path = "../ryo/languages/javascript" }
 idiomatic-sh-ryo-json = { path = "../ryo/languages/json" }
 idiomatic-sh-ryo-language = { path = "../ryo/crates/language" }
 idiomatic-sh-ryo-markdown = { path = "../ryo/languages/markdown" }

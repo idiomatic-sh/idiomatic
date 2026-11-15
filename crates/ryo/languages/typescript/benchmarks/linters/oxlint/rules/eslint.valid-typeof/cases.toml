@@ -52,3 +52,23 @@ expected = []
 name = "directive"
 files = { "case.ts" = "// eslint-disable-next-line valid-typeof\nif (typeof y === \"strnig\") {}\n" }
 expected = []
+
+[[cases]]
+name = "escaped-string"
+files = { "case.js" = "typeof x === \"str\\x69ng\";\n" }
+expected = []
+
+[[cases]]
+name = "escaped-template"
+files = { "case.js" = "typeof x === `str\\u0069ng`;\n" }
+expected = []
+
+[[cases]]
+name = "escaped-invalid-string"
+files = { "case.js" = "typeof x === \"str\\x69ngg\";\n" }
+expected = [{ file = "case.js", start = 13, end = 25 }]
+
+[[cases]]
+name = "tagged-template-is-not-a-string"
+files = { "case.js" = "typeof x === tag`strnig`;\n" }
+expected = []
