@@ -4,7 +4,6 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SourceByteLength(pub usize);
 
-/// One portable semantic fault vocabulary for every borrowed operator call.
 /// A refused batch of renderings as the engine recorded it, by its place among the open file's refusals: carried by the fault
 /// of the node that rendered and of every node that reads it, so each reader answers the refusal of the node it reads.
 ///
@@ -17,6 +16,7 @@ pub struct SourceByteLength(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RenderRefusal(pub u32);
 
+/// One portable semantic fault vocabulary for every borrowed operator call.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PortableOperatorFault {
     /// The engine stopped candidate acquisition or downstream delivery.
