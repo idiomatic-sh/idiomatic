@@ -3,6 +3,8 @@
 use cucumber::{given, then, when};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::SourcePath;
+use ryo_language::domain::flow::service::{flow_edge_word, flow_step_word};
+use ryo_language::domain::flow::types::{FlowBlockFact, FlowGraph};
 use ryo_language::domain::flow_table::service::flow_of;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
@@ -12,6 +14,7 @@ use ryo_language::inbound::use_cases::parse::service::build;
 use ryo_language::inbound::use_cases::parse::types::{ParseEngine, ParseRequest};
 use ryo_language::inbound::use_cases::parse::use_case::ParseUseCaseImpl;
 use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::Flag;
 
 use crate::Behavior;
 
@@ -48,13 +51,65 @@ fn runs(world: &mut Behavior) {
         &mut symbols,
     ));
     if flowing && world.answer == READ {
-        let graph = flow_of(&elements);
-        world.answer = match graph.edges.len() {
-            0 => format!("{READ}, {} flow blocks", graph.blocks.len()),
-            1 => format!("{READ}, {} flow blocks, 1 edge", graph.blocks.len()),
-            edges => format!("{READ}, {} flow blocks, {edges} edges", graph.blocks.len()),
-        };
+        world.answer = format!("{READ}, {}", facts(flow_of(&elements)));
     }
+}
+
+/// Every fact `graph` keeps, in order, as the feature spells it: each block's number and marks, each edge's ends and kind, each
+/// step's block, place, kind and element, and each member's element and block.
+fn facts(graph: &FlowGraph) -> String {
+    if graph.blocks.is_empty()
+        && graph.edges.is_empty()
+        && graph.steps.is_empty()
+        && graph.members.is_empty()
+    {
+        return "no flow facts".to_owned();
+    }
+    let marks = |block: &FlowBlockFact| {
+        [
+            (block.reachable, "reachable"),
+            (block.live, "live"),
+            (block.implicit_return, "implicit-return"),
+        ]
+        .into_iter()
+        .filter(|(flag, _)| *flag == Flag::Raised)
+        .map(|(_, word)| word)
+        .collect::<Vec<_>>()
+        .join(" ")
+    };
+    let blocks = graph
+        .blocks
+        .iter()
+        .enumerate()
+        .map(|(number, block)| format!("{number} {}", marks(block)));
+    let edges = graph.edges.iter().map(|edge| {
+        format!(
+            "{} to {} {}",
+            edge.source.0,
+            edge.target.0,
+            flow_edge_word(edge.kind).0
+        )
+    });
+    let steps = graph.steps.iter().map(|step| {
+        format!(
+            "{}.{} {} at {}",
+            step.block.0,
+            step.ordinal.0,
+            flow_step_word(step.kind).0,
+            step.node.0
+        )
+    });
+    let members = graph
+        .members
+        .iter()
+        .map(|member| format!("{} in {}", member.node.0, member.block.0));
+    format!(
+        "blocks {}; edges {}; steps {}; members {}",
+        blocks.collect::<Vec<_>>().join(", "),
+        edges.collect::<Vec<_>>().join(", "),
+        steps.collect::<Vec<_>>().join(", "),
+        members.collect::<Vec<_>>().join(", ")
+    )
 }
 
 /// The request to read the file at `path`.

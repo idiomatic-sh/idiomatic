@@ -40,3 +40,29 @@ pub(crate) const CONDITION: &str = "condition";
 pub(crate) const ITERATION_OF: &str = "iteration-of";
 /// `flow-step.step-kind` of a `for … in` step.
 pub(crate) const ITERATION_IN: &str = "iteration-in";
+/// Every word `flow-edge.edge-kind` may carry.
+pub(crate) const EDGE_WORDS: [&str; 9] = [
+    NORMAL,
+    JUMP,
+    BACKEDGE,
+    JOIN,
+    FINALIZE,
+    NEW_FUNCTION,
+    UNREACHABLE,
+    ERROR_EXPLICIT,
+    ERROR_IMPLICIT,
+];
+/// Every word `flow-step.step-kind` may carry.
+pub(crate) const STEP_WORDS: [&str; 11] = [
+    STATEMENT,
+    RETURN,
+    RETURN_UNDEFINED,
+    BREAK,
+    BREAK_LABELED,
+    CONTINUE,
+    CONTINUE_LABELED,
+    THROW,
+    CONDITION,
+    ITERATION_OF,
+    ITERATION_IN,
+];

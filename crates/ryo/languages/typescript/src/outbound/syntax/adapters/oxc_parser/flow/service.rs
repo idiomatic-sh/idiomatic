@@ -24,19 +24,25 @@ pub(in super::super) fn drafted_flow(semantic: &Semantic<'_>, draft: &mut FlowDr
         return;
     };
     let graph = cfg.graph();
-    let live = live_blocks(semantic.nodes(), cfg);
-    for (block, live) in graph.node_indices().zip(live) {
-        let basic = cfg.basic_block(block);
-        let instructions = basic.instructions();
+    // oxc's own mark, once: the block's `reachable`, and where the walk that finds `live` starts from.
+    let reachable: Vec<Flag> = graph
+        .node_indices()
+        .map(|block| {
+            if cfg.basic_block(block).is_unreachable() {
+                Flag::Lowered
+            } else {
+                Flag::Raised
+            }
+        })
+        .collect();
+    let live = live_blocks(semantic.nodes(), cfg, reachable.clone());
+    for ((block, reachable), live) in graph.node_indices().zip(reachable).zip(live) {
+        let instructions = cfg.basic_block(block).instructions();
         let ends = instructions
             .iter()
             .any(|instruction| matches!(instruction.kind, InstructionKind::ImplicitReturn));
         draft.blocks.push(FlowBlockFact {
-            reachable: if basic.is_unreachable() {
-                Flag::Lowered
-            } else {
-                Flag::Raised
-            },
+            reachable,
             live,
             implicit_return: if ends { Flag::Raised } else { Flag::Lowered },
         });
@@ -122,24 +128,16 @@ pub(in super::super) fn written_flow(
     }
 }
 
-/// Whether control reaches each block, by block index: lowered for oxc's own unreachable mark, and for every block after a loop
+/// Whether control reaches each block, by block index, from oxc's own mark `reachable`: lowered where it is, and for every block after a loop
 /// whose test is the literal `true` that only an edge from inside the loop leads to. Ported from oxlint 1.76.0's
 /// `effective_unreachable_blocks` (`oxc_linter/src/utils/control_flow.rs`), each of its `unreachable` marks the lowered flag here;
 /// the answer depends on its walk order, which this keeps by calling the same `oxc_cfg` walk. `oxc_linter` is not published.
-fn live_blocks(nodes: &AstNodes<'_>, cfg: &ControlFlowGraph) -> Vec<Flag> {
+fn live_blocks(nodes: &AstNodes<'_>, cfg: &ControlFlowGraph, reachable: Vec<Flag>) -> Vec<Flag> {
     let graph = cfg.graph();
-    let mut live = vec![Flag::Lowered; cfg.basic_blocks.len()];
+    let mut live = reachable;
     let mut infinite_loops = Vec::new();
     for node in graph.node_indices() {
-        let is_unreachable = cfg.basic_block(node).is_unreachable();
-        if let Some(slot) = live.get_mut(node.index()) {
-            *slot = if is_unreachable {
-                Flag::Lowered
-            } else {
-                Flag::Raised
-            };
-        }
-        if !is_unreachable
+        if live.get(node.index()) == Some(&Flag::Raised)
             && let Some(found) = cfg
                 .is_infinite_loop_start(node, |instruction| constant_condition(nodes, instruction))
         {
