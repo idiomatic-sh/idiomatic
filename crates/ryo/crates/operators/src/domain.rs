@@ -10,6 +10,7 @@ pub mod equality_join;
 pub(crate) mod aggregate;
 pub mod capture;
 pub mod contract;
+pub mod distinct_rows;
 pub mod ordered_existence;
 pub mod ordered_match;
 pub(crate) mod rank;

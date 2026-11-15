@@ -251,6 +251,6 @@ pub fn carried_once(
         &mut Vec::new(),
     );
     carry(&mut table, project, cross);
-    crate::domain::table_dedup::service::distinct(&mut table, &mut hashbrown::HashTable::new());
+    ryo_operators::domain::distinct_rows::service::kept_once(&mut table);
     table
 }

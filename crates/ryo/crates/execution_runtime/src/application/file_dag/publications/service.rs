@@ -21,7 +21,7 @@ use ryo_execution_domain::domain::observation_schedule::types::ResolvedObservati
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::output_coverage::service::output_coverage;
 use ryo_execution_domain::domain::output_coverage::types::{InputCoverage, OperandOrdinal};
-use ryo_execution_domain::domain::table_dedup::service::kept_once;
+use ryo_operators::domain::distinct_rows::service::kept_once;
 use ryo_language::domain::symbols::service::places_mut;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CROSS_FILE, CellKind, WorkerNumber};

@@ -36,6 +36,10 @@ Defines borrowed semantic requests, answers, and finite engine-provided drivers 
 
 Marks the nodes that lie on a cycle of engine-prepared adjacency, where a component of more than one node or a self edge is a cycle and a chain is not.
 
+### distinct_rows
+
+Keeps each row of a whole table once, the first of its kind in place, through the distinct kernel.
+
 ### equality_join
 
 Combines admitted matching rows while preserving bag order, projections, and deferred physical positions.
