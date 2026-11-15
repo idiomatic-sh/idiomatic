@@ -85,11 +85,12 @@ pub fn logical<'p>(
                 steps.push(Err(OperatingError::NotRun));
                 continue;
             };
-            let host = match &step.operation {
-                Operation::Hosted { relation } => hosted
+            let host = if let Operation::Hosted { relation } = &step.operation {
+                hosted
                     .get(usize::try_from(relation.0).unwrap_or(usize::MAX))
-                    .map(|kinds| InputShape { kinds, tree: None }),
-                _ => None,
+                    .map(|kinds| InputShape { kinds, tree: None })
+            } else {
+                None
             };
             let schema = match fault {
                 Some(error) => Err(error),

@@ -88,9 +88,12 @@ pub(crate) fn run_occurrence(
                 FrontierRows::Held { table, .. } => table.cells.as_slice(),
                 FrontierRows::Withheld(_) | FrontierRows::Elsewhere => &[],
             })
-            .filter_map(|cell| match cell {
-                Value::Name(name) => Some(*name),
-                _ => None,
+            .filter_map(|cell| {
+                if let Value::Name(name) = cell {
+                    Some(*name)
+                } else {
+                    None
+                }
             }),
         symbols,
         batch.arenas,

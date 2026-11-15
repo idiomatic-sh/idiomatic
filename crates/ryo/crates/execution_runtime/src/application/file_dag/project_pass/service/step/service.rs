@@ -107,9 +107,12 @@ impl StepRun<'_, '_, '_> {
         if self.inputs.unhanded.replace(HandoverReads::Handed) == HandoverReads::Unhanded {
             return Err(OperatingError::NotRead);
         }
-        ran.map_err(|fault| match fault {
-            PortableOperatorFault::Withheld(token) => reason(self.withholdings, token),
-            other => portable_fault(other),
+        ran.map_err(|fault| {
+            if let PortableOperatorFault::Withheld(token) = fault {
+                reason(self.withholdings, token)
+            } else {
+                portable_fault(fault)
+            }
         })
     }
 

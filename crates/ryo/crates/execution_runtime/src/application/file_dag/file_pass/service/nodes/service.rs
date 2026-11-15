@@ -255,13 +255,14 @@ pub(crate) fn ran_node(
         paths: at.paths,
         elements: at.inputs.lookup.tree(),
     };
-    run_node(at.pass, node, &mut at.buffers, &at.inputs, &mut resources).map_err(
-        |fault| match fault {
-            // A bound observation the file withheld answers the reason it was withheld, as after the files.
-            PortableOperatorFault::Withheld(token) => reason(&at.inputs.withholdings, token),
-            other => portable_fault(other),
-        },
-    )
+    run_node(at.pass, node, &mut at.buffers, &at.inputs, &mut resources).map_err(|fault| {
+        // A bound observation the file withheld answers the reason it was withheld, as after the files.
+        if let PortableOperatorFault::Withheld(token) = fault {
+            reason(&at.inputs.withholdings, token)
+        } else {
+            portable_fault(fault)
+        }
+    })
 }
 
 /// The one node step of the request's program: `node` run by the operators over `inputs` and `resources`, in a file or after

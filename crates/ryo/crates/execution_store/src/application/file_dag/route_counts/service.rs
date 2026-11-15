@@ -178,7 +178,6 @@ impl Drop for FileScope {
 pub(crate) fn capture(profile: &RouteProfile) -> CapturedOrigin {
     CapturedOrigin {
         profile: profile.clone(),
-        origin: with_state(profile, |state| state.origin),
     }
 }
 
