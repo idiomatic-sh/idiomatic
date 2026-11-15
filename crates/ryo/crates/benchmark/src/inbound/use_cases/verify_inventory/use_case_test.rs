@@ -1,5 +1,6 @@
 //! A registration lists every default; a missing implementation fails its row, a default the canonical profile defers is
-//! DEFERRED and runs nothing, and an empty list or an undeclared deferral is refused.
+//! DEFERRED and runs nothing, and an empty list, an undeclared deferral, a deferral carrying a failure or executable
+//! evidence, a deferral whose query is now authored and an executable rule the profile defers are refused.
 use super::{interface::VerifyInventoryUseCase as _, use_case::VerifyInventoryUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::suite::types::inventory::value::InventoryVerdict;
@@ -19,9 +20,25 @@ enum Registered {
     Deferred {
         others: &'static [&'static str],
         declared: bool,
+        row: Deferral,
     },
     /// `A1` registered as deferred under unavailable authority, which pins no profile to account it.
     DeferredWithoutAuthority,
+    /// `A1` registered for case verification while the canonical profile defers it under `control_flow`.
+    ExecutableDeferred,
+}
+
+/// What the deferred `A1` row carries beside its deferral, and what the bench authors for it.
+#[derive(Clone, Copy, Debug)]
+enum Deferral {
+    /// Nothing: no reason, no pins, no cases, and no `rules/A1/query.ryoql`.
+    Clean,
+    /// A stated failure.
+    StatedFailure,
+    /// A pinned definition and one case.
+    PinnedDefinitionAndCases,
+    /// Nothing, but `rules/A1/query.ryoql` was authored after it was registered.
+    AuthoredQuery,
 }
 
 type Input = Registered;
@@ -47,6 +64,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Registered::Deferred {
             others: &[],
             declared: true,
+            row: Deferral::Clean,
         },
         expect: Expect::Value((
             InventoryVerdict::Passed,
@@ -60,6 +78,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Registered::Deferred {
             others: &["B1"],
             declared: true,
+            row: Deferral::Clean,
         },
         expect: Expect::Value((
             InventoryVerdict::Failed,
@@ -82,6 +101,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Registered::Deferred {
             others: &[],
             declared: false,
+            row: Deferral::Clean,
         },
         expect: Expect::Error((
             Cow::Borrowed("registered deferral differs from the canonical profile's: A1"),
@@ -97,11 +117,92 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             0,
         )),
     },
+    Case {
+        name: CaseName("a deferral that states a failure is refused"),
+        word: Word::Refuses,
+        input: || Registered::Deferred {
+            others: &[],
+            declared: true,
+            row: Deferral::StatedFailure,
+        },
+        expect: Expect::Error((Cow::Borrowed("registered deferral states a failure: A1"), 0)),
+    },
+    Case {
+        name: CaseName("a deferral carrying a pinned definition and cases is refused"),
+        word: Word::Refuses,
+        input: || Registered::Deferred {
+            others: &[],
+            declared: true,
+            row: Deferral::PinnedDefinitionAndCases,
+        },
+        expect: Expect::Error((
+            Cow::Borrowed("registered deferral carries executable evidence: A1"),
+            0,
+        )),
+    },
+    Case {
+        name: CaseName("a deferral whose query was authored after registration is refused"),
+        word: Word::Refuses,
+        input: || Registered::Deferred {
+            others: &[],
+            declared: true,
+            row: Deferral::AuthoredQuery,
+        },
+        expect: Expect::Error((
+            Cow::Borrowed("registered deferral has an authored query: A1"),
+            0,
+        )),
+    },
+    Case {
+        name: CaseName("an executable registered rule the profile defers is refused"),
+        word: Word::Refuses,
+        input: || Registered::ExecutableDeferred,
+        expect: Expect::Error((
+            Cow::Borrowed("canonical profile defers an executable registered rule: A1"),
+            0,
+        )),
+    },
 ];
 
 /// A deferred rule as the registration document writes it.
 fn deferred_rule() -> serde_json::Value {
     json!({"definition": null, "modules": {}, "artifacts": {}, "rule_id": "A1", "command": {"kind": "deferred", "capability": "control_flow"}, "reason": null, "cases": [], "instance": null})
+}
+
+/// The registered `A1` row of `registered`, its pinned files written under `root`.
+fn registered_rule(root: &Path, registered: Registered) -> serde_json::Value {
+    let mut rule = deferred_rule();
+    let pinned_definition = || {
+        let definition = root.join("query.ryoql");
+        json!({"path": definition, "sha256": pinned(&definition, b"emit nothing;\n")})
+    };
+    match registered {
+        Registered::Deferred {
+            row: Deferral::StatedFailure,
+            ..
+        } => rule["reason"] = json!("verifier exited 1"),
+        Registered::Deferred {
+            row: Deferral::PinnedDefinitionAndCases,
+            ..
+        } => {
+            let definition = pinned_definition();
+            rule["artifacts"] =
+                json!({definition["path"].as_str().expect("path"): definition["sha256"]});
+            rule["definition"] = definition;
+            rule["cases"] = json!([{"rule": "A1", "name": "independent", "case_sha256": "case-pin", "comparison": "rule", "source_sha256": "source", "files": ["input.txt"], "expected": [], "project_context_mode": "isolated", "reference_discrepancy": null}]);
+        }
+        Registered::ExecutableDeferred => {
+            rule["command"] = json!({"kind": "case-verification", "context": root});
+            rule["definition"] = pinned_definition();
+        }
+        Registered::Missing(_)
+        | Registered::DeferredWithoutAuthority
+        | Registered::Deferred {
+            row: Deferral::Clean | Deferral::AuthoredQuery,
+            ..
+        } => {}
+    }
+    rule
 }
 
 /// Write `bytes` at `path` and answer their digest.
@@ -122,7 +223,15 @@ fn registration(root: &Path, registered: Registered) -> serde_json::Value {
         Registered::DeferredWithoutAuthority => {
             json!({"authority": unavailable, "provider": "fixture", "defaults": ["A1"], "rules": [deferred_rule()]})
         }
-        Registered::Deferred { others, declared } => {
+        Registered::Deferred { .. } | Registered::ExecutableDeferred => {
+            let (others, declared) = match registered {
+                Registered::Deferred {
+                    others, declared, ..
+                } => (others, declared),
+                Registered::Missing(_)
+                | Registered::DeferredWithoutAuthority
+                | Registered::ExecutableDeferred => (&[][..], true),
+            };
             let reference = root.join("reference");
             let worker = root.join("worker");
             let reference_sha256 = pinned(&reference, b"pinned reference executable");
@@ -139,11 +248,22 @@ fn registration(root: &Path, registered: Registered) -> serde_json::Value {
                 &profile.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
                 format!("tool = \"fixture\"\nversion = \"1\"\nsha256 = [{reference_sha256:?}]\ndefaults = {defaults:?}\n{deferral}").as_bytes(),
             );
+            if matches!(
+                registered,
+                Registered::Deferred {
+                    row: Deferral::AuthoredQuery,
+                    ..
+                }
+            ) {
+                let rule = profile.join("rules/A1");
+                std::fs::create_dir_all(&rule).expect("rule directory");
+                let _digest = pinned(&rule.join("query.ryoql"), b"emit nothing;\n");
+            }
             json!({
                 "authority": {"kind": "execution", "profile": profile, "profile_sha256": profile_sha256,
                     "reference": {"path": reference, "sha256": reference_sha256},
                     "worker": {"path": worker, "sha256": worker_sha256}},
-                "provider": "fixture", "defaults": defaults, "rules": [deferred_rule()],
+                "provider": "fixture", "defaults": defaults, "rules": [registered_rule(root, registered)],
             })
         }
     }

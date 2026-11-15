@@ -4,7 +4,10 @@ use crate::domain::suite::types::inventory::value::FailureReason;
 use crate::outbound::{
     inventory::{
         interface::InventoryPort,
-        types::{Command, RegisteredRule, Registration, RegistrationAuthority, RuleCommand},
+        types::{
+            Command, RegisteredRule, Registration, RegistrationAuthority, RuleCommand,
+            RuleDefinition, RuleReason,
+        },
     },
     suite::{interface::SuitePort, types::ArtifactPath},
 };
@@ -22,7 +25,9 @@ pub(in crate::application::inventory_verification) fn refused(
 /// A complete result cannot contradict its pinned canonical profile.
 ///
 /// # Errors
-/// Refuses a registration whose authority, defaults or executables differ from the canonical profile.
+/// Refuses a registration whose authority, defaults or executables differ from the canonical profile, and a registered
+/// deferral the verifier cannot accept: one the profile does not defer under its capability, one that states a failure
+/// or carries a definition, modules, artifacts or cases, and one whose `rules/<id>/query.ryoql` is now authored.
 pub fn require_authority(
     registration: &Registration,
     suite: &dyn SuitePort,
@@ -78,13 +83,13 @@ pub fn require_authority(
             constants::CANONICAL_INVENTORY_PROFILE_EXECUTABLE_IDENT.into(),
         ));
     }
+    let rules = profile.join(crate::domain::suite::constants::RULES);
     for entry in &registration.rules {
         let name = entry.rule_id.0.as_str();
         let deferral = tool
             .deferred
             .iter()
-            .find(|(rule, _)| rule.to_string() == name)
-            .map(|(_, capability)| capability);
+            .find(|(rule, _)| rule.to_string() == name);
         if matches!(entry.command, RuleCommand::Registered(_))
             && (deferral.is_some() || tool.pending.keys().any(|rule| rule.to_string() == name))
         {
@@ -92,13 +97,28 @@ pub fn require_authority(
                 "canonical profile defers an executable registered rule: {name}"
             )));
         }
-        if let RuleCommand::Deferred(capability) = &entry.command
-            && deferral != Some(capability)
-        {
-            return Err(Error::Invalid(format!(
-                "{}: {name}",
-                constants::DEFERRED_RULE_NOT_DEFERRED_BY_PROFILE
-            )));
+        if let RuleCommand::Deferred(capability) = &entry.command {
+            let refusal = match deferral {
+                Some((rule, profiled)) if profiled == capability => {
+                    if matches!(entry.reason, RuleReason::Stated(_)) {
+                        Some(constants::DEFERRED_RULE_STATES_A_FAILURE)
+                    } else if matches!(entry.definition, RuleDefinition::Pinned(_))
+                        || !entry.modules.is_empty()
+                        || !entry.artifacts.is_empty()
+                        || !entry.cases.is_empty()
+                    {
+                        Some(constants::DEFERRED_RULE_CARRIES_EXECUTABLE_EVIDENCE)
+                    } else if suite.rule_query(ArtifactPath(&rules), rule)?.is_some() {
+                        Some(constants::DEFERRED_RULE_HAS_AN_AUTHORED_QUERY)
+                    } else {
+                        None
+                    }
+                }
+                Some(_) | None => Some(constants::DEFERRED_RULE_NOT_DEFERRED_BY_PROFILE),
+            };
+            if let Some(refusal) = refusal {
+                return Err(Error::Invalid(format!("{refusal}: {name}")));
+            }
         }
     }
     Ok(())
