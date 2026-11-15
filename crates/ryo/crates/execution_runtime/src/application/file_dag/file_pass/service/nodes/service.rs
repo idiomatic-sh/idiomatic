@@ -2,7 +2,7 @@
 //! when its rule's turn ends, and every node's rows released when the file ends.
 
 use crate::application::file_dag::file_pass::types::{
-    NodeAnswer, NodeReads, PassFile, PassProgram, PassResources,
+    NodeAnswer, NodeInFile, NodeReads, PassFile, PassProgram, PassResources,
 };
 use crate::application::file_dag::frontiers::service::reason;
 use crate::application::file_dag::program::rule_outcome::service::classify;
@@ -20,6 +20,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::portable_fault;
 use ryo_execution_domain::domain::output_coverage::service::output_coverage;
 use ryo_execution_domain::domain::output_coverage::types::{InputCoverage, OperandOrdinal};
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::domain::physical_plan::types::fact_rows::value::FactRows;
@@ -288,6 +289,51 @@ pub(crate) fn run_node(
 ) -> Result<(), PortableOperatorFault> {
     pass.operators
         .run(physical(&pass.program), node, buffers, inputs, resources)
+}
+
+/// Starts the open file: a node no rule that runs on it can run (a step of a rule that does not run on it, or a step after the
+/// files) runs nothing in it, so each read it makes of an earlier node is done before any rule runs, and that node goes at
+/// its last consumer that does run. `live` is the pass's scratch, refilled per file.
+pub(crate) fn unread_unrun(
+    at: &mut PassFile<'_, '_, '_, '_>,
+    intents: &[FileRuleIntent],
+    live: &mut Vec<NodeInFile>,
+) {
+    let pass = at.pass;
+    live.clear();
+    let mut node = PlanNodeId(0);
+    while consumers(&pass.program, node).is_ok() {
+        live.push(NodeInFile::Unrunnable);
+        node = PlanNodeId(node.0.saturating_add(1));
+    }
+    for (rule, intent) in intents.iter().enumerate() {
+        if !matches!(intent, FileRuleIntent::Run { .. }) {
+            continue;
+        }
+        let (Ok(nodes), Some(plan)) = (
+            fused_rule(&pass.program, RuleIndex(rule)),
+            pass.plans.get(rule),
+        ) else {
+            continue;
+        };
+        // A rule's step reads only its earlier steps, and a step in each file never reads one after the files: the nodes
+        // marked here read only nodes marked here.
+        for (step, node) in plan.steps.iter().zip(&nodes.steps) {
+            if step.scope == StepScope::PerFile
+                && let Ok(node) = node
+                && let Some(alive) = live.get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
+            {
+                *alive = NodeInFile::Runnable;
+            }
+        }
+    }
+    let plan = physical(&pass.program);
+    for (place, alive) in live.iter().enumerate() {
+        if *alive == NodeInFile::Unrunnable {
+            at.buffers
+                .unread(plan, PlanNodeId(u32::try_from(place).unwrap_or(u32::MAX)));
+        }
+    }
 }
 
 /// Ends `rule`'s turn in the open file, whether it ran or not: each of its engine uses, the node it emits and each node it holds

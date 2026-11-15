@@ -7,7 +7,7 @@ use crate::application::file_dag::file_pass::service::inputs::service::{
     hosted_in_file, in_file_bound,
 };
 use crate::application::file_dag::file_pass::service::nodes::service::{
-    node_outcome, node_rows, released, rule_done,
+    node_outcome, node_rows, released, rule_done, unread_unrun,
 };
 use crate::application::file_dag::file_pass::service::{fill_roots, given_back};
 use crate::application::file_dag::file_pass::types::{
@@ -128,6 +128,8 @@ pub(crate) fn run_rules(
         answers.clear();
     }
     at.answers.resize_with(program.rule_count().0, Vec::new);
+    let mut live = std::mem::take(&mut scratch.live);
+    unread_unrun(&mut at, intents, &mut live);
     let CaptureContext {
         worker,
         arena: Arena(arena),
@@ -212,6 +214,7 @@ pub(crate) fn run_rules(
     scratch.buffers = buffers;
     scratch.outputs = outputs;
     scratch.answers = answers;
+    scratch.live = live;
     given_back(pass, scratch);
     let (rules, end) = ran;
     FileRules {

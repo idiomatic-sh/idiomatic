@@ -30,6 +30,8 @@ pub struct FileBuffers {
     pub(crate) remaining: Vec<NodeReaders>,
     /// How many of each node's engine uses are not done yet in this file, by node id.
     pub(crate) engine_left: Vec<EngineUses>,
+    /// The readers and engine uses of each node the open file is done with before it made the node.
+    pub(crate) done: crate::domain::physical_plan::types::consumers_done::value::ConsumersDone,
     /// The emptied node tables kept for the next nodes, capped.
     pub(crate) pool: crate::domain::physical_plan::types::table_pool::value::TablePool,
     /// Each filtering node's comparison scratch, by node id, kept across files.
@@ -226,8 +228,8 @@ impl FileBuffers {
     }
 
     /// One engine use of `node` is done: a rule that emits it, or a consumer that holds it, is finished with it. Its rows go
-    /// once no engine use and no node reader of it remains in the open file, whichever comes last; a node the file holds no
-    /// rows of is left as it is.
+    /// once no engine use and no node reader of it remains in the open file, whichever comes last; a use before it is made
+    /// is counted when it is made.
     ///
     /// # Examples
     ///
@@ -245,10 +247,9 @@ impl FileBuffers {
         if plan.nodes.get(at).is_none() {
             return;
         }
-        // A node the open file never made, or has already given back, holds no rows: its use releases nothing, so a shared
-        // index whose last probe it is stays for the probe that makes it later in the file.
+        // A node not made yet counts the use when it is made.
         if self.nodes.get(at).is_none_or(Option::is_none) {
-            return;
+            return self.done.engine_done(plan, node);
         }
         let Some(left) = self.engine_left.get_mut(at) else {
             return;
@@ -257,6 +258,20 @@ impl FileBuffers {
         if left.0 == 0 && self.remaining.get(at).is_none_or(|readers| readers.0 == 0) {
             self.release(node);
         }
+    }
+
+    /// `node` does not run in the open file: each read it makes of an earlier node's rows is done. Each is counted when its
+    /// source is made, so this comes before the file makes any node: at the file's start.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    /// use ryo_operators::domain::physical_plan::types::{PlanNodeId, physical_plan::value::PhysicalPlan};
+    /// FileBuffers::default().unread(&PhysicalPlan::default(), PlanNodeId(0));
+    /// ```
+    pub fn unread(&mut self, plan: &PhysicalPlan, node: PlanNodeId) {
+        self.done.unread(plan, node);
     }
 
     /// The node's last consumer is done: its buffer returns to the worker's pool. At the file's end, when the engine releases
@@ -295,6 +310,8 @@ impl FileBuffers {
                 *left = EngineUses(0);
             }
         }
+        // Made or not, the node keeps nothing it was done with into the next file.
+        self.done.forgotten(node);
     }
 }
 
