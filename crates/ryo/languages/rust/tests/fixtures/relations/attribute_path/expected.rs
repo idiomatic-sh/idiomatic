@@ -14,21 +14,21 @@ const ROWS: &[AttributePathExpectedRow] = &[
     },
     AttributePathExpectedRow {
         id: node(21),
-        name: name("allow"),
+        name: name("deny"),
         file: file("attribute_path/input.rs"),
-        span: span((2, 3), (2, 8)),
+        span: span((2, 3), (2, 7)),
     },
     AttributePathExpectedRow {
         id: node(27),
         name: name("clippy::len_zero"),
         file: file("attribute_path/input.rs"),
-        span: span((2, 9), (2, 36)),
+        span: span((2, 8), (2, 35)),
     },
     AttributePathExpectedRow {
         id: node(36),
         name: name("dead_code"),
         file: file("attribute_path/input.rs"),
-        span: span((2, 38), (2, 47)),
+        span: span((2, 37), (2, 46)),
     },
     AttributePathExpectedRow {
         id: node(51),

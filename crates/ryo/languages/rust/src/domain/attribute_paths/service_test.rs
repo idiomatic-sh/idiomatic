@@ -27,8 +27,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_token_tree_writes_each_path_without_a_comment"),
         word: Word::Succeeds,
-        input: || "#[allow(clippy:: /* c */ len_zero, dead_code)]\nfn f() {}",
-        expect: Expect::Value("allow clippy::len_zero dead_code"),
+        input: || "#[deny(clippy:: /* c */ len_zero, dead_code)]\nfn f() {}",
+        expect: Expect::Value("deny clippy::len_zero dead_code"),
     },
     Case {
         name: CaseName("a_raw_segment_and_a_leading_separator_are_kept"),
