@@ -66,6 +66,10 @@ impl languages::Semantics for {{ part | pascal }}Contract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn attribute_path(&self) -> Support<Reader<languages::AttributePath, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -212,6 +216,10 @@ impl languages::Semantics for ParseContract {
     }
 
     fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn attribute_path(&self) -> Support<Reader<languages::AttributePath, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 

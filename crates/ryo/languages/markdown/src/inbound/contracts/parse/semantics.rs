@@ -69,6 +69,12 @@ impl languages::Semantics<Sections> for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn attribute_path(&self) -> Support<Reader<languages::AttributePath, Sections>> {
+        // standard: CommonMark Spec 0.31.2, sections 4 (Leaf blocks) to 6 (Inlines): no block or inline writes an attribute, so no
+        // attribute writes a path.
+        languages::absent(AbsenceCause::NoSuchConstruct)
+    }
+
     fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Sections>> {
         languages::absent(AbsenceCause::NotYetRead)
     }

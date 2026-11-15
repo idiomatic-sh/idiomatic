@@ -1,5 +1,6 @@
 //! The rust domain's rules, one module per concept.
 
+pub(crate) mod attribute_paths;
 pub(crate) mod bindings;
 pub(crate) mod conditions;
 pub(crate) mod declarations;
