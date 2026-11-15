@@ -24,7 +24,7 @@ pub struct WordsToKeep<'a> {
 pub struct KeptWordsStart(pub usize);
 
 /// How many bucket words a source range spans: the bare count inside is named here.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct KeptWordsLength(pub usize);
 
 /// One exact source range inside the concatenated bucket bytes.
@@ -44,6 +44,27 @@ pub struct KeptBucket {
     pub words: std::sync::Arc<KeptWords>,
     /// The provenance of each source whose words the bucket holds.
     pub sources: Vec<BucketSource>,
+}
+
+/// What a bucket holds besides its words: the provenance of each source, as `kept` gives it, and how many words they run to.
+/// What a proof reads, so a proof reads no word.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::outbound::facts::types::{KeptSources, KeptWordsLength};
+/// let nothing = KeptSources {
+///     sources: Vec::new(),
+///     length: KeptWordsLength(0),
+/// };
+/// assert!(nothing.sources.is_empty());
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct KeptSources {
+    /// The provenance of each source whose words the bucket holds, as `kept` gives it.
+    pub sources: Vec<BucketSource>,
+    /// How many words the bucket holds.
+    pub length: KeptWordsLength,
 }
 
 /// What the columns the worker's file writes to are made of, generated from the catalog's one list: a field for

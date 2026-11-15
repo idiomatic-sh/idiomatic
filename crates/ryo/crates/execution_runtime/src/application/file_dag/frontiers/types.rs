@@ -6,6 +6,7 @@ use ryo_operators::domain::contract::types::WithheldInput;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::runs::types::Skipped;
+use std::sync::Arc;
 
 /// What the files of a phase are scoped by: the corpus, the files each rule read in part, skipped, does not apply to or was
 /// refused on.
@@ -45,8 +46,8 @@ pub(crate) struct HandedOver(pub(crate) Vec<FrontierRows>);
 pub(crate) enum FrontierRows {
     /// The rows every file kept, and how completely they cover the rule's files.
     Held {
-        /// The rows.
-        table: Table,
+        /// The rows: a project relation's are the phase's one table, shared with every rule that reads it.
+        table: Arc<Table>,
         /// Their coverage.
         coverage: CoverageState,
     },
@@ -54,6 +55,45 @@ pub(crate) enum FrontierRows {
     Withheld(WithheldInput),
     /// Not the files' to hand over: a bound observation.
     Elsewhere,
+}
+
+/// What the store read and the proof left of one rule's frontier, by entry, before any entry is decoded: no word is held.
+#[derive(Debug, Default)]
+pub(crate) struct ProvenFrontier(pub(crate) Vec<ProvenEntry>);
+
+/// One frontier entry once the store was read and its proof checked.
+#[derive(Debug)]
+pub(crate) enum ProvenEntry {
+    /// The files kept it and its provenance is proven: its words are read once, where it is decoded.
+    Words,
+    /// Refused before its words were read, for this reason.
+    Refused(ryo_execution_domain::domain::operating::errors::OperatingError),
+    /// A project relation's rows, as the phase read them.
+    Project(Arc<Table>),
+    /// Not the files' to hand over.
+    Elsewhere,
+}
+
+/// Where a bucket stands in a run: the rule and frontier entry it holds, the rule's first bucket and the bucket itself.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct BucketPlace {
+    /// The rule whose frontier it holds.
+    pub(crate) rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
+    /// The frontier entry it holds.
+    pub(crate) input: ryo_values::domain::plan_parts::types::InputNumber,
+    /// The rule's first bucket.
+    pub(crate) first: ryo_values::domain::stored_facts::types::Bucket,
+    /// The bucket.
+    pub(crate) bucket: ryo_values::domain::stored_facts::types::Bucket,
+}
+
+/// A bucket's provenance as a proof reads it: each source, and how many words they run to.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct BucketProvenance<'a> {
+    /// Each source whose words the bucket holds.
+    pub(crate) sources: &'a [crate::outbound::facts::types::BucketSource],
+    /// How many words the bucket holds.
+    pub(crate) length: crate::outbound::facts::types::KeptWordsLength,
 }
 
 /// Whether the files a source proof accounts for are exactly the files the request requires.

@@ -1,12 +1,12 @@
 //! The `frontiers` service: what the files hand over to a rule's steps after the files. Each entry of the rule's frontier is
-//! read from the store and proven against the files the rule read, in frontier order, before any step runs; then decoded once
-//! into the phase's symbols. A store refusal stops the occurrence; an entry whose producer is unavailable, whose every source
+//! proven from its provenance against the files the rule read, in frontier order, before any step runs (`prove`); then its
+//! words are read once, proven with the provenance read with them and decoded into the phase's symbols (`decode`). A store refusal stops the occurrence; an entry whose producer is unavailable, whose every source
 //! was skipped or whose words do not decode is withheld, and its reason is raised where a step first reads it.
-use super::constants::{PRODUCER_UNAVAILABLE, PROOF_MISMATCH, SOURCES_SKIPPED};
+use super::constants::{PRODUCER_UNAVAILABLE, SOURCES_SKIPPED};
 use super::errors::FrontiersError;
 use super::types::{
-    FileAccounting, FrontierRows, HandedOver, HandoverPolicy, InputReadiness, PhaseScoping,
-    Withholdings,
+    BucketPlace, BucketProvenance, FrontierRows, HandedOver, HandoverPolicy, InputReadiness,
+    PhaseScoping, ProvenEntry, ProvenFrontier, ReadinessProof, Withholdings,
 };
 use crate::application::file_dag::program::admission::types::RequiredPartitions;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
@@ -14,11 +14,9 @@ use crate::application::file_dag::program::request_execution::types::RequestExec
 use crate::application::file_dag::project_source::service::table_of;
 use crate::application::file_dag::project_source::types::ProjectSource;
 use crate::outbound::facts::interface::FactsFinish;
-use crate::outbound::facts::types::KeptBucket;
-use ryo_execution_domain::domain::completion::service::partial_of_lacks;
-use ryo_execution_domain::domain::completion::types::{CoverageState, FileLacks, MissingRows};
+use crate::outbound::facts::types::{BucketSource, KeptBucket};
+use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::frontier_coverage::service::restored_lacks;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::service::places_mut;
 use ryo_language::domain::symbols::types::Symbols;
@@ -27,20 +25,16 @@ use ryo_operators::domain::physical_plan::types::frontier_place::value::Frontier
 use ryo_operators::domain::physical_plan::types::held_rows::value::HeldRows;
 use ryo_relations::domain::catalog::service::scope_of;
 use ryo_relations::domain::catalog::types::RowScope;
-use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::plan_parts::types::{Input, InputNumber};
-use ryo_values::domain::records::service::is_well_formed;
-use ryo_values::domain::records::types::{FrontierCoverage, FrontierShape};
 use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::run_metadata::types::FrontierFeed;
 use ryo_values::domain::stored_facts::service::frontier_bucket;
 use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::table_words::service::{
-    decode_combined, decode_complete, single_table_frame,
-};
-use ryo_values::domain::table_words::types::{Framing, PackedSlice};
-use std::collections::BTreeSet;
+use ryo_values::domain::table_words::service::{decode_combined, decode_complete};
 use std::sync::Arc;
+
+pub(crate) mod validation;
+use validation::service::{validate_bucket, validate_sources};
 
 /// The files `rule` reads after the files: the request's files, less those it skipped, does not apply to or was refused on.
 ///
@@ -70,14 +64,92 @@ pub(crate) fn required_files(
     )
 }
 
-/// What the files hand over to `rule`'s steps after the files, by frontier entry: each entry the files keep read from the store
-/// and proven in frontier order, then decoded into `symbols`. An entry a project relation or a bound observation answers is
-/// not the files' to hand over.
+/// What the store keeps of `rule`'s frontier, by entry: each entry the files keep read from the store and proven in frontier
+/// order, its words dropped once proven. An entry a project relation answers is the phase's table, and one a bound observation
+/// answers is not the files' to hand over.
 ///
 /// # Errors
 ///
 /// The store's refusal of a bucket, or a proof that does not fit the program: the occurrence stops before any step runs.
-pub(crate) fn hand_over(
+pub(crate) fn prove(
+    program: &PreparedProgram,
+    rule: RuleIndex,
+    first: Bucket,
+    facts: &dyn FactsFinish,
+    required: &RequiredPartitions,
+    policy: HandoverPolicy<'_>,
+    project: &ProjectSource<'_>,
+) -> Result<ProvenFrontier, FrontiersError> {
+    let frontier = program.frontiers(rule)?;
+    let feeds = &program
+        .metadata()
+        .get(rule.0)
+        .ok_or(OperatingError::NotRun)?
+        .frontier_capture;
+    let mut proven = Vec::with_capacity(frontier.len());
+    for (place, input) in frontier.iter().copied().enumerate() {
+        if let HandoverPolicy::Observations { ready } = policy
+            && ready.0.get(place).copied().ok_or(OperatingError::NotRun)?
+                == InputReadiness::Unavailable
+        {
+            proven.push(ProvenEntry::Refused(
+                OperatingError::ObservationIncomplete {
+                    reason: PRODUCER_UNAVAILABLE.into(),
+                },
+            ));
+            continue;
+        }
+        if feeds.get(place).copied().ok_or(OperatingError::NotRun)? == FrontierFeed::CrossFile {
+            proven.push(ProvenEntry::Elsewhere);
+            continue;
+        }
+        // A project relation is the project's to hand over, read once for the phase.
+        if let Input::Relation(relation) = input
+            && scope_of(relation) == RowScope::Project
+        {
+            proven.push(ProvenEntry::Project(Arc::clone(table_of(
+                project, relation,
+            )?)));
+            continue;
+        }
+        // The proof reads the bucket's provenance alone: its words are read once, where the entry is decoded.
+        let bucket = frontier_bucket(first, InputNumber(place));
+        let kept = facts.sources(bucket)?;
+        let _proved = validate_sources(
+            program,
+            BucketPlace {
+                rule,
+                input: InputNumber(place),
+                first,
+                bucket,
+            },
+            required,
+            BucketProvenance {
+                sources: &kept.sources,
+                length: kept.length,
+            },
+        )?;
+        proven.push(match every_source_skipped(&kept.sources, required) {
+            Some(refusal) => ProvenEntry::Refused(refusal),
+            None => ProvenEntry::Words,
+        });
+    }
+    Ok(ProvenFrontier(proven))
+}
+
+/// What the files hand over to `rule`'s steps after the files, by frontier entry, from what `prove` left of it: each kept
+/// entry's words read from the store once and proven with the provenance read with them, whose coverage they carry; a refused
+/// one withheld with its reason.
+///
+/// # Errors
+///
+/// The store's refusal of a bucket, or words whose own proof does not fit the program: the occurrence stops before any step
+/// runs.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the proof's own inputs, read again, with the phase's symbols and withholdings it decodes into"
+)]
+pub(crate) fn decode(
     program: &PreparedProgram,
     rule: RuleIndex,
     first: Bucket,
@@ -85,85 +157,66 @@ pub(crate) fn hand_over(
     symbols: &mut Symbols,
     required: &RequiredPartitions,
     policy: HandoverPolicy<'_>,
-    project: &ProjectSource<'_>,
+    proven: &ProvenFrontier,
     withholdings: &mut Withholdings,
 ) -> Result<HandedOver, FrontiersError> {
-    let frontier = program.frontiers(rule)?;
-    let feeds = &program
-        .metadata()
-        .get(rule.0)
-        .ok_or(OperatingError::NotRun)?
-        .frontier_capture;
-    // The store is read and every proof checked, in frontier order, before any entry is decoded.
-    let mut proven = Vec::with_capacity(frontier.len());
-    for (place, input) in frontier.iter().copied().enumerate() {
-        if let HandoverPolicy::Observations { ready } = policy
-            && ready.0.get(place).copied().ok_or(OperatingError::NotRun)?
-                == InputReadiness::Unavailable
-        {
-            proven.push(Proven::Refused(OperatingError::ObservationIncomplete {
-                reason: PRODUCER_UNAVAILABLE.into(),
-            }));
-            continue;
-        }
-        if feeds.get(place).copied().ok_or(OperatingError::NotRun)? == FrontierFeed::CrossFile {
-            proven.push(Proven::Elsewhere);
-            continue;
-        }
-        // A project relation is the project's to hand over, read once for the phase.
-        if let Input::Relation(relation) = input
-            && scope_of(relation) == RowScope::Project
-        {
-            proven.push(Proven::Project(Arc::clone(table_of(project, relation)?)));
-            continue;
-        }
-        let bucket = frontier_bucket(first, InputNumber(place));
-        let words = facts.kept(bucket)?;
-        let coverage = validate_bucket(
-            program,
-            rule,
-            InputNumber(place),
-            first,
-            bucket,
-            required,
-            &words,
-        )?;
-        if words.sources.is_empty() && !required.files().is_empty() {
-            proven.push(Proven::Refused(OperatingError::ObservationIncomplete {
-                reason: SOURCES_SKIPPED.into(),
-            }));
-            continue;
-        }
-        proven.push(Proven::Words(words, coverage));
-    }
-    let handed = proven
-        .into_iter()
-        .map(|entry| match entry {
-            Proven::Elsewhere => FrontierRows::Elsewhere,
-            Proven::Project(table) => FrontierRows::Held {
-                table: Table::clone(&table),
+    let mut handed = Vec::with_capacity(proven.0.len());
+    for (place, entry) in proven.0.iter().enumerate() {
+        handed.push(match entry {
+            ProvenEntry::Elsewhere => FrontierRows::Elsewhere,
+            ProvenEntry::Project(table) => FrontierRows::Held {
+                table: Arc::clone(table),
                 coverage: CoverageState::Complete,
             },
-            Proven::Refused(error) => FrontierRows::Withheld(withheld(withholdings, error)),
-            Proven::Words(words, coverage) => match decoded(&words, symbols, policy) {
-                Ok(table) => FrontierRows::Held { table, coverage },
-                Err(error) => FrontierRows::Withheld(withheld(withholdings, error)),
-            },
-        })
-        .collect();
+            ProvenEntry::Refused(error) => {
+                FrontierRows::Withheld(withheld(withholdings, error.clone()))
+            }
+            ProvenEntry::Words => {
+                let bucket = frontier_bucket(first, InputNumber(place));
+                let words = facts.kept(bucket)?;
+                // The words carry the coverage of their own proof, never an earlier read's.
+                let coverage = validate_bucket(
+                    program,
+                    rule,
+                    InputNumber(place),
+                    first,
+                    bucket,
+                    required,
+                    &words,
+                )?;
+                match every_source_skipped(&words.sources, required)
+                    .map_or_else(|| decoded(&words, symbols, policy), Err)
+                {
+                    Ok(table) => FrontierRows::Held {
+                        table: Arc::new(table),
+                        coverage,
+                    },
+                    Err(error) => FrontierRows::Withheld(withheld(withholdings, error)),
+                }
+            }
+        });
+    }
     Ok(HandedOver(handed))
 }
 
-/// One frontier entry once the store was read and the proof checked.
-enum Proven {
-    /// Its words and their coverage.
-    Words(KeptBucket, CoverageState),
-    /// Refused before its words were read.
-    Refused(OperatingError),
-    /// A project relation's rows, as the phase read them.
-    Project(Arc<Table>),
-    /// Not the files' to hand over.
-    Elsewhere,
+/// What a frontier is handed over for: the observations with each entry's readiness, or the diagnostic when there is none.
+pub(crate) fn policy_of(ready: Option<&ReadinessProof>) -> HandoverPolicy<'_> {
+    match ready {
+        Some(ready) => HandoverPolicy::Observations { ready },
+        None => HandoverPolicy::Diagnostic,
+    }
+}
+
+/// Why an entry is withheld when the files are required but every source of its bucket was skipped, if it is.
+fn every_source_skipped(
+    sources: &[BucketSource],
+    required: &RequiredPartitions,
+) -> Option<OperatingError> {
+    (sources.is_empty() && !required.files().is_empty()).then(|| {
+        OperatingError::ObservationIncomplete {
+            reason: SOURCES_SKIPPED.into(),
+        }
+    })
 }
 
 /// The rows of `words` in `symbols`: for the observations every row read and the first malformed one refused, for the
@@ -215,118 +268,5 @@ pub(crate) fn reason(withholdings: &Withholdings, token: WithheldInput) -> Opera
             .cloned()
             .unwrap_or(OperatingError::NotRun),
         Err(_) => OperatingError::NotRun,
-    }
-}
-
-/// Checks every range and proof of a kept bucket before its rows are read: each frame the rule's own, whole and of a required
-/// file, every required file accounted for. The file number comes from the run's handover; a stored owner is never trusted.
-///
-/// # Errors
-///
-/// `PROOF_MISMATCH` when the bucket does not fit the program or the files.
-pub(crate) fn validate_bucket(
-    program: &PreparedProgram,
-    rule: RuleIndex,
-    input: InputNumber,
-    first: Bucket,
-    bucket: Bucket,
-    required: &RequiredPartitions,
-    payload: &KeptBucket,
-) -> Result<CoverageState, OperatingError> {
-    let refuse = || OperatingError::ObservationIncomplete {
-        reason: PROOF_MISMATCH.into(),
-    };
-    let expected = program.rule_digest(rule)?;
-    let skipped = required.skipped_files(program, rule)?;
-    if frontier_bucket(first, input) != bucket || program.frontiers(rule)?.get(input.0).is_none() {
-        return Err(refuse());
-    }
-    let mut at = 0;
-    let mut seen_files = BTreeSet::new();
-    let mut affected = Vec::new();
-    for source in &payload.sources {
-        if source.start.0 != at
-            || source.length.0 == 0
-            || !required.files().contains(&source.file)
-            || skipped.contains(&source.file)
-            || !seen_files.insert(source.file)
-            || source.proof.rule.0 != u32::try_from(rule.0).map_err(|_| refuse())?
-            || source.proof.input.0 != u32::try_from(input.0).map_err(|_| refuse())?
-            || source.proof.rule_digest != expected
-        {
-            return Err(refuse());
-        }
-        let end = at.checked_add(source.length.0).ok_or_else(refuse)?;
-        let frame = payload.words.0.0.get(at..end).ok_or_else(refuse)?;
-        if single_table_frame(PackedSlice(frame)) != Framing::Whole {
-            return Err(refuse());
-        }
-        at = end;
-        match &source.proof.coverage {
-            FrontierCoverage::Complete => {}
-            FrontierCoverage::Partial(scopes) => {
-                if is_well_formed(scopes) == FrontierShape::Malformed {
-                    return Err(refuse());
-                }
-                affected.extend(restored_lacks(source.file, scopes));
-            }
-        }
-    }
-    // A file the rule was refused on has no frame: one that carries a frame contradicts the edge.
-    let refused = required
-        .refused()
-        .iter()
-        .filter(|file| required.files().contains(file))
-        .copied()
-        .collect::<BTreeSet<_>>();
-    if refused
-        .iter()
-        .any(|file| seen_files.contains(file) || skipped.contains(file))
-    {
-        return Err(refuse());
-    }
-    // Known unavailable files are accounted for without inventing empty frames; they stay attached to the partial answer.
-    seen_files.extend(skipped.iter().copied());
-    seen_files.extend(refused.iter().copied());
-    // A required file with no frame is discharged only when the edge named it inapplicable or refused to this rule.
-    seen_files.extend(
-        required
-            .inapplicable()
-            .iter()
-            .filter(|file| required.files().contains(file))
-            .copied(),
-    );
-    if at != payload.words.0.0.len()
-        || exact_required_files(required.files(), &seen_files) == FileAccounting::Inexact
-    {
-        return Err(refuse());
-    }
-    // A refused file lacks the rule's input, so the answer is partial over it, never complete.
-    affected.extend(refused.into_iter().map(|file| FileLacks {
-        file: Some(file),
-        missing: MissingRows::Any,
-    }));
-    // A skipped file stays unavailable: it lacks input without making an answer not keyed by it partial.
-    Ok(if !affected.is_empty() {
-        affected.extend(skipped.iter().copied().map(|file| FileLacks {
-            file: Some(file),
-            missing: MissingRows::Any,
-        }));
-        partial_of_lacks(affected)
-    } else if skipped.is_empty() {
-        CoverageState::Complete
-    } else {
-        CoverageState::Inapplicable {
-            files: skipped.into_iter().collect(),
-        }
-    })
-}
-
-/// Whether `seen` names exactly the `required` files.
-fn exact_required_files(required: &[FileId], seen: &BTreeSet<FileId>) -> FileAccounting {
-    if seen.len() == required.len() && required.iter().all(|file| seen.contains(file)) {
-        FileAccounting::Exact
-    } else {
-        FileAccounting::Inexact
     }
 }

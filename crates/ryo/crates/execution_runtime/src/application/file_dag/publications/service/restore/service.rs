@@ -1,7 +1,7 @@
 //! The named outputs the files kept, restored for the selected consumers: each physical bucket read and proven once, each
 //! logical output checked against the readiness the files recorded.
 
-use crate::application::file_dag::frontiers::service::validate_bucket;
+use crate::application::file_dag::frontiers::service::validation::service::validate_bucket;
 use crate::application::file_dag::program::admission::types::RequiredPartitions;
 use crate::application::file_dag::program::preparation::types::{
     ObservationMetadata, OutputRoot, PreparedProgram,

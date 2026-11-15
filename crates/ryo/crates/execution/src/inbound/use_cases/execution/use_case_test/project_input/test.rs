@@ -19,8 +19,8 @@ use ryo_execution_runtime::outbound::facts::errors::FactsError;
 use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
 use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
 use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
-use ryo_execution_runtime::outbound::facts::types::KeptBucket;
 use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
+use ryo_execution_runtime::outbound::facts::types::{KeptBucket, KeptSources};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{ColumnsView, FileId, Relation};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -61,6 +61,9 @@ impl FactsWorker for UnavailableFacts {
 }
 impl FactsFinish for UnavailableFacts {
     fn kept(&self, _: Bucket) -> Result<KeptBucket, FactsError> {
+        panic!("the plan declares no restored frontier to fetch")
+    }
+    fn sources(&self, _: Bucket) -> Result<KeptSources, FactsError> {
         panic!("the plan declares no restored frontier to fetch")
     }
 }

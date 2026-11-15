@@ -78,4 +78,12 @@ pub trait FactsFinish: Send + Sync {
     ///
     /// `Store` when it cannot be read; `File` when a file fails.
     fn kept(&self, bucket: Bucket) -> Result<super::types::KeptBucket, FactsError>;
+
+    /// The provenance of everything the workers added to a bucket and how many words it runs to, exactly as `kept` gives
+    /// them, without reading or handing out a word: what a proof reads.
+    ///
+    /// # Errors
+    ///
+    /// `Store` when it cannot be read; `File` when a file fails.
+    fn sources(&self, bucket: Bucket) -> Result<super::types::KeptSources, FactsError>;
 }

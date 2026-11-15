@@ -1,13 +1,14 @@
 //! The `project_pass` service: a phase's occurrences after the files, in declaration order. Each occurrence is bound, its rule's
-//! frontier handed over at the rule's first occurrence and its caller's partials taken, all before any evaluates; then each is
-//! guarded and evaluated through the file pass's one node step, and handed to its caller in declaration order.
+//! frontier read from the store and proven at the rule's first occurrence and its caller's partials taken, all before any
+//! evaluates; then each is guarded, its rule's frontier decoded at the rule's first occurrence that evaluates, and evaluated
+//! through the file pass's one node step; after the rule's last occurrence its handover and rows go. Each outcome is handed to
+//! its caller in declaration order.
 use super::types::{
-    HandoverPlace, HostedTables, OccurrenceRun, PhaseBatch, PhaseOccurrence, PhaseState,
-    ReadyOccurrence, RuleHandover,
+    HandoverPlace, HandoverState, HostedTables, OccurrenceRun, OccurrencesLeft, PhaseBatch,
+    PhaseOccurrence, PhaseState, ReadyOccurrence, RuleHandover, RuleUse, RuleUses,
 };
 use crate::application::file_dag::file_pass::types::PassProgram;
-use crate::application::file_dag::frontiers::service::{hand_over, required_files};
-use crate::application::file_dag::frontiers::types::HandoverPolicy;
+use crate::application::file_dag::frontiers::service::{decode, policy_of, prove, required_files};
 use crate::application::file_dag::program::project_phase::types::{
     HandedFrom, HandoverDeclaration, OccurrenceNumber, PhasePartials, PhaseStop,
 };
@@ -17,6 +18,7 @@ use crate::application::file_dag::program::rule_outcome::types::{
 use crate::application::file_dag::project_source::service::read;
 use crate::application::file_dag::publications::types::PublicationSlot;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::executable_program::service::rule as rule_nodes;
 use ryo_execution_domain::domain::hosted::service::table_of_query;
 use ryo_execution_domain::domain::hosted::types::NumberedFiles;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -26,7 +28,7 @@ use ryo_relations::domain::catalog::service::scope_of;
 use ryo_relations::domain::catalog::types::RowScope;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::Input;
-use ryo_values::domain::plans::service::{inputs_of, named};
+use ryo_values::domain::plans::service::reads_of;
 
 pub(crate) mod inputs;
 pub(crate) mod occurrence;
@@ -42,17 +44,12 @@ pub(crate) fn project_reads(pass: &PassProgram, rules: &[RuleIndex]) -> Vec<Rela
         let Some(plan) = pass.plans.get(rule.0) else {
             continue;
         };
-        let stepped = plan.steps.iter().flat_map(|step| {
-            named(&inputs_of(&step.operation))
-                .into_iter()
-                .copied()
-                .collect::<Vec<_>>()
+        let framed = plan.frontier.iter().filter_map(|input| match input {
+            Input::Relation(relation) => Some(*relation),
+            Input::Step(_) | Input::BoundObservation(_) => None,
         });
-        for input in plan.frontier.iter().copied().chain(stepped) {
-            if let Input::Relation(relation) = input
-                && scope_of(relation) == RowScope::Project
-                && !reads.contains(&relation)
-            {
+        for relation in framed.chain(reads_of(plan).0) {
+            if scope_of(relation) == RowScope::Project && !reads.contains(&relation) {
                 reads.push(relation);
             }
         }
@@ -60,8 +57,50 @@ pub(crate) fn project_reads(pass: &PassProgram, rules: &[RuleIndex]) -> Vec<Rela
     reads
 }
 
-/// One batch of declared occurrences in one call: each occurrence's rule handed over once `before` admits it, every
-/// occurrence's partials taken, then each guarded and evaluated in declaration order, and each outcome handed to `complete` with
+/// How many times each rule occurs among `rules`, the declared occurrences of a phase.
+pub(crate) fn uses_of(rules: impl IntoIterator<Item = RuleIndex>) -> RuleUses {
+    let mut uses = RuleUses::default();
+    for rule in rules {
+        match uses.0.iter_mut().find(|each| each.rule == rule) {
+            Some(each) => each.left = OccurrencesLeft(each.left.0.saturating_add(1)),
+            None => uses.0.push(RuleUse {
+                rule,
+                left: OccurrencesLeft(1),
+            }),
+        }
+    }
+    uses
+}
+
+/// One occurrence of `rule` was evaluated: one fewer is still to come. After its last, the rule's handovers and the rows of its
+/// emit and steps go, and its nodes no longer stand over a handover.
+fn used(batch: &PhaseBatch<'_, '_>, state: &mut PhaseState, rule: RuleIndex) {
+    let Some(each) = state.uses.0.iter_mut().find(|each| each.rule == rule) else {
+        return;
+    };
+    each.left = OccurrencesLeft(each.left.0.saturating_sub(1));
+    if each.left.0 > 0 {
+        return;
+    }
+    for handover in state.handovers.iter_mut().filter(|each| each.rule == rule) {
+        handover.handed = HandoverState::Released;
+    }
+    if let Ok(nodes) = rule_nodes(&batch.pass.program, rule) {
+        for node in nodes
+            .steps
+            .iter()
+            .chain(std::iter::once(&nodes.emit))
+            .flatten()
+        {
+            state.buffers.release(*node);
+        }
+    }
+    state.last.retain(|each| each.rule != rule);
+}
+
+/// One batch of declared occurrences in one call: each occurrence's rule read from the store and proven once `before` admits
+/// it, every occurrence's partials taken, then each guarded, its rule decoded at the first that evaluates, evaluated in
+/// declaration order, its rule's handover and rows released after the rule's last, and each outcome handed to `complete` with
 /// its slot. A failure of one occurrence stays with it; occurrences after the guard's refusal are absent.
 #[expect(
     clippy::too_many_arguments,
@@ -86,11 +125,11 @@ pub(crate) fn run_batch<H, T, E>(
         .iter()
         .enumerate()
         .map(|(at, occurrence)| {
-            // What `before` returns is held until the occurrence's rule is handed over.
+            // What `before` returns is held until the occurrence's rule is read from the store and proven.
             let _held = before(OccurrenceNumber(at)).map_err(PhaseStop::Caller)?;
             // The project is read at the first occurrence its caller admits: a refused one reads nothing.
             read(batch.project, symbols);
-            handover_of(batch, state, occurrence, symbols)
+            handover_of(batch, state, occurrence)
         })
         .collect::<Vec<_>>();
     let ready = handed
@@ -130,9 +169,14 @@ pub(crate) fn run_batch<H, T, E>(
             evaluation: &partials.evaluation,
             publication: &partials.publication,
         };
-        evaluated.push(run_occurrence(
-            batch, state, *handover, occurrence, run, symbols,
-        ));
+        // The rule's handover is decoded at its first occurrence that evaluates, and goes after its last.
+        evaluated.push(
+            handed_over(batch, state, *handover, symbols).and_then(|()| {
+                run_occurrence(batch, state, *handover, occurrence, run, symbols)
+                    .map_err(PhaseStop::Operating)
+            }),
+        );
+        used(batch, state, occurrence.rule);
     }
     let mut evaluated = evaluated.into_iter();
     let mut results = Vec::with_capacity(ready.len());
@@ -148,7 +192,7 @@ pub(crate) fn run_batch<H, T, E>(
                     results.push(Err(PhaseStop::Unevaluated));
                     continue;
                 };
-                outcome.map_err(PhaseStop::Operating).and_then(|outcome| {
+                outcome.and_then(|outcome| {
                     complete(OccurrenceNumber(at), outcome, occurrence.slot, symbols)
                         .map_err(PhaseStop::Caller)
                 })
@@ -165,13 +209,12 @@ pub(crate) fn run_batch<H, T, E>(
     }
 }
 
-/// The occurrence's rule handed over, at its first occurrence for its readiness; later occurrences find it. Answers the place
-/// of the rule's handover in the phase.
+/// The occurrence's rule read from the store and proven, at its first occurrence for its readiness; later occurrences find it.
+/// Answers the place of the rule's handover in the phase.
 fn handover_of<E>(
     batch: &PhaseBatch<'_, '_>,
     state: &mut PhaseState,
     occurrence: &PhaseOccurrence,
-    symbols: &mut Symbols,
 ) -> Result<HandoverPlace, PhaseStop<E>> {
     let rule = occurrence.rule;
     let first = *batch
@@ -200,35 +243,70 @@ fn handover_of<E>(
         Some(_) => {}
         None => state.declared.push(HandoverDeclaration { rule, from }),
     }
-    if let Some(place) = state
-        .handovers
-        .iter()
-        .position(|each| each.rule == rule && each.ready == occurrence.ready)
-    {
+    if let Some(place) = state.handovers.iter().position(|each| {
+        each.rule == rule
+            && each.ready == occurrence.ready
+            && !matches!(each.handed, HandoverState::Released)
+    }) {
         return Ok(HandoverPlace(place));
     }
-    let policy = match &occurrence.ready {
-        Some(ready) => HandoverPolicy::Observations { ready },
-        None => HandoverPolicy::Diagnostic,
-    };
-    let handed = hand_over(
+    let policy = policy_of(occurrence.ready.as_ref());
+    let proven = prove(
         batch.program,
         rule,
         first,
         batch.facts,
-        symbols,
         &required,
         policy,
         batch.project,
-        &mut state.withholdings,
     )
     .map_err(PhaseStop::Frontiers)?;
     state.handovers.push(RuleHandover {
         rule,
         ready: occurrence.ready.clone(),
-        handed,
+        handed: HandoverState::Proven { proven, required },
     });
     Ok(HandoverPlace(state.handovers.len() - 1))
+}
+
+/// The handover at `place` decoded into the phase's symbols, when it is only proven: at the first occurrence of its rule that
+/// evaluates.
+fn handed_over<E>(
+    batch: &PhaseBatch<'_, '_>,
+    state: &mut PhaseState,
+    place: HandoverPlace,
+    symbols: &mut Symbols,
+) -> Result<(), PhaseStop<E>> {
+    let PhaseState {
+        handovers,
+        withholdings,
+        ..
+    } = state;
+    let handover = handovers
+        .get_mut(place.0)
+        .ok_or(PhaseStop::Operating(OperatingError::NotRun))?;
+    let HandoverState::Proven { proven, required } = &handover.handed else {
+        return Ok(());
+    };
+    let first = *batch
+        .first
+        .get(handover.rule.0)
+        .ok_or(PhaseStop::MissingFirstBucket)?;
+    let policy = policy_of(handover.ready.as_ref());
+    let handed = decode(
+        batch.program,
+        handover.rule,
+        first,
+        batch.facts,
+        symbols,
+        required,
+        policy,
+        proven,
+        withholdings,
+    )
+    .map_err(PhaseStop::Frontiers)?;
+    handover.handed = HandoverState::Handed(handed);
+    Ok(())
 }
 
 /// The host's rows of each declared relation, interned in the phase's symbols.

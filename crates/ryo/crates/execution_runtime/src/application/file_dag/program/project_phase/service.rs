@@ -10,7 +10,7 @@ use crate::application::file_dag::program::project_phase::types::PhaseStop;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
-use crate::application::file_dag::project_pass::service::{project_reads, run_batch};
+use crate::application::file_dag::project_pass::service::{project_reads, run_batch, uses_of};
 use crate::application::file_dag::project_pass::types::PhaseBatch;
 use crate::application::file_dag::project_pass::types::{PhaseOccurrence, PhaseState};
 use crate::application::file_dag::project_source::service::opened;
@@ -81,6 +81,7 @@ impl ProjectRootExecution for ProjectPhase<'_> {
         // A call holds nothing of the earlier ones but the files each rule was declared to be handed over from.
         let mut state = PhaseState {
             declared: std::mem::take(&mut *self.declared.borrow_mut()),
+            uses: uses_of(phase.rules.iter().copied()),
             ..PhaseState::default()
         };
         let ran = run_batch(

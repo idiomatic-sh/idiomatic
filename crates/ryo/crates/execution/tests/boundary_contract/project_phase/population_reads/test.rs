@@ -116,8 +116,9 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             project_symbols: &project_symbols,
             arenas: &[],
         };
-        // The production sequence: one call with two declared occurrences of one population. The phase prepares every occurrence
-        // before it evaluates any, so the second reuses the first's acquisition while nothing outside the engine holds it.
+        // The production sequence: one call with two declared occurrences of one population. The phase proves every occurrence
+        // before it evaluates any, so the second reuses the first's acquisition while nothing outside the engine holds it: the
+        // file frontier's provenance is read to prove it, and its words once, to decode it at the first occurrence that evaluates.
         let mut outcomes = crate::boundary_fixture::fixtures::project_roots(
             &phase,
             occurrences(&pair),
@@ -125,7 +126,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             &partials,
             &mut symbols,
         );
-        assert_eq!(stored.reads.load(Ordering::SeqCst), 1);
+        assert_eq!(stored.reads.load(Ordering::SeqCst), 2);
         assert_eq!(project.reads.load(Ordering::SeqCst), 1);
         let again = outcomes.pop().unwrap().unwrap();
         let outcome = outcomes
@@ -152,8 +153,8 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         phase.finish().expect("release project publications");
         assert_eq!(
             stored.reads.load(Ordering::SeqCst),
-            2,
-            "the two occurrences of one call share one acquisition of the file frontiers"
+            4,
+            "the two occurrences of one call share one acquisition of the file frontiers: provenance to prove, words to decode"
         );
         assert_eq!(
             project.reads.load(Ordering::SeqCst),
@@ -268,12 +269,12 @@ fn an_observed_population_is_a_separate_acquisition_with_the_same_answer() {
     );
     assert_eq!(
         after_ordinary,
-        (1, 1),
-        "the ordinary population acquires the frontier and the provider once"
+        (2, 1),
+        "the ordinary population acquires the frontier (provenance to prove, words to decode) and the provider once"
     );
     assert_eq!(
         after_observed,
-        (2, 2),
+        (4, 2),
         "the observed population is a separate acquisition of both"
     );
     let RootOutcome::Complete(ordinary) = ordinary.emit else {

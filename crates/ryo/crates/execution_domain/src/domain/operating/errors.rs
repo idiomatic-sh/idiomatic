@@ -60,6 +60,12 @@ pub enum OperatingError {
     /// A step reads a step that has not run.
     #[error("a step reads a step that has not run")]
     NotRun,
+    /// An occurrence after the files reads the handover of a rule whose last declared occurrence already ran: the phase
+    /// released it, so its count of the rule's occurrences fell short.
+    #[error(
+        "an occurrence reads a rule's handover after the rule's last declared occurrence released it"
+    )]
+    HandoverReleased,
     /// A step reads a relation nobody read.
     #[error("a step reads a relation that was not read")]
     NotRead,

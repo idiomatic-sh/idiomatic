@@ -15,7 +15,7 @@ use crate::application::file_dag::program::project_phase::types::{
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
-use crate::application::file_dag::project_pass::service::{project_reads, run_batch};
+use crate::application::file_dag::project_pass::service::{project_reads, run_batch, uses_of};
 use crate::application::file_dag::project_pass::types::PhaseBatch;
 use crate::application::file_dag::project_pass::types::{PhaseOccurrence, PhaseState};
 use crate::application::file_dag::project_source::service::opened;
@@ -85,7 +85,10 @@ impl ProgramObservationStagePort for ObservationStage<'_> {
             },
             project_reads(&request.pass, &declared_rules),
         );
-        let mut state = PhaseState::default();
+        let mut state = PhaseState {
+            uses: uses_of(batches.occurrences.iter().map(|occurrence| occurrence.rule)),
+            ..PhaseState::default()
+        };
         let mut start = 0;
         while let Some(BatchOccurrence { batch, .. }) = batches.occurrences.get(start) {
             // Each declared occurrence of the batch in declaration order, numbered by its place among all of them.

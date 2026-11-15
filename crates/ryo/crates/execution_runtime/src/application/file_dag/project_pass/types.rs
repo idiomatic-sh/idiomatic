@@ -1,6 +1,9 @@
 //! The types of the `project_pass` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::application::file_dag::frontiers::types::{HandedOver, ReadinessProof, Withholdings};
+use crate::application::file_dag::frontiers::types::{
+    HandedOver, ProvenFrontier, ReadinessProof, Withholdings,
+};
+use crate::application::file_dag::program::admission::types::RequiredPartitions;
 use crate::application::file_dag::program::project_phase::types::{
     HandoverDeclaration, PhasePartials,
 };
@@ -43,19 +46,34 @@ pub(crate) struct OccurrenceRun<'a> {
 pub(crate) struct HostedTables(pub(crate) Vec<Table>);
 
 /// One rule's handover, kept for the later occurrences of the rule handed over for the same readiness.
-#[derive(Debug)]
 pub(crate) struct RuleHandover {
     /// The rule.
     pub(crate) rule: RuleIndex,
     /// The readiness it was handed over for; none for the diagnostic.
     pub(crate) ready: Option<ReadinessProof>,
-    /// What the files handed over.
-    pub(crate) handed: HandedOver,
+    /// Where its handover stands: proven, decoded or released.
+    pub(crate) handed: HandoverState,
+}
+
+/// Where one rule's handover stands in a phase: proven before any occurrence evaluates, decoded at the first occurrence of the
+/// rule that evaluates, and released after the rule's last declared occurrence.
+pub(crate) enum HandoverState {
+    /// The store was read and every proof checked; no entry is decoded yet.
+    Proven {
+        /// What the proof left of each entry.
+        proven: ProvenFrontier,
+        /// The files the rule is handed over from.
+        required: RequiredPartitions,
+    },
+    /// What the files handed over, decoded into the phase's symbols.
+    Handed(HandedOver),
+    /// The rule has no occurrence left in the phase: its handover is gone.
+    Released,
 }
 
 /// What a phase holds from its first occurrence to its last: its nodes' rows, the rules' handovers, why each withheld input is
 /// withheld and the host's rows.
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub(crate) struct PhaseState {
     /// The nodes' rows.
     pub(crate) buffers: FileBuffers,
@@ -70,7 +88,28 @@ pub(crate) struct PhaseState {
     pub(crate) last: Vec<LastHandover>,
     /// The files each rule was handed over from, as the phase first declared them: kept across the phase's calls.
     pub(crate) declared: Vec<HandoverDeclaration>,
+    /// The occurrences each rule has still to evaluate in the phase.
+    pub(crate) uses: RuleUses,
 }
+
+/// How many declared occurrences of each declared rule are still to evaluate in a phase, one entry per rule in first-declared
+/// order: sized by the phase's rules, never by the request's. It counts every declared occurrence, so one that never evaluates
+/// (a refused binding, a stop) leaves its rule counted: a count only ever runs late, never early.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct RuleUses(pub(crate) Vec<RuleUse>);
+
+/// One rule's occurrences still to evaluate in a phase.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct RuleUse {
+    /// The rule.
+    pub(crate) rule: RuleIndex,
+    /// Its occurrences still to evaluate.
+    pub(crate) left: OccurrencesLeft,
+}
+
+/// How many declared occurrences of a rule a phase has still to evaluate.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct OccurrencesLeft(pub(crate) u32);
 
 /// The place of one rule's handover among a phase's handovers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

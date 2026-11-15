@@ -2,7 +2,7 @@
 use super::project_phase_source_facts::CapturedFacts;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsFinish;
-use crate::outbound::facts::types::KeptBucket;
+use crate::outbound::facts::types::{KeptBucket, KeptSources};
 use ryo_values::domain::stored_facts::types::Bucket;
 
 /// The restored producer frontier and, in its own bucket, the consumer's file frontier.
@@ -17,5 +17,12 @@ impl FactsFinish for ConsumerFrontier<'_> {
             return self.consumer.kept(bucket);
         }
         self.producer.kept(bucket)
+    }
+
+    fn sources(&self, bucket: Bucket) -> Result<KeptSources, FactsError> {
+        if bucket == Bucket(10) {
+            return self.consumer.sources(bucket);
+        }
+        self.producer.sources(bucket)
     }
 }
