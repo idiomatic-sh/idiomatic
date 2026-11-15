@@ -77,12 +77,31 @@ fn certificate(covered: &[&str]) -> Certificate {
 /// The use case wired to the fakes of every boundary it calls.
 #[must_use]
 pub fn use_case() -> MeasureCorpusUseCaseImpl {
-    discovering(&[])
+    wired(&[], Arc::new(WorkspaceFake), Arc::new(SuiteFake::default()))
 }
 
-/// The use case of `use_case`, its discovery answering every project with `files`.
+/// The use case of `use_case`, its discovery answering every project with `files`, its workspace checking out `root`, tracking
+/// exactly them, and the local suite reading their bytes.
 #[must_use]
-pub fn discovering(files: &[&str]) -> MeasureCorpusUseCaseImpl {
+pub fn discovering(root: &std::path::Path, files: &[&str]) -> MeasureCorpusUseCaseImpl {
+    wired(
+        files,
+        Arc::new(
+            crate::inbound::use_cases::compare_corpus::fixtures::ProjectWorkspace {
+                root: root.to_owned(),
+                tracked: files.iter().map(|file| (*file).to_owned()).collect(),
+            },
+        ),
+        Arc::new(crate::outbound::suite::factory::local()),
+    )
+}
+
+/// The use case over the fakes of every boundary, its discovery answering `files` and its workspace `workspace`.
+fn wired(
+    files: &[&str],
+    workspace: Arc<dyn crate::outbound::workspace::interface::WorkspacePort>,
+    suite: Arc<dyn crate::outbound::suite::interface::SuitePort>,
+) -> MeasureCorpusUseCaseImpl {
     MeasureCorpusUseCaseImpl::new(
         Arc::new(LinterFake::default()),
         Arc::new(LinterFake::default()),
@@ -93,10 +112,10 @@ pub fn discovering(files: &[&str]) -> MeasureCorpusUseCaseImpl {
                 .collect(),
         }),
         Arc::new(ExecutionFake::default()),
-        Arc::new(SuiteFake::default()),
+        suite,
         Arc::new(ContextFake),
         Arc::new(EvidenceFake),
-        Arc::new(WorkspaceFake),
+        workspace,
     )
 }
 
@@ -128,14 +147,15 @@ pub fn with_cohort<R>(
         pinned(projects, "main"),
         covered,
         cohort,
-        &[SourceSuffix(".fixture")],
+        (std::path::Path::new("cache"), &[SourceSuffix(".fixture")]),
         operate,
     )
 }
 
 /// Hand `operate` a diagnostic corpus of one project pinned to a full commit, which the workspace checks out, matching the sources
-/// that end in one of `suffixes`.
+/// that end in one of `suffixes`, its trials kept under `cache`.
 pub fn with_suffixes<R>(
+    cache: &std::path::Path,
     suffixes: &[SourceSuffix<'_>],
     operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
 ) -> R {
@@ -144,7 +164,7 @@ pub fn with_suffixes<R>(
         pinned(1, &"0".repeat(40)),
         &["A"],
         &CohortSelection::Frozen,
-        suffixes,
+        (cache, suffixes),
         operate,
     )
 }
@@ -168,7 +188,7 @@ fn measured<R>(
     projects: Vec<Project>,
     covered: &[&str],
     cohort: &CohortSelection,
-    suffixes: &[SourceSuffix<'_>],
+    (cache, suffixes): (&std::path::Path, &[SourceSuffix<'_>]),
     operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
 ) -> R {
     let certificate = certificate(covered);
@@ -177,7 +197,7 @@ fn measured<R>(
         projects,
         scope,
         profile: SourceProfile::Full,
-        cache: std::path::Path::new("cache"),
+        cache,
         frozen_workload: std::path::Path::new("workload"),
         certificate: &certificate,
         mode: &MeasurementMode::Diagnostic,

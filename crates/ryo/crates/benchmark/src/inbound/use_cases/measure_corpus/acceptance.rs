@@ -25,16 +25,32 @@ fn refuses(world: &mut crate::Behavior) {
 fn suffixed(world: &mut crate::Behavior) {
     let _: &mut crate::Behavior = world;
     let suffixes = [".ts", ".mts", ".cts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"].map(SourceSuffix);
+    let files = ["a.ts", "b.mjs", "c.vue"];
+    let root = tempfile::tempdir().expect("a project directory");
+    for file in files {
+        std::fs::write(root.path().join(file), "a\n").expect("a source");
+    }
+    let cache = tempfile::tempdir().expect("a cache directory");
     let mut observations = Vec::new();
-    let _measured = with_suffixes(&suffixes, |corpus| {
-        discovering(&["a.ts", "b.mjs", "c.vue"]).measure_corpus(corpus, &mut observations)
+    let measured = with_suffixes(cache.path(), &suffixes, |corpus| {
+        discovering(root.path(), &files).measure_corpus(corpus, &mut observations)
     });
     let observations = String::from_utf8_lossy(&observations);
+    // Past the corpus shape, both matched files are measured: the tracked check passed and their bytes were read. The fixture's
+    // certificate seals no evidence, so the run then stops at the certified-evidence admission, after the shape this scenario is about.
     assert!(
         observations.contains(
-            "project-0: matched Fixture source scope 2 files; excluded default-discovered formats 1 files (source-kind capability gap): c.vue\n"
+            "project-0: matched Fixture source scope 2 files; excluded default-discovered formats 1 files (source-kind capability gap): c.vue\nproject-0: measured source files=2 bytes=4 "
         ),
         "{observations}"
+    );
+    assert!(
+        observations.contains("project-0: corpus comparison failed: certified profile, rules, cases or executable changed\n"),
+        "{measured:?}\n{observations}"
+    );
+    assert!(
+        measured.is_err_and(|refusal| refusal.to_string()
+            == "corpus comparisons failed: [ProjectName(\"project-0\")]")
     );
 }
 
