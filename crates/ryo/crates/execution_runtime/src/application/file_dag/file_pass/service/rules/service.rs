@@ -9,10 +9,10 @@ use crate::application::file_dag::file_pass::service::inputs::service::{
 use crate::application::file_dag::file_pass::service::nodes::service::{
     node_outcome, node_rows, released,
 };
-use crate::application::file_dag::file_pass::service::{fill_roots, given_back, taken};
+use crate::application::file_dag::file_pass::service::{fill_roots, given_back};
 use crate::application::file_dag::file_pass::types::{
     CaptureAt, NodeAnswer, OpenedFile, OutputCommit, OutputState, PassFile, PassInputs,
-    PassProgram, PassRequest,
+    PassProgram, PassRequest, PassScratch,
 };
 use crate::application::file_dag::frontiers::types::Withholdings;
 use crate::application::file_dag::program::file_session::types::{
@@ -43,7 +43,7 @@ use std::cell::RefCell;
 use std::sync::Arc;
 
 /// One file's rules, one after another in the program's rule order, through the planned program over the file's facts, which the
-/// caller opened (`fact_lookup`'s `opened`) and read once:
+/// caller opened (`fact_lookup`'s `opened`) and read once, in `scratch`, which the caller took and the run gives back:
 /// each rule's emitted node run by the operators, its frontiers captured, kept and committed, its steps reported to the
 /// observer, and the file finished with its named outputs' readiness. A read the facts refused stops the file as the facts' own
 /// refusal; a failed emitted node ends the file.
@@ -54,11 +54,13 @@ pub(crate) fn run_rules(
     opened: Result<FactLookup<'_, '_>, FileStop>,
     symbols: &mut Symbols,
     capture: CaptureContext<'_>,
+    mut scratch: PassScratch,
 ) -> FileRules {
     let (file, intents) = (input.file, input.intents);
     let lookup = match opened {
         Ok(lookup) => lookup,
         Err(stop) => {
+            given_back(pass, scratch);
             return FileRules {
                 rules: Vec::new(),
                 end: FileEnd::Refused(stop),
@@ -68,6 +70,7 @@ pub(crate) fn run_rules(
     };
     let partials = lookup.partials().to_vec();
     if let Err(error) = request.admission.clone() {
+        given_back(pass, scratch);
         return FileRules {
             rules: Vec::new(),
             end: FileEnd::Refused(FileStop::Operating(error)),
@@ -79,7 +82,6 @@ pub(crate) fn run_rules(
         Partiality::Relaxed => &[][..],
     };
     // What the request's last file left: its buffers, roots and outputs, grown once to the program and only refilled here.
-    let mut scratch = taken(pass);
     let (paths, program) = (request.paths, request.program);
     fill_roots(
         &mut scratch.roots,

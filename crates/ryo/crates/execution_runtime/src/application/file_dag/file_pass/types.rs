@@ -67,6 +67,8 @@ pub(crate) struct PassScratch {
     pub(crate) outputs: Vec<Vec<OutputState>>,
     /// Each rule's named outputs' rows in the open file, by rule and output, for the bound observations of the rules after it.
     pub(crate) answers: Vec<Vec<Option<NodeAnswer>>>,
+    /// The relations the open file's sources are asked for: those of the rules that run on it.
+    pub(crate) demand: Vec<ryo_relations::domain::relations::types::Relation>,
 }
 
 /// What one step's rows rest on: every relation read on the way to them, and the reads whose absence of rows a step on the way

@@ -72,6 +72,14 @@ impl ProgramRequestExecutionPort for RequestExecution {
             kinds: _,
             first,
         } = input;
+        // What the request's last file left, its demand refilled: the file's sources are asked only for what its running rules
+        // read.
+        let mut scratch = crate::application::file_dag::file_pass::service::taken(&self.pass);
+        crate::application::file_dag::file_pass::service::file_demand(
+            &self.program,
+            intents,
+            &mut scratch.demand,
+        );
         let lookup = crate::application::file_dag::fact_lookup::service::opened(
             sources,
             facts,
@@ -81,7 +89,7 @@ impl ProgramRequestExecutionPort for RequestExecution {
                 recovery,
             },
             symbols,
-            self.program.demanded(),
+            &scratch.demand,
         );
         crate::application::file_dag::file_pass::service::rules::service::run_rules(
             request,
@@ -97,6 +105,7 @@ impl ProgramRequestExecutionPort for RequestExecution {
             lookup,
             symbols,
             capture,
+            scratch,
         )
     }
     fn project_phase(&self) -> Result<ProjectPhase<'_>, OperatingError> {

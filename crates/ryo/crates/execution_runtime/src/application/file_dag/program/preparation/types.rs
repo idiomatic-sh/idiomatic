@@ -78,6 +78,7 @@ pub(crate) struct PreparedProgram {
     pub(super) schedule: RuleSchedule,
     pub(super) semantic_metadata: Vec<ryo_values::domain::run_metadata::types::RuleRunMetadata>,
     pub(super) hosted: Box<[HostRelation]>,
-    /// The relations the request's plans read, each once, in the order first read: what each file's sources are asked for.
-    pub(super) demanded: Box<[ryo_relations::domain::relations::types::Relation]>,
+    /// The relations each rule's steps read, each once, in the order first read, by rule: a file's sources are asked for those of
+    /// the rules that run on it.
+    pub(super) reads: Box<[ryo_values::domain::plans::types::RuleReads]>,
 }
