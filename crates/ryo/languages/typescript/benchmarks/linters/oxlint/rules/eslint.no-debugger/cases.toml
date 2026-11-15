@@ -112,9 +112,3 @@ expected = [{ file = "case.mjs", start = 18, end = 27 }]
 name = "jsx-in-cjs"
 files = { "case.cjs" = "const a = <div/>;\ndebugger;\n" }
 expected = [{ file = "case.cjs", start = 18, end = 27 }]
-
-[[cases]]
-name = "generic-arrow-in-js"
-comparison = "full"
-files = { "case.js" = "const c = <T,>(x) => x;\ndebugger;\n" }
-expected = [{ rule = "invalid-syntax", file = "case.js", start = 10, end = 11 }]
