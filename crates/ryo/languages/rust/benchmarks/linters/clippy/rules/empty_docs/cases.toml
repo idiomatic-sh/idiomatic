@@ -72,3 +72,8 @@ expected = [{ file = "src/lib.rs", start = 30, end = 33 }]
 name = "alias-mentions-hidden"
 files = { "src/lib.rs" = "///\n#[doc(alias = \"a, hidden\")]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 0, end = 3 }]
+
+[[cases]]
+name = "hidden-with-value"
+files = { "src/lib.rs" = "///\n#[doc(hidden = \"x\")]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 3 }]
