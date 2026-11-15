@@ -108,3 +108,20 @@ pub(crate) struct Push<'p, 'k, 'r> {
     /// The chain's first hard fault in the held plan's order.
     pub(crate) hard: Option<ChainFault>,
 }
+
+/// What one stage's preparation reads: the plan, the chain's rows besides its stages', the chain's nodes and the stage, and
+/// the tail's table.
+pub(crate) struct Prepare<'p, 'k, 'r> {
+    /// The plan the chain's nodes are of.
+    pub(crate) plan: &'p crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
+    /// The head stage's source.
+    pub(crate) head: &'k ChainRows<'r>,
+    /// Each probe's right side read so far, in chain order.
+    pub(crate) rights: &'k [ChainRows<'r>],
+    /// The chain's nodes, from the head stage to the tail.
+    pub(crate) nodes: &'k [PlanNodeId],
+    /// The stage.
+    pub(crate) stage: ChainStage<'p>,
+    /// The tail's table.
+    pub(crate) tail: &'k mut ryo_values::domain::rows::types::Table,
+}

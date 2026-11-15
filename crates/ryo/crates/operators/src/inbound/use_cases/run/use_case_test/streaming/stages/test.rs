@@ -7,7 +7,7 @@ use crate::domain::physical_plan::fixtures::{Step, over_defines, over_nodes};
 use crate::domain::physical_plan::types::PlanNodeId;
 use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
 use crate::inbound::use_cases::run::fixtures::streams::{
-    Program, against, ran_program, select_of, span, split_names,
+    Program, against, agrees, ran_program, select_of, span, split_names,
 };
 use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_parts::types::{
@@ -295,7 +295,7 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
     let streamed = ran_program(&program, false)?;
     let twin = ran_program(&program, true)?;
     Ok(Observation {
-        same: streamed.answer == twin.answer,
+        same: agrees(&streamed, &twin),
         formed: streamed.formed,
         fault: Cow::Owned(
             streamed

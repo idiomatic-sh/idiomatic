@@ -53,7 +53,12 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_all(
         physical(push.plan, *node).is_ok_and(|node| matches!(node.lowering, Lowering::Probe { .. }))
     });
     for at in 0..head_rows.0 {
-        if let Some(stopped) = stages.iter().position(|stage| stage.fault.is_some())
+        // A stopped tail is still fed every row its input makes, as the held plan feeds it: only a stage before the tail
+        // that stopped ends the rows that reach it.
+        if let Some(stopped) = stages
+            .iter()
+            .take(length.saturating_sub(1))
+            .position(|stage| stage.fault.is_some())
             && first_probe.is_none_or(|probe| probe >= stopped)
         {
             break;
@@ -145,10 +150,11 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed(
     else {
         return Ok(());
     };
+    // Every row handed to a stage is a row it is fed, before or after its fault; it reads none after its fault.
+    stage.read = RowCount(stage.read.0.saturating_add(1));
     if stage.fault.is_some() {
         return Ok(());
     }
-    stage.read = RowCount(stage.read.0.saturating_add(1));
     let lowering = &physical(push.plan, *node)?.lowering;
     let right = right_of(lowering).and_then(|_| {
         push.rights
@@ -226,9 +232,6 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn flushed(
         grown(select, decisions, names);
     }
     for at in 0..stage.out.count.0 {
-        if after.first().is_none_or(|next| next.fault.is_some()) {
-            break;
-        }
         pushed(
             push,
             nodes,

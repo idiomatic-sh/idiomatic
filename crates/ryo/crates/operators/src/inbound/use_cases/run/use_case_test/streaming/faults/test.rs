@@ -1,12 +1,14 @@
 //! A chain's faults at seam C, each against its held twin: the earliest row's fault wins whatever the chunk it falls in
 //! (the scenarios of the scope's Gherkin, 2,500 rows over the 2,048-row chunks of the span-between stage); a probe's hard
 //! fault on its first left row comes before a later stage's preparation fault, the held plan's first, though the later
-//! stage is prepared first; and a faulting tail is fed only the rows it read, where its held twin is fed all of them.
+//! stage is prepared first; and a faulting tail is fed every row its input makes, as its held twin and the base are.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{Step, over_defines, over_nodes};
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
-use crate::inbound::use_cases::run::fixtures::streams::{Program, faulting, ran_program, span};
+use crate::inbound::use_cases::run::fixtures::streams::{
+    Outcome, Program, agrees, faulting, ran_program, span,
+};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as StepInput, JoinColumn, RepeatedRows, Side, StepId,
@@ -21,6 +23,7 @@ enum Scenario {
     FilterPastTheBoundaryBeforeTheMap,
     ProbeBeforeALaterPreparation,
     FaultingTailFeed,
+    LaterRightAfterAPreparationFault,
 }
 
 /// What a case observed.
@@ -80,12 +83,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
-        name: CaseName("a_faulting_tail_is_fed_only_the_rows_it_read"),
+        name: CaseName("a_faulting_tail_is_fed_every_row_its_input_makes"),
         word: Word::Succeeds,
         input: || Scenario::FaultingTailFeed,
         expect: Expect::Value(Observation::Fed {
-            planned: 6,
+            planned: 10,
             twin: 10,
+        }),
+    },
+    Case {
+        name: CaseName("a_later_probes_right_is_not_asked_after_a_stage_before_it_faults"),
+        word: Word::Succeeds,
+        input: || Scenario::LaterRightAfterAPreparationFault,
+        expect: Expect::Value(Observation::Faulted {
+            same: true,
+            fault: Cow::Borrowed("NoSuchColumn { index: ColumnIndex(0) }"),
         }),
     },
 ];
@@ -139,6 +151,62 @@ fn probe_then_projection() -> Program {
     }
 }
 
+/// The review's input (Codex, round 1): one Defines row named `[`. A select of Defines whose name matches itself (node 0)
+/// faults on it; an inner join of Defines with that select (node 1) meets its right side's fault before any row, so it
+/// writes no column; a projection of its column 0 (node 2) faults in its preparation; an inner join of the projection with
+/// Comment (node 3), which the inputs refuse, is never reached in the held plan, so Comment is never asked.
+fn later_right_after_a_preparation_fault() -> Program {
+    let defines = (
+        StepInput::Relation(Relation::Defines),
+        PlanInput::Relation(Relation::Defines),
+    );
+    let comment = (
+        StepInput::Relation(Relation::Comment),
+        PlanInput::Relation(Relation::Comment),
+    );
+    let join = |left: (StepInput, PlanInput), right: (StepInput, PlanInput), on: u32| Step {
+        operation: Operation::Join {
+            left: left.0,
+            right: right.0,
+            left_on: vec![ColumnIndex(on)],
+            right_on: vec![ColumnIndex(on)],
+            output: vec![JoinColumn {
+                side: Side::Left,
+                column: ColumnIndex(0),
+            }],
+            filter: Vec::new(),
+            view: Vec::new(),
+            reach: None,
+        },
+        inputs: vec![left.1, right.1],
+    };
+    let node = |at: u32| (StepInput::Step(StepId(at)), PlanInput::Node(PlanNodeId(at)));
+    Program {
+        steps: vec![
+            over_defines(Operation::Select {
+                from: defines.0,
+                comparisons: vec![
+                    crate::inbound::use_cases::run::fixtures::cases::self_matching(3),
+                ],
+                kept: Vec::new(),
+            }),
+            join(defines, node(0), 3),
+            over_nodes(
+                Operation::Project {
+                    from: StepInput::Step(StepId(1)),
+                    columns: vec![ColumnIndex(0)],
+                    distinct: RepeatedRows::Kept,
+                },
+                &[1],
+            ),
+            join(node(2), comment, 0),
+        ],
+        emit: PlanNodeId(3),
+        rows: vec![("[".to_owned(), span(0, 0))],
+        texts: vec!["[".into()],
+    }
+}
+
 fn subject(scenario: Scenario) -> Result<Value, Failure> {
     let program = match scenario {
         Scenario::FilterBeforeTheMapAcrossChunks => faulting(2_500, 2_100, 1_500),
@@ -146,6 +214,7 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
         Scenario::FilterPastTheBoundaryBeforeTheMap => faulting(2_500, 2_100, 2_060),
         Scenario::ProbeBeforeALaterPreparation => probe_then_projection(),
         Scenario::FaultingTailFeed => faulting(10, usize::MAX, 5),
+        Scenario::LaterRightAfterAPreparationFault => later_right_after_a_preparation_fault(),
     };
     let planned = ran_program(&program, false)?;
     let twin = ran_program(&program, true)?;
@@ -164,12 +233,16 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
         });
     }
     Ok(Observation::Faulted {
-        same: planned.answer == twin.answer,
+        same: agrees(&planned, &twin),
+        // The engine's outcome: a refused relation before the operators' fault.
         fault: Cow::Owned(
             planned
-                .answer
+                .outcome
                 .err()
-                .map(|fault| format!("{fault:?}"))
+                .map(|outcome| match outcome {
+                    Outcome::Fault(fault) => format!("{fault:?}"),
+                    Outcome::Refused(relation) => format!("Refused({relation:?})"),
+                })
                 .unwrap_or_default(),
         ),
     })

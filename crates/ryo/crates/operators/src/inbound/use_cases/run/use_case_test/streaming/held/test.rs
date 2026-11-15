@@ -89,13 +89,15 @@ fn runs(capture_emitted: bool, twin: bool) -> Result<(Vec<&'static str>, Vec<Str
             NodeRows::Absent => "absent",
         });
         if let NodeRows::Materialized(rows) = buffers.rows(*node) {
-            answers.push(
+            answers.push(format!(
+                "{} fed {:?}",
                 rows.cells
                     .iter()
                     .map(|cell| shown(*cell, &resources))
                     .collect::<Vec<_>>()
                     .join(","),
-            );
+                buffers.fed(*node).0.map(|fed| fed.0)
+            ));
         }
     }
     Ok((held, answers))
