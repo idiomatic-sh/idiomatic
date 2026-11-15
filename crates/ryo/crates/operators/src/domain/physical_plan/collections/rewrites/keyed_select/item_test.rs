@@ -50,6 +50,7 @@ fn keyed(name: &str) -> PhysicalNode {
         },
         readers: NodeReaders(0),
         retained: Retention::Retained,
+        flow: crate::domain::physical_plan::types::Flow::Held,
     }
 }
 

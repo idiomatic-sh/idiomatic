@@ -57,6 +57,47 @@ pub struct FileBuffers {
     /// How many times a probe built an index, its own or a shared one: what the sharing cases count.
     #[cfg(test)]
     pub(crate) builds: IndexBuilds,
+    /// Whether a stage of a chain handed on a chunk past its bound: what the cell-bound case reads.
+    #[cfg(test)]
+    pub(crate) chunks: ChunkMeter,
+    /// The node tables held: how many were formed, and the rows they held at once.
+    #[cfg(test)]
+    pub(crate) meter: TableMeter,
+}
+
+/// The node tables a worker held: how many it formed, the rows they hold now, and the most rows they held at once.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct TableMeter {
+    /// How many node tables were held.
+    pub(crate) formed: u32,
+    /// The rows the held node tables hold now.
+    pub(crate) live_rows: usize,
+    /// The most rows the held node tables held at once.
+    pub(crate) peak_rows: usize,
+}
+
+#[cfg(test)]
+impl TableMeter {
+    /// A node table of `rows` rows is held.
+    pub(crate) fn formed(&mut self, rows: usize) {
+        self.formed += 1;
+        self.live_rows += rows;
+        self.peak_rows = self.peak_rows.max(self.live_rows);
+    }
+
+    /// A held node table of `rows` rows is dropped.
+    pub(crate) fn dropped(&mut self, rows: usize) {
+        self.live_rows = self.live_rows.saturating_sub(rows);
+    }
+}
+
+/// What the chunks of a worker's chains held, for the cell-bound case.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ChunkMeter {
+    /// Whether a chunk held the bound's cells or more before the input row that wrote its last rows.
+    pub(crate) over: bool,
 }
 
 /// How many probe indexes a worker built.
@@ -157,6 +198,13 @@ impl FileBuffers {
         })
     }
 
+    /// Whether every chunk a stage of a chain handed on held less than the bound before its last input row: the cell-bound
+    /// case's reading.
+    #[cfg(test)]
+    pub(crate) fn chunks_within(&self) -> bool {
+        !self.chunks.over
+    }
+
     /// The nodes that hold rows: the buffer high-water of a run, for the cases that bound it.
     #[cfg(test)]
     pub(crate) fn held(&self) -> impl Iterator<Item = PlanNodeId> + '_ {
@@ -205,6 +253,8 @@ impl FileBuffers {
             }
         }
         table.cells.truncate(written);
+        #[cfg(test)]
+        self.meter.dropped(table.count.0 - kept);
         table.count = ryo_values::domain::rows::types::RowCount(kept);
     }
 
@@ -229,6 +279,10 @@ impl FileBuffers {
         if let Ok(at) = usize::try_from(node.0)
             && let Some(held) = self.nodes.get_mut(at)
         {
+            #[cfg(test)]
+            if let Some(table) = held.as_ref() {
+                self.meter.dropped(table.count.0);
+            }
             *held = None;
             if let Some(pending) = self.pending.get_mut(at) {
                 *pending = None;

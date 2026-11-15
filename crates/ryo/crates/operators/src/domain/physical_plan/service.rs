@@ -9,9 +9,12 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem;
 use crate::domain::physical_plan::service::lowering::service::lowered;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
+use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-use crate::domain::physical_plan::types::{NodeReaders, PlanInput, PlanNodeId, Retention};
+use crate::domain::physical_plan::types::{
+    Flow, KeyedIndex, NodeReaders, PlanInput, PlanNodeId, Retention, RowSource,
+};
 
 /// Every rewrite, in the order the planner applies them: each an equivalence, so a plan answers the same rows with or without
 /// it.
@@ -114,6 +117,7 @@ pub(crate) fn plan_with(
             lowering: lowered(node.operation, node.inputs.0, node.bindings.0),
             readers: NodeReaders(0),
             retained: Retention::Released,
+            flow: Flow::Held,
         })
         .collect();
     for node in logical {
@@ -136,7 +140,60 @@ pub(crate) fn plan_with(
     }
     // After the rewrites: a rewrite changes a probe's right rows, key and mode, and replaces probes.
     indexes::service::shared_indexes(&mut nodes, &mut indexes);
+    // Last: whether a node streams reads every node's final sources and the indexes.
+    flows(&mut nodes, &indexes);
     Ok(PhysicalPlan { nodes, indexes })
+}
+
+/// Streams each node whose rows only one streaming stage reads, first, so no one else ever asks for them. A node streams
+/// iff all hold:
+///  (1) it is an intermediate streaming stage: a `text_map` stage;
+///  (2) one node reads it, once, and no engine use keeps it (it is neither emitted nor held);
+///  (3) its one reader is a streaming stage, a filter, whose first source is this node;
+///  (4) no shared index keys its rows.
+/// Every other node is held.
+fn flows(nodes: &mut [PhysicalNode], indexes: &[KeyedIndex]) {
+    for at in 0..nodes.len() {
+        let id = PlanNodeId(u32::try_from(at).unwrap_or(u32::MAX));
+        let streams = nodes.get(at).is_some_and(|node| {
+            streaming_stage(&node.lowering)
+                && node.readers == NodeReaders(1)
+                && node.retained == Retention::Released
+                && only_first_reader(nodes, id)
+                && !indexes
+                    .iter()
+                    .any(|index| index.source == RowSource::Node(id))
+        });
+        if let Some(node) = nodes.get_mut(at) {
+            node.flow = if streams { Flow::Streamed } else { Flow::Held };
+        }
+    }
+}
+
+/// Whether `lowering` is a stage that passes on the rows it makes as it reads them, and so may stream into its reader.
+fn streaming_stage(lowering: &Lowering) -> bool {
+    matches!(lowering, Lowering::TextMap { .. })
+}
+
+/// Whether `lowering` is a stage that reads its first source row by row, and so may read a streamed node.
+fn streaming_reader(lowering: &Lowering) -> bool {
+    matches!(lowering, Lowering::Filter { .. })
+}
+
+/// Whether exactly one source of the plan's nodes reads `id`, and that source is a streaming reader's first.
+fn only_first_reader(nodes: &[PhysicalNode], id: PlanNodeId) -> bool {
+    let read = RowSource::Node(id);
+    let mut reads = nodes.iter().flat_map(|node| {
+        node.lowering
+            .sources()
+            .enumerate()
+            .filter(move |(_, source)| *source == read)
+            .map(move |(place, _)| (node, place))
+    });
+    matches!(
+        (reads.next(), reads.next()),
+        (Some((reader, 0)), None) if streaming_reader(&reader.lowering)
+    )
 }
 
 /// The node at `id`, to change.

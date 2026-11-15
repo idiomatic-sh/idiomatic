@@ -173,6 +173,16 @@ pub(crate) struct IndexPlace(pub(crate) usize);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct NodeReaders(pub(crate) u32);
 
+/// Whether a node's rows are held for its readers, or passed on, chunk by chunk, to its one reader as they are made, so the
+/// node never holds them: decided once by the planner, after the rewrites.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Flow {
+    /// Its rows are held until its last consumer is done.
+    Held,
+    /// Its rows stream into its one reader, a streaming stage that reads it first.
+    Streamed,
+}
+
 /// Whether a node's rows outlive its node readers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Retention {

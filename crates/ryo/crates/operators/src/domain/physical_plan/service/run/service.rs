@@ -95,6 +95,9 @@ fn materialize(
         .get(place)
         .ok_or(PortableOperatorFault::WrongOperation)?
         .lowering;
+    if let Lowering::Filter { .. } | Lowering::TextMap { .. } = lowering {
+        return super::pipeline::service::streamed(plan, run, node, buffers);
+    }
     let Lowering::Probe {
         index: ProbeIndex::Shared(at),
         ..
@@ -109,7 +112,7 @@ fn materialize(
 }
 
 /// Runs the kernels of `node`, lowered to `lowering`, over its inputs, and holds its rows and pending fault.
-fn made(
+pub(super) fn made(
     plan: &PhysicalPlan,
     run: &mut KernelRun<'_>,
     node: PlanNodeId,

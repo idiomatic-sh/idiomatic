@@ -50,6 +50,7 @@ fn subject(kind: Input) -> Result<Value, Failure> {
             },
             readers: NodeReaders(0),
             retained: Retention::Retained,
+            flow: crate::domain::physical_plan::types::Flow::Held,
         })
         .collect();
     ExistenceProbeItem.rewrite(&mut nodes, &mut Vec::new());
