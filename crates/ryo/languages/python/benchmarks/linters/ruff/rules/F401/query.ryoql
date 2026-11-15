@@ -90,9 +90,7 @@ let ending_events = select occurrence as id, name, scope, phase, ordinal, file f
 let ending_owners = axis(from=ending_events,relation="semantic-child",direction=nearest-ancestor,domain=scopes);
 let redirected_names = union(left=global_redirected,right=nonlocal_redirected);
 let ending_rows = select l.id as id, l.name as name, l.scope as scope, l.phase as phase, l.ordinal as ordinal, r.related as lexical from ending_events as l join ending_owners as r on l.id = r.id;
-let nonmodule_scopes = select id from nodes where kind != "module";
-let redirected_scoped_names = select l.lexical as lexical, l.name as name from redirected_names as l join nonmodule_scopes as r on l.lexical = r.id;
-let redirected_endings = select l.id as id from ending_rows as l join redirected_scoped_names as r on l.lexical = r.lexical and l.name = r.name;
+let redirected_endings = select l.id as id from ending_rows as l join redirected_names as r on l.lexical = r.lexical and l.name = r.name;
 let own_endings = antijoin(left=ending_rows,right=redirected_endings,left-on=["id"],right-on=["id"]);
 let endings = select id as occurrence, name, scope, phase, ordinal from own_endings;
 let replaced_imports = select l.binding as binding from dated_imports as l join endings as r on l.scope = r.scope and l.phase = r.phase and l.name = r.name where l.ordinal < r.ordinal;
