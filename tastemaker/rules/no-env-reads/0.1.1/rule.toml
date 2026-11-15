@@ -28,7 +28,13 @@ let path-bounds = span-bounds(from=path-reads, span="span", start-output="path-s
 let token-bounds = span-bounds(from=token-reads, span="span", start-output="start", end-output="end");
 let token-paths = select l."file" as "file", l."span" as "span", l."start" as "start", l."end" as "end", r."path-start" as "path-start", r."path-end" as "path-end" from token-bounds as l join path-bounds as r on l."file" = r."file";
 let covered-tokens = select * from token-paths where start >= path-start and end <= path-end;
-let unread-token-bounds = antijoin(left=token-bounds, right=covered-tokens, left-on=["file", "span"], right-on=["file", "span"]);
+let angles = select l."file" as "file", l."span" as "span" from tree-tokens as l where l."text" = "<";
+let angle-bounds = span-bounds(from=angles, span="span", start-output="angle-start", end-output="angle-end");
+let covered-angles = select l."file" as "file", l."span" as "span", l."start" as "start", l."path-start" as "path-start", r."angle-start" as "angle-start" from covered-tokens as l join angle-bounds as r on l."file" = r."file";
+let opened-angles = select * from covered-angles where angle-start >= path-start and angle-start < start;
+let argument-tokens = project(from=opened-angles, columns=["file", "span", "path-start"]);
+let path-names = antijoin(left=covered-tokens, right=argument-tokens, left-on=["file", "span", "path-start"], right-on=["file", "span", "path-start"]);
+let unread-token-bounds = antijoin(left=token-bounds, right=path-names, left-on=["file", "span"], right-on=["file", "span"]);
 let unread-tokens = project(from=unread-token-bounds, columns=["file", "span", "target"]);
 let literals = project(from="string-literal", columns=["span", "value"]);
 let admitted-literals = select * from literals where value in $exceptions;
@@ -261,6 +267,81 @@ then.findings = [
   { path = 'src/lib.rs', line = 3 },
   { path = 'src/lib.rs', line = 8 },
   { path = 'src/lib.rs', line = 13 },
+]
+
+[[scenarios]]
+id = 'separate-read-inside-generic-arguments'
+scenario = "A read inside the generic arguments of another read's path, written in a macro_rules! body there, is a read of its own: two findings."
+given.files.'src/main.rs' = '''
+struct Key<const PRESENT: bool>;
+
+impl<const PRESENT: bool> AsRef<std::ffi::OsStr> for Key<PRESENT> {
+    fn as_ref(&self) -> &std::ffi::OsStr {
+        std::ffi::OsStr::new("OUTER")
+    }
+}
+
+fn main() {
+    let _ = std::env::var::<Key<{
+        macro_rules! present {
+            () => { option_env!("INNER").is_some() };
+        }
+        present!()
+    }>>(Key);
+}
+'''
+then.findings = [
+  { path = 'src/main.rs', line = 10 },
+  { path = 'src/main.rs', line = 12 },
+]
+
+[[scenarios]]
+id = 'separate-read-inside-generic-arguments-in-macro'
+scenario = "The same two reads inside println!'s arguments: two findings."
+given.files.'src/main.rs' = '''
+struct Key<const PRESENT: bool>;
+
+impl<const PRESENT: bool> AsRef<std::ffi::OsStr> for Key<PRESENT> {
+    fn as_ref(&self) -> &std::ffi::OsStr {
+        std::ffi::OsStr::new("OUTER")
+    }
+}
+
+fn main() {
+    println!("{:?}", std::env::var::<Key<{
+        macro_rules! present {
+            () => { option_env!("INNER").is_some() };
+        }
+        present!()
+    }>>(Key));
+}
+'''
+then.findings = [
+  { path = 'src/main.rs', line = 10 },
+  { path = 'src/main.rs', line = 12 },
+]
+
+[[scenarios]]
+id = 'read-inside-generic-arguments-of-a-read-in-macro'
+scenario = "Inside println!'s arguments, a read whose path is written in the generic arguments of another read's path: one finding each."
+given.files.'src/main.rs' = '''
+struct Key<const PRESENT: bool>;
+
+impl<const PRESENT: bool> AsRef<std::ffi::OsStr> for Key<PRESENT> {
+    fn as_ref(&self) -> &std::ffi::OsStr {
+        std::ffi::OsStr::new("OUTER")
+    }
+}
+
+fn main() {
+    println!("{:?}", std::env::var::<Key<{
+        std::env::vars_os().count() == 0
+    }>>(Key));
+}
+'''
+then.findings = [
+  { path = 'src/main.rs', line = 10 },
+  { path = 'src/main.rs', line = 11 },
 ]
 
 [[scenarios]]

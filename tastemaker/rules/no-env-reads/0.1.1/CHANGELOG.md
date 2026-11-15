@@ -8,13 +8,17 @@ as two findings for one read, and how many it reported depended on which macros 
 language reads.
 
 A token read (`option_env`, or `var_os`/`vars_os`, or `var`/`vars` beside `env` in a token
-tree) is now dropped where its span lies inside an env path read's span in the same file:
-that token is a name of the path, already reported. A turbofish
+tree) is now dropped where it is a name of an env path read in the same file: its span lies
+inside the path's span, and no `<` of the syntax tree lies between the path's start and the
+token, so the token is not in the path's generic arguments. A turbofish
 (`std::env::var::<&str>("X")` inside `println!`'s arguments), whose path runs past its last
-name, is one finding too. The match needs only the spans of `reference` and `static-import`,
-so it holds whether or not a build of the language also lays the arguments out as semantic
-syntax. A token the language reads as no path still has no `reference`, so its read stays a
-finding: a `macro_rules!` body, an opaque built-in macro, arguments that do not parse.
+name, is one finding; a separate read written inside those generic arguments (an
+`option_env!` in a `macro_rules!` body in a const block) stays a finding of its own. The
+match reads only the spans of `reference` and `static-import` and the syntax tree's tokens,
+so it holds whether or not a build of the language also lays macro arguments out as
+semantic syntax. A token the language reads as no path still has no `reference`, so its
+read stays a finding: a `macro_rules!` body, an opaque built-in macro, arguments that do
+not parse.
 
 Classification: a fix that tightens. Fewer duplicate findings, and no read is lost: a token
 is dropped only where its path is reported. The pager exception is unchanged.
@@ -26,7 +30,12 @@ keeps its one finding and no longer says the language leaves the arguments unrea
 `token-read-and-path-read-in-two-files` (a token read in one file with the span of a covered
 token in another file is a finding: the match is per file) and
 `token-reads-before-and-after-a-path-read` (a token read outside a path read's span, before
-or after it in the same file, is a finding).
+or after it in the same file, is a finding), `separate-read-inside-generic-arguments` and
+`separate-read-inside-generic-arguments-in-macro` (a read inside another read's generic
+arguments is two findings, natively and inside `println!`'s arguments) and
+`read-inside-generic-arguments-of-a-read-in-macro` (a path read written inside another's
+generic arguments is one finding each: whether a token is a path's name is decided per
+path).
 
 0.1.0 is removed with this version, not kept as published: no lock names it, nothing has
 been released, and an unreleased version keeps no copy for compatibility (as with
