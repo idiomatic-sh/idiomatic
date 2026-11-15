@@ -8,7 +8,7 @@ use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operation_schema::types::bindings::value::BindingShape;
 use ryo_operators::domain::tree_cells::types::TreeForm;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Side};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Side};
 use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -164,7 +164,6 @@ fn axis_schema(
     bindings: &[ParameterBinding],
 ) -> Result<Vec<CellKind>, OperatingError> {
     let Operation::Axis {
-        direction,
         id,
         parent,
         child,
@@ -203,19 +202,11 @@ fn axis_schema(
                 output,
             );
         }
-    } else {
-        if !domain_filter.is_empty()
-            || !domain_view.is_empty()
-            || !output.is_empty()
-            || matches!(
-                direction,
-                Direction::Deep | Direction::PreviousSibling | Direction::NextSibling
-            )
-        {
-            return Err(OperatingError::WrongOperation);
-        }
-        check_columns(edges.kinds, &[*parent, *child])?;
-        check_columns(domain.kinds, &[*domain_id])?;
+    } else if !output.is_empty() {
+        // Over keyed edges an axis refuses a declared output, a domain filter or view, a tree-only direction and an edge
+        // or domain column past its rows only when a start reads them, after its empty-start and empty-domain gates, as
+        // main's walk did; the walk itself raises those. Its layout is declared here.
+        return joined(from.kinds, domain.kinds, None, output);
     }
     let mut answer = from.kinds.to_vec();
     answer.push(CellKind::Node);

@@ -81,7 +81,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Request::UnservedKind,
         expect: Expect::Value(Cow::Borrowed(
-            "nodes 2; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)) NotServedUntil(ServedAt(3)); rule 1: steps [Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)) Served; consumers [1, 1]; roots word []; roots other [];",
+            "nodes 2; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)) NotServedUntil(ServedAt(2)); rule 1: steps [Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)) Served; consumers [1, 1]; roots word []; roots other [];",
         )),
     },
     Case {
@@ -213,18 +213,9 @@ fn rules_of(request: Request) -> Vec<(Arc<Plan>, Vec<ParameterBinding>)> {
         Request::UnservedKind => vec![
             (
                 plan(
-                    vec![per_file(Operation::Axis {
-                        from: StepInput::Relation(Relation::SyntaxTree),
-                        edges: StepInput::Relation(Relation::SyntaxChild),
-                        domain: StepInput::Relation(Relation::SyntaxTree),
-                        direction: ryo_values::domain::plan_parts::types::Direction::Parent,
-                        id: ColumnIndex(0),
-                        parent: ColumnIndex(0),
-                        child: ColumnIndex(1),
-                        domain_id: ColumnIndex(0),
-                        domain_filter: Vec::new(),
-                        domain_view: Vec::new(),
-                        output: Vec::new(),
+                    vec![per_file(Operation::Words {
+                        from: StepInput::Relation(Relation::Defines),
+                        text: ColumnIndex(3),
                     })],
                     Vec::new(),
                 ),
