@@ -47,3 +47,8 @@ expected = [{ file = "src/lib.rs", start = 84, end = 108 }]
 name = "raw-string-feature"
 files = { "src/lib.rs" = "#[cfg_attr(feature = r\"cargo-clippy\", allow(dead_code))]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 11, end = 36 }]
+
+[[cases]]
+name = "other-key-same-value"
+files = { "src/lib.rs" = "#[cfg_attr(other = \"cargo-clippy\", allow(dead_code))]\npub fn f() {}\n" }
+expected = []
