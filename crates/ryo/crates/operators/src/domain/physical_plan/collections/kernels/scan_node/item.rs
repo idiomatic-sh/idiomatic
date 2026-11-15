@@ -75,7 +75,7 @@ pub(crate) fn give_back(
     }
 }
 
-/// Holds a node's rows and pending fault, with all its readers still to come.
+/// Holds a node's rows and pending fault, with all its readers and engine uses still to come.
 pub(crate) fn hold(
     plan: &PhysicalPlan,
     buffers: &mut FileBuffers,
@@ -95,5 +95,10 @@ pub(crate) fn hold(
     if let (Some(left), Some(physical)) = (buffers.remaining.get_mut(place), plan.nodes.get(place))
     {
         *left = physical.readers;
+    }
+    if let (Some(left), Some(physical)) =
+        (buffers.engine_left.get_mut(place), plan.nodes.get(place))
+    {
+        *left = physical.engine;
     }
 }

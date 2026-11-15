@@ -3,7 +3,8 @@
 
 use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
 use crate::domain::physical_plan::types::keyed_rows::value::{IndexKeyHash, IndexedRow, KeyedRows};
-use crate::domain::physical_plan::types::{NodeFed, NodeReaders, NodeRows, PlanNodeId};
+use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+use crate::domain::physical_plan::types::{EngineUses, NodeFed, NodeReaders, NodeRows, PlanNodeId};
 use crate::domain::table_scratch::types::{LazyScratch, Memo, SelectScratch};
 use ryo_relations::domain::relations::types::{NodeId, Value};
 
@@ -27,6 +28,8 @@ pub struct FileBuffers {
     pub(crate) fed: Vec<NodeFed>,
     /// How many of each node's readers have not read it yet in this file, by node id.
     pub(crate) remaining: Vec<NodeReaders>,
+    /// How many of each node's engine uses are not done yet in this file, by node id.
+    pub(crate) engine_left: Vec<EngineUses>,
     /// Each filtering node's comparison scratch, by node id, kept across files.
     pub(crate) decisions: Vec<NodeDecisions>,
     /// The keyed-row table a node builds for itself: a probe's own index, a group's, or the lookups' while it answers them.
@@ -218,6 +221,34 @@ impl FileBuffers {
                 table.count.0 - kept,
             ));
         table.count = ryo_values::domain::rows::types::RowCount(kept);
+    }
+
+    /// One engine use of `node` is done: a rule that emits it, or a consumer that holds it, is finished with it. Its rows go
+    /// once no engine use and no node reader of it remains in the open file, whichever comes last.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    /// use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+    /// use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
+    /// let mut buffers = FileBuffers::default();
+    /// buffers.used(&PhysicalPlan::default(), PlanNodeId(0));
+    /// assert_eq!(buffers.rows(PlanNodeId(0)), NodeRows::Absent);
+    /// ```
+    pub fn used(&mut self, plan: &PhysicalPlan, node: PlanNodeId) {
+        let at = usize::try_from(node.0).unwrap_or(usize::MAX);
+        // A node of another plan has no engine use here.
+        if plan.nodes.get(at).is_none() {
+            return;
+        }
+        let Some(left) = self.engine_left.get_mut(at) else {
+            return;
+        };
+        left.0 = left.0.saturating_sub(1);
+        if left.0 == 0 && self.remaining.get(at).is_none_or(|readers| readers.0 == 0) {
+            self.release(node);
+        }
     }
 
     /// The node's last consumer is done: its buffer returns to the worker's pool. At the file's end, when the engine releases

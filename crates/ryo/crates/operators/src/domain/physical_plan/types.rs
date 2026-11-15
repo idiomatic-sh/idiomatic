@@ -185,6 +185,11 @@ pub(crate) enum NodeFlow {
     Streamed,
 }
 
+/// How many engine uses a node has, or has left in the open file: its entries in the program's emitted and held lists (seam
+/// D's own lists), each a rule that emits it or a consumer that holds it.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct EngineUses(pub(crate) u32);
+
 /// Whether a node's rows outlive its node readers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Retention {

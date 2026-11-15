@@ -17,7 +17,7 @@ use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, Node
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    KernelRun, NodeFed, NodeReaders, NodeRows, PlanNodeId, RowSource,
+    EngineUses, KernelRun, NodeFed, NodeReaders, NodeRows, PlanNodeId, RowSource,
 };
 use ryo_values::domain::rows::types::{RowCount, Table};
 
@@ -55,6 +55,7 @@ fn sized(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
         buffers.pending.resize_with(count, || None);
         buffers.fed.resize(count, NodeFed::default());
         buffers.remaining.resize(count, NodeReaders(0));
+        buffers.engine_left.resize(count, EngineUses(0));
         buffers.decisions.resize_with(count, NodeDecisions::default);
     }
     sized_shared(plan, buffers);
