@@ -151,9 +151,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("sparse_descendant_consumers_equivalence_reports_nothing_across_unrelated_growth"),
+        name: CaseName(
+            "sparse_descendant_consumers_equivalence_reports_nothing_across_unrelated_growth",
+        ),
         word: Word::Succeeds,
-        input: || EngineScenario::SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth,
+        input: || {
+            EngineScenario::SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth
+        },
         expect: Expect::Value(true),
     },
     Case {
@@ -202,14 +206,17 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     if scenario == EngineScenario::Pie794RootedEquivalenceReportsNothingAcrossUnrelatedGrowth {
         return sparse_traversal_test::pie794_rooted_equivalence_reports_nothing_across_unrelated_growth().map(|()| true);
     }
-    if scenario == EngineScenario::SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth {
+    if scenario
+        == EngineScenario::SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth
+    {
         return sparse_traversal_test::sparse_descendant_consumers_equivalence_reports_nothing_across_unrelated_growth().map(|()| true);
     }
     if scenario == EngineScenario::Plr1708RootedEquivalenceReportsNothingAcrossUnrelatedGrowth {
         return sparse_traversal_test::plr1708_rooted_equivalence_reports_nothing_across_unrelated_growth().map(|()| true);
     }
     if scenario == EngineScenario::ActualRootedQueriesKeepTheirSparseAxis {
-        return sparse_traversal_test::actual_rooted_queries_keep_their_sparse_axis().map(|()| true);
+        return sparse_traversal_test::actual_rooted_queries_keep_their_sparse_axis()
+            .map(|()| true);
     }
     let root = tempfile::tempdir()?;
     let rules = root.path().join("rules");

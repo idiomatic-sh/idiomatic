@@ -2,8 +2,7 @@
 use super::super::{adapter::LinterRuffAdapter, settings::LinterRuffSettings};
 use super::constants;
 use super::constants::{
-    PYTHON_TARGET, UNEXPECTED_TRAILING_WORKER_ARGUMENT,
-    UNEXPECTED_WORKER_CONFIGURATION,
+    PYTHON_TARGET, UNEXPECTED_TRAILING_WORKER_ARGUMENT, UNEXPECTED_WORKER_CONFIGURATION,
 };
 use super::locations::{default_scratch, directory};
 use super::request_input::worker_expectation;

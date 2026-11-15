@@ -1,8 +1,8 @@
 //! The sparse-traversal guards: each rooted query answers the global closure's counted multiset, by membership, across
 //! unrelated width and depth growth, and the actual rule queries keep their rooted axis.
 use super::constants::{
-    A_PY, ACCEPTED_SYNTAX, B_PY, CASE_PY, QUERY_RYOQL, ROOTED001, RULES, SPARSE_PIE794_RELEVANT,
-    SPARSE_PLR1708_RELEVANT, SPARSE_NONEMPTY_AWAIT, SPARSE_UNRELATED_AWAIT, PYTHON_TARGET_3_10,
+    A_PY, ACCEPTED_SYNTAX, B_PY, CASE_PY, PYTHON_TARGET_3_10, QUERY_RYOQL, ROOTED001, RULES,
+    SPARSE_NONEMPTY_AWAIT, SPARSE_PIE794_RELEVANT, SPARSE_PLR1708_RELEVANT, SPARSE_UNRELATED_AWAIT,
 };
 use super::prepared_engine_test::{
     PreparedEngine as _, default_frontend_projection, fixture_cohort, python_310,
@@ -121,7 +121,11 @@ fn equivalent(query: &str, corpora: &[Corpus]) -> Result<usize, Error> {
         })?;
         let mut sorted = paths;
         sorted.sort();
-        assert_eq!(report.execution_metadata, ExecutionMetadata::Complete, "{name}");
+        assert_eq!(
+            report.execution_metadata,
+            ExecutionMetadata::Complete,
+            "{name}"
+        );
         assert_eq!(report.files, sorted, "{name}");
         assert_eq!(
             report.coverage,
@@ -134,7 +138,11 @@ fn equivalent(query: &str, corpora: &[Corpus]) -> Result<usize, Error> {
             "{name}"
         );
         assert!(report.skipped.is_empty(), "{name}");
-        assert!(report.diagnostics.is_empty(), "{name}: {:?}", report.diagnostics);
+        assert!(
+            report.diagnostics.is_empty(),
+            "{name}: {:?}",
+            report.diagnostics
+        );
     }
     Ok(corpora.len())
 }
@@ -199,6 +207,8 @@ pub(super) fn actual_rooted_queries_keep_their_sparse_axis() -> Result<(), Error
             r#"axis(from={roots}, relation="semantic-child", direction=descendant, domain=descendant_nodes)"#
         )));
     }
-    assert!(B023_QUERY.contains(r#"let descendant_nodes = select child as id from "semantic-child";"#));
+    assert!(
+        B023_QUERY.contains(r#"let descendant_nodes = select child as id from "semantic-child";"#)
+    );
     Ok(())
 }

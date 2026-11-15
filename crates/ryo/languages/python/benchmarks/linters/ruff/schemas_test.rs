@@ -280,7 +280,9 @@ fn the_pinned_registry_decodes_the_phase_of_every_rule() -> usize {
 /// A noqa code as Ruff spells one: capitals, then digits.
 fn coded(code: &str) -> bool {
     let digits = code.trim_start_matches(|character: char| character.is_ascii_uppercase());
-    digits.len() < code.len() && !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit())
+    digits.len() < code.len()
+        && !digits.is_empty()
+        && digits.bytes().all(|byte| byte.is_ascii_digit())
 }
 
 /// The anchored alternation of `codes`, in sorted order.
@@ -291,8 +293,14 @@ fn alternation<'a>(codes: impl IntoIterator<Item = &'a str>) -> String {
 
 /// The RUF100 catalog lookup the pinned catalog renders: plain codes, then each redirect target's aliases, joined by a
 /// balanced union tree.
-fn catalog_lookup(registered: &[&str], redirects: &serde_json::Map<String, serde_json::Value>) -> String {
-    let plain = registered.iter().copied().filter(|code| !redirects.contains_key(*code));
+fn catalog_lookup(
+    registered: &[&str],
+    redirects: &serde_json::Map<String, serde_json::Value>,
+) -> String {
+    let plain = registered
+        .iter()
+        .copied()
+        .filter(|code| !redirects.contains_key(*code));
     let mut lines = vec![format!(
         "let catalog_plain = select id, file, code, code as canonical, token_span from tokens where matches(code, \"{}\");",
         alternation(plain)
@@ -316,7 +324,9 @@ fn catalog_lookup(registered: &[&str], redirects: &serde_json::Map<String, serde
         let mut next = Vec::new();
         for pair in names.chunks(2) {
             if let [left, right] = pair {
-                lines.push(format!("let catalog_union_{index} = union(left={left}, right={right});"));
+                lines.push(format!(
+                    "let catalog_union_{index} = union(left={left}, right={right});"
+                ));
                 next.push(format!("catalog_union_{index}"));
                 index += 1;
             } else {
@@ -325,7 +335,10 @@ fn catalog_lookup(registered: &[&str], redirects: &serde_json::Map<String, serde
         }
         names = next;
     }
-    lines.push(format!("let known_tokens = select id, file, code, canonical, token_span from {};", names[0]));
+    lines.push(format!(
+        "let known_tokens = select id, file, code, canonical, token_span from {};",
+        names[0]
+    ));
     lines.join("\n") + "\n"
 }
 
@@ -350,7 +363,12 @@ fn suppression_codes_match_the_pinned_catalog() -> usize {
     if ruf100[start..end] != catalog_lookup(&registered, redirects) {
         differing.push("RUF100".to_owned());
     }
-    let redirected = alternation(redirects.keys().map(String::as_str).filter(|code| coded(code)));
+    let redirected = alternation(
+        redirects
+            .keys()
+            .map(String::as_str)
+            .filter(|code| coded(code)),
+    );
     if !read("rules/RUF101/query.ryoql").contains(&format!("matches(code, \"{redirected}\");")) {
         differing.push("RUF101".to_owned());
     }
