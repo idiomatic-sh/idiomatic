@@ -97,9 +97,10 @@ pub struct CapturedFacts {
     pub reads: AtomicUsize,
 }
 
-impl CapturedFacts {
-    /// The bucket the captures make, every capture of `bucket`'s, one file after another.
-    fn bucket(&self, bucket: Bucket) -> KeptBucket {
+impl FactsFinish for CapturedFacts {
+    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
+        self.reads.fetch_add(1, Ordering::SeqCst);
+        // The bucket the captures make, every capture of `bucket`'s, one file after another.
         let mut words = vec![];
         let mut sources = vec![];
         for (file, capture) in &self.captures {
@@ -112,21 +113,14 @@ impl CapturedFacts {
             });
             words.extend_from_slice(&capture.words.0);
         }
-        KeptBucket {
+        Ok(KeptBucket {
             words: std::sync::Arc::new(KeptWords(PackedWords(words))),
             sources,
-        }
-    }
-}
-
-impl FactsFinish for CapturedFacts {
-    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
-        self.reads.fetch_add(1, Ordering::SeqCst);
-        Ok(self.bucket(bucket))
+        })
     }
     fn sources(&self, bucket: Bucket) -> Result<KeptSources, FactsError> {
-        self.reads.fetch_add(1, Ordering::SeqCst);
-        Ok(sources_of(&self.bucket(bucket)))
+        // A read of the sources is one read: the kept bucket's, of which only the sources are answered.
+        self.kept(bucket).map(|kept| sources_of(&kept))
     }
 }
 
