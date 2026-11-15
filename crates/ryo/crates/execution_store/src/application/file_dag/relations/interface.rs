@@ -2,12 +2,10 @@
 use super::admission::service::BorrowedInput;
 use super::generation::service::ResidentGeneration;
 use super::handle::service::Publication;
-use super::number::service::service::AdmittedNumber;
 use super::publication::types::{ProducerScope, PublicationBody};
 use super::types::ProducerId;
 use crate::application::file_dag::derived::population::service::PopulationId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement;
 use ryo_execution_domain::domain::table_model::types::{RepresentationInput, Rows};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 
@@ -52,12 +50,11 @@ pub(crate) mod sealed {
 /// always the owner's.
 /// ```compile_fail,E0277
 /// use ryo_execution_domain::domain::operating::errors::OperatingError;
-/// use ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement;
 /// use ryo_execution_domain::domain::table_model::types::{RepresentationInput, Rows};
 /// use ryo_execution_store::application::file_dag::derived::population::service::PopulationId;
 /// use ryo_execution_store::application::file_dag::relations::{
 ///     admission::service::BorrowedInput, generation::service::ResidentGeneration, handle::service::Publication,
-///     interface::RelationsPort, number::service::AdmittedNumber,
+///     interface::RelationsPort,
 ///     publication::types::{ProducerScope, PublicationBody}, types::ProducerId,
 /// };
 /// use ryo_relations::domain::relations::types::{CellKind, Relation};
@@ -71,13 +68,6 @@ pub(crate) mod sealed {
 ///         _: &Publication,
 ///         _: RepresentationInput<'a>,
 ///     ) -> Result<Result<BorrowedInput<'a>, OperatingError>, OperatingError> { todo!() }
-///     fn admit_number<'a>(
-///         &self,
-///         _: &'a Publication,
-///         _: ProducerId,
-///         _: &NumberRequirement,
-///         _: RepresentationInput<'_>,
-///     ) -> Result<ryo_execution_store::application::file_dag::relations::types::Sought<AdmittedNumber<'a>>, OperatingError> { todo!() }
 ///     fn rows<'r, 'f: 'r>(
 ///         &self,
 ///         _: &'r Publication,
@@ -133,22 +123,6 @@ pub trait RelationsPort: sealed::Sealed {
         publication: &Publication,
         rows: RepresentationInput<'a>,
     ) -> Result<Result<BorrowedInput<'a>, OperatingError>, OperatingError>;
-    /// Admits a numeric source for the producer that requires it, the one way to mint the witness; `None` when the producer or
-    /// its sources do not qualify.
-    ///
-    /// # Errors
-    ///
-    /// The physical inspection's refusal of the rows.
-    fn admit_number<'a>(
-        &self,
-        publication: &'a Publication,
-        producer: ProducerId,
-        required: &NumberRequirement,
-        rows: RepresentationInput<'_>,
-    ) -> Result<
-        crate::application::file_dag::relations::types::Sought<AdmittedNumber<'a>>,
-        OperatingError,
-    >;
     /// The rows of a publication, read through `read` when they are a source's.
     ///
     /// # Errors

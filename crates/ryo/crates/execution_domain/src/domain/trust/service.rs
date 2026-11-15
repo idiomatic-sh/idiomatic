@@ -281,24 +281,6 @@ pub fn project_unknowns(
     unknowns
 }
 
-/// What [`needs_of`] answers from the prepared operator contracts of the plan's steps.
-pub(crate) fn needs_of_contracts(
-    plan: &Plan,
-    contracts: &[std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>],
-) -> Result<Vec<Vec<RelationRead>>, OperatingError> {
-    if contracts.len() != plan.steps.len() {
-        return Err(OperatingError::NotRun);
-    }
-    let reads = uses_of(plan);
-    Ok(needs_with_masks(
-        plan,
-        |input| input_reads(&reads, input),
-        contracts
-            .iter()
-            .map(|contract| AbsenceInputs(contract.absence_inputs.0)),
-    ))
-}
-
 /// One topological physical-read pass for all demanded roots: each step's reads, or the refusal of a step that reads a step not
 /// before it.
 pub fn physical_reads(plan: &Plan) -> Vec<Result<Vec<RelationRead>, OperatingError>> {

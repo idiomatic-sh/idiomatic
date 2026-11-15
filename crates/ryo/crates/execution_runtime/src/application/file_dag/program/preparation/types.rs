@@ -11,10 +11,8 @@ use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::types::Emit;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::records::types::ObservationReadinessLayout;
-use std::sync::Arc;
 
 /// How many rules the request holds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -36,21 +34,6 @@ pub(crate) struct RulePlan {
         OperatingError,
     >,
 }
-/// The request's named outputs as the plans and the observation request state them: the readiness layout and each output a
-/// frontier carries.
-pub(crate) struct ObservedLayout {
-    pub(crate) layout: ObservationReadinessLayout,
-    pub(crate) frontiers: Box<[ObservedFrontierRoot]>,
-    pub(crate) bindings: Vec<Vec<ResolvedObservationBinding>>,
-    pub(crate) consumers: Vec<Vec<Vec<RuleIndex>>>,
-}
-/// What the interpreter's compile still answers, which ryo-2964.8 deletes: its matchers, each rule's named outputs and the named
-/// outputs' graph.
-pub(crate) struct Interpreted {
-    pub(crate) observations: Option<ObservationMetadata>,
-    pub(crate) matchers:
-        Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers>,
-}
 #[derive(Clone, Copy)]
 pub(crate) enum OutputRoot {
     PerFile,
@@ -61,6 +44,9 @@ pub(crate) struct OutputMetadata {
     pub root: OutputRoot,
     pub consumers: Vec<RuleIndex>,
 }
+/// The request's named outputs as the plans and the observation request state them: the readiness layout, each output a
+/// frontier carries, each rule's bindings and their admissions, each output's root and consumers, and what each consumer
+/// retires.
 pub(crate) struct ObservationMetadata {
     pub(crate) layout: ObservationReadinessLayout,
     pub(crate) frontiers: Box<[ObservedFrontierRoot]>,
@@ -70,7 +56,7 @@ pub(crate) struct ObservationMetadata {
     pub(crate) admissions: Vec<Vec<Result<(), OperatingError>>>,
     pub(crate) outputs: Vec<Vec<OutputMetadata>>,
     pub(crate) retire:
-        Vec<Vec<ryo_execution_domain::domain::file_program::types::ObservationRetirement>>,
+        Vec<Vec<ryo_execution_domain::domain::observation_schedule::types::ObservationRetirement>>,
 }
 /// Immutable executable state has no RequestGraph, Plan, layout or old executor. Only the
 /// preparation owner builds one, and no code outside the engine can name it.
@@ -88,23 +74,10 @@ pub(crate) struct PreparedProgram {
     pub(super) semantic_needed: SemanticNeed,
     pub(super) file_frontier_outputs: Box<[Box<[Box<[ObservationIndex]>]>]>,
     /// The named outputs, when the request names any.
-    pub(super) observed: Option<ObservedLayout>,
+    pub(super) observed: Option<ObservationMetadata>,
     pub(super) schedule: RuleSchedule,
     pub(super) semantic_metadata: Vec<ryo_values::domain::run_metadata::types::RuleRunMetadata>,
     pub(super) hosted: Box<[HostRelation]>,
     /// The relations the request's plans read, each once, in the order first read: what each file's sources are asked for.
     pub(super) demanded: Box<[ryo_relations::domain::relations::types::Relation]>,
-    /// The interpreter's compile, for the project phase alone, or why it could not be made: it never fails the request.
-    pub(super) interpreted: Result<Interpreted, OperatingError>,
-}
-/// What the interpreter's compile of a request reads: the plans, owned, what they bind, the rules, the hosted relations, the
-/// derived views, the observation request, each rule's plan and the file pass's program, whose refusals it takes.
-pub(crate) struct Interpreting<'a> {
-    pub(crate) plans: Vec<ryo_values::domain::plans::types::Plan>,
-    pub(crate) bindings: &'a [Vec<ParameterBinding>],
-    pub(crate) hosted: &'a [HostRelation],
-    pub(crate) derived: crate::application::file_dag::derived::program::service::ProgramDerived,
-    pub(crate) observations: &'a [Vec<ResolvedObservationBinding>],
-    pub(crate) request: ryo_execution_domain::domain::observation_schedule::types::ObservationRequest<'a>,
-    pub(crate) partitions: ryo_execution_domain::domain::source_partitions::types::source_partitions::value::SourcePartitions,
 }

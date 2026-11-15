@@ -1,8 +1,7 @@
-//! The ports the lint tests build over the engine's own use cases: publication, facts, operators and derived views.
+//! The ports the lint tests build over the engine's own use cases: publication, facts and operators.
 
 use std::sync::Arc;
 
-use ryo_execution::inbound::use_cases::prepare::types::DerivedViews;
 use ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase;
 use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
@@ -43,10 +42,4 @@ pub fn operators() -> Arc<dyn OperatorsPort> {
             ),
         ),
     )
-}
-
-/// The derived views execution composes for the edges, as the command line and the SDK pass them.
-#[must_use]
-pub fn derived() -> DerivedViews {
-    ryo_execution::derived()
 }

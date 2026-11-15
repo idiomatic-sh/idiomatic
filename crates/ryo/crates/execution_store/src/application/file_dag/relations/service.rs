@@ -3,7 +3,6 @@
 use super::super::derived::population::service::PopulationId;
 use super::generation::service::GenerationLease;
 use super::handle::service::PublishedInput;
-use super::number::service::service::AdmittedNumber;
 use super::publication::types::SourceDescriptor;
 use super::publication::types::{ProducerKey, ProducerPopulation};
 use super::types::{CheckCount, PinnedViewCount, ReuseEligibility, Sameness};
@@ -177,19 +176,6 @@ impl super::interface::RelationsPort for RelationOwner {
     ) -> Result<Result<super::admission::service::BorrowedInput<'a>, OperatingError>, OperatingError>
     {
         self.inspect_available(publication.input()?.as_ref(), rows)
-    }
-    fn admit_number<'a>(
-        &self,
-        publication: &'a super::handle::service::Publication,
-        producer: super::types::ProducerId,
-        required: &ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement,
-        rows: RepresentationInput<'_>,
-    ) -> Result<
-        crate::application::file_dag::relations::types::Sought<AdmittedNumber<'a>>,
-        OperatingError,
-    > {
-        RelationOwner::admit_number(self, publication.input()?, producer, required, rows)
-            .map(crate::application::file_dag::relations::types::Sought::from)
     }
     fn rows<'r, 'f: 'r>(
         &self,

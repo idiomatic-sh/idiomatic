@@ -172,7 +172,7 @@ pub(super) fn world_with_applicability(
         })
         .collect::<Vec<_>>();
     let metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
-    let engine = PrepareUseCaseImpl::new(operators, ryo_execution::derived());
+    let engine = PrepareUseCaseImpl::new(operators);
     let program = Arc::new(
         engine
             .prepare(PrepareRequest {

@@ -13,8 +13,7 @@ use std::sync::Arc;
 pub struct RequestExecution {
     pub(crate) program:
         Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
-    pub(crate) services:
-        Arc<crate::application::file_dag::program::facade_runtime::service::ProgramServices>,
+    pub(crate) services: Arc<ProgramServices>,
     /// The program the file pass runs, planned when the program was prepared.
     pub(crate) pass: Arc<crate::application::file_dag::file_pass::types::PassProgram>,
 }
@@ -34,4 +33,13 @@ impl std::ops::DerefMut for ObservationArenas {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
+}
+
+/// The services one request's execution shares: the request's files and the observer.
+pub(crate) struct ProgramServices {
+    /// The request's files.
+    pub(super) request:
+        Arc<crate::application::file_dag::program::request_identity::service::RequestIdentity>,
+    /// The observer the request's caller asked to be told of the engine's work, if any.
+    pub(super) observer: Option<Arc<dyn crate::outbound::observer::interface::ObserverPort>>,
 }

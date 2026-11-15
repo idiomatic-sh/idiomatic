@@ -194,3 +194,22 @@ pub(crate) struct PendingStep {
     /// The step to follow.
     pub step: ryo_values::domain::plan_parts::types::StepId,
 }
+
+/// A producer's named output a consumer reads, retired once the consumer has read it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
+/// use ryo_execution_domain::domain::observation_schedule::types::ObservationRetirement;
+/// use ryo_values::domain::records::types::ObservationIndex;
+/// let retired = ObservationRetirement { producer: RuleIndex(0), output: ObservationIndex(1) };
+/// assert_eq!(retired.output, ObservationIndex(1));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ObservationRetirement {
+    /// The producing rule.
+    pub producer: crate::domain::coverage::types::RuleIndex,
+    /// The producer's named output.
+    pub output: ryo_values::domain::records::types::ObservationIndex,
+}

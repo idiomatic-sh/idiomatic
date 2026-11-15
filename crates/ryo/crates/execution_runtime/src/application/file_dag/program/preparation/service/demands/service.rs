@@ -1,11 +1,11 @@
 //! What each rule asks of its file and which outputs each frontier commits.
-use crate::application::file_dag::program::preparation::types::{ObservedLayout, RulePlan};
+use crate::application::file_dag::program::preparation::types::{ObservationMetadata, RulePlan};
 use ryo_values::domain::records::types::ObservationIndex;
 
 /// For each rule and frontier input, the named outputs that the input commits.
 pub(crate) fn frontier_outputs(
     metadata: &[RulePlan],
-    named: Option<&ObservedLayout>,
+    named: Option<&ObservationMetadata>,
 ) -> Box<[Box<[Box<[ObservationIndex]>]>]> {
     metadata
         .iter()

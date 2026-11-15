@@ -1,5 +1,4 @@
 //! A request execution: its files, its project phase and its observation stage.
-use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 use crate::application::file_dag::program::file_session::types::CaptureContext;
 use crate::application::file_dag::program::file_session::types::FileRules;
 use crate::application::file_dag::program::file_session::types::FileRunInput;
@@ -7,7 +6,9 @@ use crate::application::file_dag::program::observation_stage::types::Observation
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use crate::application::file_dag::program::project_phase::types::ProjectPhase;
 use crate::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort;
+use crate::application::file_dag::program::request_execution::types::ProgramServices;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
+use crate::application::file_dag::program::request_identity::service::RequestIdentity;
 use crate::outbound::facts::interface::FactsWorker;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
@@ -77,5 +78,31 @@ pub fn begin(
         program: Arc::clone(&program.parts.inner),
         services: Arc::new(ProgramServices::new(corpus).observed(observer)),
         pass: Arc::clone(&program.parts.pass),
+    }
+}
+
+impl ProgramServices {
+    pub(crate) fn new(corpus: &[ryo_values::domain::files::types::CorpusInput]) -> Self {
+        Self {
+            request: Arc::new(RequestIdentity::new(corpus)),
+            observer: None,
+        }
+    }
+    /// The same services, telling `observer` of the engine's work.
+    pub(crate) fn observed(
+        mut self,
+        observer: Option<Arc<dyn crate::outbound::observer::interface::ObserverPort>>,
+    ) -> Self {
+        self.observer = observer;
+        self
+    }
+    /// The observer the request's caller asked to be told of the engine's work, if any.
+    pub(crate) fn observer(
+        &self,
+    ) -> Option<&dyn crate::outbound::observer::interface::ObserverPort> {
+        self.observer.as_deref()
+    }
+    pub(crate) fn request(&self) -> &Arc<RequestIdentity> {
+        &self.request
     }
 }

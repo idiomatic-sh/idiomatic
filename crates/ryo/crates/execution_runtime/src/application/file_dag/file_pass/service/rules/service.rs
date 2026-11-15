@@ -16,13 +16,11 @@ use crate::application::file_dag::file_pass::types::{
     PassRequest,
 };
 use crate::application::file_dag::frontiers::types::Withholdings;
-use crate::application::file_dag::program::facade_runtime::file_execution::service::{
-    classify, readiness_of,
-};
 use crate::application::file_dag::program::file_session::types::{
     CaptureContext, EmittedRoot, FileEnd, FileRules, FileRunInput, FileStop, FinishedReadiness,
     Partiality, RanRule, RuleAfter, SemanticSupport,
 };
+use crate::application::file_dag::program::rule_outcome::service::{classify, readiness_of};
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::application::file_dag::publications::types::BoundTables;
 use crate::outbound::facts::errors::FactsError;

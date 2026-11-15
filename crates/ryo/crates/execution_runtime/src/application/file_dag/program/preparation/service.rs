@@ -4,7 +4,6 @@ use crate::application::file_dag::program::prepared_execution::types::{
     NamedLayout, ObservationContract,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::prepared_request::types::Compiled;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
@@ -39,14 +38,6 @@ impl PreparedProgram {
             .map(AsRef::as_ref)
             .ok_or(OperatingError::NotRun)
     }
-    /// The interpreter's compile, for the project phase alone.
-    ///
-    /// # Errors
-    ///
-    /// The fault the interpreter's compile of the request answered.
-    pub(crate) fn interpreted(&self) -> Result<&Interpreted, OperatingError> {
-        self.interpreted.as_ref().map_err(Clone::clone)
-    }
     pub(crate) fn rule_id(
         &self,
         rule: RuleIndex,
@@ -78,14 +69,6 @@ impl PreparedProgram {
     pub(crate) fn hosted(&self) -> &[HostRelation] {
         &self.hosted
     }
-    pub(crate) fn matchers(
-        &self,
-    ) -> Result<
-        &Arc<ryo_operators::domain::patterns::types::prepared::value::PreparedMatchers>,
-        OperatingError,
-    > {
-        Ok(&self.interpreted()?.matchers)
-    }
     /// What `rule`'s plan states.
     ///
     /// # Errors
@@ -100,10 +83,7 @@ impl PreparedProgram {
         self.rules.get(rule.0).ok_or(OperatingError::NotRun)
     }
     pub(crate) fn observation_metadata(&self) -> Option<&ObservationMetadata> {
-        match &self.interpreted {
-            Ok(interpreted) => interpreted.observations.as_ref(),
-            Err(_) => None,
-        }
+        self.observed.as_ref()
     }
     pub(crate) fn emit(&self, rule: RuleIndex) -> Result<&Emit, OperatingError> {
         Ok(&self.rule_plan(rule)?.emit)
@@ -174,41 +154,18 @@ impl PreparedProgram {
         self.semantic_needed
     }
 }
-/// Identity is mandatory: readiness layout comes from the same digest/producer
-/// preparation used by the warm store, never from an empty or process-local default.
-/// The executable program of a request: the one place outside the domain that compiles one, so a change to the domain's
-/// compilation edits this function alone.
-pub(crate) fn compile_program(
-    plans: &[ryo_values::domain::plans::types::Plan],
-    graph: ryo_execution_domain::domain::file_program::types::RequestGraph,
-    partitions: &dyn ryo_execution_domain::domain::source_partitions::types::ProducerPartitions,
-    operators: &ryo_execution_domain::domain::file_program::types::RequestOperators,
-) -> Result<InterpretedProgram, OperatingError> {
-    ryo_execution_domain::domain::interpreted_program::service::compile(
-        plans,
-        graph,
-        partitions,
-        operators,
-        ryo_operators::domain::patterns::types::PatternMatcher(
-            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
-        ),
-    )
-}
 pub(crate) fn prepare(
     compiled: Compiled,
     rules: &[RuleSpec],
     rule_digests: &[ryo_values::domain::stored_facts::types::Digest],
     hosted: &[HostRelation],
-    derived: impl Into<crate::application::file_dag::derived::program::service::ProgramDerived>,
     identity: ObservationIdentity,
     pass: &crate::application::file_dag::file_pass::types::PassProgram,
 ) -> Result<Arc<PreparedProgram>, OperatingError> {
     use ryo_execution_domain::domain::observation_schedule::service::frontiers::service::{
-        frontier_purposes, observed_frontiers, output_consumers,
+        frontier_purposes, observed_frontiers, output_consumers, retirements,
     };
     use ryo_execution_domain::domain::observation_schedule::types::ObservationRequest;
-    let derived: crate::application::file_dag::derived::program::service::ProgramDerived =
-        derived.into();
     if rule_digests.len() != rules.len() {
         return Err(OperatingError::WrongOperation);
     }
@@ -242,11 +199,30 @@ pub(crate) fn prepare(
     let owned: Vec<ryo_values::domain::plans::types::Plan> =
         shared.iter().map(|plan| (*plan).clone()).collect();
     let observed = match request {
-        ObservationRequest::Bound { layout, .. } => Some(ObservedLayout {
+        ObservationRequest::Bound { layout, .. } => Some(ObservationMetadata {
             layout,
             frontiers: observed_frontiers(&owned).into_boxed_slice(),
+            admissions: observations
+                .iter()
+                .enumerate()
+                .map(|(rule, bindings)| {
+                    bindings
+                        .iter()
+                        .map(|binding| {
+                            partitions
+                                .observation(RuleIndex(rule), binding.input)
+                                .map(|_| ())
+                        })
+                        .collect()
+                })
+                .collect(),
+            outputs: outputs(
+                &owned,
+                &output_consumers(&owned, &observations),
+                &pass.program,
+            )?,
+            retire: retirements(&observations),
             bindings: observations.clone(),
-            consumers: output_consumers(&owned, &observations),
         }),
         ObservationRequest::Independent => None,
     };
@@ -268,16 +244,6 @@ pub(crate) fn prepare(
     } else {
         SemanticNeed::NotRequired
     };
-    // The interpreter's compile serves the project phase alone; its fault refuses that phase, never the request.
-    let interpreted = interpreted(Interpreting {
-        plans: owned.clone(),
-        bindings: &bindings,
-        hosted,
-        derived,
-        observations: &observations,
-        request,
-        partitions,
-    });
     Ok(Arc::new(PreparedProgram {
         rule_ids: rules.iter().map(|rule| rule.id.clone()).collect(),
         applicability: rules.iter().map(|rule| rule.applicability).collect(),
@@ -290,55 +256,54 @@ pub(crate) fn prepare(
         semantic_metadata: ryo_values::domain::run_metadata::service::from_plans(&owned),
         hosted: hosted.to_vec().into_boxed_slice(),
         demanded: crate::application::file_dag::file_pass::service::demanded(&owned),
-        interpreted,
     }))
 }
 
-/// The interpreter's compile of a request, which ryo-2964.8 deletes: the pattern slots it compiled and the named outputs' graph.
-fn interpreted(input: Interpreting<'_>) -> Result<Interpreted, OperatingError> {
-    let Interpreting {
-        plans,
-        bindings,
-        hosted,
-        derived,
-        observations,
-        request,
-        partitions,
-    } = input;
-    let operators =
-        crate::application::file_dag::service::prepare(&plans, bindings, hosted, derived)?;
-    let graph = ryo_execution_domain::domain::file_program::service::compile_prepared_observations(
-        &plans, &operators, request,
-    );
-    let named = graph
-        .observations
-        .as_ref()
-        .map(|named| ObservationMetadata {
-            layout: named.layout,
-            frontiers: named.frontiers.clone().into_boxed_slice(),
-            bindings: observations.to_vec(),
-            admissions: observations
+/// Each named output of each plan, where it is made and which rules consume it: after the files, in each file by the step the
+/// executable program made of its source, or unavailable when the program made no node of it.
+///
+/// # Errors
+///
+/// `NotRun` for a rule the executable program does not hold.
+fn outputs(
+    plans: &[ryo_values::domain::plans::types::Plan],
+    consumers: &[Vec<Vec<RuleIndex>>],
+    executable: &ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
+) -> Result<Vec<Vec<OutputMetadata>>, OperatingError> {
+    plans
+        .iter()
+        .enumerate()
+        .map(|(rule, plan)| {
+            let nodes = ryo_execution_domain::domain::executable_program::service::rule(
+                executable,
+                RuleIndex(rule),
+            )?;
+            Ok(plan
+                .observations
                 .iter()
                 .enumerate()
-                .map(|(rule, bindings)| {
-                    bindings
-                        .iter()
-                        .map(|binding| partitions.observation(RuleIndex(rule), binding.input).map(|_| ()))
-                        .collect()
+                .map(|(output, observation)| OutputMetadata {
+                    root: if observation.scope
+                        == ryo_values::domain::plan_parts::types::StepScope::CrossFile
+                    {
+                        OutputRoot::CrossFile
+                    } else if let Input::Step(step) = observation.source
+                        && nodes
+                            .steps
+                            .get(usize::try_from(step.0).unwrap_or(usize::MAX))
+                            .is_some_and(Result::is_ok)
+                    {
+                        OutputRoot::PerFile
+                    } else {
+                        OutputRoot::Unavailable
+                    },
+                    consumers: consumers
+                        .get(rule)
+                        .and_then(|outputs| outputs.get(output))
+                        .cloned()
+                        .unwrap_or_default(),
                 })
-                .collect(),
-            outputs: named.outputs.iter().map(|outputs| outputs.iter().map(|output| OutputMetadata {
-                root: match output.root { ryo_execution_domain::domain::file_program::types::GraphObservationRoot::PerFile(_) => OutputRoot::PerFile,
-                    ryo_execution_domain::domain::file_program::types::GraphObservationRoot::CrossFile => OutputRoot::CrossFile,
-                    ryo_execution_domain::domain::file_program::types::GraphObservationRoot::Unavailable => OutputRoot::Unavailable }, consumers: output.consumers.clone(),
-            }).collect()).collect(),
-            retire: named.retire.clone(),
-        });
-    let program = Arc::new(compile_program(&plans, graph, &partitions, &operators)?);
-    // The program's own pattern slots: its presence fold compiled the source searches' patterns into them.
-    let matchers = Arc::clone(program.matchers());
-    Ok(Interpreted {
-        observations: named,
-        matchers,
-    })
+                .collect())
+        })
+        .collect()
 }

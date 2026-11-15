@@ -88,57 +88,6 @@ pub(crate) fn right_column(
     })
 }
 
-/// The native tree form a step's output keeps: a select that filters and drops nothing, and a projection that keeps
-/// every column in place, read their input's tree; any other step computes its rows.
-pub(crate) fn tree_output(
-    operation: &Operation,
-    input: Option<InputShape<'_>>,
-) -> Option<ryo_operators::domain::tree_cells::types::TreeForm> {
-    match operation {
-        Operation::Select {
-            comparisons, kept, ..
-        } if comparisons.is_empty() && kept.is_empty() => input.and_then(|input| input.tree),
-        Operation::Project {
-            columns, distinct, ..
-        } if *distinct == ryo_values::domain::plan_parts::types::RepeatedRows::Kept
-            && input.is_some_and(|input| {
-                columns.len() == input.kinds.len()
-                    && columns.iter().enumerate().all(|(at, column)| {
-                        usize::try_from(column.0).is_ok_and(|place| place == at)
-                    })
-            }) =>
-        {
-            input.and_then(|input| input.tree)
-        }
-        Operation::Select { .. }
-        | Operation::Project { .. }
-        | Operation::Extend { .. }
-        | Operation::Join { .. }
-        | Operation::Union { .. }
-        | Operation::Intersection { .. }
-        | Operation::Difference { .. }
-        | Operation::Antijoin { .. }
-        | Operation::GroupCount { .. }
-        | Operation::GroupDigest { .. }
-        | Operation::Capture { .. }
-        | Operation::Rank { .. }
-        | Operation::Replace { .. }
-        | Operation::OrderedMatch { .. }
-        | Operation::Words { .. }
-        | Operation::Axis { .. }
-        | Operation::Closure { .. }
-        | Operation::OrderedDfs { .. }
-        | Operation::Cycles { .. }
-        | Operation::Rows { .. }
-        | Operation::Hosted { .. }
-        | Operation::SpanBetween { .. }
-        | Operation::SourceMatches { .. }
-        | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. }
-        | Operation::SpanBounds { .. } => None,
-    }
-}
-
 /// Where each column of an operation's answer comes from, from where each column of its inputs comes from: the one
 /// propagation of column origins. A column keeps its origin when the operation passes it on as it was in one input row
 /// (select and project keep or reorder columns; the appended-column operators add columns with none; an antijoin or a

@@ -47,20 +47,17 @@ pub(crate) fn prepared_test_program(
         rule_requests::types::{RuleParameters, RuleSpec},
         stored_facts::types::Digest,
     };
-    let engine = PrepareUseCaseImpl::new(
-        Arc::new(
-            ryo_execution_runtime::outbound::operators::factory::use_case(
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
-                    std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
-                ),
-                ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl::new(),
-                ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl::new(
-                    std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
-                ),
+    let engine = PrepareUseCaseImpl::new(Arc::new(
+        ryo_execution_runtime::outbound::operators::factory::use_case(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
+                std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
+            ),
+            ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl::new(),
+            ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl::new(
+                std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
             ),
         ),
-        ryo_execution::derived(),
-    );
+    ));
     let program = Arc::new(
         engine
             .prepare(PrepareRequest {

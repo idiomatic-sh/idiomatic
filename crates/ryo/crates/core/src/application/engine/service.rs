@@ -14,7 +14,7 @@ use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionPr
 use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution::inbound::use_cases::prepare::types::{DerivedViews, PrepareRequest};
+use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
@@ -64,10 +64,10 @@ impl std::fmt::Debug for Execution {
 }
 
 impl Execution {
-    /// Execution over the operators and the derived views the edge injects.
+    /// Execution over the operators the edge injects.
     #[must_use]
-    pub fn new(operators: Arc<dyn OperatorsPort>, derived: DerivedViews) -> Self {
-        Self(PrepareUseCaseImpl::new(operators, derived))
+    pub fn new(operators: Arc<dyn OperatorsPort>) -> Self {
+        Self(PrepareUseCaseImpl::new(operators))
     }
 
     /// Begins the execution of a prepared program over the corpus it runs on, telling `observer` of the engine's work.

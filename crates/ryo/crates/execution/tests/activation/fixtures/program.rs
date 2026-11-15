@@ -85,10 +85,9 @@ fn plan(index: usize) -> Plan {
 }
 
 pub(in crate::fixtures) fn engine() -> PrepareUseCaseImpl {
-    PrepareUseCaseImpl::new(
-        Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::operators()),
-        Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
-    )
+    PrepareUseCaseImpl::new(Arc::new(
+        ryo_execution::inbound::use_cases::execution::fixtures::operators(),
+    ))
 }
 pub(in crate::fixtures) fn corpus() -> [CorpusInput; 1] {
     [CorpusInput::Available(CorpusEntry {

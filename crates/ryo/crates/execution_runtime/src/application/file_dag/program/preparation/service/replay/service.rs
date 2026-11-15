@@ -1,5 +1,5 @@
 //! Which rules and producer frontiers a changed selection reaches through named observations.
-use crate::application::file_dag::program::preparation::types::ObservedLayout;
+use crate::application::file_dag::program::preparation::types::ObservationMetadata;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::prepared_execution::types::ReplayClosure;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
@@ -56,8 +56,8 @@ impl PreparedProgram {
             reach.mark(RuleIndex(selected.0 as usize))?;
         }
         while let Some(rule) = reach.queue.pop_front() {
-            for output in named.consumers.get(rule.0).ok_or(OperatingError::NotRun)? {
-                for &consumer in output {
+            for output in named.outputs.get(rule.0).ok_or(OperatingError::NotRun)? {
+                for &consumer in &output.consumers {
                     reach.mark(consumer)?;
                 }
             }
@@ -65,11 +65,12 @@ impl PreparedProgram {
         }
         let mut buckets = std::collections::BTreeSet::new();
         for root in named.frontiers.iter() {
-            let consumers = named
-                .consumers
+            let consumers = &named
+                .outputs
                 .get(root.producer.0)
                 .and_then(|outputs| outputs.get(root.output.0 as usize))
-                .ok_or(OperatingError::NotRun)?;
+                .ok_or(OperatingError::NotRun)?
+                .consumers;
             if consumers
                 .iter()
                 .any(|consumer| reach.needed[consumer.0] == Visit::Reached)
@@ -99,7 +100,7 @@ impl PreparedProgram {
     /// A consumer reads the cross-file outputs of its producers, so those producers rerun too.
     fn follow_producers(
         &self,
-        named: &ObservedLayout,
+        named: &ObservationMetadata,
         rule: RuleIndex,
         reach: &mut Reach,
     ) -> Result<(), OperatingError> {

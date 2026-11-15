@@ -1,7 +1,6 @@
 //! Authored request assembly, for the use case's own tests: every operation runs through the public execution owner.
 
-use super::{derived, operators};
-use crate::application::derived::service::DerivedPreparation;
+use super::operators;
 use crate::inbound::use_cases::execution::fixtures::TableFacts;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::{
@@ -18,7 +17,6 @@ use ryo_execution_runtime::application::file_dag::program::prepared_execution::t
 use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
-use ryo_execution_store::outbound::derived::interface::DerivedPort;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
@@ -87,21 +85,17 @@ pub(crate) struct Authored {
     pub(crate) hosted: Vec<HostRelation>,
     pub(crate) observations: ObservationIdentity,
 }
-/// The application's preparation over the operators and derived views it is given.
+/// The application's preparation over the operators it is given.
 pub(crate) struct Preparation {
     operators: Arc<dyn OperatorsPort>,
-    derived: DerivedPreparation,
 }
 impl Preparation {
-    /// The preparation over the real operators and derived views.
+    /// The preparation over the real operators.
     pub(crate) fn real() -> Self {
-        Self::new(Arc::new(operators()), Arc::new(derived()))
+        Self::new(Arc::new(operators()))
     }
-    pub(crate) fn new(operators: Arc<dyn OperatorsPort>, derived: Arc<dyn DerivedPort>) -> Self {
-        Self {
-            operators,
-            derived: derived.into(),
-        }
+    pub(crate) fn new(operators: Arc<dyn OperatorsPort>) -> Self {
+        Self { operators }
     }
     /// The program of an authored request, assembled and prepared as the engine prepares it.
     pub(crate) fn prepare(
@@ -113,7 +107,7 @@ impl Preparation {
             request.bindings,
             &request.rules,
         )?;
-        self.derived.program(
+        ryo_execution_runtime::application::file_dag::derived::service::prepare(
             compiled,
             &request.rules,
             &request.digests,

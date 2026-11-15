@@ -127,3 +127,41 @@ pub fn output_consumers(
     }
     consumers
 }
+
+/// The outputs each consumer retires, from the request's resolved bindings: the producers' outputs it reads, in the order its
+/// bindings name them, each once.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::observation_schedule::service::frontiers::service::retirements;
+/// assert!(retirements(&[]).is_empty());
+/// ```
+#[must_use]
+pub fn retirements(
+    bindings: &[Vec<ResolvedObservationBinding>],
+) -> Vec<Vec<crate::domain::observation_schedule::types::ObservationRetirement>> {
+    bindings
+        .iter()
+        .map(|inputs| {
+            let mut retired: Vec<
+                crate::domain::observation_schedule::types::ObservationRetirement,
+            > = Vec::new();
+            for producer in inputs.iter().flat_map(|binding| &binding.producers) {
+                if let ResolvedObservationProducer::Output { rule, output } = producer
+                    && !retired
+                        .iter()
+                        .any(|each| each.producer == *rule && each.output == *output)
+                {
+                    retired.push(
+                        crate::domain::observation_schedule::types::ObservationRetirement {
+                            producer: *rule,
+                            output: *output,
+                        },
+                    );
+                }
+            }
+            retired
+        })
+        .collect()
+}

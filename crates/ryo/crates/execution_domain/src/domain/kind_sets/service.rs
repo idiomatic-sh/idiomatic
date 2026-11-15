@@ -7,9 +7,8 @@ use ryo_operators::domain::table_scratch::types::SetMembership;
 use ryo_relations::domain::relations::constants::NO_SYMBOL;
 use ryo_relations::domain::relations::types::KindBits;
 
-use super::constants::{NO_NAME, SET_OF_TEST};
-use super::types::vocabulary::value::{PreparedKindTest, PreparedVocabulary};
-use super::types::{ComparisonOrdinal, KindScratch, ListAddress};
+use super::constants::NO_NAME;
+use super::types::vocabulary::value::PreparedVocabulary;
 use crate::domain::operating::types::KindNaming;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::comparing::collections::comparisons::affix::item::AffixItem;
@@ -113,80 +112,6 @@ pub fn satisfies(
     .unwrap_or(PredicateOutcome::Fails)
 }
 
-/// Reads the comparisons of a filter that name a kind into `tests`, each as the set of kinds that
-/// satisfy it. The sets are made once for a test and its text, from the kinds of the first file, and
-/// found by them in every file of that language after: a kind has the same name in every file of a language, and another language
-/// has its own kinds.
-pub(crate) fn kind_tests(
-    tree: &TreeRows<'_>,
-    comparisons: &[PlanComparison],
-    prepared_kinds: Option<&PreparedVocabulary>,
-    matcher: PatternMatcher<'_>,
-    symbols: &Symbols,
-    source: SourceView<'_>,
-    scratch: &mut KindScratch,
-) {
-    scratch.tests.0.clear();
-    // A file nothing read names no kind: it is no ground to decide what a name means.
-    if tree.form != TreeForm::Elements || kind_names(tree.elements).is_empty() {
-        return;
-    }
-    // A kind has the same name in every file of a language, and another language numbers its kinds otherwise: the sets are the
-    // language's, found by what its kinds are called.
-    let vocabulary = kind_vocabulary(tree.elements);
-    for (ordinal, comparison) in comparisons.iter().enumerate() {
-        let (Some(which), Operand::Column(column), Operand::Literal(QueryLiteral::Text(named))) =
-            (naming(comparison.test), &comparison.left, &comparison.right)
-        else {
-            continue;
-        };
-        if Some(*column) != *ELEMENT_KIND {
-            continue;
-        }
-        let asked = KindTest {
-            vocabulary,
-            test: NamingTest(u8::try_from(which.0).unwrap_or(u8::MAX)),
-            text: named.clone(),
-        };
-        let set = if let Some(set) = scratch.names.get(&asked) {
-            *set
-        } else {
-            let key = PreparedKindTest {
-                comparisons: ListAddress(comparisons.as_ptr().addr()),
-                ordinal: ComparisonOrdinal(ordinal),
-                test: comparison.test,
-                text: named.clone(),
-            };
-            let made = if let Some(prepared) = prepared_kinds {
-                #[cfg(test)]
-                let _previous = prepared
-                    .lookups
-                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                let mut masks = prepared
-                    .masks
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                std::sync::Arc::clone(masks.entry(key).or_insert_with(|| {
-                    #[cfg(test)]
-                    let _previous = prepared
-                        .builds
-                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    std::sync::Arc::new(make_set(&prepared.names, comparison.test, named, matcher))
-                }))
-            } else {
-                let names = vocabulary_names(tree.elements, symbols, source);
-                std::sync::Arc::new(make_set(&names, comparison.test, named, matcher))
-            };
-            scratch.sets.push(made);
-            let _: Option<KindSetPlace> = scratch
-                .names
-                .insert(asked, KindSetPlace(scratch.sets.len() - 1));
-            KindSetPlace(scratch.sets.len() - 1)
-        };
-        scratch.tests.0.push(set.0);
-    }
-}
-
 /// The set of kinds at `place`.
 ///
 /// # Panics
@@ -196,34 +121,6 @@ pub(crate) fn kind_tests(
     clippy::expect_used,
     reason = "a test's place is pushed with its set; a place past the sets is a bug that must crash, not fail every kind"
 )]
-fn set_at(scratch: &KindScratch, place: KindSetPlace) -> &KindSet {
-    scratch.sets.get(place.0).expect(SET_OF_TEST)
-}
-
-/// Whether an element of this kind passes every comparison that names a kind.
-pub(crate) fn passes(scratch: &KindScratch, kind: KindBits) -> PredicateOutcome {
-    if scratch
-        .tests
-        .0
-        .iter()
-        .all(|set| kind_has(set_at(scratch, KindSetPlace(*set)), kind) == SetMembership::In)
-    {
-        PredicateOutcome::Holds
-    } else {
-        PredicateOutcome::Fails
-    }
-}
-
-/// The kinds of the smallest set the tests name, in order: every kind that passes them is among these.
-pub(crate) fn named_kinds(scratch: &KindScratch) -> Option<&[KindBits]> {
-    scratch
-        .tests
-        .0
-        .iter()
-        .map(|set| set_at(scratch, KindSetPlace(*set)))
-        .min_by_key(|named| named.kinds.len())
-        .map(|named| named.kinds.as_slice())
-}
 
 /// Resolve ordered names once at the file boundary; an absent spelling retains the old nonmatching behavior.
 fn vocabulary_names(
@@ -258,37 +155,7 @@ pub fn prepare_vocabulary(
     if let Some(prepared) = previous.as_ref().filter(|prepared| prepared.names == names) {
         return Some(std::sync::Arc::clone(prepared));
     }
-    let prepared = std::sync::Arc::new(PreparedVocabulary {
-        names,
-        masks: std::sync::Mutex::default(),
-        #[cfg(test)]
-        lookups: std::sync::atomic::AtomicUsize::new(0),
-        #[cfg(test)]
-        builds: std::sync::atomic::AtomicUsize::new(0),
-    });
+    let prepared = std::sync::Arc::new(PreparedVocabulary { names });
     *previous = Some(std::sync::Arc::clone(&prepared));
     Some(prepared)
-}
-
-/// Evaluate a literal predicate once over a vocabulary, never over source rows.
-fn make_set(
-    names: &[Option<KindWord>],
-    test: Test,
-    literal: &LiteralText,
-    matcher: PatternMatcher<'_>,
-) -> KindSet {
-    let mut made = KindSet::default();
-    made.bits.0.resize(names.len().div_ceil(64), 0);
-    for (bits, name) in names.iter().enumerate() {
-        if name.as_ref().is_some_and(|name| {
-            satisfies(test, TextView(&name.0), TextView(&literal.0), matcher)
-                == PredicateOutcome::Holds
-        }) {
-            if let Some(word) = made.bits.0.get_mut(bits / 64) {
-                *word |= 1 << (bits % 64);
-            }
-            made.kinds.extend(u16::try_from(bits).map(KindBits));
-        }
-    }
-    made
 }

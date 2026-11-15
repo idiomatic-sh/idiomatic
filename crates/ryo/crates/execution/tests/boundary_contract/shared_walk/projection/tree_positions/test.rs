@@ -26,10 +26,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
     for relation in [Relation::SyntaxTree, Relation::SyntaxChild] {
         for (empty, refuse) in [(false, false), (true, false), (false, true)] {
             let semantics = Arc::new(ObservedJoin { refuse });
-            let engine = PrepareUseCaseImpl::new(
-                semantics.clone(),
-                Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
-            );
+            let engine = PrepareUseCaseImpl::new(semantics.clone());
             let mut authored = authored_request(1);
             let comparisons = if empty {
                 // Comparing one node cell with itself is a total false predicate.

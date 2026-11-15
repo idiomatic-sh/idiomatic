@@ -5,7 +5,7 @@ use crate::application::file_dag::file_pass::types::{
     NodeAnswer, NodeReads, PassFile, PassProgram, PassResources,
 };
 use crate::application::file_dag::frontiers::service::reason;
-use crate::application::file_dag::program::facade_runtime::file_execution::service::classify;
+use crate::application::file_dag::program::rule_outcome::service::classify;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_domain::domain::completion::service::partial_any;
 use ryo_execution_domain::domain::completion::types::CoverageState;

@@ -164,7 +164,6 @@ pub(super) fn fixture(
         &rules,
         &[Digest([0; 16]); 4],
         &hosted,
-        ryo_execution_store::application::file_dag::fixtures::program_derived_port(),
         ObservationIdentity::Named(ObservationReadinessLayout(Digest([9; 16]))),
         &pass,
     )

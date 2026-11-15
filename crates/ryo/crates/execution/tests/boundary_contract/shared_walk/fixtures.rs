@@ -40,13 +40,7 @@ use ryo_values::domain::{
 use std::sync::Arc;
 pub(crate) fn engine() -> (PrepareUseCaseImpl, Arc<SemanticCalls>) {
     let semantics = Arc::new(SemanticCalls::default());
-    (
-        PrepareUseCaseImpl::new(
-            semantics.clone(),
-            Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
-        ),
-        semantics,
-    )
+    (PrepareUseCaseImpl::new(semantics.clone()), semantics)
 }
 #[derive(Clone, Copy)]
 pub(crate) enum Selector {

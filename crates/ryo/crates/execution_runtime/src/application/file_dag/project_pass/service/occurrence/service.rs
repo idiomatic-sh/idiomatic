@@ -3,8 +3,8 @@
 use crate::application::file_dag::file_pass::types::NodeAnswer;
 use crate::application::file_dag::frontiers::service::reason;
 use crate::application::file_dag::frontiers::types::FrontierRows;
-use crate::application::file_dag::program::facade_runtime::file_execution::service::classify;
 use crate::application::file_dag::program::observed_publication::service::ObservedPublication;
+use crate::application::file_dag::program::rule_outcome::service::classify;
 use crate::application::file_dag::program::rule_outcome::types::{
     ProjectObservation, ProjectOutputOutcome, RootOutcome, RuleOutcome,
 };

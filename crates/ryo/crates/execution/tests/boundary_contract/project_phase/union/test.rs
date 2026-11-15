@@ -63,10 +63,9 @@ fn project_hosted_text_joins_named_publication_text_by_spelling() {
 }
 
 fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>) {
-    let engine = PrepareUseCaseImpl::new(
-        Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::operators()),
-        Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
-    );
+    let engine = PrepareUseCaseImpl::new(Arc::new(
+        ryo_execution::inbound::use_cases::execution::fixtures::operators(),
+    ));
     let mut authored = authored_request(2);
     let relation = Relation::ModuleIdentity;
     let file_column = kinds(relation)

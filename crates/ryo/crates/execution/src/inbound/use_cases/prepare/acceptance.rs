@@ -13,10 +13,9 @@ fn request(world: &mut Behavior, input: String) {
 
 #[when(expr = "preparation runs")]
 fn runs(world: &mut Behavior) {
-    let prepare = PrepareUseCaseImpl::new(
-        Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::operators()),
-        Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
-    );
+    let prepare = PrepareUseCaseImpl::new(Arc::new(
+        ryo_execution::inbound::use_cases::execution::fixtures::operators(),
+    ));
     let bindings = if world.input == "mismatched bindings" {
         vec![vec![]]
     } else {

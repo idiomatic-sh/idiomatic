@@ -1,4 +1,4 @@
-//! A root's answer: its readiness for the named outputs a file records, and its outcome when it raised an error.
+//! The `rule_outcome` service: a root's readiness for the named outputs a file records, and its outcome when it raised an error.
 
 use crate::application::file_dag::file_pass::constants::PRODUCER_COVERAGE_INCOMPLETE;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;

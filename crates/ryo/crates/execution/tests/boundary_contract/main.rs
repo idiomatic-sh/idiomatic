@@ -43,10 +43,9 @@ use boundary_fixture::fixtures::{
 
 #[test]
 fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
-    let engine = PrepareUseCaseImpl::new(
-        Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::operators()),
-        Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
-    );
+    let engine = PrepareUseCaseImpl::new(Arc::new(
+        ryo_execution::inbound::use_cases::execution::fixtures::operators(),
+    ));
     let mut input = authored_request(1);
     boundary_fixture::fixtures::plans(&mut input)[0]
         .steps

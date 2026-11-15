@@ -86,7 +86,7 @@ type Value = Emitted;
 type Failure = OperatingError;
 fn subject(refusal: Input) -> Result<Emitted, Failure> {
     let port = Arc::new(InjectedOperators { refusal });
-    let engine = Preparation::new(port, Arc::new(fixtures::derived()));
+    let engine = Preparation::new(port);
     let mut plan = inputs::plan(vec![
         Operation::Hosted {
             relation: HostedNumber(0),

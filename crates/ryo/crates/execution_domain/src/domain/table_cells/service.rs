@@ -5,43 +5,7 @@ use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_relations::domain::relations::types::{Position, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
-use crate::domain::table_cells::types::{CellsRead, ColumnPlaces};
-
-/// How many columns a row of a tree has.
-const TREE_WIDTH: usize = 5;
-
-/// Reads into `scratch`, which is as wide as the rows, the cells at `columns` of the row at `index` of
-/// the elements of a tree, and nothing else. Answers whether the row is there.
-pub(crate) fn read_tree_cells(
-    tree: &TreeRows<'_>,
-    index: RowIndex,
-    scratch: &mut [Value],
-    columns: &ColumnPlaces,
-) -> CellsRead {
-    let first = usize::from(tree.form == TreeForm::Edges);
-    let Ok(at) = u32::try_from(index.0 + first) else {
-        return CellsRead::Missing;
-    };
-    if usize::try_from(at).map_or(true, |place| place >= tree.elements.kind.len()) {
-        return CellsRead::Missing;
-    }
-    let at = Position(at);
-    let read = columns.0.iter().all(|place| {
-        let (Some(slot), Ok(column)) = (scratch.get_mut(*place), u32::try_from(*place)) else {
-            return false;
-        };
-        if *place >= TREE_WIDTH {
-            return false;
-        }
-        *slot = tree_value(tree, at, ColumnIndex(column));
-        true
-    });
-    if read {
-        CellsRead::Read
-    } else {
-        CellsRead::Missing
-    }
-}
+use crate::domain::table_cells::types::ColumnPlaces;
 
 use ryo_values::domain::rows::types::RowIndex;
 

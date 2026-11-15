@@ -7,7 +7,7 @@ use crate::application::file_dag::publications::types::{
     CrossRoot, FinishState, PublicationSlot, Publications, ReferenceCount, RestoredOutput,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::file_program::types::ObservationRetirement;
+use ryo_execution_domain::domain::observation_schedule::types::ObservationRetirement;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::{CROSS_FILE, WorkerNumber};
 use ryo_values::domain::records::types::{CrossPublicationTransfer, ProducerReadiness, RootWords};

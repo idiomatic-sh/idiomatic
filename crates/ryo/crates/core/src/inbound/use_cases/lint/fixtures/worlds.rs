@@ -145,7 +145,6 @@ pub(crate) fn scheduled_world_with_query_resources(
             query_language,
             Arc::clone(&analysis_memory),
             operators,
-            ryo_execution::derived(),
             scheduler,
             workers,
             ports,

@@ -7,7 +7,6 @@ pub mod handle;
 mod identity;
 pub(crate) mod inspection;
 pub mod interface;
-pub mod number;
 pub mod packed;
 pub(crate) mod producer;
 pub mod publication;

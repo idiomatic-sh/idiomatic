@@ -64,7 +64,7 @@ pub(crate) fn deliver(
         runs::types::{RuleApplicability, RuleId},
         stored_facts::types::Digest,
     };
-    let engine = Preparation::new(port, Arc::new(owner_fixtures::derived()));
+    let engine = Preparation::new(port);
     let preparation = engine.prepare(Authored {
         plans: vec![authored.plan],
         bindings: vec![bindings.to_vec()],

@@ -41,7 +41,7 @@ use ryo_execution::inbound::use_cases::execution::interface::PreparedReporting a
 use ryo_execution::inbound::use_cases::execution::interface::ReplayClosure;
 use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, Needs};
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
-use ryo_execution::inbound::use_cases::prepare::types::{DerivedViews, PlanSource, PrepareRequest};
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
@@ -83,7 +83,6 @@ pub struct LintUseCaseImpl {
     memory: Arc<dyn MemoryPort>,
     /// Pure primitive meanings supplied by the composition edge.
     operators: Arc<dyn OperatorsPort>,
-    derived: DerivedViews,
     /// Takes the findings the rules write.
     rows: Arc<dyn RowSinkPort>,
     /// Digests the rules and files whose results the store keeps between runs.
@@ -118,7 +117,6 @@ impl LintUseCaseImpl {
         query_language: Arc<dyn QueryLanguagePort>,
         memory: Arc<dyn MemoryPort>,
         operators: Arc<dyn OperatorsPort>,
-        derived: DerivedViews,
         scheduler: Arc<dyn SchedulerPort>,
         workers: WorkerCount,
         rows: Arc<dyn RowSinkPort>,
@@ -151,7 +149,6 @@ impl LintUseCaseImpl {
             compilation: Compilation::new(query_language, Arc::clone(&digest)),
             memory,
             operators,
-            derived,
             rows,
             digest,
             store,
@@ -242,7 +239,7 @@ impl LintUseCase for LintUseCaseImpl {
             Reuse::Whole,
         );
         let unknown = self.language.unknown_reasons();
-        let execution = Execution::new(Arc::clone(&self.operators), self.derived.clone());
+        let execution = Execution::new(Arc::clone(&self.operators));
         let digests: Vec<_> = stored_rules.iter().map(|rule| rule.digest).collect();
         let request_failed = |error: &dyn std::fmt::Display| {
             ryo_values::domain::rule_requests::service::failed(
