@@ -9,7 +9,6 @@ use super::runs::lint;
 use super::runs::run_query;
 use super::runs::write_all;
 use crate::cases::run;
-use crate::domain::allocation_verdict::constants::INTERPRETER_CEILING;
 use crate::domain::allocation_verdict::service::differences;
 use crate::domain::allocation_verdict::service::verdict;
 use crate::domain::allocation_verdict::types::AllocatedBlocks;
@@ -102,7 +101,7 @@ pub fn allocation(corpus: &Corpus, library: &dyn Fn(&[u8])) {
         });
     }
     let gaps = differences(&JobBlocks(jobs), &listed, &parser);
-    let beyond = match verdict(&gaps, CopyCount(FILES), Some(INTERPRETER_CEILING)) {
+    let beyond = match verdict(&gaps, CopyCount(FILES)) {
         AllocationVerdict::Within => None,
         AllocationVerdict::BeyondOneBlock => Some(format!(
             "a file allocated more than one block beyond the parser library: {:?}",
@@ -111,18 +110,6 @@ pub fn allocation(corpus: &Corpus, library: &dyn Fn(&[u8])) {
         AllocationVerdict::TooManyGrew { grew, judged } => Some(format!(
             "{} of {} files allocated beyond the parser library, more than the findings vector doubles: {:?}",
             grew.0, judged.0, gaps.0
-        )),
-        AllocationVerdict::AboveMost { most } => Some(format!(
-            "a file allocated {} blocks beyond the parser library, above the interpreter's ceiling: {:?}",
-            most.0, gaps.0
-        )),
-        AllocationVerdict::AboveTotal { total } => Some(format!(
-            "the files allocated {} blocks beyond the parser library together, above the interpreter's ceiling: {:?}",
-            total.0, gaps.0
-        )),
-        AllocationVerdict::OtherJudged { judged } => Some(format!(
-            "{} files were judged, not the number the interpreter's ceiling was measured over: {:?}",
-            judged.0, gaps.0
         )),
     };
     assert_eq!(

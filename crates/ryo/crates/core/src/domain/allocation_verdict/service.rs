@@ -7,8 +7,7 @@ use ryo_values::domain::files::types::CorpusFile;
 
 use super::constants::{GROWTHS_PER_DOUBLING, ITEM_END, MOST_BEYOND, WARM_UP};
 use super::types::{
-    AllocatedBlocks, AllocationVerdict, Ceiling, Differences, FileCount, InputBytes, JobBlocks,
-    ParserBlocks, TotalBlocks,
+    AllocatedBlocks, AllocationVerdict, Differences, FileCount, InputBytes, JobBlocks, ParserBlocks,
 };
 use crate::domain::corpus_copies::types::CopyCount;
 
@@ -40,39 +39,9 @@ pub(crate) fn differences(
     Differences(found)
 }
 
-/// Whether the files, `copies` of every input, allocated no more than allowed: with no `ceiling`, the target, a block beyond the
-/// parser library for a few files, logarithmic in their number, for the findings vector that doubles now and then; under a
-/// ceiling, the same number of files judged, none above its most and all together not above its total.
-pub(crate) fn verdict(
-    differences: &Differences,
-    copies: CopyCount,
-    ceiling: Option<Ceiling>,
-) -> AllocationVerdict {
-    let Some(Ceiling {
-        most,
-        total,
-        judged,
-    }) = ceiling
-    else {
-        return target(differences, copies);
-    };
-    let found = FileCount(differences.0.len());
-    if found != judged {
-        return AllocationVerdict::OtherJudged { judged: found };
-    }
-    let highest = differences.0.iter().copied().max().unwrap_or_default();
-    if highest > most {
-        return AllocationVerdict::AboveMost { most: highest };
-    }
-    let summed = TotalBlocks(differences.0.iter().map(|each| each.0).sum());
-    if summed > total {
-        return AllocationVerdict::AboveTotal { total: summed };
-    }
-    AllocationVerdict::Within
-}
-
-/// The target's verdict: a block beyond the parser library for a few files, logarithmic in their number.
-fn target(differences: &Differences, copies: CopyCount) -> AllocationVerdict {
+/// Whether the files, `copies` of every input, allocated no more than allowed: a block beyond the parser library for a few files,
+/// logarithmic in their number, for the findings vector that doubles now and then.
+pub(crate) fn verdict(differences: &Differences, copies: CopyCount) -> AllocationVerdict {
     if differences.0.iter().any(|each| each.0 > MOST_BEYOND) {
         return AllocationVerdict::BeyondOneBlock;
     }
