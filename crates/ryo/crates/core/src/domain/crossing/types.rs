@@ -75,3 +75,13 @@ pub(crate) struct PhaseRoots {
     /// Only roots explicitly retained by request demand linking.
     pub observations: Vec<ObservedRoot>,
 }
+
+/// Whether the steps after the files need a frame of a file from each rule that governs it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FrameHanding {
+    /// A language read it, or failed on it: a rule's answer is partial without its frame, so every frame of it is kept.
+    Handed,
+    /// No linked language reads files like it: the steps after the files need no frame of it, so a frame that holds no row is not
+    /// kept.
+    Withheld,
+}

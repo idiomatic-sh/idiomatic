@@ -10,6 +10,8 @@ use crate::domain::admission::errors::AdmissionError;
 use crate::domain::admission::service::admit_columns;
 use crate::domain::admission::service::admit_elements;
 use crate::domain::admission::service::limits_of;
+use crate::domain::crossing::service::frame_handing;
+use crate::domain::crossing::types::FrameHanding;
 use crate::domain::reading::service::begin;
 use crate::domain::reading::service::engine_asked;
 use crate::domain::reading::service::failure_partials;
@@ -159,7 +161,7 @@ impl FileAnalysis {
         if asked.any == EngineRows::Asked {
             index_kinds(&mut worker.tables.elements);
             let semantic = SemanticState::new(number, &worker.tables.elements, None);
-            Self::read_file(worker, visit, number, &semantic)?;
+            Self::read_file(worker, visit, number, &semantic, FrameHanding::Handed)?;
         } else if Self::may_gate_rules(setting, acceptance) == Gating::MayGate {
             drop(Self::gate_rules(
                 &mut worker.tables,
@@ -272,7 +274,7 @@ impl FileAnalysis {
         Ok(match reading {
             FileReading::Read(_) | FileReading::Manifest => {
                 index_kinds(&mut worker.tables.elements);
-                Self::read_file(worker, visit, number, &semantic)?;
+                Self::read_file(worker, visit, number, &semantic, FrameHanding::Handed)?;
                 if semantic.completeness() == FileCompleteness::Incomplete {
                     None
                 } else {
@@ -295,7 +297,8 @@ impl FileAnalysis {
                 if asked.any == EngineRows::Asked {
                     clear_symbols(&mut worker.tables.symbols);
                     index_kinds(&mut worker.tables.elements);
-                    Self::read_file(worker, visit, number, &semantic)?;
+                    let handing = frame_handing(Some(&reason));
+                    Self::read_file(worker, visit, number, &semantic, handing)?;
                 } else {
                     let unavailable_acceptance = syntax_acceptance(&worker.tables.elements);
                     if Self::may_gate_rules(setting, unavailable_acceptance) == Gating::MayGate {

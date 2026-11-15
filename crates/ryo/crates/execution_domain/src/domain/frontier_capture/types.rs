@@ -32,4 +32,6 @@ pub struct CapturedFrontier {
     pub proof: ryo_values::domain::records::types::FrontierProof,
     /// The frontier's rows, packed.
     pub words: ryo_values::domain::stored_facts::types::PackedWords,
+    /// How many rows the frontier holds: none for a file that hands the input nothing.
+    pub rows: ryo_values::domain::rows::types::RowCount,
 }

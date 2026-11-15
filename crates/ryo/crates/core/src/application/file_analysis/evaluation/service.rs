@@ -4,6 +4,7 @@ use super::super::errors::FileAnalysisError;
 use super::super::semantic::service::SemanticState;
 use super::super::service::FileAnalysis;
 use super::super::types::{FileVisit, RuleGate, Worker};
+use crate::domain::crossing::types::FrameHanding;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
 use crate::domain::workers::service::governs_rule;
@@ -40,6 +41,7 @@ impl FileAnalysis {
         visit: &FileVisit<'_>,
         file: FileId,
         semantic: &SemanticState,
+        handing: FrameHanding,
     ) -> Result<(), FileAnalysisError> {
         let tables = &mut worker.tables;
         let acceptance = syntax_acceptance(&tables.elements);
@@ -106,8 +108,11 @@ impl FileAnalysis {
                         continue;
                     }
                 };
+                // A file no language reads hands a rule no frame the steps after the files need: an empty one is not kept.
+                let empty = handing == FrameHanding::Withheld && capture.rows.0 == 0;
                 if visit.setting.keeping == Keeping::Keeps
                     && *visit.setting.answering == Answering::Findings
+                    && !empty
                 {
                     tables
                         .captured

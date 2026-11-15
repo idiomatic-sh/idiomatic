@@ -120,6 +120,7 @@ impl FileRun<'_> {
                     file,
                 )?;
                 let mut table = table_of(&self.owner, &admitted, read)?;
+                let rows = table.count;
                 let frame_places = ryo_execution_domain::domain::finish::service::escape_frame(
                     &mut table,
                     ryo_execution_domain::domain::finish::types::Leaving {
@@ -159,6 +160,7 @@ impl FileRun<'_> {
                         coverage,
                     },
                     words: packed,
+                    rows,
                 })
             })();
             captures.push(FrontierCapture { input, outcome });

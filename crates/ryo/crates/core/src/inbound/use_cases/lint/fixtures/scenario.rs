@@ -76,6 +76,8 @@ pub(crate) enum Scenario {
     EditedBesideAnExcludedFile,
     /// Lists a file before one used again whose relation is read in part: the part stays that file's, as a cold run keeps it.
     PartialOfAReusedFileAfterAFileIsListedBeforeIt,
+    /// Lints a file no language reads with a cross-file rule that runs on it and is handed no row of it.
+    FramesOfAFileNoLanguageReads,
     /// Two runs naming different rules, one after the other twice over plans one session shares, as concurrent `tm validate` calls do.
     InterleavedRuns,
     /// Lints with the host's relation, counting how many times the language was asked to read the manifests.
@@ -213,6 +215,7 @@ pub(crate) fn scenario(scenario: Scenario) -> Result<(usize, usize), LintError> 
         Scenario::PartialOfAReusedFileAfterAFileIsListedBeforeIt => {
             partial_of_a_reused_file_after_a_file_is_listed_before_it()
         }
+        Scenario::FramesOfAFileNoLanguageReads => frames_of_a_file_no_language_reads(),
         Scenario::InterleavedRuns => interleaved_runs(),
         Scenario::ManyRuns => many_runs(),
         Scenario::CompilesPerRule => {
@@ -223,4 +226,36 @@ pub(crate) fn scenario(scenario: Scenario) -> Result<(usize, usize), LintError> 
             made.report.map(|unread| (made.compiles, unread))
         }
     }
+}
+
+/// Lints `a.rs` and `notes.snap`, which no language reads, with a cross-file rule over the paths of `.rs` files, and counts the
+/// frames the store kept of each: the rule runs on both, and `notes.snap` hands it no row. Answers the frames of `a.rs`, then those
+/// of `notes.snap`.
+fn frames_of_a_file_no_language_reads() -> Result<(usize, usize), LintError> {
+    const UNTESTED: &str = "let files = capture(from=\"filesystem.file\", path=\"path\", pattern=\"{name}.rs\", captures=[\"name\"]);\nlet tests = capture(from=\"filesystem.file\", path=\"path\", pattern=\"{name}_test.rs\", captures=[\"name\"]);\nlet tested = project(from=tests, columns=[\"name\"]);\nlet untested = antijoin(left=files, right=tested, left-on=[\"name\"], right-on=[\"name\"]);\nemit untested subject \"path\" key(\"path\");";
+    let store = Arc::new(LintStoreFake::default());
+    let _linted = super::stores::compiled_lint(Given {
+        files: vec![("a.rs", "fn a() {}"), ("notes.snap", "a note")],
+        rules: vec![UNTESTED],
+        ids: vec!["untested"],
+        store: Arc::clone(&store),
+        ..violations()
+    })?;
+    let kept = store
+        .kept
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let frames_of = |path: &str| {
+        let number = kept
+            .files
+            .iter()
+            .position(|file| &*file.path.0 == path)
+            .and_then(|place| u32::try_from(place).ok());
+        kept.handed
+            .frontier
+            .iter()
+            .filter(|frame| Some(frame.file.0) == number)
+            .count()
+    };
+    Ok((frames_of("a.rs"), frames_of("notes.snap")))
 }

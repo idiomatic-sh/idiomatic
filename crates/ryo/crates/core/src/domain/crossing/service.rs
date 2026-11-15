@@ -1,6 +1,6 @@
 //! The `crossing` service: free functions named by verb over the cross-file steps of one rule, with no IO and no ports.
 
-use super::types::{CrossingInput, Placeability};
+use super::types::{CrossingInput, FrameHanding, Placeability};
 use crate::domain::workers::types::RunDecisions;
 use ryo_execution::inbound::use_cases::metadata::interface::{FilePartial, Partials, RuleIndex};
 
@@ -100,6 +100,21 @@ pub(crate) fn partials_for_reads(
 
 use ryo_values::domain::rows::types::Table;
 
+/// Whether the steps after the files need a frame of a file, by why no language read it, if none did: not of one no linked language
+/// reads, and of one a language failed on. The one definition both the file analysis (which keeps no empty frame of it) and the steps
+/// after the files (which ask for none) read.
+#[must_use]
+pub(crate) fn frame_handing(
+    unread: Option<&ryo_values::domain::records::types::Unreadable>,
+) -> FrameHanding {
+    match unread {
+        Some(ryo_values::domain::records::types::Unreadable::NoLanguage) => FrameHanding::Withheld,
+        Some(ryo_values::domain::records::types::Unreadable::Failed(_)) | None => {
+            FrameHanding::Handed
+        }
+    }
+}
+
 /// For each rule, the files of the run it has no frame for: those its scopes do not place it on, and those no language read.
 #[must_use]
 pub(crate) fn inapplicable_files(
@@ -109,13 +124,12 @@ pub(crate) fn inapplicable_files(
     use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
     use ryo_execution::inbound::use_cases::metadata::interface::{Governing, Mask};
     use ryo_values::domain::files::types::Hits;
-    use ryo_values::domain::records::types::Unreadable;
     use ryo_values::domain::runs::types::RuleNumber;
     let no_language: std::collections::BTreeSet<&ryo_language::domain::files::types::FilePath> =
         crossing
             .unread
             .iter()
-            .filter(|each| each.reason == Unreadable::NoLanguage)
+            .filter(|each| frame_handing(Some(&each.reason)) == FrameHanding::Withheld)
             .map(|each| &each.path)
             .collect();
     let mut inapplicable = vec![InapplicableFiles::default(); crossing.ids.len()];
