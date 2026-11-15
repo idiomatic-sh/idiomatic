@@ -53,11 +53,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "n0 n0 b b | n0 n2 b b | n1 n1 a a | n2 n0 b b | n2 n2 b b",
         )),
     },
+    // A join's rows are a typed table, and a right column past the right rows has no kind: the join is refused before any
+    // row, whatever it matches, as the schema of the step refuses it before a row is read.
     Case {
-        name: CaseName("empty_matches_do_not_access_invalid_output_columns"),
-        word: Word::Succeeds,
+        name: CaseName(
+            "a_join_naming_a_column_past_its_right_rows_is_refused_whatever_its_matches",
+        ),
+        word: Word::Refuses,
         input: || Scenario::JoinOfNoMatchPastItsOutput,
-        expect: Expect::Value(Cow::Borrowed("")),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
+            index: ColumnIndex(99),
+        }),
     },
     Case {
         name: CaseName("missing_left_key_is_refused_before_candidate_access"),
