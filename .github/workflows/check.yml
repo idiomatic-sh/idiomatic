@@ -41,9 +41,10 @@ env:
   # nextest's `ci` profile (each product's .config/nextest.toml): no fail-fast, so a machine reports every red test.
   NEXTEST_PROFILE: ci
 concurrency:
-  group: check-${{ github.event.pull_request.number || github.ref }}-${{ inputs.product }}
+  group: check-${{ github.event.pull_request.number || (github.event_name == 'push' && github.sha) || github.ref }}-${{ inputs.product }}
   # A newer push to a pull request, or a newer hand run, cancels the one in progress; a merge to main never cancels the run
-  # seeding the stores.
+  # seeding the stores, and each commit has a group of its own, so no pending run is replaced: the release starts on each run's
+  # green `gate`, and a commit with no run would never release.
   cancel-in-progress: ${{ github.event_name != 'push' }}
 jobs:
   # The repository root's own groups, which no product has, so the root's tools alone.
@@ -215,7 +216,7 @@ jobs:
           version: "0.13.8"
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup toolchain install
-      # Match release.yml's cache for this machine, group and product. Clean only the product's workspace.
+      # One cache per machine and product, shared by the groups run there. Clean only the product's workspace.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           cache-bin: false
@@ -323,7 +324,7 @@ jobs:
           version: "0.13.8"
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup toolchain install
-      # Match release.yml's cache for this machine, group and product. Clean only the product's workspace.
+      # One cache per machine and product, shared by the groups run there. Clean only the product's workspace.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           cache-bin: false
