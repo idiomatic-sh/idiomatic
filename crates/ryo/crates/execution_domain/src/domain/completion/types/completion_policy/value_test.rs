@@ -173,7 +173,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_project_policy_names_each_file_its_rule_skipped_once_in_order"),
         word: Word::Succeeds,
         input: || Asked::SkippedFiles,
-        expect: Expect::Value(Answer::Files(Cow::Borrowed(&[]))),
+        expect: Expect::Value(Answer::Files(Cow::Borrowed(&[FileId(1), FileId(2)]))),
     },
 ];
 #[test]
