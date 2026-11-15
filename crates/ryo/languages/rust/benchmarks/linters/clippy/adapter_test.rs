@@ -3,7 +3,7 @@
 #![cfg(test)]
 use super::{adapter::LinterClippyAdapter, settings::LinterClippySettings};
 use ryo::linter::{RelativePath, RuleId};
-use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
+use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run, slashed};
 use ryo_benchmark::outbound::linter::interface::LinterPort as _;
 use ryo_benchmark::outbound::suite::{interface::SuitePort as _, types::ArtifactPath};
 use ryo_benchmark_contracts::domain::measurements::types::{
@@ -232,7 +232,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 .map_err(|error| refusal(&error))?;
             Ok(format!(
                 "{} in {}: {}",
-                invocation.executable.display(),
+                slashed(&invocation.executable).0,
                 invocation.directory.display(),
                 invocation
                     .arguments
@@ -265,7 +265,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 .environment
                 .iter()
                 .map(|(name, value)| {
-                    format!("{}={}", name.to_string_lossy(), value.to_string_lossy())
+                    format!("{}={}", name.to_string_lossy(), slashed(Path::new(value)).0)
                 })
                 .collect::<Vec<_>>()
                 .join("\n")

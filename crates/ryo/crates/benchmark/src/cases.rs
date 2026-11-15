@@ -1,5 +1,6 @@
 //! The crate's test support: the rows every `*_test.rs` states its cases in, and the one `run` that checks them.
 
+use ryo_benchmark_contracts::domain::documents::types::text::value::PathText;
 use std::fmt::Debug;
 
 /// The case word of a row: the four a part's cases are named with.
@@ -105,4 +106,34 @@ where
         failed.len(),
         failed.concat()
     );
+}
+
+/// A path spelled with `/` between its components on every platform, so a row states one text for it.
+///
+/// It reads the path's components rather than its text, so a component that holds a backslash on Linux stays one component.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_benchmark::cases::slashed;
+/// use std::path::Path;
+///
+/// let path = Path::new("target").join("benchmark").join("state");
+/// assert_eq!(slashed(&path).0, "target/benchmark/state");
+/// ```
+#[must_use]
+pub fn slashed(path: &std::path::Path) -> PathText {
+    use std::path::Component;
+    let mut text = String::new();
+    for component in path.components() {
+        if matches!(component, Component::RootDir) {
+            text.push('/');
+            continue;
+        }
+        if !text.is_empty() && !text.ends_with('/') {
+            text.push('/');
+        }
+        text.push_str(&component.as_os_str().to_string_lossy());
+    }
+    PathText(text)
 }

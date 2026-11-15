@@ -203,7 +203,7 @@ fn verify_refuses_a_snapshot_edited_or_removed_after_the_receipt() -> Result<(),
         edited.to_string(),
         format!(
             "context bytes changed: {}",
-            Path::new("pkg").join("__init__.py").display()
+            Path::new("pkg/__init__.py").display()
         )
     );
     std::fs::write(root.join("__init__.py"), b"")?;

@@ -1,7 +1,7 @@
 //! The registrar stages each default with its own settings, supporting rules, modules and evidence, and registers a
 //! rule it cannot stage with its reason; the deleted Python registration tests' assertions, at the registrar's seam.
 use super::service::register;
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run, slashed};
 use crate::outbound::executables::types::Sealed;
 use crate::outbound::inventory::interface::InventoryPort as _;
 use crate::outbound::inventory::types::{RuleCommand, RuleReason};
@@ -62,6 +62,22 @@ fn copy_tree(from: &Path, to: &Path) {
             std::fs::create_dir_all(to).expect("directory");
             let _bytes = std::fs::copy(entry.path(), target).expect("copy");
         }
+    }
+}
+
+/// What a missing evidence file is refused with, when the reason is the registrar's text around the platform's own words for a missing file.
+const MISSING_EVIDENCE: &str =
+    "rule registration: discrepancy evidence refused: <the platform's words for a missing file>";
+
+/// The refusal of the registrar with the platform's words for a missing file spelled as `MISSING_EVIDENCE` spells them.
+fn spelled(reason: String, absent: &Path) -> Cow<'static, str> {
+    let missing = std::fs::read(absent)
+        .expect_err("the path is absent")
+        .to_string();
+    if reason == format!("rule registration: discrepancy evidence refused: {missing}") {
+        Cow::Borrowed(MISSING_EVIDENCE)
+    } else {
+        Cow::Owned(reason)
     }
 }
 
@@ -241,9 +257,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("missing evidence is refused"),
         word: Word::Refuses,
         input: || Scenario::MissingEvidence,
-        expect: Expect::Error(Cow::Borrowed(
-            "rule registration: discrepancy evidence refused: No such file or directory (os error 2)",
-        )),
+        expect: Expect::Error(Cow::Borrowed(MISSING_EVIDENCE)),
     },
     Case {
         name: CaseName("evidence with a wrong digest is refused"),
@@ -293,12 +307,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let mut files = rule
                 .artifacts
                 .keys()
-                .map(|path| {
-                    path.strip_prefix(context)
-                        .expect("inside the stage")
-                        .display()
-                        .to_string()
-                })
+                .map(|path| slashed(path.strip_prefix(context).expect("inside the stage")).0)
                 .filter(|file| !file.starts_with("fragments/"))
                 .collect::<Vec<_>>();
             files.sort();
@@ -322,10 +331,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         (_, RuleReason::Stated(reason)) if reason.0 == "missing implementation" => {
             Ok(Cow::Owned(reason.0.clone()))
         }
-        (_, RuleReason::Stated(reason)) => Err(Cow::Owned(
+        (_, RuleReason::Stated(reason)) => Err(spelled(
             reason
                 .0
                 .replace(&root.path().display().to_string(), "<root>"),
+            &root.path().join("absent"),
         )),
         (RuleCommand::Unregistered, RuleReason::Unstated) => {
             Err(Cow::Borrowed("unregistered without a reason"))
