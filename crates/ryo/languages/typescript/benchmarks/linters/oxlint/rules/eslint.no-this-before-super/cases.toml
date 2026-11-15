@@ -352,3 +352,38 @@ expected = []
 name = "class-expression"
 files = { "case.ts" = "const C = class extends B { constructor() { this.a; super(); } };\n" }
 expected = [{ file = "case.ts", start = 28, end = 62 }]
+
+[[cases]]
+name = "private-field-argument"
+files = { "case.ts" = "class A extends B { #x; constructor() { super(this.#x); } }\n" }
+expected = []
+
+[[cases]]
+name = "private-method-argument"
+files = { "case.ts" = "class A extends B { #x() {} constructor() { super(this.#x()); } }\n" }
+expected = []
+
+[[cases]]
+name = "nested-private-field-argument"
+files = { "case.ts" = "class A extends B { #x; constructor() { super(f(this.#x)); } }\n" }
+expected = []
+
+[[cases]]
+name = "nested-private-method-argument"
+files = { "case.ts" = "class A extends B { #x() {} constructor() { super(f(this.#x())); } }\n" }
+expected = []
+
+[[cases]]
+name = "nested-static-method-argument"
+files = { "case.ts" = "class A extends B { constructor() { super(f(this.x())); } }\n" }
+expected = [{ file = "case.ts", start = 20, end = 57 }]
+
+[[cases]]
+name = "invalid-superclass"
+files = { "case.ts" = "class A extends 5 { constructor() { this.a = 1; } }\n" }
+expected = [{ file = "case.ts", start = 20, end = 49 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "class A extends B {\n  // eslint-disable-next-line no-this-before-super\n  constructor() { this.a; super(); }\n}\n" }
+expected = []

@@ -472,3 +472,133 @@ expected = []
 name = "dead-super-of-null"
 files = { "case.ts" = "class A extends null { constructor() { return; super(); } }\n" }
 expected = [{ file = "case.ts", start = 23, end = 57 }]
+
+[[cases]]
+name = "static-overload-before-constructor"
+files = { "case.ts" = "class A extends B {\n  static constructor(a: string);\n  static constructor(a: any) {}\n  constructor() {}\n}\n" }
+expected = [{ file = "case.ts", start = 87, end = 103 }]
+
+[[cases]]
+name = "single-quoted-constructor"
+files = { "case.ts" = "class A extends B { 'constructor'() { } }\n" }
+expected = [{ file = "case.ts", start = 20, end = 39 }]
+
+[[cases]]
+name = "double-quoted-constructor"
+files = { "case.ts" = "class A extends B { \"constructor\"() { } }\n" }
+expected = [{ file = "case.ts", start = 20, end = 39 }]
+
+[[cases]]
+name = "quoted-overload-first"
+files = { "case.ts" = "class A extends B { 'constructor'(a: string); constructor(a: any) { } }\n" }
+expected = []
+
+[[cases]]
+name = "binary-superclass"
+files = { "case.ts" = "class A extends (B + C) { constructor() { super(); } }\n" }
+expected = [{ file = "case.ts", start = 42, end = 49 }]
+
+[[cases]]
+name = "null-returns-in-if"
+files = { "case.ts" = "class A extends null { constructor() { if (x) { return a; } } }\n" }
+expected = []
+
+[[cases]]
+name = "null-returns-in-switch"
+files = { "case.ts" = "class A extends null { constructor() { switch (x) { case 1: return a; } } }\n" }
+expected = []
+
+[[cases]]
+name = "null-returns-in-try"
+files = { "case.ts" = "class A extends null { constructor() { try { f(); } catch (e) { return a; } } }\n" }
+expected = []
+
+[[cases]]
+name = "null-returns-in-finally"
+files = { "case.ts" = "class A extends null { constructor() { try { f(); } finally { return a; } } }\n" }
+expected = []
+
+[[cases]]
+name = "null-returns-in-loop"
+files = { "case.ts" = "class A extends null { constructor() { for (const v of w) { return v; } } }\n" }
+expected = []
+
+[[cases]]
+name = "null-returns-in-block"
+files = { "case.ts" = "class A extends null { constructor() { { return a; } } }\n" }
+expected = []
+
+[[cases]]
+name = "null-returns-in-label"
+files = { "case.ts" = "class A extends null { constructor() { l: { return a; } } }\n" }
+expected = [{ file = "case.ts", start = 23, end = 57 }]
+
+[[cases]]
+name = "null-returns-in-arrow"
+files = { "case.ts" = "class A extends null { constructor() { const f = () => { return a; }; } }\n" }
+expected = [{ file = "case.ts", start = 23, end = 71 }]
+
+[[cases]]
+name = "shorter-path-without-super"
+files = { "case.ts" = "class A extends B { constructor() { if (x) { super(); super(); } } }\n" }
+expected = [{ file = "case.ts", start = 20, end = 66 }, { file = "case.ts", start = 54, end = 61 }]
+
+[[cases]]
+name = "computed-constructor-key"
+files = { "case.ts" = "class A extends B { ['constructor']() { } }\n" }
+expected = []
+
+[[cases]]
+name = "sequence-ends-valid"
+files = { "case.ts" = "class A extends (5, B) { constructor() { super(); } }\n" }
+expected = []
+
+[[cases]]
+name = "sequence-ends-invalid"
+files = { "case.ts" = "class A extends (B, 5) { constructor() { super(); } }\n" }
+expected = [{ file = "case.ts", start = 41, end = 48 }]
+
+[[cases]]
+name = "all-paths-exit-before-super"
+files = { "case.ts" = "class A extends B { constructor() { try { throw e; } catch (e) { super(); } finally { super(); super(); } } }\n" }
+expected = [{ file = "case.ts", start = 20, end = 107 }]
+
+[[cases]]
+name = "loop-with-two-calls"
+files = { "case.ts" = "class A extends B { constructor() { for (;;) { super(); super(); } } }\n" }
+expected = [{ file = "case.ts", start = 20, end = 68 }, { file = "case.ts", start = 56, end = 63 }]
+
+[[cases]]
+name = "loop-grows-from-never"
+files = { "case.ts" = "class A extends B { constructor() { do { if (super()) {} } while (x); } }\n" }
+expected = [{ file = "case.ts", start = 20, end = 71 }]
+
+[[cases]]
+name = "loop-grows-from-once"
+files = { "case.ts" = "class A extends B { constructor() { if (x) { throw e; } else { x ? super() : y(); } while (x) { for (const a of b) { if (super()) {} } } } }\n" }
+expected = [{ file = "case.ts", start = 20, end = 138 }, { file = "case.ts", start = 121, end = 128 }]
+
+[[cases]]
+name = "loop-grows-from-mixed"
+files = { "case.ts" = "class A extends B { constructor() { try { for (let i = 0; i < n; i++) { if (y) { do { throw e; } while (x); break; } if (x) { if (super()) {} } } } catch (e) { try { l: { x(); break l; {} } } finally { if (x) { return a; } else { return a; } } } finally { while (true) { l: { super(); break l; x(); } } } } }\n" }
+expected = [{ file = "case.ts", start = 20, end = 306 }, { file = "case.ts", start = 276, end = 283 }]
+
+[[cases]]
+name = "ternary-alternate"
+files = { "case.ts" = "class A extends B { constructor() { x ? y() : super(); } }\n" }
+expected = []
+
+[[cases]]
+name = "conjunction-of-calls"
+files = { "case.ts" = "class A extends B { constructor() { super() && super(); } }\n" }
+expected = []
+
+[[cases]]
+name = "no-exit-after-two-calls"
+files = { "case.ts" = "class A extends B { constructor() { super(); super(); for (;;) {} } }\n" }
+expected = [{ file = "case.ts", start = 45, end = 52 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "class A extends B {\n  // eslint-disable-next-line constructor-super\n  constructor() {}\n}\n" }
+expected = []

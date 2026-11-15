@@ -12,8 +12,11 @@ reports on a TypeScript file.
 `fragments/unique-bindings.ryoql` gives the one binding a reference resolves to, with its kind;
 `fragments/constant-values.ryoql` gives the value a `const`, `let` or `var` initializer gives a reference;
 `fragments/regexp-without-global.ryoql` gives the regular expressions written without the `g` flag;
-`fragments/control-flow.ryoql` gives each class constructor with its function, the block of the control flow graph it starts in
-and its superclass as oxlint's constructor-super classifies it: none, `null`, invalid or valid.
+`fragments/constructors.ryoql` gives every constructor of a class, by oxlint's `MethodDefinitionKind::Constructor` (a `constructor`
+key, plain or quoted, neither static nor computed), with or without a body;
+`fragments/super-calls.ryoql` gives the calls whose callee is `super`;
+`fragments/control-flow.ryoql` gives each of those with a body, with its function, the block of the control flow graph it starts
+in and its superclass as oxlint's constructor-super classifies it: none, `null`, invalid or valid.
 
 These oxlint checks have no query and no case yet:
 
