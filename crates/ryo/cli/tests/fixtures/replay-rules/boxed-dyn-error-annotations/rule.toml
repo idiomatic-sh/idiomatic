@@ -1,3 +1,7 @@
+# A replay rule: an engine query the replay runs over ruff (tests/fixtures/recordings/boxed-dyn-error-annotations), which no Tastemaker rule ships.
+description = "A type annotation (a parameter's, a return type's or a binding's) outside test code that names `Box<dyn.. Error..>`."
+
+query = '''
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
 let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
 let boxed = select * from "annotates" where glob_any(annotation, "*Box<dyn *Error*");
@@ -13,3 +17,4 @@ let in-test-spans = project(from=in-tests, columns=["file", "span"]);
 let production = antijoin(left=boxed, right=in-test-spans, left-on=["file", "span"], right-on=["file", "span"]);
 let annotations = project(from=production, columns=["file", "span", "annotation"]);
 emit annotations subject "file" key("span");
+'''

@@ -1,2 +1,0 @@
-let errors = project(from="syntax-error", columns=["file", "span", "message"]);
-emit errors subject "file" key("span", "message");

@@ -1,3 +1,8 @@
+# A replay rule: an engine query the replay runs over ruff (tests/fixtures/recordings/error-variant-never-constructed), which no Tastemaker rule ships.
+description = "An error enum's variant that no expression constructs."
+why = "A variant with a `#[from]` field is constructed: the derived `From` impl builds it whenever `?` converts (owner, checkpoint 336)."
+
+query = '''
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
 let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
 let errors = select * from "defines" where glob_any(name, "*Error");
@@ -43,3 +48,30 @@ let by-self = select l."file" as "file", l."span" as "span" from candidates as l
 let constructed = union(left=by-name, right=by-self);
 let never-constructed = antijoin(left=candidates, right=constructed, left-on=["file", "span"], right-on=["file", "span"]);
 emit never-constructed subject "file" key("span");
+'''
+
+[[scenarios]]
+id = 'from-variant-is-constructed'
+scenario = 'A #[from] variant no expression names is not reported.'
+given.include = ['**']
+given.files.'Cargo.toml' = '''
+[package]
+name = "errors"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod plain;
+
+pub enum ReadError {
+    Io(#[from] std::io::Error),
+}
+'''
+given.files.'src/plain.rs' = '''
+pub enum PlainError {
+    Missing,
+}
+'''
+then.findings = [
+  { rule = "error-variant-never-constructed", path = "src/plain.rs" },
+]

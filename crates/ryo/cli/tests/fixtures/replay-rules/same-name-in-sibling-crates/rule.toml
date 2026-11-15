@@ -1,3 +1,7 @@
+# A replay rule: an engine query the replay runs over ruff (tests/fixtures/recordings/same-name-in-sibling-crates), which no Tastemaker rule ships.
+description = "A `pub` struct, enum or trait whose name a `pub` struct, enum or trait of a sibling crate (another `<parent>/<crate>/src/` under the same parent) also declares."
+
+query = '''
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
 let types = select * from "defines" where glob_any(kind, "{struct,enum,trait}");
 let names = select * from tree-nodes where kind = "name";
@@ -14,3 +18,4 @@ let sibling-crates = group-count(from=crate-types, keys=["parent", "name"], coun
 let shared = select * from sibling-crates where crates >= 2;
 let redeclared = select r."crates" as "crates", l."kind" as "kind", l."name" as "name", l."parent" as "parent", l."file" as "file", l."span" as "span" from crate-types as l join shared as r on l."parent" = r."parent" and l."name" = r."name";
 emit redeclared subject "file" key("span");
+'''

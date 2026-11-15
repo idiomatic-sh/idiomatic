@@ -187,54 +187,186 @@ pub(crate) fn replayed(recordings: &[Recording]) -> &'static Result<Replayed, St
     held.get_or_insert_with(|| Box::leak(Box::new(replay(recordings))))
 }
 
-/// How a rule's rows differ from the recorded ones: nothing when they are the same, otherwise the rule, its plan and the first row that differs.
-pub(crate) fn difference(each: &Recording, given: &[String]) -> Option<String> {
-    let said = expectation(each);
-    // A finding is its path and key, once, as it is to the one that reads it.
-    let mut given = given.to_vec();
-    given.dedup();
-    // The rows ryo gives that the recording could not, each with its reason in `fixtures/differences.toml`: a row listed there
-    // that is no longer given is a difference that went away, and fails.
-    let allowed = recorded_extra_rows(&each.name);
-    if let Some(gone) = allowed.iter().find(|row| !given.contains(row)) {
+/// What a rule's rows are compared against: `expected.toml` for a decided rule, `checked.toml` for one today's ryo could not decide.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Against {
+    /// The rows recorded in `expected.toml`.
+    Expected,
+    /// The findings of ruff checked by hand against the source, in `checked.toml`.
+    Checked,
+}
+
+/// One rule's replayed rows against its recording: the only comparison, which the verdict, the listing and the findings count read.
+/// Every list is `path<TAB>key`, sorted and deduplicated: a finding is its path and key, once, as it is to the one that reads it.
+pub(crate) struct Comparison {
+    pub rule: String,
+    pub plan: String,
+    pub against: Against,
+    /// `expected.toml` (Expected) or `checked.toml` (Checked), deduplicated.
+    pub recorded: Vec<String>,
+    /// Ryo's rows, deduplicated, without the recorded differences.
+    pub given: Vec<String>,
+    /// Recorded rows ryo does not give.
+    pub missing: Vec<String>,
+    /// Rows ryo gives that are neither recorded nor a recorded difference.
+    pub extra: Vec<String>,
+    /// Recorded differences (`fixtures/differences.toml`) ryo no longer gives.
+    pub gone: Vec<String>,
+}
+
+/// `rows` sorted, each once.
+fn distinct(rows: &[String]) -> Vec<String> {
+    let mut rows = rows.to_vec();
+    rows.sort();
+    rows.dedup();
+    rows
+}
+
+/// The rows of `rows` that `other`, sorted, does not hold.
+fn without(rows: &[String], other: &[String]) -> Vec<String> {
+    rows.iter()
+        .filter(|row| other.binary_search(row).is_err())
+        .cloned()
+        .collect()
+}
+
+/// Compares `given` (ryo's rows for `rule`, in any order, duplicates allowed) with what `said` records, taking out `allowed`, the
+/// rule's rows in `fixtures/differences.toml`.
+pub(crate) fn compare(
+    rule: &str,
+    said: &Expectation,
+    allowed: &[String],
+    given: &[String],
+) -> Comparison {
+    let (against, recorded) = if said.undecided {
+        (Against::Checked, distinct(&said.checked))
+    } else {
+        (Against::Expected, distinct(&said.expected))
+    };
+    let allowed = distinct(allowed);
+    let every = distinct(given);
+    let gone = without(&allowed, &every);
+    let given = without(&every, &allowed);
+    Comparison {
+        rule: rule.to_owned(),
+        plan: said.plan.clone(),
+        against,
+        missing: without(&recorded, &given),
+        extra: without(&given, &recorded),
+        recorded,
+        given,
+        gone,
+    }
+}
+
+/// What the replay compares for `each`: its rows `given` against its recording and its recorded differences.
+pub(crate) fn comparison(each: &Recording, given: &[String]) -> Comparison {
+    compare(
+        &each.name,
+        &expectation(each),
+        &recorded_extra_rows(&each.name),
+        given,
+    )
+}
+
+/// The first failure of `c`, nothing when it has none: a recorded difference no longer given; else, for a decided rule, the rule,
+/// its plan and the first row that differs; for an undecided one, a checked finding not given or a row given that nobody checked.
+pub(crate) fn verdict(c: &Comparison) -> Option<String> {
+    if let Some(gone) = c.gone.first() {
         return Some(format!(
             "rule `{}` has the recorded difference `{gone}` in fixtures/differences.toml and no longer gives it",
-            each.name
+            c.rule
         ));
     }
-    given.retain(|row| !allowed.contains(row));
-    let given = given.as_slice();
-    let mut wanted = said.expected.clone();
-    wanted.dedup();
-    let wanted = &wanted;
-    let at = wanted
-        .iter()
-        .zip(given)
-        .position(|(left, right)| left != right)
-        .or_else(|| (wanted.len() != given.len()).then_some(wanted.len().min(given.len())))?;
-    let show = |rows: &[String]| {
-        rows.get(at)
-            .cloned()
-            .unwrap_or_else(|| format!("(no row; {} rows)", rows.len()))
+    if c.missing.is_empty() && c.extra.is_empty() {
+        return None;
+    }
+    match c.against {
+        Against::Expected => {
+            let (wanted, given) = (&c.recorded, &c.given);
+            let at = wanted
+                .iter()
+                .zip(given)
+                .position(|(left, right)| left != right)
+                .unwrap_or_else(|| wanted.len().min(given.len()));
+            let show = |rows: &[String]| {
+                rows.get(at)
+                    .cloned()
+                    .unwrap_or_else(|| format!("(no row; {} rows)", rows.len()))
+            };
+            Some(format!(
+                "rule `{name}` (plan `{plan}`) differs at row {row}: recorded `{recorded}`, ryo `{got}` ({missing} recorded rows missing, {extra} rows not recorded; {} recorded, {} ryo)",
+                wanted.len(),
+                given.len(),
+                name = c.rule,
+                plan = c.plan,
+                row = at.saturating_add(1),
+                recorded = show(wanted),
+                got = show(given),
+                missing = c.missing.len(),
+                extra = c.extra.len(),
+            ))
+        }
+        Against::Checked => match (c.missing.first(), c.extra.first()) {
+            (Some(missing), _) => Some(format!(
+                "rule `{}` does not give `{missing}`, which was checked by hand against ruff",
+                c.rule
+            )),
+            (None, Some(extra)) => Some(format!(
+                "rule `{}` gives `{extra}`, which is not among the {} findings checked by hand against ruff nor a recorded difference",
+                c.rule,
+                c.recorded.len()
+            )),
+            (None, None) => None,
+        },
+    }
+}
+
+/// Every row of `c` that differs, one line each: the gone, then the missing, then the extra rows. Each line is five fields
+/// separated by tabs: the rule, `gone`, `missing` or `extra`, the path, the key, and the source text at the key under `root`.
+pub(crate) fn listing(c: &Comparison, root: &Path) -> Vec<String> {
+    [
+        ("gone", &c.gone),
+        ("missing", &c.missing),
+        ("extra", &c.extra),
+    ]
+    .into_iter()
+    .flat_map(|(kind, rows)| {
+        rows.iter()
+            .map(move |row| format!("{}\t{kind}\t{row}\t{}", c.rule, source_text(root, row)))
+    })
+    .collect()
+}
+
+/// How many characters of a row's source text a listing shows.
+const SHOWN: usize = 160;
+
+/// The text at a row's key in `root/path`, the row being `path<TAB>key`: the bytes `start..end` when the key is a span inside
+/// the file, read lossily, its first line with tabs as spaces and at most 160 characters. `-` when the key is not a span (a key
+/// that is a path, as orphan-rust-files gives); `(outside the file)` when the span ends past the file or the file is absent.
+pub(crate) fn source_text(root: &Path, row: &str) -> String {
+    let (path, key) = row.split_once('\t').unwrap_or((row, ""));
+    let Some((start, end)) = key
+        .split_once("..")
+        .and_then(|(start, end)| Some((start.parse::<usize>().ok()?, end.parse::<usize>().ok()?)))
+    else {
+        return "-".to_owned();
     };
-    let missing = wanted
-        .iter()
-        .filter(|row| given.binary_search(row).is_err())
-        .count();
-    let extra = given
-        .iter()
-        .filter(|row| wanted.binary_search(row).is_err())
-        .count();
-    Some(format!(
-        "rule `{name}` (plan `{plan}`) differs at row {row}: recorded `{recorded}`, ryo `{got}` ({missing} recorded rows missing, {extra} rows not recorded; {} recorded, {} ryo)",
-        wanted.len(),
-        given.len(),
-        name = each.name,
-        plan = said.plan,
-        row = at + 1,
-        recorded = show(wanted),
-        got = show(given)
-    ))
+    let outside = || "(outside the file)".to_owned();
+    let Ok(bytes) = std::fs::read(root.join(path)) else {
+        return outside();
+    };
+    let Some(span) = bytes.get(start..end) else {
+        return outside();
+    };
+    String::from_utf8_lossy(span)
+        .lines()
+        .next()
+        .unwrap_or_default()
+        .replace('\t', " ")
+        .chars()
+        .take(SHOWN)
+        .collect()
 }
 
 /// The rows ryo gives for `rule` that the recording does not have, as `path<TAB>key`, from `fixtures/differences.toml`: one table for
@@ -273,47 +405,6 @@ pub(crate) fn extra_rows_in(table: &toml::Table, rule: &str, path: &Path) -> Vec
         .iter()
         .map(|row| row_text(row, path))
         .collect()
-}
-
-/// How the rows of a rule today's ryo could not decide differ from what was checked by hand against ruff: the rows it gives,
-/// without the ones `fixtures/differences.toml` lists for it with a reason, are exactly the checked findings.
-pub(crate) fn unchecked(each: &Recording, given: &[String]) -> Option<String> {
-    let said = expectation(each);
-    unchecked_rows(
-        &each.name,
-        &said.checked,
-        &recorded_extra_rows(&each.name),
-        given,
-    )
-}
-
-/// How `given`, the rows of the undecided rule `rule`, differ from the findings `checked` by hand: a checked finding not given, or
-/// a row given that is neither checked nor among the rows `allowed` with a reason; a row `allowed` that is no longer given fails too.
-pub(crate) fn unchecked_rows(
-    rule: &str,
-    checked: &[String],
-    allowed: &[String],
-    given: &[String],
-) -> Option<String> {
-    if let Some(gone) = allowed.iter().find(|row| !given.contains(row)) {
-        return Some(format!(
-            "rule `{rule}` has the recorded difference `{gone}` in fixtures/differences.toml and no longer gives it"
-        ));
-    }
-    if let Some(missing) = checked.iter().find(|row| !given.contains(row)) {
-        return Some(format!(
-            "rule `{rule}` does not give `{missing}`, which was checked by hand against ruff"
-        ));
-    }
-    given
-        .iter()
-        .find(|row| !checked.contains(row) && !allowed.contains(row))
-        .map(|extra| {
-            format!(
-                "rule `{rule}` gives `{extra}`, which is not among the {} findings checked by hand against ruff nor a recorded difference",
-                checked.len()
-            )
-        })
 }
 
 /// What the replay answers for `input`.
@@ -357,7 +448,7 @@ pub(crate) fn answer(input: &str) -> String {
             let mut altered: Vec<String> =
                 outcome.rows.get(&first.name).cloned().unwrap_or_default();
             altered.insert(0, "a row nobody recorded".to_owned());
-            difference(first, &altered).unwrap_or_else(|| "no difference".to_owned())
+            verdict(&comparison(first, &altered)).unwrap_or_else(|| "no difference".to_owned())
         }
         "recognition" => {
             let recognized = required_text(&directory().join("recognized.txt"));
@@ -377,26 +468,31 @@ pub(crate) fn answer(input: &str) -> String {
     }
 }
 
-/// Every live rule against its recorded rows, each rule's verdict said on stderr: the first difference, or that every rule gives its rows.
+/// Every live rule against its recorded rows, each rule's verdict said on stderr, and every row of a rule that fails listed there
+/// with its source text: the first failure, or that every rule gives its rows.
 fn recorded_rules(all: &[Recording], live: &[&Recording], outcome: &Replayed) -> String {
     let none = Vec::new();
-    let rows_of = |each: &Recording| outcome.rows.get(&each.name).unwrap_or(&none).clone();
-    let wrong: Vec<String> = live
+    let ruff = super::base::snapshot::ruff();
+    let verdicts: BTreeMap<&str, Option<String>> = live
         .iter()
-        .filter_map(|each| {
-            if expectation(each).undecided {
-                unchecked(each, &rows_of(each))
-            } else {
-                difference(each, &rows_of(each))
+        .map(|each| {
+            let compared = comparison(each, outcome.rows.get(&each.name).unwrap_or(&none));
+            let failed = verdict(&compared);
+            if failed.is_some() {
+                for line in listing(&compared, &ruff) {
+                    eprintln!("{line}");
+                }
             }
+            (each.name.as_str(), failed)
         })
         .collect();
+    let wrong: Vec<&String> = verdicts.values().flatten().collect();
     for each in all {
         let said = expectation(each);
-        let verdict = match (
+        let status = match (
             &each.pending,
             said.undecided,
-            difference(each, outcome.rows.get(&each.name).unwrap_or(&none)),
+            verdicts.get(each.name.as_str()).and_then(Option::as_ref),
         ) {
             (Pending::Because(why), _, _) => format!("pending: {why}"),
             (Pending::Missing, true, _) => format!(
@@ -409,17 +505,17 @@ fn recorded_rules(all: &[Recording], live: &[&Recording], outcome: &Replayed) ->
                 format!("matches ({} rows)", said.expected.len())
             }
         };
-        eprintln!("{:40} {verdict}", each.name);
+        eprintln!("{:40} {status}", each.name);
     }
     eprintln!(
         "{} of {} replayed rules match or run; {} are pending",
-        live.len() - wrong.len(),
+        live.len().saturating_sub(wrong.len()),
         live.len(),
-        all.len() - live.len()
+        all.len().saturating_sub(live.len())
     );
     wrong
         .first()
-        .cloned()
+        .map(|first| (*first).clone())
         .unwrap_or_else(|| "every rule gives its rows".to_owned())
 }
 
@@ -476,12 +572,13 @@ fn findings(live: &[&Recording], outcome: &Replayed) -> String {
                 Ok(None) => return None,
                 Err(failure) => return Some(failure),
             };
-            let mut distinct = outcome.rows.get(&each.name).cloned().unwrap_or_default();
-            distinct.dedup();
-            // Without the rows `fixtures/differences.toml` says ryo gives and the golden could not.
-            let extra = recorded_extra_rows(&each.name);
-            distinct.retain(|row| !extra.contains(row));
-            let got = distinct.len();
+            // Ryo's distinct rows, without the ones `fixtures/differences.toml` says ryo gives and the golden could not.
+            let got = comparison(
+                each,
+                outcome.rows.get(&each.name).map_or(&[], Vec::as_slice),
+            )
+            .given
+            .len();
             (got != wanted).then(|| format!("{} gives {got}, ruff expects {wanted}", each.name))
         })
         .collect();

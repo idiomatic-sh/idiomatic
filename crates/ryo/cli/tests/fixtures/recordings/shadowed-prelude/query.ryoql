@@ -1,4 +1,0 @@
-param names: set<string>;
-let types = select * from "defines" where glob_any(kind, "{struct,enum,union,trait}");
-let shadowing = select * from types where name in $names;
-emit shadowing subject "file" key("span");

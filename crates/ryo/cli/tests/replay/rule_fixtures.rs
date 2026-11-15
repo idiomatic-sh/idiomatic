@@ -2,84 +2,23 @@
 //! query of `rule.toml`, the files of each scenario's `given.files`, and the findings its `then.findings`
 //! states, written by hand, never from this run.
 
-use crate::{base, tables};
-use std::path::{Path, PathBuf};
+use crate::base;
+use std::path::Path;
 use std::sync::Arc;
 
-use ryo_core::inbound::use_cases::lint::types::{ParameterValue, RuleParameter};
+use ryo_core::inbound::use_cases::lint::types::RuleParameter;
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
 };
-use ryo_values::domain::plan_parts::types::{FlagState, LiteralText, ParameterName, WholeNumber};
 
-/// The rules a spec of the arch package holds, by the directory under the package.
-const SPEC_RULES: [(&str, &str); 5] = [
-    (
-        "captured-workload",
-        "specs/crate/0.13.0/rules/captured-workload",
-    ),
-    ("bdd-runner", "specs/crate/0.13.0/rules/bdd-runner"),
-    (
-        "pin-revision",
-        "specs/distribution/0.3.0/rules/pin-revision",
-    ),
-    (
-        "no-hardcoded-paths",
-        "specs/idiomatic-rust/0.1.0/rules/no-hardcoded-paths",
-    ),
-    (
-        "variants-benched",
-        "specs/idiomatic-rust/0.1.0/rules/variants-benched",
-    ),
-];
-
-fn rule_directory(rule: &str) -> PathBuf {
-    if let Some(spec) = SPEC_RULES.iter().find(|(name, _)| *name == rule) {
-        return Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../../tastemaker")
-            .join(spec.1);
-    }
-    let held = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/rules")
-        .join(rule);
-    if held.is_dir() {
-        return held;
-    }
-    let package = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../tastemaker");
-    let shared = package.join("rules").join(rule);
-    // A benchmark-only rule is the benchmarks package's, under the arch package's directory.
-    let rules = if shared.is_dir() {
-        shared
-    } else {
-        package.join("benchmarks/rules").join(rule)
-    };
-    let mut versions: Vec<PathBuf> = std::fs::read_dir(&rules)
-        .expect("the rule's versions")
-        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
-        .collect();
-    versions.sort();
-    versions.pop().expect("a version of the rule")
-}
-
-/// A rule Tastemaker retired keeps its query and scenarios under `tests/fixtures/rules`, as the proof of what the engine decides
-/// that today's ryo could not; any other rule is read from the package. Every scenario of the rule gives the findings its
+/// A rule is read where `base::rules` finds it: a replay rule under `tests/fixtures/replay-rules`, the proof of what the engine
+/// decides that no Tastemaker rule ships, or a rule of the package. Every scenario of the rule gives the findings its
 /// `then.findings` state, by the path of the file.
 pub(crate) fn check(rule: &str) {
-    let directory = rule_directory(rule);
-    let manifest = std::fs::read_to_string(directory.join("rule.toml")).expect("the rule");
-    // A rule the replay reads from its recording keeps one query, the recording's.
-    let query = tables::string_under(&manifest, &["query"])
-        .or_else(|| {
-            std::fs::read_to_string(
-                Path::new(env!("CARGO_MANIFEST_DIR"))
-                    .join("tests/fixtures/recordings")
-                    .join(rule)
-                    .join("query.ryoql"),
-            )
-            .ok()
-        })
-        .expect("a query");
+    let manifest =
+        std::fs::read_to_string(base::rules::directory(rule).join("rule.toml")).expect("the rule");
+    let query = base::rules::query(rule);
     let table: toml::Table = manifest.parse().expect("a rule that reads");
     let scenarios = table
         .get("scenarios")
@@ -210,7 +149,7 @@ fn no_language_names_finds_what_its_scenarios_state() {
 /// The relation Tastemaker hosts for the crates it places.
 const PLACED: &str = "tastemaker.placed";
 
-/// The values a scenario binds the rule's params to: a list of text, or a list of sets of text.
+/// The values a scenario binds the rule's params to, each as `base::parameter` binds a recording's: a value it cannot bind fails.
 fn parameters_of(given: Option<&toml::Table>) -> Vec<RuleParameter> {
     let Some(params) = given
         .and_then(|given| given.get("params"))
@@ -218,40 +157,11 @@ fn parameters_of(given: Option<&toml::Table>) -> Vec<RuleParameter> {
     else {
         return Vec::new();
     };
-    let words = |value: &toml::Value| -> Vec<LiteralText> {
-        value
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(|each| each.as_str().map(|text| LiteralText(text.into())))
-            .collect()
-    };
     params
         .iter()
         .map(|(name, value)| {
-            let sets = value
-                .as_array()
-                .is_some_and(|items| items.iter().all(toml::Value::is_array));
-            RuleParameter {
-                name: ParameterName(name.as_str().into()),
-                value: if let Some(number) = value.as_integer() {
-                    ParameterValue::Number(WholeNumber(number))
-                } else if let Some(flag) = value.as_bool() {
-                    ParameterValue::Flag(if flag {
-                        FlagState::Raised
-                    } else {
-                        FlagState::Lowered
-                    })
-                } else if let Some(text) = value.as_str() {
-                    ParameterValue::Text(LiteralText(text.into()))
-                } else if sets {
-                    ParameterValue::TextSets(
-                        value.as_array().into_iter().flatten().map(words).collect(),
-                    )
-                } else {
-                    ParameterValue::Texts(words(value))
-                },
-            }
+            base::parameter(name, value)
+                .unwrap_or_else(|| panic!("the scenario's param `{name}` = {value} is not bound"))
         })
         .collect()
 }
