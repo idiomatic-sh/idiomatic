@@ -16,15 +16,18 @@ use ryo_execution_domain::domain::executable_program::types::{
     RuleBindings, RuleInput, RuleObservations, Serving,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::service::portable_fault;
+use ryo_execution_domain::domain::operating::service::{
+    portable_fault, rendered_batch, unsupported_render,
+};
 use ryo_execution_domain::domain::trust::service::{needs_of, physical_reads};
 use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_language::domain::elements::service::{kind_at, kind_names, positions};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::of_kind;
+use ryo_language::domain::semantics::types::RenderOutcome;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::domain::contract::types::{PortableOperatorFault, RenderRefusal};
 use ryo_operators::domain::physical_plan::constants::BOUND_STAGE;
 use ryo_operators::domain::physical_plan::types::{
     Candidates, FactRows, OpenFileBytes, PlanInputs, PlanNodeId, RenderOutcomes, RenderRequests,
@@ -308,10 +311,25 @@ impl Resources for PassResources<'_> {
     }
     fn render(
         &mut self,
-        _requests: RenderRequests<'_>,
+        requests: RenderRequests<'_>,
     ) -> Result<RenderOutcomes, PortableOperatorFault> {
-        // Rendering is the second stage's: a rule that renders is refused before any file.
-        Err(PortableOperatorFault::UnsupportedRender)
+        // The engine's reason is kept for the run's error: no session, a refused batch, a batch of another length, or an
+        // answer the language cannot render.
+        let refused = match rendered_batch(self.semantic, requests.0, self.source) {
+            Ok(answers)
+                if !answers
+                    .iter()
+                    .any(|answer| matches!(answer, RenderOutcome::Unsupported(_))) =>
+            {
+                return Ok(RenderOutcomes(answers));
+            }
+            Ok(answers) => unsupported_render(&answers),
+            Err(error) => error,
+        };
+        // The refusal is recorded once, and its place travels with the node's fault to every reader.
+        let refusal = RenderRefusal(u32::try_from(self.refusals.len()).unwrap_or(u32::MAX));
+        self.refusals.push(refused);
+        Err(PortableOperatorFault::RenderRefused { refusal })
     }
 }
 

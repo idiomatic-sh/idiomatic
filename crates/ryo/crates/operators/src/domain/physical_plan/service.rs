@@ -1,5 +1,6 @@
 //! The planner's one dispatch over the operation kinds, each kind lowered once by its own concept; the registry of the rewrites
 //! it applies over what it lowered, and the `kernels!` catalog of the kernels the lowerings run.
+pub(crate) mod indexes;
 pub(crate) mod run;
 
 use crate::domain::contract::types::PortableOperatorFault;
@@ -10,8 +11,8 @@ use crate::domain::physical_plan::constants::{
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    Lowering, NodeReaders, PhysicalNode, PlanInput, PlanNodeId, Retention, RowSource, ServedAt,
-    Unserved,
+    Lowering, NodeReaders, PhysicalNode, PlanInput, PlanNodeId, ProbeIndex, Retention, RowMap,
+    RowSource, ServedAt, Unserved,
 };
 use crate::domain::set_rows::types::{SetKind, SetLowering};
 use ryo_values::domain::plans::service::kind_of;
@@ -74,6 +75,12 @@ kernels! {
     Distinct => crate::domain::physical_plan::collections::kernels::distinct::item::DistinctItem,
     /// The `group` kernel.
     Group => crate::domain::physical_plan::collections::kernels::group::item::GroupItem,
+    /// The `text_map` kernel.
+    TextMap => crate::domain::physical_plan::collections::kernels::text_map::item::TextMapItem,
+    /// The `ordered_match` kernel.
+    OrderedMatch => crate::domain::physical_plan::collections::kernels::ordered_match::item::OrderedMatchItem,
+    /// The `render` kernel.
+    Render => crate::domain::physical_plan::collections::kernels::render::item::RenderItem,
 }
 
 /// The physical plan of `program`: each node lowered once, every registered rewrite applied, and every node of a kind of a
@@ -129,6 +136,7 @@ pub(crate) fn plan_with(
         }
     }
     let mut indexes = Vec::new();
+    indexes::service::shared_indexes(&mut nodes, &mut indexes);
     for rewrite in rewrites {
         rewrite.rewrite(&mut nodes, &mut indexes);
     }
@@ -172,10 +180,16 @@ pub(crate) fn lowered(
                 SetLowering::Distinct => Lowering::Distinct {
                     sources: [left, right],
                 },
-                SetLowering::Probe(probe) => Lowering::Probe { left, right, probe },
+                SetLowering::Probe(probe) => Lowering::Probe {
+                    left,
+                    right,
+                    probe,
+                    index: ProbeIndex::Own,
+                },
             }
         })
     };
+    let map = |map: RowMap| first.map(|source| Lowering::TextMap { source, map });
     let lowering = match operation {
         Operation::Select {
             comparisons, kept, ..
@@ -215,6 +229,7 @@ pub(crate) fn lowered(
                 filter,
                 bindings,
             ),
+            index: ProbeIndex::Own,
         }),
         Operation::Union { .. } => set(SetKind::Union, &[], &[]),
         Operation::Intersection { .. } => set(SetKind::Intersection, &[], &[]),
@@ -226,17 +241,84 @@ pub(crate) fn lowered(
             source,
             group: crate::domain::aggregate::service::lower(keys, *distinct),
         }),
+        Operation::Capture { path, pattern, .. } => map(RowMap::Capture(
+            crate::domain::capture::service::lower(*path, pattern),
+        )),
+        Operation::Rank { column, sets, .. } => map(RowMap::Rank(
+            crate::domain::rank::service::lower(*column, *sets, bindings),
+        )),
+        Operation::Replace {
+            text,
+            pattern,
+            replacement,
+            ..
+        } => map(RowMap::Replace(crate::domain::replace::service::lower(
+            *text,
+            pattern,
+            replacement,
+        ))),
+        Operation::Words { text, .. } => {
+            map(RowMap::Words(crate::domain::words::service::lower(*text)))
+        }
+        Operation::SpanBetween { start, end, .. } => map(RowMap::SpanBetween(
+            crate::domain::span_between::service::lower(*start, *end),
+        )),
+        Operation::SourceMatches {
+            span,
+            base_line,
+            pattern,
+            capture,
+            capture_text,
+            capture_line,
+            ..
+        } => map(RowMap::SourceMatches(
+            crate::domain::source_matches::service::lower(
+                *span,
+                *base_line,
+                pattern,
+                capture.as_ref(),
+                *capture_text,
+                *capture_line,
+            ),
+        )),
+        Operation::FitsRendered {
+            texts,
+            literals,
+            span,
+            max_line,
+            tab_width,
+            ..
+        } => map(RowMap::FitsRendered(
+            crate::domain::fits_rendered::service::lower(
+                texts, literals, *span, *max_line, *tab_width,
+            ),
+        )),
+        Operation::SpanBounds { span, .. } => map(RowMap::SpanBounds(
+            crate::domain::span_bounds::service::lower(*span),
+        )),
+        Operation::OrderedMatch {
+            left_on,
+            right_on,
+            left_order,
+            right_order,
+            output,
+            ..
+        } => both().map(|(left, right)| Lowering::OrderedMatch {
+            left,
+            right,
+            ordered: crate::domain::ordered_match::service::lower(
+                left_on,
+                right_on,
+                *left_order,
+                *right_order,
+                output,
+            ),
+        }),
+        Operation::RenderSyntax { node, context, .. } => first.map(|source| Lowering::Render {
+            source,
+            render: crate::domain::render_batch::service::lower(*node, *context),
+        }),
         Operation::Join { reach: Some(_), .. }
-        | Operation::Capture { .. }
-        | Operation::Rank { .. }
-        | Operation::Replace { .. }
-        | Operation::OrderedMatch { .. }
-        | Operation::Words { .. }
-        | Operation::SpanBetween { .. }
-        | Operation::SourceMatches { .. }
-        | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. }
-        | Operation::SpanBounds { .. }
         | Operation::GroupDigest { .. }
         | Operation::Axis { .. }
         | Operation::Closure { .. }
@@ -248,7 +330,7 @@ pub(crate) fn lowered(
     lowering.unwrap_or(Lowering::Unlowered)
 }
 
-/// The stage of the swap whose kernels lower a kind: this stage's kinds are `RELATIONAL_STAGE`.
+/// The stage of the swap whose kernels lower a kind: the relational kinds are `RELATIONAL_STAGE`, the text kinds `TEXT_STAGE`.
 pub(crate) fn stage_of_kind(kind: OperationKind) -> ServedAt {
     match kind {
         OperationKind::Select
@@ -279,12 +361,16 @@ pub(crate) fn stage_of_kind(kind: OperationKind) -> ServedAt {
     }
 }
 
-/// The stage that lowers a node this stage does not: its kind's, or for one of this stage's kinds, the stage that reads what
+/// The stage that lowers a node this branch does not: its kind's, or for a kind of a served stage, the stage that reads what
 /// it reads: a join's closure demand at the third, a bound table or an observation at the fourth.
 fn stage_of(operation: &Operation) -> ServedAt {
     match (stage_of_kind(kind_of(operation)), operation) {
-        (RELATIONAL_STAGE, Operation::Join { reach: Some(_), .. }) => GRAPH_STAGE,
-        (RELATIONAL_STAGE, _) => BOUND_STAGE,
+        (_, Operation::Join { reach: Some(_), .. }) => GRAPH_STAGE,
+        (stage, _) if SERVED.contains(&stage) => BOUND_STAGE,
         (stage, _) => stage,
     }
 }
+
+/// The stages whose kinds this branch lowers: a node of one of their kinds that is not lowered reads what a later stage
+/// serves. Branch only: deleted with `ServedAt`.
+pub(crate) const SERVED: &[ServedAt] = &[RELATIONAL_STAGE, TEXT_STAGE];

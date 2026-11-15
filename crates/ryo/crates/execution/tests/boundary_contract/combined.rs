@@ -4,3 +4,4 @@
 mod fixtures;
 #[cfg(test)]
 mod test;
+mod text_kinds;

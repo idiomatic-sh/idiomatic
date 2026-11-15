@@ -12,7 +12,7 @@ use ryo_language::domain::elements::types::Elements;
 use ryo_relations::domain::relations::service::{kinds, node_file, node_position};
 use ryo_relations::domain::relations::types::{CellKind, Relation, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::rows::types::{RowCount, RowIndex};
+use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
 /// `scan_roots`, one item of the `kernels` collection.
 #[cfg(test)]
@@ -82,4 +82,19 @@ pub(crate) fn tree_row(tree: &TreeRead<'_>, row: RowIndex, into: &mut Vec<Value>
             ColumnIndex(u32::try_from(column).unwrap_or(u32::MAX)),
         )
     }));
+}
+
+/// The rows of the tree read, copied into a table: for a node that cannot read the elements in place.
+pub(crate) fn copied(tree: &TreeRead<'_>) -> Table {
+    let mut table = Table {
+        kinds: tree.kinds.to_vec(),
+        ..Table::default()
+    };
+    let mut row = Vec::with_capacity(tree.kinds.len());
+    for at in 0..tree.candidates.len() {
+        tree_row(tree, RowIndex(at), &mut row);
+        table.cells.extend_from_slice(&row);
+    }
+    table.count = tree_count(tree);
+    table
 }

@@ -1,8 +1,22 @@
 //! Enumerate path captures without allocating or splitting UTF-8 characters.
 use crate::domain::capture::constants::CROSSING_OPEN;
 use crate::domain::capture::types::{
-    CaptureOutput, CaptureSlots, CaptureSpans, SlotPattern, SlotSubject,
+    CaptureOutput, CaptureSlotCount, CaptureSlots, CaptureSpans, SlotPattern, SlotSubject,
 };
+
+/// How many slots `pattern` has, each a `{name}` or `{*name}`: the columns a capture appends to each row.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::capture::service::slot_count;
+/// use ryo_operators::domain::capture::types::{CaptureSlotCount, SlotPattern};
+/// assert_eq!(slot_count(SlotPattern("src/{crate}/{*rest}")), CaptureSlotCount(2));
+/// ```
+#[must_use]
+pub fn slot_count(pattern: SlotPattern<'_>) -> CaptureSlotCount {
+    CaptureSlotCount(pattern.0.bytes().filter(|byte| *byte == b'{').count())
+}
 
 pub(crate) fn matches(
     pattern: SlotPattern<'_>,
@@ -95,7 +109,7 @@ pub(crate) fn evaluate(
     let text: &str = text.0.as_str();
     captured.clear();
     slots.0.clear();
-    let width = pattern.0.bytes().filter(|byte| *byte == b'{').count();
+    let width = slot_count(pattern).0;
     let mut minting = crate::domain::capture::types::SlotMinting {
         driver: &mut *driver,
         text: SlotSubject(text),
@@ -121,4 +135,15 @@ pub(crate) fn evaluate(
         driver.emit(joined)?;
     }
     Ok(())
+}
+
+/// The one lowering of a capture: its path column and slot pattern, for the `text_map` kernel.
+pub(crate) fn lower(
+    path: ryo_values::domain::plan_parts::types::ColumnIndex,
+    pattern: &ryo_values::domain::plan_parts::types::CapturePattern,
+) -> super::types::CaptureParts {
+    super::types::CaptureParts {
+        path,
+        pattern: pattern.clone(),
+    }
 }

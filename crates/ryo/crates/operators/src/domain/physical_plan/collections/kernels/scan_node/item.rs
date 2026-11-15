@@ -97,8 +97,12 @@ pub(crate) fn sources_of(lowering: &Lowering) -> impl Iterator<Item = RowSource>
         Lowering::Filter { source, .. }
         | Lowering::Project { source, .. }
         | Lowering::Extend { source, .. }
-        | Lowering::Group { source, .. } => (Some(*source), None),
-        Lowering::Probe { left, right, .. } => (Some(*left), Some(*right)),
+        | Lowering::Group { source, .. }
+        | Lowering::TextMap { source, .. }
+        | Lowering::Render { source, .. } => (Some(*source), None),
+        Lowering::Probe { left, right, .. } | Lowering::OrderedMatch { left, right, .. } => {
+            (Some(*left), Some(*right))
+        }
         Lowering::Distinct {
             sources: [left, right],
         } => (Some(*left), Some(*right)),

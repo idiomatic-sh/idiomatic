@@ -120,3 +120,103 @@ pub trait TextRowsEvaluation: crate::domain::contract::types::RowDriver {
     /// The engine's symbol and delivery boundary of an occurrence search.
     fn text_rows(&mut self) -> &mut dyn TextRowDriver;
 }
+
+/// What a source search lowers to: the span and base-line columns, the pattern, the capture and the outputs.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct SourceMatchesParts {
+    /// The span column searched.
+    pub(crate) span: ryo_values::domain::plan_parts::types::ColumnIndex,
+    /// The line of the span's first byte, when lines are output.
+    pub(crate) base_line: BaseLineColumn,
+    /// The pattern, compiled once per worker at its first checked row.
+    pub(crate) pattern: ryo_values::domain::plan_parts::types::LiteralText,
+    /// The named capture, when one is asked for.
+    pub(crate) capture: SearchedGroup,
+    /// Whether the captured text is appended.
+    pub(crate) capture_text: ryo_values::domain::query_operators::types::TextOutput,
+    /// Whether the captured line is appended.
+    pub(crate) capture_line: ryo_values::domain::query_operators::types::LineOutput,
+}
+
+/// Where a source search reads the line its span starts on.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::source_matches::types::BaseLineColumn;
+/// use ryo_values::domain::plan_parts::types::ColumnIndex;
+/// assert_ne!(BaseLineColumn::At(ColumnIndex(2)), BaseLineColumn::Unnumbered);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BaseLineColumn {
+    /// Lines are not numbered.
+    Unnumbered,
+    /// The column holding the line.
+    At(ryo_values::domain::plan_parts::types::ColumnIndex),
+}
+
+/// The named group a source search narrows to.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum SearchedGroup {
+    /// The whole occurrence only.
+    Whole,
+    /// The named group.
+    Group(ryo_values::domain::plan_parts::types::LiteralText),
+}
+
+/// What a search's source gate answered for a row.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::source_matches::service::checked_source;
+/// use ryo_operators::domain::source_matches::types::{BaseLineColumn, SearchedSpan};
+/// use ryo_relations::domain::relations::types::{Offset, Span, Value};
+/// use ryo_values::domain::files::types::SourceView;
+/// use ryo_values::domain::plan_parts::types::ColumnIndex;
+/// let absent = [Value::Span(Span { start: Offset(u32::MAX), end: Offset(0) })];
+/// let searched = checked_source(&absent, ColumnIndex(0), BaseLineColumn::Unnumbered, SourceView(b""));
+/// assert!(matches!(searched, Ok(SearchedSpan::Absent)));
+/// ```
+#[derive(Clone, Copy, Debug)]
+pub enum SearchedSpan<'a> {
+    /// The span is absent: the row gives no occurrence.
+    Absent,
+    /// The checked text.
+    Checked(CheckedSource<'a>),
+}
+
+/// A search's rows written into `output` as they are found, each captured text kept aside in `interned` to be interned once
+/// the search is done, so the open file's bytes the search reads stay borrowed until then.
+pub(crate) struct DeferredInterning<'a> {
+    /// The rows the search writes.
+    pub(crate) output: &'a mut ryo_values::domain::rows::types::Table,
+    /// The captured texts, one after the other.
+    pub(crate) interned: &'a mut crate::domain::contract::types::TextScratch,
+    /// The place of each captured text in `interned`, in row order.
+    pub(crate) pending: &'a mut crate::domain::contract::types::RangeScratch,
+}
+
+impl TextRowDriver for DeferredInterning<'_> {
+    fn intern(
+        &mut self,
+        text: ryo_values::domain::row_texts::types::CellText<'_>,
+    ) -> ryo_relations::domain::relations::types::Value {
+        let start = self.interned.0.len();
+        self.interned.0.push_str(text.0);
+        self.pending.0.push(start..self.interned.0.len());
+        // Replaced by the interned symbol once the search is done.
+        ryo_relations::domain::relations::types::Value::Number(
+            ryo_relations::domain::relations::types::Integer(0),
+        )
+    }
+
+    fn emit(
+        &mut self,
+        row: &[ryo_relations::domain::relations::types::Value],
+    ) -> Result<(), ContractError> {
+        self.output.cells.extend_from_slice(row);
+        self.output.count = ryo_values::domain::rows::types::RowCount(self.output.count.0 + 1);
+        Ok(())
+    }
+}

@@ -2,7 +2,7 @@
 use super::item::ProbeItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
-use crate::domain::physical_plan::types::{Lowering, PlanNodeId, RowSource};
+use crate::domain::physical_plan::types::{Lowering, PlanNodeId, ProbeIndex, RowSource};
 use crate::domain::set_rows::types::{SetKind, SetLowering};
 
 /// The lowering a node was given.
@@ -21,6 +21,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 left: RowSource::Node(PlanNodeId(0)),
                 right: RowSource::Node(PlanNodeId(1)),
                 probe,
+                index: ProbeIndex::Own,
             },
             SetLowering::Distinct => Lowering::Unlowered,
         },

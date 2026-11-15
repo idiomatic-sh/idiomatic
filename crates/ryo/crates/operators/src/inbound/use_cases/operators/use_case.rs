@@ -185,7 +185,11 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                                 GroupName(name.0),
                                 &mut |found, group| each(found.0, Some(group.0)),
                             )
-                            .map_err(|_| PortableOperatorFault::MissingCapture),
+                            .map_err(|_| PortableOperatorFault::MissingCapture {
+                                capture: ryo_values::domain::plan_parts::types::LiteralText(
+                                    name.0.into(),
+                                ),
+                            }),
                         CaptureRequest::Whole => Ok(self.matching.visit_regex_matches(
                             regex,
                             SearchText(text),
@@ -319,7 +323,9 @@ impl crate::domain::contract::types::Occurrences for OperatorsUseCaseImpl {
     ) -> Result<std::ops::ControlFlow<()>, PortableOperatorFault> {
         self.matching
             .visit_regex_captures(regex, text, group, each)
-            .map_err(|_| PortableOperatorFault::MissingCapture)
+            .map_err(|_| PortableOperatorFault::MissingCapture {
+                capture: ryo_values::domain::plan_parts::types::LiteralText(group.0.into()),
+            })
     }
 }
 

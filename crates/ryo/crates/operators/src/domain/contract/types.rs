@@ -5,6 +5,18 @@
 pub struct SourceByteLength(pub usize);
 
 /// One portable semantic fault vocabulary for every borrowed operator call.
+/// A refused batch of renderings as the engine recorded it, by its place among the open file's refusals: carried by the fault
+/// of the node that rendered and of every node that reads it, so each reader answers the refusal of the node it reads.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::contract::types::RenderRefusal;
+/// assert_eq!(RenderRefusal(0), RenderRefusal(0));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RenderRefusal(pub u32);
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PortableOperatorFault {
     /// The engine stopped candidate acquisition or downstream delivery.
@@ -23,7 +35,10 @@ pub enum PortableOperatorFault {
     /// An occurrence cannot be represented inside the validated physical source.
     InvalidSourceMatchSpan,
     /// A required named regular-expression capture is absent.
-    MissingCapture,
+    MissingCapture {
+        /// The capture the pattern lacks.
+        capture: ryo_values::domain::plan_parts::types::LiteralText,
+    },
     /// The supplied semantic options are not a valid operation.
     WrongOperation,
     /// A requested table key is absent from a table.
@@ -38,6 +53,13 @@ pub enum PortableOperatorFault {
     NotRun,
     /// A comparison's test is not one of its family's.
     WrongTest,
+    /// The ordering of an ordered match refused its rows: the derived fault, mapped 1:1 by the engine.
+    Derived(ryo_derived::domain::fault::types::DerivedFault),
+    /// The engine refused a batch of renderings: the refusal it recorded, which every reader of the node raises in turn.
+    RenderRefused {
+        /// The engine's record of the refusal.
+        refusal: RenderRefusal,
+    },
     /// A pattern a comparison compiled is no regular expression.
     Pattern(ryo_matching::inbound::use_cases::matching::errors::MatchingError),
 }

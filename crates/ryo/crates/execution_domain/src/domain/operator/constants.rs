@@ -10,9 +10,6 @@ use ryo_values::domain::descriptions::types::FieldRequirement::{Optional, Requir
 use ryo_values::domain::descriptions::types::OperatorDescription;
 use ryo_values::domain::query_operators::types::QueryOperator;
 
-/// What a render demand says when the file admitted no semantic session.
-pub(crate) const NO_SEMANTIC_SESSION: &str = "no file semantic session was admitted";
-
 /// Every operator, in the order the documentation lists them.
 pub const OPERATORS: [QueryOperator; 25] = [
     QueryOperator::SpanBetween,

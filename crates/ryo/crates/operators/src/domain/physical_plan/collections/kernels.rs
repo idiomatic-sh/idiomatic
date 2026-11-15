@@ -8,8 +8,11 @@ pub(crate) mod hash_index;
 #[cfg(test)]
 pub(crate) mod interface;
 pub(crate) mod lookup;
+pub(crate) mod ordered_match;
 pub(crate) mod probe;
 pub(crate) mod project;
+pub(crate) mod render;
 pub(crate) mod scan_facts;
 pub(crate) mod scan_node;
 pub(crate) mod scan_roots;
+pub(crate) mod text_map;

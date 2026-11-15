@@ -16,6 +16,12 @@ use crate::domain::physical_plan::types::{PlanInputs, PlanNodeId, Resources};
 /// }
 /// ```
 ///
+/// A kernel, its row map and what it borrows for a run are private to operators: the engine cannot name `text_map`.
+///
+/// ```compile_fail,E0603
+/// use ryo_operators::domain::physical_plan::collections::kernels::text_map::item::{RowMapRun, mapped};
+/// ```
+///
 /// Implementations must supply the runner.
 ///
 /// ```compile_fail,E0046

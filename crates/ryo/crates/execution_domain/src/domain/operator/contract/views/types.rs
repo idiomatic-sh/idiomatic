@@ -123,12 +123,6 @@ pub struct ValidatedSource<'a> {
     pub(crate) line: BaseLine,
 }
 
-/// The checked physical text of a span and where it starts in the source.
-pub(super) struct SourceSlice<'a> {
-    pub(crate) base: SourceBase,
-    pub(crate) text: CellText<'a>,
-}
-
 /// A native lookup bound to a join: the tree it finds candidates in, and how it finds them.
 ///
 /// # Examples

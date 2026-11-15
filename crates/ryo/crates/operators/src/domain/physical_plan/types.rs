@@ -7,7 +7,7 @@ pub mod physical_plan;
 
 use crate::domain::aggregate::types::GroupParts;
 use crate::domain::append::types::ExtendParts;
-use crate::domain::contract::types::{PortableOperatorFault, RenderKind};
+use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::ProbeParts;
 use crate::domain::project::types::ProjectParts;
 use crate::domain::select::types::SelectParts;
@@ -101,11 +101,11 @@ pub struct OpenFileBytes<'a>(pub &'a [u8]);
 
 /// The nodes a batch of renderings asks for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct RenderRequests<'a>(pub &'a [NodeId]);
+pub struct RenderRequests<'a>(pub &'a [ryo_language::domain::semantics::types::RenderRequest]);
 
 /// What the provider answered for each rendering of a batch, in request order.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct RenderOutcomes(pub Vec<RenderKind>);
+pub struct RenderOutcomes(pub Vec<ryo_language::domain::semantics::types::RenderOutcome>);
 
 /// The rows a run reads besides its own nodes', which the engine holds for the open file.
 pub trait PlanInputs {
@@ -121,8 +121,7 @@ pub trait PlanInputs {
 
 /// What a kernel borrows from the engine besides rows: the complete inventory.
 pub trait Resources {
-    /// Where the texts of the open file's cells are: its symbols, its bytes, the paths of the run's files and the workers'
-    /// texts, which the moved comparisons decide over unchanged.
+    /// Where the texts of the open file's cells are: its symbols, its bytes, the run's paths and the workers' texts.
     fn texts(&self) -> Texts<'_>;
     /// The cell of a text, interned in the open file's symbols.
     fn intern(&mut self, text: CellText<'_>) -> Value;
@@ -177,8 +176,7 @@ pub(crate) enum Lowering {
         /// The comparisons, the kept columns and the bindings.
         select: SelectParts,
     },
-    /// `lookup` of a constant in the shared `hash_index` of a relation's column, then `filter` of all the select's
-    /// comparisons: the rows whose key's text is the constant, in source row order.
+    /// `lookup` of a constant in a relation's shared `hash_index`, then `filter` of all the select's comparisons.
     Lookup {
         /// The index it reads.
         index: IndexPlace,
@@ -209,6 +207,8 @@ pub(crate) enum Lowering {
         right: RowSource,
         /// What the probe keeps.
         probe: ProbeParts,
+        /// The index it probes: its own, or the one every probe of its right rows and key shares.
+        index: ProbeIndex,
     },
     /// `distinct` over the rows of each source in turn: a row the first time only.
     Distinct {
@@ -221,6 +221,29 @@ pub(crate) enum Lowering {
         source: RowSource,
         /// The keys and what is counted.
         group: GroupParts,
+    },
+    /// `text_map`: each row of the source through one text kind's per-row meaning, giving none, one or many rows.
+    TextMap {
+        /// What it reads.
+        source: RowSource,
+        /// The kind's parts.
+        map: RowMap,
+    },
+    /// `ordered_match`: both sources ordered by key then order, each left row paired with the earliest later right row.
+    OrderedMatch {
+        /// The left rows.
+        left: RowSource,
+        /// The right rows.
+        right: RowSource,
+        /// The keys, the orders and the output.
+        ordered: crate::domain::ordered_match::types::OrderedParts,
+    },
+    /// `render`: one batch of renderings for every row of the source, refused whole on one unsupported answer.
+    Render {
+        /// What it reads.
+        source: RowSource,
+        /// The node column and the role.
+        render: crate::domain::render_batch::types::RenderParts,
     },
     /// No kernel at this stage: the plan's `unserved` names the stage that lowers it.
     Unlowered,
@@ -254,26 +277,33 @@ pub(crate) enum Retention {
     Retained,
 }
 
-/// A `hash_index` shared by every lookup of one relation's column.
+/// A `hash_index` shared by every reader of one source's key: built once per file for all of them.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct KeyedIndex {
-    /// The relation it indexes.
-    pub(crate) relation: Relation,
-    /// The key column.
-    pub(crate) column: ColumnIndex,
-    /// The lookup nodes that read it, in node order: one build answers all of them.
-    pub(crate) lookups: Vec<PlanNodeId>,
+    /// The rows it indexes.
+    pub(crate) source: RowSource,
+    /// What it keys them by.
+    pub(crate) key: IndexKey,
+    /// The nodes that read it, in node order.
+    pub(crate) readers: Vec<PlanNodeId>,
 }
 
-/// The key a select fixes in its infallible prefix: a name column of a relation equal to a written text.
+/// What a shared index keys its rows by: a name column's text for lookups, key columns' cells for probes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum IndexKey {
+    /// One name column's text.
+    Text(ColumnIndex),
+    /// The cells of the key columns.
+    Cells(Vec<ColumnIndex>),
+}
+
+/// The index a probe reads: built by each of its runs, or shared with every probe of its right rows and key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct SelectKey {
-    /// The relation.
-    pub(crate) relation: Relation,
-    /// The name column.
-    pub(crate) column: ColumnIndex,
-    /// The hash of the written text.
-    pub(crate) key: TextHash,
+pub(crate) enum ProbeIndex {
+    /// Its own.
+    Own,
+    /// The shared index at this place.
+    Shared(IndexPlace),
 }
 
 /// What a run lends its kernels: the engine's rows and resources, and the matching semantics.
@@ -284,19 +314,6 @@ pub(crate) struct KernelRun<'r> {
     pub(crate) resources: &'r mut dyn Resources,
     /// The matching semantics the comparisons compile and match through.
     pub(crate) matcher: crate::domain::patterns::types::PatternMatcher<'r>,
-}
-
-/// One filter's comparisons over rows of one shape, against the open file's texts.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct FilterKernel<'f> {
-    /// The comparisons, the kept columns and the bindings.
-    pub(crate) select: &'f SelectParts,
-    /// What each column of a row holds.
-    pub(crate) kinds: &'f [ryo_relations::domain::relations::types::CellKind],
-    /// The open file's texts.
-    pub(crate) texts: Texts<'f>,
-    /// How many names the open file has.
-    pub(crate) names: crate::domain::comparing::types::NameCount,
 }
 
 /// A materialized input, taken out of the buffers while its reader reads it, with the fault it raised after its rows.
@@ -317,15 +334,6 @@ pub(crate) enum InputRows<'a> {
     Tree(&'a TreeRead<'a>),
     /// A table of rows.
     Table(&'a Table),
-}
-
-/// The rows a node's kernels read: its first input's, and its second's when it reads two.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct KernelInputs<'a> {
-    /// The first input's rows.
-    pub(crate) input: InputRows<'a>,
-    /// The second input's rows, when the node reads two.
-    pub(crate) other: Option<InputRows<'a>>,
 }
 
 /// Rows keyed by key columns: the rows and their key columns.
@@ -350,15 +358,25 @@ pub(crate) struct KeyedRowAt<'a> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct CellStart(pub(crate) usize);
 
-/// The rows a node's kernel reads: a relation's, lent in place, or an earlier node's, taken while it reads them.
-#[derive(Debug)]
-pub(crate) enum Reading<'a> {
-    /// A relation's columns.
-    Facts(ColumnsView<'a>),
-    /// A tree relation's rows.
-    Tree(TreeRead<'a>),
-    /// An earlier node and its rows and pending fault.
-    Node(PlanNodeId, TakenRows),
+/// What a `text_map` stage does to each row: one text kind's per-row meaning, its parts built by the kind's own lowering.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum RowMap {
+    /// `capture`.
+    Capture(crate::domain::capture::types::CaptureParts),
+    /// `replace`.
+    Replace(crate::domain::replace::types::ReplaceParts),
+    /// `source-matches`.
+    SourceMatches(crate::domain::source_matches::types::SourceMatchesParts),
+    /// `span-bounds`.
+    SpanBounds(crate::domain::span_bounds::types::SpanBoundsParts),
+    /// `span-between`.
+    SpanBetween(crate::domain::span_between::types::SpanBetweenParts),
+    /// `words`.
+    Words(crate::domain::words::types::WordsParts),
+    /// `rank`.
+    Rank(crate::domain::rank::types::RankParts),
+    /// `fits-rendered`.
+    FitsRendered(crate::domain::fits_rendered::types::FitsParts),
 }
 
 /// A tree relation's rows as one node reads them: the open file's elements at the tree nodes the engine named, in tree order.

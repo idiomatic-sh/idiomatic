@@ -76,3 +76,16 @@ pub(crate) fn evaluate(
     crate::domain::append::service::append(row, std::slice::from_ref(&appended), &mut scratch.row);
     driver.emit(&scratch.row)
 }
+
+/// The one lowering of a replacement: its text column, pattern and replacement, for the `text_map` kernel.
+pub(crate) fn lower(
+    text: ryo_values::domain::plan_parts::types::ColumnIndex,
+    pattern: &ryo_values::domain::plan_parts::types::LiteralText,
+    replacement: &ryo_values::domain::plan_parts::types::LiteralText,
+) -> super::types::ReplaceParts {
+    super::types::ReplaceParts {
+        text,
+        pattern: pattern.clone(),
+        replacement: replacement.clone(),
+    }
+}

@@ -10,7 +10,9 @@ use super::super::scan_node::item::hold;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, IndexKeyHash, NO_ROW};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-use crate::domain::physical_plan::types::{IndexPlace, KernelRun, Lowering, PhysicalNode};
+use crate::domain::physical_plan::types::{
+    IndexKey, IndexPlace, KernelRun, Lowering, PhysicalNode, RowSource,
+};
 use ryo_values::domain::rows::types::{RowIndex, Table};
 
 /// `lookup`, one item of the `kernels` collection.
@@ -41,10 +43,13 @@ pub(crate) fn lookups(
         .indexes
         .get(index.0)
         .ok_or(PortableOperatorFault::WrongOperation)?;
-    let view = facts(run.inputs, shared.relation)?;
+    let (RowSource::Facts(relation), IndexKey::Text(column)) = (shared.source, &shared.key) else {
+        return Err(PortableOperatorFault::WrongOperation);
+    };
+    let view = facts(run.inputs, relation)?;
     let texts_of = run.resources.texts();
-    texts(&view, shared.column, &texts_of, &mut buffers.index);
-    for lookup in &shared.lookups {
+    texts(&view, *column, &texts_of, &mut buffers.index);
+    for lookup in &shared.readers {
         let place = usize::try_from(lookup.0).unwrap_or(usize::MAX);
         let (
             Some(PhysicalNode {

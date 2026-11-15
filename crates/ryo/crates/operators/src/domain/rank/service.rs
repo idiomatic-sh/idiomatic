@@ -41,3 +41,20 @@ pub(crate) fn evaluate(
         ));
     driver.emit(&scratch.row)
 }
+
+/// The one lowering of a rank: its text column and its layers, resolved from what its parameter is bound to; a parameter
+/// with no binding, or one of another shape, is a refusal its kernel raises at the first row.
+pub(crate) fn lower(
+    column: ryo_values::domain::plan_parts::types::ColumnIndex,
+    sets: ryo_values::domain::plan_parts::types::ParameterId,
+    bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
+) -> super::types::RankParts {
+    use crate::domain::contract::types::PortableOperatorFault;
+    use ryo_values::domain::query_bindings::types::ParameterBinding;
+    let layers = match ryo_values::domain::plan_parts::service::parameter_in(bindings, sets) {
+        Some(ParameterBinding::TextSets(layers)) => super::types::RankLayers::Bound(layers.clone()),
+        Some(_) => super::types::RankLayers::Refused(PortableOperatorFault::WrongBinding),
+        None => super::types::RankLayers::Refused(PortableOperatorFault::Unbound),
+    };
+    super::types::RankParts { column, layers }
+}

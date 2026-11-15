@@ -20,6 +20,7 @@ use ryo_execution_domain::domain::operating::service::portable_fault;
 use ryo_execution_domain::domain::output_coverage::service::output_coverage;
 use ryo_execution_domain::domain::output_coverage::types::{InputCoverage, OperandOrdinal};
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::domain::physical_plan::types::{FactRows, PlanInputs as _};
 use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
 use ryo_operators::domain::tree_cells::service::native_form;
@@ -188,17 +189,27 @@ pub(crate) fn ran_node(
         source: at.source,
         paths: at.paths,
         elements: at.inputs.lookup.tree(),
+        semantic: at.semantic,
+        refusals: &mut at.refusals,
     };
-    at.pass
-        .operators
-        .run(
-            physical(&at.pass.program),
-            node,
-            &mut at.buffers,
-            &at.inputs,
-            &mut resources,
-        )
-        .map_err(portable_fault)
+    let ran = at.pass.operators.run(
+        physical(&at.pass.program),
+        node,
+        &mut at.buffers,
+        &at.inputs,
+        &mut resources,
+    );
+    // A refused rendering answers the engine's reason for the node it came from, whichever rule ran that node.
+    ran.map_err(|fault| {
+        if let PortableOperatorFault::RenderRefused { refusal } = fault {
+            at.refusals
+                .get(usize::try_from(refusal.0).unwrap_or(usize::MAX))
+                .cloned()
+                .unwrap_or_else(|| portable_fault(fault))
+        } else {
+            portable_fault(fault)
+        }
+    })
 }
 
 /// Ends the file: every node's rows go back to the buffers.

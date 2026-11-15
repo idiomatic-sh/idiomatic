@@ -48,9 +48,14 @@ pub fn portable_fault(
                 ..
             },
         ) => OperatingError::InvalidRegex { reason },
-        PortableOperatorFault::MissingCapture
-        | PortableOperatorFault::WrongOperation
-        | PortableOperatorFault::UnsupportedRender => OperatingError::WrongOperation,
+        PortableOperatorFault::MissingCapture { capture } => OperatingError::InvalidRegex {
+            reason: format!("missing named capture `{}`", capture.0),
+        },
+        PortableOperatorFault::Derived(fault) => derived_fault(fault),
+        // A refused rendering is answered from the engine's record of it; one no record holds is a wrong operation.
+        PortableOperatorFault::WrongOperation
+        | PortableOperatorFault::UnsupportedRender
+        | PortableOperatorFault::RenderRefused { .. } => OperatingError::WrongOperation,
     }
 }
 
@@ -87,5 +92,67 @@ pub(crate) fn written_result(
         Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written) => Ok(()),
         Ok(_) => Err(OperatingError::WrongOperation),
         Err(error) => Err(portable_fault(error)),
+    }
+}
+
+/// What the file's semantic session renders for `requests`, one answer each in request order: the engine's one call of the
+/// session, which the interpreter and the file pass both make.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operating::errors::OperatingError;
+/// use ryo_execution_domain::domain::operating::service::rendered_batch;
+/// use ryo_values::domain::files::types::SourceView;
+/// assert!(matches!(
+///     rendered_batch(None, &[], SourceView(b"")),
+///     Err(OperatingError::SemanticIncomplete { .. })
+/// ));
+/// ```
+///
+/// # Errors
+///
+/// [`OperatingError::SemanticIncomplete`] when the file admitted no semantic session, the session's own refusal, and
+/// [`OperatingError::SemanticBatchShape`] for a batch of answers of another length than the requests'.
+pub fn rendered_batch(
+    semantic: Option<&dyn crate::domain::operating::types::SemanticLookup>,
+    requests: &[ryo_language::domain::semantics::types::RenderRequest],
+    source: ryo_values::domain::files::types::SourceView<'_>,
+) -> Result<Vec<ryo_language::domain::semantics::types::RenderOutcome>, OperatingError> {
+    let lookup = semantic.ok_or_else(|| OperatingError::SemanticIncomplete {
+        reason: crate::domain::operating::constants::NO_SEMANTIC_SESSION.into(),
+    })?;
+    let answers = lookup.render_batch(requests, source)?;
+    if answers.len() == requests.len() {
+        Ok(answers)
+    } else {
+        Err(OperatingError::SemanticBatchShape)
+    }
+}
+
+/// A provider's unsupported answer invalidates the consuming rule, with the provider's reason: the first unsupported answer of
+/// the batch.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operating::errors::OperatingError;
+/// use ryo_execution_domain::domain::operating::service::unsupported_render;
+/// assert!(matches!(unsupported_render(&[]), OperatingError::SemanticIncomplete { .. }));
+/// ```
+#[must_use]
+pub fn unsupported_render(
+    answers: &[ryo_language::domain::semantics::types::RenderOutcome],
+) -> OperatingError {
+    use ryo_language::domain::semantics::types::RenderOutcome;
+    let reason = answers.iter().find_map(|answer| match answer {
+        RenderOutcome::Unsupported(reason) => Some(reason.0),
+        RenderOutcome::Known(_) | RenderOutcome::NotApplicable => None,
+    });
+    OperatingError::SemanticIncomplete {
+        reason: format!(
+            "selected language cannot render this syntax (reason {})",
+            reason.map_or_else(String::new, |reason| reason.to_string())
+        ),
     }
 }
