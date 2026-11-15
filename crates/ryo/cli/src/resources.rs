@@ -56,8 +56,19 @@ fn store() -> ryo_core::outbound::lint_store::types::CacheDirectory {
     ryo_core::outbound::lint_store::types::CacheDirectory(".ryo_cache".into())
 }
 
+/// The directories every walk of a project skips: those the languages this build links never read, and the store `store`. The one
+/// definition of which files a command reads, which the edge hands each command's corpus.
+#[must_use]
+fn walk_skips(
+    store: &ryo_core::outbound::lint_store::types::CacheDirectory,
+) -> ryo_core::outbound::corpus::types::SkippedDirectories {
+    let mut skipped = crate::languages::skipped();
+    skipped.0.push(store.0.clone());
+    skipped
+}
+
 /// The edge of a command that looks for its project from `start`, run from `here`: the one place that builds an
-/// [`Edge`](crate::edge::Edge), so the store's name and the build stay written once.
+/// [`Edge`](crate::edge::Edge), so the store's name, the directories a walk skips and the build stay written once.
 #[must_use]
 pub fn edge_at(
     start: ryo_language::inbound::use_cases::project::types::RootPath,
@@ -65,10 +76,12 @@ pub fn edge_at(
     machine: ryo_values::domain::runs::types::MachineWorkers,
     format: crate::output::Format,
 ) -> crate::edge::Edge {
+    let store = store();
     crate::edge::Edge {
         start,
         here,
-        store: store(),
+        skipped: walk_skips(&store),
+        store,
         build: ryo_core::outbound::lint_store::types::BuildIdentity(
             concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION")).into(),
         ),
