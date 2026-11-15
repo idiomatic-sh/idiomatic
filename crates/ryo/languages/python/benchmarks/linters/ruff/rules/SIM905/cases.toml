@@ -57,3 +57,21 @@ name = "noqa"
 comparison = "full"
 files = { "case.py" = "\"a,b,c\".split(\",\", 1) # noqa: SIM905\n" }
 expected = []
+
+[[cases]]
+name = "maxsplit-at-i32-max"
+comparison = "full"
+files = { "case.py" = "\"a b\".split(maxsplit=2147483647)\n" }
+expected = [{ rule = "SIM905", file = "case.py", start = 0, end = 32 }]
+
+[[cases]]
+name = "maxsplit-past-i32-max"
+comparison = "full"
+files = { "case.py" = "\"a b\".split(maxsplit=2147483648)\n" }
+expected = []
+
+[[cases]]
+name = "maxsplit-negative-past-i32-max"
+comparison = "full"
+files = { "case.py" = "\"a b\".split(maxsplit=-2147483648)\n" }
+expected = []

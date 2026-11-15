@@ -268,3 +268,8 @@ name = "noqa-codes-trailing-reason-suppress-policy-plain-integer"
 comparison = "full"
 files = { "case.pyi" = "import sys\nif sys.version_info == 3: ...  # noqa: PYI003 # why\n" }
 expected = []
+
+[[cases]]
+name = "valid-major-minor-slice"
+files = { "case.pyi" = "import sys\nif sys.version_info[:2] >= (3, 10):\n    ...\n" }
+expected = []
