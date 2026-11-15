@@ -1,7 +1,9 @@
 //! The types of the `project_pass` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::application::file_dag::frontiers::types::{HandedOver, ReadinessProof, Withholdings};
-use crate::application::file_dag::program::project_phase::types::PhasePartials;
+use crate::application::file_dag::program::project_phase::types::{
+    HandoverDeclaration, PhasePartials,
+};
 use crate::application::file_dag::publications::types::{BoundTables, PublicationSlot};
 use ryo_execution_domain::domain::coverage::types::{Partials, RuleIndex};
 use ryo_language::domain::elements::types::Elements;
@@ -67,32 +69,7 @@ pub(crate) struct PhaseState {
     /// again.
     pub(crate) last: Vec<LastHandover>,
     /// The files each rule was handed over from, as the phase first declared them: kept across the phase's calls.
-    pub(crate) declared: Vec<DeclaredFiles>,
-}
-
-/// The files one rule was handed over from, as its phase first declared them.
-#[derive(Clone, Debug)]
-pub(crate) struct DeclaredFiles {
-    /// The rule.
-    pub(crate) rule: RuleIndex,
-    /// The files.
-    pub(crate) from: HandedFrom,
-}
-
-/// The files a rule's handover was read from and how the phase declared them: what each, covered in part, skipped, does not
-/// apply to and was refused on.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct HandedFrom {
-    /// The files the rule reads.
-    pub(crate) files: Box<[ryo_relations::domain::relations::types::FileId]>,
-    /// The files read in part.
-    pub(crate) covered: Box<[ryo_execution_domain::domain::coverage::types::Covered]>,
-    /// The files skipped.
-    pub(crate) skipped: Box<[ryo_values::domain::runs::types::Skipped]>,
-    /// The files the rule does not apply to.
-    pub(crate) inapplicable: Box<[ryo_relations::domain::relations::types::FileId]>,
-    /// The files the rule was refused on.
-    pub(crate) refused: Box<[ryo_relations::domain::relations::types::FileId]>,
+    pub(crate) declared: Vec<HandoverDeclaration>,
 }
 
 /// The place of one rule's handover among a phase's handovers.

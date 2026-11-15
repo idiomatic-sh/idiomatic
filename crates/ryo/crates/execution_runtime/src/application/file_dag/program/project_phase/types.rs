@@ -106,6 +106,30 @@ pub struct ProjectPhase<'a> {
         &'a crate::application::file_dag::program::request_execution::types::RequestExecution,
     /// The files each rule was handed over from, as the phase first declared them: the one thing a later call reads of an
     /// earlier one.
-    pub(crate) declared:
-        std::cell::RefCell<Vec<crate::application::file_dag::project_pass::types::DeclaredFiles>>,
+    pub(crate) declared: std::cell::RefCell<Vec<HandoverDeclaration>>,
+}
+
+/// The files a rule's handover was read from and how the phase declared them: what each, covered in part, skipped, does not
+/// apply to and was refused on.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct HandedFrom {
+    /// The files the rule reads.
+    pub(crate) files: Box<[ryo_relations::domain::relations::types::FileId]>,
+    /// The files read in part.
+    pub(crate) covered: Box<[ryo_execution_domain::domain::coverage::types::Covered]>,
+    /// The files skipped.
+    pub(crate) skipped: Box<[ryo_values::domain::runs::types::Skipped]>,
+    /// The files the rule does not apply to.
+    pub(crate) inapplicable: Box<[ryo_relations::domain::relations::types::FileId]>,
+    /// The files the rule was refused on.
+    pub(crate) refused: Box<[ryo_relations::domain::relations::types::FileId]>,
+}
+
+/// The files one rule was handed over from, as its phase first declared them.
+#[derive(Clone, Debug)]
+pub(crate) struct HandoverDeclaration {
+    /// The rule.
+    pub(crate) rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
+    /// The files.
+    pub(crate) from: HandedFrom,
 }

@@ -2,14 +2,14 @@
 //! frontier handed over at the rule's first occurrence and its caller's partials taken, all before any evaluates; then each is
 //! guarded and evaluated through the file pass's one node step, and handed to its caller in declaration order.
 use super::types::{
-    DeclaredFiles, HandedFrom, HandoverPlace, HostedTables, OccurrenceRun, PhaseBatch,
-    PhaseOccurrence, PhaseState, ReadyOccurrence, RuleHandover,
+    HandoverPlace, HostedTables, OccurrenceRun, PhaseBatch, PhaseOccurrence, PhaseState,
+    ReadyOccurrence, RuleHandover,
 };
 use crate::application::file_dag::file_pass::types::PassProgram;
 use crate::application::file_dag::frontiers::service::{hand_over, required_files};
 use crate::application::file_dag::frontiers::types::HandoverPolicy;
 use crate::application::file_dag::program::project_phase::types::{
-    OccurrenceNumber, PhasePartials, PhaseStop,
+    HandedFrom, HandoverDeclaration, OccurrenceNumber, PhasePartials, PhaseStop,
 };
 use crate::application::file_dag::program::rule_outcome::types::{
     ProjectBatch, ProjectOutputOutcome, RuleOutcome,
@@ -199,7 +199,7 @@ fn handover_of<E>(
             return Err(PhaseStop::Operating(OperatingError::WrongOperation));
         }
         Some(_) => {}
-        None => state.declared.push(DeclaredFiles { rule, from }),
+        None => state.declared.push(HandoverDeclaration { rule, from }),
     }
     if let Some(place) = state
         .handovers
