@@ -1,7 +1,7 @@
 //! What a file's sources are asked for, through the request's per-file route: the relations of the rules whose intent for the
 //! file is Run, once each, and nothing for a rule that does not run on it. A rule that runs but has no candidate in the file
 //! still reads its relations: its fault, its coverage and its rows are what they are with them.
-use super::super::fixtures::{RUN, every, plan, ran, request};
+use super::super::fixtures::{RUN, engine, every, plan, ran, request};
 use ryo_execution_domain::domain::rule_intent::types::{
     ApplicabilityReason, CaptureIntent, DiagnosticDelivery, FileRuleIntent, ObservationDemand,
 };
@@ -211,7 +211,7 @@ fn scenario(input: Scenario) -> (Vec<Plan>, Vec<FileRuleIntent>, Vec<ReadInPart>
 
 fn subject(input: Input) -> Result<Value, Failure> {
     let (plans, intents, said) = scenario(input);
-    let (request, _watch) = request(plans);
+    let request = request(plans, engine());
     let ran = ran(&request, &intents, &said);
     Ok(Cow::Owned(format!("{:?} {}", ran.asked, ran.rules)))
 }

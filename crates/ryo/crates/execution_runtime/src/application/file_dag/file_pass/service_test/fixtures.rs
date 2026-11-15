@@ -1,6 +1,7 @@
 //! The support of the file pass's cases: a request of authored plans prepared over the engine's own operators, which a case
 //! watches through the operators port, and one file run through the request's per-file route over a source that logs what it
 //! is asked for.
+
 use crate::application::file_dag::program::file_session::types::KindSupport;
 use crate::application::file_dag::program::file_session::types::{
     CaptureContext, EmittedRoot, FileEnd, FileRules, FileRunInput, Partiality, RuleAfter,
@@ -24,31 +25,25 @@ use ryo_execution_domain::domain::rule_intent::types::{
     CaptureIntent, DiagnosticDelivery, FileRuleIntent, ObservationDemand,
 };
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
-use ryo_operators::domain::physical_plan::types::candidates::value::Candidates;
-use ryo_operators::domain::physical_plan::types::fact_rows::value::FactRows;
-use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
-use ryo_operators::domain::physical_plan::types::frontier_place::value::FrontierPlace;
-use ryo_operators::domain::physical_plan::types::held_rows::value::HeldRows;
-use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
-use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-use ryo_operators::domain::physical_plan::types::{NodeRows, PlanInputs, PlanNodeId, Resources};
-use ryo_relations::domain::relations::types::{FileId, Relation, Words, WorkerNumber};
+use ryo_language::domain::symbols::fixtures::intern;
+use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_operators::domain::physical_plan::types::PlanNodeId;
+use ryo_relations::domain::relations::types::{FileId, Offset, Relation, Words, WorkerNumber};
+use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds, SourceView,
 };
-use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, HostedNumber, Input, RepeatedRows, StepId, StepScope,
-};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepId, StepScope};
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
 use ryo_values::domain::stored_facts::types::{Bucket, Digest, ReadInPart};
 use std::fmt::Write as _;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::Arc;
+
+/// The bytes of the run's file.
+const SOURCE: &[u8] = b"abc";
 
 /// A rule that runs on the file, its diagnostic collected and every frontier it hands over captured.
 pub(super) const RUN: FileRuleIntent = FileRuleIntent::Run {
@@ -99,124 +94,8 @@ pub(super) fn plan(steps: Vec<PlanStep>, emit: u32, frontier: Vec<Input>) -> Pla
     }
 }
 
-/// What the watched operators saw, in order: each node the engine ran, each relation a run was lent, whether each watched node
-/// held rows before and after each run, and each node made to fail.
-#[derive(Debug, Default)]
-pub(super) struct Watch {
-    /// The nodes whose rows each run reports, before and after it.
-    pub(super) nodes: Mutex<Vec<PlanNodeId>>,
-    /// The node every run of which faults, when one is set.
-    pub(super) failing: Mutex<Option<PlanNodeId>>,
-    /// What was seen, in order.
-    pub(super) log: Mutex<Vec<String>>,
-}
-
-impl Watch {
-    /// Adds what was seen.
-    fn push(&self, event: String) {
-        self.log
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(event);
-    }
-
-    /// Everything seen so far, emptied.
-    pub(super) fn taken(&self) -> Vec<String> {
-        std::mem::take(&mut *self.log.lock().unwrap_or_else(PoisonError::into_inner))
-    }
-
-    /// Watches `nodes` from now on.
-    pub(super) fn watch(&self, nodes: &[PlanNodeId]) {
-        *self.nodes.lock().unwrap_or_else(PoisonError::into_inner) = nodes.to_vec();
-    }
-
-    /// Whether each watched node holds rows in `buffers`, as text.
-    fn held(&self, buffers: &FileBuffers) -> String {
-        let nodes = self.nodes.lock().unwrap_or_else(PoisonError::into_inner);
-        let mut held = String::new();
-        for node in nodes.iter() {
-            let state = match buffers.rows(*node) {
-                NodeRows::Materialized(_) => "held",
-                NodeRows::Absent => "absent",
-            };
-            let _ = write!(held, " {}:{state}", node.0);
-        }
-        held
-    }
-}
-
-/// The engine's own operators, each run seen by `watch`.
-#[derive(Debug)]
-pub(super) struct Watched {
-    /// The operators that plan and run.
-    pub(super) inner: Arc<dyn OperatorsPort>,
-    /// What sees each run.
-    pub(super) watch: Arc<Watch>,
-}
-
-/// The inputs of one run, each relation lent logged.
-struct Lending<'i> {
-    /// The run's own inputs.
-    inner: &'i dyn PlanInputs,
-    /// Where each lend is logged.
-    watch: &'i Watch,
-}
-
-impl PlanInputs for Lending<'_> {
-    fn facts(&self, relation: Relation) -> FactRows<'_> {
-        self.watch.push(format!("lend {relation:?}"));
-        self.inner.facts(relation)
-    }
-    fn roots(&self, root: PlanNodeId) -> Candidates<'_> {
-        self.inner.roots(root)
-    }
-    fn frontier(&self, place: FrontierPlace) -> HeldRows<'_> {
-        self.inner.frontier(place)
-    }
-    fn observation(&self, place: BoundObservationPlace) -> HeldRows<'_> {
-        self.inner.observation(place)
-    }
-    fn hosted(&self, relation: HostedNumber) -> HeldRows<'_> {
-        self.inner.hosted(relation)
-    }
-}
-
-impl OperatorsPort for Watched {
-    fn plan(&self, program: &LogicalProgram<'_>) -> Result<PhysicalPlan, PortableOperatorFault> {
-        self.inner.plan(program)
-    }
-    fn run(
-        &self,
-        plan: &PhysicalPlan,
-        node: PlanNodeId,
-        buffers: &mut FileBuffers,
-        inputs: &dyn PlanInputs,
-        resources: &mut dyn Resources,
-    ) -> Result<(), PortableOperatorFault> {
-        self.watch
-            .push(format!("run {} before{}", node.0, self.watch.held(buffers)));
-        let failing = *self
-            .watch
-            .failing
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        if failing == Some(node) {
-            self.watch.push(format!("fail {}", node.0));
-            return Err(PortableOperatorFault::WrongOperation);
-        }
-        let lending = Lending {
-            inner: inputs,
-            watch: &self.watch,
-        };
-        let ran = self.inner.run(plan, node, buffers, &lending, resources);
-        self.watch
-            .push(format!("ran {} after{}", node.0, self.watch.held(buffers)));
-        ran
-    }
-}
-
 /// The engine's own operators.
-fn engine() -> Arc<dyn OperatorsPort> {
+pub(super) fn engine() -> Arc<dyn OperatorsPort> {
     Arc::new(crate::outbound::operators::factory::use_case(
         ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl::new(),
         ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl::new(Arc::new(
@@ -255,17 +134,11 @@ fn corpus() -> Vec<CorpusInput> {
     })]
 }
 
-/// The request of `plans`, one rule each with no binding, prepared over the engine's own operators, each run seen by the
-/// returned watch.
-pub(super) fn request(plans: Vec<Plan>) -> (RequestExecution, Arc<Watch>) {
+/// The request of `plans`, one rule each with no binding, prepared over `operators`.
+pub(super) fn request(plans: Vec<Plan>, operators: Arc<dyn OperatorsPort>) -> RequestExecution {
     let rules: Vec<RuleSpec> = (0..plans.len()).map(spec).collect();
     let count = plans.len();
     let compiled = assemble(plans, vec![vec![]; count], &rules).expect("the rules assemble");
-    let watch = Arc::new(Watch::default());
-    let operators: Arc<dyn OperatorsPort> = Arc::new(Watched {
-        inner: engine(),
-        watch: Arc::clone(&watch),
-    });
     let prepared = prepare(
         compiled,
         &rules,
@@ -275,7 +148,7 @@ pub(super) fn request(plans: Vec<Plan>) -> (RequestExecution, Arc<Watch>) {
         operators,
     )
     .expect("the rules prepare");
-    (begin(&prepared, &corpus(), None), watch)
+    begin(&prepared, &corpus(), None)
 }
 
 /// The node of step `step` of `rule` in `request`'s program.
@@ -315,7 +188,18 @@ pub(super) fn ran(
     source.said = said.to_vec();
     let facts = FactsFake::default();
     let mut worker = facts.open_worker().expect("a fake worker");
+    // The source writes Symbol(0) and Symbol(1) into its rows: they are the file's own names, `a` and `b` of its bytes, so a
+    // captured row's names leave the file as any file's do.
     let mut symbols = Symbols::default();
+    let named = [
+        intern(&mut symbols, ByteSlice(SOURCE), Offset(0), Offset(1)),
+        intern(&mut symbols, ByteSlice(SOURCE), Offset(1), Offset(2)),
+    ];
+    assert_eq!(
+        named,
+        [Symbol(0), Symbol(1)],
+        "the names the source writes are the file's own"
+    );
     let (mut arena, mut places, mut words) = (Vec::new(), Vec::new(), Words::default());
     let first = vec![Bucket(0); intents.len()];
     let rules = request.run_file(
@@ -323,7 +207,7 @@ pub(super) fn ran(
             language: SourceLanguage::Recognized,
             file: FileId(0),
             intents,
-            source: SourceView(b"abc"),
+            source: SourceView(SOURCE),
             sources: FactSources::read(&mut source, &mut []).expect("one source"),
             active: &[],
             said: &[],

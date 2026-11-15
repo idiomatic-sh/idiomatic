@@ -1,7 +1,9 @@
 //! How long a node's rows live in a file, through the request's per-file route, seen at the operators port: a node's rows go
 //! once its last consumer is done, whichever comes last of its node readers and its engine uses (the rules that emit it, the
-//! frontiers and named outputs that hold it); never before, so no node is made twice in a file; and never past the file's end.
-use super::super::fixtures::{RUN, every, every_node, first_column, node_of, plan, ran, request};
+//! frontiers and named outputs that hold it), a consumer that does not run on the file counting as done from the start; never
+//! before, so no node is made twice in a file; and never past the file's end. Each case answers the file's own outcome too.
+use super::super::fixtures::{RUN, every, every_node, first_column, node_of, plan, ran};
+use super::fixtures::watched;
 use ryo_execution_domain::domain::rule_intent::types::{ApplicabilityReason, FileRuleIntent};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -9,6 +11,15 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as StepInput, Ste
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 use std::borrow::Cow;
 use std::sync::PoisonError;
+
+/// How a rule does not run on the file.
+#[derive(Clone, Copy, Debug)]
+enum NotRun {
+    /// Its diagnostic does not apply to the file.
+    Skipped,
+    /// It does not govern the file and no governing rule reads its outputs.
+    Undemanded,
+}
 
 /// The request and the file a case runs.
 #[derive(Clone, Copy, Debug)]
@@ -26,11 +37,17 @@ enum Scenario {
     /// rule makes it once and holds it. (How many indexes the probes build is counted at seam C, in operators' shared_index
     /// cases: an_engine_use_of_a_last_probe_not_yet_made_keeps_its_shared_index.)
     SkippedSharesALastProbe,
+    /// Rules 0 and 1 emit the functions, rule 0 not running on the file, its turn ended before rule 1 made the node; rule 2
+    /// emits the comments.
+    UseBeforeMade(NotRun),
+    /// Rule 0 emits the functions; rule 1, not running on the file, projects their first column; rule 2 emits the comments.
+    ReaderNotRun(NotRun),
 }
 
 type Input = Scenario;
 /// What the operators saw, in order: each run with whether each watched node held rows before and after it, and each relation
-/// lent; for a stopped file, what the next file's first run saw.
+/// lent; then, after `|`, the file's rules and end. For a stopped file: its rules and end, then what the next file's first run
+/// saw, and the next file's rules and end.
 type Value = Cow<'static, str>;
 type Failure = ();
 
@@ -40,7 +57,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::LastEngineUse,
         expect: Expect::Value(Cow::Borrowed(
-            "run 0 before 0:absent; lend Function; ran 0 after 0:held; run 0 before 0:held; ran 0 after 0:held; run 1 before 0:absent; lend Comment; ran 1 after 0:absent",
+            "run 0 before 0:absent; lend Function; ran 0 after 0:held; run 0 before 0:held; ran 0 after 0:held; run 1 before 0:absent; lend Comment; ran 1 after 0:absent | rule 0: complete [Node(NodeId(1)), Symbol(Symbol(0)), File(FileId(0)), Span(Span { start: Offset(0), end: Offset(4) })]; ran captured. rule 1: complete [Node(NodeId(2)), Symbol(Symbol(1)), File(FileId(0)), Span(Span { start: Offset(0), end: Offset(4) }), Flag(Lowered)]; ran . finished; partial []",
         )),
     },
     Case {
@@ -48,7 +65,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::EngineUseThenReader,
         expect: Expect::Value(Cow::Borrowed(
-            "run 0 before 0:absent; lend Function; ran 0 after 0:held; run 1 before 0:held; ran 1 after 0:absent",
+            "run 0 before 0:absent; lend Function; ran 0 after 0:held; run 1 before 0:held; ran 1 after 0:absent | rule 0: complete [Node(NodeId(1)), Symbol(Symbol(0)), File(FileId(0)), Span(Span { start: Offset(0), end: Offset(4) })]; ran . rule 1: complete [Node(NodeId(1))]; ran . finished; partial []",
         )),
     },
     Case {
@@ -56,7 +73,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::ReadThenCaptured,
         expect: Expect::Value(Cow::Borrowed(
-            "run 1 before 0:absent; lend Function; ran 1 after 0:held; run 0 before 0:held; ran 0 after 0:held",
+            "run 1 before 0:absent; lend Function; ran 1 after 0:held; run 0 before 0:held; ran 0 after 0:held | rule 0: complete [Node(NodeId(1))]; ran captured. finished; partial []",
         )),
     },
     Case {
@@ -64,7 +81,41 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::SkippedSharesALastProbe,
         expect: Expect::Value(Cow::Borrowed(
-            "run 0 before 0:absent 2:absent; lend Function; lend Comment; ran 0 after 0:held 2:absent; run 2 before 0:absent 2:absent; lend Function; lend Comment; ran 2 after 0:absent 2:held",
+            "run 0 before 0:absent 2:absent; lend Function; lend Comment; ran 0 after 0:held 2:absent; run 2 before 0:absent 2:absent; lend Function; lend Comment; ran 2 after 0:absent 2:held | rule 0: complete []; ran . rule 2: complete []; ran . finished; partial []",
+        )),
+    },
+    Case {
+        name: CaseName("an_engine_use_of_a_skipped_rule_done_before_its_node_is_made_still_counts"),
+        word: Word::Succeeds,
+        input: || Scenario::UseBeforeMade(NotRun::Skipped),
+        expect: Expect::Value(Cow::Borrowed(
+            "run 0 before 0:absent; lend Function; ran 0 after 0:held; run 1 before 0:absent; lend Comment; ran 1 after 0:absent | rule 1: complete [Node(NodeId(1)), Symbol(Symbol(0)), File(FileId(0)), Span(Span { start: Offset(0), end: Offset(4) })]; ran . rule 2: complete [Node(NodeId(2)), Symbol(Symbol(1)), File(FileId(0)), Span(Span { start: Offset(0), end: Offset(4) }), Flag(Lowered)]; ran . finished; partial []",
+        )),
+    },
+    Case {
+        name: CaseName(
+            "an_engine_use_of_an_undemanded_rule_done_before_its_node_is_made_still_counts",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::UseBeforeMade(NotRun::Undemanded),
+        expect: Expect::Value(Cow::Borrowed(
+            "run 0 before 0:absent; lend Function; ran 0 after 0:held; run 1 before 0:absent; lend Comment; ran 1 after 0:absent | rule 1: complete [Node(NodeId(1)), Symbol(Symbol(0)), File(FileId(0)), Span(Span { start: Offset(0), end: Offset(4) })]; ran . rule 2: complete [Node(NodeId(2)), Symbol(Symbol(1)), File(FileId(0)), Span(Span { start: Offset(0), end: Offset(4) }), Flag(Lowered)]; ran . finished; partial []",
+        )),
+    },
+    Case {
+        name: CaseName("a_reader_in_a_skipped_rule_holds_no_rows"),
+        word: Word::Succeeds,
+        input: || Scenario::ReaderNotRun(NotRun::Skipped),
+        expect: Expect::Value(Cow::Borrowed(
+            "run 0 before 0:absent; lend Function; ran 0 after 0:held; run 2 before 0:absent; lend Comment; ran 2 after 0:absent | rule 0: complete [Node(NodeId(1)), Symbol(Symbol(0)), File(FileId(0)), Span(Span { start: Offset(0), end: Offset(4) })]; ran . rule 2: complete [Node(NodeId(2)), Symbol(Symbol(1)), File(FileId(0)), Span(Span { start: Offset(0), end: Offset(4) }), Flag(Lowered)]; ran . finished; partial []",
+        )),
+    },
+    Case {
+        name: CaseName("a_reader_in_an_undemanded_rule_holds_no_rows"),
+        word: Word::Succeeds,
+        input: || Scenario::ReaderNotRun(NotRun::Undemanded),
+        expect: Expect::Value(Cow::Borrowed(
+            "run 0 before 0:absent; lend Function; ran 0 after 0:held; run 2 before 0:absent; lend Comment; ran 2 after 0:absent | rule 0: complete [Node(NodeId(1)), Symbol(Symbol(0)), File(FileId(0)), Span(Span { start: Offset(0), end: Offset(4) })]; ran . rule 2: complete [Node(NodeId(2)), Symbol(Symbol(1)), File(FileId(0)), Span(Span { start: Offset(0), end: Offset(4) }), Flag(Lowered)]; ran . finished; partial []",
         )),
     },
     Case {
@@ -72,7 +123,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::StoppedFile,
         expect: Expect::Value(Cow::Borrowed(
-            "rule 0: complete [Node(NodeId(1)), Symbol(Symbol(0)), File(FileId(0)), Span(Span { start: Offset(0), end: Offset(4) })]; ran . rule 1: failed WrongOperation; unreached. unfinished; partial [] next: run 0 before 0:absent 1:absent",
+            "rule 0: complete [Node(NodeId(1)), Symbol(Symbol(0)), File(FileId(0)), Span(Span { start: Offset(0), end: Offset(4) })]; ran . rule 1: failed WrongOperation; unreached. unfinished; partial [] next: run 0 before 0:absent 1:absent | rule 0: complete [Node(NodeId(1)), Symbol(Symbol(0)), File(FileId(0)), Span(Span { start: Offset(0), end: Offset(4) })]; ran . rule 1: complete [Node(NodeId(2)), Symbol(Symbol(1)), File(FileId(0)), Span(Span { start: Offset(0), end: Offset(4) }), Flag(Lowered)]; ran . rule 2: complete [Node(NodeId(1)), Symbol(Symbol(0)), File(FileId(0)), Span(Span { start: Offset(0), end: Offset(4) })]; ran . finished; partial []",
         )),
     },
 ];
@@ -99,6 +150,16 @@ fn subject(input: Input) -> Result<Value, Failure> {
             handed,
         )],
         Scenario::StoppedFile => vec![functions(), comments(), functions()],
+        Scenario::UseBeforeMade(_) => vec![functions(), functions(), comments()],
+        Scenario::ReaderNotRun(_) => vec![
+            functions(),
+            plan(
+                vec![every(Relation::Function), first_column(0)],
+                1,
+                Vec::new(),
+            ),
+            comments(),
+        ],
         Scenario::SkippedSharesALastProbe => {
             let unremarked = |left: StepInput| PlanStep {
                 scope: StepScope::PerFile,
@@ -131,12 +192,28 @@ fn subject(input: Input) -> Result<Value, Failure> {
         }
     };
     let mut intents = vec![RUN; plans.len()];
-    if let Scenario::SkippedSharesALastProbe = input
-        && let Some(skipped) = intents.get_mut(1)
+    let not_run = |how: NotRun| match how {
+        NotRun::Skipped => FileRuleIntent::Skipped(ApplicabilityReason::DiagnosticNotApplicable),
+        NotRun::Undemanded => FileRuleIntent::Undemanded,
+    };
+    let skipped = match input {
+        Scenario::SkippedSharesALastProbe => Some((
+            1,
+            FileRuleIntent::Skipped(ApplicabilityReason::DiagnosticNotApplicable),
+        )),
+        Scenario::UseBeforeMade(how) => Some((0, not_run(how))),
+        Scenario::ReaderNotRun(how) => Some((1, not_run(how))),
+        Scenario::LastEngineUse
+        | Scenario::EngineUseThenReader
+        | Scenario::ReadThenCaptured
+        | Scenario::StoppedFile => None,
+    };
+    if let Some((rule, intent)) = skipped
+        && let Some(slot) = intents.get_mut(rule)
     {
-        *skipped = FileRuleIntent::Skipped(ApplicabilityReason::DiagnosticNotApplicable);
+        *slot = intent;
     }
-    let (request, watch) = request(plans);
+    let (request, watch) = watched(plans);
     let functions = node_of(&request, 0, 0);
     if let Scenario::StoppedFile = input {
         *watch.failing.lock().unwrap_or_else(PoisonError::into_inner) =
@@ -145,12 +222,13 @@ fn subject(input: Input) -> Result<Value, Failure> {
         *watch.failing.lock().unwrap_or_else(PoisonError::into_inner) = None;
         let _stopped_file = watch.taken();
         watch.watch(&every_node(&request));
-        let _next = ran(&request, &intents, &[]);
+        let next = ran(&request, &intents, &[]);
         let first = watch.taken().into_iter().next();
         return Ok(Cow::Owned(format!(
-            "{} next: {}",
+            "{} next: {} | {}",
             stopped.rules,
-            first.unwrap_or_default()
+            first.unwrap_or_default(),
+            next.rules
         )));
     }
     if let Scenario::SkippedSharesALastProbe = input {
@@ -159,8 +237,12 @@ fn subject(input: Input) -> Result<Value, Failure> {
     } else {
         watch.watch(&[functions]);
     }
-    let _ran = ran(&request, &intents, &[]);
-    Ok(Cow::Owned(watch.taken().join("; ")))
+    let ran = ran(&request, &intents, &[]);
+    Ok(Cow::Owned(format!(
+        "{} | {}",
+        watch.taken().join("; "),
+        ran.rules
+    )))
 }
 
 #[test]
