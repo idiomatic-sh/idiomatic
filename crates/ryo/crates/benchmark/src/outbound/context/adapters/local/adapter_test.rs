@@ -281,24 +281,28 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || verify_refuses_a_present_dependency_whose_bytes_disagree,
         expect: Expect::Value(()),
     },
+    #[cfg(unix)]
     Case {
         name: CaseName("seal_records_a_tracked_link_to_a_sealed_file"),
         word: Word::Succeeds,
         input: || links::seal_records_a_tracked_link_to_a_sealed_file,
         expect: Expect::Value(()),
     },
+    #[cfg(unix)]
     Case {
         name: CaseName("validate_refuses_a_sealed_link_changed_after_the_seal"),
         word: Word::Succeeds,
         input: || links::validate_refuses_a_sealed_link_changed_after_the_seal,
         expect: Expect::Value(()),
     },
+    #[cfg(unix)]
     Case {
         name: CaseName("validate_refuses_a_path_equal_retarget"),
         word: Word::Succeeds,
         input: || links::validate_refuses_a_path_equal_retarget,
         expect: Expect::Value(()),
     },
+    #[cfg(unix)]
     Case {
         name: CaseName("seal_refuses_non_canonical_link_text"),
         word: Word::Succeeds,
@@ -311,18 +315,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || links::validate_refuses_backslash_link_text,
         expect: Expect::Value(()),
     },
+    #[cfg(unix)]
     Case {
         name: CaseName("seal_refuses_a_link_to_an_unsealed_target"),
         word: Word::Succeeds,
         input: || links::seal_refuses_a_link_to_an_unsealed_target,
         expect: Expect::Value(()),
     },
+    #[cfg(unix)]
     Case {
         name: CaseName("seal_refuses_a_requested_source_that_is_a_link"),
         word: Word::Succeeds,
         input: || links::seal_refuses_a_requested_source_that_is_a_link,
         expect: Expect::Value(()),
     },
+    #[cfg(unix)]
     Case {
         name: CaseName("seal_refuses_a_non_utf8_link_target"),
         word: Word::Succeeds,

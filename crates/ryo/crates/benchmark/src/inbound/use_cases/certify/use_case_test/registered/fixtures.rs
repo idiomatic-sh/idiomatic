@@ -1,11 +1,15 @@
 //! Test support of the registered certification proofs: the native execution fake and the registration fixture.
 use crate::inbound::use_cases::certify::interface::CertifyUseCase as _;
+use crate::inbound::use_cases::stage_suite::interface::StageSuiteUseCase as _;
+use crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl;
 use crate::outbound::execution::interface::ExecutionPort;
+use ryo::linter::RuleId;
 use ryo_benchmark_contracts::domain::measurements::types::*;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
 use ryo_benchmark_contracts::domain::requests::types::CertificationCases;
 use ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage;
+use ryo_benchmark_contracts::domain::workloads::types::StagePurpose;
 use serde_json::{Value as Document, json};
 use sha2::{Digest as _, Sha256};
 use std::{
@@ -355,24 +359,21 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn modules(
         .map_err(|error| refusal(&f, &error, reason, 0))
 }
 
-/// A profile staged from the registered one with only `rules` as its defaults, as a diagnostic run stages it.
+/// The profile a diagnostic run stages from `source` for `rules`, through the one staging operation.
 pub(in crate::inbound::use_cases::certify::use_case_test) fn narrowed(
     fixture: &Fixture,
+    source: &Path,
     rules: &[&str],
 ) -> PathBuf {
     let destination = fixture._root.path().join("narrowed");
-    copy_measured_profile(fixture, &destination);
-    let manifest = std::fs::read_to_string(destination.join("benchmark.toml")).unwrap();
-    write(
-        &destination.join("benchmark.toml"),
-        &manifest.replace("defaults=['A','B']", &format!("defaults={rules:?}")),
-    );
-    for rule in ["A", "B"] {
-        if !rules.contains(&rule) {
-            std::fs::remove_dir_all(destination.join("rules").join(rule)).unwrap();
-        }
-    }
-    destination
+    let rules: Vec<_> = rules
+        .iter()
+        .map(|r| RuleId::try_from(*r).unwrap())
+        .collect();
+    StageSuiteUseCaseImpl::new(&crate::outbound::suite::factory::local())
+        .stage_suite(source, &destination, &rules, StagePurpose::Execution)
+        .map(|_staged| destination)
+        .unwrap()
 }
 
 /// Certify the `measured` profile under `scope` with `rules` selected from `source`, while registered rule B fails.

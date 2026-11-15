@@ -5,7 +5,7 @@
 use super::super::adapter::{seal_existing, validate};
 use ryo_benchmark_contracts::domain::context::types::{ContextManifest, LinkTarget};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use std::{collections::BTreeMap, path::Path};
+use std::path::Path;
 
 /// Make `at` a symbolic link to `target`.
 #[cfg(unix)]
@@ -48,6 +48,7 @@ fn sealed(root: &Path, tracked: &[std::path::PathBuf]) -> Result<ContextManifest
 fn refused_with<T>(result: Result<T, Error>, message: &str) -> bool {
     matches!(result, Err(Error::Invalid(text)) if text == message)
 }
+#[cfg(unix)]
 pub(crate) fn seal_records_a_tracked_link_to_a_sealed_file() -> Result<(), Error> {
     let scratch = tempfile::tempdir()?;
     let root = scratch.path();
@@ -55,7 +56,7 @@ pub(crate) fn seal_records_a_tracked_link_to_a_sealed_file() -> Result<(), Error
     let manifest = sealed(root, &tracked)?;
     assert_eq!(
         manifest.links,
-        BTreeMap::from([("b/img.png".into(), LinkTarget("../a/img.png".into()))])
+        std::collections::BTreeMap::from([("b/img.png".into(), LinkTarget("../a/img.png".into()))])
     );
     assert!(
         manifest
@@ -70,6 +71,7 @@ pub(crate) fn seal_records_a_tracked_link_to_a_sealed_file() -> Result<(), Error
     assert!(!manifest.source_files.contains_key(Path::new("b/img.png")));
     validate(&manifest, root)
 }
+#[cfg(unix)]
 pub(crate) fn validate_refuses_a_sealed_link_changed_after_the_seal() -> Result<(), Error> {
     let scratch = tempfile::tempdir()?;
     let root = scratch.path();
@@ -103,6 +105,7 @@ pub(crate) fn validate_refuses_a_sealed_link_changed_after_the_seal() -> Result<
     );
     Ok(())
 }
+#[cfg(unix)]
 pub(crate) fn validate_refuses_a_path_equal_retarget() -> Result<(), Error> {
     let scratch = tempfile::tempdir()?;
     let root = scratch.path();
@@ -122,6 +125,7 @@ pub(crate) fn validate_refuses_a_path_equal_retarget() -> Result<(), Error> {
     }
     Ok(())
 }
+#[cfg(unix)]
 pub(crate) fn seal_refuses_non_canonical_link_text() -> Result<(), Error> {
     for text in [
         "/abs/img.png",
@@ -172,6 +176,7 @@ pub(crate) fn validate_refuses_backslash_link_text() -> Result<(), Error> {
     }
     Ok(())
 }
+#[cfg(unix)]
 pub(crate) fn seal_refuses_a_link_to_an_unsealed_target() -> Result<(), Error> {
     let untracked = tempfile::tempdir()?;
     std::fs::create_dir_all(untracked.path().join("a"))?;
@@ -199,6 +204,7 @@ pub(crate) fn seal_refuses_a_link_to_an_unsealed_target() -> Result<(), Error> {
     ));
     Ok(())
 }
+#[cfg(unix)]
 pub(crate) fn seal_refuses_a_requested_source_that_is_a_link() -> Result<(), Error> {
     let scratch = tempfile::tempdir()?;
     let root = scratch.path();
@@ -213,6 +219,7 @@ pub(crate) fn seal_refuses_a_requested_source_that_is_a_link() -> Result<(), Err
     ));
     Ok(())
 }
+#[cfg(unix)]
 /// A link target that is not UTF-8 is refused: the seal holds exact text.
 pub(crate) fn seal_refuses_a_non_utf8_link_target() -> Result<(), Error> {
     let scratch = tempfile::tempdir()?;
@@ -233,12 +240,12 @@ fn non_utf8_target() -> std::ffi::OsString {
     use std::os::unix::ffi::OsStrExt as _;
     std::ffi::OsStr::from_bytes(b"../a/\xffimg.png").to_owned()
 }
-/// The target text `../a/<unpaired surrogate>img.png`, which is not UTF-8.
-#[cfg(windows)]
+/// The twin of the unix spelling above: no other platform runs the non-UTF-8 row, since none of them builds a link here.
+#[cfg(not(unix))]
+#[expect(
+    dead_code,
+    reason = "every scenario that uses it runs on unix only; unix-behind-cfg asks this file for the twin"
+)]
 fn non_utf8_target() -> std::ffi::OsString {
-    use std::os::windows::ffi::OsStringExt as _;
-    let mut wide: Vec<u16> = "../a/".encode_utf16().collect();
-    wide.push(0xD800);
-    wide.extend("img.png".encode_utf16());
-    std::ffi::OsString::from_wide(&wide)
+    std::ffi::OsString::new()
 }

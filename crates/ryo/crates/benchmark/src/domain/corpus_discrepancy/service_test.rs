@@ -16,10 +16,6 @@ use std::collections::BTreeMap;
 
 /// What a case hands the part.
 enum Check {
-    /// The corpus digest of one file list and context.
-    Digest(ContextSeal),
-    /// The corpus digest of the sealed fixture corpus with one more sealed link.
-    Linked,
     /// The problems of observed differences under accepted differences written for `corpus`.
     Judge {
         observed: Vec<ObservedDifferences>,
@@ -101,9 +97,6 @@ fn manifest(boundary: &str) -> ContextManifest {
     }
 }
 
-/// The digest of the sealed fixture corpus, as `json.dumps(sort_keys=True, separators=(",", ":"), ensure_ascii=False)` spells it.
-const SEALED: &str = "97cb4ed58227a9bbc5a452fef45492814061f5def35c80060e964fdc681060bb";
-
 fn judge(observed: Vec<ObservedDifferences>, accepted: Vec<AcceptedRule>) -> Check {
     Check::Judge {
         observed,
@@ -138,18 +131,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Check::Skips(Reference::CompleteRejects),
         expect: Expect::Value(&["F401: only the candidate skipped bad.py (syntax-rejected)"]),
-    },
-    Case {
-        name: CaseName("a sealed corpus digest is its files and context entries, not its location"),
-        word: Word::Succeeds,
-        input: || Check::Digest(sealed("/elsewhere")),
-        expect: Expect::Value(&[]),
-    },
-    Case {
-        name: CaseName("a sealed link changes the corpus digest"),
-        word: Word::Succeeds,
-        input: || Check::Linked,
-        expect: Expect::Value(&[]),
     },
     Case {
         name: CaseName("only exactly pinned findings pass"),
@@ -271,32 +252,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
         Check::Skips(reference) => Ok(skips(reference)),
-        Check::Digest(context) => {
-            assert_eq!(
-                corpus_digest(&files(), &context).0,
-                SEALED,
-                "digest of the fixture corpus"
-            );
-            assert_ne!(
-                corpus_digest(&files(), &ContextSeal::Unsealed).0,
-                SEALED,
-                "an unsealed corpus is its file list alone"
-            );
-            Ok(&[])
-        }
-        Check::Linked => {
-            let mut manifest = manifest("/corpus");
-            let _absent = manifest.links.insert(
-                "docs/café.png".into(),
-                ryo_benchmark_contracts::domain::context::types::LinkTarget("../setup.cfg".into()),
-            );
-            assert_ne!(
-                corpus_digest(&files(), &ContextSeal::Sealed(manifest)).0,
-                SEALED,
-                "a sealed link is part of the corpus"
-            );
-            Ok(&[])
-        }
         Check::Judge {
             observed,
             accepted,
@@ -386,3 +341,6 @@ fn skips(reference: Reference) -> Value {
         .collect();
     Box::leak(problems.into_boxed_slice())
 }
+
+#[cfg(test)]
+mod digest_test;
