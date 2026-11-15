@@ -269,6 +269,7 @@ pub(crate) fn first_of_row(
 /// The key of `rows`, indexed from `indexed_side` on one column, whose cell is `key`.
 ///
 /// # Errors
+///
 /// `ShapeMismatch` when the side is keyed on more or fewer columns than one.
 pub(crate) fn find_value(
     rows: &KeyedRows,
@@ -277,12 +278,18 @@ pub(crate) fn find_value(
 ) -> Result<Option<KeyedRun>, PortableOperatorFault> {
     let [column] = indexed_side.on else {
         return Err(PortableOperatorFault::ShapeMismatch);
+    };
+    let mut hasher = rustc_hash::FxHasher::default();
     key.hash(&mut hasher);
+    let hash = IndexKeyHash(hasher.finish());
     Ok(rows
+        .keys
         .find(hash.0, |run| {
             run.hash == hash && cell_of(indexed_side.rows, indexed(run.first), *column) == Some(key)
         })
         .copied())
+}
+
 /// The row after `row` of the same key, or `NO_ROW` after its last.
 #[expect(
     clippy::indexing_slicing,

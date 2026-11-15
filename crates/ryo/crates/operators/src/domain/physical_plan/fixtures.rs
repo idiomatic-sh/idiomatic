@@ -349,6 +349,7 @@ pub fn over_nodes(operation: Operation, at: &[u32]) -> Step {
     let inputs: Vec<PlanInput> = at.iter().map(|at| node(*at).1).collect();
     step(operation, &inputs)
 }
+
 /// A join of node 0's rows with a closure of `DEFINES` that the query planner fused into it: keyed on the closure's source.
 fn seeded_join() -> Step {
     let Step { operation, inputs } = join(node(0), defines(), [0, 0], Vec::new());
@@ -392,6 +393,8 @@ fn seeded_join() -> Step {
         },
         &inputs,
     )
+}
+
 /// The ordered existence programs the rewrite and the run cases share.
 #[cfg(test)]
 pub(crate) mod ordered;
