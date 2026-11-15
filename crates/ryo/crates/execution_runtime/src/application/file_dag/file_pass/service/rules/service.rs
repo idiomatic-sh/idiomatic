@@ -7,7 +7,7 @@ use crate::application::file_dag::file_pass::service::inputs::service::{
     hosted_in_file, in_file_bound,
 };
 use crate::application::file_dag::file_pass::service::nodes::service::{
-    node_outcome, node_rows, released,
+    node_outcome, node_rows, released, rule_done,
 };
 use crate::application::file_dag::file_pass::service::{fill_roots, given_back};
 use crate::application::file_dag::file_pass::types::{
@@ -45,8 +45,9 @@ use std::sync::Arc;
 /// One file's rules, one after another in the program's rule order, through the planned program over the file's facts, which the
 /// caller opened (`fact_lookup`'s `opened`) and read once, in `scratch`, which the caller took and the run gives back:
 /// each rule's emitted node run by the operators, its frontiers captured, kept and committed, its steps reported to the
-/// observer, and the file finished with its named outputs' readiness. A read the facts refused stops the file as the facts' own
-/// refusal; a failed emitted node ends the file.
+/// observer, and the file finished with its named outputs' readiness. Each rule's engine uses are done when its turn ends, so a
+/// node goes at its last consumer. A read the facts refused stops the file as the facts' own refusal; a failed emitted node ends
+/// the file.
 pub(crate) fn run_rules(
     request: PassRequest<'_>,
     pass: &PassProgram,
@@ -142,6 +143,7 @@ pub(crate) fn run_rules(
                 capture: capture_intent,
             }) = intents.get(rule.0).copied()
             else {
+                rule_done(&mut at, rule);
                 continue;
             };
             let emits = diagnostic != DiagnosticDelivery::Disabled;
@@ -195,6 +197,7 @@ pub(crate) fn run_rules(
                 released(&mut at);
                 return (rules, FileEnd::Unfinished);
             }
+            rule_done(&mut at, rule);
         }
         let readiness = finished_readiness(&at);
         released(&mut at);

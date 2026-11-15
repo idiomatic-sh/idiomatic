@@ -137,7 +137,8 @@ pub(in crate::domain::executable_program) fn derived_roots(
     roots
 }
 
-/// How many nodes and rules read each node, its emitted, frontier and named-root nodes held in `program` for its rules.
+/// How many nodes and rules read each node, its emitted, frontier and named-root nodes held in `program` for its rules; each
+/// rule's engine uses written into `engine`, in rule order: the node it emits, then each node it holds, as `program` lists them.
 ///
 /// # Errors
 ///
@@ -147,8 +148,10 @@ pub(in crate::domain::executable_program) fn held(
     rules: &[RuleInput<'_>],
     nodes: &[RuleNodes],
     lists: &[Vec<PlanInput>],
+    engine: &mut Vec<Vec<PlanNodeId>>,
 ) -> Result<Vec<Consumers>, OperatingError> {
     let mut consumers = vec![Consumers(0); lists.len()];
+    engine.clear();
     let count = |consumers: &mut Vec<Consumers>, node: PlanNodeId| {
         if let Some(each) = consumers.get_mut(usize::try_from(node.0).unwrap_or(usize::MAX)) {
             each.0 = each.0.saturating_add(1);
@@ -161,12 +164,14 @@ pub(in crate::domain::executable_program) fn held(
     }
     for (rule, (input, rule_nodes)) in rules.iter().zip(nodes).enumerate() {
         let ordinal = RuleOrdinal(u32::try_from(rule).map_err(|_| OperatingError::ShapeMismatch)?);
+        let mut uses = Vec::new();
         if let Some(Ok(node)) = rule_nodes
             .steps
             .get(usize::try_from(input.plan.emit.step.0).unwrap_or(usize::MAX))
         {
             program.emit(ordinal, *node);
             count(&mut consumers, *node);
+            uses.push(*node);
         }
         let kept = input.plan.frontier.iter().chain(
             input
@@ -183,8 +188,10 @@ pub(in crate::domain::executable_program) fn held(
             {
                 program.hold(*node);
                 count(&mut consumers, *node);
+                uses.push(*node);
             }
         }
+        engine.push(uses);
     }
     Ok(consumers)
 }

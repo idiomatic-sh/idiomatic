@@ -1,5 +1,5 @@
-//! A rule's node in the open file: run by the operators, its rows answered with their coverage, and every node's rows
-//! released when the file ends.
+//! A rule's node in the open file: run by the operators, its rows answered with their coverage, each engine use of a node done
+//! when its rule's turn ends, and every node's rows released when the file ends.
 
 use crate::application::file_dag::file_pass::types::{
     NodeAnswer, NodeReads, PassFile, PassProgram, PassResources,
@@ -13,7 +13,7 @@ use ryo_execution_domain::domain::completion::types::RegionAdmission;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::service::{
-    consumers, physical, rule as fused_rule, schema,
+    consumers, engine_uses, physical, rule as fused_rule, schema,
 };
 use ryo_execution_domain::domain::frontier_coverage::service::affected_files;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -290,7 +290,21 @@ pub(crate) fn run_node(
         .run(physical(&pass.program), node, buffers, inputs, resources)
 }
 
-/// Ends the file: every node's rows go back to the buffers.
+/// Ends `rule`'s turn in the open file, whether it ran or not: each of its engine uses, the node it emits and each node it holds
+/// for a frontier or a named output, is done, so a node no reader still needs gives its rows back now, not at the file's end.
+pub(crate) fn rule_done(at: &mut PassFile<'_, '_, '_, '_>, rule: RuleIndex) {
+    let pass = at.pass;
+    // A rule the program does not hold has no engine use.
+    let Ok(uses) = engine_uses(&pass.program, rule) else {
+        return;
+    };
+    let plan = physical(&pass.program);
+    for node in uses {
+        at.buffers.used(plan, *node);
+    }
+}
+
+/// Ends the file: every node's rows go back to the buffers, those of a rule the file stopped at among them.
 pub(crate) fn released(at: &mut PassFile<'_, '_, '_, '_>) {
     let mut node = PlanNodeId(0);
     while consumers(&at.pass.program, node).is_ok() {
