@@ -10,7 +10,7 @@ use super::sources::service::{
 use super::stages::service::stage_prepared;
 use crate::domain::comparing::types::NameCount;
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::collections::kernels::scan_node::item::hold;
+use crate::domain::physical_plan::collections::kernels::scan_node::item::{hold, take};
 use crate::domain::physical_plan::service::indexes::service::{closed, opened};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
@@ -86,37 +86,39 @@ fn chained(
         .next()
         .ok_or(PortableOperatorFault::WrongOperation)?;
     let mut hard = None;
-    // Every source is readied before any is read, so a right side's own chain never finds a source this chain has taken.
+    // The held plan's order: the head stage readies its source and its right side before it reads either, and each later
+    // probe readies and reads its right side after the stages before it. Reading a relation demands it of the facts, so a
+    // relation is read in that order; a held node's rows are taken only once every source is readied, so a right side's own
+    // chain never finds a source this chain has taken.
     ready(plan, run, source, buffers)?;
-    for node in nodes.iter() {
-        if let Some(right) = right_of(&physical(plan, *node)?.lowering)
+    if let Some(right) = right_of(head.lowering) {
+        ready(plan, run, right, buffers)?;
+    }
+    let head_read = match source {
+        RowSource::Node(_) => None,
+        RowSource::Facts(_)
+        | RowSource::Tree(_)
+        | RowSource::Frontier(_)
+        | RowSource::Observation(_) => Some(reading(run, head, source, buffers)?),
+    };
+    let mut rights: Vec<ChainRows<'_>> = Vec::new();
+    for (node, stage) in nodes.iter().zip(stages.iter_mut()) {
+        let lowering = &physical(plan, *node)?.lowering;
+        let Some(right) = right_of(lowering) else {
+            continue;
+        };
+        if *node != head.node
             && let Err(fault) = ready(plan, run, right, buffers)
         {
             first_fault(&mut hard, ChainFault { node: *node, fault });
             break;
         }
-    }
-    // The head stage's right side is readied before the head's source is read.
-    if let Some(first) = hard.take_if(|first| first.node == head.node) {
-        return Err(first.fault);
-    }
-    let head_rows = reading(run, head, source, buffers)?;
-    let mut rights: Vec<ChainRows<'_>> = Vec::new();
-    for (node, stage) in nodes.iter().zip(stages.iter_mut()) {
-        if hard.as_ref().is_some_and(|first| first.node <= *node) {
-            break;
-        }
-        let lowering = &physical(plan, *node)?.lowering;
-        let Some(right) = right_of(lowering) else {
-            continue;
-        };
-        let earlier = rights.iter().position(|taken| {
-            matches!((taken, right), (ChainRows::Node(read, _), RowSource::Node(node)) if *read == node)
-        });
-        let rows = match (source, earlier) {
-            (RowSource::Node(read), _) if right == RowSource::Node(read) => Ok(ChainRows::Head),
-            (_, Some(earlier)) => Ok(ChainRows::Right(RightPlace(earlier))),
-            _ => reading(
+        let rows = match right {
+            RowSource::Node(read) => Ok(ChainRows::Untaken(read)),
+            RowSource::Facts(_)
+            | RowSource::Tree(_)
+            | RowSource::Frontier(_)
+            | RowSource::Observation(_) => reading(
                 run,
                 ChainStage {
                     node: *node,
@@ -135,6 +137,29 @@ fn chained(
                 first_fault(&mut hard, ChainFault { node: *node, fault });
                 break;
             }
+        }
+    }
+    // Every source readied: the held nodes' rows are taken, each once, however many stages read it.
+    let head_rows = match head_read {
+        Some(rows) => rows,
+        None => reading(run, head, source, buffers)?,
+    };
+    for at in 0..rights.len() {
+        let Some(ChainRows::Untaken(read)) = rights.get(at) else {
+            continue;
+        };
+        let read = *read;
+        let earlier = rights
+            .iter()
+            .take(at)
+            .position(|taken| matches!(taken, ChainRows::Node(node, _) if *node == read));
+        let rows = match (source, earlier) {
+            (RowSource::Node(head_source), _) if head_source == read => ChainRows::Head,
+            (_, Some(earlier)) => ChainRows::Right(RightPlace(earlier)),
+            _ => ChainRows::Node(read, take(buffers, read)?),
+        };
+        if let Some(slot) = rights.get_mut(at) {
+            *slot = rows;
         }
     }
     // The tail's table: one the worker's pool kept, its room reused.

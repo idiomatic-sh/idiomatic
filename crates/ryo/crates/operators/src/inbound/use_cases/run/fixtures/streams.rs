@@ -18,6 +18,7 @@ use ryo_values::domain::plan_parts::types::{
     QueryLiteral, StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::rows::types::Table;
 
 /// A program over Defines rows: its steps, the one it emits, and the rows and texts of the file.
 pub(crate) struct Program {
@@ -58,18 +59,63 @@ pub(crate) fn shown(value: Cell, resources: &TextResources) -> String {
 
 /// Runs `program`, every node before its emit held by the engine as well when `twin` is set.
 pub(crate) fn ran_program(program: &Program, twin: bool) -> Result<Ran, PortableOperatorFault> {
+    ran_after(program, twin, &[])
+}
+
+/// Runs `program` as `ran_program` does, the engine running each of `first` before the emit.
+pub(crate) fn ran_after(
+    program: &Program,
+    twin: bool,
+    first: &[PlanNodeId],
+) -> Result<Ran, PortableOperatorFault> {
     let texts: Vec<&str> = program.texts.iter().map(String::as_str).collect();
-    let resources = TextResources::new(&texts);
-    let named: Vec<(Cell, Span)> = program
-        .rows
+    let tables = |resources: &TextResources| {
+        let named: Vec<(Cell, Span)> = program
+            .rows
+            .iter()
+            .map(|(name, span)| (resources.symbol(name), *span))
+            .collect();
+        vec![(Relation::Defines, defines_rows(&named))]
+    };
+    ran_steps(
+        &Steps {
+            steps: &program.steps,
+            emit: program.emit,
+            first,
+        },
+        twin,
+        &texts,
+        &tables,
+    )
+}
+
+/// What a run runs: the steps, the node it emits, and the nodes the engine runs before it.
+pub(crate) struct Steps<'a> {
+    /// The steps, in node order.
+    pub(crate) steps: &'a [Step],
+    /// The node the program emits.
+    pub(crate) emit: PlanNodeId,
+    /// The nodes the engine runs first, in order.
+    pub(crate) first: &'a [PlanNodeId],
+}
+
+/// Runs `run.steps` over the relations `tables` makes from the file of `texts`, emitting `run.emit` after running
+/// `run.first`; with `twin`, every node before the emit is held by the engine too, so none streams.
+pub(crate) fn ran_steps(
+    run: &Steps<'_>,
+    twin: bool,
+    texts: &[&str],
+    tables: &dyn Fn(&TextResources) -> Vec<(Relation, Table)>,
+) -> Result<Ran, PortableOperatorFault> {
+    let mut resources = TextResources::new(texts);
+    let held = tables(&resources);
+    let lent: Vec<(Relation, &Table)> = held
         .iter()
-        .map(|(name, span)| (resources.symbol(name), *span))
+        .map(|(relation, table)| (*relation, table))
         .collect();
-    let table = defines_rows(&named);
-    let inputs = TableInputs::new(&[(Relation::Defines, &table)]);
-    let mut resources = resources;
+    let inputs = TableInputs::new(&lent);
     let mut logical = LogicalProgram::new();
-    for step in &program.steps {
+    for step in run.steps {
         let _id = logical.node(LogicalNode {
             operation: &step.operation,
             inputs: PlanInputList(&step.inputs),
@@ -77,26 +123,28 @@ pub(crate) fn ran_program(program: &Program, twin: bool) -> Result<Ran, Portable
             scope: StepScope::PerFile,
         });
     }
-    logical.emit(RuleOrdinal(0), program.emit);
+    logical.emit(RuleOrdinal(0), run.emit);
     if twin {
-        for node in (0..program.emit.0).map(PlanNodeId) {
+        for node in (0..run.emit.0).map(PlanNodeId) {
             logical.hold(node);
         }
     }
     let plan = planned(&logical)?;
     let mut buffers = FileBuffers::default();
-    let answer =
-        ran(&plan, program.emit, &mut buffers, &inputs, &mut resources).and_then(
-            |()| match buffers.rows(program.emit) {
-                NodeRows::Materialized(table) => Ok(table
-                    .cells
-                    .chunks(table.kinds.len().max(1))
-                    .take(table.count.0)
-                    .map(|row| row.iter().map(|cell| shown(*cell, &resources)).collect())
-                    .collect()),
-                NodeRows::Absent => Err(PortableOperatorFault::NotRun),
-            },
-        );
+    for node in run.first {
+        ran(&plan, *node, &mut buffers, &inputs, &mut resources)?;
+    }
+    let answer = ran(&plan, run.emit, &mut buffers, &inputs, &mut resources).and_then(|()| {
+        match buffers.rows(run.emit) {
+            NodeRows::Materialized(table) => Ok(table
+                .cells
+                .chunks(table.kinds.len().max(1))
+                .take(table.count.0)
+                .map(|row| row.iter().map(|cell| shown(*cell, &resources)).collect())
+                .collect()),
+            NodeRows::Absent => Err(PortableOperatorFault::NotRun),
+        }
+    });
     Ok(Ran {
         answer,
         formed: buffers.meter.formed.0,
@@ -139,5 +187,34 @@ pub(crate) fn span(start: u32, end: u32) -> Span {
     Span {
         start: Offset(start),
         end: Offset(end),
+    }
+}
+
+/// Rows of the span-between stage over a filter, `rows` of them, the stage failing on row `map_fault` (its span runs
+/// backwards) and the filter on row `filter_fault` (its name is no pattern).
+pub(crate) fn faulting(rows: usize, map_fault: usize, filter_fault: usize) -> Program {
+    Program {
+        steps: vec![
+            over_defines(Operation::SpanBetween {
+                from: StepInput::Relation(Relation::Defines),
+                start: ColumnIndex(6),
+                end: ColumnIndex(6),
+            }),
+            select_of(0, vec![super::cases::self_matching(3)]),
+        ],
+        emit: PlanNodeId(1),
+        rows: (0..rows)
+            .map(|at| {
+                (
+                    if at == filter_fault { "[" } else { "a" }.to_owned(),
+                    if at == map_fault {
+                        span(2, 1)
+                    } else {
+                        span(0, 1)
+                    },
+                )
+            })
+            .collect(),
+        texts: vec!["a".into(), "[".into()],
     }
 }

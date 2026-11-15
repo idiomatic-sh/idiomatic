@@ -57,6 +57,8 @@ pub(crate) enum ChainRows<'r> {
     Head,
     /// An earlier probe's right rows.
     Right(crate::domain::physical_plan::types::stream_scratch::value::RightPlace),
+    /// A held node a probe reads, not taken yet: taken once every source of the chain is readied.
+    Untaken(PlanNodeId),
 }
 
 /// One stage of a chain: its node and what it is lowered to.

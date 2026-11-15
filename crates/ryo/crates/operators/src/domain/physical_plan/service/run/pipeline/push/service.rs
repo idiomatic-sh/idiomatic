@@ -76,7 +76,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_all(
                 row_at(table, RowIndex(at))
             }
             ChainRows::Held(table) => row_at(table, RowIndex(at)),
-            ChainRows::Head | ChainRows::Right(_) => &[],
+            ChainRows::Head | ChainRows::Right(_) | ChainRows::Untaken(_) => &[],
         };
         pushed(push, nodes, stages, head_kinds, cells)?;
     }

@@ -87,7 +87,22 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn right_of(
 ) -> Option<RowSource> {
     match lowering {
         Lowering::Probe { right, .. } => Some(*right),
-        _ => None,
+        Lowering::Filter { .. }
+        | Lowering::Lookup { .. }
+        | Lowering::Project { .. }
+        | Lowering::Extend { .. }
+        | Lowering::Distinct { .. }
+        | Lowering::Group { .. }
+        | Lowering::Reach { .. }
+        | Lowering::SeededReach { .. }
+        | Lowering::Axis { .. }
+        | Lowering::OrderedWalk { .. }
+        | Lowering::Components { .. }
+        | Lowering::TextMap { .. }
+        | Lowering::OrderedMatch { .. }
+        | Lowering::Render { .. }
+        | Lowering::ScanBound { .. }
+        | Lowering::Unlowered => None,
     }
 }
 
@@ -140,7 +155,8 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn resolved_rows<'a
         | ChainRows::Tree(_)
         | ChainRows::Copied(_)
         | ChainRows::Node(..)
-        | ChainRows::Held(_) => rows,
+        | ChainRows::Held(_)
+        | ChainRows::Untaken(_) => rows,
     }
 }
 
@@ -155,7 +171,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn rows_kinds<'a>(
             &table.kinds
         }
         ChainRows::Held(table) => &table.kinds,
-        ChainRows::Head | ChainRows::Right(_) => &[],
+        ChainRows::Head | ChainRows::Right(_) | ChainRows::Untaken(_) => &[],
     }
 }
 
@@ -168,7 +184,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn rows_count(
         ChainRows::Tree(roots) => RowCount(roots.candidates.len()),
         ChainRows::Copied(table) | ChainRows::Node(_, TakenRows { rows: table, .. }) => table.count,
         ChainRows::Held(table) => table.count,
-        ChainRows::Head | ChainRows::Right(_) => RowCount(0),
+        ChainRows::Head | ChainRows::Right(_) | ChainRows::Untaken(_) => RowCount(0),
     }
 }
 
@@ -183,7 +199,8 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pending_of(
         | ChainRows::Copied(_)
         | ChainRows::Held(_)
         | ChainRows::Head
-        | ChainRows::Right(_) => None,
+        | ChainRows::Right(_)
+        | ChainRows::Untaken(_) => None,
     }
 }
 
@@ -200,6 +217,6 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn in_place<'a>(
             InputRows::Table(table)
         }
         ChainRows::Held(table) => InputRows::Table(table),
-        ChainRows::Head | ChainRows::Right(_) => InputRows::Row(&[], &[]),
+        ChainRows::Head | ChainRows::Right(_) | ChainRows::Untaken(_) => InputRows::Row(&[], &[]),
     }
 }

@@ -3,16 +3,16 @@
 //! growing with the names the capture mints, and every chunk within its cell bound.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::fixtures::over_defines;
-use crate::domain::physical_plan::types::PlanNodeId;
+use crate::domain::physical_plan::fixtures::over_nodes;
 use crate::domain::physical_plan::types::file_buffers::value::ChunkMeter;
 use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
-use crate::inbound::use_cases::run::fixtures::cases::self_matching;
+use crate::domain::physical_plan::types::{NodeRows, PlanNodeId};
 use crate::inbound::use_cases::run::fixtures::streams::{
-    Program, against, ran_program, select_of, span, split_names,
+    Program, against, faulting, ran_after, ran_program, select_of, span, split_names,
 };
-use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as StepInput, Test};
+use ryo_values::domain::plan_parts::types::{
+    ColumnIndex, Input as StepInput, RepeatedRows, StepId, Test,
+};
 use ryo_values::domain::plans::types::Operation;
 use std::borrow::Cow;
 
@@ -24,6 +24,7 @@ enum Scenario {
     MapFaultFirst,
     NamesMintedAcrossChunks,
     ExpandingCapture,
+    EngineRanTheMiddle,
 }
 
 /// What a case observed of the program run as planned, against its held twin.
@@ -43,6 +44,13 @@ enum Observation {
         same: bool,
         formed: u32,
         within: bool,
+    },
+    /// Whether the two runs answered the same, how many node tables the planned run formed, and whether the middle node
+    /// the engine ran first holds rows after its reader ran.
+    Started {
+        same: bool,
+        formed: u32,
+        middle: Cow<'static, str>,
     },
 }
 type Input = Scenario;
@@ -100,36 +108,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             within: true,
         }),
     },
+    Case {
+        name: CaseName("a_node_the_engine_ran_first_starts_the_chain"),
+        word: Word::Succeeds,
+        input: || Scenario::EngineRanTheMiddle,
+        expect: Expect::Value(Observation::Started {
+            same: true,
+            formed: 2,
+            middle: Cow::Borrowed("absent"),
+        }),
+    },
 ];
-
-/// Rows of the span-between stage over a filter, `rows` of them, the stage failing on row `map_fault` (its span runs
-/// backwards) and the filter on row `filter_fault` (its name is no pattern).
-fn faulting(rows: usize, map_fault: usize, filter_fault: usize) -> Program {
-    Program {
-        steps: vec![
-            over_defines(Operation::SpanBetween {
-                from: StepInput::Relation(Relation::Defines),
-                start: ColumnIndex(6),
-                end: ColumnIndex(6),
-            }),
-            select_of(0, vec![self_matching(3)]),
-        ],
-        emit: PlanNodeId(1),
-        rows: (0..rows)
-            .map(|at| {
-                (
-                    if at == filter_fault { "[" } else { "a" }.to_owned(),
-                    if at == map_fault {
-                        span(2, 1)
-                    } else {
-                        span(0, 1)
-                    },
-                )
-            })
-            .collect(),
-        texts: vec!["a".into(), "[".into()],
-    }
-}
 
 /// The program each scenario runs.
 fn program(scenario: Scenario) -> Program {
@@ -185,6 +174,30 @@ fn program(scenario: Scenario) -> Program {
                 texts: names,
             }
         }
+        // The capture streams into the filter, the filter into the projection; the engine runs the filter first.
+        Scenario::EngineRanTheMiddle => Program {
+            steps: vec![
+                split_names(),
+                select_of(0, vec![against(Test::Equal, 7, "a")]),
+                over_nodes(
+                    Operation::Project {
+                        from: StepInput::Step(StepId(1)),
+                        columns: vec![ColumnIndex(3), ColumnIndex(8)],
+                        distinct: RepeatedRows::Kept,
+                    },
+                    &[1],
+                ),
+            ],
+            emit: PlanNodeId(2),
+            rows: ["abc", "ab", "xab", "abab"]
+                .into_iter()
+                .map(|name| (name.to_owned(), span(0, 0)))
+                .collect(),
+            texts: ["abc", "ab", "xab", "abab", "a"]
+                .into_iter()
+                .map(str::to_owned)
+                .collect(),
+        },
         Scenario::ExpandingCapture => {
             let name = "x".repeat(2_001);
             Program {
@@ -202,6 +215,18 @@ fn program(scenario: Scenario) -> Program {
 
 fn subject(scenario: Scenario) -> Result<Value, Failure> {
     let program = program(scenario);
+    if let Scenario::EngineRanTheMiddle = scenario {
+        let streamed = ran_after(&program, false, &[PlanNodeId(1)])?;
+        let twin = ran_after(&program, true, &[PlanNodeId(1)])?;
+        return Ok(Observation::Started {
+            same: streamed.answer == twin.answer,
+            formed: streamed.formed,
+            middle: Cow::Borrowed(match streamed.buffers.rows(PlanNodeId(1)) {
+                NodeRows::Materialized(_) => "held",
+                NodeRows::Absent => "absent",
+            }),
+        });
+    }
     let streamed = ran_program(&program, false)?;
     let twin = ran_program(&program, true)?;
     let same = streamed.answer == twin.answer;
@@ -221,6 +246,7 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
                     .unwrap_or_default(),
             ),
         },
+        Scenario::EngineRanTheMiddle => return Err(PortableOperatorFault::WrongOperation),
         Scenario::ExpandingCapture => Observation::Bounded {
             same,
             formed: streamed.formed,
