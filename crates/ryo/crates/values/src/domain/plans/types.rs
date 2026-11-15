@@ -53,6 +53,19 @@ pub struct Plan {
     pub frontier: Vec<Input>,
 }
 
+/// The relations a rule's steps read, each once, in the order they are first read.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::relations::types::Relation;
+/// use ryo_values::domain::plans::types::RuleReads;
+/// let reads = RuleReads(Box::new([Relation::Function]));
+/// assert!(reads.0.contains(&Relation::Function));
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct RuleReads(pub Box<[ryo_relations::domain::relations::types::Relation]>);
+
 /// One operation of the plan.
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub struct PlanStep {

@@ -13,7 +13,7 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Side;
-use ryo_values::domain::plans::service::{inputs_of, named};
+use ryo_values::domain::plans::service::{inputs_of, named, reads_of};
 use ryo_values::domain::plans::types::{Operation, Plan};
 
 /// The relations the plans read, each once, in the order they are first read.
@@ -24,17 +24,12 @@ use ryo_values::domain::plans::types::{Operation, Plan};
 pub(crate) fn wanted(plans: &[&Plan], catalog: &[Relation]) -> Result<Vec<Relation>, VisitError> {
     let mut wanted: Vec<Relation> = Vec::new();
     for plan in plans {
-        for step in &plan.steps {
-            for input in named(&inputs_of(&step.operation)) {
-                let Input::Relation(relation) = *input else {
-                    continue;
-                };
-                if !catalog.contains(&relation) {
-                    return Err(VisitError::UnknownRelation { relation });
-                }
-                if !wanted.contains(&relation) {
-                    wanted.push(relation);
-                }
+        for relation in reads_of(plan).0 {
+            if !catalog.contains(&relation) {
+                return Err(VisitError::UnknownRelation { relation });
+            }
+            if !wanted.contains(&relation) {
+                wanted.push(relation);
             }
         }
     }
