@@ -162,3 +162,8 @@ expected = []
 name = "noqa-codes-trailing-reason-suppress-patch-version"
 files = { "case.pyi" = "import sys\nif sys.version_info >= (3, 10, 1):  # noqa: PYI004 # why\n    ...\n" }
 expected = []
+
+[[cases]]
+name = "major-slice-patch-tuple"
+files = { "case.pyi" = "import sys\nif sys.version_info[:1] >= (3, 4, 3):\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 47 }]
