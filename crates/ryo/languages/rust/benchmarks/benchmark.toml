@@ -1,0 +1,13 @@
+language = "rust"
+
+[[projects]]
+name = "ripgrep"
+repository = "https://github.com/BurntSushi/ripgrep.git"
+revision = "e89fff89ac9af12e8d4ce9d5fd07beb408ca730f"
+patch = "patches/ripgrep.patch"
+
+[[projects]]
+name = "clap"
+repository = "https://github.com/clap-rs/clap.git"
+revision = "13f2db5072d600c11d8d6298e4e9ba53ffc6c1ab"
+patch = "patches/clap.patch"

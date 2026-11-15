@@ -1,0 +1,11 @@
+input members: relation<owner: node, id: node, file: file, span: span>;
+output relation<owner: node, id: node, file: file, span: span>;
+let bounded = span-bounds(from=members, span="span", start-output="begin", end-output="finish");
+let later = select l.owner as owner, l.id as id from bounded as l join bounded as r on l.owner = r.owner where r.begin < l.begin;
+let firsts = antijoin(left=bounded, right=later, left-on=["owner", "id"], right-on=["owner", "id"]);
+let earlier = select l.owner as owner, l.id as id from bounded as l join bounded as r on l.owner = r.owner where r.finish > l.finish;
+let lasts = antijoin(left=bounded, right=earlier, left-on=["owner", "id"], right-on=["owner", "id"]);
+let ends = select l.owner as owner, l.id as id, l.file as file, l.span as first_span, r.span as last_span from firsts as l join lasts as r on l.owner = r.owner;
+let spanned = span-between(from=ends, start="first_span", end="last_span", output="hull");
+let hulls = select owner, id, file, hull as span from spanned;
+return hulls;

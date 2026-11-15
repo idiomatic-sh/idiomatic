@@ -1,5 +1,6 @@
 //! The `static_call` relation of the language: a call whose callee is a path written out, or a method called by name.
 
+use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::references::service::called;
 use crate::domain::scopes::service::owner;
@@ -11,7 +12,7 @@ use ryo::languages;
 pub(crate) struct StaticCallItem;
 
 ryo::reads! {
-    StaticCallItem => languages::StaticCall |tree, at, symbols| {
+    StaticCallItem => languages::StaticCall, model(ReadIndexes) |tree, _model, at, symbols| {
         kinds: [Kind::Node(Node::CallExpr), Kind::Node(Node::MethodCallExpr)] as kind_bits,
         given call = called(tree, symbols, at)?;
         row {

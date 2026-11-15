@@ -1,0 +1,64 @@
+[[cases]]
+name = "mixed"
+files = { "src/lib.rs" = "pub const X: u32 = 0x1aB;\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 24 }]
+
+[[cases]]
+name = "one-case"
+files = { "src/lib.rs" = "pub const X: u32 = 0xabcdef;\npub const Y: u32 = 0xABCDEF;\npub const Z: u32 = 0x1234;\n" }
+expected = []
+
+[[cases]]
+name = "suffix-is-not-digits"
+files = { "src/lib.rs" = "pub const X: u32 = 0xABu32;\npub const Y: u8 = 0xab_u8;\npub const Z: u64 = 0xaB_u64;\n" }
+expected = [{ file = "src/lib.rs", start = 74, end = 82 }]
+
+[[cases]]
+name = "separated"
+files = { "src/lib.rs" = "pub const X: u32 = 0xAB_cd;\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 26 }]
+
+[[cases]]
+name = "other-radix"
+files = { "src/lib.rs" = "pub const X: u32 = 0b1010;\npub const Y: f64 = 1e5;\n" }
+expected = []
+
+[[cases]]
+name = "non-ascii-before"
+files = { "src/lib.rs" = "pub fn f() -> u32 {\n    let é = 0x1aB;\n    é\n}\n" }
+expected = [{ file = "src/lib.rs", start = 33, end = 38 }]
+
+[[cases]]
+name = "in-macro-argument"
+files = { "src/lib.rs" = "pub fn f() -> Vec<u32> {\n    vec![0xfF]\n}\n" }
+expected = [{ file = "src/lib.rs", start = 34, end = 38 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::mixed_case_hex_literals)]\npub const X: u32 = 0x1aB;\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::style)]\npub const X: u32 = 0x1aB;\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "pub mod m {\n    #![allow(clippy::mixed_case_hex_literals)]\n    pub const X: u32 = 0x1aB;\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::all)]\npub mod m {\n    #![warn(clippy::style)]\n    pub const X: u32 = 0x1aB;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 86, end = 91 }]
+
+[[cases]]
+name = "warnings-allowed-is-not-reenabled-by-the-lint"
+files = { "src/lib.rs" = "#![allow(warnings)]\npub mod m {\n    #![warn(clippy::style)]\n    pub const X: u32 = 0x1aB;\n}\n" }
+expected = []
+
+[[cases]]
+name = "warnings-reenabled"
+files = { "src/lib.rs" = "#![allow(warnings)]\npub mod m {\n    #![warn(warnings)]\n    pub const X: u32 = 0x1aB;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 78, end = 83 }]

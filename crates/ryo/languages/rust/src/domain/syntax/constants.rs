@@ -1,27 +1,30 @@
-//! The names of the `syntax` concept: the standard macros whose arguments are expressions, and the reasons no relation models a kind of the
+//! The names of the `syntax` concept: the built-in macros whose arguments are never code, and the reasons no relation models a kind of the
 //! trees, which `sample` gives: those only the fixtures read are built with them.
 
-/// The standard macros whose arguments are expressions: all but the markers are separated by commas, `vec!` also by a semicolon, and
-/// `matches!` takes a pattern after the first. The syntax port reads the token tree of a call of one of them again as the expressions it
-/// holds, and adds them under the call as an expansion.
-pub(crate) const EXPANDED_MACROS: [&str; 17] = [
-    "format",
-    "print",
-    "println",
-    "eprint",
-    "eprintln",
-    "write",
-    "writeln",
-    "assert",
-    "assert_eq",
-    "assert_ne",
-    "debug_assert",
-    "debug_assert_eq",
-    "debug_assert_ne",
-    "vec",
-    "matches",
-    "panic",
-    "todo",
+/// The built-in macros whose arguments are never code: they read their tokens as text, a configuration predicate, a path or an
+/// assembly template, so no expression in them is evaluated. The syntax port reads the token tree of a call of any other macro again
+/// as the arguments it holds, and adds them under the call as an expansion.
+pub(crate) const OPAQUE_MACROS: [&str; 20] = [
+    "stringify",
+    "concat",
+    "concat_bytes",
+    "concat_idents",
+    "include",
+    "include_str",
+    "include_bytes",
+    "env",
+    "option_env",
+    "cfg",
+    "compile_error",
+    "line",
+    "column",
+    "file",
+    "module_path",
+    "asm",
+    "global_asm",
+    "naked_asm",
+    "trace_macros",
+    "log_syntax",
 ];
 
 /// A keyword.
@@ -109,3 +112,9 @@ pub(crate) const UNSPECIFIED_CODE: &str = "unspecified";
 
 /// The configuration identity of a parse that takes no configuration.
 pub(crate) const NO_CONFIGURATION: &str = "";
+
+/// A tree the parser could not read completely has no structural class a query could compare.
+pub(crate) const SHAPES_INCOMPLETE: &str = "expression shapes require a complete syntax tree";
+
+/// A numeric literal a compiler refuses (a digit outside its base, past 128 bits, a suffix naming no numeric type) has no value.
+pub(crate) const NUMBER_UNREAD: &str = "a numeric literal the compiler refuses has no value";

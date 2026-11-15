@@ -1,6 +1,7 @@
 //! The `narrowing` service: free functions named by verb over the per-file inputs of joins after the files, narrowed in each file to
 //! the rows whose key the other input's values can meet.
 
+use super::constants::VALUE;
 use super::types::Narrowed;
 use crate::domain::inlining::service::columns_read;
 use crate::domain::inlining::service::projection_column;
@@ -74,8 +75,9 @@ pub(crate) fn narrow_lookups_roots(
         }
         let through = Input::Step(StepId(first + count - 1));
         if let Some(join) = steps.get_mut(place + width) {
-            reading_through(&mut join.operation, local, through, &|column| {
-                projection_column(&kept, column)
+            // `kept` is every column the join reads of `local`, so each has its place in the values: the rename is whole.
+            let _: Option<()> = reading_through(&mut join.operation, local, through, &|column| {
+                Some(projection_column(&kept, column))
             });
         }
         place += width + 1;
@@ -179,7 +181,7 @@ fn narrowed(steps: &[PlanStep], memo: &mut LineageMemo, place: StepIndex) -> Opt
             left: local,
             right: values,
             left_on: vec![local_key],
-            right_on: vec![ColumnIndex(0)],
+            right_on: vec![VALUE],
             output: kept
                 .iter()
                 .map(|column| JoinColumn {

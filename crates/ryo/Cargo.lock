@@ -1702,6 +1702,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "idiomatic-sh-ryo-rust-clippy-benchmark"
+version = "0.1.4"
+dependencies = [
+ "idiomatic-sh-ryo-benchmark",
+ "idiomatic-sh-ryo-benchmark-contracts",
+ "idiomatic-sh-ryo-rust",
+ "idiomatic-sh-ryo-sdk",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "toml 1.1.4+spec-1.1.0",
+]
+
+[[package]]
 name = "idiomatic-sh-ryo-sdk"
 version = "0.1.4"
 dependencies = [

@@ -1846,3 +1846,17 @@ comparison = "full"
 given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
 files = { "input.py" = "from a.q import *\nfrom a.q import Query\n" }
 expected = []
+
+[[cases]]
+name = "as-inside-trailing-comment-in-parenthesised-import"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    a,  # keep as is\n    b,\n)\n" }
+expected = []
+
+[[cases]]
+name = "two-renamed-aliases-in-one-from-import"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from a import b as c, d as e\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 28 }]

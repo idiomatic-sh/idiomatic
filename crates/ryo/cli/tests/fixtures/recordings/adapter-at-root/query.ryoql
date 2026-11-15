@@ -1,5 +1,0 @@
-let imports = project(from="static-import", columns=["occurrence", "file", "span", "target"]);
-let references = project(from="reference", columns=["occurrence", "file", "span", "target"]);
-let mentions = union(left=imports, right=references);
-let adapters = select * from mentions where glob_any(target, "{*::adapters::*,adapters::*}");
-emit adapters subject "file" key("span");

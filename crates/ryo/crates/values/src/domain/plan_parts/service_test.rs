@@ -1,8 +1,17 @@
 //! The `plan_parts` service's cases, on values alone.
 
-use super::service::{columns_of, each_column, each_column_mut, parameter_in, remapped, step_in};
+use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
+use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
+use ryo_relations::domain::relations::service::{all, columns};
+use ryo_relations::domain::relations::types::{Column, Relation};
+
+use super::service::{
+    column_place, columns_of, each_column, each_column_mut, parameter_in, relation_column,
+    remapped, step_in, tree_lookup_key, view_source,
+};
 use super::types::{
     Applied, ColumnIndex, Function, LiteralText, Operand, ParameterId, QueryLiteral, StepId,
+    TreeLookupKey,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
@@ -27,6 +36,22 @@ enum Scenario {
     FunctionRemapped,
     /// Two comparisons that differ only in their diagnostic origin.
     OriginIgnored,
+    /// Every column of every relation is the column at its place.
+    EveryColumnRoundTrips,
+    /// The place of the syntax tree's `file`.
+    PlaceOfTheElementFile,
+    /// The place of the syntax child's `field`.
+    PlaceOfTheEdgeField,
+    /// A place past the last column of a relation.
+    PlacePastTheColumns,
+    /// The lookups the engine makes of the tree where it is: an element by id, span, or file and span; an edge by an end.
+    TreeLookupsByTheirKeys,
+    /// A lookup keyed on any other column of the tree or its edges, or on another relation, is not one.
+    OtherLookupsAreNot,
+    /// A view's column reads the column the view keeps there, and an empty view reads its input whole.
+    ViewColumnsReadWhatTheViewKeeps,
+    /// A column past the last a non-empty view keeps reads nothing.
+    ViewColumnPastTheViewReadsNothing,
 }
 
 /// `concat(pascal(column 3), "Service", column 1)`.
@@ -106,11 +131,128 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::OriginIgnored,
         expect: Expect::Value(1),
     },
+    Case {
+        name: CaseName("every_column_round_trips_through_its_place"),
+        word: Word::Succeeds,
+        input: || Scenario::EveryColumnRoundTrips,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("the_element_file_is_the_fourth_column_of_the_syntax_tree"),
+        word: Word::Succeeds,
+        input: || Scenario::PlaceOfTheElementFile,
+        expect: Expect::Value(3),
+    },
+    Case {
+        name: CaseName("the_edge_field_is_the_fourth_column_of_the_syntax_child"),
+        word: Word::Succeeds,
+        input: || Scenario::PlaceOfTheEdgeField,
+        expect: Expect::Value(3),
+    },
+    Case {
+        name: CaseName("a_place_past_the_columns_is_no_column"),
+        word: Word::Succeeds,
+        input: || Scenario::PlacePastTheColumns,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName(
+            "the_tree_is_looked_up_by_an_element_id_span_or_file_and_span_or_an_edge_end",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::TreeLookupsByTheirKeys,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_lookup_by_any_other_column_is_no_tree_lookup"),
+        word: Word::Succeeds,
+        input: || Scenario::OtherLookupsAreNot,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName(
+            "a_view_column_reads_what_the_view_keeps_and_an_empty_view_reads_its_input_whole",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::ViewColumnsReadWhatTheViewKeeps,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_column_past_a_non_empty_view_reads_nothing"),
+        word: Word::Succeeds,
+        input: || Scenario::ViewColumnPastTheViewReadsNothing,
+        expect: Expect::Value(1),
+    },
 ];
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let items = [10_u8, 20];
+    let place = |column| usize::try_from(column_place(column).0).unwrap_or(usize::MAX);
     let answered = match scenario {
+        Scenario::PlaceOfTheElementFile => {
+            return Ok(place(Column::SyntaxTree(SyntaxTreeColumn::File)));
+        }
+        Scenario::PlaceOfTheEdgeField => {
+            return Ok(place(Column::SyntaxChild(SyntaxChildColumn::Field)));
+        }
+        Scenario::EveryColumnRoundTrips => all().iter().all(|relation| {
+            columns(*relation)
+                .into_iter()
+                .all(|column| relation_column(*relation, column_place(column)) == Some(column))
+        }),
+        Scenario::TreeLookupsByTheirKeys => {
+            let element = |column| column_place(Column::SyntaxTree(column));
+            let edge = |column| column_place(Column::SyntaxChild(column));
+            let id = Column::SyntaxTree(SyntaxTreeColumn::Id);
+            let parent = Column::SyntaxChild(SyntaxChildColumn::Parent);
+            let child = Column::SyntaxChild(SyntaxChildColumn::Child);
+            let (file, span) = (
+                element(SyntaxTreeColumn::File),
+                element(SyntaxTreeColumn::Span),
+            );
+            tree_lookup_key(Relation::SyntaxTree, &[column_place(id)])
+                == Some(TreeLookupKey::Node(id))
+                && tree_lookup_key(Relation::SyntaxChild, &[column_place(parent)])
+                    == Some(TreeLookupKey::Node(parent))
+                && tree_lookup_key(Relation::SyntaxChild, &[edge(SyntaxChildColumn::Child)])
+                    == Some(TreeLookupKey::Node(child))
+                && tree_lookup_key(Relation::SyntaxTree, &[span]) == Some(TreeLookupKey::Span)
+                && tree_lookup_key(Relation::SyntaxTree, &[file, span])
+                    == Some(TreeLookupKey::FileThenSpan)
+                && tree_lookup_key(Relation::SyntaxTree, &[span, file])
+                    == Some(TreeLookupKey::SpanThenFile)
+        }
+        Scenario::ViewColumnsReadWhatTheViewKeeps => {
+            let view = [ColumnIndex(0), ColumnIndex(3), ColumnIndex(4)];
+            view_source(&view, ColumnIndex(1)) == Some(ColumnIndex(3))
+                && view_source(&view, ColumnIndex(2)) == Some(ColumnIndex(4))
+                && view_source(&[], ColumnIndex(4)) == Some(ColumnIndex(4))
+        }
+        Scenario::ViewColumnPastTheViewReadsNothing => {
+            let view = [ColumnIndex(0), ColumnIndex(3), ColumnIndex(4)];
+            view_source(&view, ColumnIndex(3)).is_none()
+                && view_source(&view, ColumnIndex(u32::MAX)).is_none()
+        }
+        Scenario::OtherLookupsAreNot => {
+            let edge = |column| column_place(Column::SyntaxChild(column));
+            let kind = column_place(Column::SyntaxTree(SyntaxTreeColumn::Kind));
+            tree_lookup_key(Relation::SyntaxChild, &[edge(SyntaxChildColumn::Field)]).is_none()
+                && tree_lookup_key(Relation::SyntaxTree, &[kind]).is_none()
+                && tree_lookup_key(Relation::Function, &[ColumnIndex(0)]).is_none()
+                && tree_lookup_key(
+                    Relation::SyntaxChild,
+                    &[
+                        edge(SyntaxChildColumn::Parent),
+                        edge(SyntaxChildColumn::Child),
+                    ],
+                )
+                .is_none()
+                && tree_lookup_key(Relation::SyntaxTree, &[]).is_none()
+        }
+        Scenario::PlacePastTheColumns => all().iter().all(|relation| {
+            let width = u32::try_from(columns(*relation).len()).unwrap_or(u32::MAX);
+            relation_column(*relation, ColumnIndex(width)).is_none()
+        }),
         Scenario::StepThere => step_in(&items, StepId(1)) == Some(&20),
         Scenario::StepMissing => step_in(&items, StepId(2)).is_none(),
         Scenario::ParameterThere => parameter_in(&items, ParameterId(0)) == Some(&10),

@@ -1,0 +1,54 @@
+[[cases]]
+name = "unwrap-and-expect"
+files = { "src/lib.rs" = "pub fn f() -> (&'static str, &'static str) {\n    (option_env!(\"CARGO\").unwrap(), option_env!(\"CARGO_PKG_NAME\").expect(\"set by cargo\"))\n}\n" }
+expected = [{ file = "src/lib.rs", start = 50, end = 79 }, { file = "src/lib.rs", start = 81, end = 133 }]
+
+[[cases]]
+name = "other-methods"
+files = { "src/lib.rs" = "pub fn f() -> (&'static str, bool, Option<&'static str>) {\n    (option_env!(\"X\").unwrap_or(\"\"), option_env!(\"Y\").is_some(), option_env!(\"Z\"))\n}\n" }
+expected = []
+
+[[cases]]
+name = "paths-spacing-and-delimiters"
+files = { "src/lib.rs" = "pub fn f() -> [&'static str; 4] {\n    [\n        std::option_env!(\"CARGO\").unwrap(),\n        core::option_env![\"CARGO\"]\n            .unwrap(),\n        option_env! {\"CARGO\"}.expect(\"x\"),\n        option_env!(\"CARGO\") . unwrap(),\n    ]\n}\n" }
+expected = [{ file = "src/lib.rs", start = 150, end = 183 }, { file = "src/lib.rs", start = 193, end = 224 }]
+
+[[cases]]
+name = "parenthesized-or-bound"
+files = { "src/lib.rs" = "pub fn f() -> (&'static str, &'static str) {\n    let v = option_env!(\"CARGO\");\n    ((option_env!(\"CARGO\")).unwrap(), v.unwrap())\n}\n" }
+expected = []
+
+[[cases]]
+name = "statics-and-chains"
+files = { "src/lib.rs" = "pub static S: &str = match option_env!(\"CARGO\") {\n    Some(s) => s,\n    None => \"\",\n};\npub fn f() -> usize {\n    option_env!(\"CARGO\").unwrap().len()\n}\n" }
+expected = [{ file = "src/lib.rs", start = 113, end = 142 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        let p = option_env!(\"CARGO\").unwrap();\n        assert!(!p.is_empty());\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 66, end = 95 }]
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! m {\n    () => {\n        option_env!(\"CARGO\").unwrap()\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::option_env_unwrap)]\npub fn f() -> &'static str {\n    option_env!(\"CARGO\").unwrap()\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::correctness)]\npub fn f() -> &'static str {\n    option_env!(\"CARGO\").unwrap()\n}\npub fn g() -> &'static str {\n    #[allow(clippy::all)]\n    let p = option_env!(\"CARGO\").unwrap();\n    p\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::option_env_unwrap)]\npub fn f() -> &'static str {\n    option_env!(\"CARGO\").unwrap()\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::correctness)]\n#[warn(clippy::option_env_unwrap)]\npub fn f() -> &'static str {\n    option_env!(\"CARGO\").unwrap()\n}\n" }
+expected = [{ file = "src/lib.rs", start = 99, end = 128 }]

@@ -293,15 +293,21 @@ A language that would search a file again for each element a reader is given (TO
 ### Semantic syntax projections
 
 `semantic-syntax` and `semantic-child` are explicit projections, separate from
-native lossless syntax. Providers without embedded expressions reuse the shared
-native projection readers. A provider that parses an embedded expression keeps
+native lossless syntax. The semantic view holds every native row and edge, and
+adds only the trees a provider reads again: embedded expressions, or the
+argument trees of a macro call under that call. Where a file has neither, it
+equals the native view. Providers that add no trees reuse the shared native
+projection readers (`native_semantic_*`); a provider that adds macro argument
+trees answers with the shared expanded readers (`expanded_semantic_*`), which
+are the native readers with the added elements included. A provider that parses an embedded expression keeps
 its logical token text as owned derived symbols and records its physical source
 mapping independently. `embedded-expression` identifies the carrier, root,
 evaluation context, and mapping fidelity. An embedded occurrence is distinct
 from a macro expansion and from parser-implied syntax.
 
-Every provider inherits conformance checks for native row and field-predicate
-preservation when there are no embeddings, physical span bounds, source-coordinate
+Every provider inherits conformance checks that the semantic view contains the
+native one, for native row and field-predicate preservation when there are no
+embeddings or expansions, physical span bounds, source-coordinate
 identity, and deterministic retained-table reuse. Field predicates also participate
 in core demand planning: requesting a semantic edge field must request its roles,
 even when that field is filtered out of the final query result.

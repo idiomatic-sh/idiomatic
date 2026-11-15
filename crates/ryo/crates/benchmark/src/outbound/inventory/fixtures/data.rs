@@ -30,6 +30,16 @@ pub fn summary() -> Summary {
         identity: BTreeMap::<IdentityKey, _>::new(),
         passed: CaseCount(0),
         failed: CaseCount(1),
+        deferred: CaseCount(0),
         rules: vec![row()],
     }
+}
+
+/// A temporary directory whose path is already canonical, as a registered context must be: a platform's temporary
+/// directory may sit behind a link (macOS's `/var` is `/private/var`).
+///
+/// # Errors
+/// Propagates a temporary directory that cannot be resolved or created.
+pub fn canonical_directory() -> std::io::Result<tempfile::TempDir> {
+    tempfile::tempdir_in(std::env::temp_dir().canonicalize()?)
 }

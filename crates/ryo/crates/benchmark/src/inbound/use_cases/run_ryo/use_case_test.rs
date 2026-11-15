@@ -1,4 +1,5 @@
 //! Receive, engine and response failures stop the pipeline at the failed boundary.
+use super::fixtures::{CountingContext, sealed_request};
 use super::{interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::engine::types::loaded_engine_session::value::EngineExecution;
@@ -23,6 +24,7 @@ enum Stage {
     Load,
     Configure,
     Respond,
+    Sealed,
 }
 type Input = Stage;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -33,6 +35,8 @@ struct Trace {
     evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount,
     responded: usize,
     published: bool,
+    /// Context validations, context receipts, and whether the published report observed its context.
+    seam: (usize, usize, bool),
 }
 type Value = Trace;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -48,6 +52,20 @@ enum Refusal {
 type Failure = Refusal;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("a sealed request publishes its receipt without validating the corpus"),
+        word: Word::Succeeds,
+        input: || Stage::Sealed,
+        expect: Expect::Value(Trace {
+            received: 1,
+            loaded: 1,
+            closed: 1,
+            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+            responded: 1,
+            published: true,
+            seam: (0, 1, true),
+        }),
+    },
+    Case {
         name: CaseName("genuine externally forwarded loaded handle executes the received request"),
         word: Word::Succeeds,
         input: || Stage::Forward,
@@ -58,6 +76,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
             responded: 1,
             published: true,
+            seam: (0, 0, false),
         }),
     },
     Case {
@@ -73,6 +92,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
             responded: 0,
             published: false,
+            seam: (0, 0, false),
         })),
     },
     Case {
@@ -86,6 +106,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
             responded: 0,
             published: false,
+            seam: (0, 0, false),
         })),
     },
     Case {
@@ -99,6 +120,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
             responded: 0,
             published: false,
+            seam: (0, 0, false),
         })),
     },
     Case {
@@ -112,6 +134,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
             responded: 1,
             published: true,
+            seam: (0, 0, false),
         }),
     },
     Case {
@@ -125,6 +148,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
             responded: 0,
             published: false,
+            seam: (0, 0, false),
         })),
     },
     Case {
@@ -138,6 +162,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
             responded: 0,
             published: false,
+            seam: (0, 0, false),
         })),
     },
     Case {
@@ -151,6 +176,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
             responded: 1,
             published: false,
+            seam: (0, 0, false),
         })),
     },
 ];
@@ -268,7 +294,11 @@ impl EnginePort for ForwardingPort {
     }
 }
 fn subject(stage: Input) -> Result<Value, Failure> {
-    let mut transport = WorkerFake::new(request());
+    let mut transport = WorkerFake::new(if matches!(stage, Stage::Sealed) {
+        sealed_request()
+    } else {
+        request()
+    });
     transport.refuse_receive = matches!(stage, Stage::Receive);
     transport.refuse_respond = matches!(stage, Stage::Respond);
     let transport = Arc::new(transport);
@@ -289,12 +319,14 @@ fn subject(stage: Input) -> Result<Value, Failure> {
     } else {
         Arc::<Engine>::clone(&engine)
     };
+    let context = Arc::new(CountingContext::default());
     let result = RunRyoUseCaseImpl::new(
         port,
         Arc::<WorkerFake>::clone(&transport),
-        Arc::new(crate::outbound::context::fixtures::fake::ContextFake),
+        Arc::<CountingContext>::clone(&context),
     )
     .run_ryo();
+    let reports = transport.reports();
     let trace = Trace {
         received: transport.receive_calls(),
         loaded: engine.loaded.load(Ordering::SeqCst),
@@ -303,8 +335,14 @@ fn subject(stage: Input) -> Result<Value, Failure> {
             engine.calls.load(Ordering::SeqCst),
         ),
         responded: transport.respond_calls(),
-        published: transport.reports()
-            == [RunReport {
+        published: reports
+            .iter()
+            .map(|report| RunReport {
+                project_context:
+                    ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+                ..report.clone()
+            })
+            .eq([RunReport {
                 execution_metadata:
                     ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
                 project_context:
@@ -324,7 +362,12 @@ fn subject(stage: Input) -> Result<Value, Failure> {
                         },
                     ),
                 diagnostics: Vec::new(),
-            }],
+            }]),
+        seam: (
+            context.validated.load(Ordering::SeqCst),
+            context.receipted.load(Ordering::SeqCst),
+            matches!(reports.as_slice(), [report] if matches!(report.project_context, ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(_))),
+        ),
     };
     result.map(|()| trace).map_err(|error| match error {
         Error::Invalid(message)

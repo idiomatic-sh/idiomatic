@@ -1,0 +1,54 @@
+[[cases]]
+name = "outer-line"
+files = { "src/lib.rs" = "/// a\tb\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 5, end = 6 }]
+
+[[cases]]
+name = "runs-of-tabs"
+files = { "src/lib.rs" = "///\t\tx\t\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 3, end = 5 }, { file = "src/lib.rs", start = 6, end = 7 }]
+
+[[cases]]
+name = "inner-line"
+files = { "src/lib.rs" = "//! a\tb\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 5, end = 6 }]
+
+[[cases]]
+name = "blocks"
+files = { "src/lib.rs" = "/*! a\tb */\n/** c\td */\npub fn f() {}\n/**\n\te\n */\npub fn g() {}\n" }
+expected = [{ file = "src/lib.rs", start = 5, end = 6 }, { file = "src/lib.rs", start = 16, end = 17 }, { file = "src/lib.rs", start = 40, end = 41 }]
+
+[[cases]]
+name = "not-doc"
+files = { "src/lib.rs" = "// a\tb\n//// a\tb\n/* a\tb */\n/*** a\tb */\n#[doc = \"a\tb\"]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "non-ascii-before"
+files = { "src/lib.rs" = "/// é\tb\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 6, end = 7 }]
+
+[[cases]]
+name = "fields-and-statements"
+files = { "src/lib.rs" = "pub struct S {\n    /// a\tb\n    pub x: u8,\n}\npub enum E {\n    /// c\td\n    V,\n}\npub fn f() {\n    /// e\tf\n    let _x = 1;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 24, end = 25 }, { file = "src/lib.rs", start = 66, end = 67 }, { file = "src/lib.rs", start = 100, end = 101 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::tabs_in_doc_comments)]\n/// a\tb\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "/// a\tb\n#[allow(clippy::style)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::tabs_in_doc_comments)]\n/// a\tb\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::style)]\n#[warn(clippy::tabs_in_doc_comments)]\n/// a\tb\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 68, end = 69 }]

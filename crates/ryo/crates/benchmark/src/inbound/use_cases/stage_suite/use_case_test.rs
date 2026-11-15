@@ -7,12 +7,14 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 /// Stage a profile directory through the public use case.
 fn stage(suite: &dyn SuitePort, directory: &Path, destination: &Path) -> Result<(), ReportsError> {
-    StageSuiteUseCaseImpl::new(suite).stage_suite(
-        directory,
-        destination,
-        &[],
-        ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
-    )
+    StageSuiteUseCaseImpl::new(suite)
+        .stage_suite(
+            directory,
+            destination,
+            &[],
+            ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
+        )
+        .map(|_staged| ())
 }
 /// A fixture scenario, or a profile directory that does not exist.
 #[derive(Clone, Copy, Debug)]
@@ -46,6 +48,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("discrepancy"),
         word: Word::Succeeds,
         input: || Operation::Fixture(Scenario::Discrepancy),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("staged profile"),
+        word: Word::Succeeds,
+        input: || Operation::Fixture(Scenario::StagedProfile),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("full profile"),
+        word: Word::Succeeds,
+        input: || Operation::Fixture(Scenario::FullProfile),
         expect: Expect::Value(()),
     },
     Case {

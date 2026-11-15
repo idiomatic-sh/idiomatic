@@ -48,8 +48,24 @@ pub(crate) struct Documents {
     pub invocations: BTreeMap<PathBuf, InvocationDocument>,
 }
 
-const ROOT: &str = "/root";
-const STATE: &str = "/state";
+/// An absolute request root on every platform, as the capture writes it.
+pub(crate) fn root() -> String {
+    absolute("root")
+}
+
+/// An absolute state directory beside the root.
+pub(crate) fn state() -> String {
+    absolute("state")
+}
+
+/// `name` under the platform's temporary directory: absolute wherever the tests run.
+fn absolute(name: &str) -> String {
+    std::env::temp_dir()
+        .join(name)
+        .to_str()
+        .expect("a UTF-8 temporary directory")
+        .to_owned()
+}
 const CANONICAL: &str =
     "{\"arguments\":[\"--check\",\"$ROOT/case.py\"],\"directory\":\"$ROOT\",\"environment\":{}}";
 
@@ -150,7 +166,7 @@ pub(crate) fn passing() -> Documents {
         skipped: ReportedSkips::Unreported,
         execution_metadata: RecordedMetadata::Unrecorded,
         coverage: CoverageAccounting::Unaccounted,
-        actual_request_root: RequestRoot::Written(path(ROOT)),
+        actual_request_root: RequestRoot::Written(path(&root())),
         raw_parity_matches_intended: IntentMatch::Matched(YesNo::No),
         discrepancy_validation: ValidationRecord::Attested(DiscrepancyValidation {
             discrepancy_basis: DiscrepancyBasis::LanguageDefect,
@@ -172,7 +188,7 @@ pub(crate) fn passing() -> Documents {
             kind: ExpectationKind::ProcessFailure,
             exit: ExitStatus(2),
             signal: Signal::Absent,
-            actual_request_root: path(ROOT),
+            actual_request_root: path(&root()),
             observer_no_deadline: YesNo::Yes,
             executable_sha256: Pin::Sha256(sha('a')),
             settings_sha256: Pin::Sha256(settings.clone()),
@@ -187,7 +203,7 @@ pub(crate) fn passing() -> Documents {
         ..observed_row("A001", "matched", ContestantSide::Reference)
     };
     let invocation = CompleteInvocation {
-        actual_request_root: path(ROOT),
+        actual_request_root: path(&root()),
         files: vec![path("case.py")],
         executable_sha256: sha('a'),
         settings_sha256: settings,
@@ -203,13 +219,13 @@ pub(crate) fn passing() -> Documents {
         profile_sha256: sha('c'),
         tool: ReasonText("fixture".into()),
         version: ReasonText("1".into()),
-        state: path(STATE),
+        state: path(&state()),
         arguments: vec![
             ArgumentText("--check".into()),
-            ArgumentText(format!("{ROOT}/case.py")),
+            ArgumentText(format!("{}/case.py", root())),
         ],
         environment: BTreeMap::new(),
-        directory: path(ROOT),
+        directory: path(&root()),
         exit: ExitStatus(2),
         signal: Signal::Absent,
         observer_no_deadline: YesNo::Yes,

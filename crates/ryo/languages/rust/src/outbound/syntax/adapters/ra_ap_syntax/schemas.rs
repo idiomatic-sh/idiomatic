@@ -1,6 +1,7 @@
 //! What the library gives, which the adapter does not control, and its conversion into the adapter's own types: the parser's events into
-//! steps, and the grammar's kinds into the language's own, one arm for each with no catch-all, so a kind the library gains stops this from
-//! compiling until it is given a kind of the language's (or `Other`) on purpose.
+//! steps, a file's bytes into text, and the grammar's kinds into the language's own, one arm for each with no
+//! catch-all, so a kind the library gains stops this from compiling until it is given a kind of the language's (or `Other`) on
+//! purpose.
 
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;

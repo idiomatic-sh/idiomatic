@@ -94,6 +94,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     ArtifactDigest("sealed".into()),
                 )]),
                 missing,
+                links: BTreeMap::new(),
             },
         ),
         root: PathBuf::from("/snapshot/project"),

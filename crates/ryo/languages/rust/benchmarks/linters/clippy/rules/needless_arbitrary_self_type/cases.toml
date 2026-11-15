@@ -1,0 +1,54 @@
+[[cases]]
+name = "by-value"
+files = { "src/lib.rs" = "pub struct S;\nimpl S {\n    pub fn a(self: Self) {}\n    pub fn b(mut self: Self) {\n        self = S;\n        let _ = self;\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 36, end = 46 }, { file = "src/lib.rs", start = 64, end = 78 }]
+
+[[cases]]
+name = "by-reference"
+files = { "src/lib.rs" = "pub struct S;\nimpl S {\n    pub fn a(self: &Self) {}\n    pub fn b(self: &mut Self) {}\n    pub fn c<'a>(self: &'a Self) {}\n    pub fn d<'a>(self: &'a mut Self) {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 36, end = 47 }, { file = "src/lib.rs", start = 65, end = 80 }, { file = "src/lib.rs", start = 102, end = 116 }, { file = "src/lib.rs", start = 138, end = 156 }]
+
+[[cases]]
+name = "not-needless"
+files = { "src/lib.rs" = "use std::rc::Rc;\npub struct S;\nimpl S {\n    pub fn a(self: Box<Self>) {}\n    pub fn b(self: Rc<Self>) {}\n    pub fn c(self: &S) {}\n    pub fn d(self: S) {}\n    pub fn e(&self) {}\n    pub fn f(mut self: &Self) {\n        self = &S;\n        let _ = self;\n    }\n    pub fn g(self: &&Self) {}\n    pub fn h(self: (Self)) {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "traits-and-spacing"
+files = { "src/lib.rs" = "pub trait T {\n    fn declared(self: &Self);\n    fn provided(self : Self)\n    where\n        Self: Sized,\n    {\n    }\n}\npub struct S;\nimpl T for S {\n    fn declared(self:&Self) {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 30, end = 41 }, { file = "src/lib.rs", start = 60, end = 71 }, { file = "src/lib.rs", start = 163, end = 173 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    struct S;\n    impl S {\n        fn a(self: &Self) {}\n    }\n    #[test]\n    fn t() {\n        S.a();\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 65, end = 76 }]
+
+[[cases]]
+name = "in-macros"
+files = { "src/lib.rs" = "pub struct S;\nmacro_rules! method {\n    () => {\n        pub fn a(self: &Self) {}\n    };\n}\nimpl S {\n    method!();\n}\nmacro_rules! unused {\n    () => {\n        pub fn b(self: &Self) {}\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "pub struct S;\nimpl S {\n    #[allow(clippy::needless_arbitrary_self_type)]\n    pub fn a(self: &Self) {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "pub struct S;\n#[allow(clippy::complexity)]\nimpl S {\n    pub fn a(self: &Self) {}\n}\npub struct U;\nimpl U {\n    #[expect(clippy::all)]\n    pub fn a(self: &Self) {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::needless_arbitrary_self_type)]\npub struct S;\nimpl S {\n    pub fn a(self: &Self) {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::complexity)]\npub struct S;\nimpl S {\n    #[warn(clippy::needless_arbitrary_self_type)]\n    pub fn a(self: &Self) {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 116, end = 127 }]
+
+[[cases]]
+name = "attribute-on-the-parameter"
+files = { "src/lib.rs" = "pub struct S;\nimpl S {\n    pub fn a(#[allow(clippy::needless_arbitrary_self_type)] self: &Self) {}\n    pub fn b(#[allow(unused)] self: &Self) {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 129, end = 140 }]

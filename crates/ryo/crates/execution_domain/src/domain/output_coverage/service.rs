@@ -96,8 +96,8 @@ fn transported(
     };
     // The missing operand's own column a join names: through the view on the right.
     let own = |column: ColumnIndex| {
-        if own_side == Side::Right && !view.is_empty() {
-            usize::try_from(column.0).map_or(None, |at| view.get(at).copied())
+        if own_side == Side::Right {
+            ryo_values::domain::plan_parts::service::view_source(view, column)
         } else {
             Some(column)
         }
@@ -220,11 +220,9 @@ pub fn output_coverage(
                 // file as well; a step's key says nothing of where its rows came from.
                 let mut file_keyed = false;
                 for own in own {
-                    let own = if input.ordinal.0 == 1 && !view.is_empty() {
-                        let Ok(at) = usize::try_from(own.0) else {
-                            return Err(OperatingError::NotRun);
-                        };
-                        *view.get(at).ok_or(OperatingError::NotRun)?
+                    let own = if input.ordinal.0 == 1 {
+                        ryo_values::domain::plan_parts::service::view_source(view, *own)
+                            .ok_or(OperatingError::NotRun)?
                     } else {
                         *own
                     };

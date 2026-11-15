@@ -1,0 +1,17 @@
+import bindings from "rust/clippy/bindings";
+import lint_attributes from "rust/clippy/lint-attributes";
+let slices = select id, file, span from "syntax-tree" where kind = "slice-pat";
+let patterns = select id, kind from "syntax-tree" where matches(kind, "-pat$");
+let elements = select l.parent as slice, l.child as element from "syntax-child" as l join patterns as r on l.child = r.id;
+let slice_elements = select l.slice as slice, l.element as element from elements as l join slices as r on l.slice = r.id;
+let counted = group-count(from=slice_elements, keys=["slice"], count="count");
+let single = select slice from counted where count = 1;
+let binding_rows = bindings();
+let subpatterned = select id from binding_rows where at = 1;
+let rests = select l.parent as id from "syntax-child" as l join patterns as r on l.child = r.id where r.kind = "rest-pat";
+let rest_bindings = select l.id as id from subpatterned as l join rests as r on l.id = r.id;
+let only = select l.slice as slice, l.element as element from slice_elements as l join single as r on l.slice = r.slice;
+let whole = select l.slice as id from only as l join rest_bindings as r on l.element = r.id;
+let candidates = select l.id as id, l.file as file, l.span as span from slices as l join whole as r on l.id = r.id;
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:redundant_at_rest_pattern|complexity|all))\s*(?:,|$)");
+emit violations subject file key(id);

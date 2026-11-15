@@ -1,0 +1,69 @@
+[[cases]]
+name = "single-arm"
+files = { "src/lib.rs" = "pub struct W(pub u8);\npub fn f(w: W) -> u8 {\n    let x = match w {\n        W(v) => v,\n    };\n    x\n}\n" }
+expected = [{ file = "src/lib.rs", start = 49, end = 92 }]
+
+[[cases]]
+name = "enum-variants-and-blocks"
+files = { "src/lib.rs" = "pub enum E {\n    Only(String),\n}\npub fn f(e: E) -> String {\n    let s = match e {\n        E::Only(inner) => { inner }\n    };\n    s\n}\npub fn g(e: &E) -> usize {\n    let n = match *e {\n        E::Only(ref inner) => {{ inner }}\n    };\n    n.len()\n}\n" }
+expected = [{ file = "src/lib.rs", start = 64, end = 124 }, { file = "src/lib.rs", start = 164, end = 231 }]
+
+[[cases]]
+name = "references-and-rest"
+files = { "src/lib.rs" = "pub struct W(pub u8, pub u8);\npub struct R<'a>(pub &'a u8);\npub fn f(w: W, r: R<'_>) -> u8 {\n    let a = match w {\n        W(v, ..) => v,\n    };\n    let b = match r {\n        R(&v) => v,\n    };\n    let c = match (W(1, 2),) {\n        (W(.., last),) => last,\n    };\n    a + b + c\n}\n" }
+expected = [{ file = "src/lib.rs", start = 97, end = 144 }, { file = "src/lib.rs", start = 149, end = 193 }]
+
+[[cases]]
+name = "not-infallible-shape"
+files = { "src/lib.rs" = "pub struct W(pub u8);\npub struct P {\n    pub v: u8,\n}\npub fn f(w: W, p: P, o: Option<u8>) -> u8 {\n    let a = match w {\n        W(v) => v + 1,\n    };\n    let b = match p {\n        P { v } => v,\n    };\n    let c = match o {\n        Some(v) => v,\n        None => 0,\n    };\n    let d = match W(2) {\n        W(v) if v > 0 => v,\n        W(_) => 0,\n    };\n    let e = match W(3) {\n        W(v) => {\n            let _ = 0;\n            v\n        }\n    };\n    let g = match W(4) {\n        W(_) => 0,\n    };\n    a + b + c + d + e + g\n}\n" }
+expected = []
+
+[[cases]]
+name = "unit-struct-and-const-patterns"
+files = { "src/lib.rs" = "#[derive(Clone, Copy)]\npub struct Unit;\npub struct W(pub Unit);\npub fn f(w: W) -> Unit {\n    let u = match w {\n        W(Unit) => Unit,\n    };\n    u\n}\n" }
+expected = []
+
+[[cases]]
+name = "let-else-parentheses-and-unsafe"
+files = { "src/lib.rs" = "pub struct W(pub u8);\n#[allow(unused_unsafe)]\npub fn f(w: W) -> u8 {\n    let a = (match w {\n        W(v) => v,\n    });\n    let b = match W(1) {\n        W(v) => unsafe { v },\n    };\n    let c = match W(2) {\n        W(v) => (v),\n    };\n    a + b + c\n}\n" }
+expected = [{ file = "src/lib.rs", start = 73, end = 118 }, { file = "src/lib.rs", start = 185, end = 233 }]
+
+[[cases]]
+name = "binding-modes-and-subpatterns"
+files = { "src/lib.rs" = "pub struct W(pub u8);\npub fn f(w: W) -> u8 {\n    let mut a = match w {\n        W(mut v) => {\n            v += 1;\n            v\n        }\n    };\n    a += 1;\n    let b = match W(1) {\n        W(v @ _) => v,\n    };\n    let c = match W(2) {\n        W(v) => self::helper(v),\n    };\n    a + b + c\n}\nfn helper(v: u8) -> u8 {\n    v\n}\n" }
+expected = [{ file = "src/lib.rs", start = 160, end = 210 }]
+
+[[cases]]
+name = "self-and-qualified-paths"
+files = { "src/lib.rs" = "pub enum E {\n    Only(u8),\n}\nimpl E {\n    pub fn get(self) -> u8 {\n        let v = match self {\n            Self::Only(v) => v,\n        };\n        v\n    }\n    pub fn other(e: E) -> u8 {\n        let v = match e {\n            crate::E::Only(v) => v,\n        };\n        v\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 194, end = 258 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    struct W(u8);\n    #[test]\n    fn t() {\n        let x = match W(1) {\n            W(v) => v,\n        };\n        assert_eq!(x, 1);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 76, end = 130 }]
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! m {\n    ($w:expr) => {\n        let x = match $w {\n            W(v) => v,\n        };\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "pub struct W(pub u8);\n#[allow(clippy::infallible_destructuring_match)]\npub fn f(w: W) -> u8 {\n    let x = match w {\n        W(v) => v,\n    };\n    x\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "pub struct W(pub u8);\n#[allow(clippy::style)]\npub fn f(w: W) -> u8 {\n    let x = match w {\n        W(v) => v,\n    };\n    x\n}\npub fn g(w: W) -> u8 {\n    #[allow(clippy::all)]\n    let x = match w {\n        W(v) => v,\n    };\n    x\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::infallible_destructuring_match)]\npub struct W(pub u8);\npub fn f(w: W) -> u8 {\n    let x = match w {\n        W(v) => v,\n    };\n    x\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::style)]\npub struct W(pub u8);\npub fn f(w: W) -> u8 {\n    #[warn(clippy::infallible_destructuring_match)]\n    let x = match w {\n        W(v) => v,\n    };\n    x\n}\n" }
+expected = [{ file = "src/lib.rs", start = 126, end = 169 }]

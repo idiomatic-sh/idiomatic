@@ -8,9 +8,9 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError, operator::contract::resources::types::AxisResources,
     table_cells::types::TreeForm, table_model::service::check_columns,
-    tree_walk::service::entity_of,
 };
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
+use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 
 /// Preserve the old admission and error gates before acquiring any derived resource.
@@ -39,7 +39,7 @@ pub(crate) fn classify<'f>(
     }
     if let RepresentationInput::Tree(tree) = edges {
         let domain_of_tree = matches!(domain, RepresentationInput::Tree(each) if each.form == TreeForm::Elements)
-            && entity_of(domain_view, *domain_id) == ColumnIndex(0);
+            && view_source(domain_view, *domain_id) == Some(ColumnIndex(0));
         if tree.form == TreeForm::Edges
             && (*parent, *child) == (ColumnIndex(0), ColumnIndex(1))
             && ((*has_filter == ryo_execution_domain::domain::operator::contract::resources::types::Filtering::Unfiltered && domain_view.is_empty()) || domain_of_tree)

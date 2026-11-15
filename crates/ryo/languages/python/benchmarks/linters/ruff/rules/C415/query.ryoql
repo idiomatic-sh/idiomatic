@@ -24,10 +24,7 @@ let keywords = select l.call as call, r.child as id from call_arguments as l joi
 let keyword_names = keyword_argument_names(keywords=keywords, identifiers=semantic_identifiers);
 let qualified = select id from qualified_names where (path = "builtins.reversed" or path = "builtins.set" or path = "builtins.sorted") and (provenance != "builtin" or since_major < 3 or since_major = 3 and since_minor <= 10);
 let matching_calls = select l.parent as id from functions as l join qualified as r on l.child = r.id;
-let constants = select id from "semantic-syntax" where kind = "constant";
-let one_tokens = select id from "semantic-syntax" where kind = "number" and matches(text, "^(?:1|0[xXoObB][0_]*1)$");
-let numeric_children = select l.parent as id from "semantic-child" as l join one_tokens as r on l.child = r.id;
-let ones = select l.id as id from constants as l join numeric_children as r on l.id = r.id;
+let ones = select id from "numeric-literal" where kind = "integer" and value = "1";
 let operands = select parent, child from "semantic-child" where field = "operand";
 let one_operands = select l.parent as id from operands as l join ones as r on l.child = r.id;
 let unary = select id from "semantic-syntax" where kind = "unary-op";

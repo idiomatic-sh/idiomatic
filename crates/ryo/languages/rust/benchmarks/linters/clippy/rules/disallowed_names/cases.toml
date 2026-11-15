@@ -1,0 +1,74 @@
+[[cases]]
+name = "let-bindings"
+files = { "src/lib.rs" = "pub fn f() -> u8 {\n    let foo = 1;\n    let baz = 2;\n    let quux = 3;\n    let bar = 4;\n    foo + baz + quux + bar\n}\n" }
+expected = [{ file = "src/lib.rs", start = 27, end = 30 }, { file = "src/lib.rs", start = 44, end = 47 }, { file = "src/lib.rs", start = 61, end = 65 }]
+
+[[cases]]
+name = "parameters"
+files = { "src/lib.rs" = "pub fn f(foo: u8) -> u8 {\n    let g = |baz: u8| baz + 1;\n    g(foo)\n}\n" }
+expected = [{ file = "src/lib.rs", start = 9, end = 12 }, { file = "src/lib.rs", start = 39, end = 42 }]
+
+[[cases]]
+name = "patterns"
+files = { "src/lib.rs" = "pub struct S {\n    pub foo: u8,\n}\npub fn f(o: Option<u8>, s: S) -> u8 {\n    let n = match o {\n        Some(quux) => quux,\n        None => 0,\n    };\n    let S { foo } = s;\n    let (ref baz, mut quux) = (1u8, 2u8);\n    quux += 1;\n    let r = match n {\n        foo @ 1..=2 => foo,\n        _ => 0,\n    };\n    n + foo + *baz + quux + r\n}\n" }
+expected = [{ file = "src/lib.rs", start = 107, end = 111 }, { file = "src/lib.rs", start = 160, end = 163 }, { file = "src/lib.rs", start = 184, end = 187 }, { file = "src/lib.rs", start = 193, end = 197 }, { file = "src/lib.rs", start = 258, end = 261 }]
+
+[[cases]]
+name = "for-and-if-let"
+files = { "src/lib.rs" = "pub fn f(v: &[u8], o: Option<u8>) -> u8 {\n    let mut t = 0;\n    for foo in v {\n        t += foo;\n    }\n    if let Some(baz) = o {\n        t += baz;\n    }\n    t\n}\n" }
+expected = [{ file = "src/lib.rs", start = 69, end = 72 }, { file = "src/lib.rs", start = 120, end = 123 }]
+
+[[cases]]
+name = "not-bindings"
+files = { "src/lib.rs" = "pub struct Foo {\n    pub foo: u8,\n}\npub fn foo(x: Foo) -> u8 {\n    let foo_bar = x.foo;\n    let r#bar = 1;\n    let food = 2;\n    foo_bar + r#bar + food\n}\npub const BAZ: u8 = 0;\npub trait T {\n    fn m(&self, foo: u8);\n}\npub type F = fn(foo: u8) -> u8;\nunsafe extern \"C\" {\n    pub fn g(baz: u8);\n}\n" }
+expected = []
+
+[[cases]]
+name = "raw-identifier"
+files = { "src/lib.rs" = "pub fn f() -> u8 {\n    let r#foo = 1;\n    r#foo\n}\n" }
+expected = []
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    pub fn f() -> u8 {\n        let foo = 1;\n        foo\n    }\n}\n" }
+expected = []
+
+[[cases]]
+name = "in-test-function"
+files = { "src/lib.rs" = "pub fn f() -> u8 {\n    1\n}\n#[test]\nfn t() {\n    let foo = f();\n    fn inner() -> u8 {\n        let baz = 2;\n        baz\n    }\n    assert_eq!(foo + inner(), 3);\n}\n" }
+expected = []
+
+[[cases]]
+name = "in-cfg-all-test"
+files = { "src/lib.rs" = "#[cfg(all(test, unix))]\nmod tests {\n    pub fn f() -> u8 {\n        let foo = 1;\n        foo\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 71, end = 74 }]
+
+[[cases]]
+name = "in-integration-test"
+files = { "src/lib.rs" = "pub fn f() -> u8 {\n    1\n}\n", "tests/it.rs" = "#[test]\nfn t() {\n    let foo = case::f();\n    assert_eq!(foo, 1);\n}\nfn helper() -> u8 {\n    let baz = 2;\n    baz\n}\n#[test]\nfn u() {\n    assert_eq!(helper(), 2);\n}\n" }
+expected = []
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! m {\n    () => {\n        let foo = 1;\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::disallowed_names)]\npub fn f() -> u8 {\n    let foo = 1;\n    foo\n}\npub fn g() -> u8 {\n    #[allow(clippy::disallowed_names)]\n    let baz = 1;\n    baz\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::style)]\npub fn f() -> u8 {\n    let foo = 1;\n    foo\n}\n#[allow(clippy::all)]\npub fn g() -> u8 {\n    let foo = 1;\n    foo\n}\n#[expect(warnings)]\npub fn h() -> u8 {\n    let foo = 1;\n    foo\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::disallowed_names)]\npub fn f() -> u8 {\n    let foo = 1;\n    foo\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::all)]\n#[warn(clippy::disallowed_names)]\npub fn f() -> u8 {\n    let foo = 1;\n    foo\n}\npub fn g() -> u8 {\n    let foo = 1;\n    foo\n}\n" }
+expected = [{ file = "src/lib.rs", start = 84, end = 87 }]

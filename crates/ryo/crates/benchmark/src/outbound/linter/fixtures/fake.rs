@@ -91,6 +91,51 @@ impl LinterPort for LinterFake {
         VersionLine::from(tool)
     }
 }
+/// The fake, decoding every report as one that observed its sealed context; the rest is [`LinterFake`].
+#[derive(Debug, Default)]
+pub struct ObservingLinter(pub LinterFake);
+impl LinterPort for ObservingLinter {
+    fn rule_configuration(
+        &self,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        self.0.rule_configuration()
+    }
+    fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
+        self.0.prepare(request)
+    }
+    fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
+        let mut report = self.0.decode(request, output)?;
+        report.project_context =
+            ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(
+                ryo_benchmark_contracts::domain::context::types::ProjectContextReceipt {
+                    mode: ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk,
+                    logical_root: ".".into(),
+                    actual_root: request.root.clone(),
+                    manifest_hash:
+                        ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
+                            "fixture".into(),
+                        ),
+                    dependencies: std::collections::BTreeMap::new(),
+                },
+            );
+        Ok(report)
+    }
+    fn settings_text(
+        &self,
+        normalized: &Invocation,
+        case: &PreparedCase,
+        profile: &Tool,
+    ) -> Result<CanonicalText, Error> {
+        self.0.settings_text(normalized, case, profile)
+    }
+    fn rule_context_text(&self, prepared: &PreparedRuleContext) -> CanonicalText {
+        self.0.rule_context_text(prepared)
+    }
+    fn version_line(&self, tool: &Tool) -> VersionLine {
+        self.0.version_line(tool)
+    }
+}
+
 #[cfg(test)]
 #[path = "fake_test.rs"]
 mod tests;

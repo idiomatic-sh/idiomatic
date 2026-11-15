@@ -1,11 +1,11 @@
 //! The verbs of the operations, the directory each writes and the worker command each runs.
 use super::constants::{
     BENCH_COMPONENTS, BENCHMARK, BENCHMARKS, CASE_INVENTORY, COLLECTOR, LANGUAGES, LINTERS,
-    NOT_A_BENCH_DIRECTORY, PARITY, REGISTRATION, STATE, VERIFY_INVENTORY,
+    NOT_A_BENCH_DIRECTORY, REGISTRATION, STATE, VERIFY_INVENTORY,
 };
 use super::types::{BenchDirectory, BenchOperation, OperationLayout, OperationVerb};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::constants::MEASURE_ACCOUNTED_VALID;
+use ryo_benchmark_contracts::domain::requests::constants::{MEASURE_ACCOUNTED_VALID, PARITY};
 use std::ffi::OsString;
 use std::path::{Component, Path};
 

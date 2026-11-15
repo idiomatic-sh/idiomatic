@@ -4,13 +4,18 @@
     clippy::expect_used,
     reason = "fixture directories, files and rule identifiers are test preconditions"
 )]
+pub mod unreliable_host;
 use super::use_case::CompareCorpusUseCaseImpl;
+use crate::outbound::host::fixtures::fake::HostFake;
 use crate::outbound::{
     context::fixtures::fake::ContextFake, evidence::fixtures::fake::EvidenceFake,
     execution::fixtures::fake::ExecutionFake, linter::fixtures::fake::LinterFake,
     suite::fixtures::fake::SuiteFake,
 };
 use ryo::linter::{RelativePath, RuleId};
+use ryo_benchmark_contracts::domain::hosts::types::{
+    HostFacts, HostFamily, HostIsolation, HostKernel,
+};
 use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, SourceByteOffset};
 use ryo_benchmark_contracts::domain::requests::types::{
     CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration,
@@ -181,10 +186,20 @@ pub fn use_case_with(outside: Outside) -> CompareCorpusUseCaseImpl {
             ..ExecutionFake::default()
         }),
         Arc::new(ContextFake),
-        Arc::new(SuiteFake::default()),
+        Arc::new(SuiteFake {
+            profile: Some(crate::outbound::suite::fixtures::samples::tool()),
+            ..SuiteFake::default()
+        }),
         Arc::new(EvidenceFake),
         Arc::new(crate::outbound::discovery::fixtures::fake::DiscoveryFake { files: Vec::new() }),
         Arc::new(crate::outbound::workspace::fixtures::fake::WorkspaceFake),
+        Arc::new(HostFake {
+            facts: HostFacts {
+                family: HostFamily::Unix,
+                kernel: HostKernel::Native,
+                isolation: HostIsolation::Bare,
+            },
+        }),
     )
 }
 
@@ -352,7 +367,10 @@ pub fn projects_use_case(root: &std::path::Path) -> CompareCorpusUseCaseImpl {
             ..ExecutionFake::default()
         }),
         Arc::new(ContextFake),
-        Arc::new(SuiteFake::default()),
+        Arc::new(SuiteFake {
+            profile: Some(crate::outbound::suite::fixtures::samples::tool()),
+            ..SuiteFake::default()
+        }),
         Arc::new(EvidenceFake),
         Arc::new(crate::outbound::discovery::fixtures::fake::DiscoveryFake {
             files: vec![bad, RelativePath("case.py".into())],
@@ -360,6 +378,13 @@ pub fn projects_use_case(root: &std::path::Path) -> CompareCorpusUseCaseImpl {
         Arc::new(ProjectWorkspace {
             root: root.to_owned(),
             tracked: vec!["bad.py".into(), "case.py".into()],
+        }),
+        Arc::new(HostFake {
+            facts: HostFacts {
+                family: HostFamily::Unix,
+                kernel: HostKernel::Native,
+                isolation: HostIsolation::Bare,
+            },
         }),
     )
 }

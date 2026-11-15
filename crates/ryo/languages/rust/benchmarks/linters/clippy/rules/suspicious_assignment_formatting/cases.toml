@@ -1,0 +1,54 @@
+[[cases]]
+name = "minus"
+files = { "src/lib.rs" = "pub fn f(mut a: i32) -> i32 {\n    a =- 1;\n    a\n}\n" }
+expected = [{ file = "src/lib.rs", start = 35, end = 39 }]
+
+[[cases]]
+name = "not-and-deref"
+files = { "src/lib.rs" = "pub fn f(mut a: bool, mut c: i32, r: &i32) -> (bool, i32) {\n    a =! a;\n    c =* r;\n    (a, c)\n}\n" }
+expected = [{ file = "src/lib.rs", start = 65, end = 69 }, { file = "src/lib.rs", start = 77, end = 81 }]
+
+[[cases]]
+name = "no-spaces"
+files = { "src/lib.rs" = "pub fn f(mut a: i32) -> i32 {\n    a=-1;\n    a\n}\n" }
+expected = [{ file = "src/lib.rs", start = 35, end = 37 }]
+
+[[cases]]
+name = "spaced"
+files = { "src/lib.rs" = "pub fn f(mut a: i32) -> i32 {\n    a = -1;\n    a = - 1;\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "compound-and-let"
+files = { "src/lib.rs" = "pub fn f(mut a: i32) -> i32 {\n    a -= 1;\n    let b =- 1;\n    a + b\n}\n" }
+expected = []
+
+[[cases]]
+name = "field-target"
+files = { "src/lib.rs" = "pub struct S {\n    pub x: i32,\n}\npub fn f(s: &mut S) {\n    s.x =- 1;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 62, end = 66 }]
+
+[[cases]]
+name = "operand-spaced"
+files = { "src/lib.rs" = "pub fn f(mut a: i32) -> i32 {\n    a =- 1;\n    a =-  1;\n    a\n}\n" }
+expected = [{ file = "src/lib.rs", start = 35, end = 39 }, { file = "src/lib.rs", start = 47, end = 52 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious_assignment_formatting)]\npub fn f(mut a: i32) -> i32 {\n    a =- 1;\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious)]\npub fn f(mut a: i32) -> i32 {\n    a =- 1;\n    a\n}\n#[allow(clippy::all)]\npub fn g(mut a: i32) -> i32 {\n    a =- 1;\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious_assignment_formatting)]\npub fn f(mut a: i32) -> i32 {\n    a =- 1;\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n#[warn(clippy::suspicious_assignment_formatting)]\npub fn f(mut a: i32) -> i32 {\n    a =- 1;\n    a\n}\npub fn g(mut a: i32) -> i32 {\n    a =- 1;\n    a\n}\n" }
+expected = [{ file = "src/lib.rs", start = 115, end = 119 }]

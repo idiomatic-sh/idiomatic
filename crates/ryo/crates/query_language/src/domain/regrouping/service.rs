@@ -3,7 +3,6 @@
 
 use super::types::Regrouped;
 use super::types::SplitJoin;
-use crate::domain::fusing::service::source_column;
 use crate::domain::lineage::service::file_lineage;
 use crate::domain::lineage::types::LineageMemo;
 use crate::domain::planning::service::planned_scope;
@@ -15,6 +14,7 @@ use ryo_values::domain::lineage::service::pairing;
 use ryo_values::domain::lineage::types::KeyPairing;
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::service::step_in;
+use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
@@ -113,7 +113,7 @@ fn split_join<'a>(steps: &[PlanStep], operation: &'a Operation) -> Option<SplitJ
             crossing_keys: left_on,
             local_keys: right_on
                 .iter()
-                .map(|key| source_column(view, *key))
+                .map(|key| view_source(view, *key))
                 .collect::<Option<Vec<_>>>()?,
             local_view: view,
             output,
@@ -143,7 +143,7 @@ fn local_column(split: &SplitJoin<'_>, column: ColumnIndex) -> Option<ColumnInde
         let key = split.crossing_keys.iter().position(|each| *each == at)?;
         split.local_keys.get(key).copied()
     } else {
-        source_column(split.local_view, at)
+        view_source(split.local_view, at)
     }
 }
 
@@ -221,7 +221,7 @@ fn regrouped_on(
     // A column of the first join, as the outer join names it.
     let joined_column = |column: ColumnIndex| match side {
         Side::Left => Some(column),
-        Side::Right => source_column(view, column),
+        Side::Right => view_source(view, column),
     };
     let inner_local_keys = joined_keys
         .iter()
@@ -230,7 +230,7 @@ fn regrouped_on(
     let other_source_keys = other_keys
         .iter()
         .map(|key| match side {
-            Side::Left => source_column(view, *key),
+            Side::Left => view_source(view, *key),
             Side::Right => Some(*key),
         })
         .collect::<Option<Vec<_>>>()?;
@@ -257,10 +257,7 @@ fn regrouped_on(
         if column.side == side {
             let made = *column_in(split.output, joined_column(column.column)?)?;
             if made.side != split.crossing_side {
-                push_new(
-                    &mut local_kept,
-                    source_column(split.local_view, made.column)?,
-                );
+                push_new(&mut local_kept, view_source(split.local_view, made.column)?);
             }
         } else {
             push_new(&mut other_kept, column.column);
@@ -318,7 +315,7 @@ fn regrouped_on(
                     side: inner_side,
                     column: index_among(
                         &local_kept,
-                        source_column(split.local_view, made.column)?,
+                        view_source(split.local_view, made.column)?,
                         local_offset,
                     )?,
                 }

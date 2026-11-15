@@ -1,7 +1,0 @@
-let nested = capture(from="filesystem.file", path="path", pattern="{*directory}/{stem}.rs", captures=["directory", "stem"]);
-let nested-paths = project(from=nested, columns=["path"]);
-let top = capture(from="filesystem.file", path="path", pattern="{stem}.rs", captures=["stem"]);
-let top-paths = project(from=top, columns=["path"]);
-let sources = union(left=nested-paths, right=top-paths);
-let orphans = antijoin(left=sources, right="analyzed-source", left-on=["path"], right-on=["path"]);
-emit orphans subject "path" key("path");

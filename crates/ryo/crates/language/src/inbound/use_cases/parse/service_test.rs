@@ -1,41 +1,23 @@
 //! The `parse` service's cases: what a walk gives the readers a language answers.
 
-use crate::inbound::use_cases::parse::types::Recognition;
-use ryo_relations::domain::terms::types::UnknownName;
-use std::marker::PhantomData;
-use std::sync::Mutex;
-
 use super::errors::ParseError;
 use super::fixtures::breaking::Breaking;
 use super::fixtures::ordered::Ordered;
 use super::fixtures::promised::Promised;
-use super::fixtures::small::{Seen, Small};
+use super::fixtures::small::Small;
 use super::interface::ParseUseCase;
 use super::service::{absence, build, walk};
 use super::types::{FieldRequest, NoteRequest, ParseRequest};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::answers::service::{absent, reads};
-use crate::domain::answers::types::{Expansions, ReadItem, Reader, Reads, Support};
 use crate::domain::builders::service::{enter_node, leave_node, table_builder, token};
-use crate::domain::elements::service::end_of;
-use crate::domain::elements::types::{Completion, Elements, TableBuilder, Tree};
+use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
-use crate::domain::reasons::types::ToolMessage;
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::fixtures::collect::Collect;
 use crate::selects;
 use ryo_relations::domain::answers::types::AbsenceCause;
-use ryo_relations::domain::relations::collections::relations::function::item::{
-    Function, FunctionRow,
-};
-use ryo_relations::domain::relations::collections::relations::syntax_tree::item::{
-    SyntaxTree, SyntaxTreeRow,
-};
-use ryo_relations::domain::relations::types::{
-    Count, FileId, KindBits, NodeId, Offset, Position, Relation, Rows, Span,
-};
-use ryo_relations::domain::terms::types::Symbol;
+use ryo_relations::domain::relations::types::{FileId, KindBits, Offset, Relation};
 
 /// Reads a file of these bytes through `language`.
 fn built(language: &impl ParseUseCase, bytes: &'static [u8]) -> Result<usize, ParseError> {

@@ -2,6 +2,8 @@
 //! The store port, implemented with one file in the cache directory: sections one after the other and a table of contents last, so
 //! a run reads only the sections it needs; written whole through a temporary file renamed into place, so a reader sees the old store
 //! or the new, never part of one. A bucket whose words are as they were is copied from the old file as it is.
+use super::connection::OpenedStore;
+use super::connection::StoreFile;
 use super::connection::invalid;
 use super::constants::FILE;
 use super::constants::FRESH_ROW_COUNT_EXCEEDS_STAGING_WIDTH;
@@ -24,7 +26,6 @@ use super::tables::schemas::tables_of;
 use super::types::BucketSpan;
 use super::types::FileOffset;
 use super::types::Frame;
-use super::types::OpenedStore;
 use super::types::Payload;
 use super::types::SectionBytes;
 use super::types::SectionLength;
@@ -35,15 +36,11 @@ use super::types::WriterNumber;
 use crate::outbound::lint_store::adapters::postcard::constants::FRONTIER_PAYLOAD_LACKS_ITS_EXACT_SOURCE;
 use crate::outbound::lint_store::adapters::postcard::constants::FRONTIER_PROOFS_HAVE_DUPLICATE_OR_UNORDERED;
 use crate::outbound::lint_store::adapters::postcard::constants::NO_STAGING_SESSION_WAS_READ;
-#[cfg(unix)]
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_BUCKET_END_OVERFLOWS;
-#[cfg(unix)]
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_BUCKET_LOGICAL_POSITION_OVERFLOWS;
-#[cfg(unix)]
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_BUCKET_POSITION_OVERFLOWS;
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_BUCKET_SEEK_EXCEEDS_ITS_SECTION;
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_ROW_BELONGS_TO_ANOTHER_STORE;
-#[cfg(unix)]
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_ROW_BUCKET_IS_ABSENT;
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_ROW_BUCKET_OR_SPAN_IS;
 use crate::outbound::lint_store::adapters::postcard::constants::STORE_SNAPSHOT_IDENTITIES_EXHAUSTED;
@@ -67,7 +64,6 @@ use ryo_values::domain::stores::types::Stored;
 use ryo_values::domain::stores::types::StoredWords;
 use std::collections::BTreeMap;
 use std::io::Read as _;
-use std::io::Seek as _;
 use std::io::SeekFrom;
 use std::io::Write as _;
 use std::path::Path;
@@ -104,22 +100,19 @@ struct PostcardRead {
     spool: Mutex<Option<super::connection::StagingConnection>>,
 }
 
-#[cfg(unix)]
 struct PositionalBucket {
-    file: Arc<std::fs::File>,
+    file: Arc<StoreFile>,
     start: FileOffset,
     end: FileOffset,
     at: FileOffset,
 }
 
-#[cfg(unix)]
 impl std::io::Read for PositionalBucket {
     fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
-        use std::os::unix::fs::FileExt as _;
         let length = into
             .len()
             .min(usize::try_from(self.end.0 - self.at.0).unwrap_or(usize::MAX));
-        let read = self.file.read_at(&mut into[..length], self.at.0)?;
+        let read = self.file.at(self.at).read(&mut into[..length])?;
         self.at = FileOffset(
             self.at
                 .0
@@ -130,7 +123,6 @@ impl std::io::Read for PositionalBucket {
     }
 }
 
-#[cfg(unix)]
 impl std::io::Seek for PositionalBucket {
     fn seek(&mut self, from: SeekFrom) -> std::io::Result<u64> {
         let target = match from {
@@ -148,7 +140,6 @@ impl std::io::Seek for PositionalBucket {
 }
 
 /// A standard 4 KiB read buffer whose logical seek can reuse prefetched bytes.
-#[cfg(unix)]
 struct BufferedBucket {
     bucket: Bucket,
     span: SectionSpan,
@@ -156,7 +147,6 @@ struct BufferedBucket {
     at: FileOffset,
 }
 
-#[cfg(unix)]
 impl std::io::Read for BufferedBucket {
     fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
         let read = self.reader.read(into)?;
@@ -170,7 +160,6 @@ impl std::io::Read for BufferedBucket {
     }
 }
 
-#[cfg(unix)]
 impl std::io::Seek for BufferedBucket {
     fn seek(&mut self, from: SeekFrom) -> std::io::Result<u64> {
         let end = self
@@ -199,7 +188,6 @@ impl std::io::Seek for BufferedBucket {
     }
 }
 
-#[cfg(unix)]
 struct PostcardOldRowBatch {
     snapshot: StoreSnapshot,
     held: SectionLength,
@@ -207,7 +195,6 @@ struct PostcardOldRowBatch {
     directory: CacheDirectory,
 }
 
-#[cfg(unix)]
 impl OldRowBatch for PostcardOldRowBatch {
     fn read(
         &mut self,
@@ -256,14 +243,14 @@ impl LintStorePostcardAdapter {
     /// alone; empty when the store is another build's.
     fn handed_from(
         &self,
-        opened: &mut OpenedStore,
+        opened: &OpenedStore,
         wanted: &BucketsWanted,
         snapshot: StoreSnapshot,
     ) -> Result<ReadHanded, LintStoreError> {
         let Some(contents) = contents(&self.store.build.0, &opened.contents.0) else {
             return Ok(ReadHanded::default());
         };
-        let file = &mut opened.file;
+        let file = &opened.file;
         let rest = section(file, contents.rest).map_err(|error| self.unreadable(&error))?;
         let mut handed = ryo_values::domain::stores::service::read_handed(
             rest_from(&rest.0).ok_or_else(|| self.unreadable(&UNDECODED))?,
@@ -327,7 +314,7 @@ impl LintStorePostcardAdapter {
 
     /// The store file, open, and its table of contents as bytes; none when there is no file or it is too short to hold one.
     fn opened(&self) -> Result<Option<OpenedStore>, LintStoreError> {
-        let mut file = match std::fs::File::open(self.file()) {
+        let file = match std::fs::File::open(self.file()) {
             Ok(file) => file,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(error) => return Err(self.unreadable(&error)),
@@ -337,13 +324,14 @@ impl LintStorePostcardAdapter {
             return Err(self.unreadable(&NOT_A_FILE));
         }
         let size = metadata.len();
+        let file = StoreFile::new(file);
         let trailer_length =
             LENGTH + u64::try_from(TRAILER.len()).map_err(|error| self.unreadable(&error))?;
         if size < trailer_length {
             return Ok(None);
         }
         let mut trailer = SectionBytes(vec![0_u8; 8 + TRAILER.len()]);
-        read_at(&mut file, FileOffset(size - trailer_length), &mut trailer)
+        read_at(&file, FileOffset(size - trailer_length), &mut trailer)
             .map_err(|error| self.unreadable(&error))?;
         if trailer.0.get(8..) != Some(TRAILER) {
             return Ok(None);
@@ -355,8 +343,7 @@ impl LintStorePostcardAdapter {
             return Ok(None);
         };
         let mut bytes = SectionBytes(vec![0_u8; usize::try_from(length).unwrap_or_default()]);
-        read_at(&mut file, FileOffset(start), &mut bytes)
-            .map_err(|error| self.unreadable(&error))?;
+        read_at(&file, FileOffset(start), &mut bytes).map_err(|error| self.unreadable(&error))?;
         Ok(Some(OpenedStore {
             file,
             length: SectionLength(size),
@@ -366,8 +353,8 @@ impl LintStorePostcardAdapter {
 }
 
 /// Nothing when the section `span` ends inside `file`; an error when it reaches past its end.
-fn inside(file: &std::fs::File, span: SectionSpan) -> std::io::Result<()> {
-    let held = file.metadata()?.len();
+fn inside(file: &StoreFile, span: SectionSpan) -> std::io::Result<()> {
+    let held = file.held()?.0;
     let end = span.start.0.checked_add(span.length.0);
     end.filter(|end| *end <= held)
         .map(|_| ())
@@ -375,17 +362,12 @@ fn inside(file: &std::fs::File, span: SectionSpan) -> std::io::Result<()> {
 }
 
 /// Reads as many bytes of `file` as `into` holds, from `start`.
-fn read_at(
-    file: &mut std::fs::File,
-    start: FileOffset,
-    into: &mut SectionBytes,
-) -> std::io::Result<()> {
-    let _at = file.seek(SeekFrom::Start(start.0))?;
-    file.read_exact(&mut into.0)
+fn read_at(file: &StoreFile, start: FileOffset, into: &mut SectionBytes) -> std::io::Result<()> {
+    file.at(start).read_exact(&mut into.0)
 }
 
 /// The bytes of the section `span` names; an error when it reaches past the end of the file, before any byte is allocated for it.
-fn section(file: &mut std::fs::File, span: SectionSpan) -> std::io::Result<SectionBytes> {
+fn section(file: &StoreFile, span: SectionSpan) -> std::io::Result<SectionBytes> {
     inside(file, span)?;
     let mut bytes = SectionBytes(vec![
         0_u8;
@@ -415,12 +397,11 @@ fn put(
 fn copied(
     out: &mut std::io::BufWriter<std::fs::File>,
     at: &mut FileOffset,
-    from: &mut std::fs::File,
+    from: &StoreFile,
     span: SectionSpan,
 ) -> std::io::Result<SectionSpan> {
     inside(from, span)?;
-    let _at = from.seek(SeekFrom::Start(span.start.0))?;
-    let length = std::io::copy(&mut from.take(span.length.0), out)?;
+    let length = std::io::copy(&mut from.at(span.start).take(span.length.0), out)?;
     if length != span.length.0 {
         return Err(std::io::Error::new(
             std::io::ErrorKind::UnexpectedEof,
@@ -442,7 +423,7 @@ fn put_made(
     out: &mut std::io::BufWriter<std::fs::File>,
     at: &mut FileOffset,
     mut by_bucket: BTreeMap<Bucket, Vec<super::types::Frame<'_>>>,
-    mut old: Option<&mut OpenedStore>,
+    old: Option<&OpenedStore>,
     old_contents: Option<&[BucketSpan]>,
     kept: &KeptRows,
     mut spool: Option<&mut super::connection::StagingConnection>,
@@ -459,8 +440,8 @@ fn put_made(
     let mut buckets = Vec::new();
     for (bucket, was) in made {
         let mut rows = by_bucket.remove(&bucket).unwrap_or_default();
-        if let (Some(span), Some(opened)) = (was, old.as_deref_mut()) {
-            for row in super::writer::old_rows(&mut opened.file, span)? {
+        if let (Some(span), Some(opened)) = (was, old) {
+            for row in super::writer::old_rows(&opened.file, span)? {
                 if let Ok(place) = kept
                     .file_again
                     .binary_search_by_key(&row.file.0, |again| again.was.0)
@@ -482,7 +463,7 @@ fn put_made(
             out,
             at,
             &rows,
-            old.as_deref_mut().map(|opened| &mut opened.file),
+            old.map(|opened| &opened.file),
             spool.as_deref_mut(),
         )?;
         buckets.push(BucketSpan { bucket, span });
@@ -542,7 +523,7 @@ impl ReadStore for PostcardRead {
     fn tables(&self) -> Stored {
         // Decoded when asked, so the run holds one copy of the tables: its own.
         self.opened.as_ref().map_or_else(Stored::default, |opened| {
-            section(&mut locked(opened).file, self.tables)
+            section(&locked(opened).file, self.tables)
                 .map_or_else(|_| Stored::default(), |bytes| tables_of(&bytes.0))
         })
     }
@@ -551,7 +532,7 @@ impl ReadStore for PostcardRead {
         match &self.opened {
             Some(opened) => {
                 self.adapter
-                    .handed_from(&mut locked(opened), wanted, StoreSnapshot(self.session.0))
+                    .handed_from(&locked(opened), wanted, StoreSnapshot(self.session.0))
             }
             None => Ok(ReadHanded::default()),
         }
@@ -566,10 +547,7 @@ impl ReadStore for PostcardRead {
             return Err(self.adapter.unreadable(&OLD_ROW_BELONGS_TO_ANOTHER_STORE));
         }
         let opened = self.opened.as_ref().ok_or(LintStoreError::NothingRead)?;
-        #[cfg(unix)]
         let opened = locked(opened);
-        #[cfg(not(unix))]
-        let mut opened = locked(opened);
         let bucket = self
             .buckets
             .iter()
@@ -591,79 +569,62 @@ impl ReadStore for PostcardRead {
             })
             .ok_or_else(|| self.adapter.unreadable(&OLD_ROW_BUCKET_OR_SPAN_IS))?;
         let held = opened.length;
-        #[cfg(unix)]
-        let read = super::writer::read_old_file_in(
+        super::writer::read_old_file_in(
             &opened.file,
             held,
             StoreSnapshot(self.session.0),
             bucket.span,
             words,
             into,
-        );
-        #[cfg(not(unix))]
-        let read = super::writer::read_old_in(
-            &mut opened.file,
-            held,
-            StoreSnapshot(self.session.0),
-            bucket.span,
-            words,
-            into,
-        );
-        read.map_err(|error| self.adapter.unreadable(&error))
+        )
+        .map_err(|error| self.adapter.unreadable(&error))
     }
 
     fn begin_old_rows(
         &self,
         wanted: &BucketsWanted,
     ) -> Result<Option<Box<dyn OldRowBatch>>, LintStoreError> {
-        #[cfg(unix)]
-        {
-            let opened = self.opened.as_ref().ok_or(LintStoreError::NothingRead)?;
-            let opened = locked(opened);
-            let file = Arc::new(
-                opened
-                    .file
-                    .try_clone()
-                    .map_err(|error| self.adapter.unreadable(&error))?,
-            );
-            let mut buckets = Vec::with_capacity(self.buckets.len());
-            for entry in &self.buckets {
-                if let BucketsWanted::These(selected) = wanted
-                    && selected.binary_search(&entry.bucket).is_err()
-                {
-                    continue;
-                }
-                let end = entry
-                    .span
-                    .start
-                    .0
-                    .checked_add(entry.span.length.0)
-                    .ok_or_else(|| self.adapter.unreadable(&OLD_BUCKET_END_OVERFLOWS))?;
-                let reader = PositionalBucket {
-                    file: Arc::clone(&file),
-                    start: entry.span.start,
-                    end: FileOffset(end),
-                    at: entry.span.start,
-                };
-                buckets.push(BufferedBucket {
-                    bucket: entry.bucket,
-                    span: entry.span,
-                    reader: std::io::BufReader::with_capacity(4 * 1024, reader),
-                    at: entry.span.start,
-                });
+        let opened = self.opened.as_ref().ok_or(LintStoreError::NothingRead)?;
+        let opened = locked(opened);
+        let file = Arc::new(
+            opened
+                .file
+                .cloned()
+                .map_err(|error| self.adapter.unreadable(&error))?,
+        );
+        let mut buckets = Vec::with_capacity(self.buckets.len());
+        for entry in &self.buckets {
+            if let BucketsWanted::These(selected) = wanted
+                && selected.binary_search(&entry.bucket).is_err()
+            {
+                continue;
             }
-            buckets.sort_by_key(|entry| entry.bucket);
-            Ok(Some(Box::new(PostcardOldRowBatch {
-                snapshot: StoreSnapshot(self.session.0),
-                held: opened.length,
-                buckets,
-                directory: self.adapter.store.directory.clone(),
-            })))
+            let end = entry
+                .span
+                .start
+                .0
+                .checked_add(entry.span.length.0)
+                .ok_or_else(|| self.adapter.unreadable(&OLD_BUCKET_END_OVERFLOWS))?;
+            let reader = PositionalBucket {
+                file: Arc::clone(&file),
+                start: entry.span.start,
+                end: FileOffset(end),
+                at: entry.span.start,
+            };
+            buckets.push(BufferedBucket {
+                bucket: entry.bucket,
+                span: entry.span,
+                reader: std::io::BufReader::with_capacity(4 * 1024, reader),
+                at: entry.span.start,
+            });
         }
-        #[cfg(not(unix))]
-        {
-            Ok(None)
-        }
+        buckets.sort_by_key(|entry| entry.bucket);
+        Ok(Some(Box::new(PostcardOldRowBatch {
+            snapshot: StoreSnapshot(self.session.0),
+            held: opened.length,
+            buckets,
+            directory: self.adapter.store.directory.clone(),
+        })))
     }
 
     fn stage_words(
@@ -714,7 +675,7 @@ impl ReadStore for PostcardRead {
         if read.is_none() && !(unchanged.is_empty() && kept.file_again.is_empty()) {
             return Err(LintStoreError::NothingRead);
         }
-        let mut old = read.map(locked);
+        let old = read.map(locked);
         let mut spool = self.spool.lock().unwrap_or_else(PoisonError::into_inner);
         if let Some(spool) = spool.as_mut() {
             spool.flush().map_err(|error| unwritable(&error))?;
@@ -729,8 +690,8 @@ impl ReadStore for PostcardRead {
         let old_tables = old
             .as_ref()
             .and_then(|opened| contents(&store.build.0, &opened.contents.0));
-        if let (Some(opened), Some(tables)) = (old.as_deref_mut(), old_tables.as_ref()) {
-            let rest = section(&mut opened.file, tables.rest)
+        if let (Some(opened), Some(tables)) = (old.as_deref(), old_tables.as_ref()) {
+            let rest = section(&opened.file, tables.rest)
                 .map_err(|error| self.adapter.unreadable(&error))?;
             let previous = rest_from(&rest.0).ok_or_else(|| self.adapter.unreadable(&UNDECODED))?;
             ryo_values::domain::stores::service::carry_proofs(&mut stored.handed, &previous, kept);
@@ -800,14 +761,14 @@ impl ReadStore for PostcardRead {
                     &mut out,
                     &mut at,
                     by_bucket,
-                    old.as_deref_mut(),
+                    old.as_deref(),
                     old_contents.as_deref(),
                     kept,
                     spool.as_mut(),
                 )
                 .map_err(|error| unwritable(&error))?;
                 // The buckets as they were are copied as they are, byte for byte: none is decoded or encoded again.
-                if let (Some(was), Some(spans)) = (old.as_deref_mut(), &old_contents) {
+                if let (Some(was), Some(spans)) = (old.as_deref(), &old_contents) {
                     for each in spans {
                         if buckets.iter().any(|made| made.bucket == each.bucket)
                             || unchanged.binary_search(&each.bucket).is_err()
@@ -816,7 +777,7 @@ impl ReadStore for PostcardRead {
                         }
                         buckets.push(BucketSpan {
                             bucket: each.bucket,
-                            span: copied(&mut out, &mut at, &mut was.file, each.span)
+                            span: copied(&mut out, &mut at, &was.file, each.span)
                                 .map_err(|error| unwritable(&error))?,
                         });
                     }

@@ -1,0 +1,74 @@
+[[cases]]
+name = "empty-branch"
+files = { "src/lib.rs" = "pub fn f(a: bool) {\n    if a {}\n    let _ = a;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 24, end = 31 }]
+
+[[cases]]
+name = "spaces-and-lines"
+files = { "src/lib.rs" = "pub fn f(a: bool, b: u8) {\n    if a { }\n    if b > 1 {\n\n    }\n    let _ = b;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 31, end = 39 }, { file = "src/lib.rs", start = 44, end = 61 }]
+
+[[cases]]
+name = "with-semicolon"
+files = { "src/lib.rs" = "pub fn f(a: bool) {\n    if a {};\n    let _ = a;\n}\n" }
+expected = []
+
+[[cases]]
+name = "tail-position"
+files = { "src/lib.rs" = "pub fn f(a: bool) {\n    if a {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "comment-inside"
+files = { "src/lib.rs" = "pub fn f(a: bool) {\n    if a {\n        // nothing\n    }\n    if a { /* nothing */ }\n    let _ = a;\n}\n" }
+expected = []
+
+[[cases]]
+name = "statement-inside"
+files = { "src/lib.rs" = "pub fn f(a: bool, mut n: u8) -> u8 {\n    if a { n += 1; }\n    if a { () }\n    n\n}\n" }
+expected = []
+
+[[cases]]
+name = "with-else"
+files = { "src/lib.rs" = "pub fn f(a: bool, mut n: u8) -> u8 {\n    if a {} else { n += 1; }\n    if a { n += 1; } else if n > 2 {}\n    n\n}\n" }
+expected = []
+
+[[cases]]
+name = "if-let"
+files = { "src/lib.rs" = "pub fn f(o: Option<u8>, a: bool) {\n    if let Some(_) = o {}\n    if a && let Some(_) = o {}\n    let _ = a;\n}\n" }
+expected = []
+
+[[cases]]
+name = "side-effects"
+files = { "src/lib.rs" = "fn g() -> bool {\n    true\n}\npub fn f() {\n    if g() {}\n    if { g() } {}\n    let _ = 1;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 45, end = 54 }, { file = "src/lib.rs", start = 59, end = 72 }]
+
+[[cases]]
+name = "nested"
+files = { "src/lib.rs" = "pub fn f(a: bool) -> impl Fn() {\n    {\n        if a {}\n        let _ = a;\n    }\n    move || {\n        if a {}\n        let _ = a;\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 47, end = 54 }, { file = "src/lib.rs", start = 102, end = 109 }]
+
+[[cases]]
+name = "in-local-macro"
+files = { "src/lib.rs" = "macro_rules! m {\n    ($c:expr) => {\n        if $c {}\n    };\n}\npub fn f(a: bool) {\n    m!(a);\n    let _ = a;\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::needless_ifs)]\npub fn f(a: bool) {\n    if a {}\n    let _ = a;\n}\npub fn g(a: bool) {\n    #[allow(clippy::needless_ifs)]\n    if a {}\n    let _ = a;\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::complexity)]\npub fn f(a: bool) {\n    if a {}\n    let _ = a;\n}\n#[allow(clippy::all)]\npub fn g(a: bool) {\n    if a {}\n    let _ = a;\n}\n#[expect(warnings)]\npub fn h(a: bool) {\n    if a {}\n    let _ = a;\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::needless_ifs)]\npub fn f(a: bool) {\n    if a {}\n    let _ = a;\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::all)]\n#[warn(clippy::needless_ifs)]\npub fn f(a: bool) {\n    if a {}\n    let _ = a;\n}\npub fn g(a: bool) {\n    if a {}\n    let _ = a;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 77, end = 84 }]

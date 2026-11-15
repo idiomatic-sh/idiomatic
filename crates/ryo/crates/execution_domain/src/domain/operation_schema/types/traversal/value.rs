@@ -183,13 +183,14 @@ fn axis_schema(
         schema_input(inputs, InputPlace(2))?,
     );
     check_columns(from.kinds, &[*id])?;
-    let domain_entity = crate::domain::tree_walk::service::entity_of(domain_view, *domain_id);
+    let domain_entity =
+        ryo_values::domain::plan_parts::service::view_source(domain_view, *domain_id);
     let native = edges.tree == Some(TreeForm::Edges)
         && (*parent, *child) == (ColumnIndex(0), ColumnIndex(1))
         && (domain_filter.is_empty() && domain_view.is_empty()
-            || domain.tree == Some(TreeForm::Elements) && domain_entity == ColumnIndex(0));
+            || domain.tree == Some(TreeForm::Elements) && domain_entity == Some(ColumnIndex(0)));
     if native {
-        check_columns(domain.kinds, &[domain_entity])?;
+        check_columns(domain.kinds, domain_entity.as_slice())?;
         BindingShape::new(bindings).predicates(domain_filter, domain.kinds)?;
         if !output.is_empty() {
             return joined(

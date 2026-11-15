@@ -1,0 +1,54 @@
+[[cases]]
+name = "zero-width-space"
+files = { "src/lib.rs" = "pub const S: &str = \"a\u200Bb\";\n" }
+expected = [{ file = "src/lib.rs", start = 20, end = 27 }]
+
+[[cases]]
+name = "soft-hyphen-and-word-joiner"
+files = { "src/lib.rs" = "pub const A: &str = \"a\u00ADb\";\npub const B: &str = \"a\u2060b\";\n" }
+expected = [{ file = "src/lib.rs", start = 20, end = 26 }, { file = "src/lib.rs", start = 48, end = 55 }]
+
+[[cases]]
+name = "char-and-raw"
+files = { "src/lib.rs" = "pub const C: char = '\u200B';\npub const R: &str = r\"\u200B\";\n" }
+expected = [{ file = "src/lib.rs", start = 20, end = 25 }, { file = "src/lib.rs", start = 47, end = 53 }]
+
+[[cases]]
+name = "escaped-is-visible"
+files = { "src/lib.rs" = "pub const S: &str = \"a\\u{200B}b\";\npub const T: &str = \"é\";\n" }
+expected = []
+
+[[cases]]
+name = "byte-string"
+files = { "src/lib.rs" = "pub const B: &[u8] = b\"a\\xE2\";\n" }
+expected = []
+
+[[cases]]
+name = "in-macros"
+files = { "src/lib.rs" = "pub fn f() -> String {\n    println!(\"a\u200Bb\");\n    assert_eq!(\"a\", \"a\u200Bb\");\n    format!(\"{}\", \"a\u200Bb\")\n}\n" }
+expected = [{ file = "src/lib.rs", start = 36, end = 43 }, { file = "src/lib.rs", start = 66, end = 73 }, { file = "src/lib.rs", start = 94, end = 101 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::invisible_characters)]\npub const S: &str = \"a\u200Bb\";\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::correctness)]\npub const S: &str = \"a\u200Bb\";\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::invisible_characters)]\npub const S: &str = \"a\u200Bb\";\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::correctness)]\n#[warn(clippy::invisible_characters)]\npub const S: &str = \"a\u200Bb\";\n" }
+expected = [{ file = "src/lib.rs", start = 89, end = 96 }]
+
+[[cases]]
+name = "in-attribute"
+files = { "src/lib.rs" = "#[doc = \"a​b\"]\n#[deprecated = \"a​b\"]\npub fn f() {}\n" }
+expected = []

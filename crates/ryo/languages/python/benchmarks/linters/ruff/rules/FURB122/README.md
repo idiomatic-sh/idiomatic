@@ -4,7 +4,7 @@
 
 **Reference:** pinned Ruff 0.16.5 (`python-target=3.10`; [profile](../../profiles/FURB122/benchmark.toml)). **Scope:** Source-specific reference difference; upstream bug status is unverified.
 
-The 13 certified cases below retain their exact source bytes and full intended and observed finding arrays in [cases.toml](cases.toml). The [archived raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz) records an executed worker snapshot; the source and reference-output hashes in each case certificate bind the precise observation. A historical combined receipt may predate a later targeted certificate; follow the certificate identity for that case. Diagnostic spans below are UTF-8 byte offsets.
+The 13 certified cases below retain their exact source bytes and full intended and observed finding arrays in [cases.toml](cases.toml). The archived raw receipt records an executed worker snapshot; the source and reference-output hashes in each case certificate bind the precise observation. A historical combined receipt may predate a later targeted certificate; follow the certificate identity for that case. Diagnostic spans below are UTF-8 byte offsets.
 
 To reproduce Ruff's reference finding for `nested-scope-prebinding`, write its exact named file from [cases.toml](cases.toml) into an isolated directory and run the pinned Ruff 0.16.5 executable (SHA256 `52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8`):
 
@@ -27,7 +27,7 @@ def fn(f: typing.IO[str]):
 
 - Intended: FURB122 case.py:48–81. Pinned Ruff observed: none.
 - Basis: The declared generic typing.IO[str] has typing.IO as its origin and exposes writelines; the exact framed StringIO consumer writes the same elements. Primary evidence: [qualified-guard-cpython310.json](../../profiles/FURB122/evidence/qualified-guard-cpython310.json).
-- Reproduce: use the [profile](../../profiles/FURB122/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+- Reproduce: use the [profile](../../profiles/FURB122/benchmark.toml), exact named source in [cases.toml](cases.toml), and raw receipt; the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
 
 ### Lexical scope and binding history
 
@@ -45,7 +45,7 @@ def a():
 
 - Intended: FURB122 case.py:33–66. Pinned Ruff observed: none.
 - Basis: The rule diagnoses the write-loop idiom when its loop target has no prior initialized binding in the same lexical storage namespace and no outside lexical read. Primary evidence: [target-namespace-cpython310.json](../../profiles/FURB122/evidence/target-namespace-cpython310.json), [target-namespace-cpython313.json](../../profiles/FURB122/evidence/target-namespace-cpython313.json).
-- Reproduce: use the [profile](../../profiles/FURB122/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+- Reproduce: use the [profile](../../profiles/FURB122/benchmark.toml), exact named source in [cases.toml](cases.toml), and raw receipt; the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
 
 ### TYPE_CHECKING and runtime shadowing
 
@@ -63,7 +63,7 @@ for x in rows:
 
 - Intended: none. Pinned Ruff observed: FURB122 case.py:38–67.
 - Basis: The exact source has no import or binding for TYPE_CHECKING; CPython raises NameError at the guard. Primary evidence: [qualified-guard-cpython310.json](../../profiles/FURB122/evidence/qualified-guard-cpython310.json).
-- Reproduce: use the [profile](../../profiles/FURB122/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+- Reproduce: use the [profile](../../profiles/FURB122/benchmark.toml), exact named source in [cases.toml](cases.toml), and raw receipt; the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
 
 ## Context-result regression controls
 

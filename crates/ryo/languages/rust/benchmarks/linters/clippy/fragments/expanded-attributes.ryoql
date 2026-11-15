@@ -1,0 +1,3 @@
+output relation<occurrence: node, declaration: node, file: file, span: span>;
+let expanded = select occurrence, declaration, file, span from "decorates" where target = "derive" or target = "test";
+return expanded;

@@ -37,7 +37,8 @@ def test_style_failure_has_its_own_mandatory_quality_group(product):
     assert quality["group"] == "clippy"
     assert "cargo clippy" in " ".join(quality["run"])
     workflow = (ROOT / ".github/workflows/check.yml").read_text()
-    assert "{ runner: ubuntu-26.04, group: clippy }" in workflow
+    # The clippy group runs on every pull request, in the Linux job's one asymptote call.
+    assert "--groups lint,clippy," in workflow
 
 
 @pytest.mark.parametrize("status", [0, 101])

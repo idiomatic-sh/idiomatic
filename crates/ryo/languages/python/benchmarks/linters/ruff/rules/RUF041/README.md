@@ -104,6 +104,6 @@ Pinned reference: invalid-syntax 161..170; RUF041 173..192; RUF041 195..214. Int
 
 ## Preserved proof artifacts
 
-[Source-bound supplement and raw archive](../../results/ci-80be-full-inventory-2026-11-03/ruf041-target-supplement/README.md) preserve the old92b failures, current first41-case replay, all pinned target outputs and both successful native controls. The generic validator binds current query, cases, settings, transitive helper bytes and actual sealed executables. No previous rule proofs were reverified and the historical combined413 report is unchanged.
+Source-bound supplement and raw archive preserve the old92b failures, current first41-case replay, all pinned target outputs and both successful native controls. The generic validator binds current query, cases, settings, transitive helper bytes and actual sealed executables. No previous rule proofs were reverified and the historical combined413 report is unchanged.
 
 Independent evidence: [actual Python3.13 controls](../../profiles/RUF041/evidence/py313.json), [actual Python3.10 scope outcome](../../profiles/RUF041/evidence/py310.json), [executed control program](../../profiles/RUF041/evidence/python-program.py), [exact pinned reference sources/outputs](../../profiles/RUF041/evidence/reference-results.json), [scope/version contract](../../profiles/RUF041/evidence/scope-contract.json). Each certificate retains the full reference and intended multiset; unrelated syntax findings are not waived.

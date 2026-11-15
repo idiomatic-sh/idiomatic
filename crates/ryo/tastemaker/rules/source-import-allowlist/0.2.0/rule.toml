@@ -1,0 +1,107 @@
+description = "A language's source import allowance, `src/tastemaker.toml`, lists exactly the crates its own placement declares: every entry of `libraries` and `domain-libraries`, and nothing else."
+why = "The language root owns the parser and pure dependency declarations, once, in the variables `libraries` and `domain-libraries` of its own `tastemaker.toml`. The source scope's `imports-allow` is derived data, not an independent permission grant: an entry the root does not declare widens the source's imports, and a declared entry it lacks is a second, hand-kept list that drifts from the declaration. A rule reads no variable of another manifest, so this one reads both files, the root's declaration and its `src/tastemaker.toml`, paired by the language directory."
+query = '''
+let lists = select occurrence, key from "entry" where key = "imports-allow" or key = "libraries" or key = "domain-libraries";
+let items = select l.key as list, r.file as file, r.span as span, r.kind as kind, r.decoded as decoded from lists as l join "sequence-element" as r on l.occurrence = r.owner;
+let allowed-items = select * from items where list = "imports-allow";
+let declared-items = select * from items where list != "imports-allow" and kind = "string";
+let allowed = capture(from=allowed-items, path="file", pattern="{*language}/src/tastemaker.toml", captures=["language"]);
+let declared = capture(from=declared-items, path="file", pattern="{*language}/tastemaker.toml", captures=["language"]);
+let undeclared = antijoin(left=allowed, right=declared, left-on=["language", "decoded"], right-on=["language", "decoded"]);
+let missing = antijoin(left=declared, right=allowed, left-on=["language", "decoded"], right-on=["language", "decoded"]);
+let found = union(left=undeclared, right=missing);
+emit found subject "file" key("span");
+'''
+[diagnostic]
+primary = "span"
+message = "the source import allowance is not its language's declaration"
+help = "Make `src/tastemaker.toml`'s `imports-allow` list exactly the entries of the language root's `libraries` and `domain-libraries`: add each declared crate it lacks, and remove each it lists that the root does not declare. Keep parser dependencies governed by client-at-adapter."
+[[scenarios]]
+id = "declared-allowances"
+scenario = "Parser and pure dependencies come from the parent declaration."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", members = ["demo", "demo/src"], dependencies = [{ package = "idiomatic.ryo", path = "../../.." }, { package = "idiomatic.arch", path = "../../../../../../tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.ryo/source-import-allowlist", include = ["**/tastemaker.toml"] }]
+'''
+given.files.'demo/tastemaker.toml' = '''
+closed = false
+variables = { domain-libraries = ["indexmap::*"], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
+'''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*", "indexmap::*"]'
+then.only = ["idiomatic.ryo/source-import-allowlist"]
+
+[[scenarios]]
+id = "foreign-allowance"
+scenario = "A source composition cannot grant itself another crate."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", members = ["demo", "demo/src"], dependencies = [{ package = "idiomatic.ryo", path = "../../.." }, { package = "idiomatic.arch", path = "../../../../../../tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.ryo/source-import-allowlist", include = ["**/tastemaker.toml"] }]
+'''
+given.files.'demo/tastemaker.toml' = '''
+closed = false
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
+'''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*", "private_engine::*"]'
+then.only = ["idiomatic.ryo/source-import-allowlist"]
+then.findings = [{ path = "demo/src/tastemaker.toml", line = 1 }]
+
+[[scenarios]]
+id = "variable-cannot-hide-a-grant"
+scenario = "A source composition cannot substitute a local variable for the checked list."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", members = ["demo", "demo/src"], dependencies = [{ package = "idiomatic.ryo", path = "../../.." }, { package = "idiomatic.arch", path = "../../../../../../tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.ryo/source-import-allowlist", include = ["**/tastemaker.toml"] }]
+'''
+given.files.'demo/tastemaker.toml' = '''
+closed = false
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
+'''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*", { variable = "hidden" }]'
+then.only = ["idiomatic.ryo/source-import-allowlist"]
+then.findings = [{ path = "demo/src/tastemaker.toml", line = 1 }]
+
+[[scenarios]]
+id = "declared-crate-missing"
+scenario = "A crate the root declares and the source allowance lacks is a second, hand-kept list."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", members = ["demo", "demo/src"], dependencies = [{ package = "idiomatic.ryo", path = "../../.." }, { package = "idiomatic.arch", path = "../../../../../../tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.ryo/source-import-allowlist", include = ["**/tastemaker.toml"] }]
+'''
+given.files.'demo/tastemaker.toml' = '''
+closed = false
+variables = { domain-libraries = ["indexmap::*"], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
+'''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
+then.only = ["idiomatic.ryo/source-import-allowlist"]
+then.findings = [{ path = "demo/tastemaker.toml", line = 2 }]
+
+[[scenarios]]
+id = "languages-are-paired-by-directory"
+scenario = "One language's declaration does not admit another's allowance."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "scenario", members = ["demo", "demo/src", "other", "other/src"], dependencies = [{ package = "idiomatic.ryo", path = "../../.." }, { package = "idiomatic.arch", path = "../../../../../../tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.ryo/source-import-allowlist", include = ["**/tastemaker.toml"] }]
+'''
+given.files.'demo/tastemaker.toml' = '''
+closed = false
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
+'''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
+given.files.'other/tastemaker.toml' = '''
+closed = false
+variables = { domain-libraries = [], libraries = ["other_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
+'''
+given.files.'other/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*", "other_parser::*"]'
+then.only = ["idiomatic.ryo/source-import-allowlist"]
+then.findings = [{ path = "other/src/tastemaker.toml", line = 1 }]

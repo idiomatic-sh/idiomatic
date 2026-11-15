@@ -1,0 +1,8 @@
+version = 1
+parents = ["66e6bdc5b072981bd5a39c02072cb8aac1dc3063072796bf42e1e313829dfc4e"]
+
+[[accepted]]
+reasons = ["the cli/commands template places `#[must_use] pub fn run` (a message on the attribute is a cli/commands#template finding), and run returns ExitCode, which is must_use already; ryo and tastemaker's clippy tools judge only denied lints, so they never see this warning. Recorded until the template and clippy agree, with ryo-b1gq.45"]
+records = [
+  { tool = "cargo-clippy", rule = "clippy::double_must_use", path = "cli/src/resources.rs", level = "warning", fingerprint = "c349e8c6fad8fb6d", count = 1, message = "this function has a `#[must_use]` attribute with no message, but returns a type already considered as `#[must_use]`", since_rev = "980cabd8d713a4ab35da4e0714858242b6b44a5e", since = "2026-11-14" },
+]

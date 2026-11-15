@@ -1,0 +1,54 @@
+[[cases]]
+name = "slice-binding"
+files = { "src/lib.rs" = "pub fn f(v: &[u8]) -> usize {\n    let [all @ ..] = v;\n    all.len()\n}\n" }
+expected = [{ file = "src/lib.rs", start = 38, end = 48 }]
+
+[[cases]]
+name = "modes-and-positions"
+files = { "src/lib.rs" = "pub fn f(v: &[u8], w: [u8; 2]) -> usize {\n    let n = match *v {\n        [ref all @ ..] => all.len(),\n    };\n    let [mut all @ ..] = w;\n    all[0] = 1;\n    if let [x @ ..] = v {\n        return x.len() + n;\n    }\n    n\n}\npub fn g(v: Option<&[u8]>) -> usize {\n    match v {\n        Some([all @ ..]) => all.len(),\n        None => 0,\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 73, end = 87 }, { file = "src/lib.rs", start = 117, end = 131 }, { file = "src/lib.rs", start = 164, end = 172 }, { file = "src/lib.rs", start = 286, end = 296 }]
+
+[[cases]]
+name = "not-redundant"
+files = { "src/lib.rs" = "pub fn f(v: &[u8]) -> usize {\n    match v {\n        [first, rest @ ..] => usize::from(*first) + rest.len(),\n        [rest @ .., last] => usize::from(*last) + rest.len(),\n        [..] => 0,\n    }\n}\npub fn g(v: &[u8]) -> usize {\n    let [x @ _] = v else { return 0 };\n    usize::from(*x)\n}\n" }
+expected = []
+
+[[cases]]
+name = "parameters-and-closures"
+files = { "src/lib.rs" = "pub fn f(&[ref all @ ..]: &[u8; 3]) -> usize {\n    let c = |[x @ ..]: [u8; 1]| x[0];\n    all.len() + usize::from(c([1]))\n}\n" }
+expected = [{ file = "src/lib.rs", start = 10, end = 24 }, { file = "src/lib.rs", start = 60, end = 68 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        let v = [1u8, 2];\n        let [all @ ..] = v;\n        assert_eq!(all.len(), 2);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 88, end = 98 }]
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! m {\n    ($v:expr) => {\n        let [all @ ..] = $v;\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::redundant_at_rest_pattern)]\npub fn f(v: &[u8]) -> usize {\n    let [all @ ..] = v;\n    all.len()\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::complexity)]\npub fn f(v: &[u8]) -> usize {\n    let [all @ ..] = v;\n    all.len()\n}\npub fn g(v: &[u8]) -> usize {\n    #[allow(clippy::all)]\n    let [all @ ..] = v;\n    all.len()\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::redundant_at_rest_pattern)]\npub fn f(v: &[u8]) -> usize {\n    let [all @ ..] = v;\n    all.len()\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::complexity)]\npub fn f(v: &[u8]) -> usize {\n    #[warn(clippy::redundant_at_rest_pattern)]\n    let [all @ ..] = v;\n    all.len()\n}\n" }
+expected = [{ file = "src/lib.rs", start = 115, end = 125 }]
+
+[[cases]]
+name = "allowed-on-the-arm-and-parameter"
+files = { "src/lib.rs" = "pub fn f(v: &[u8]) -> usize {\n    match v {\n        #[allow(clippy::redundant_at_rest_pattern)]\n        [all @ ..] => all.len(),\n    }\n}\npub fn g(#[allow(clippy::redundant_at_rest_pattern)] [all @ ..]: [u8; 1]) -> u8 {\n    all[0]\n}\n" }
+expected = []

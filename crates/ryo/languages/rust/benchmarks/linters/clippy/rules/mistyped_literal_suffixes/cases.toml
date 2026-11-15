@@ -1,0 +1,54 @@
+[[cases]]
+name = "integer"
+files = { "src/lib.rs" = "pub const X: i32 = 1_32;\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 23 }]
+
+[[cases]]
+name = "each-width"
+files = { "src/lib.rs" = "pub const A: i8 = 1_8;\npub const B: i16 = 2_16;\npub const C: i64 = 3_64;\npub const D: u32 = 4_000_32;\n" }
+expected = [{ file = "src/lib.rs", start = 18, end = 21 }, { file = "src/lib.rs", start = 42, end = 46 }, { file = "src/lib.rs", start = 67, end = 71 }, { file = "src/lib.rs", start = 92, end = 100 }]
+
+[[cases]]
+name = "unsigned-when-too-large"
+files = { "src/lib.rs" = "pub const X: u16 = 200_8;\npub const Y: u128 = 0xffff_ffff_ffff_ffff_64;\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 24 }, { file = "src/lib.rs", start = 46, end = 70 }]
+
+[[cases]]
+name = "too-large-for-either"
+files = { "src/lib.rs" = "pub const X: u32 = 300_8;\npub const Y: u32 = 70000_16;\n" }
+expected = []
+
+[[cases]]
+name = "float-exponent"
+files = { "src/lib.rs" = "pub const X: f64 = 1e2_32;\npub const Y: f64 = 1.5e1_64;\npub const Z: f64 = 1.5_32;\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 25 }, { file = "src/lib.rs", start = 46, end = 54 }]
+
+[[cases]]
+name = "not-a-width"
+files = { "src/lib.rs" = "pub const X: u32 = 1_000;\npub const Y: u32 = 1_5;\npub const Z: u32 = 32;\npub const W: i32 = 1_i32;\npub const V: u128 = 1_128;\n" }
+expected = []
+
+[[cases]]
+name = "radix"
+files = { "src/lib.rs" = "pub const X: u8 = 0x1_8;\npub const Z: u16 = 0o7_16;\n" }
+expected = [{ file = "src/lib.rs", start = 18, end = 23 }, { file = "src/lib.rs", start = 44, end = 50 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::mistyped_literal_suffixes)]\npub const X: i32 = 1_32;\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::correctness)]\npub const X: i32 = 1_32;\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::all)]\npub const X: i32 = 1_32;\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::correctness)]\npub fn f() -> i32 {\n    #[warn(clippy::mistyped_literal_suffixes)]\n    let x = 1_32;\n    x\n}\n" }
+expected = [{ file = "src/lib.rs", start = 110, end = 114 }]

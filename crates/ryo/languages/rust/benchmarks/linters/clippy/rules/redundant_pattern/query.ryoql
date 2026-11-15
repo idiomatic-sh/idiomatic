@@ -1,0 +1,8 @@
+import bindings from "rust/clippy/bindings";
+import lint_attributes from "rust/clippy/lint-attributes";
+let binding_rows = bindings();
+let subpatterned = select id, file, span from binding_rows where at = 1;
+let wildcards = select l.parent as id from "syntax-child" as l join "syntax-tree" as r on l.child = r.id where r.kind = "wildcard-pat";
+let redundant = select l.id as id, l.file as file, l.span as span from subpatterned as l join wildcards as r on l.id = r.id;
+let violations = lint_attributes(candidates=redundant, names="(?:^|,)\s*(?:clippy::(?:redundant_pattern|style|all))\s*(?:,|$)");
+emit violations subject file key(id);

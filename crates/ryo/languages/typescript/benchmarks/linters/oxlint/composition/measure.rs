@@ -61,7 +61,7 @@ pub(super) fn measure(
         cache,
         collector_path,
     } = paths(args, suite_source)?;
-    let mut tool = suite_source.profile(ArtifactPath(&directory()))?;
+    let tool = suite_source.profile(ArtifactPath(&directory()))?;
     let expected = commands::reference(executable.clone(), tool.clone()).version_line(&tool);
     suite_source.verify_tool(ArtifactPath(&executable), &tool, &expected)?;
     let declared_inventory = tool.defaults.clone();
@@ -95,30 +95,31 @@ pub(super) fn measure(
     let tally = RuleTally::of(&tool, authored_total);
     let project_context_mode = tool.project_context_mode;
     let project_search_roots = tool.project_search_roots.clone();
-    tool.defaults = audit.authored().to_vec();
     let declared_rule_context = tool.rule_context.clone();
+    let staged = stage(suite_source, &cache, audit.authored())?;
     let configured_cohort =
         ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
-            tool.defaults.clone(),
+            staged.tool.defaults.clone(),
         );
-    let StagedSuite {
-        scratch: selected_scratch,
-        profile: selected_profile,
-        workload: frozen_workload,
-    } = stage(suite_source, &cache, audit.authored())?;
-    let selected_rules = selected_profile.join(constants::RULES_DIRECTORY);
-    let candidate_executable = selected_scratch.join(constants::CANDIDATE_EXECUTABLE);
+    let candidate_executable = staged.scratch.join(constants::CANDIDATE_EXECUTABLE);
     suite_source.copy_file(
         ArtifactPath(&std::env::current_exe()?),
         ArtifactPath(&candidate_executable),
     )?;
-    let candidate = candidate_linter(&tool, candidate_executable.clone(), selected_rules.clone());
+    let candidate = candidate_linter(&staged, candidate_executable.clone());
+    let StagedSuite {
+        scratch: selected_scratch,
+        profile: selected_profile,
+        workload: frozen_workload,
+        tool: staged_tool,
+    } = staged;
+    let selected_rules = selected_profile.join(constants::RULES_DIRECTORY);
     let discovery: Arc<dyn DiscoveryPort> =
         Arc::new(ryo_benchmark::outbound::discovery::factory::listing(
             executable.clone(),
             crate::adapter::LinterOxlintAdapter::discovery_arguments(&selected_scratch)?,
         ));
-    let reference = Arc::new(commands::reference(executable.clone(), tool));
+    let reference = Arc::new(commands::reference(executable.clone(), staged_tool));
     // Composition is not DRY: this port wiring repeats in each linter's composition by the owner's rule; only pure values are shared.
     let collector_settings =
         commands::collector(suite_source.as_ref(), &collector_path, &frozen_workload)?;
@@ -127,6 +128,7 @@ pub(super) fn measure(
         default_scratch(suite_source.as_ref(), ArtifactText(constants::CASE_SCRATCH))?;
     let certificate = CertifyUseCaseImpl::new(
         Arc::<_>::clone(&suite_source),
+        Arc::new(ryo_benchmark::outbound::host::factory::local()),
         Arc::new(ryo_benchmark::outbound::receipts::factory::local(
             ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded,
         )),
@@ -135,6 +137,7 @@ pub(super) fn measure(
         Arc::<_>::clone(&candidate),
         Arc::<_>::clone(&execution),
         Arc::new(ryo_benchmark::outbound::inventory::factory::local()),
+        Arc::new(ryo_benchmark::outbound::scheduler::factory::threads()),
     )
     .certify(
         &selected_profile,
@@ -254,9 +257,11 @@ fn compare(
         Arc::new(ryo_benchmark::outbound::workspace::factory::git(
             cache.join(constants::PROJECTS_DIRECTORY),
         )),
+        Arc::new(ryo_benchmark::outbound::host::factory::local()),
     )
     .measure_corpus(
         &CorpusMeasurement {
+            bench: &directory(),
             projects: suite.projects,
             scope,
             profile,

@@ -1,0 +1,11 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+import attribute_items from "rust/clippy/attribute-items";
+let levels = select occurrence, file from "decorates" where target = "warn" or target = "deny" or target = "forbid" or target = "expect";
+let level_metas = select l.occurrence as occurrence, r.child as meta, l.file as file from levels as l join "syntax-child" as r on l.occurrence = r.parent;
+let level_trees = select l.occurrence as occurrence, r.child as tree, l.file as file from level_metas as l join "syntax-child" as r on l.meta = r.parent;
+let level_attributes = select occurrence as id, file from levels;
+let items = attribute_items(attributes=level_attributes);
+let blankets = select l.occurrence as occurrence, r.extent as span, l.file as file from level_trees as l join items as r on l.tree = r.tree where r.name = "clippy::restriction";
+let candidates = select occurrence as id, file, span from blankets;
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:blanket_clippy_restriction_lints|suspicious|all))\s*(?:,|$)");
+emit violations subject file key(span);

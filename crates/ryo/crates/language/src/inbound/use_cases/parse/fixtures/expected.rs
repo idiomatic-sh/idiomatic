@@ -6,7 +6,7 @@ use std::fmt;
 use crate::domain::semantics::types::{RenderContext, RenderOutcome};
 use crate::inbound::use_cases::parse::types::SourceFile;
 use crate::inbound::use_cases::parse::types::{KindSample, Why};
-use ryo_relations::domain::relations::service::{column_name, columns, folder_of};
+use ryo_relations::domain::relations::service::folder_of;
 use ryo_relations::domain::relations::types::{Integer, KindBits, Offset, Position, Relation};
 
 /// Whether a piece of a tree is a node or a token.

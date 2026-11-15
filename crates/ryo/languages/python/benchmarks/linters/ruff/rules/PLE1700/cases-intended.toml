@@ -1,7 +1,0 @@
-# Independently intended rule contract for the retained native discrepancy.
-# This file is not an admitted reference-discrepancy waiver and is not substituted for cases.toml.
-[[cases]]
-name = "authored-class-base-outer-async"
-comparison = "full"
-files = { "case.py" = "async def f():\n    class C((yield from xs)): pass\n" }
-expected = [{ rule = "PLE1700", file = "case.py", start = 28, end = 41 }]

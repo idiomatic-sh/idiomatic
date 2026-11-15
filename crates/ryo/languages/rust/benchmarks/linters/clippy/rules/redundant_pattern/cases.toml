@@ -1,0 +1,49 @@
+[[cases]]
+name = "binding-at-wildcard"
+files = { "src/lib.rs" = "pub fn f(v: Option<u8>) -> u8 {\n    match v {\n        x @ _ => x.unwrap_or(0),\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 54, end = 59 }]
+
+[[cases]]
+name = "modes-and-nesting"
+files = { "src/lib.rs" = "pub fn f(v: (String, u8)) -> usize {\n    let (ref s @ _, mut n @ _) = v;\n    n += 1;\n    s.len() + usize::from(n)\n}\npub fn g(v: Option<u8>) -> u8 {\n    if let Some(x @ _) = v { x } else { 0 }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 46, end = 55 }, { file = "src/lib.rs", start = 57, end = 66 }, { file = "src/lib.rs", start = 164, end = 169 }]
+
+[[cases]]
+name = "not-redundant"
+files = { "src/lib.rs" = "pub fn f(v: Option<u8>) -> u8 {\n    match v {\n        x @ Some(_) => x.unwrap_or(0),\n        y @ (_) => y.unwrap_or(1),\n    }\n}\npub fn g(v: &[u8]) -> usize {\n    match v {\n        [x @ ..] => x.len(),\n    }\n}\n" }
+expected = []
+
+[[cases]]
+name = "parameters-and-closures"
+files = { "src/lib.rs" = "pub fn f(x @ _: u8) -> u8 {\n    let c = |y @ _: u8| y;\n    c(x)\n}\n" }
+expected = [{ file = "src/lib.rs", start = 9, end = 14 }, { file = "src/lib.rs", start = 41, end = 46 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        let x @ _ = 1;\n        assert_eq!(x, 1);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 62, end = 67 }]
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! m {\n    ($v:expr) => {\n        let x @ _ = $v;\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::redundant_pattern)]\npub fn f(v: u8) -> u8 {\n    let x @ _ = v;\n    x\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::style)]\npub fn f(v: u8) -> u8 {\n    let x @ _ = v;\n    x\n}\npub fn g(v: Option<u8>) -> u8 {\n    match v {\n        #[allow(clippy::all)]\n        x @ _ => x.unwrap_or(0),\n    }\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::redundant_pattern)]\npub fn f(v: u8) -> u8 {\n    let x @ _ = v;\n    x\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::style)]\npub fn f(v: u8) -> u8 {\n    #[warn(clippy::redundant_pattern)]\n    let x @ _ = v;\n    x\n}\n" }
+expected = [{ file = "src/lib.rs", start = 96, end = 101 }]

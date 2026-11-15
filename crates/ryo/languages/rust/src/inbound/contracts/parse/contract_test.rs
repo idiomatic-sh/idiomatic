@@ -80,8 +80,8 @@ fn subject(given: Input) -> Result<Value, Failure> {
         Given::Unreadable => {
             let language = ParseContract::new(
                 Arc::new(crate::outbound::syntax::factory::ra_ap_syntax(
-                    crate::outbound::syntax::types::Expanding(
-                        &crate::domain::syntax::constants::EXPANDED_MACROS,
+                    crate::outbound::syntax::types::OpaqueMacros(
+                        &crate::domain::syntax::constants::OPAQUE_MACROS,
                     ),
                 )),
                 Arc::new(crate::outbound::notes::factory::postcard()),
@@ -113,8 +113,8 @@ fn subject(given: Input) -> Result<Value, Failure> {
         Given::Contract => {
             let language = ParseContract::new(
                 Arc::new(crate::outbound::syntax::factory::ra_ap_syntax(
-                    crate::outbound::syntax::types::Expanding(
-                        &crate::domain::syntax::constants::EXPANDED_MACROS,
+                    crate::outbound::syntax::types::OpaqueMacros(
+                        &crate::domain::syntax::constants::OPAQUE_MACROS,
                     ),
                 )),
                 Arc::new(crate::outbound::notes::factory::postcard()),

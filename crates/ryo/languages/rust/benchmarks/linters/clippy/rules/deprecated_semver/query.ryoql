@@ -1,0 +1,14 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+import attribute_items from "rust/clippy/attribute-items";
+let deprecations = select occurrence, file, span from "decorates" where target = "deprecated";
+let deprecation_metas = select l.occurrence as occurrence, r.child as meta, l.file as file from deprecations as l join "syntax-child" as r on l.occurrence = r.parent;
+let deprecation_trees = select l.occurrence as occurrence, r.child as tree, l.file as file from deprecation_metas as l join "syntax-child" as r on l.meta = r.parent;
+let deprecation_attributes = select occurrence as id, file from deprecations;
+let items = attribute_items(attributes=deprecation_attributes);
+let since_items = select l.occurrence as occurrence, r.token as token, r.extent as meta_span, l.file as file from deprecation_trees as l join items as r on l.tree = r.tree where r.name = "since";
+let sinces = select l.occurrence as occurrence, r.value as value, l.meta_span as meta_span, l.file as file from since_items as l join "string-literal" as r on l.token = r.occurrence;
+let versions = select occurrence, file, meta_span from sinces where matches(value, "^(?:TBD|CURRENT_RUSTC_VERSION|(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?)$");
+let invalid = antijoin(left=sinces, right=versions, left-on=["occurrence", "meta_span"], right-on=["occurrence", "meta_span"]);
+let candidates = select occurrence as id, file, meta_span as span from invalid;
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:deprecated_semver|correctness|all))\s*(?:,|$)");
+emit violations subject file key(span);

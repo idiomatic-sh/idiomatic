@@ -10,6 +10,4 @@ mod schemas;
 mod schemas_test;
 mod settings;
 
-mod host_policy;
-
 mod frontend_projection;

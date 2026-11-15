@@ -257,3 +257,17 @@ pub(in super::super) fn case_claims(
 pub(in super::super) fn rule(value: &str) -> Result<ryo::linter::RuleId, Error> {
     ryo::linter::RuleId::try_from(value).map_err(|error| Error::Invalid(error.to_string()))
 }
+
+/// The rule identifiers named by the entries of a rules directory.
+pub(in super::super) fn ids(profile: &std::path::Path) -> Result<Vec<ryo::linter::RuleId>, Error> {
+    std::fs::read_dir(profile)?
+        .map(|entry| {
+            let name = entry?.file_name().into_string().map_err(|_| {
+                Error::Invalid(
+                    crate::outbound::suite::adapters::local::constants::INVALID_RULE_ID.into(),
+                )
+            })?;
+            rule(&name)
+        })
+        .collect()
+}

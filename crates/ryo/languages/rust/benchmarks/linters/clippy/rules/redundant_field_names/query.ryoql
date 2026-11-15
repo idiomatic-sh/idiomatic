@@ -1,0 +1,18 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+let lists = select id from "syntax-tree" where kind = "record-expr-field-list";
+let fields = select l.parent as list, l.child as field from "syntax-child" as l join lists as r on l.parent = r.id where l.field = "fields";
+let identifiers = select id, file, span, text from "syntax-tree" where kind = "ident";
+let ident_children = select l.parent as owner, r.file as file, r.span as span, r.text as text from "syntax-child" as l join identifiers as r on l.child = r.id;
+let field_names = select l.parent as field, r.file as file, r.span as name_span, r.text as text from "syntax-child" as l join ident_children as r on l.child = r.owner where l.field = "name-ref";
+let spelled_names = replace(from=field_names, text="text", pattern="^r#", replacement="", output="name");
+let expressions = select l.parent as field, l.child as expression from "syntax-child" as l join "syntax-tree" as r on l.child = r.id where l.field = "expr" and r.kind = "path-expr";
+let expression_paths = select l.field as field, r.child as path from expressions as l join "syntax-child" as r on l.expression = r.parent where r.field = "path";
+let path_spans = select l.field as field, r.file as file, r.span as span from expression_paths as l join "syntax-tree" as r on l.path = r.id;
+let plain_paths = select l.field as field, r.text as text, l.span as end from path_spans as l join identifiers as r on l.file = r.file and l.span = r.span;
+let spelled_paths = replace(from=plain_paths, text="text", pattern="^r#", replacement="", output="name");
+let same = select l.field as field, l.file as file, l.name_span as start, r.end as end from spelled_names as l join spelled_paths as r on l.field = r.field and l.name = r.name;
+let listed = select r.list as id, l.file as file, l.start as start, l.end as end from same as l join fields as r on l.field = r.field;
+let spanned = span-between(from=listed, start="start", end="end", output="span");
+let candidates = select id, file, span from spanned;
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:redundant_field_names|style|all))\s*(?:,|$)");
+emit violations subject file key(span);

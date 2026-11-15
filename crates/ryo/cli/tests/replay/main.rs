@@ -46,13 +46,12 @@ mod feature_contracts;
 mod ruff;
 #[path = "../fixtures/replay/stores.rs"]
 mod stores;
-#[path = "../fixtures/replay/tables.rs"]
-mod tables;
 #[path = "../fixtures/replay/tools.rs"]
 mod tools;
 
 mod behavior;
 mod cache;
+mod comparisons;
 mod coverage;
 mod damage;
 mod filesystem;
@@ -78,6 +77,7 @@ mod manifests_uv;
 mod peak;
 mod recordings;
 mod rule_fixtures;
+mod rules;
 mod scenarios;
 mod sdk;
 mod snapshot;

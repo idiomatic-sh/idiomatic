@@ -25,6 +25,7 @@ use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
 use ryo_benchmark_contracts::domain::measurements::types::{Invocation, TerminationSignal};
 use ryo_benchmark_contracts::domain::receipts::constants::{CASE_RECEIPTS_ARGUMENT, VERIFY_CASES};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardCount;
 use serde_json::json;
 use std::collections::BTreeMap;
 use std::{borrow::Cow, path::PathBuf, sync::Mutex, time::Duration};
@@ -101,7 +102,7 @@ impl ExecutionPort for ToyExecution {
 }
 fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
     use sha2::Digest as _;
-    let context = tempfile::tempdir().unwrap();
+    let context = crate::outbound::inventory::fixtures::data::canonical_directory().unwrap();
     let reference = context.path().join("native-reference");
     let worker = context.path().join("native-worker");
     std::fs::write(&reference, b"pinned reference executable").unwrap();
@@ -249,9 +250,14 @@ fn independent_providers() -> Result<InventoryVerdict, Error> {
             &execution,
             &crate::outbound::inventory::factory::local(),
             &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
+            &crate::outbound::scheduler::factory::threads(),
+            ShardCount(1),
         )?;
         let summary = summary_of(root.path());
-        assert_eq!(summary["counts"], json!({"PASS": 1, "FAIL": 2}));
+        assert_eq!(
+            summary["counts"],
+            json!({"PASS": 1, "FAIL": 2, "DEFERRED": 0})
+        );
         assert_eq!(summary["rules"].as_array().unwrap().len(), 3);
         assert_eq!(summary["rules"][0]["status"], "FAIL");
         assert_eq!(summary["rules"][2]["status"], "PASS");
@@ -282,9 +288,14 @@ fn unknown_rule() -> Result<InventoryVerdict, Error> {
         &execution,
         &crate::outbound::inventory::factory::local(),
         &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
+        &crate::outbound::scheduler::factory::threads(),
+        ShardCount(1),
     );
     let snapshot = summary_of(root.path());
-    assert_eq!(snapshot["counts"], json!({"PASS": 0, "FAIL": 3}));
+    assert_eq!(
+        snapshot["counts"],
+        json!({"PASS": 0, "FAIL": 3, "DEFERRED": 0})
+    );
     assert!(execution.calls.lock().unwrap().is_empty());
     answer
 }
@@ -321,10 +332,15 @@ fn undeclared_modules() -> Result<InventoryVerdict, Error> {
         &execution,
         &crate::outbound::inventory::factory::local(),
         &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
+        &crate::outbound::scheduler::factory::threads(),
+        ShardCount(1),
     );
     assert!(execution.calls.lock().unwrap().is_empty());
     let summary = summary_of(output.path());
-    assert_eq!(summary["counts"], json!({"PASS":0,"FAIL":3}));
+    assert_eq!(
+        summary["counts"],
+        json!({"PASS": 0, "FAIL": 3, "DEFERRED": 0})
+    );
     for row in &summary["rules"].as_array().unwrap()[1..] {
         assert!(
             row["reason"]
@@ -354,3 +370,6 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+#[cfg(test)]
+mod shards;

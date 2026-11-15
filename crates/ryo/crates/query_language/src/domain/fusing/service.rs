@@ -1,10 +1,13 @@
 //! The `fusing` service: free functions named by verb over the filters and lookups of a plan that are read where they are found, instead of being made into tables first.
 
-use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
+use ryo_relations::domain::relations::types::{Column, Relation};
 
 use super::types::TreeLookup;
 use crate::domain::rewriting::types::StepIndex;
-use ryo_values::domain::plan_parts::service::remapped;
+use ryo_values::domain::plan_parts::service::{
+    column_place, remapped, tree_lookup_key, view_source,
+};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::Operand;
@@ -19,18 +22,6 @@ pub(crate) fn fuse_keyed_reaches(
     protected: &[ryo_values::domain::plan_parts::types::StepId],
 ) -> Vec<PlanStep> {
     super::types::demand::value::DemandClosure::new(&steps, protected).rewrite()
-}
-
-/// The column of a step's input that the column `column` of its output is: the same one when the
-/// step keeps every column, else the one it keeps there.
-#[must_use]
-pub(crate) fn source_column(kept: &[ColumnIndex], column: ColumnIndex) -> Option<ColumnIndex> {
-    if kept.is_empty() {
-        Some(column)
-    } else {
-        kept.get(usize::try_from(column.0).unwrap_or(usize::MAX))
-            .copied()
-    }
 }
 
 /// `consumer` as one step with `producer`, when both only filter and cut columns: the comparisons of
@@ -52,7 +43,7 @@ fn fuse(producer: &Operation, consumer: &Operation) -> Option<Operation> {
     else {
         return None;
     };
-    let remap = |operand: &Operand| remapped(operand, &|column| source_column(cut, column));
+    let remap = |operand: &Operand| remapped(operand, &|column| view_source(cut, column));
     let mut comparisons = first.clone();
     for comparison in second {
         comparisons.push(PlanComparison {
@@ -66,7 +57,7 @@ fn fuse(producer: &Operation, consumer: &Operation) -> Option<Operation> {
         cut.clone()
     } else {
         last.iter()
-            .map(|column| source_column(cut, *column))
+            .map(|column| view_source(cut, *column))
             .collect::<Option<Vec<_>>>()?
     };
     Some(Operation::Select {
@@ -130,21 +121,9 @@ fn tree_lookup_supported(
     keys: &[ColumnIndex],
     view: &[ColumnIndex],
 ) -> TreeLookup {
-    let supported = match keys {
-        [key] => source_column(view, *key).is_some_and(|column| {
-            if relation == Relation::SyntaxTree {
-                matches!(column, ColumnIndex(0 | 4))
-            } else {
-                relation == Relation::SyntaxChild && matches!(column, ColumnIndex(0 | 1))
-            }
-        }),
-        [file, stretch] if relation == Relation::SyntaxTree => matches!(
-            (source_column(view, *file), source_column(view, *stretch)),
-            (Some(ColumnIndex(3)), Some(ColumnIndex(4)))
-                | (Some(ColumnIndex(4)), Some(ColumnIndex(3)))
-        ),
-        _ => false,
-    };
+    // The columns of `relation` that the keys read through the view.
+    let read: Option<Vec<ColumnIndex>> = keys.iter().map(|key| view_source(view, *key)).collect();
+    let supported = read.is_some_and(|read| tree_lookup_key(relation, &read).is_some());
     if supported {
         TreeLookup::Supported
     } else {
@@ -185,7 +164,8 @@ fn fuse_axis(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         || !no_filter.is_empty()
         || !no_view.is_empty()
         || !no_output.is_empty()
-        || source_column(kept, *domain_id) != Some(ColumnIndex(0))
+        || view_source(kept, *domain_id)
+            != Some(column_place(Column::SyntaxTree(SyntaxTreeColumn::Id)))
     {
         return None;
     }
@@ -242,7 +222,7 @@ fn fuse_join_filter(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     let in_tree = |column: ColumnIndex| -> Option<ColumnIndex> {
         let answered = output.get(usize::try_from(column.0).unwrap_or(usize::MAX))?;
         (answered.side == Side::Right)
-            .then(|| source_column(view, answered.column))
+            .then(|| view_source(view, answered.column))
             .flatten()
     };
     let remap = |operand: &Operand| remapped(operand, &in_tree);

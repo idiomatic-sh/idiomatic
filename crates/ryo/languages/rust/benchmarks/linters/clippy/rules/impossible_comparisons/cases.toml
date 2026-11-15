@@ -1,0 +1,84 @@
+[[cases]]
+name = "orderings-lesser-first"
+files = { "src/lib.rs" = "pub fn f0(x: i32) -> bool {\n    x < 5 && x > 10\n}\npub fn f1(x: i32) -> bool {\n    x < 5 && x > 5\n}\npub fn f2(x: i32) -> bool {\n    x < 5 && x > 3\n}\npub fn f3(x: i32) -> bool {\n    x <= 5 && x >= 5\n}\npub fn f4(x: i32) -> bool {\n    x <= 5 && x > 5\n}\npub fn f5(x: i32) -> bool {\n    x < 5 && x >= 5\n}\npub fn f6(x: i32) -> bool {\n    x <= 5 && x >= 10\n}\npub fn f7(x: i32) -> bool {\n    x <= 5 && x >= 3\n}\n" }
+expected = [{ file = "src/lib.rs", start = 32, end = 47 }, { file = "src/lib.rs", start = 82, end = 96 }, { file = "src/lib.rs", start = 231, end = 246 }, { file = "src/lib.rs", start = 281, end = 296 }, { file = "src/lib.rs", start = 331, end = 348 }]
+
+[[cases]]
+name = "orderings-greater-first"
+files = { "src/lib.rs" = "pub fn f0(x: i32) -> bool {\n    x > 10 && x < 5\n}\npub fn f1(x: i32) -> bool {\n    x > 5 && x < 5\n}\npub fn f2(x: i32) -> bool {\n    x > 3 && x < 5\n}\npub fn f3(x: i32) -> bool {\n    x >= 5 && x <= 5\n}\npub fn f4(x: i32) -> bool {\n    x >= 5 && x < 5\n}\npub fn f5(x: i32) -> bool {\n    x > 5 && x <= 5\n}\npub fn f6(x: i32) -> bool {\n    x >= 10 && x <= 5\n}\npub fn f7(x: i32) -> bool {\n    x >= 3 && x <= 5\n}\n" }
+expected = [{ file = "src/lib.rs", start = 32, end = 47 }, { file = "src/lib.rs", start = 82, end = 96 }, { file = "src/lib.rs", start = 231, end = 246 }, { file = "src/lib.rs", start = 281, end = 296 }, { file = "src/lib.rs", start = 331, end = 348 }]
+
+[[cases]]
+name = "same-direction"
+files = { "src/lib.rs" = "pub fn f0(x: i32) -> bool {\n    x < 5 && x < 10\n}\npub fn f1(x: i32) -> bool {\n    x < 10 && x < 5\n}\npub fn f2(x: i32) -> bool {\n    x <= 5 && x < 5\n}\npub fn f3(x: i32) -> bool {\n    x < 5 && x <= 5\n}\npub fn f4(x: i32) -> bool {\n    x <= 5 && x <= 5\n}\npub fn f5(x: i32) -> bool {\n    x < 5 && x < 5\n}\npub fn f6(x: i32) -> bool {\n    x > 5 && x >= 5\n}\npub fn f7(x: i32) -> bool {\n    x >= 5 && x >= 5\n}\npub fn f8(x: i32) -> bool {\n    x > 1 && x > 2\n}\n" }
+expected = []
+
+[[cases]]
+name = "yoda"
+files = { "src/lib.rs" = "pub fn f0(x: i32) -> bool {\n    5 > x && x > 10\n}\npub fn f1(x: i32) -> bool {\n    10 < x && 5 > x\n}\npub fn f2(x: i32) -> bool {\n    5 < x && x < 10\n}\npub fn f3(x: i32) -> bool {\n    3 < x && 5 > x\n}\n" }
+expected = [{ file = "src/lib.rs", start = 32, end = 47 }, { file = "src/lib.rs", start = 82, end = 97 }]
+
+[[cases]]
+name = "negative-and-hex"
+files = { "src/lib.rs" = "pub fn f0(x: i32) -> bool {\n    x > -1 && x < -5\n}\npub fn f1(x: i32) -> bool {\n    x < -1 && x > -5\n}\npub fn f2(x: i32) -> bool {\n    x > 0x10 && x < 15\n}\npub fn f3(x: i32) -> bool {\n    x > -0x10 && x < -20\n}\npub fn f4(x: i32) -> bool {\n    x >= -5 && x <= -5\n}\n" }
+expected = [{ file = "src/lib.rs", start = 32, end = 48 }, { file = "src/lib.rs", start = 134, end = 152 }, { file = "src/lib.rs", start = 187, end = 207 }]
+
+[[cases]]
+name = "unsigned-and-wide"
+files = { "src/lib.rs" = "pub fn f0(y: u128) -> bool {\n    y > 200 && y < 100\n}\npub fn f1(y: u128) -> bool {\n    y > 18446744073709551615 && y < 1\n}\n" }
+expected = [{ file = "src/lib.rs", start = 33, end = 51 }, { file = "src/lib.rs", start = 87, end = 120 }]
+
+[[cases]]
+name = "floats"
+files = { "src/lib.rs" = "pub fn f0(f: f64) -> bool {\n    f > 1.5 && f < 1.0\n}\npub fn f1(f: f64) -> bool {\n    f < 1.0 && f < 2.5\n}\npub fn f2(f: f64) -> bool {\n    f > 1e3 && f < 999.0\n}\npub fn f3(f: f64) -> bool {\n    f >= 0.5 && f <= 0.5\n}\n" }
+expected = [{ file = "src/lib.rs", start = 32, end = 50 }, { file = "src/lib.rs", start = 138, end = 158 }]
+
+[[cases]]
+name = "suffixed"
+files = { "src/lib.rs" = "pub fn f0(y: u8) -> bool {\n    y > 5u8 && y < 3u8\n}\npub fn f1(y: u8) -> bool {\n    y > 5_u8 && y < 7\n}\n" }
+expected = [{ file = "src/lib.rs", start = 31, end = 49 }]
+
+[[cases]]
+name = "parenthesized"
+files = { "src/lib.rs" = "pub fn f0(x: i32) -> bool {\n    (x < 5) && (x > 10)\n}\npub fn f1(x: i32) -> bool {\n    x < (5) && x > (10)\n}\npub fn f2(x: i32) -> bool {\n    (x) < 5 && x > 10\n}\npub fn f3(x: i32) -> bool {\n    (x < 5 && x > 10)\n}\npub fn f4(x: i32) -> bool {\n    x < -(5) && x > 10\n}\n" }
+expected = [{ file = "src/lib.rs", start = 32, end = 51 }, { file = "src/lib.rs", start = 86, end = 105 }, { file = "src/lib.rs", start = 140, end = 157 }, { file = "src/lib.rs", start = 192, end = 209 }, { file = "src/lib.rs", start = 244, end = 262 }]
+
+[[cases]]
+name = "different-subject"
+files = { "src/lib.rs" = "pub fn f0(x: i32, y: i32) -> bool {\n    x < 5 && y > 10\n}\npub fn f1(x: i32, y: i32) -> bool {\n    x < 5 || x > 10\n}\npub fn f2(x: i32, y: i32) -> bool {\n    x < 5 && x != 10\n}\npub fn f3(x: i32, y: i32) -> bool {\n    x == 5 && x > 10\n}\n" }
+expected = []
+
+[[cases]]
+name = "places-and-calls"
+files = { "src/lib.rs" = "pub struct S {\n    pub x: i32,\n    pub v: [i32; 2],\n}\npub fn f(s: &S) -> bool {\n    s.x < 5 && s.x > 10\n}\npub fn g(s: &S) -> bool {\n    s.v[0] < 5 && s.v[0] > 10\n}\npub fn h(s: &S) -> bool {\n    s.v.len() < 5 && s.v.len() > 10\n}\npub fn k(s: &S) -> bool {\n    -s.x < 5 && -s.x > 10\n}\npub fn m(s: &S) -> bool {\n    s.x + 1 < 5 && s.x + 1 > 10\n}\npub fn n(s: &S) -> bool {\n    s.x as i64 > 5 && s.x as i64 > 10\n}\n" }
+expected = [{ file = "src/lib.rs", start = 84, end = 103 }, { file = "src/lib.rs", start = 136, end = 161 }, { file = "src/lib.rs", start = 258, end = 279 }, { file = "src/lib.rs", start = 312, end = 339 }]
+
+[[cases]]
+name = "chained"
+files = { "src/lib.rs" = "pub fn f0(x: i32) -> bool {\n    x < 5 && x > 10 && x > 1\n}\npub fn f1(x: i32) -> bool {\n    x < 5 && (x > 10 && x > 1)\n}\npub fn f2(x: i32) -> bool {\n    x > 1 && x < 5 && x > 10\n}\n" }
+expected = [{ file = "src/lib.rs", start = 32, end = 47 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        let x = 7;\n        let c = x < 5 && x > 10;\n        let d = x < 5 && x < 10;\n        assert!(!c && !d);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 85, end = 100 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::impossible_comparisons)]\npub fn f0(x: i32) -> bool {\n    x < 5 && x > 10\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::correctness)]\npub fn f(x: i32) -> bool {\n    x < 5 && x > 10\n}\n#[allow(clippy::all)]\npub fn g(x: i32) -> bool {\n    x < 5 && x > 10\n}\n#[expect(warnings)]\npub fn h(x: i32) -> bool {\n    x < 5 && x > 10\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::impossible_comparisons)]\npub fn f0(x: i32) -> bool {\n    x < 5 && x > 10\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::all)]\n#[warn(clippy::impossible_comparisons)]\npub fn f(x: i32) -> bool {\n    x < 5 && x > 10\n}\npub fn g(x: i32) -> bool {\n    x < 5 && x > 10\n}\n" }
+expected = [{ file = "src/lib.rs", start = 94, end = 109 }]

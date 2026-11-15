@@ -1,0 +1,6 @@
+version = 1
+parents = ["c106ff06cd31c2769dce59296f50f8548260273e450ac598ed0cbb2ed8c64c95"]
+
+removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/cli#closed", path = "cli/tests/replay/scaffold/contract.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+]

@@ -108,8 +108,8 @@ fn subject((source, left, right): Input) -> Result<Value, Failure> {
     let indexes = ReadIndexes::default();
     let index = prepare(&tree, &indexes, &mut symbols).expect("a complete tree has classes");
     Ok(
-        languages::key_class_at(&index, first) == languages::key_class_at(&index, last)
-            && languages::key_class_at(&index, first).is_some(),
+        languages::shape_class_at(&index, first) == languages::shape_class_at(&index, last)
+            && languages::shape_class_at(&index, first).is_some(),
     )
 }
 

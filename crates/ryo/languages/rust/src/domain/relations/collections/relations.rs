@@ -2,13 +2,16 @@
 
 pub(crate) mod annotates;
 pub(crate) mod assigns;
+pub(crate) mod attribute_path;
 pub(crate) mod call_argument;
 pub(crate) mod comment;
 pub(crate) mod decorates;
 pub(crate) mod defines;
+pub(crate) mod expression_shape;
 pub(crate) mod function;
 pub(crate) mod inherits;
 pub(crate) mod mention;
+pub(crate) mod numeric_literal;
 pub(crate) mod parameter;
 pub(crate) mod reference;
 pub(crate) mod resolves;

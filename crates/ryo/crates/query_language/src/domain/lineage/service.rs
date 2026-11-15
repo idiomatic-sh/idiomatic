@@ -4,7 +4,6 @@
 use super::types::LineageMemo;
 use super::types::StepColumn;
 use super::types::ValueOrigin;
-use crate::domain::fusing::service::source_column;
 use crate::domain::planning::service::planned_scope;
 use crate::domain::resolving::service::relation_fields;
 use crate::domain::walking::service::width_of;
@@ -16,6 +15,7 @@ use ryo_values::domain::lineage::types::ColumnAnchor;
 use ryo_values::domain::lineage::types::Lineage;
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::service::step_in;
+use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
@@ -60,7 +60,7 @@ fn step_kind(
 ) -> Option<CellKind> {
     match &step_in(steps, id)?.operation {
         Operation::Select { from, kept, .. } => {
-            column_kind(steps, memo, *from, source_column(kept, column)?)
+            column_kind(steps, memo, *from, view_source(kept, column)?)
         }
         Operation::Project { from, columns, .. } => {
             column_kind(steps, memo, *from, *column_in(columns, column)?)
@@ -75,7 +75,7 @@ fn step_kind(
             let JoinColumn { side, column: at } = *column_in(output, column)?;
             match side {
                 Side::Left => column_kind(steps, memo, *left, at),
-                Side::Right => column_kind(steps, memo, *right, source_column(view, at)?),
+                Side::Right => column_kind(steps, memo, *right, view_source(view, at)?),
             }
         }
         Operation::OrderedMatch {
@@ -103,7 +103,7 @@ fn step_kind(
             let JoinColumn { side, column: at } = *column_in(output, column)?;
             match side {
                 Side::Left => column_kind(steps, memo, *from, at),
-                Side::Right => column_kind(steps, memo, *domain, source_column(domain_view, at)?),
+                Side::Right => column_kind(steps, memo, *domain, view_source(domain_view, at)?),
             }
         }
         Operation::GroupCount { from, keys, .. } | Operation::GroupDigest { from, keys, .. } => {
@@ -169,7 +169,7 @@ fn step_origins(
     }
     match &step_in(steps, id)?.operation {
         Operation::Select { from, kept, .. } => {
-            value_origins(steps, memo, *from, source_column(kept, column)?)
+            value_origins(steps, memo, *from, view_source(kept, column)?)
         }
         Operation::Project { from, columns, .. } => {
             value_origins(steps, memo, *from, *column_in(columns, column)?)
@@ -186,13 +186,13 @@ fn step_origins(
             let JoinColumn { side, column: at } = *column_in(output, column)?;
             let (own, own_column, other, own_keys, other_keys) = match side {
                 Side::Left => (*left, at, *right, left_on, right_on),
-                Side::Right => (*right, source_column(view, at)?, *left, right_on, left_on),
+                Side::Right => (*right, view_source(view, at)?, *left, right_on, left_on),
             };
             value_origins(steps, memo, own, own_column).or_else(|| {
                 let key = own_keys.iter().position(|each| *each == at)?;
                 let equal = *other_keys.get(key)?;
                 match side {
-                    Side::Left => value_origins(steps, memo, other, source_column(view, equal)?),
+                    Side::Left => value_origins(steps, memo, other, view_source(view, equal)?),
                     Side::Right => value_origins(steps, memo, other, equal),
                 }
             })

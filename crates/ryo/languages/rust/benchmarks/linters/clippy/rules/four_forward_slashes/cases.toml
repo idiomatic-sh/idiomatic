@@ -1,0 +1,59 @@
+[[cases]]
+name = "above-an-item"
+files = { "src/lib.rs" = "//// whoops\npub fn a() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 12 }]
+
+[[cases]]
+name = "through-attributes-and-blank-lines"
+files = { "src/lib.rs" = "pub fn a() {}\n\n//// one\n//// two\n\n#[inline]\n// plain\n/// doc\npub fn b() {}\n" }
+expected = [{ file = "src/lib.rs", start = 15, end = 61 }]
+
+[[cases]]
+name = "between-attributes"
+files = { "src/lib.rs" = "#[inline]\n//// between\n#[must_use]\npub fn a() -> u8 { 0 }\n" }
+expected = [{ file = "src/lib.rs", start = 10, end = 35 }]
+
+[[cases]]
+name = "indented-and-nested"
+files = { "src/lib.rs" = "    //// indented\npub fn a() {}\npub mod m {\n    //// in a module\n    pub struct S;\n}\npub fn b() {\n    //// on a nested item\n    fn c() {}\n    c();\n}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 18 }, { file = "src/lib.rs", start = 44, end = 69 }, { file = "src/lib.rs", start = 98, end = 128 }]
+
+[[cases]]
+name = "not-reported"
+files = { "src/lib.rs" = "pub fn a() {\n    //// in a body\n    let _x = 1;\n}\n///// five\n////! bang\n/// three\npub fn b() {}\npub struct S {\n    //// on a field\n    pub x: u8,\n}\npub trait T {\n    //// on a method\n    fn f();\n}\n" }
+expected = []
+
+[[cases]]
+name = "stops-at-code"
+files = { "src/lib.rs" = "//// far\npub const A: u8 = 1;\npub fn a() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 9 }]
+
+[[cases]]
+name = "item-kinds"
+files = { "src/lib.rs" = "//// u\npub use std::fmt;\n//// s\npub struct S;\n//// i\nimpl S {}\n//// t\npub type T = u8;\n//// m\nmacro_rules! m {\n    () => {};\n}\n//// st\npub static X: u8 = 0;\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 7 }, { file = "src/lib.rs", start = 25, end = 32 }, { file = "src/lib.rs", start = 46, end = 53 }, { file = "src/lib.rs", start = 63, end = 70 }, { file = "src/lib.rs", start = 87, end = 94 }, { file = "src/lib.rs", start = 127, end = 135 }]
+
+[[cases]]
+name = "first-line-bare"
+files = { "src/lib.rs" = "////\npub fn a() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 5 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "//// whoops\n#[allow(clippy::four_forward_slashes)]\npub fn a() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious)]\npub mod m {\n    //// whoops\n    pub fn a() {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::four_forward_slashes)]\n//// whoops\npub fn a() {}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n//// whoops\n#[warn(clippy::four_forward_slashes)]\npub fn a() {}\n" }
+expected = [{ file = "src/lib.rs", start = 30, end = 80 }]

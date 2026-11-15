@@ -51,3 +51,39 @@ name = "noqa"
 comparison = "full"
 files = { "case.py" = "import math\nmath.log(value, 2)  # noqa: FURB163\n" }
 expected = []
+
+[[cases]]
+name = "base-two-hex-leading-zero"
+comparison = "full"
+files = { "case.py" = "import math\nmath.log(value, 0x02)\n" }
+expected = [{ rule = "FURB163", file = "case.py", start = 12, end = 33 }]
+
+[[cases]]
+name = "base-ten-digit-separator"
+comparison = "full"
+files = { "case.py" = "import math\nmath.log(value, 1_0)\n" }
+expected = [{ rule = "FURB163", file = "case.py", start = 12, end = 32 }]
+
+[[cases]]
+name = "base-two-trailing-dot-float"
+comparison = "full"
+files = { "case.py" = "import math\nmath.log(value, 2.)\n" }
+expected = [{ rule = "FURB163", file = "case.py", start = 12, end = 31 }]
+
+[[cases]]
+name = "base-two-float-exponent-zero"
+comparison = "full"
+files = { "case.py" = "import math\nmath.log(value, 2.0e0)\n" }
+expected = [{ rule = "FURB163", file = "case.py", start = 12, end = 34 }]
+
+[[cases]]
+name = "base-ten-float-shifted-exponent"
+comparison = "full"
+files = { "case.py" = "import math\nmath.log(value, 0.1e2)\n" }
+expected = [{ rule = "FURB163", file = "case.py", start = 12, end = 34 }]
+
+[[cases]]
+name = "base-ten-binary-leading-zero"
+comparison = "full"
+files = { "case.py" = "import math\nmath.log(value, 0b01010)\n" }
+expected = [{ rule = "FURB163", file = "case.py", start = 12, end = 36 }]

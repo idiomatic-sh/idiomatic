@@ -4,7 +4,7 @@
 
 **Reference:** pinned Ruff 0.16.5 (`python-target=3.10`; [profile](../../profiles/F621/benchmark.toml)). **Scope:** Python compiler limit versus pinned reference omission; upstream bug status unverified.
 
-The 12 certified cases below retain their exact source bytes and full intended and observed finding arrays in [cases.toml](cases.toml). The [archived raw receipt](../../results/full-inventory-current/f621-target-supplement/raw-receipts.tar.gz) records an executed worker snapshot; the source and reference-output hashes in each case certificate bind the precise observation. A historical combined receipt may predate a later targeted certificate; follow the certificate identity for that case. Diagnostic spans below are UTF-8 byte offsets.
+The 12 certified cases below retain their exact source bytes and full intended and observed finding arrays in [cases.toml](cases.toml). The archived raw receipt records an executed worker snapshot; the source and reference-output hashes in each case certificate bind the precise observation. A historical combined receipt may predate a later targeted certificate; follow the certificate identity for that case. Diagnostic spans below are UTF-8 byte offsets.
 
 To reproduce Ruff's reference finding for `256-targets-before-star`, write its exact named file from [cases.toml](cases.toml) into an isolated directory and run the pinned Ruff 0.16.5 executable (SHA256 `52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8`):
 
@@ -24,4 +24,4 @@ x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, 
 
 - Intended: F621 case.py:0–1431. Pinned Ruff observed: none.
 - Basis: Exact-source reference discrepancy: actual CPython 3.10 rejects this single-star store target with too many expressions in star-unpacking assignment, while pinned Ruff 0.16.5 --select F621 emits no diagnostics. Primary evidence: [probe.py](../../profiles/F621/evidence/probe.py), [results.json](../../profiles/F621/evidence/results.json).
-- Reproduce: use the [profile](../../profiles/F621/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/f621-target-supplement/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+- Reproduce: use the [profile](../../profiles/F621/benchmark.toml), exact named source in [cases.toml](cases.toml), and raw receipt; the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.

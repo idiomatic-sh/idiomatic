@@ -10,7 +10,7 @@ use crate::outbound::profile_tools::types::{DumpTotal, HeapBytes};
 use ryo_benchmark_contracts::domain::measurements::types::{CapturedBytes, ProcessExitCode};
 use std::borrow::Cow;
 use std::num::NonZeroUsize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// What each row runs and observes.
@@ -29,6 +29,28 @@ type Input = Scenario;
 type Value = Cow<'static, str>;
 type Failure = Cow<'static, str>;
 
+/// What a row answers when its answer is the text its expectation builds, the paths in it joined as the platform joins them.
+const AS_JOINED: &str =
+    "the answer, with the paths of the output directory joined as the platform joins them";
+
+/// The text of the path `out` joined with `parts`, as the platform spells it.
+fn under_out(parts: &[&str]) -> String {
+    parts
+        .iter()
+        .fold(PathBuf::from("out"), |path, part| path.join(part))
+        .to_string_lossy()
+        .into_owned()
+}
+
+/// `AS_JOINED` when `answer` is `expected`, else the answer, so a row that differs shows both texts.
+fn as_joined(answer: String, expected: &str) -> Value {
+    if answer == expected {
+        Cow::Borrowed(AS_JOINED)
+    } else {
+        Cow::Owned(answer)
+    }
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(
@@ -44,9 +66,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("the heap child runs run-ryo with the heap profiler's configuration"),
         word: Word::Succeeds,
         input: || Scenario::HeapChild,
-        expect: Expect::Value(Cow::Borrowed(
-            r#"Some(Invocation { executable: "target/worker", arguments: ["run-ryo", "request.json", "python-target=3.12"], environment: {"_RJEM_MALLOC_CONF": "prof:true,prof_active:true,lg_prof_sample:19,lg_prof_interval:30,prof_final:true,prof_prefix:out/heap/dumps/jeprof"}, directory: "." })"#,
-        )),
+        expect: Expect::Value(Cow::Borrowed(AS_JOINED)),
     },
     Case {
         name: CaseName(
@@ -54,25 +74,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Scenario::CpuChild,
-        expect: Expect::Value(Cow::Borrowed(
-            r#"Some(Invocation { executable: "target/worker", arguments: ["profiled-at", "22", "out/cpu/perf.data", "run-ryo", "request.json", "python-target=3.12"], environment: {}, directory: "." })"#,
-        )),
+        expect: Expect::Value(Cow::Borrowed(AS_JOINED)),
     },
     Case {
         name: CaseName("the largest dump is the peak and its report is asked for"),
         word: Word::Succeeds,
         input: || Scenario::PeakReport,
-        expect: Expect::Value(Cow::Borrowed(
-            r#"Some("out/heap/dumps/jeprof.7.9.i9.heap")"#,
-        )),
+        expect: Expect::Value(Cow::Borrowed(AS_JOINED)),
     },
     Case {
         name: CaseName("the bench runs profile-ryo next, writing its trace into the directory"),
         word: Word::Succeeds,
         input: || Scenario::AnsweredCommand,
-        expect: Expect::Value(Cow::Borrowed(
-            r#"[BenchmarkArgument("profile-ryo"), BenchmarkArgument("request.json"), BenchmarkArgument("python-target=3.12"), BenchmarkArgument("out/trace.json")]"#,
-        )),
+        expect: Expect::Value(Cow::Borrowed(AS_JOINED)),
     },
     Case {
         name: CaseName("children that print different output are refused"),
@@ -161,22 +175,62 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         .map_err(|error| Cow::Owned(error.to_string()))?;
     let history = children.history.lock().expect("fixture history");
     let answer = match scenario {
-        Scenario::HeapChild => format!("{:?}", history.first()),
-        Scenario::CpuChild => format!("{:?}", history.get(1)),
-        Scenario::PeakReport => format!(
-            "{:?}",
-            tools
-                .files
-                .lock()
-                .expect("fixture files")
-                .get(Path::new("out/heap/peak.txt"))
-                .map(|report| String::from_utf8_lossy(&report.0).into_owned())
-        ),
+        Scenario::HeapChild => {
+            let prefix = format!(
+                "prof:true,prof_active:true,lg_prof_sample:19,lg_prof_interval:30,prof_final:true,prof_prefix:{}",
+                under_out(&["heap", "dumps", "jeprof"])
+            );
+            as_joined(
+                format!("{:?}", history.first()),
+                &format!(
+                    r#"Some(Invocation {{ executable: "target/worker", arguments: ["run-ryo", "request.json", "python-target=3.12"], environment: {{"_RJEM_MALLOC_CONF": {prefix:?}}}, directory: "." }})"#
+                ),
+            )
+            .into_owned()
+        }
+        Scenario::CpuChild => {
+            let recording = under_out(&["cpu", "perf.data"]);
+            as_joined(
+                format!("{:?}", history.get(1)),
+                &format!(
+                    r#"Some(Invocation {{ executable: "target/worker", arguments: ["profiled-at", "22", {recording:?}, "run-ryo", "request.json", "python-target=3.12"], environment: {{}}, directory: "." }})"#
+                ),
+            )
+            .into_owned()
+        }
+        Scenario::PeakReport => {
+            let answer = format!(
+                "{:?}",
+                tools
+                    .files
+                    .lock()
+                    .expect("fixture files")
+                    .get(&PathBuf::from(under_out(&["heap", "peak.txt"])))
+                    .map(|report| String::from_utf8_lossy(&report.0).into_owned())
+            );
+            as_joined(
+                answer,
+                &format!(
+                    "Some({:?})",
+                    under_out(&["heap", "dumps", "jeprof.7.9.i9.heap"])
+                ),
+            )
+            .into_owned()
+        }
         Scenario::Unasked => format!("{:?} {:?}", report.command, report.profile),
-        Scenario::AnsweredCommand
-        | Scenario::DifferingStdout
-        | Scenario::NoDump
-        | Scenario::FailedChild => format!("{:?}", report.command),
+        Scenario::AnsweredCommand => {
+            let trace = under_out(&["trace.json"]);
+            as_joined(
+                format!("{:?}", report.command),
+                &format!(
+                    r#"[BenchmarkArgument("profile-ryo"), BenchmarkArgument("request.json"), BenchmarkArgument("python-target=3.12"), BenchmarkArgument({trace:?})]"#
+                ),
+            )
+            .into_owned()
+        }
+        Scenario::DifferingStdout | Scenario::NoDump | Scenario::FailedChild => {
+            format!("{:?}", report.command)
+        }
     };
     Ok(Cow::Owned(answer))
 }

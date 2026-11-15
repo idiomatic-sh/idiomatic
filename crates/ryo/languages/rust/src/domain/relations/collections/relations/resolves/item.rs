@@ -1,6 +1,7 @@
 //! The `resolves` relation of the language: each type written as a path of one name, with the declaration, import or type parameter
 //! that binds the name where it is written.
 
+use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::resolutions::service::{binding_of, holder, plain_type_name};
 use crate::domain::syntax::service::kind_bits;
@@ -11,7 +12,7 @@ use ryo::languages;
 pub(crate) struct ResolvesItem;
 
 ryo::reads! {
-    ResolvesItem => languages::Resolves |tree, at, symbols| {
+    ResolvesItem => languages::Resolves, model(ReadIndexes) |tree, _model, at, symbols| {
         kinds: [Kind::Node(Node::PathType)] as kind_bits,
         given name = plain_type_name(tree, at)?;
         given definition = binding_of(tree, at, name)?;

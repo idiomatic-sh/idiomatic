@@ -1,5 +1,0 @@
-param max-allows: integer;
-let allows = select * from "decorates" where target = "allow";
-let per-file = group-count(from=allows, keys=["file"], count="allows", distinct="occurrence");
-let over = select * from per-file where allows > $max-allows;
-emit over subject "file" key("file");

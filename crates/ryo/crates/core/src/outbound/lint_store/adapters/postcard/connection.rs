@@ -7,15 +7,15 @@ use crate::outbound::lint_store::adapters::postcard::constants::MISSING_SPOOL_RE
 use crate::outbound::lint_store::adapters::postcard::constants::MISSING_SPOOL_WRITER;
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_BUCKET_SEEK_EXCEEDS_ITS_SECTION;
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_BUCKET_SEEK_UNDERFLOWS;
-#[cfg(unix)]
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_ROW_POSITION_OVERFLOWS;
-#[cfg(unix)]
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_ROW_SEEK_UNDERFLOWS;
 use crate::outbound::lint_store::adapters::postcard::constants::STAGED_OFFSET_OVERFLOWS;
 use crate::outbound::lint_store::adapters::postcard::constants::STAGED_PAYLOAD_EXCEEDS_ADDRESSABLE_MEMORY;
 use crate::outbound::lint_store::adapters::postcard::constants::STAGED_PAYLOAD_LENGTH_OVERFLOWS;
 use crate::outbound::lint_store::adapters::postcard::constants::STAGED_SPAN_IS_OUTSIDE_THIS_SNAPSHOT;
 use crate::outbound::lint_store::adapters::postcard::types::FileOffset;
+use crate::outbound::lint_store::adapters::postcard::types::SectionBytes;
+use crate::outbound::lint_store::adapters::postcard::types::SectionLength;
 use ryo_values::domain::records::types::PayloadLength;
 use ryo_values::domain::records::types::PayloadOffset;
 use ryo_values::domain::records::types::StagedWords;
@@ -211,55 +211,6 @@ pub(super) fn validate(
     Ok(())
 }
 
-/// Standard-IO seams keep failure tests independent of operating-system permissions.
-#[cfg(test)]
-pub(super) fn append<F: Write + Seek>(
-    file: &mut F,
-    session: StagingSession,
-    held: &mut PayloadLength,
-    words: &PackedWords,
-) -> std::io::Result<StagedWords> {
-    let length =
-        u64::try_from(words.0.len()).map_err(|_| invalid(STAGED_PAYLOAD_LENGTH_OVERFLOWS))?;
-    let end = held
-        .0
-        .checked_add(length)
-        .ok_or_else(|| invalid(STAGED_OFFSET_OVERFLOWS))?;
-    let _position = file.seek(SeekFrom::Start(held.0))?;
-    file.write_all(&words.0)?;
-    // Commit logical length only after every append/flush operation succeeds.
-    file.flush()?;
-    let span = StagedWords {
-        session,
-        offset: ryo_values::domain::records::types::PayloadOffset(held.0),
-        length: ryo_values::domain::records::types::PayloadLength(length),
-    };
-    *held = PayloadLength(end);
-    Ok(span)
-}
-
-/// At most one selected normalized bucket is owned by the replay caller.
-#[cfg(test)]
-pub(super) fn read<F: Read + Write + Seek>(
-    file: &mut F,
-    session: StagingSession,
-    held: PayloadLength,
-    span: &StagedWords,
-    into: &mut PackedWords,
-) -> std::io::Result<()> {
-    validate(session, held, span)?;
-    let length = usize::try_from(span.length.0)
-        .map_err(|_| invalid(STAGED_PAYLOAD_EXCEEDS_ADDRESSABLE_MEMORY))?;
-    file.flush()?;
-    let _position = file.seek(SeekFrom::Start(span.offset.0))?;
-    into.0.clear();
-    into.0
-        .try_reserve_exact(length)
-        .map_err(std::io::Error::other)?;
-    into.0.resize(length, 0);
-    file.read_exact(&mut into.0)
-}
-
 /// Fixed IO memory per active snapshot/stream, independent of row count/payload size.
 pub(super) const BUFFER_BYTES: usize = 64 * 1024;
 
@@ -298,19 +249,26 @@ pub(super) fn copy_buffered(
     Ok(())
 }
 
-/// Reads the old snapshot at a position of its own, leaving the file's own cursor where it is.
-#[cfg(unix)]
+/// Reads the store file at a position of its own, never through the file's cursor; built only by `StoreFile::at`, so no code
+/// outside this file holds the store's handle.
 pub(super) struct PositionalReader<'a> {
-    pub file: &'a std::fs::File,
-    pub at: FileOffset,
+    file: &'a std::fs::File,
+    at: FileOffset,
 }
 
-#[cfg(unix)]
 impl Read for PositionalReader<'_> {
     fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
-        use std::os::unix::fs::FileExt as _;
-
-        let read = self.file.read_at(into, self.at.0)?;
+        #[cfg(unix)]
+        let read = {
+            use std::os::unix::fs::FileExt as _;
+            self.file.read_at(into, self.at.0)?
+        };
+        // Windows moves the handle's cursor as it reads; no reader of the store file reads through that cursor (`StoreFile`).
+        #[cfg(windows)]
+        let read = {
+            use std::os::windows::fs::FileExt as _;
+            self.file.seek_read(into, self.at.0)?
+        };
         self.at = FileOffset(
             self.at
                 .0
@@ -321,7 +279,6 @@ impl Read for PositionalReader<'_> {
     }
 }
 
-#[cfg(unix)]
 impl Seek for PositionalReader<'_> {
     fn seek(&mut self, from: SeekFrom) -> std::io::Result<u64> {
         let at = match from {
@@ -366,5 +323,43 @@ impl<R: Seek> Seek for BucketReader<'_, R> {
         }
         self.at = FileOffset(self.file.seek(SeekFrom::Start(at))?);
         Ok(self.at.0)
+    }
+}
+
+/// The store file as found, open.
+#[derive(Debug)]
+pub(super) struct OpenedStore {
+    /// The file.
+    pub file: StoreFile,
+    /// The immutable snapshot length observed when this file was opened.
+    pub length: SectionLength,
+    /// The bytes of its table of contents.
+    pub contents: SectionBytes,
+}
+
+/// The open store file, read only at positions and never through its cursor: readers sharing its handle, the old-row batch among
+/// them, never move each other's place.
+#[derive(Debug)]
+pub(super) struct StoreFile(std::fs::File);
+
+impl StoreFile {
+    /// The store file `file`, opened by the adapter.
+    pub(super) fn new(file: std::fs::File) -> Self {
+        Self(file)
+    }
+
+    /// A reader of the file from `at`.
+    pub(super) fn at(&self, at: FileOffset) -> PositionalReader<'_> {
+        PositionalReader { file: &self.0, at }
+    }
+
+    /// How long the file is now.
+    pub(super) fn held(&self) -> std::io::Result<SectionLength> {
+        Ok(SectionLength(self.0.metadata()?.len()))
+    }
+
+    /// A second handle on the same file, for the old-row batch.
+    pub(super) fn cloned(&self) -> std::io::Result<Self> {
+        Ok(Self(self.0.try_clone()?))
     }
 }

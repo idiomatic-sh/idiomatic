@@ -21,8 +21,8 @@ pub const REFERENCE: &str = "reference";
 pub const CANDIDATE: &str = "candidate";
 /// The command that verifies registered cases.
 pub const VERIFY_CASES: &str = "verify-cases";
-/// The schema label of a public inventory summary.
-pub const BENCHMARK_INVENTORY_V1: &str = "benchmark-inventory/v1";
+/// The schema label of a public inventory summary: rows are PASS, FAIL or DEFERRED.
+pub const BENCHMARK_INVENTORY_V2: &str = "benchmark-inventory/v2";
 /// The state of a summary whose rules are still being verified.
 pub const RUNNING: &str = "running";
 /// The state of a run refused before every rule had a row.
@@ -31,3 +31,5 @@ pub const FAILED: &str = "failed";
 pub const PASS: &str = "PASS";
 /// The status of a rule that failed, was missing or was not run.
 pub const FAIL: &str = "FAIL";
+/// The status of a default its profile defers under a named capability.
+pub const DEFERRED: &str = "DEFERRED";

@@ -1,0 +1,79 @@
+[[cases]]
+name = "function-body"
+files = { "src/lib.rs" = "pub fn f() -> ! {\n    loop {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 22, end = 29 }]
+
+[[cases]]
+name = "statement-and-labeled"
+files = { "src/lib.rs" = "pub fn f(stop: bool) {\n    if stop {\n        loop {}\n    }\n    'outer: loop {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 45, end = 52 }, { file = "src/lib.rs", start = 63, end = 78 }]
+
+[[cases]]
+name = "trivia-only"
+files = { "src/lib.rs" = "pub fn f(stop: bool) {\n    if stop {\n        loop {\n            // waiting\n        }\n    }\n    loop {\n        ;\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 45, end = 84 }, { file = "src/lib.rs", start = 95, end = 117 }]
+
+[[cases]]
+name = "not-empty"
+files = { "src/lib.rs" = "pub fn f(mut n: u32) -> u32 {\n    loop {\n        n += 1;\n        if n > 3 {\n            break n;\n        }\n    }\n}\npub fn g() -> u32 {\n    loop {\n        break 1\n    }\n}\npub fn h() {\n    loop {\n        fn inner() {}\n        inner();\n        break;\n    }\n}\npub fn k() {\n    while false {}\n    for _ in 0..0 {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "item-only-body"
+files = { "src/lib.rs" = "pub fn f(stop: bool) {\n    if stop {\n        loop {\n            fn inner() {}\n        }\n    }\n    if !stop {\n        loop {\n            {}\n        }\n    }\n}\n" }
+expected = []
+
+[[cases]]
+name = "expressions"
+files = { "src/lib.rs" = "pub fn f(stop: bool) -> u8 {\n    let c = || -> u8 { loop {} };\n    if stop {\n        return c();\n    }\n    let x: u8 = if stop { 1 } else { loop {} };\n    x\n}\npub const fn g() -> ! {\n    loop {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 52, end = 59 }, { file = "src/lib.rs", start = 140, end = 147 }, { file = "src/lib.rs", start = 187, end = 194 }]
+
+[[cases]]
+name = "async-and-unsafe-blocks"
+files = { "src/lib.rs" = "pub async fn f() {\n    async { loop {} }.await\n}\npub fn g() {\n    unsafe { loop {} }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 31, end = 38 }, { file = "src/lib.rs", start = 75, end = 82 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    #[allow(dead_code)]\n    fn spin() -> ! {\n        loop {}\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 78, end = 85 }]
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! spin {\n    () => {\n        loop {}\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::empty_loop)]\npub fn f() -> ! {\n    loop {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious)]\npub fn f() -> ! {\n    loop {}\n}\npub fn g() -> ! {\n    #[expect(clippy::all)]\n    loop {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::empty_loop)]\npub fn f() -> ! {\n    loop {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n#[warn(clippy::empty_loop)]\npub fn f() -> ! {\n    loop {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 80, end = 87 }]
+
+[[cases]]
+name = "panic-handler"
+files = { "src/lib.rs" = "#![cfg_attr(not(test), no_std)]\n#[cfg(not(test))]\n#[panic_handler]\nfn panic(_: &core::panic::PanicInfo<'_>) -> ! {\n    loop {}\n}\npub fn spin() -> ! {\n    loop {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 154, end = 161 }]
+
+[[cases]]
+name = "inner-attribute-only"
+files = { "src/lib.rs" = "pub fn f() -> ! {\n    loop {\n        #![allow(unused)]\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 22, end = 60 }]
+
+[[cases]]
+name = "warn-on-the-loop"
+files = { "src/lib.rs" = "#![allow(clippy::empty_loop)]\npub fn f() -> ! {\n    #[warn(clippy::empty_loop)]\n    'spin: loop {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 84, end = 98 }]

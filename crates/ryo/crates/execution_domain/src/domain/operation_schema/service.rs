@@ -315,7 +315,12 @@ pub(crate) fn join_schema(
     let view = right_view(view, right.tree, reach.as_ref());
     let answer = joined(left.kinds, right_kinds, view, output)?;
     for column in right_on {
-        check_columns(right_kinds, &[right_column(view, *column)])?;
+        check_columns(
+            right_kinds,
+            &[right_column(view, *column).ok_or(
+                ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: column.0 },
+            )?],
+        )?;
     }
     check_columns(left.kinds, left_on)?;
     BindingShape::new(bindings).predicates(filter, right_kinds)?;
