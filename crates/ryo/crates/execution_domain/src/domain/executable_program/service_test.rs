@@ -81,7 +81,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Request::UnservedKind,
         expect: Expect::Value(Cow::Borrowed(
-            "nodes 2; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)) NotServedUntil(ServedAt(2)); rule 1: steps [Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)) Served; consumers [1, 1]; roots word []; roots other [];",
+            "nodes 2; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)) NotServedUntil(ServedAt(4)); rule 1: steps [Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)) Served; consumers [1, 1]; roots word []; roots other [];",
         )),
     },
     Case {
@@ -213,13 +213,22 @@ fn rules_of(request: Request) -> Vec<(Arc<Plan>, Vec<ParameterBinding>)> {
         Request::UnservedKind => vec![
             (
                 plan(
-                    vec![per_file(Operation::Words {
-                        from: StepInput::Relation(Relation::Defines),
-                        text: ColumnIndex(3),
+                    // The rows kind: with every per-file kind of the first three stages lowered, the kinds of the fourth
+                    // are the ones a plan does not serve yet.
+                    vec![per_file(Operation::Rows {
+                        parameter: ParameterId(0),
+                        keys: vec![ryo_values::domain::plan_parts::types::TableKey("name".into())],
                     })],
                     Vec::new(),
                 ),
-                unbound(),
+                vec![ParameterBinding::Tables(vec![
+                    ryo_values::domain::query_bindings::types::BindingTable(vec![
+                        ryo_values::domain::query_bindings::types::BindingCell {
+                            key: LiteralText("name".into()),
+                            value: LiteralText("bound".into()),
+                        },
+                    ]),
+                ])],
             ),
             (plan(vec![per_file(named())], Vec::new()), unbound()),
         ],
