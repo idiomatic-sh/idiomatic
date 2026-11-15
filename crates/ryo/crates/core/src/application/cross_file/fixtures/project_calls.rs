@@ -1,10 +1,12 @@
-//! An operators port that counts the reductions and the group emissions a project phase asks for, and otherwise answers as
-//! the operators do.
+//! An operators port that counts the nodes a project phase runs after the files and the rows they answer, and otherwise runs
+//! as the operators do.
 
 #[derive(Debug, Default)]
 pub(crate) struct ProjectCalls {
-    pub(crate) reductions: std::sync::atomic::AtomicUsize,
-    pub(crate) aggregates: std::sync::atomic::AtomicUsize,
+    /// How many nodes ran after the files.
+    pub(crate) runs: std::sync::atomic::AtomicUsize,
+    /// How many rows the nodes that ran after the files answered.
+    pub(crate) rows: std::sync::atomic::AtomicUsize,
 }
 
 impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for ProjectCalls {
@@ -25,41 +27,30 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Pr
         inputs: &dyn ryo_operators::domain::physical_plan::types::PlanInputs,
         resources: &mut dyn ryo_operators::domain::physical_plan::types::Resources,
     ) -> Result<(), ryo_operators::domain::contract::types::PortableOperatorFault> {
+        use ryo_operators::domain::physical_plan::types::NodeRows;
+        use ryo_operators::domain::physical_plan::types::Resources as _;
+        use std::sync::atomic::Ordering;
+        // After the files no file is open: a node run then reads no source.
+        let after_the_files = resources.source().0.is_empty();
         ryo_operators::inbound::use_cases::run::fixtures::ran(
             plan, node, buffers, inputs, resources,
-        )
+        )?;
+        if after_the_files {
+            let _runs = self.runs.fetch_add(1, Ordering::SeqCst);
+            if let NodeRows::Materialized(table) = buffers.rows(node) {
+                let _rows = self.rows.fetch_add(table.count.0, Ordering::SeqCst);
+            }
+        }
+        Ok(())
     }
     fn operators(
         &self,
-        mut call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
+        call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
     ) -> Result<
         ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
         ryo_operators::domain::contract::types::PortableOperatorFault,
     > {
         use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
-        use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-        use std::sync::atomic::Ordering;
-        #[expect(
-            clippy::wildcard_enum_match_arm,
-            reason = "the audit counts reductions and group emissions; every other operator call passes through unchanged"
-        )]
-        match &mut call {
-            OperatorCall::ReduceCount { .. } => {
-                self.reductions.fetch_add(1, Ordering::SeqCst);
-            }
-            OperatorCall::Evaluate {
-                operation:
-                    ryo_values::domain::plans::types::Operation::GroupCount { .. }
-                    | ryo_values::domain::plans::types::Operation::GroupDigest { .. },
-                driver,
-                ..
-            } => {
-                // One aggregate is formatted for each prepared group.
-                let groups = driver.groups().map_or(0, |groups| groups.0);
-                self.aggregates.fetch_add(groups, Ordering::SeqCst);
-            }
-            _ => {}
-        }
         ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
             std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
         )

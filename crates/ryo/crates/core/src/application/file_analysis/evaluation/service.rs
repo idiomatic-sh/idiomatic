@@ -1,6 +1,7 @@
 //! The rules of one file run in the engine's one call; the worker renders the emitted roots, notes the frontiers it could not
 //! capture, keeps the captured ones it records and adds the counts.
 use super::super::errors::FileAnalysisError;
+use super::super::language_source::service::language_serves;
 use super::super::semantic::service::SemanticState;
 use super::super::service::FileAnalysis;
 use super::super::types::{EngineSource, FileRead, FileVisit, LanguageSource, RuleGate, Worker};
@@ -63,11 +64,12 @@ impl FileAnalysis {
         } else {
             Partiality::Physical
         };
-        // The catalog lists the engine's relations last, so what a language serves is the catalog before them: no list per file.
+        // The catalog lists the project's relations, then the engine's, last: what a language serves is the catalog before them
+        // and what the engine serves the catalog after the project's, no list per file.
         let catalog = all();
         let engine =
             catalog.partition_point(|relation| provenance_of(*relation) != Provenance::Engine);
-        let serves = catalog.get(..engine).unwrap_or(catalog);
+        let serves = language_serves(catalog);
         let mut refused = None;
         let mut reader;
         let mut own = EngineSource {

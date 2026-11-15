@@ -1,5 +1,4 @@
 //! Mandatory per-operation metadata and the finite primitive capability boundary.
-pub mod context;
 pub(crate) mod driver;
 pub mod failure;
 pub mod presence;

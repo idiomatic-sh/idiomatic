@@ -58,7 +58,7 @@ pub struct OriginScope {
     pub(in super::super) previous: Option<RouteOrigin>,
 }
 
-/// The origin a profile had when an invocation began, with the profile it belongs to.
+/// The profile an invocation began under, captured for the rows it delivers.
 ///
 /// # Examples
 ///
@@ -72,5 +72,4 @@ pub struct OriginScope {
 #[derive(Clone, Debug)]
 pub struct CapturedOrigin {
     pub(in super::super) profile: RouteProfile,
-    pub(in super::super) origin: Option<RouteOrigin>,
 }

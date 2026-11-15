@@ -71,31 +71,6 @@ pub struct InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
-    /// The workspace of one invocation of `contract`, its allocations begun for the invocation.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
-    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
-    /// use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
-    /// use std::rc::Rc;
-    /// fn workspace(owner: &Rc<RelationOwner>, contract: &OperatorContract) -> InvocationWorkspace {
-    ///     InvocationWorkspace::for_contract(Rc::clone(owner), contract)
-    /// }
-    /// ```
-    pub fn for_contract(
-        owner: std::rc::Rc<super::super::relations::service::RelationOwner>,
-        contract: &ryo_execution_domain::domain::operator::contract::types::OperatorContract,
-    ) -> Self {
-        let mut workspace = Self::new(owner);
-        ryo_execution_domain::domain::operator::contract::workspace::service::begin(
-            &contract.workspace,
-            ryo_execution_domain::domain::operator::contract::types::WorkspaceLifetime::Invocation,
-            &mut workspace.primitive,
-        );
-        workspace
-    }
     pub(crate) fn new(owner: std::rc::Rc<super::super::relations::service::RelationOwner>) -> Self {
         Self {
             work: Default::default(),

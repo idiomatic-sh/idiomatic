@@ -39,6 +39,7 @@ impl KernelsItem for ProjectItem {
                 | Lowering::Axis { .. }
                 | Lowering::OrderedWalk { .. }
                 | Lowering::Components { .. }
+                | Lowering::ScanBound { .. }
                 | Lowering::Unlowered => false,
             }
         };

@@ -36,6 +36,7 @@ impl KernelsItem for DistinctItem {
                 | Lowering::Axis { .. }
                 | Lowering::OrderedWalk { .. }
                 | Lowering::Components { .. }
+                | Lowering::ScanBound { .. }
                 | Lowering::Unlowered => false,
             }
         };

@@ -2,7 +2,7 @@
 //! it runs.
 use crate::domain::aggregate::types::GroupMeasure;
 use crate::domain::ordered_dfs::types::DfsShape;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{BoundScan, Lowering};
 use crate::domain::physical_plan::types::{PlanInput, ProbeIndex, RowMap, RowSource};
 use crate::domain::set_rows::types::{SetKind, SetLowering};
 use crate::domain::{aggregate, closure, cycles, ordered_dfs};
@@ -19,7 +19,8 @@ fn source_of(input: &PlanInput) -> Option<RowSource> {
                 None => RowSource::Facts(*relation),
             },
         ),
-        PlanInput::Bound(_) | PlanInput::Observation(_) => None,
+        PlanInput::Frontier(place) => Some(RowSource::Frontier(*place)),
+        PlanInput::Observation(place) => Some(RowSource::Observation(*place)),
     }
 }
 
@@ -275,7 +276,16 @@ pub(crate) fn lowered(
             edges,
             cycles: cycles::service::lower(*source, *destination),
         }),
-        Operation::Rows { .. } | Operation::Hosted { .. } => None,
+        Operation::Rows { parameter, keys } => Some(Lowering::ScanBound {
+            scan: BoundScan::Rows {
+                parameter: *parameter,
+                keys: keys.clone(),
+                bindings: bindings.to_vec(),
+            },
+        }),
+        Operation::Hosted { relation } => Some(Lowering::ScanBound {
+            scan: BoundScan::Hosted(*relation),
+        }),
     };
     lowering.unwrap_or(Lowering::Unlowered)
 }

@@ -48,10 +48,6 @@ Describes the frontier a rule retains and the scope it is captured in.
 
 Carries a coverage of files to the file-frontier boundary and restores it.
 
-### frontiers
-
-Describes the retained rows and project facts read by cross-file steps.
-
 ### hosted
 
 Describes host-provided relations and their declared row shapes.
@@ -95,10 +91,6 @@ Decides which configured rules govern a source file.
 ### prepared_request
 
 Holds immutable request declarations consumed by compilation.
-
-### readiness
-
-Wakes exactly the demanded producers for the admission interpreter.
 
 ### replay
 

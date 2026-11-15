@@ -4,10 +4,10 @@ use hashbrown::HashTable;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::{CellKind, Value as Cell};
 
-use super::service::distinct;
+use super::service::first_time;
+use crate::domain::table_model::types::Addition;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::errors::RowsError;
-use ryo_values::domain::rows::service::push_row;
 
 /// A scenario: what a row asks of the part.
 type Input = fn() -> Result<Value, RowsError>;
@@ -21,10 +21,10 @@ fn drops_the_repeated_row() -> Value {
         kinds: vec![CellKind::Number],
         ..Table::default()
     };
+    let mut seen = HashTable::new();
     for number in [1, 1, 2, 1] {
-        push_row(&mut table, &[Cell::Number(Integer(number))]);
+        let _: Addition = first_time(&mut table, &mut seen, &[Cell::Number(Integer(number))]);
     }
-    distinct(&mut table, &mut HashTable::new());
     table.count.0 * 10 + table.cells.len()
 }
 

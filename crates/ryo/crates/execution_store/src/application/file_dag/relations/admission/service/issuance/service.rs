@@ -2,7 +2,6 @@
 use crate::application::file_dag::derived::population::service::PopulationId;
 use crate::application::file_dag::relations::admission::service::BorrowedInput;
 use crate::application::file_dag::relations::admission::types::AdmissionOrigin;
-use crate::application::file_dag::relations::generation::service::GenerationLease;
 use crate::application::file_dag::relations::publication::types::RelationBody;
 use crate::application::file_dag::relations::service::*;
 use crate::application::file_dag::relations::types::Sameness;
@@ -13,29 +12,6 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
 impl<'a> BorrowedInput<'a> {
-    /// Checks that `publication` is the one this input was admitted from.
-    ///
-    /// # Errors
-    ///
-    /// The refusals of [`Self::identity`] and of the publication's input, and [`OperatingError::NotRead`] when the
-    /// publication is another population or generation than the one this input was admitted from.
-    pub fn require_publication(
-        &self,
-        owner: &RelationOwner,
-        publication: &crate::application::file_dag::relations::handle::service::Publication,
-    ) -> Result<(), OperatingError> {
-        let population = self.identity(owner)?.population;
-        let actual = owner.private(publication.input()?.as_ref())?;
-        if self.publication_population != actual.population
-            || population != owner.result_population(actual)
-            || GenerationLease::same(&self.origin.generation, &actual.generation)
-                == Sameness::Different
-        {
-            return Err(OperatingError::NotRead);
-        }
-        Ok(())
-    }
-
     /// Physical source identity bound once with this immutable, generation-checked input.
     /// Selected projections keep their own population for ordinary views while
     /// canonical graph columns can share the source backing identity.
@@ -127,7 +103,6 @@ impl RelationOwner {
         Ok(self
             .inspect_current(result, input)
             .map(|shape| BorrowedInput {
-                publication_population: result.population,
                 rows: input,
                 shape,
                 backing_population: self.backing_population(result),

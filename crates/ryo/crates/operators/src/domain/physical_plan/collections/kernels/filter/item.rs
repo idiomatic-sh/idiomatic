@@ -40,6 +40,7 @@ impl KernelsItem for FilterItem {
                 | Lowering::Reach { .. }
                 | Lowering::OrderedWalk { .. }
                 | Lowering::Components { .. }
+                | Lowering::ScanBound { .. }
                 | Lowering::Unlowered => false,
             }
         };

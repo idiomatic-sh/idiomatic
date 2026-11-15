@@ -104,6 +104,10 @@ pub(crate) fn probed(
     output: &mut Table,
 ) -> Result<Option<PortableOperatorFault>, PortableOperatorFault> {
     output.kinds = answer_kinds(probe, left, right)?;
+    // No left row reaches the right side: an empty left answers its layout before any right key or filter is read.
+    if count_of(left).0 == 0 {
+        return Ok(None);
+    }
     let filtered;
     let right = if probe.filter.comparisons.is_empty() {
         right

@@ -29,7 +29,6 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
             let engine = PrepareUseCaseImpl::new(
                 semantics.clone(),
                 Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
-                Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
             );
             let mut authored = authored_request(1);
             let comparisons = if empty {

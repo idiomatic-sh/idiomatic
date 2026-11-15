@@ -349,4 +349,6 @@ mod kinds;
 #[cfg(test)]
 mod relational;
 #[cfg(test)]
+mod held_rows;
+#[cfg(test)]
 mod tree_rows;

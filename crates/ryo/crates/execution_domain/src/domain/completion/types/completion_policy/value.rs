@@ -1,17 +1,13 @@
 //! Required scope-specific completion. Only successful evaluation can mint rows;
 //! unavailable inputs retain provenance and can never become a complete empty table.
 use crate::domain::{
-    coverage::{
-        service::{drop_inapplicable, drop_uncertain},
-        types::{Partial, Partials, RuleIndex},
-    },
+    coverage::types::{Partial, Partials, RuleIndex},
     trust::{
         service::{blocked, files_for, partial_files_for, skipped_files},
         types::{Blocking, RelationRead},
     },
 };
 use ryo_relations::domain::relations::types::FileId;
-use ryo_values::domain::{plans::types::Operation, rows::types::Table};
 
 use super::super::{CoverageState, ObservationAdmission, RegionAdmission, ScopeIdentity};
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -149,13 +145,21 @@ impl CompletionPolicy {
             ObservationAdmission::Incomplete
         }
     }
-    /// Drops the rows the policy withholds from an operation's answer.
-    pub fn filter_rows(&self, operation: &Operation, needs: &[RelationRead], rows: &mut Table) {
-        if let CompletionBehavior::DropAfterCollect(partials) = &self.behavior {
-            let kinds = rows.kinds.clone();
-            drop_uncertain(operation, &kinds, rows, &partial_files_for(partials, needs));
-            // A skipped file is out of scope for a count not keyed by file; it withholds only its own rows otherwise.
-            drop_inapplicable(operation, &kinds, rows, &skipped_files(partials));
+    /// The files the rule skipped before its steps after the files, sorted, once each: an antijoin or a difference after the
+    /// files withholds the rows it keys by one of them (`filter_contributor_rows`). A file scope skips none.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+    /// use ryo_execution_domain::domain::coverage::types::{Partials, RuleIndex};
+    /// let none = Partials::default();
+    /// assert!(CompletionPolicy::project_inputs(RuleIndex(0), &none, &none).skipped_files().is_empty());
+    /// ```
+    pub fn skipped_files(&self) -> Vec<FileId> {
+        match &self.behavior {
+            CompletionBehavior::DropAfterCollect(partials) => skipped_files(partials),
+            CompletionBehavior::BlockBeforeRun(..) => Vec::new(),
         }
     }
     /// Whether the needed reads permit a region to run.
@@ -170,25 +174,6 @@ impl CompletionPolicy {
             RegionAdmission::Allowed
         } else {
             RegionAdmission::Blocked
-        }
-    }
-    /// This policy, now for another rule: what `for_rule` answers, made in place without copying the partials.
-    pub fn rebind(&mut self, rule: RuleIndex) {
-        self.scope = match self.scope {
-            ScopeIdentity::File { file, .. } => ScopeIdentity::File { rule, file },
-            ScopeIdentity::Project { .. } => ScopeIdentity::Project { rule },
-        };
-    }
-    /// The same policy for another rule.
-    pub fn for_rule(&self, rule: RuleIndex) -> Self {
-        let scope = match self.scope {
-            ScopeIdentity::File { file, .. } => ScopeIdentity::File { rule, file },
-            ScopeIdentity::Project { .. } => ScopeIdentity::Project { rule },
-        };
-        Self {
-            scope,
-            behavior: self.behavior.clone(),
-            publication: self.publication.clone(),
         }
     }
 }

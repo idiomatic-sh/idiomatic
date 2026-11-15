@@ -1,105 +1,123 @@
-//! One compact admission operation for diagnostic and observed project phases.
-//! Store reads and name/spelling preparation keep their existing eager order;
-//! row-cell allocation belongs to the shared executable invocation owner.
+//! The `frontiers` service: what the files hand over to a rule's steps after the files. Each entry of the rule's frontier is
+//! read from the store and proven against the files the rule read, in frontier order, before any step runs; then decoded once
+//! into the phase's symbols. A store refusal stops the occurrence; an entry whose producer is unavailable, whose every source
+//! was skipped or whose words do not decode is withheld, and its reason is raised where a step first reads it.
 use super::constants::{PRODUCER_UNAVAILABLE, PROOF_MISMATCH, SOURCES_SKIPPED};
 use super::errors::FrontiersError;
 use super::types::{
-    FileAccounting, FrontierInput, FrontierSource, InputReadiness, PackedFrontier,
-    PreparedFrontiers, ProviderAddress, Providers,
+    FileAccounting, FrontierRows, HandedOver, HandoverPolicy, InputReadiness, PhaseScoping,
+    Withholdings,
 };
-use crate::application::file_dag::frontiers::cache::service::FrontierCache;
-use crate::application::file_dag::frontiers::decodes::service::FrontierDecodes;
-use crate::outbound::facts::interface::{FactsFinish, FactsWorker};
-use ryo_language::domain::symbols::{service::places_mut, types::Symbols};
-use ryo_values::domain::{
-    plan_parts::types::{Input, InputNumber},
-    stored_facts::types::Bucket,
+use crate::application::file_dag::program::admission::types::RequiredPartitions;
+use crate::application::file_dag::program::preparation::types::PreparedProgram;
+use crate::application::file_dag::program::request_execution::types::RequestExecution;
+use crate::application::file_dag::project_source::service::table_of;
+use crate::application::file_dag::project_source::types::ProjectSource;
+use crate::outbound::facts::interface::FactsFinish;
+use crate::outbound::facts::types::KeptBucket;
+use ryo_execution_domain::domain::completion::service::partial_of_lacks;
+use ryo_execution_domain::domain::completion::types::{CoverageState, FileLacks, MissingRows};
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::frontier_coverage::service::restored_lacks;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_language::domain::symbols::service::places_mut;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_operators::domain::contract::types::WithheldInput;
+use ryo_operators::domain::physical_plan::types::frontier_place::value::FrontierPlace;
+use ryo_operators::domain::physical_plan::types::held_rows::value::HeldRows;
+use ryo_relations::domain::catalog::service::scope_of;
+use ryo_relations::domain::catalog::types::RowScope;
+use ryo_relations::domain::relations::types::FileId;
+use ryo_values::domain::plan_parts::types::{Input, InputNumber};
+use ryo_values::domain::records::service::is_well_formed;
+use ryo_values::domain::records::types::{FrontierCoverage, FrontierShape};
+use ryo_values::domain::rows::types::Table;
+use ryo_values::domain::run_metadata::types::FrontierFeed;
+use ryo_values::domain::stored_facts::service::frontier_bucket;
+use ryo_values::domain::stored_facts::types::Bucket;
+use ryo_values::domain::table_words::service::{
+    decode_combined, decode_complete, single_table_frame,
 };
-use {
-    ryo_execution_domain::domain::frontiers::service::decode_input,
-    ryo_execution_domain::domain::frontiers::service::project_input,
-    ryo_execution_domain::domain::frontiers::service::project_relation,
-    ryo_execution_domain::domain::frontiers::types::RefusedFrontier,
-    ryo_execution_domain::domain::operating::errors::OperatingError,
-    ryo_execution_domain::domain::table_model::types::Frontier,
-    ryo_values::domain::table_words::service::decode_complete,
-    ryo_values::domain::table_words::types::DecodeMode,
-};
+use ryo_values::domain::table_words::types::{Framing, PackedSlice};
+use std::collections::BTreeSet;
+use std::sync::Arc;
 
-#[derive(Clone, Copy)]
-pub(crate) enum PreparationPolicy<'a> {
-    Diagnostic,
-    Observations { ready: &'a [InputReadiness] },
+/// The files `rule` reads after the files: the request's files, less those it skipped, does not apply to or was refused on.
+///
+/// # Errors
+///
+/// `NotRun` for a rule outside the program.
+pub(crate) fn required_files(
+    program: &PreparedProgram,
+    execution: &RequestExecution,
+    rule: RuleIndex,
+    scoping: PhaseScoping<'_>,
+) -> Result<RequiredPartitions, OperatingError> {
+    program.rule_metadata(rule)?;
+    RequiredPartitions::from_request(
+        execution.services.request(),
+        scoping.corpus,
+        scoping.covered,
+        scoping.skipped,
+        scoping
+            .inapplicable
+            .get(rule.0)
+            .map_or(&[][..], |files| &files.0),
+        scoping
+            .refused
+            .get(rule.0)
+            .map_or(&[][..], |files| &files.0),
+    )
 }
 
-pub(super) fn prepare(
-    program: &crate::application::file_dag::program::preparation::types::PreparedProgram,
-    rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
+/// What the files hand over to `rule`'s steps after the files, by frontier entry: each entry the files keep read from the store
+/// and proven in frontier order, then decoded into `symbols`. An entry a project relation or a bound observation answers is
+/// not the files' to hand over.
+///
+/// # Errors
+///
+/// The store's refusal of a bucket, or a proof that does not fit the program: the occurrence stops before any step runs.
+pub(crate) fn hand_over(
+    program: &PreparedProgram,
+    rule: RuleIndex,
     first: Bucket,
     facts: &dyn FactsFinish,
-    project: &dyn FactsWorker,
-    project_symbols: &Symbols,
     symbols: &mut Symbols,
-    required: &crate::application::file_dag::program::admission::types::RequiredPartitions,
-    policy: PreparationPolicy<'_>,
-) -> Result<PreparedFrontiers, FrontiersError> {
-    let roots = &program
-        .program()?
-        .rules()
+    required: &RequiredPartitions,
+    policy: HandoverPolicy<'_>,
+    project: &ProjectSource<'_>,
+    withholdings: &mut Withholdings,
+) -> Result<HandedOver, FrontiersError> {
+    let frontier = program.frontiers(rule)?;
+    let feeds = &program
+        .metadata()
         .get(rule.0)
-        .ok_or(OperatingError::NotRead)?
-        .frontier;
-    let sources = program
-        .frontiers(rule)?
-        .iter()
-        .copied()
-        .enumerate()
-        .map(|(at, input)| {
-            Ok(FrontierSource {
-                input,
-                root: roots.get(at).ok_or(OperatingError::NotRead)?.clone(),
-            })
-        })
-        .collect::<Result<Vec<_>, OperatingError>>()?
-        .into();
-    let mut admitted = Vec::new();
-    let mut refused = Vec::new();
-    for (place, input) in program.frontiers(rule)?.iter().copied().enumerate() {
-        if let PreparationPolicy::Observations { ready } = policy {
-            if ready.get(place).copied().ok_or(OperatingError::NotRun)?
+        .ok_or(OperatingError::NotRun)?
+        .frontier_capture;
+    // The store is read and every proof checked, in frontier order, before any entry is decoded.
+    let mut proven = Vec::with_capacity(frontier.len());
+    for (place, input) in frontier.iter().copied().enumerate() {
+        if let HandoverPolicy::Observations { ready } = policy
+            && ready.0.get(place).copied().ok_or(OperatingError::NotRun)?
                 == InputReadiness::Unavailable
-            {
-                refused.push(RefusedFrontier {
-                    input,
-                    error: OperatingError::ObservationIncomplete {
-                        reason: PRODUCER_UNAVAILABLE.into(),
-                    },
-                });
-                continue;
-            }
-        }
-        if program
-            .metadata()
-            .get(rule.0)
-            .and_then(|rule| rule.frontier_capture.get(place))
-            .copied()
-            .ok_or(OperatingError::NotRun)?
-            == ryo_values::domain::run_metadata::types::FrontierFeed::CrossFile
         {
+            proven.push(Proven::Refused(OperatingError::ObservationIncomplete {
+                reason: PRODUCER_UNAVAILABLE.into(),
+            }));
             continue;
         }
-        if let Some(relation) = project_relation(input) {
-            let rows = project.rows(relation)?;
-            admitted.push(FrontierInput::Decoded {
-                frontier: project_input(rows, input, project_symbols, symbols),
-                coverage: ryo_execution_domain::domain::completion::types::CoverageState::Complete,
-            });
+        if feeds.get(place).copied().ok_or(OperatingError::NotRun)? == FrontierFeed::CrossFile {
+            proven.push(Proven::Elsewhere);
             continue;
         }
-        // The original fallible store boundary still executes in frontier order,
-        // before any query root. This POC changes cell lifetime, not I/O errors.
-        let bucket =
-            ryo_values::domain::stored_facts::service::frontier_bucket(first, InputNumber(place));
+        // A project relation is the project's to hand over, read once for the phase.
+        if let Input::Relation(relation) = input
+            && scope_of(relation) == RowScope::Project
+        {
+            proven.push(Proven::Project(Arc::clone(table_of(project, relation)?)));
+            continue;
+        }
+        let bucket = frontier_bucket(first, InputNumber(place));
         let words = facts.kept(bucket)?;
         let coverage = validate_bucket(
             program,
@@ -111,145 +129,120 @@ pub(super) fn prepare(
             &words,
         )?;
         if words.sources.is_empty() && !required.files().is_empty() {
-            refused.push(RefusedFrontier {
-                input,
-                error: OperatingError::ObservationIncomplete {
-                    reason: SOURCES_SKIPPED.into(),
-                },
-            });
+            proven.push(Proven::Refused(OperatingError::ObservationIncomplete {
+                reason: SOURCES_SKIPPED.into(),
+            }));
             continue;
         }
-        let mode = match policy {
-            PreparationPolicy::Diagnostic => DecodeMode::Permissive,
-            PreparationPolicy::Observations { .. } => DecodeMode::Complete,
-        };
-        // Decoding waits for the first demand (`admit_all`): the store read, the
-        // proof and the refusals above keep their order; only the decode is deferred.
-        admitted.push(FrontierInput::Packed(PackedFrontier {
-            input,
-            words: words.words,
-            mode,
-            coverage,
-        }));
+        proven.push(Proven::Words(words, coverage));
     }
-    Ok(PreparedFrontiers {
-        producer: rule,
-        sources,
-        rows: admitted.into(),
-        program: std::sync::Arc::clone(program.program()?),
-        required: required.clone(),
-        refused: refused.into(),
-    })
-}
-
-/// The first demand of the frontiers: decode what preparation left packed, in place, once per
-/// population of the publication scope (`decodes`). A failed decode becomes the typed refusal the
-/// first demand of that source returns.
-pub(crate) fn admit_all(
-    frontiers: &mut PreparedFrontiers,
-    symbols: &mut Symbols,
-    decodes: &FrontierDecodes,
-) {
-    let mut rows = Vec::with_capacity(frontiers.rows.len());
-    let mut refused = frontiers.refused.to_vec();
-    for row in frontiers.rows.iter().cloned() {
-        match row {
-            FrontierInput::Packed(packed) => match decodes.admit(packed, symbols, admit) {
-                Ok(admitted) => rows.push(admitted),
-                Err(error) => refused.push(error),
+    let handed = proven
+        .into_iter()
+        .map(|entry| match entry {
+            Proven::Elsewhere => FrontierRows::Elsewhere,
+            Proven::Project(table) => FrontierRows::Held {
+                table: Table::clone(&table),
+                coverage: CoverageState::Complete,
             },
-            admitted => rows.push(admitted),
-        }
-    }
-    frontiers.rows = rows.into();
-    frontiers.refused = refused.into();
+            Proven::Refused(error) => FrontierRows::Withheld(withheld(withholdings, error)),
+            Proven::Words(words, coverage) => match decoded(&words, symbols, policy) {
+                Ok(table) => FrontierRows::Held { table, coverage },
+                Err(error) => FrontierRows::Withheld(withheld(withholdings, error)),
+            },
+        })
+        .collect();
+    Ok(HandedOver(handed))
 }
 
-/// Decode one packed frontier on its first demand. A decode failure is the same typed
-/// refusal preparation used to record, now recorded where the frontier is first admitted.
-pub(crate) fn admit(
-    packed: PackedFrontier,
+/// One frontier entry once the store was read and the proof checked.
+enum Proven {
+    /// Its words and their coverage.
+    Words(KeptBucket, CoverageState),
+    /// Refused before its words were read.
+    Refused(OperatingError),
+    /// A project relation's rows, as the phase read them.
+    Project(Arc<Table>),
+    /// Not the files' to hand over.
+    Elsewhere,
+}
+
+/// The rows of `words` in `symbols`: for the observations every row read and the first malformed one refused, for the
+/// diagnostic what reads.
+fn decoded(
+    words: &KeptBucket,
     symbols: &mut Symbols,
-) -> Result<FrontierInput, RefusedFrontier> {
-    let PackedFrontier {
-        input,
-        words,
-        mode,
-        coverage,
-    } = packed;
-    let refuse =
-        |error: ryo_values::domain::table_words::errors::TableWordsError| RefusedFrontier {
-            input,
-            error: OperatingError::ObservationIncomplete {
+    policy: HandoverPolicy<'_>,
+) -> Result<Table, OperatingError> {
+    match policy {
+        HandoverPolicy::Observations { .. } => decode_complete(&words.words.0, places_mut(symbols))
+            .map_err(|error| OperatingError::ObservationIncomplete {
                 reason: error.to_string(),
-            },
-        };
-    if matches!(input, Input::Step(_)) {
-        return ryo_values::domain::compact_table::service::admit_compact(
-            ryo_values::domain::table_words::types::CompactBacking(words),
-            places_mut(symbols),
-            mode,
-        )
-        .map(
-            |ryo_values::domain::table_words::types::Admitted {
-                 table,
-                 names: spelling,
-             }| FrontierInput::Compact {
-                input,
-                table: std::sync::Arc::new(table),
-                spelling: spelling.into(),
-                coverage,
-            },
-        )
-        .map_err(refuse);
-    }
-    // Non-Step borrowed relation/binding sources keep their existing representation.
-    match mode {
-        DecodeMode::Permissive => Ok(FrontierInput::Decoded {
-            frontier: Frontier {
-                input,
-                table: std::sync::Arc::new(decode_input(&words, symbols)),
-            },
-            coverage,
-        }),
-        DecodeMode::Complete => decode_complete(&words.0, places_mut(symbols))
-            .map(|table| FrontierInput::Decoded {
-                frontier: Frontier {
-                    input,
-                    table: std::sync::Arc::new(table),
-                },
-                coverage,
-            })
-            .map_err(refuse),
+            }),
+        HandoverPolicy::Diagnostic => Ok(decode_combined(&words.words.0, places_mut(symbols))),
     }
 }
 
-/// Check every range and root before a packed source is made visible to the
-/// program. The file number comes from the current run's admitted handover;
-/// a stored owner token is never trusted or reconstructed.
+/// The rows the files handed over for `place`, or the token of why they are withheld.
+pub(crate) fn held_frontier(handed: &HandedOver, place: FrontierPlace) -> HeldRows<'_> {
+    match handed.0.get(place.input.0) {
+        Some(FrontierRows::Held { table, .. }) => HeldRows::Held(table),
+        Some(FrontierRows::Withheld(token)) => HeldRows::Withheld(*token),
+        Some(FrontierRows::Elsewhere) | None => HeldRows::Withheld(WithheldInput(u32::MAX)),
+    }
+}
+
+/// The coverage of the rows the files handed over for entry `input`, when they are held.
+pub(crate) fn handed_coverage(handed: &HandedOver, input: InputNumber) -> Option<&CoverageState> {
+    match handed.0.get(input.0) {
+        Some(FrontierRows::Held { coverage, .. }) => Some(coverage),
+        Some(FrontierRows::Withheld(_) | FrontierRows::Elsewhere) | None => None,
+    }
+}
+
+/// Records why an input is withheld and answers its token.
+pub(crate) fn withheld(withholdings: &mut Withholdings, error: OperatingError) -> WithheldInput {
+    let token = WithheldInput(u32::try_from(withholdings.0.len()).unwrap_or(u32::MAX));
+    withholdings.0.push(error);
+    token
+}
+
+/// Why the input of `token` was withheld.
+pub(crate) fn reason(withholdings: &Withholdings, token: WithheldInput) -> OperatingError {
+    match usize::try_from(token.0) {
+        Ok(at) => withholdings
+            .0
+            .get(at)
+            .cloned()
+            .unwrap_or(OperatingError::NotRun),
+        Err(_) => OperatingError::NotRun,
+    }
+}
+
+/// Checks every range and proof of a kept bucket before its rows are read: each frame the rule's own, whole and of a required
+/// file, every required file accounted for. The file number comes from the run's handover; a stored owner is never trusted.
+///
+/// # Errors
+///
+/// `PROOF_MISMATCH` when the bucket does not fit the program or the files.
 pub(crate) fn validate_bucket(
-    program: &crate::application::file_dag::program::preparation::types::PreparedProgram,
-    rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
+    program: &PreparedProgram,
+    rule: RuleIndex,
     input: InputNumber,
     first: Bucket,
     bucket: Bucket,
-    required: &crate::application::file_dag::program::admission::types::RequiredPartitions,
-    payload: &crate::outbound::facts::types::KeptBucket,
-) -> Result<ryo_execution_domain::domain::completion::types::CoverageState, OperatingError> {
-    use ryo_execution_domain::domain::completion::types::{FileLacks, MissingRows};
-    use ryo_values::domain::records::types::FrontierCoverage;
+    required: &RequiredPartitions,
+    payload: &KeptBucket,
+) -> Result<CoverageState, OperatingError> {
     let refuse = || OperatingError::ObservationIncomplete {
         reason: PROOF_MISMATCH.into(),
     };
     let expected = program.rule_digest(rule)?;
     let skipped = required.skipped_files(program, rule)?;
-    if ryo_values::domain::stored_facts::service::frontier_bucket(first, input) != bucket
-        || program.frontiers(rule)?.get(input.0).is_none()
-    {
+    if frontier_bucket(first, input) != bucket || program.frontiers(rule)?.get(input.0).is_none() {
         return Err(refuse());
     }
     let mut at = 0;
-    let mut seen_files = std::collections::BTreeSet::new();
+    let mut seen_files = BTreeSet::new();
     let mut affected = Vec::new();
     for source in &payload.sources {
         if source.start.0 != at
@@ -265,27 +258,17 @@ pub(crate) fn validate_bucket(
         }
         let end = at.checked_add(source.length.0).ok_or_else(refuse)?;
         let frame = payload.words.0.0.get(at..end).ok_or_else(refuse)?;
-        if ryo_values::domain::table_words::service::single_table_frame(
-            ryo_values::domain::table_words::types::PackedSlice(frame),
-        ) != ryo_values::domain::table_words::types::Framing::Whole
-        {
+        if single_table_frame(PackedSlice(frame)) != Framing::Whole {
             return Err(refuse());
         }
         at = end;
         match &source.proof.coverage {
             FrontierCoverage::Complete => {}
             FrontierCoverage::Partial(scopes) => {
-                if ryo_values::domain::records::service::is_well_formed(scopes)
-                    == ryo_values::domain::records::types::FrontierShape::Malformed
-                {
+                if is_well_formed(scopes) == FrontierShape::Malformed {
                     return Err(refuse());
                 }
-                affected.extend(
-                    ryo_execution_domain::domain::frontier_coverage::service::restored_lacks(
-                        source.file,
-                        scopes,
-                    ),
-                );
+                affected.extend(restored_lacks(source.file, scopes));
             }
         }
     }
@@ -295,18 +278,17 @@ pub(crate) fn validate_bucket(
         .iter()
         .filter(|file| required.files().contains(file))
         .copied()
-        .collect::<std::collections::BTreeSet<_>>();
+        .collect::<BTreeSet<_>>();
     if refused
         .iter()
         .any(|file| seen_files.contains(file) || skipped.contains(file))
     {
         return Err(refuse());
     }
-    // Account for known unavailable partitions without inventing encoded empty
-    // frames. Their identities remain attached to the admitted partial input.
+    // Known unavailable files are accounted for without inventing empty frames; they stay attached to the partial answer.
     seen_files.extend(skipped.iter().copied());
     seen_files.extend(refused.iter().copied());
-    // A required source with no frame is discharged only when the edge named the file inapplicable or refused to this rule.
+    // A required file with no frame is discharged only when the edge named it inapplicable or refused to this rule.
     seen_files.extend(
         required
             .inapplicable()
@@ -330,61 +312,21 @@ pub(crate) fn validate_bucket(
             file: Some(file),
             missing: MissingRows::Any,
         }));
-        ryo_execution_domain::domain::completion::service::partial_of_lacks(affected)
+        partial_of_lacks(affected)
     } else if skipped.is_empty() {
-        ryo_execution_domain::domain::completion::types::CoverageState::Complete
+        CoverageState::Complete
     } else {
-        ryo_execution_domain::domain::completion::types::CoverageState::Inapplicable {
+        CoverageState::Inapplicable {
             files: skipped.into_iter().collect(),
         }
     })
 }
 
-pub(super) fn exact_required_files(
-    required: &[ryo_relations::domain::relations::types::FileId],
-    seen: &std::collections::BTreeSet<ryo_relations::domain::relations::types::FileId>,
-) -> FileAccounting {
+/// Whether `seen` names exactly the `required` files.
+fn exact_required_files(required: &[FileId], seen: &BTreeSet<FileId>) -> FileAccounting {
     if seen.len() == required.len() && required.iter().all(|file| seen.contains(file)) {
         FileAccounting::Exact
     } else {
         FileAccounting::Inexact
-    }
-}
-
-impl FrontierCache {
-    /// The only route to a provider read: the cache keys the population, then prepares it once.
-    pub(crate) fn prepared(
-        &self,
-        program: &crate::application::file_dag::program::preparation::types::PreparedProgram,
-        rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
-        first: Bucket,
-        facts: &dyn FactsFinish,
-        project: &dyn FactsWorker,
-        project_symbols: &Symbols,
-        symbols: &mut Symbols,
-        required: &crate::application::file_dag::program::admission::types::RequiredPartitions,
-        policy: PreparationPolicy<'_>,
-    ) -> Result<PreparedFrontiers, FrontiersError> {
-        let ready = match policy {
-            PreparationPolicy::Diagnostic => None,
-            PreparationPolicy::Observations { ready } => Some(ready),
-        };
-        let providers = Providers {
-            facts: ProviderAddress(std::ptr::from_ref(facts).cast::<()>().addr()),
-            project: ProviderAddress(std::ptr::from_ref(project).cast::<()>().addr()),
-        };
-        self.shared(rule, first, ready, required, providers, || {
-            prepare(
-                program,
-                rule,
-                first,
-                facts,
-                project,
-                project_symbols,
-                symbols,
-                required,
-                policy,
-            )
-        })
     }
 }

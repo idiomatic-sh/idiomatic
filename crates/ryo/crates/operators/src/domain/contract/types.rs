@@ -1,5 +1,10 @@
 //! Borrowed semantic contracts. The engine owns every acquired resource and output.
 
+/// The engine's token for an input it withheld after the files: opaque to operators, which raise it as `Withheld` where the
+/// input is first read and never read it as empty rows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct WithheldInput(pub u32);
+
 /// The source length used to validate a composed byte interval.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SourceByteLength(pub usize);
@@ -19,6 +24,8 @@ pub struct RenderRefusal(pub u32);
 /// One portable semantic fault vocabulary for every borrowed operator call.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PortableOperatorFault {
+    /// An input the engine withheld: it answers the fault with its own reason, found by the token.
+    Withheld(WithheldInput),
     /// The engine stopped candidate acquisition or downstream delivery.
     Interrupted,
     /// The declared input column is absent.

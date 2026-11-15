@@ -10,13 +10,9 @@ use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 #[cfg(test)]
 mod budget;
 #[cfg(test)]
+mod fed;
+#[cfg(test)]
 mod generation;
-#[cfg(test)]
-mod interpreter_budget;
-#[cfg(test)]
-mod interpreter_population;
-#[cfg(test)]
-mod interpreter_root_set;
 #[cfg(test)]
 mod partials;
 #[cfg(test)]

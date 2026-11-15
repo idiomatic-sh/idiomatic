@@ -71,10 +71,9 @@ pub trait WorkspacePort: sealed::Sealed {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort;
-    /// use ryo_execution_domain::domain::operator::contract::lease::service::take_totals;
-    /// use ryo_execution_domain::domain::operator::contract::types::WorkTotals;
-    /// fn found(workspace: &impl WorkspacePort) -> WorkTotals {
-    ///     take_totals(workspace.work())
+    /// use ryo_execution_domain::domain::operator::contract::types::WorkCounters;
+    /// fn found(workspace: &impl WorkspacePort) -> &WorkCounters {
+    ///     workspace.work()
     /// }
     /// ```
     fn work(&self) -> &WorkCounters;
@@ -146,9 +145,9 @@ pub trait WorkspacePort: sealed::Sealed {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::workspace::interface::WorkspacePort;
-    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::OriginScope;
-    /// fn resumed(workspace: &impl WorkspacePort) -> OriginScope {
-    ///     workspace.progress_origin().resume()
+    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::CapturedOrigin;
+    /// fn opened_at(workspace: &impl WorkspacePort) -> &CapturedOrigin {
+    ///     workspace.progress_origin()
     /// }
     /// ```
     #[cfg(feature = "diagnostic-row-progress")]

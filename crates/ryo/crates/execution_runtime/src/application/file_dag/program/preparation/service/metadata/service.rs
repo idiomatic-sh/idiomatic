@@ -4,14 +4,12 @@ use crate::application::file_dag::program::preparation::types::{
     ObservationMetadata, RootMetadata, RootPlan, RuleMetadata, RulePlan,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::interpreted_program::types::{
-    InputSource, interpreted_program::value::InterpretedProgram,
-};
+use ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
 use ryo_execution_domain::domain::trust::types::RelationRead;
-use ryo_values::domain::plan_parts::types::{Input, StepId};
+use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::{Operation, Plan};
 
 /// What each plan states, in rule order: its emit, frontiers, named outputs with what each reads on the way (the file pass's
@@ -90,7 +88,6 @@ pub(crate) fn plans(
 /// `NotRun` for a rule the interpreter's program or the plans do not hold.
 pub(crate) fn rules(
     program: &InterpretedProgram,
-    named: Option<&ObservationMetadata>,
     plans: &[Plan],
     rule_plans: &[RulePlan],
     executable: &ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
@@ -133,44 +130,4 @@ pub(crate) fn rules(
         });
     }
     Ok(metadata)
-}
-fn source(
-    program: &InterpretedProgram,
-    observations: Option<&ObservationMetadata>,
-    rule: RuleIndex,
-    source: Input,
-) -> Result<InputSource, OperatingError> {
-    match source {
-        Input::Relation(relation) => Ok(InputSource::Relation(relation)),
-        Input::Step(StepId(step)) => {
-            let origin = program
-                .rules()
-                .get(rule.0)
-                .and_then(|rule| rule.original_steps.get(step as usize))
-                .ok_or(OperatingError::NotRun)?
-                .as_ref()
-                .map_err(Clone::clone)?;
-            program
-                .logical_regions()
-                .get(origin.logical.0)
-                .copied()
-                .map(InputSource::Region)
-                .ok_or(OperatingError::NotRun)
-        }
-        Input::BoundObservation(input) => observations
-            .and_then(|observations| {
-                observations
-                    .slots
-                    .iter()
-                    .position(|slot| slot.rule == rule && slot.input == input)
-            })
-            .map(|slot| {
-                InputSource::Observation(
-                    ryo_execution_domain::domain::interpreted_program::types::ObservationPlace(
-                        slot,
-                    ),
-                )
-            })
-            .ok_or(OperatingError::NotRun),
-    }
 }

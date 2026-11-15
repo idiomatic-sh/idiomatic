@@ -1,7 +1,9 @@
 //! The logical program of a request, with each rule's nodes, whether each rule is served, each node's consumers and the root
 //! kinds, until the operators' physical plan completes it.
 
-use crate::domain::executable_program::types::{Consumers, RuleNodes, Serving};
+use crate::domain::executable_program::types::{
+    Consumers, ObservationReach, RuleNodes, RuleScopes, Serving,
+};
 use crate::domain::operating::errors::OperatingError;
 use ryo_operators::domain::physical_plan::types::PlanNodeId;
 use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
@@ -33,6 +35,10 @@ pub struct LogicalBuild<'p> {
     pub(crate) roots: hashbrown::HashMap<LiteralText, Vec<PlanNodeId>>,
     /// Each node's output columns, or the schema fault of it or of a node it reads, by node.
     pub(crate) schemas: Vec<Result<Vec<CellKind>, OperatingError>>,
+    /// Where each rule's emitted step and named outputs run, in rule order.
+    pub(crate) scopes: Vec<RuleScopes>,
+    /// Whether each node's rows answer the phase or one occurrence, by node.
+    pub(crate) reach: Vec<ObservationReach>,
 }
 
 impl<'p> LogicalBuild<'p> {

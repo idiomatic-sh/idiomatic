@@ -7,6 +7,7 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::extend::item::resolved;
 use crate::domain::physical_plan::collections::kernels::lookup::item::lookups;
 use crate::domain::physical_plan::collections::kernels::ordered_walk::item::interned;
+use crate::domain::physical_plan::collections::kernels::scan_bound::item::scanned;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::hold;
 use crate::domain::physical_plan::service::indexes::service::{closed, opened, sized_shared};
 use crate::domain::physical_plan::service::run::reading::service::{
@@ -69,7 +70,11 @@ fn ready(
         RowSource::Node(read) if buffers.rows(read) == NodeRows::Absent => {
             materialize(plan, run, read, buffers)
         }
-        RowSource::Node(_) | RowSource::Facts(_) | RowSource::Tree(_) => Ok(()),
+        RowSource::Node(_)
+        | RowSource::Facts(_)
+        | RowSource::Tree(_)
+        | RowSource::Frontier(_)
+        | RowSource::Observation(_) => Ok(()),
     }
 }
 
@@ -111,6 +116,11 @@ fn made(
 ) -> Result<(), PortableOperatorFault> {
     match lowering {
         Lowering::Lookup { index, .. } => return lookups(plan, run, *index, buffers),
+        Lowering::ScanBound { scan } => {
+            let rows = scanned(scan, run)?;
+            hold(plan, buffers, node, rows, None);
+            return Ok(());
+        }
         Lowering::Unlowered => return Err(PortableOperatorFault::NotRun),
         Lowering::Filter { .. }
         | Lowering::Project { .. }
@@ -166,6 +176,7 @@ fn made(
         | Lowering::Axis { .. }
         | Lowering::OrderedWalk { .. }
         | Lowering::Components { .. }
+        | Lowering::ScanBound { .. }
         | Lowering::Unlowered => None,
     };
     let shared: &KernelRun<'_> = run;
@@ -237,6 +248,7 @@ fn made(
         | Lowering::Distinct { .. }
         | Lowering::TextMap { .. }
         | Lowering::Lookup { .. }
+        | Lowering::ScanBound { .. }
         | Lowering::Unlowered => None,
     };
     let walked = matches!(lowering, Lowering::OrderedWalk { .. }) && blocked.is_none();

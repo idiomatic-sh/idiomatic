@@ -24,4 +24,6 @@ pub(crate) enum Reading<'a> {
     Copied(ryo_values::domain::rows::types::Table),
     /// An earlier node and its rows and pending fault.
     Node(PlanNodeId, TakenRows),
+    /// Rows the engine holds for the run, read in place.
+    Held(&'a ryo_values::domain::rows::types::Table),
 }

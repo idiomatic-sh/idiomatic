@@ -72,6 +72,7 @@ pub(crate) fn minted(
         | Lowering::Axis { .. }
         | Lowering::OrderedWalk { .. }
         | Lowering::Components { .. }
+        | Lowering::ScanBound { .. }
         | Lowering::Unlowered => Err(PortableOperatorFault::WrongOperation),
     };
     returned(plan, buffers, input, NodeReaders(1));

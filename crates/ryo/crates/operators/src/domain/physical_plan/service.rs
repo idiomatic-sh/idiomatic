@@ -62,6 +62,8 @@ kernels! {
     ScanRoots => crate::domain::physical_plan::collections::kernels::scan_roots::item::ScanRootsItem,
     /// The `scan_node` kernel.
     ScanNode => crate::domain::physical_plan::collections::kernels::scan_node::item::ScanNodeItem,
+    /// The `scan_bound` kernel.
+    ScanBound => crate::domain::physical_plan::collections::kernels::scan_bound::item::ScanBoundItem,
     /// The `lookup` kernel.
     Lookup => crate::domain::physical_plan::collections::kernels::lookup::item::LookupItem,
     /// The `filter` kernel.
@@ -164,8 +166,6 @@ fn place(nodes: &mut [PhysicalNode], id: PlanNodeId) -> Option<&mut PhysicalNode
     nodes.get_mut(usize::try_from(id.0).unwrap_or(usize::MAX))
 }
 
-/// The stage of the swap whose kernels lower a kind: the relational kinds are `RELATIONAL_STAGE`, the text kinds `TEXT_STAGE`,
-/// the graph kinds `GRAPH_STAGE`.
 pub(crate) fn stage_of_kind(kind: OperationKind) -> ServedAt {
     match kind {
         OperationKind::Select
@@ -196,8 +196,8 @@ pub(crate) fn stage_of_kind(kind: OperationKind) -> ServedAt {
     }
 }
 
-/// The stage that lowers a node this branch does not: its kind's, or for a kind of a served stage, the stage that reads what
-/// it reads: a bound table or an observation at the fourth.
+/// The stage that lowers a node this stage does not: its kind's, or for one of this stage's kinds, the stage that reads what
+/// it reads: a join's closure demand at the third.
 fn stage_of(operation: &Operation) -> ServedAt {
     match (stage_of_kind(kind_of(operation)), operation) {
         (stage, _) if SERVED.contains(&stage) => BOUND_STAGE,
@@ -207,4 +207,4 @@ fn stage_of(operation: &Operation) -> ServedAt {
 
 /// The stages whose kinds this branch lowers: a node of one of their kinds that is not lowered reads what a later stage
 /// serves. Branch only: deleted with `ServedAt`.
-pub(crate) const SERVED: &[ServedAt] = &[RELATIONAL_STAGE, TEXT_STAGE, GRAPH_STAGE];
+pub(crate) const SERVED: &[ServedAt] = &[RELATIONAL_STAGE, TEXT_STAGE, GRAPH_STAGE, BOUND_STAGE];

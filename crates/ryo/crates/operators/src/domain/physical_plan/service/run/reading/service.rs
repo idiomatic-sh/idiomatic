@@ -3,6 +3,7 @@
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::facts;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::{give_back, take};
+use crate::domain::physical_plan::collections::kernels::scan_bound::item::held;
 use crate::domain::physical_plan::collections::kernels::scan_roots::item::roots;
 use crate::domain::physical_plan::service::run::types::Reading;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
@@ -28,6 +29,9 @@ pub(crate) fn reading<'s>(
             relation,
         ))),
         RowSource::Node(read) => take(buffers, read).map(|taken| Reading::Node(read, taken)),
+        // A withheld input faults where it is first read, never as empty rows.
+        RowSource::Frontier(place) => held(run.inputs.frontier(place)).map(Reading::Held),
+        RowSource::Observation(place) => held(run.inputs.observation(place)).map(Reading::Held),
     }
 }
 
@@ -38,6 +42,7 @@ pub(crate) fn rows_in<'r>(reading: &'r Reading<'_>) -> InputRows<'r> {
         Reading::Tree(tree) => InputRows::Tree(tree),
         Reading::Copied(rows) => InputRows::Table(rows),
         Reading::Node(_, taken) => InputRows::Table(&taken.rows),
+        Reading::Held(table) => InputRows::Table(table),
     }
 }
 
@@ -56,7 +61,7 @@ pub(crate) fn returned(
 /// The fault a read node raised after its rows.
 pub(crate) fn pending_of(reading: &Reading<'_>) -> Option<PortableOperatorFault> {
     match reading {
-        Reading::Facts(_) | Reading::Tree(_) | Reading::Copied(_) => None,
+        Reading::Facts(_) | Reading::Tree(_) | Reading::Copied(_) | Reading::Held(_) => None,
         Reading::Node(_, taken) => taken.pending.clone(),
     }
 }

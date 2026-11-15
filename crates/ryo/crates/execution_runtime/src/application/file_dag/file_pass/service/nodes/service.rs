@@ -4,6 +4,7 @@
 use crate::application::file_dag::file_pass::types::{
     NodeAnswer, NodeReads, PassFile, PassProgram, PassResources,
 };
+use crate::application::file_dag::frontiers::service::reason;
 use crate::application::file_dag::program::facade_runtime::file_execution::service::classify;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_domain::domain::completion::service::partial_any;
@@ -21,14 +22,15 @@ use ryo_execution_domain::domain::output_coverage::service::output_coverage;
 use ryo_execution_domain::domain::output_coverage::types::{InputCoverage, OperandOrdinal};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::domain::physical_plan::types::{FactRows, PlanInputs as _};
-use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
+use ryo_operators::domain::physical_plan::types::fact_rows::value::FactRows;
+use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+use ryo_operators::domain::physical_plan::types::{NodeRows, PlanInputs, PlanNodeId, Resources};
 use ryo_operators::domain::tree_cells::service::native_form;
 use ryo_relations::domain::relations::service::kinds as relation_kinds;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::lineage::service::{of_step, one_file};
 use ryo_values::domain::lineage::types::Lineage;
-use ryo_values::domain::plan_parts::types::{Input, StepId};
+use ryo_values::domain::plan_parts::types::{Input, StepId, StepScope};
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::rows::service::reset;
 use ryo_values::domain::rows::types::Table;
@@ -107,7 +109,7 @@ pub(crate) fn node_rows(
 }
 
 /// What one step's rows lack, with their cell kinds and where they come from.
-type StepCoverage = (Vec<CellKind>, CoverageState, Lineage);
+pub(crate) type StepCoverage = (Vec<CellKind>, CoverageState, Lineage);
 
 /// The coverage of step `step` of `rule`'s plan in the open file: each relation it reads covered as the file's partiality says
 /// of it, and each step on the way passing on what its inputs lack as its operator does (`output_coverage`), so a missing row
@@ -118,6 +120,66 @@ fn step_coverage(
     rule: RuleIndex,
     step: StepId,
 ) -> Result<CoverageState, OperatingError> {
+    step_coverage_with(pass, rule, step, |input, _| match input {
+        Input::Relation(relation) => {
+            let kinds = relation_kinds(relation);
+            Some(Ok((
+                kinds.to_vec(),
+                completion.relation_coverage(relation),
+                one_file(kinds),
+            )))
+        }
+        Input::Step(_) => None,
+        Input::BoundObservation(_) => Some(Err(OperatingError::NotRun)),
+    })
+    .map(|(_, coverage, _)| coverage)
+}
+
+/// `rule`'s step `step` as the steps after the files read it once the files handed it over: its cell kinds, `coverage`, and
+/// each row from the one file it was made in.
+pub(crate) fn handed_step(
+    pass: &PassProgram,
+    rule: RuleIndex,
+    step: StepId,
+    coverage: CoverageState,
+) -> StepCoverage {
+    let node = match fused_rule(&pass.program, rule) {
+        Ok(nodes) => nodes
+            .steps
+            .get(usize::try_from(step.0).unwrap_or(usize::MAX))
+            .cloned(),
+        Err(_) => None,
+    };
+    let kinds = match node {
+        Some(Ok(node)) => {
+            schema(&pass.program, node).map_or_else(|_| Vec::new(), <[CellKind]>::to_vec)
+        }
+        Some(Err(_)) | None => Vec::new(),
+    };
+    let lineage = one_file(&kinds);
+    (kinds, coverage, lineage)
+}
+
+/// The coverage of step `step` of `rule`'s plan with its cell kinds and where its rows come from, each input `leaf` answers
+/// covered as it says, given the scope of the step an input names or of the step reading it, and every other step passing on
+/// what its inputs lack as its operator does.
+pub(crate) fn step_coverage_with(
+    pass: &PassProgram,
+    rule: RuleIndex,
+    step: StepId,
+    leaf: impl FnMut(Input, StepScope) -> Option<Result<StepCoverage, OperatingError>>,
+) -> Result<StepCoverage, OperatingError> {
+    step_coverage_seen(pass, rule, step, leaf, |_, _| {})
+}
+
+/// [`step_coverage_with`], each step on the way shown to `seen` with its operands' coverage, in plan order.
+pub(crate) fn step_coverage_seen(
+    pass: &PassProgram,
+    rule: RuleIndex,
+    step: StepId,
+    mut leaf: impl FnMut(Input, StepScope) -> Option<Result<StepCoverage, OperatingError>>,
+    mut seen: impl FnMut(StepId, &[StepCoverage]),
+) -> Result<StepCoverage, OperatingError> {
     let plan = pass.plans.get(rule.0).ok_or(OperatingError::NotRun)?;
     let nodes = fused_rule(&pass.program, rule)?;
     let last = usize::try_from(step.0).unwrap_or(usize::MAX);
@@ -125,22 +187,29 @@ fn step_coverage(
     for (place, each) in plan.steps.iter().enumerate().take(last.saturating_add(1)) {
         let operands = named(&inputs_of(&each.operation))
             .into_iter()
-            .map(|input| match *input {
-                Input::Relation(relation) => {
-                    let kinds = relation_kinds(relation);
-                    Ok((
-                        kinds.to_vec(),
-                        completion.relation_coverage(relation),
-                        one_file(kinds),
-                    ))
+            .map(|input| {
+                let scope = match *input {
+                    Input::Step(id) => plan
+                        .steps
+                        .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+                        .map_or(each.scope, |read| read.scope),
+                    Input::Relation(_) | Input::BoundObservation(_) => each.scope,
+                };
+                match leaf(*input, scope) {
+                    Some(answer) => answer,
+                    None => match *input {
+                        Input::Step(id) => merged
+                            .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+                            .cloned()
+                            .ok_or(OperatingError::NotRun),
+                        Input::Relation(_) | Input::BoundObservation(_) => {
+                            Err(OperatingError::NotRun)
+                        }
+                    },
                 }
-                Input::Step(id) => merged
-                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-                    .cloned()
-                    .ok_or(OperatingError::NotRun),
-                Input::BoundObservation(_) => Err(OperatingError::NotRun),
             })
             .collect::<Result<Vec<StepCoverage>, OperatingError>>()?;
+        seen(StepId(u32::try_from(place).unwrap_or(u32::MAX)), &operands);
         let output = match nodes.steps.get(place) {
             Some(Ok(node)) => schema(&pass.program, *node).map(<[CellKind]>::to_vec),
             Some(Err(error)) => Err(error.clone()),
@@ -171,11 +240,7 @@ fn step_coverage(
         let lineage = of_step(&each.operation, &lineages, &kinds);
         merged.push((kinds, coverage, lineage));
     }
-    merged
-        .into_iter()
-        .nth(last)
-        .map(|(_, coverage, _)| coverage)
-        .ok_or(OperatingError::NotRun)
+    merged.into_iter().nth(last).ok_or(OperatingError::NotRun)
 }
 
 /// Runs `node` for the open file through the operators.
@@ -192,24 +257,37 @@ pub(crate) fn ran_node(
         semantic: at.semantic,
         refusals: &mut at.refusals,
     };
-    let ran = at.pass.operators.run(
-        physical(&at.pass.program),
-        node,
-        &mut at.buffers,
-        &at.inputs,
-        &mut resources,
-    );
-    // A refused rendering answers the engine's reason for the node it came from, whichever rule ran that node.
-    ran.map_err(|fault| {
+    run_node(at.pass, node, &mut at.buffers, &at.inputs, &mut resources).map_err(|fault| {
         if let PortableOperatorFault::RenderRefused { refusal } = fault {
+            // A refused rendering answers the engine's reason for the node it came from, whichever rule ran that node.
             at.refusals
                 .get(usize::try_from(refusal.0).unwrap_or(usize::MAX))
                 .cloned()
                 .unwrap_or_else(|| portable_fault(fault))
+        } else if let PortableOperatorFault::Withheld(token) = fault {
+            // A bound observation the file withheld answers the reason it was withheld, as after the files.
+            reason(&at.inputs.withholdings, token)
         } else {
             portable_fault(fault)
         }
     })
+}
+
+/// The one node step of the request's program: `node` run by the operators over `inputs` and `resources`, in a file or after
+/// the files, its rows held in `buffers`.
+///
+/// # Errors
+///
+/// The operators' fault, raised where the node's first fault is in the interpreter's order.
+pub(crate) fn run_node(
+    pass: &PassProgram,
+    node: PlanNodeId,
+    buffers: &mut FileBuffers,
+    inputs: &dyn PlanInputs,
+    resources: &mut dyn Resources,
+) -> Result<(), PortableOperatorFault> {
+    pass.operators
+        .run(physical(&pass.program), node, buffers, inputs, resources)
 }
 
 /// Ends the file: every node's rows go back to the buffers.

@@ -46,6 +46,7 @@ impl KernelsItem for OrderedWalkItem {
             | Lowering::TextMap { .. }
             | Lowering::OrderedMatch { .. }
             | Lowering::Render { .. }
+            | Lowering::ScanBound { .. }
             | Lowering::Unlowered => false,
         };
         if runs { Reach::Runs } else { Reach::Skips }

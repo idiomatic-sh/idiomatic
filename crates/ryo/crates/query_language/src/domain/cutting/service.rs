@@ -7,8 +7,8 @@ use crate::domain::inlining::types::StepReading;
 use crate::domain::narrowing::service::{narrow_lookups, narrow_lookups_roots};
 use crate::domain::regrouping::service::{regroup_joins, regroup_joins_roots};
 use crate::domain::rewriting::types::Planned;
-use ryo_relations::domain::relations::service::provenance_of;
-use ryo_relations::domain::relations::types::Provenance;
+use ryo_relations::domain::catalog::service::scope_of;
+use ryo_relations::domain::catalog::types::RowScope;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
@@ -188,7 +188,7 @@ pub(crate) fn cut_relations_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]
         for input in named(&inputs_of(&step.operation)) {
             if let Input::Relation(relation) = input
                 && !wanted.contains(relation)
-                && provenance_of(*relation) != Provenance::Manifests
+                && scope_of(*relation) != RowScope::Project
             {
                 wanted.push(*relation);
             }

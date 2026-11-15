@@ -15,7 +15,6 @@ pub struct BorrowedInput<'a> {
     backing_relation: Option<Relation>,
     canonical_backing: crate::application::file_dag::relations::types::BackingForm,
     origin: AdmissionOrigin,
-    publication_population: PopulationId,
 }
 
 mod issuance;

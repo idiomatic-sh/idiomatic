@@ -97,9 +97,12 @@ pub(crate) fn input_of(from: PlanInput) -> StepInput {
             StepInput::Step(ryo_values::domain::plan_parts::types::StepId(at))
         }
         PlanInput::Relation(relation) => StepInput::Relation(relation),
-        PlanInput::Bound(_) | PlanInput::Observation(_) => StepInput::BoundObservation(
-            ryo_values::domain::plan_parts::types::ObservationBindingId(0),
-        ),
+        PlanInput::Observation(place) => StepInput::BoundObservation(place.input),
+        PlanInput::Frontier(place) => {
+            StepInput::Step(ryo_values::domain::plan_parts::types::StepId(
+                u32::try_from(place.input.0).unwrap_or(u32::MAX),
+            ))
+        }
     }
 }
 

@@ -6,24 +6,27 @@ use crate::domain::executable_program::types::executable_program::value::Executa
 use crate::domain::executable_program::types::logical_build::value::LogicalBuild;
 use crate::domain::executable_program::types::program_inputs::value::ProgramInputs;
 use crate::domain::executable_program::types::{
-    Consumers, Draft, DraftInputs, RootKind, RuleInput, RuleNodes, Serving,
+    Consumers, Draft, DraftInputs, RootKind, RuleInput, RuleNodes, RuleScopes, Serving, StepAt,
 };
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::service::schema_of;
+use crate::domain::operation_schema::types::InputShape;
 use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use ryo_operators::domain::physical_plan::types::{
-    LogicalNode, NodeBindings, PlanInput, PlanInputList, PlanNodeId, RuleOrdinal,
+    LogicalNode, NodeBindings, PlanInputList, PlanNodeId,
 };
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::plan_parts::types::{Input, LiteralText, StepScope};
+use ryo_values::domain::plan_parts::types::{Input, LiteralText};
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::Plan;
 use std::hash::{Hash, Hasher};
 
 pub(crate) mod logical;
-use logical::service::{derived_roots, read_inputs};
-use ryo_operators::domain::physical_plan::constants::BOUND_STAGE;
+pub mod scopes;
+use logical::service::{derived_roots, held, observation_reaches, read_inputs};
+use scopes::service::scope_at;
 
 /// The request's rules as one logical program: equal steps over equal inputs, in the same scope and with the same bindings,
 /// are one node; each rule's emitted node and the nodes its frontier and named roots keep are recorded; each node's schema
@@ -48,15 +51,18 @@ pub fn logical<'p>(
     inputs: &'p mut ProgramInputs,
 ) -> Result<LogicalBuild<'p>, OperatingError> {
     inputs.lists.clear();
+    // A hosted step reads its host relation's columns, which no plan input names.
+    let hosted = std::mem::take(&mut inputs.hosted);
     let mut drafts: Vec<Draft<'p>> = Vec::new();
     let mut buckets = hashbrown::HashMap::<u64, Vec<usize>>::new();
     let mut nodes = Vec::with_capacity(rules.len());
     let mut serving = Vec::with_capacity(rules.len());
+    let mut scopes = Vec::with_capacity(rules.len());
     for (rule, input) in rules.iter().enumerate() {
         let plan: &'p Plan = input.plan;
         let mut steps: Vec<Result<PlanNodeId, OperatingError>> =
             Vec::with_capacity(plan.steps.len());
-        let mut stage = None;
+        let ordinal = RuleOrdinal(u32::try_from(rule).map_err(|_| OperatingError::ShapeMismatch)?);
         let observed: Vec<Vec<CellKind>> = input
             .observations
             .0
@@ -64,24 +70,34 @@ pub fn logical<'p>(
             .map(|bound| bound.columns.iter().map(|column| column.kind).collect())
             .collect();
         for step in &plan.steps {
-            // A step after the files is the one cause only the plan knows; the operators decide every kind's and input's
-            // stage when they plan (`PhysicalPlan::unserved`).
-            if step.scope == StepScope::CrossFile {
-                stage = Some(BOUND_STAGE);
-            }
             let read = inputs_of(&step.operation);
+            let at = StepAt {
+                scope: step.scope,
+                rule: ordinal,
+                plan,
+            };
             let Some(DraftInputs {
                 list,
                 shapes,
                 fault,
-            }) = read_inputs(named(&read), &steps, &drafts, &observed)
+            }) = read_inputs(named(&read), &steps, &drafts, &observed, at)
             else {
                 steps.push(Err(OperatingError::NotRun));
                 continue;
             };
+            let host = if let Operation::Hosted { relation } = &step.operation {
+                hosted
+                    .get(usize::try_from(relation.0).unwrap_or(usize::MAX))
+                    .map(|kinds| InputShape { kinds, tree: None })
+            } else {
+                None
+            };
             let schema = match fault {
                 Some(error) => Err(error),
-                None => schema_of(&step.operation, &shapes, input.bindings.0),
+                None => match host {
+                    Some(shape) => schema_of(&step.operation, &[shape], input.bindings.0),
+                    None => schema_of(&step.operation, &shapes, input.bindings.0),
+                },
             };
             let hash = {
                 let mut hasher = rustc_hash::FxHasher::default();
@@ -132,9 +148,21 @@ pub fn logical<'p>(
             (None, Some(Err(error))) => Err(error.clone()),
             (None, None) => Err(OperatingError::NotRun),
         };
-        serving.push(stage.map_or(Serving::Served, Serving::NotServedUntil));
+        serving.push(Serving::Served);
+        scopes.push(RuleScopes {
+            emit: scope_at(plan, plan.emit.step),
+            observations: plan
+                .observations
+                .iter()
+                .map(|observation| match observation.source {
+                    Input::Step(id) => scope_at(plan, id),
+                    Input::Relation(_) | Input::BoundObservation(_) => observation.scope,
+                })
+                .collect(),
+        });
         nodes.push(RuleNodes { steps, emit });
     }
+    inputs.hosted = hosted;
     let inputs: &'p ProgramInputs = inputs;
     let mut program = LogicalProgram::new();
     for (draft, list) in drafts.iter().zip(&inputs.lists) {
@@ -145,48 +173,10 @@ pub fn logical<'p>(
             scope: draft.scope,
         });
     }
-    let mut consumers = vec![Consumers(0); drafts.len()];
-    let count = |consumers: &mut Vec<Consumers>, node: PlanNodeId| {
-        if let Some(each) = consumers.get_mut(usize::try_from(node.0).unwrap_or(usize::MAX)) {
-            each.0 = each.0.saturating_add(1);
-        }
-    };
-    for list in &inputs.lists {
-        for input in list {
-            if let PlanInput::Node(read) = input {
-                count(&mut consumers, *read);
-            }
-        }
-    }
-    for (rule, (input, rule_nodes)) in rules.iter().zip(&nodes).enumerate() {
-        let ordinal = RuleOrdinal(u32::try_from(rule).map_err(|_| OperatingError::ShapeMismatch)?);
-        if let Some(Ok(node)) = rule_nodes
-            .steps
-            .get(usize::try_from(input.plan.emit.step.0).unwrap_or(usize::MAX))
-        {
-            program.emit(ordinal, *node);
-            count(&mut consumers, *node);
-        }
-        let kept = input.plan.frontier.iter().chain(
-            input
-                .plan
-                .observations
-                .iter()
-                .map(|observation| &observation.source),
-        );
-        for each in kept {
-            if let Input::Step(id) = each
-                && let Some(Ok(node)) = rule_nodes
-                    .steps
-                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-            {
-                program.hold(*node);
-                count(&mut consumers, *node);
-            }
-        }
-    }
+    let consumers = held(&mut program, rules, &nodes, &inputs.lists)?;
     let roots = derived_roots(&drafts, &inputs.lists);
     let schemas = drafts.iter().map(|draft| draft.schema.clone()).collect();
+    let reach = observation_reaches(&drafts, &inputs.lists);
     Ok(LogicalBuild {
         program,
         rules: nodes,
@@ -194,6 +184,8 @@ pub fn logical<'p>(
         consumers,
         roots,
         schemas,
+        scopes,
+        reach,
     })
 }
 
@@ -216,6 +208,8 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
         consumers,
         roots,
         schemas,
+        scopes,
+        reach,
         ..
     } = build;
     for unserved in plan.unserved() {
@@ -243,6 +237,8 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
         consumers,
         roots,
         schemas,
+        scopes,
+        reach,
     }
 }
 

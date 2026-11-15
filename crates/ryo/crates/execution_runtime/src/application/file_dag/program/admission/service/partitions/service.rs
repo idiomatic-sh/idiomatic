@@ -1,7 +1,6 @@
 //! Generation, request and partition identity: what a partition supplies and who it matches.
 use crate::application::file_dag::program::admission::{
-    service::ApplicabilityProof, service::FileGeneration, service::Partition, types::Agreement,
-    types::PartitionSupply, types::RequiredPartitions,
+    service::ApplicabilityProof, types::RequiredPartitions,
 };
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex, operating::errors::OperatingError,
@@ -9,8 +8,6 @@ use ryo_execution_domain::domain::{
 };
 use ryo_relations::domain::relations::types::FileId;
 use std::sync::Arc;
-
-impl FileGeneration {}
 
 impl RequiredPartitions {
     pub(crate) fn from_request(
@@ -89,47 +86,8 @@ impl RequiredPartitions {
     pub(crate) fn refused(&self) -> &[FileId] {
         &self.refused
     }
-    /// The project identity alone, as a shared execution holds it: no rule's evidence.
-    pub(crate) fn identity(&self) -> Self {
-        Self {
-            inapplicable: Box::new([]),
-            refused: Box::new([]),
-            ..self.clone()
-        }
-    }
 }
 
-impl Partition {
-    pub(crate) fn require_supply(&self, required: &Self) -> Result<(), OperatingError> {
-        match self.supplies(required) {
-            PartitionSupply::Supplies => Ok(()),
-            PartitionSupply::Lacks => Err(OperatingError::NotRead),
-        }
-    }
-    pub(crate) fn supplies(&self, required: &Self) -> PartitionSupply {
-        let supplied = match (self, required) {
-            (Self::RequestInvariant, _) => true,
-            (Self::Project(actual), Self::Project(required)) => actual == required,
-            _ => false,
-        };
-        if supplied {
-            PartitionSupply::Supplies
-        } else {
-            PartitionSupply::Lacks
-        }
-    }
-}
-impl RequiredPartitions {
-    /// Whether both name one project identity; the files a rule has no frame for are that rule's
-    /// own evidence and are not compared.
-    pub(crate) fn same_request(&self, other: &Self) -> Agreement {
-        if self == other {
-            Agreement::Same
-        } else {
-            Agreement::Different
-        }
-    }
-}
 
 impl ApplicabilityProof {}
 

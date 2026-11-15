@@ -137,8 +137,29 @@ pub(crate) enum Lowering {
         /// The node column and the role.
         render: crate::domain::render_batch::types::RenderParts,
     },
+    /// `scan_bound`: the rows the engine holds for the run, or a table parameter's rows.
+    ScanBound {
+        /// What it scans.
+        scan: BoundScan,
+    },
     /// No kernel at this stage: the plan's `unserved` names the stage that lowers it.
     Unlowered,
+}
+
+/// What a bound scan reads: the host's rows of a declared relation, or the tables a `list<table>` parameter is bound to.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum BoundScan {
+    /// The host's rows of a declared relation.
+    Hosted(ryo_values::domain::plan_parts::types::HostedNumber),
+    /// One row for each table of a parameter, the text under each key in key order.
+    Rows {
+        /// The parameter.
+        parameter: ryo_values::domain::plan_parts::types::ParameterId,
+        /// The keys, in order.
+        keys: Vec<ryo_values::domain::plan_parts::types::TableKey>,
+        /// What the node's parameters are bound to.
+        bindings: Vec<ryo_values::domain::query_bindings::types::ParameterBinding>,
+    },
 }
 
 impl Lowering {
@@ -168,7 +189,7 @@ impl Lowering {
                 domain,
                 ..
             } => (Some(*starts), Some(*edges), Some(*domain)),
-            Self::Lookup { .. } | Self::Unlowered => (None, None, None),
+            Self::Lookup { .. } | Self::ScanBound { .. } | Self::Unlowered => (None, None, None),
         };
         first.into_iter().chain(second).chain(third)
     }

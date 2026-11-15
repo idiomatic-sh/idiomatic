@@ -20,10 +20,10 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 ///     project.emit_rows();
 /// }
 /// ```
-/// A caller cannot hand the phase tasks of its own: the root evaluation and its task are crate-private, and the declared
+/// A caller cannot hand the phase a handover of its own: what a rule is handed over from is crate-private, and the declared
 /// rules through `evaluate_rules` are the one phase call.
 /// ```compile_fail,E0603
-/// use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectTask;
+/// use ryo_execution_runtime::application::file_dag::program::project_phase::types::HandedFrom;
 /// ```
 /// The interpreter's counters are not the seam's: a caller cannot read its readiness counters,
 /// ```compile_fail,E0599

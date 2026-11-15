@@ -224,6 +224,7 @@ pub(crate) fn kernels(
         Lowering::TextMap { .. }
         | Lowering::Render { .. }
         | Lowering::Lookup { .. }
+        | Lowering::ScanBound { .. }
         | Lowering::Unlowered => {}
     }
     Ok(None)

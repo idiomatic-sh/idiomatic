@@ -882,7 +882,7 @@ fn portable(fault: &ryo_operators::domain::contract::types::PortableOperatorFaul
         // A named capture the matcher lacks, raised when a row first reaches the search.
         MissingCapture { .. } => Fault::RowFallible(CAPTURE),
         // The engine's record of a rendering it refused: raised by the engine's own resources, never by an operator's row.
-        Interrupted | NotRun | RenderRefused { .. } => Fault::Engine,
+        Interrupted | NotRun | RenderRefused { .. } | Withheld(_) => Fault::Engine,
         // A comparison's fault is the operating error it maps to, variant for variant.
         WrongTest => operating(&OperatingError::WrongTest),
         DuplicateOrder => operating(&OperatingError::DuplicateDfsOrder),
@@ -1074,7 +1074,8 @@ fn located_proof(raised: Raised<'_>) -> Option<LocatedProof> {
             | P::Unbound
             | P::Interrupted
             | P::NotRun
-            | P::DuplicateOrder,
+            | P::DuplicateOrder
+            | P::Withheld(_),
         ) => None,
         Raised::Portable(P::Pattern(_)) => Some(LocatedProof::MatcherSlot),
         Raised::Portable(P::WrongTest | P::Derived(_) | P::RenderRefused { .. }) => None,
@@ -1134,6 +1135,7 @@ fn portable_position(
         Pattern(_) => 15,
         Derived(_) => 16,
         RenderRefused { .. } => 17,
+        Withheld(_) => 18,
     }
 }
 

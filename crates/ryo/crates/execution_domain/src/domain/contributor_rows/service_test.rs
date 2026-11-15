@@ -138,6 +138,7 @@ fn contributed(op: Op, affected: &[Option<FileId>]) -> Value {
         &operation,
         semantics(kind_of(&operation)).absence,
         &inputs,
+        &[],
         &mut rows,
     );
     observed(&rows, None)
@@ -157,6 +158,7 @@ fn global_count() -> Value {
             },
             lineage: Default::default(),
         }],
+        &[],
         &mut count,
     );
     observed(&count, None)
@@ -207,7 +209,7 @@ fn inapplicable(op: Op, mask: u8, ordinal: usize) -> Result<Value, Failure> {
         },
         lineage: Default::default(),
     };
-    filter_contributor_rows(&operation, AbsenceMask(mask), &[input()], &mut rows);
+    filter_contributor_rows(&operation, AbsenceMask(mask), &[input()], &[], &mut rows);
     let coverage = match op {
         Op::GroupCount(_) => Some(
             match output_coverage(&operation, &rows.kinds, &[input()])? {

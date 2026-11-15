@@ -3,29 +3,19 @@ use super::interface::PrepareUseCase;
 use super::types::{DerivedViews, PlanSource, PrepareRequest};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 use std::sync::Arc;
 
-/// Prepares programs over the operators, derived views and digest it is given.
+/// Prepares programs over the operators and derived views it is given.
 pub struct PrepareUseCaseImpl {
     operators: Arc<dyn OperatorsPort>,
     derived: DerivedViews,
-    digest: Arc<dyn DigestPort>,
 }
 
 impl PrepareUseCaseImpl {
-    /// A use case over the engine's operators, derived views and digest.
-    pub fn new(
-        operators: Arc<dyn OperatorsPort>,
-        derived: DerivedViews,
-        digest: Arc<dyn DigestPort>,
-    ) -> Self {
-        Self {
-            operators,
-            derived,
-            digest,
-        }
+    /// A use case over the engine's operators and derived views.
+    pub fn new(operators: Arc<dyn OperatorsPort>, derived: DerivedViews) -> Self {
+        Self { operators, derived }
     }
 }
 
@@ -48,7 +38,6 @@ impl PrepareUseCase for PrepareUseCaseImpl {
             &request.hosted,
             request.observations,
             Arc::clone(&self.operators),
-            Arc::clone(&self.digest),
         )
     }
 }

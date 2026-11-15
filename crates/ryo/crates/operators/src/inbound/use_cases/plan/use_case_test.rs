@@ -4,9 +4,8 @@ use super::use_case::PlanUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
-use crate::domain::physical_plan::types::{
-    LogicalNode, NodeBindings, PlanInput, PlanInputList, PlanNodeId, RuleOrdinal,
-};
+use crate::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList, PlanNodeId};
+use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{Input as StepInput, StepScope};
 use ryo_values::domain::plans::types::Operation;

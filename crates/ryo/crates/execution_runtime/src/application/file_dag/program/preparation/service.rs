@@ -10,6 +10,7 @@ use ryo_execution_domain::domain::prepared_request::types::Compiled;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
+use ryo_execution_domain::domain::source_partitions::types::ProducerPartitions as _;
 use ryo_execution_domain::domain::source_partitions::types::source_partitions::value::SourcePartitions;
 use ryo_execution_domain::domain::trust::types::RelationRead;
 
@@ -17,12 +18,10 @@ use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::plans::types::Emit;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use std::sync::Arc;
 
-mod census;
 mod demands;
 mod metadata;
 mod replay;
@@ -109,12 +108,6 @@ impl PreparedProgram {
         OperatingError,
     > {
         Ok(&self.interpreted()?.matchers)
-    }
-    pub(crate) fn bindings(&self, rule: RuleIndex) -> Result<&[ParameterBinding], OperatingError> {
-        self.bindings
-            .get(rule.0)
-            .map(Box::as_ref)
-            .ok_or(OperatingError::NotRun)
     }
     pub(crate) fn rule_metadata(&self, rule: RuleIndex) -> Result<&RuleMetadata, OperatingError> {
         tracing::trace!(
@@ -362,9 +355,18 @@ fn interpreted(input: Interpreting<'_>) -> Result<Interpreted, OperatingError> {
         .as_ref()
         .map(|named| ObservationMetadata {
             layout: named.layout,
-            slots: named.slots.clone().into_boxed_slice(),
             frontiers: named.frontiers.clone().into_boxed_slice(),
             bindings: observations.to_vec(),
+            admissions: observations
+                .iter()
+                .enumerate()
+                .map(|(rule, bindings)| {
+                    bindings
+                        .iter()
+                        .map(|binding| partitions.observation(RuleIndex(rule), binding.input).map(|_| ()))
+                        .collect()
+                })
+                .collect(),
             outputs: named.outputs.iter().map(|outputs| outputs.iter().map(|output| OutputMetadata {
                 root: match output.root { ryo_execution_domain::domain::file_program::types::GraphObservationRoot::PerFile(_) => OutputRoot::PerFile,
                     ryo_execution_domain::domain::file_program::types::GraphObservationRoot::CrossFile => OutputRoot::CrossFile,

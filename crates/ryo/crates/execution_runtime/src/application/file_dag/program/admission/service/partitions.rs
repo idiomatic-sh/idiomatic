@@ -1,4 +1,2 @@
-//! Generation, request and partition identity: what a partition supplies and who it matches.
+//! The files a rule reads after the files, and what a proof of a rule's applicability names.
 mod service;
-#[cfg(test)]
-mod service_test;

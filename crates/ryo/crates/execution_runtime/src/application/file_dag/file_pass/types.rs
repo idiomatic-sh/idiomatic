@@ -65,6 +65,8 @@ pub(crate) struct PassScratch {
     pub(crate) roots: FileRoots,
     /// Each rule's named outputs, in rule order.
     pub(crate) outputs: Vec<Vec<OutputState>>,
+    /// Each rule's named outputs' rows in the open file, by rule and output, for the bound observations of the rules after it.
+    pub(crate) answers: Vec<Vec<Option<NodeAnswer>>>,
 }
 
 /// What one step's rows rest on: every relation read on the way to them, and the reads whose absence of rows a step on the way
@@ -86,8 +88,12 @@ pub(crate) struct PassInputs<'p, 'a, 's> {
     pub(crate) roots: &'p FileRoots,
     /// The lookup's first refusal in this file, answered as the facts' own stop.
     pub(crate) refused: std::cell::RefCell<Option<crate::outbound::facts::errors::FactsError>>,
-    /// The rows of an input no stage before the fourth serves: never read, since such a rule is refused.
-    pub(crate) unserved: ryo_values::domain::rows::types::Table,
+    /// The tables the running rule's bound observations in this file are bound to.
+    pub(crate) bound: crate::application::file_dag::publications::types::BoundTables,
+    /// Why each withheld input of this file is withheld.
+    pub(crate) withholdings: crate::application::file_dag::frontiers::types::Withholdings,
+    /// The host's rows of each relation a rule of this file read, in the file's symbols, by the relation's place.
+    pub(crate) hosted: Vec<Option<ryo_values::domain::rows::types::Table>>,
 }
 
 /// What one file's kernels borrow besides rows: its symbols, bytes and tree, and the paths of the run's files.
@@ -157,6 +163,8 @@ pub(crate) struct PassFile<'f, 'p, 'a, 's> {
     pub(crate) refusals: Vec<ryo_execution_domain::domain::operating::errors::OperatingError>,
     /// Each rule's named outputs in this file, in rule order.
     pub(crate) outputs: Vec<Vec<OutputState>>,
+    /// Each rule's named outputs' rows in this file, by rule and output, for the bound observations of the rules after it.
+    pub(crate) answers: Vec<Vec<Option<NodeAnswer>>>,
 }
 
 /// What a rule's capture is bound to: the rule, the first bucket of each rule and the rule's capture intent.
@@ -204,22 +212,6 @@ pub(crate) struct PassSource {
     pub(crate) bindings: Vec<Vec<ryo_values::domain::query_bindings::types::ParameterBinding>>,
     /// The operators that plan and run the program.
     pub(crate) operators: std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>,
-}
-
-/// Whether a request holds any rule.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum RulesHeld {
-    /// It holds none.
-    None,
-    /// It holds one or more.
-    Some,
-}
-
-/// The latest stage among a request's rules that no stage serves yet, and whether it holds a rule at all.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Stages {
-    /// The latest unserved stage, when a rule is not served.
-    pub(crate) latest: Option<ryo_operators::domain::physical_plan::types::ServedAt>,
-    /// Whether the request holds any rule.
-    pub(crate) held: RulesHeld,
+    /// The columns of each relation the host declares, by its place.
+    pub(crate) hosted: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
 }

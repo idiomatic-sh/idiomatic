@@ -80,22 +80,6 @@ impl ResidentGeneration {
             }
         }
     }
-    /// The generation's address, for diagnostics to correlate events of one generation; never an authority.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
-    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationsPort, service::RelationOwner};
-    /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
-    /// let owner = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
-    /// let generation = owner.generation();
-    /// assert_eq!(generation.diagnostic_address(), generation.clone().diagnostic_address());
-    /// ```
-    #[must_use]
-    pub fn diagnostic_address(&self) -> *const () {
-        std::sync::Arc::as_ptr(&self.0).cast::<()>()
-    }
     /// Whether the generation is still live.
     ///
     /// # Examples

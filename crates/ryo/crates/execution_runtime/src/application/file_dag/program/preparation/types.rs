@@ -1,9 +1,5 @@
 //! Immutable prepared request metadata; no runtime or lifecycle dependency.
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::file_program::types::ObservationSlot;
-use ryo_execution_domain::domain::interpreted_program::types::InputSource;
-use ryo_execution_domain::domain::interpreted_program::types::RegionId;
-use ryo_execution_domain::domain::interpreted_program::types::interpreted_program::value::InterpretedProgram;
 use ryo_execution_domain::domain::observation_schedule::types::ObservedFrontierRoot;
 use ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationBinding;
 use ryo_execution_domain::domain::observation_schedule::types::RuleSchedule;
@@ -15,7 +11,6 @@ use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::types::Emit;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::records::types::ObservationReadinessLayout;
 use std::sync::Arc;
@@ -24,7 +19,6 @@ use std::sync::Arc;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RuleTotal(pub usize);
 pub(crate) struct RootMetadata {
-    pub source: Result<InputSource, OperatingError>,
     pub phase: StepScope,
     pub reads: Box<[RelationRead]>,
 }
@@ -81,9 +75,11 @@ pub(crate) struct OutputMetadata {
 }
 pub(crate) struct ObservationMetadata {
     pub(crate) layout: ObservationReadinessLayout,
-    pub(crate) slots: Box<[ObservationSlot]>,
     pub(crate) frontiers: Box<[ObservedFrontierRoot]>,
     pub(crate) bindings: Vec<Vec<ResolvedObservationBinding>>,
+    /// Each binding of each rule checked against its consumer's declaration and its producers' outputs, in binding order: a
+    /// binding refused here is withheld with its refusal wherever a step reads it.
+    pub(crate) admissions: Vec<Vec<Result<(), OperatingError>>>,
     pub(crate) outputs: Vec<Vec<OutputMetadata>>,
     pub(crate) retire:
         Vec<Vec<ryo_execution_domain::domain::file_program::types::ObservationRetirement>>,
