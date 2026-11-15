@@ -116,7 +116,8 @@ impl TryFrom<ToolSchema> for types::Tool {
         let pending = dispositions(wire.pending)?;
         // A deferred or pending rule has no query, so no policy applies to it: a map covers exactly the authored rules, the
         // defaults and supporting producers that have one.
-        let authored = |id: &ryo::linter::RuleId| !deferred.contains_key(id) && !pending.contains_key(id);
+        let authored =
+            |id: &ryo::linter::RuleId| !deferred.contains_key(id) && !pending.contains_key(id);
         for (id, applicability) in &wire.rule_applicability {
             let parsed_id = rule(id)?;
             if (!defaults.contains(&parsed_id) && !supporting_rules.contains(&parsed_id))
@@ -133,7 +134,11 @@ impl TryFrom<ToolSchema> for types::Tool {
             }
         }
         if !wire.rule_applicability.is_empty() {
-            for id in defaults.iter().chain(&supporting_rules).filter(|id| authored(id)) {
+            for id in defaults
+                .iter()
+                .chain(&supporting_rules)
+                .filter(|id| authored(id))
+            {
                 if !wire.rule_applicability.contains_key(id.as_ref()) {
                     return Err(Error::Invalid(format!(
                         "invalid rule applicability policy: missing declared rule {id}"

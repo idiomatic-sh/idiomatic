@@ -1,5 +1,6 @@
 //! The ordered and cyclic graph kinds and the group digest through `plan` and `run` only: what a closure, a closure fused into its join and a group digest answer,
 //! and what a seeded closure walks, against the same rows run another way or recorded from main's row meaning.
+use super::super::super::fixtures::edges::{EDGES, edge_rows, edges, node, stated};
 use super::super::super::fixtures::{TableInputs, TextResources, emitted};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
@@ -7,14 +8,11 @@ use crate::domain::physical_plan::fixtures::Step;
 use crate::domain::physical_plan::fixtures::ordered::{ordered_existence_pair, ordered_rows};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
-use ryo_relations::domain::relations::fixtures::{kinds, node_id};
-use ryo_relations::domain::relations::types::{FileId, Integer, Position, Relation, Value as Cell};
+use ryo_relations::domain::relations::fixtures::kinds;
+use ryo_relations::domain::relations::types::{FileId, Integer, Relation, Value as Cell};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as StepInput};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::{RowCount, Table};
-
-/// The relation the cases read edges from: parent, child, ordinal, field, file.
-const EDGES: Relation = Relation::SemanticChild;
 
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -25,9 +23,6 @@ enum Scenario {
     GroupDigest,
     TwoWalksOverNewTexts,
     OrderedWalkOverEqualOrders,
-    ClosureOfOnePartition,
-    ClosureOfTwoPartitions,
-    ClosureOfNoEdge,
     OrderedWalkWithoutItsRootColumn,
 }
 #[derive(Debug, PartialEq)]
@@ -111,29 +106,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(PortableOperatorFault::ShapeMismatch),
     },
     Case {
-        name: CaseName("each_reached_vertex_is_one_row_after_its_key_and_source"),
-        word: Word::Succeeds,
-        input: || Scenario::ClosureOfOnePartition,
-        // A closure keyed on the ordinal: key 10, source 1, each entity it reaches (3, then 4).
-        expect: Expect::Value(Observation::Rows(std::borrow::Cow::Borrowed(&[
-            10, 1, 3, 10, 1, 4,
-        ]))),
-    },
-    Case {
-        name: CaseName("each_partition_answers_under_its_own_key"),
-        word: Word::Succeeds,
-        input: || Scenario::ClosureOfTwoPartitions,
-        expect: Expect::Value(Observation::Rows(std::borrow::Cow::Borrowed(&[
-            10, 1, 3, 11, 2, 5,
-        ]))),
-    },
-    Case {
-        name: CaseName("no_partition_answers_no_row"),
-        word: Word::Succeeds,
-        input: || Scenario::ClosureOfNoEdge,
-        expect: Expect::Value(Observation::Rows(std::borrow::Cow::Borrowed(&[]))),
-    },
-    Case {
         name: CaseName("a_root_row_without_its_root_column_is_refused"),
         word: Word::Refuses,
         input: || Scenario::OrderedWalkWithoutItsRootColumn,
@@ -142,73 +114,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
 ];
-
-/// A closure of the edges keyed on their ordinal, from each parent to each child it reaches.
-fn keyed_closure() -> Step {
-    Step {
-        operation: Operation::Closure {
-            edges: StepInput::Relation(EDGES),
-            keys: vec![ColumnIndex(2)],
-            source: ColumnIndex(0),
-            destination: ColumnIndex(1),
-        },
-        inputs: vec![PlanInput::Relation(EDGES)],
-    }
-}
-
-/// The node at position `at` of file 0.
-fn node(at: u32) -> Cell {
-    Cell::Node(node_id(FileId(0), Position(at)))
-}
-
-/// The edge rows `parent -> child`, each with its ordinal, the field `f` and file 0.
-fn edges(pairs: &[(u32, u32, i64)], texts: &TextResources) -> Table {
-    let mut cells = Vec::with_capacity(pairs.len() * kinds(EDGES).len());
-    for (parent, child, ordinal) in pairs {
-        cells.extend([
-            node(*parent),
-            node(*child),
-            Cell::Number(Integer(*ordinal)),
-            texts.symbol("f"),
-            Cell::File(FileId(0)),
-        ]);
-    }
-    Table {
-        kinds: kinds(EDGES).to_vec(),
-        cells,
-        count: RowCount(pairs.len()),
-    }
-}
-
-/// A cell as the case states it: a node by its position, a number as itself.
-fn stated(cell: Cell) -> i64 {
-    if let Cell::Node(id) = cell {
-        i64::from(ryo_relations::domain::relations::service::node_position(id).0)
-    } else if let Cell::Number(Integer(number)) = cell {
-        number
-    } else {
-        panic!("a case states nodes and numbers only, not {cell:?}")
-    }
-}
-
-/// The rows `step` answers over `pairs` as the edges, each cell as the case states it.
-fn stated_rows(step: Step, pairs: &[(u32, u32, i64)]) -> Result<Value, Failure> {
-    let mut resources = TextResources::new(&["f"]);
-    let table = edges(pairs, &resources);
-    let inputs = TableInputs::new(&[(EDGES, &table)]);
-    let rows = emitted(
-        &[step],
-        &[PlanNodeId(0)],
-        &inputs,
-        &mut resources,
-        &mut FileBuffers::default(),
-    )?;
-    Ok(Observation::Rows(
-        rows.iter()
-            .flat_map(|table| table.cells.iter().copied().map(stated))
-            .collect(),
-    ))
-}
 
 /// An ordered depth-first visit from every parent of the edges, the edges ordered by `order`, each visit naming its edge by
 /// its ordinal column.
@@ -309,6 +214,11 @@ fn two_walks() -> Result<Value, Failure> {
     ))
 }
 
+/// The rows `step` answers over `pairs` as the edges, as the case states them.
+fn stated_rows(step: Step, pairs: &[(u32, u32, i64)]) -> Result<Value, Failure> {
+    edge_rows(step, pairs).map(|rows| Observation::Rows(rows.into()))
+}
+
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::TwoWalksOverNewTexts => two_walks(),
@@ -396,9 +306,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             ))
         }
         Scenario::OrderedWalkOverATextOrder => stated_rows(ordered_walk(ColumnIndex(3)), WALKED),
-        Scenario::ClosureOfOnePartition => stated_rows(keyed_closure(), &[(1, 3, 10), (1, 4, 10)]),
-        Scenario::ClosureOfTwoPartitions => stated_rows(keyed_closure(), &[(1, 3, 10), (2, 5, 11)]),
-        Scenario::ClosureOfNoEdge => stated_rows(keyed_closure(), &[]),
         Scenario::OrderedWalkWithoutItsRootColumn => {
             let mut walk = ordered_walk(ColumnIndex(2));
             if let Operation::OrderedDfs { root, .. } = &mut walk.operation {

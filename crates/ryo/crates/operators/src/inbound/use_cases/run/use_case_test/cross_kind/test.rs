@@ -1,9 +1,12 @@
 //! What every kind keeps across kinds, through `plan` and `run` only: which kinds answer a row once and which keep its
 //! repeats, the order a select, a project and a join answer in, an antijoin over no right rows, a counted grouping's
 //! distinct count, the same rows from a relation's columns and from an earlier node's table, and that a program reads only
-//! the inputs its steps name.
+//! the inputs its steps name. The antijoin's and the join's own cases are `relational`'s.
 use super::super::super::fixtures::cases::{DEFINES, defines, input_of, named, select};
-use super::super::super::fixtures::{TableInputs, TextResources, emitted, planned, ran};
+use super::super::super::fixtures::relational::{
+    TEXTS, answered, both, group_count, join, node, project, relation,
+};
+use super::super::super::fixtures::{TableInputs, TextResources, planned, ran};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{Step, text_program};
@@ -13,18 +16,14 @@ use crate::domain::physical_plan::types::{
     Candidates, FactRows, LogicalNode, NodeBindings, PlanInput, PlanInputList, PlanInputs,
     PlanNodeId, RuleOrdinal,
 };
-use ryo_relations::domain::relations::fixtures::node_id;
-use ryo_relations::domain::relations::types::{FileId, Integer, Position, Relation, Value as Cell};
+use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, JoinColumn, ObservationBindingId, Operand, ParameterId, QueryLiteral,
-    RepeatedRows, Side, StepScope,
+    ColumnIndex, ObservationBindingId, Operand, ParameterId, QueryLiteral, RepeatedRows, Side,
+    StepScope,
 };
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::Table;
 use std::borrow::Cow;
-
-/// The texts of the file the cases read: the refinements and names of their `DEFINES` rows.
-const TEXTS: &[&str] = &["kind", "r1", "r2", "a", "b", "zzz"];
 
 #[derive(Clone, Copy, Debug)]
 enum Scenario {
@@ -36,12 +35,6 @@ enum Scenario {
     ReadsOnlyItsInputs,
     SelectOrder,
     ProjectZeroColumns,
-    AntijoinOfPresentAndAbsentKeys,
-    AntijoinOfNoRightRowsPastItsKey,
-    AntijoinOfRightRowsPastItsKey,
-    JoinThroughAView,
-    JoinOfNoMatchPastItsOutput,
-    JoinPastItsLeftKey,
 }
 type Input = Scenario;
 /// The rows each emitted node answers, one node per `;`, each cell a node's place, a text or a number.
@@ -113,194 +106,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         // Three rows of no column, then the names with their repeat.
         expect: Expect::Value(Cow::Borrowed("- | - | -; a | b | a")),
     },
-    Case {
-        name: CaseName("antijoin_retains_duplicate_when_rhs_absent_and_skips_present_key"),
-        word: Word::Succeeds,
-        input: || Scenario::AntijoinOfPresentAndAbsentKeys,
-        // Names a, b, a against the right's b: both a rows stay, the b row goes.
-        expect: Expect::Value(Cow::Borrowed("a | a")),
-    },
-    Case {
-        name: CaseName("empty_right_antijoin_never_reads_invalid_left_key"),
-        word: Word::Succeeds,
-        input: || Scenario::AntijoinOfNoRightRowsPastItsKey,
-        expect: Expect::Value(Cow::Borrowed("a | b | a")),
-    },
-    Case {
-        name: CaseName("nonempty_right_antijoin_checks_first_missing_key"),
-        word: Word::Refuses,
-        input: || Scenario::AntijoinOfRightRowsPastItsKey,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
-            index: ColumnIndex(5),
-        }),
-    },
-    Case {
-        name: CaseName("joined_rows_preserve_bag_order_duplicate_columns_and_view_mapping"),
-        word: Word::Succeeds,
-        input: || Scenario::JoinThroughAView,
-        // The right read through the view (name, node): its column 0 is the name and 1 the node, repeated in the answer.
-        expect: Expect::Value(Cow::Borrowed(
-            "n0 n0 b b | n0 n2 b b | n1 n1 a a | n2 n0 b b | n2 n2 b b",
-        )),
-    },
-    Case {
-        name: CaseName("empty_matches_do_not_access_invalid_output_columns"),
-        word: Word::Succeeds,
-        input: || Scenario::JoinOfNoMatchPastItsOutput,
-        expect: Expect::Value(Cow::Borrowed("")),
-    },
-    Case {
-        name: CaseName("missing_left_key_is_refused_before_candidate_access"),
-        word: Word::Refuses,
-        input: || Scenario::JoinPastItsLeftKey,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
-            index: ColumnIndex(9),
-        }),
-    },
 ];
-
-/// The antijoin of node 0's one column of names with the rows of node 1 on their name, the left keyed on `left_key`.
-fn antijoin_of_names(left_key: u32, right_name: &str) -> Result<String, Failure> {
-    answered(
-        &[
-            project(relation(), &[3], RepeatedRows::Kept),
-            select(relation(), vec![named(right_name)]),
-            both(
-                Operation::Antijoin {
-                    left: input_of(node(0)),
-                    right: input_of(node(1)),
-                    left_on: vec![ColumnIndex(left_key)],
-                    right_on: vec![ColumnIndex(3)],
-                },
-                node(0),
-                node(1),
-            ),
-        ],
-        &[2],
-        &[("r1", "a"), ("r1", "b"), ("r1", "a")],
-    )
-}
-
-/// One cell as the cases show it: a node by its place in file 0, a text by the file's text, a number as itself.
-fn cell(value: Cell, texts: &TextResources) -> String {
-    if let Some(at) = (0..16).find(|at| value == Cell::Node(node_id(FileId(0), Position(*at)))) {
-        return format!("n{at}");
-    }
-    if let Some(text) = TEXTS.iter().find(|text| texts.symbol(text) == value) {
-        return (*text).to_owned();
-    }
-    match value {
-        Cell::Number(Integer(number)) => number.to_string(),
-        other => format!("{other:?}"),
-    }
-}
-
-/// The rows of `table`, a row's cells spaced, rows apart by ` | `; a row of no cell is `-`.
-fn shown(table: &Table, texts: &TextResources) -> String {
-    let width = table.kinds.len();
-    (0..table.count.0)
-        .map(|row| {
-            if width == 0 {
-                return "-".to_owned();
-            }
-            table
-                .cells
-                .get(row * width..(row + 1) * width)
-                .unwrap_or_default()
-                .iter()
-                .map(|value| cell(*value, texts))
-                .collect::<Vec<_>>()
-                .join(" ")
-        })
-        .collect::<Vec<_>>()
-        .join(" | ")
-}
-
-/// What `steps` answer at `emits` over `DEFINES` rows of `pairs`, shown node by node.
-fn answered(steps: &[Step], emits: &[u32], pairs: &[(&str, &str)]) -> Result<String, Failure> {
-    let mut texts = TextResources::new(TEXTS);
-    let rows = defines(pairs, &texts);
-    let inputs = TableInputs::new(&[(DEFINES, &rows)]);
-    let emits: Vec<PlanNodeId> = emits.iter().copied().map(PlanNodeId).collect();
-    let tables = emitted(
-        steps,
-        &emits,
-        &inputs,
-        &mut texts,
-        &mut FileBuffers::default(),
-    )?;
-    Ok(tables
-        .iter()
-        .map(|table| shown(table, &texts))
-        .collect::<Vec<_>>()
-        .join("; "))
-}
-
-/// The input of a step that reads `DEFINES`.
-fn relation() -> PlanInput {
-    PlanInput::Relation(DEFINES)
-}
-
-/// The input of a step that reads node `at`.
-fn node(at: u32) -> PlanInput {
-    PlanInput::Node(PlanNodeId(at))
-}
-
-/// A projection of `from`'s `columns`, dropping repeated rows when `distinct` says.
-fn project(from: PlanInput, columns: &[u32], distinct: RepeatedRows) -> Step {
-    Step {
-        operation: Operation::Project {
-            from: input_of(from),
-            columns: columns.iter().copied().map(ColumnIndex).collect(),
-            distinct,
-        },
-        inputs: vec![from],
-    }
-}
-
-/// A step reading `left` then `right`.
-fn both(operation: Operation, left: PlanInput, right: PlanInput) -> Step {
-    Step {
-        operation,
-        inputs: vec![left, right],
-    }
-}
-
-/// The join of `left` with `right` on one key each, answering the columns `output` names.
-fn join(left: (PlanInput, u32), right: (PlanInput, u32), output: &[(Side, u32)]) -> Step {
-    both(
-        Operation::Join {
-            left: input_of(left.0),
-            right: input_of(right.0),
-            left_on: vec![ColumnIndex(left.1)],
-            right_on: vec![ColumnIndex(right.1)],
-            output: output
-                .iter()
-                .map(|(side, column)| JoinColumn {
-                    side: *side,
-                    column: ColumnIndex(*column),
-                })
-                .collect(),
-            filter: Vec::new(),
-            view: Vec::new(),
-            reach: None,
-        },
-        left.0,
-        right.0,
-    )
-}
-
-/// The counted grouping of `from` by its refinement, counting the distinct names when `distinct`.
-fn group_count(from: PlanInput, distinct: bool) -> Step {
-    Step {
-        operation: Operation::GroupCount {
-            from: input_of(from),
-            keys: vec![ColumnIndex(2)],
-            distinct: distinct.then_some(ColumnIndex(3)),
-        },
-        inputs: vec![from],
-    }
-}
 
 /// The inputs of a run that count what it reads besides the relations it holds.
 struct Watched {
@@ -493,42 +299,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             &[0],
             &[("r1", "b"), ("r1", "a"), ("r1", "b")],
         )?,
-        Scenario::AntijoinOfPresentAndAbsentKeys => antijoin_of_names(0, "b")?,
-        Scenario::AntijoinOfNoRightRowsPastItsKey => antijoin_of_names(5, "zzz")?,
-        Scenario::AntijoinOfRightRowsPastItsKey => antijoin_of_names(5, "b")?,
-        Scenario::JoinThroughAView => {
-            let mut through = join(
-                (relation(), 3),
-                (relation(), 0),
-                &[
-                    (Side::Left, 0),
-                    (Side::Right, 1),
-                    (Side::Right, 0),
-                    (Side::Left, 3),
-                ],
-            );
-            if let Operation::Join { view, .. } = &mut through.operation {
-                *view = vec![ColumnIndex(3), ColumnIndex(0)];
-            }
-            answered(&[through], &[0], &[("r1", "b"), ("r1", "a"), ("r1", "b")])?
-        }
-        Scenario::JoinOfNoMatchPastItsOutput => answered(
-            &[
-                select(relation(), vec![named("zzz")]),
-                join(
-                    (relation(), 3),
-                    (node(0), 3),
-                    &[(Side::Left, 0), (Side::Right, 99)],
-                ),
-            ],
-            &[1],
-            &repeated,
-        )?,
-        Scenario::JoinPastItsLeftKey => answered(
-            &[join((relation(), 9), (relation(), 3), &[(Side::Left, 0)])],
-            &[0],
-            &repeated,
-        )?,
         Scenario::ProjectZeroColumns => answered(
             &[
                 project(relation(), &[], RepeatedRows::Kept),
@@ -543,9 +313,4 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-}
-
-#[test]
-fn refuses() {
-    run(CASES, Word::Refuses, subject);
 }

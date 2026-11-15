@@ -101,9 +101,11 @@ pub(crate) struct PassResources<'r> {
     /// The file's tree.
     pub(crate) elements: &'r ryo_language::domain::elements::types::Elements,
     /// The file's semantic session, when its language has one: what renders syntax.
-    pub(crate) semantic: Option<&'r dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
+    pub(crate) semantic:
+        Option<&'r dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
     /// The file's refused renderings, each the engine's own reason, where a refusal of this run is recorded.
-    pub(crate) refusals: &'r mut Vec<ryo_execution_domain::domain::operating::errors::OperatingError>,
+    pub(crate) refusals:
+        &'r mut Vec<ryo_execution_domain::domain::operating::errors::OperatingError>,
 }
 
 /// Whether a rule's named output was committed with its frontier in this file.
@@ -148,7 +150,8 @@ pub(crate) struct PassFile<'f, 'p, 'a, 's> {
     /// The path of each file of the run.
     pub(crate) paths: &'f [ryo_language::domain::files::types::FilePath],
     /// The file's semantic session, when its language has one.
-    pub(crate) semantic: Option<&'f dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
+    pub(crate) semantic:
+        Option<&'f dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
     /// The engine's reason for each rendering it refused in this file, by the `RenderRefusal` the refused node's fault carries:
     /// every reader of that node answers that node's reason.
     pub(crate) refusals: Vec<ryo_execution_domain::domain::operating::errors::OperatingError>,

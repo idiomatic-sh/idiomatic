@@ -358,7 +358,10 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
         // readable: the files oxlint lints, where it reports only the error for any other.
         languages::set_syntax_acceptance(
             builder,
-            if parsed.diagnostics.is_empty() && semantic.diagnostics.is_empty() && readable == length {
+            if parsed.diagnostics.is_empty()
+                && semantic.diagnostics.is_empty()
+                && readable == length
+            {
                 languages::SyntaxAcceptance::Accepted
             } else {
                 languages::SyntaxAcceptance::Rejected

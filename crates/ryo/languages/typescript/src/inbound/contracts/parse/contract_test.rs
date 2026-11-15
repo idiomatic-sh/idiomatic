@@ -148,7 +148,9 @@ fn subject(given: Input) -> Result<Value, Failure> {
     )?;
     Ok(match read {
         Read::Elements => Answer::Count(contract::element_count(&table).0),
-        Read::Diagnosed => Answer::Count(usize::from(languages::diagnostics(&table).next().is_some())),
+        Read::Diagnosed => {
+            Answer::Count(usize::from(languages::diagnostics(&table).next().is_some()))
+        }
         Read::Acceptance => Answer::Acceptance(languages::syntax_acceptance(&table)),
     })
 }

@@ -217,7 +217,9 @@ fn rules_of(request: Request) -> Vec<(Arc<Plan>, Vec<ParameterBinding>)> {
                     // are the ones a plan does not serve yet.
                     vec![per_file(Operation::Rows {
                         parameter: ParameterId(0),
-                        keys: vec![ryo_values::domain::plan_parts::types::TableKey("name".into())],
+                        keys: vec![ryo_values::domain::plan_parts::types::TableKey(
+                            "name".into(),
+                        )],
                     })],
                     Vec::new(),
                 ),

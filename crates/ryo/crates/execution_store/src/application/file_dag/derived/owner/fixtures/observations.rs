@@ -11,7 +11,6 @@ pub struct IndexObservation {
     pub available: bool,
 }
 impl DerivedOwner {
-
     /// What the owner's index acquisitions observed.
     pub fn index_observation(&self) -> IndexObservation {
         self.backend

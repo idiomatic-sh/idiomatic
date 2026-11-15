@@ -64,16 +64,18 @@ pub(crate) fn absolute_span(
     base: SourceBase,
     occurrence: OccurrenceSpan,
 ) -> Result<Span, PortableOperatorFault> {
-    let at = |offset: usize| {
-        base.0
-            .checked_add(offset)
-            .and_then(|absolute| u32::try_from(absolute).ok())
+    let at = |offset: OccurrenceByte| {
+        let absolute = base
+            .0
+            .checked_add(offset.0)
+            .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?;
+        u32::try_from(absolute)
             .map(Offset)
-            .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)
+            .map_err(|_| PortableOperatorFault::InvalidSourceMatchSpan)
     };
     Ok(Span {
-        start: at(occurrence.start.0)?,
-        end: at(occurrence.end.0)?,
+        start: at(occurrence.start)?,
+        end: at(occurrence.end)?,
     })
 }
 

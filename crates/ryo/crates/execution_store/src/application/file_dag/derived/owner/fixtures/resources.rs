@@ -26,8 +26,7 @@ use std::rc::Rc;
 use std::sync::{Arc, Weak};
 /// What a resource fixture's owner holds and counted.
 #[derive(Clone, Copy, Debug)]
-pub struct Snapshot {
-}
+pub struct Snapshot {}
 /// A relation owner over a recording port, with the resource acquisitions a proof drives.
 #[cfg(test)]
 pub(crate) struct ResourceFixture {

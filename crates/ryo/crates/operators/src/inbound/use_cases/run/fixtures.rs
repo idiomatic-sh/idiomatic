@@ -32,6 +32,10 @@ pub mod allocating;
 #[cfg(test)]
 pub(crate) mod cases;
 pub mod counting;
+#[cfg(test)]
+pub(crate) mod edges;
+#[cfg(test)]
+pub(crate) mod relational;
 pub mod texts;
 pub mod unshared;
 

@@ -1,5 +1,7 @@
 //! The operators crate's workloads.
 
+#[path = "performance/graphs/bench.rs"]
+mod graphs;
 #[path = "performance/kernels/bench.rs"]
 mod kernels;
 
