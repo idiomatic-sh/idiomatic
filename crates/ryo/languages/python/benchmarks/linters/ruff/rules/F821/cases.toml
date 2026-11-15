@@ -1296,3 +1296,15 @@ name="walrus-in-class-keyword-is-undefined-after"
 comparison="full"
 files={"case.py"="def f():\n    class A(metaclass=(m := type)):\n        pass\n    return m, A\n"}
 expected=[{rule="F821", file="case.py", start=69, end=70}]
+
+[[cases]]
+name="deleted-handler-target-read-after-in-function"
+comparison="full"
+files={"case.py"="def f():\n    try:\n        pass\n    except Exception as e:\n        del e\n        print(e)\n"}
+expected=[]
+
+[[cases]]
+name="global-declared-in-one-function-read-in-another"
+comparison="full"
+files={"case.py"="def f():\n    global g\n    g = 1\ndef h():\n    return g\n"}
+expected=[]

@@ -710,3 +710,9 @@ name="conditionally-deleted-handler-target"
 comparison="full"
 files={"case.py"="def f(c):\n    try:\n        pass\n    except Exception as e:\n        if c:\n            del e\n"}
 expected=[]
+
+[[cases]]
+name="deletion-in-nested-function-does-not-use-enclosing-assignment"
+comparison="full"
+files={"case.py"="def f():\n    x = 1\n    def g():\n        del x\n    return g\n"}
+expected=[{rule="F841", file="case.py", start=13, end=14}]

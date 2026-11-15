@@ -755,3 +755,9 @@ name="two-branch-imports-read-in-else-in-class"
 comparison="full"
 files={"case.py"="import os\nclass C:\n    if c:\n        import os\n        import os\n    else:\n        print(os)\n"}
 expected=[{rule="F811", file="case.py", start=62, end=64}]
+
+[[cases]]
+name="handler-target-deleted-redefines-unused-assignment"
+comparison="full"
+files={"case.py"="def f():\n    e = 1\n    try:\n        pass\n    except Exception as e:\n        del e\n"}
+expected=[{rule="F811", file="case.py", start=65, end=66}]
