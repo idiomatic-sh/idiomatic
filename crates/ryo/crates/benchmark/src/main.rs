@@ -44,6 +44,7 @@ use ryo_benchmark::{
         inventory::{self, interface::InventoryPort as _},
     },
 };
+use ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardCount;
 use std::{
     io::{Read as _, Write as _},
     sync::Arc,
@@ -81,8 +82,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(ryo_benchmark::domain::operations::types::OperationVerb)
         .and_then(ryo_benchmark::domain::operations::service::operation)
     {
-        let [_verb, bench] = arguments.as_slice() else {
-            return Err(operate_constants::USAGE.into());
+        let (bench, shards) = match arguments.as_slice() {
+            [_verb, bench] => (bench, ShardCount(1)),
+            [_verb, option, count, bench] if option == operate_constants::SHARDS_OPTION => (
+                bench,
+                ShardCount(
+                    count
+                        .to_str()
+                        .ok_or(operate_constants::USAGE)?
+                        .parse::<usize>()?,
+                ),
+            ),
+            _ => return Err(operate_constants::USAGE.into()),
         };
         let operate = OperateUseCaseImpl::new(
             Arc::new(ryo_benchmark::outbound::executables::factory::cargo(
@@ -106,11 +117,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Arc::new(execution::factory::bounded(std::time::Duration::from_secs(
                 operate_constants::RULE_TIMEOUT_SECONDS,
             ))),
+            Arc::new(ryo_benchmark::outbound::scheduler::factory::threads()),
         );
         let report = operate.operate(
             &OperationRequest {
                 operation,
                 bench: BenchDirectory(bench.into()),
+                shards,
             },
             &mut std::io::stdout().lock(),
         )?;

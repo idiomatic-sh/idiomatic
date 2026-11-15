@@ -30,6 +30,7 @@ fn run(defaults: &[&str]) -> (Result<bool, String>, serde_json::Value, usize) {
         )),
         execution.clone(),
         Arc::new(local()),
+        Arc::new(ryo_benchmark::outbound::scheduler::factory::threads()),
     );
     let result = operation
         .verify_inventory(&registration, &output)

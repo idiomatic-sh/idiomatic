@@ -1,6 +1,0 @@
-
-[[cases]]
-name = "cross-FURB157-keyword-float-helper"
-comparison = "full"
-files = { "case.py" = "from decimal import Decimal\nDecimal(value=float(\"NaN\"))\n" }
-expected = [{ end = 54, file = "case.py", rule = "FURB157", start = 42 }]

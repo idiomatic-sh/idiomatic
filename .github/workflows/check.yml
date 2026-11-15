@@ -264,7 +264,7 @@ jobs:
   # The one verdict: it fails when a job it waits for failed or was cancelled, and passes when each succeeded or was skipped (the
   # speed guard alone, on a push to main).
   gate:
-    needs: [root, pull-request, check, speed, ruff-candidates, bench-correctness]
+    needs: [root, pull-request, check, speed, python-release, bench-correctness]
     if: always()
     runs-on: ubuntu-26.04
     steps:
@@ -272,7 +272,7 @@ jobs:
         with:
           jobs: ${{ toJSON(needs) }}
           allowed-skips: ${{ github.event_name == 'push' && 'speed' || '' }}
-  ruff-candidates:
+  python-release:
     runs-on: ubuntu-26.04
     defaults:
       run:
@@ -302,7 +302,7 @@ jobs:
         with:
           cache-bin: false
           cache-workspace-crates: true
-          shared-key: ubuntu-26.04-ruff-candidates-ryo
+          shared-key: ubuntu-26.04-python-release-ryo
           save-if: true
           cache-on-failure: true
           workspaces: crates/ryo -> ../../target
@@ -321,16 +321,16 @@ jobs:
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: crates/ryo/.asymptote/cache
-          key: asymptote-${{ runner.os }}-${{ runner.arch }}-ryo-ruff-candidates-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: asymptote-${{ runner.os }}-${{ runner.arch }}-ryo-python-release-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            asymptote-${{ runner.os }}-${{ runner.arch }}-ryo-ruff-candidates-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-
-      - run: asymptote check --root crates/ryo --groups ruff-candidates
+            asymptote-${{ runner.os }}-${{ runner.arch }}-ryo-python-release-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-
+      - run: asymptote check --root crates/ryo --groups python-release
       - name: Save the asymptote store
         if: always()
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: crates/ryo/.asymptote/cache
-          key: asymptote-${{ runner.os }}-${{ runner.arch }}-ryo-ruff-candidates-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: asymptote-${{ runner.os }}-${{ runner.arch }}-ryo-python-release-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
   # A change's speed against main: on a pull request and a hand run, never on a push to main, which has no main to compare with.
   # It keeps no asymptote store: its answer stands on origin/main, which no stamp holds.
   speed:

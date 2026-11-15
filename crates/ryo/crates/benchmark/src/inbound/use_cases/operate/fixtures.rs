@@ -11,6 +11,7 @@ use crate::domain::operations::types::{BenchDirectory, BenchOperation};
 use crate::outbound::executables::fixtures::fake::{ExecutablesCall, ExecutablesFake};
 use crate::outbound::executables::types::RunVerdict;
 use crate::outbound::execution::fixtures::fake::ExecutionFake;
+use ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardCount;
 use ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -32,6 +33,8 @@ pub struct Scenario {
     pub verdict: OperationVerdict,
     /// Whether the bench's `rules/` holds `R9`, a rule that is neither a default nor a supporting rule.
     pub stray_rule: bool,
+    /// How many shards the correctness operation runs in.
+    pub shards: ShardCount,
 }
 
 /// What one scenario observed: the operation's answer, its standard output, and every executables request with the
@@ -65,6 +68,7 @@ pub fn use_case(executables: Arc<ExecutablesFake>) -> OperateUseCaseImpl {
             crate::outbound::receipts::types::CaseReceipts::Unrecorded,
         )),
         Arc::new(ExecutionFake::default()),
+        Arc::new(crate::outbound::scheduler::factory::threads()),
     )
 }
 
@@ -120,6 +124,7 @@ pub fn observe(
             &OperationRequest {
                 operation: scenario.operation,
                 bench: BenchDirectory(bench),
+                shards: scenario.shards,
             },
             &mut stdout,
         )

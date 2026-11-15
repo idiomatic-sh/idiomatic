@@ -154,6 +154,7 @@ pub(super) fn verify_cases(
     let count =
         ryo_benchmark::inbound::use_cases::verify_cases::use_case::VerifyCasesUseCaseImpl::new(
             suite_source.as_ref(),
+            &ryo_benchmark::outbound::host::factory::local(),
             &ryo_benchmark::outbound::receipts::factory::local(run.receipts),
             &ryo_benchmark::outbound::context::factory::local(),
             reference.as_ref(),
@@ -198,7 +199,7 @@ pub(super) fn verify_reference_cases(
         &tool,
         &reference.version_line(&tool),
     )?;
-    let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &ryo_benchmark::outbound::receipts::factory::local(ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded), &ryo_benchmark::outbound::context::factory::local(), &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local()).verify_reference_cases(
+    let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &ryo_benchmark::outbound::host::factory::local(), &ryo_benchmark::outbound::receipts::factory::local(ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded), &ryo_benchmark::outbound::context::factory::local(), &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local()).verify_reference_cases(
         &source.join(constants::RULES_DIRECTORY),
         &root,
     );

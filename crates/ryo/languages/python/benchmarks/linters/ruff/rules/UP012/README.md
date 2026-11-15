@@ -10,7 +10,7 @@ Current canonical singleton proof:50/50intended pass,42raw exact+8documented ref
 
 **Reference:** pinned Ruff 0.16.5 (`python-target=3.10`; [profile](../../profiles/UP012/benchmark.toml)). **Scope:** Source-specific reference difference; upstream bug status is unverified.
 
-The 8 certified cases below retain their exact source bytes and full intended and observed finding arrays in [cases.toml](cases.toml). The [archived raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz) records an executed worker snapshot; the source and reference-output hashes in each case certificate bind the precise observation. A historical combined receipt may predate a later targeted certificate; follow the certificate identity for that case. Diagnostic spans below are UTF-8 byte offsets.
+The 8 certified cases below retain their exact source bytes and full intended and observed finding arrays in [cases.toml](cases.toml). The archived raw receipt records an executed worker snapshot; the source and reference-output hashes in each case certificate bind the precise observation. A historical combined receipt may predate a later targeted certificate; follow the certificate identity for that case. Diagnostic spans below are UTF-8 byte offsets.
 
 To reproduce Ruff's reference finding for `unicode-escape`, write its exact named file from [cases.toml](cases.toml) into an isolated directory and run the pinned Ruff 0.16.5 executable (SHA256 `52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8`):
 
@@ -30,7 +30,7 @@ Representative exact source, `unicode-escape` (`case.py`):
 
 - Intended: UP012 case.py:0–17. Pinned Ruff observed: none.
 - Basis: Decoded ASCII literals admit equivalent bytes literals, and an explicit UTF8 argument equals the default encoding even for non-ASCII text; exact independent equality supports these intended policies across escape spellings. Primary evidence: [cpython310-exact.json](../../profiles/UP012/evidence/cpython310-exact.json).
-- Reproduce: use the [profile](../../profiles/UP012/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+- Reproduce: use the [profile](../../profiles/UP012/benchmark.toml), exact named source in [cases.toml](cases.toml), and raw receipt; the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
 
 
 ## Explicit profile context replay (2026-11-05)

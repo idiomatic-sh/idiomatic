@@ -25,6 +25,7 @@ use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
 use ryo_benchmark_contracts::domain::measurements::types::{Invocation, TerminationSignal};
 use ryo_benchmark_contracts::domain::receipts::constants::{CASE_RECEIPTS_ARGUMENT, VERIFY_CASES};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardCount;
 use serde_json::json;
 use std::collections::BTreeMap;
 use std::{borrow::Cow, path::PathBuf, sync::Mutex, time::Duration};
@@ -249,6 +250,8 @@ fn independent_providers() -> Result<InventoryVerdict, Error> {
             &execution,
             &crate::outbound::inventory::factory::local(),
             &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
+            &crate::outbound::scheduler::factory::threads(),
+            ShardCount(1),
         )?;
         let summary = summary_of(root.path());
         assert_eq!(
@@ -285,6 +288,8 @@ fn unknown_rule() -> Result<InventoryVerdict, Error> {
         &execution,
         &crate::outbound::inventory::factory::local(),
         &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
+        &crate::outbound::scheduler::factory::threads(),
+        ShardCount(1),
     );
     let snapshot = summary_of(root.path());
     assert_eq!(
@@ -327,6 +332,8 @@ fn undeclared_modules() -> Result<InventoryVerdict, Error> {
         &execution,
         &crate::outbound::inventory::factory::local(),
         &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
+        &crate::outbound::scheduler::factory::threads(),
+        ShardCount(1),
     );
     assert!(execution.calls.lock().unwrap().is_empty());
     let summary = summary_of(output.path());
@@ -363,3 +370,6 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+#[cfg(test)]
+mod shards;

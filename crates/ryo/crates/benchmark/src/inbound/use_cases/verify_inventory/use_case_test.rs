@@ -286,6 +286,7 @@ fn subject(registered: Input) -> Result<Value, Failure> {
         )),
         execution.clone(),
         Arc::new(local()),
+        Arc::new(crate::outbound::scheduler::factory::threads()),
     );
     let result = operation.verify_inventory(&registration_path, &output);
     let calls = execution.history.lock().expect("history").len();

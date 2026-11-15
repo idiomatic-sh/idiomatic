@@ -14,6 +14,8 @@ use std::sync::Arc;
 pub struct CertifyUseCaseImpl {
     /// Artifact validation and exact content fingerprinting boundary.
     suite: Arc<dyn SuitePort>,
+    /// The host's file-permission facts.
+    host: Arc<dyn crate::outbound::host::interface::HostPort>,
     /// Case receipt recording boundary.
     receipts: Arc<dyn crate::outbound::receipts::interface::ReceiptsPort>,
     /// Sealed disk context validation and fingerprinting boundary.
@@ -25,26 +27,36 @@ pub struct CertifyUseCaseImpl {
     /// Process launch and resource observation boundary.
     execution: Arc<dyn ExecutionPort>,
     inventory: Arc<dyn crate::outbound::inventory::interface::InventoryPort>,
+    /// Runs the registered rules' verification.
+    scheduler: Arc<dyn crate::outbound::scheduler::interface::SchedulerPort>,
 }
 impl CertifyUseCaseImpl {
-    /// Bind the four independently replaceable boundaries.
+    /// Bind the independently replaceable boundaries.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "each boundary is an independently injected port of the certification"
+    )]
     pub fn new(
         suite: Arc<dyn SuitePort>,
+        host: Arc<dyn crate::outbound::host::interface::HostPort>,
         receipts: Arc<dyn crate::outbound::receipts::interface::ReceiptsPort>,
         context: Arc<dyn crate::outbound::context::interface::ContextPort>,
         reference: Arc<dyn LinterPort>,
         candidate: Arc<dyn LinterPort>,
         execution: Arc<dyn ExecutionPort>,
         inventory: Arc<dyn crate::outbound::inventory::interface::InventoryPort>,
+        scheduler: Arc<dyn crate::outbound::scheduler::interface::SchedulerPort>,
     ) -> Self {
         Self {
             suite,
+            host,
             receipts,
             context,
             reference,
             candidate,
             execution,
             inventory,
+            scheduler,
         }
     }
 }
@@ -157,6 +169,7 @@ impl CertifyUseCase for CertifyUseCaseImpl {
                 )?;
                 super::service::verify_prepared_shard(
                     suite,
+                    self.host.as_ref(),
                     receipts,
                     context,
                     reference,
@@ -180,6 +193,7 @@ impl CertifyUseCase for CertifyUseCaseImpl {
                 execution,
                 inventory_store,
                 coverage,
+                self.scheduler.as_ref(),
             )?,
         };
         let after = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;

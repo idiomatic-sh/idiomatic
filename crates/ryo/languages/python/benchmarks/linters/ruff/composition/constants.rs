@@ -75,10 +75,6 @@ pub(crate) const PYTHON_TARGET: &str = "python-target=";
 pub(crate) const UNEXPECTED_WORKER_CONFIGURATION: &str = "unexpected worker configuration";
 /// Text `unexpected trailing worker argument`.
 pub(crate) const UNEXPECTED_TRAILING_WORKER_ARGUMENT: &str = "unexpected trailing worker argument";
-/// Text `pinned reference does not evaluate PO...`.
-pub(crate) const PINNED_REFERENCE_DOES_NOT_EVALUATE: &str =
-    "pinned reference does not evaluate POSIX executable checks on this host";
-
 /// Name prefix of the scratch directory one fixture verification stages into.
 pub(crate) const VERIFY_CASES_SCRATCH: &str = "verify-cases-";
 /// Name prefix of the scratch directory one reference-only verification stages into.
@@ -99,25 +95,3 @@ const STUB_EXTENSION: &str = ".pyi";
 pub(crate) const SOURCE_SUFFIXES: [&str; 2] = [PYTHON_EXTENSION, STUB_EXTENSION];
 /// Stable command, artifact or observation identity for rules directory.
 pub(crate) const RULES_DIRECTORY: &str = "rules";
-/// Text `linux`.
-pub(crate) const LINUX: &str = "linux";
-/// Text `/proc/sys/kernel/osrelease`.
-pub(crate) const PROC_SYS_KERNEL_OSRELEASE: &str = "/proc/sys/kernel/osrelease";
-/// Text `/proc/version`.
-pub(crate) const PROC_VERSION: &str = "/proc/version";
-/// Text `microsoft`.
-pub(crate) const MICROSOFT: &str = "microsoft";
-/// Text `/.dockerenv`.
-pub(crate) const DOCKERENV: &str = "/.dockerenv";
-/// Text `/run/.containerenv`.
-pub(crate) const RUN_CONTAINERENV: &str = "/run/.containerenv";
-/// Text `/proc/self/cgroup`.
-pub(crate) const PROC_SELF_CGROUP: &str = "/proc/self/cgroup";
-/// Text `docker`.
-pub(crate) const DOCKER: &str = "docker";
-/// Text `/container`.
-pub(crate) const CONTAINER: &str = "/container";
-/// Text `/lxc`.
-pub(crate) const LXC: &str = "/lxc";
-/// Text `kubepods`.
-pub(crate) const KUBEPODS: &str = "kubepods";

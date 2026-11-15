@@ -48,24 +48,6 @@ fn repository_relative(repository: &Path, path: &Path) -> PathText {
     )
 }
 
-/// The settings profile directory of a rule: `profiles/<id>` when it holds a profile, else the bench.
-fn settings_directory(
-    suite: &dyn SuitePort,
-    bench: &Path,
-    rule: &ryo::linter::RuleId,
-) -> Result<PathBuf, Error> {
-    let dedicated = bench
-        .join(constants::SETTINGS_PROFILES)
-        .join(rule.to_string());
-    match suite.digest(ArtifactPath(&dedicated.join(PROFILE_MANIFEST))) {
-        Ok(_digest) => Ok(dedicated),
-        Err(Error::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {
-            Ok(bench.to_owned())
-        }
-        Err(error) => Err(error),
-    }
-}
-
 /// What every rule of one registration is staged with.
 struct Bench<'a> {
     suite: &'a dyn SuitePort,
@@ -84,7 +66,7 @@ struct Bench<'a> {
 fn stage_rule(bench: &Bench<'_>, rule: &ryo::linter::RuleId) -> Result<RegisteredRule, Error> {
     let suite = bench.suite;
     let rules = bench.root.join(crate::domain::suite::constants::RULES);
-    let settings_directory = settings_directory(suite, &bench.root, rule)?;
+    let settings_directory = suite.settings_directory(ArtifactPath(&bench.root), rule)?;
     let settings = suite.profile(ArtifactPath(&settings_directory))?;
     if settings.tool != bench.profile.tool
         || settings.version != bench.profile.version

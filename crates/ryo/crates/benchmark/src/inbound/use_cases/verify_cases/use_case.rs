@@ -6,6 +6,7 @@ use std::path::Path;
 /// verify_cases with required borrowed boundaries.
 pub struct VerifyCasesUseCaseImpl<'a> {
     suite: &'a dyn crate::outbound::suite::interface::SuitePort,
+    host: &'a dyn crate::outbound::host::interface::HostPort,
     receipts: &'a dyn crate::outbound::receipts::interface::ReceiptsPort,
     context: &'a dyn crate::outbound::context::interface::ContextPort,
     reference: &'a dyn crate::outbound::linter::interface::LinterPort,
@@ -18,6 +19,7 @@ impl<'a> VerifyCasesUseCaseImpl<'a> {
     #[must_use]
     pub fn new(
         suite: &'a dyn crate::outbound::suite::interface::SuitePort,
+        host: &'a dyn crate::outbound::host::interface::HostPort,
         receipts: &'a dyn crate::outbound::receipts::interface::ReceiptsPort,
         context: &'a dyn crate::outbound::context::interface::ContextPort,
         reference: &'a dyn crate::outbound::linter::interface::LinterPort,
@@ -27,6 +29,7 @@ impl<'a> VerifyCasesUseCaseImpl<'a> {
     ) -> Self {
         Self {
             suite,
+            host,
             receipts,
             context,
             reference,
@@ -68,6 +71,7 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
         )?;
         super::service::verify_prepared_shard(
             self.suite,
+            self.host,
             self.receipts,
             self.context,
             self.reference,

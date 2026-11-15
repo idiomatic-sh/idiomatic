@@ -202,3 +202,5 @@ pub(super) const ALWAYS: &str = ryo_benchmark_contracts::domain::requests::const
 /// The applicability policy under which a rule is skipped on a file the parser rejects.
 pub(super) const ACCEPTED_SYNTAX: &str =
     ryo_benchmark_contracts::domain::requests::constants::ACCEPTED_SYNTAX;
+/// The directory below a bench holding the dedicated settings profile of a rule.
+pub(super) const SETTINGS_PROFILES: &str = "profiles";

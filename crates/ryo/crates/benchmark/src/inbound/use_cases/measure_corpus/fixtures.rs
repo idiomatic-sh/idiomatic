@@ -30,6 +30,9 @@ use ryo_benchmark_contracts::domain::requests::types::{
 use ryo_benchmark_contracts::domain::workloads::types::{Project, RuleContextProfile};
 use std::sync::Arc;
 
+/// The bench directory whose settings profiles configure the fixture rules.
+pub const BENCH: &str = "bench";
+
 /// The certificate both fixture contestants hold, covering the `covered` rules.
 fn certificate(covered: &[&str]) -> Certificate {
     let request = RunRequest {
@@ -82,10 +85,43 @@ pub fn use_case() -> MeasureCorpusUseCaseImpl {
         Arc::new(LinterFake::default()),
         Arc::new(DiscoveryFake::default()),
         Arc::new(ExecutionFake::default()),
-        Arc::new(SuiteFake::default()),
+        Arc::new(SuiteFake {
+            profile: Some(crate::outbound::suite::fixtures::samples::tool()),
+            ..SuiteFake::default()
+        }),
         Arc::new(ContextFake),
         Arc::new(EvidenceFake),
         Arc::new(WorkspaceFake),
+        Arc::new(crate::outbound::host::fixtures::fake::HostFake::default()),
+    )
+}
+
+/// The use case on a Microsoft kernel outside a container, whose suite's settings profile requires executable bits.
+#[must_use]
+pub fn unreliable_host_use_case() -> MeasureCorpusUseCaseImpl {
+    MeasureCorpusUseCaseImpl::new(
+        Arc::new(LinterFake::default()),
+        Arc::new(LinterFake::default()),
+        Arc::new(DiscoveryFake::default()),
+        Arc::new(ExecutionFake::default()),
+        Arc::new(SuiteFake {
+            profile: Some(ryo_benchmark_contracts::domain::workloads::types::Tool {
+                file_observation:
+                    ryo_benchmark_contracts::domain::workloads::types::FileObservation::PosixExecutable,
+                ..crate::outbound::suite::fixtures::samples::tool()
+            }),
+            ..SuiteFake::default()
+        }),
+        Arc::new(ContextFake),
+        Arc::new(EvidenceFake),
+        Arc::new(WorkspaceFake),
+        Arc::new(crate::outbound::host::fixtures::fake::HostFake {
+            facts: ryo_benchmark_contracts::domain::hosts::types::HostFacts {
+                family: ryo_benchmark_contracts::domain::hosts::types::HostFamily::Unix,
+                kernel: ryo_benchmark_contracts::domain::hosts::types::HostKernel::Microsoft,
+                isolation: ryo_benchmark_contracts::domain::hosts::types::HostIsolation::Bare,
+            },
+        }),
     )
 }
 
@@ -116,6 +152,7 @@ pub fn with_cohort<R>(
     let invalid_syntax = ryo::linter::RuleId::try_from("invalid-syntax").expect("rule identifier");
     let suffixes = [SourceSuffix(".fixture")];
     operate(&CorpusMeasurement {
+        bench: std::path::Path::new(BENCH),
         projects: (0..projects)
             .map(|index| Project {
                 name: format!("project-{index}").into(),

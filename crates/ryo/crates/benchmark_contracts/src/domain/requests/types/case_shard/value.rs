@@ -46,4 +46,21 @@ impl CaseShard {
     pub const fn count(self) -> ShardCount {
         self.count
     }
+    /// The items of an ordered inventory this shard holds: round robin, so every item belongs to exactly one shard of the
+    /// count, and the shard keeps the inventory's order.
+    ///
+    /// # Examples
+    /// ```
+    /// use ryo_benchmark_contracts::domain::requests::types::case_shard::value::{CaseShard, ShardCount, ShardIndex};
+    /// let shard = CaseShard::new(ShardIndex(1), ShardCount(3))?;
+    /// assert_eq!(shard.select(["a", "b", "c", "d", "e"]).collect::<Vec<_>>(), ["b", "e"]);
+    /// # Ok::<(), ryo_benchmark_contracts::domain::reports::errors::ReportsError>(())
+    /// ```
+    pub fn select<T>(self, items: impl IntoIterator<Item = T>) -> impl Iterator<Item = T> {
+        items
+            .into_iter()
+            .enumerate()
+            .filter(move |(position, _)| position % self.count.0 == self.index.0)
+            .map(|(_, item)| item)
+    }
 }

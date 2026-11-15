@@ -163,6 +163,7 @@ pub(crate) mod authored {
     ) -> Result<usize, ReportsError> {
         verify_prepared_reference_cases(
             suite,
+            &crate::outbound::host::fixtures::fake::HostFake::default(),
             &ReceiptsFake::default(),
             &crate::outbound::context::factory::local(),
             reference,

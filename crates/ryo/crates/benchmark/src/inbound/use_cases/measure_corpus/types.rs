@@ -76,6 +76,8 @@ pub(super) struct ComparisonName(pub &'static str);
 /// One certified corpus and everything its measurement is bound to.
 #[derive(Clone, Debug)]
 pub struct CorpusMeasurement<'a> {
+    /// The bench directory whose settings profiles configure the rules.
+    pub bench: &'a Path,
     /// The projects measured, in order.
     pub projects: Vec<Project>,
     /// Whether the samples are published as a metric or only reported.
@@ -120,4 +122,6 @@ pub(super) struct CorpusBoundaries<'a> {
     pub evidence: &'a dyn crate::outbound::evidence::interface::EvidencePort,
     /// Corpus worktrees.
     pub workspace: &'a dyn crate::outbound::workspace::interface::WorkspacePort,
+    /// The host whose file permissions the profiles may require.
+    pub host: &'a dyn crate::outbound::host::interface::HostPort,
 }

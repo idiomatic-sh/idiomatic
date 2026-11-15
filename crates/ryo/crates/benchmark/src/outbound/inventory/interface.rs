@@ -19,7 +19,7 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
 
 /// What every `inventory` adapter implements: registrations in, exact observations and results out.
-pub trait InventoryPort {
+pub trait InventoryPort: Send + Sync {
     /// Decode the generated invocation registration.
     ///
     /// # Errors

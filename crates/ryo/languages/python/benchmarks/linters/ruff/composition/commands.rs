@@ -2,7 +2,7 @@
 use super::super::{adapter::LinterRuffAdapter, settings::LinterRuffSettings};
 use super::constants;
 use super::constants::{
-    PINNED_REFERENCE_DOES_NOT_EVALUATE, PYTHON_TARGET, UNEXPECTED_TRAILING_WORKER_ARGUMENT,
+    PYTHON_TARGET, UNEXPECTED_TRAILING_WORKER_ARGUMENT,
     UNEXPECTED_WORKER_CONFIGURATION,
 };
 use super::locations::{default_scratch, directory};
@@ -187,6 +187,7 @@ pub(super) fn verify_cases(
     let count =
         ryo_benchmark::inbound::use_cases::verify_cases::use_case::VerifyCasesUseCaseImpl::new(
             suite_source.as_ref(),
+            &ryo_benchmark::outbound::host::factory::local(),
             &ryo_benchmark::outbound::receipts::factory::local(run.receipts),
             &ryo_benchmark::outbound::context::factory::local(),
             reference.as_ref(),
@@ -228,7 +229,7 @@ pub(super) fn verify_reference_cases(
         ArtifactText(constants::VERIFY_REFERENCE_SCRATCH),
     )?;
     let root = suite_source.ensure_directory(ArtifactPath(scratch.path()))?;
-    let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &ryo_benchmark::outbound::receipts::factory::local(ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded), &ryo_benchmark::outbound::context::factory::local(), &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local()).verify_reference_cases(
+    let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &ryo_benchmark::outbound::host::factory::local(), &ryo_benchmark::outbound::receipts::factory::local(ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded), &ryo_benchmark::outbound::context::factory::local(), &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local()).verify_reference_cases(
         &source.join(constants::RULES_DIRECTORY),
         &root,
     );
@@ -238,13 +239,6 @@ pub(super) fn verify_reference_cases(
 
 /// Compose the selected reference rule subset with its verified executable.
 pub(super) fn reference(executable: PathBuf, tool: Tool) -> Result<LinterRuffAdapter, Error> {
-    if tool.file_observation
-        != ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared
-        && crate::host::permission_checks_supported()
-            == super::super::host_policy::Permissions::Unsupported
-    {
-        return Err(Error::Invalid(PINNED_REFERENCE_DOES_NOT_EVALUATE.into()));
-    }
     let target_version = ruff_target(match &tool.parser_configuration {
         ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(name) => {
             Some(TargetConfiguration(name.0.as_str()))

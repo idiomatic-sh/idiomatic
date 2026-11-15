@@ -1,5 +1,7 @@
 //! The operation's standard output is the worker's alone, and an absent reference tool is named.
 use cucumber::then;
+use ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardCount;
+
 use ryo_benchmark::domain::operations::types::BenchOperation;
 use ryo_benchmark::inbound::use_cases::operate::{
     fixtures::{Scenario, run},
@@ -14,6 +16,7 @@ fn parity(world: &mut crate::Behavior) {
         tool_found: true,
         verdict: OperationVerdict::Passed,
         stray_rule: false,
+        shards: ShardCount(1),
     });
     assert_eq!(observed.answer, Ok(OperationVerdict::Passed));
     assert_eq!(observed.stdout, b"{\"metric\":{}}\n");
@@ -27,6 +30,7 @@ fn absent(world: &mut crate::Behavior) {
         tool_found: false,
         verdict: OperationVerdict::Passed,
         stray_rule: false,
+        shards: ShardCount(1),
     });
     assert!(
         observed

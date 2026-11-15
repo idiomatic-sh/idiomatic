@@ -66,10 +66,10 @@ extend-exclude = [
   "**/snapshots/**",
   "**/resources/**",
   "crates/ryo/languages/*/tests/fixtures/corpus/**",
-  # The Ruff benchmark's rule inputs, profiles, evidence and results quote Ruff's own test sources (`spawnve`, `CPY`, `withs`) and
-  # are sealed by their sha256 (prepared.json, the proofs and the receipts record each file's digest).
+  # The Ruff benchmark's rule inputs, profiles and the UP031 process captures its cases declare quote Ruff's own test sources and
+  # output (`spawnve`, `CPY`, `withs`) and are sealed by their sha256: each rule's cases record the digest of every evidence file
+  # they declare.
   "crates/ryo/languages/python/benchmarks/linters/ruff/rules/**",
   "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/**",
-  "crates/ryo/languages/python/benchmarks/linters/ruff/evidence/**",
   "crates/ryo/languages/python/benchmarks/linters/ruff/results/**",
 ]

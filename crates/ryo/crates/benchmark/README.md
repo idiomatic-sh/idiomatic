@@ -28,6 +28,10 @@ Canonical finding multisets retain duplicate occurrences, exact paths and byte l
 
 A pinned reference may differ from the intended contract only with complete, known and evidenced identities.
 
+### host_applicability
+
+A host whose file permissions cannot be trusted refuses the profiles that require file observations.
+
 ### input_metadata
 
 Declared file observations are required and checked against the profile that pins them.

@@ -21,11 +21,10 @@ exclude = [
   # A language's pinned suite and corpus are the language's own test files, invalid on purpose and held byte for byte.
   "crates/ryo/languages/*/tests/fixtures/suite/**",
   "crates/ryo/languages/*/tests/fixtures/corpus/**",
-  # The Ruff benchmark's rule inputs, profiles and evidence are sealed by their sha256: prepared.json, the proofs and the receipts
-  # record each file's digest, and an archived input is named by it. The shared benchmark's fixture rules are copies of them.
+  # The Ruff benchmark's rule inputs and profiles are sealed by their sha256: each rule's cases record the digest of every evidence
+  # file they declare. The shared benchmark's fixture rules are copies of them.
   "crates/ryo/languages/python/benchmarks/linters/ruff/rules/**",
   "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/**",
-  "crates/ryo/languages/python/benchmarks/linters/ruff/evidence/**",
   "crates/ryo/crates/benchmark/tests/fixtures/*/rules/**",
   # Frozen asset versions: a pinned version never changes, so a formatter or speller finding in it is recorded here instead of fixed.
   "tastemaker/rules/collection-members/0.2.0/**",

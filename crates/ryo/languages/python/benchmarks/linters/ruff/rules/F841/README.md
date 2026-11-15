@@ -2,7 +2,7 @@
 
 ## Current discrepancy review (2026-11-03)
 
-The complete 106-case profile runs on sealed worker `82341f24076f38c30dd593b0d5084665470bf8d6f63b8596ed9841f71b8ee107`: 77 raw-exact cases and 29 exact reference discrepancies. All source bytes, full upstream fixtures and selected `F841` findings are retained. No binding/query change or `F841` finding is waived. Source-bound proof: [summary](../../results/ci-80be-full-inventory-2026-11-03/f811-f841-target-supplement/summary.json), [raw receipts](../../results/ci-80be-full-inventory-2026-11-03/f811-f841-target-supplement/raw-receipts.tar.gz). The original exact80be failures remain in that archive.
+The complete 106-case profile runs on sealed worker `82341f24076f38c30dd593b0d5084665470bf8d6f63b8596ed9841f71b8ee107`: 77 raw-exact cases and 29 exact reference discrepancies. All source bytes, full upstream fixtures and selected `F841` findings are retained. No binding/query change or `F841` finding is waived. Source-bound proof: summary, raw receipts. The original exact80be failures remain in that archive.
 
 These differences concern frontend validity and reporting, not an assertion that every output on an invalid program is an upstream bug. A valid AST can retain `validation` / `preserved` diagnostics and complete facts. The reporting policy chooses one original name-token span per global/nonlocal conflict, the complete unsupported type-parameter bracket span, and separate unsupported-keyword / prohibited-lazy-future-statement spans. CPython's first compiler error does not establish exhaustive error count or these ranges.
 
