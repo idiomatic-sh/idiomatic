@@ -3,7 +3,7 @@
 use super::adapter::{ExecutablesCargoAdapter, find, refusal};
 use super::settings::ExecutablesCargoSettings;
 use super::types::BuildPlatform;
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run, slashed};
 use ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
 use std::borrow::Cow;
 
@@ -78,10 +78,7 @@ fn subject(request: Input) -> Result<Value, Failure> {
             find(&search, &ToolName::from(name))
                 .map(|path| {
                     Cow::Owned(
-                        path.strip_prefix(&canonical)
-                            .expect("inside the fixture")
-                            .display()
-                            .to_string(),
+                        slashed(path.strip_prefix(&canonical).expect("inside the fixture")).0,
                     )
                 })
                 .map_err(refused)

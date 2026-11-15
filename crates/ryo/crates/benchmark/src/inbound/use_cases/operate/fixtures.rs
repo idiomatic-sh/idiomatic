@@ -7,13 +7,14 @@
 use super::interface::OperateUseCase as _;
 use super::types::{OperationRequest, OperationVerdict};
 use super::use_case::OperateUseCaseImpl;
+use crate::cases::slashed;
 use crate::domain::operations::types::{BenchDirectory, BenchOperation};
 use crate::outbound::executables::fixtures::fake::{ExecutablesCall, ExecutablesFake};
 use crate::outbound::executables::types::RunVerdict;
 use crate::outbound::execution::fixtures::fake::ExecutionFake;
 use ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardCount;
 use ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// The bench directory, below the fixture root, every scenario runs on.
@@ -70,6 +71,20 @@ pub fn use_case(executables: Arc<ExecutablesFake>) -> OperateUseCaseImpl {
         Arc::new(ExecutionFake::default()),
         Arc::new(crate::outbound::scheduler::factory::threads()),
     )
+}
+
+/// A spelling with the fixture root as `<root>` and `/` between the components that follow it, on every platform.
+///
+/// A spelling that is `name=<path>` is rooted after its `=`; one that does not start at the root is as it was.
+fn rooted(root: &Path, text: &str) -> String {
+    if let Some((name, path)) = text.split_once('=') {
+        return format!("{name}={}", rooted(root, path));
+    }
+    match Path::new(text).strip_prefix(root) {
+        Ok(rest) if rest.as_os_str().is_empty() => "<root>".to_owned(),
+        Ok(rest) => format!("<root>/{}", slashed(rest).0),
+        Err(_outside) => text.to_owned(),
+    }
 }
 
 /// Run one scenario through the use case `build` makes, observing its answer, output and requests.
@@ -134,9 +149,7 @@ pub fn observe(
                 .to_string()
                 .replace(&root_path.display().to_string(), "<root>")
         });
-    let relative = |path: &PathBuf| {
-        PathBuf::from("<root>").join(path.strip_prefix(&root_path).unwrap_or(path))
-    };
+    let relative = |path: &PathBuf| PathBuf::from(rooted(&root_path, &path.to_string_lossy()));
     let calls = executables
         .history
         .lock()
@@ -149,12 +162,7 @@ pub fn observe(
                 relative(path),
                 arguments
                     .iter()
-                    .map(|argument| {
-                        argument
-                            .to_string_lossy()
-                            .replace(&root_path.display().to_string(), "<root>")
-                            .into()
-                    })
+                    .map(|argument| rooted(&root_path, &argument.to_string_lossy()).into())
                     .collect(),
             ),
         })
