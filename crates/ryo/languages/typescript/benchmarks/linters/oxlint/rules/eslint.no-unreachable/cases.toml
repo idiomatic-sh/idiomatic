@@ -372,3 +372,8 @@ expected = [{ file = "case.ts", start = 46, end = 50 }]
 name = "directive"
 files = { "case.ts" = "function f() {\n  return;\n  // eslint-disable-next-line no-unreachable\n  a();\n}\n" }
 expected = []
+
+[[cases]]
+name = "break-after-continue"
+files = { "case.ts" = "function f() { while (x) { continue; break; } }\n" }
+expected = [{ file = "case.ts", start = 37, end = 43 }]
