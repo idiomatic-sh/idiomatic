@@ -118,7 +118,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         };
         // The production sequence: one call with two declared occurrences of one population. The phase proves every occurrence
         // before it evaluates any, so the second reuses the first's acquisition while nothing outside the engine holds it: the
-        // file frontier is read once to prove it and once to decode it at the first occurrence that evaluates.
+        // file frontier's provenance is read to prove it, and its words once, to decode it at the first occurrence that evaluates.
         let mut outcomes = crate::boundary_fixture::fixtures::project_roots(
             &phase,
             occurrences(&pair),
@@ -154,7 +154,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         assert_eq!(
             stored.reads.load(Ordering::SeqCst),
             4,
-            "the two occurrences of one call share one acquisition of the file frontiers, read to prove and to decode"
+            "the two occurrences of one call share one acquisition of the file frontiers: provenance to prove, words to decode"
         );
         assert_eq!(
             project.reads.load(Ordering::SeqCst),
@@ -270,7 +270,7 @@ fn an_observed_population_is_a_separate_acquisition_with_the_same_answer() {
     assert_eq!(
         after_ordinary,
         (2, 1),
-        "the ordinary population acquires the frontier (read to prove and to decode) and the provider once"
+        "the ordinary population acquires the frontier (provenance to prove, words to decode) and the provider once"
     );
     assert_eq!(
         after_observed,

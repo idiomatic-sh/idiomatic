@@ -4,6 +4,7 @@ pub mod activation_project;
 pub mod contract;
 pub mod fake;
 pub mod project_phase_axis;
+pub mod project_phase_handovers;
 pub mod project_phase_merged;
 pub mod project_phase_negative;
 pub mod project_phase_restoration;

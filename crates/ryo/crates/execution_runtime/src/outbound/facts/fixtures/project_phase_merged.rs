@@ -18,4 +18,18 @@ impl crate::outbound::facts::interface::FactsFinish for Buckets {
         })?;
         self.0[index].kept(bucket)
     }
+    fn sources(
+        &self,
+        bucket: Bucket,
+    ) -> Result<
+        crate::outbound::facts::types::KeptSources,
+        crate::outbound::facts::errors::FactsError,
+    > {
+        let index = usize::try_from(bucket.0).map_err(|error| {
+            crate::outbound::facts::errors::FactsError::Store {
+                reason: error.to_string(),
+            }
+        })?;
+        self.0[index].sources(bucket)
+    }
 }

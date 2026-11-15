@@ -64,11 +64,8 @@ pub(crate) struct ProvenFrontier(pub(crate) Vec<ProvenEntry>);
 /// One frontier entry once the store was read and its proof checked.
 #[derive(Debug)]
 pub(crate) enum ProvenEntry {
-    /// The files kept it, with this coverage: its words are read again where it is decoded.
-    Words {
-        /// The coverage its proof gave.
-        coverage: CoverageState,
-    },
+    /// The files kept it and its provenance is proven: its words are read once, where it is decoded.
+    Words,
     /// Refused before its words were read, for this reason.
     Refused(ryo_execution_domain::domain::operating::errors::OperatingError),
     /// A project relation's rows, as the phase read them.
@@ -77,13 +74,26 @@ pub(crate) enum ProvenEntry {
     Elsewhere,
 }
 
-/// The words the files kept for one frontier entry, as the store gave them, and the coverage their proof gives.
-#[derive(Debug)]
-pub(crate) struct ProvenWords {
-    /// The words and the provenance of each source.
-    pub(crate) words: crate::outbound::facts::types::KeptBucket,
-    /// The coverage their proof gives.
-    pub(crate) coverage: CoverageState,
+/// Where a bucket stands in a run: the rule and frontier entry it holds, the rule's first bucket and the bucket itself.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct BucketPlace {
+    /// The rule whose frontier it holds.
+    pub(crate) rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
+    /// The frontier entry it holds.
+    pub(crate) input: ryo_values::domain::plan_parts::types::InputNumber,
+    /// The rule's first bucket.
+    pub(crate) first: ryo_values::domain::stored_facts::types::Bucket,
+    /// The bucket.
+    pub(crate) bucket: ryo_values::domain::stored_facts::types::Bucket,
+}
+
+/// A bucket's provenance as a proof reads it: each source, and how many words they run to.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct BucketProvenance<'a> {
+    /// Each source whose words the bucket holds.
+    pub(crate) sources: &'a [crate::outbound::facts::types::BucketSource],
+    /// How many words the bucket holds.
+    pub(crate) length: crate::outbound::facts::types::KeptWordsLength,
 }
 
 /// Whether the files a source proof accounts for are exactly the files the request requires.

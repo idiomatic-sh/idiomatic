@@ -1,10 +1,12 @@
 //! The facts fakes the execution use case's `project_phase_source_facts` boundary scenarios inject.
+use super::fake::sources_of;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsFinish;
 use crate::outbound::facts::interface::FactsWorker;
 use crate::outbound::facts::types::BucketSource;
 use crate::outbound::facts::types::ColumnsMut;
 use crate::outbound::facts::types::KeptBucket;
+use crate::outbound::facts::types::KeptSources;
 use crate::outbound::facts::types::WordsToKeep;
 use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
 use ryo_relations::domain::relations::{
@@ -95,9 +97,9 @@ pub struct CapturedFacts {
     pub reads: AtomicUsize,
 }
 
-impl FactsFinish for CapturedFacts {
-    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
-        self.reads.fetch_add(1, Ordering::SeqCst);
+impl CapturedFacts {
+    /// The bucket the captures make, every capture of `bucket`'s, one file after another.
+    fn bucket(&self, bucket: Bucket) -> KeptBucket {
         let mut words = vec![];
         let mut sources = vec![];
         for (file, capture) in &self.captures {
@@ -110,10 +112,21 @@ impl FactsFinish for CapturedFacts {
             });
             words.extend_from_slice(&capture.words.0);
         }
-        Ok(KeptBucket {
+        KeptBucket {
             words: std::sync::Arc::new(KeptWords(PackedWords(words))),
             sources,
-        })
+        }
+    }
+}
+
+impl FactsFinish for CapturedFacts {
+    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
+        self.reads.fetch_add(1, Ordering::SeqCst);
+        Ok(self.bucket(bucket))
+    }
+    fn sources(&self, bucket: Bucket) -> Result<KeptSources, FactsError> {
+        self.reads.fetch_add(1, Ordering::SeqCst);
+        Ok(sources_of(&self.bucket(bucket)))
     }
 }
 
@@ -128,7 +141,7 @@ fn unsupported() -> FactsError {
 pub struct RefusingKept {
     /// The bucket whose read the store refuses, if any.
     pub refused: Option<Bucket>,
-    /// How many reads the store answered or refused.
+    /// How many reads, of its sources or its words, the store answered or refused.
     pub reads: AtomicUsize,
 }
 
@@ -144,6 +157,15 @@ impl FactsFinish for RefusingKept {
             words: std::sync::Arc::new(KeptWords(PackedWords(Vec::new()))),
             sources: Vec::new(),
         })
+    }
+    fn sources(&self, bucket: Bucket) -> Result<KeptSources, FactsError> {
+        let _previous = self.reads.fetch_add(1, Ordering::SeqCst);
+        if self.refused == Some(bucket) {
+            return Err(FactsError::Store {
+                reason: "the kept frontier is unreadable".into(),
+            });
+        }
+        Ok(KeptSources::default())
     }
 }
 

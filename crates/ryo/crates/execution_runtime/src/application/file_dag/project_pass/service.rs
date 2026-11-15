@@ -8,8 +8,7 @@ use super::types::{
     PhaseOccurrence, PhaseState, ReadyOccurrence, RuleHandover, RuleUse, RuleUses,
 };
 use crate::application::file_dag::file_pass::types::PassProgram;
-use crate::application::file_dag::frontiers::service::{decode, prove, required_files};
-use crate::application::file_dag::frontiers::types::HandoverPolicy;
+use crate::application::file_dag::frontiers::service::{decode, policy_of, prove, required_files};
 use crate::application::file_dag::program::project_phase::types::{
     HandedFrom, HandoverDeclaration, OccurrenceNumber, PhasePartials, PhaseStop,
 };
@@ -251,10 +250,7 @@ fn handover_of<E>(
     }) {
         return Ok(HandoverPlace(place));
     }
-    let policy = match &occurrence.ready {
-        Some(ready) => HandoverPolicy::Observations { ready },
-        None => HandoverPolicy::Diagnostic,
-    };
+    let policy = policy_of(occurrence.ready.as_ref());
     let proven = prove(
         batch.program,
         rule,
@@ -296,10 +292,7 @@ fn handed_over<E>(
         .first
         .get(handover.rule.0)
         .ok_or(PhaseStop::MissingFirstBucket)?;
-    let policy = match &handover.ready {
-        Some(ready) => HandoverPolicy::Observations { ready },
-        None => HandoverPolicy::Diagnostic,
-    };
+    let policy = policy_of(handover.ready.as_ref());
     let handed = decode(
         batch.program,
         handover.rule,

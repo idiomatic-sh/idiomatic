@@ -183,8 +183,8 @@ fn project_grouping_reads_only_actual_captured_function_names() {
         &partials,
         &mut symbols,
     );
-    // The exact persisted frame is admitted once (read to prove it, then read again to decode it), with no unrelated project
-    // facts.
+    // The exact persisted frame is admitted once (its provenance read to prove it, its words read once to decode it), with no
+    // unrelated project facts.
     assert_eq!(
         project.reads.load(Ordering::SeqCst),
         0,

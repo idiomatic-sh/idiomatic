@@ -1,12 +1,14 @@
 //! The support of the `handovers` cases: two rules, each handed its file step and one project relation after the files,
 //! prepared as the engine prepares them; a store whose every read is logged; and one batch of the phase run over them.
 use crate::application::file_dag::derived::service::prepare;
+use crate::application::file_dag::frontiers::service::handed_coverage;
 use crate::application::file_dag::frontiers::types::PhaseScoping;
 use crate::application::file_dag::program::project_phase::types::{PhasePartials, PhaseStop};
 use crate::application::file_dag::program::request_execution::service::begin;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use crate::application::file_dag::program::rule_outcome::types::{ProjectBatch, RootOutcome};
 use crate::application::file_dag::project_pass::service::{project_reads, run_batch, uses_of};
+use crate::application::file_dag::project_pass::types::HandoverState;
 use crate::application::file_dag::project_pass::types::{
     PhaseBatch, PhaseOccurrence, PhaseState, RuleUses,
 };
@@ -14,76 +16,48 @@ use crate::application::file_dag::project_source::service::{opened, table_of};
 use crate::application::file_dag::project_source::types::ProjectWritten;
 use crate::application::file_dag::publications::types::{BoundTables, PublicationSlot};
 use crate::outbound::facts::errors::FactsError;
+use crate::outbound::facts::fixtures::fake::sources_of;
+use crate::outbound::facts::fixtures::project_phase_handovers::{
+    FIRST_BUCKETS, Log, LoggedKept, Store,
+};
 use crate::outbound::facts::fixtures::project_phase_source_facts::ProjectFacts;
 use crate::outbound::facts::interface::FactsFinish;
-use crate::outbound::facts::types::KeptBucket;
+use crate::outbound::facts::types::{
+    BucketSource, KeptBucket, KeptSources, KeptWordsLength, KeptWordsStart,
+};
 use ryo_execution_domain::domain::coverage::types::{
     InapplicableFiles, Partials, RefusedFiles, RuleIndex,
 };
 use ryo_execution_domain::domain::executable_program::service::rule as rule_nodes;
 use ryo_execution_domain::domain::prepared_request::service::assemble;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
+use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::physical_plan::types::NodeRows;
 use ryo_relations::domain::relations::fixtures::kinds;
 use ryo_relations::domain::relations::types::{CellKind, Relation};
+use ryo_relations::domain::relations::types::{FileId, Value, Words};
+use ryo_values::domain::files::types::{
+    CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
+};
+use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId, StepScope};
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
+use ryo_values::domain::records::types::{
+    FrontierAffected, FrontierCoverage, FrontierMissing, FrontierOrdinal, FrontierProof,
+    ProducerRule,
+};
+use ryo_values::domain::rows::types::{RowCount, Table};
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
 use ryo_values::domain::stored_facts::types::{Bucket, Digest, KeptWords, PackedWords};
+use ryo_values::domain::table_words::service::{encode_table, pack};
+use ryo_values::domain::table_words::types::WordSlice;
 use std::sync::{Arc, Mutex, PoisonError};
 
 /// The project relation both rules read after the files.
 pub(super) const PROJECT: Relation = Relation::ModuleIdentity;
-
-/// The first bucket of each rule's frontier, by rule: rule 0's file frontier is bucket 0, rule 1's bucket 16.
-pub(super) const FIRST: [Bucket; 2] = [Bucket(0), Bucket(16)];
-
-/// What the phase did, in order: each store read, by bucket, and each rule the guard admitted.
-#[derive(Debug, Default)]
-pub(super) struct Log(pub(super) Mutex<Vec<String>>);
-
-impl Log {
-    /// Adds what happened.
-    pub(super) fn push(&self, event: String) {
-        self.0
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(event);
-    }
-    /// Everything that happened, in order.
-    pub(super) fn events(&self) -> Vec<String> {
-        self.0
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .clone()
-    }
-}
-
-/// A store no file kept any word in, every read logged; the read of `refused` refused.
-pub(super) struct LoggedKept<'l> {
-    /// Where each read is logged.
-    pub(super) log: &'l Log,
-    /// The bucket whose read the store refuses, if any.
-    pub(super) refused: Option<Bucket>,
-}
-
-impl FactsFinish for LoggedKept<'_> {
-    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
-        self.log.push(format!("kept {}", bucket.0));
-        if self.refused == Some(bucket) {
-            return Err(FactsError::Store {
-                reason: "the kept frontier is unreadable".into(),
-            });
-        }
-        Ok(KeptBucket {
-            words: Arc::new(KeptWords(PackedWords(Vec::new()))),
-            sources: Vec::new(),
-        })
-    }
-}
 
 /// A rule of the request, by its place.
 fn rule(index: usize) -> RuleSpec {
@@ -146,8 +120,8 @@ fn plan() -> Plan {
     }
 }
 
-/// The request of the two rules over no file, prepared over the engine's own operators.
-pub(super) fn request() -> RequestExecution {
+/// The request of the two rules over `corpus`, prepared over the engine's own operators.
+pub(super) fn request(corpus: &[CorpusInput]) -> RequestExecution {
     let rules = [rule(0), rule(1)];
     let compiled =
         assemble(vec![plan(), plan()], vec![vec![]; 2], &rules).expect("the two rules assemble");
@@ -167,32 +141,46 @@ pub(super) fn request() -> RequestExecution {
         operators,
     )
     .expect("the two rules prepare");
-    begin(&prepared, &[], None)
+    begin(&prepared, corpus, None)
 }
 
 /// What one batch of the phase left.
 #[derive(Debug)]
 pub(super) struct Ran {
-    /// Each store read and each rule the guard admitted, in order.
+    /// Each store read and each rule the guard admitted, in order; at each guard, how many hold the phase's table of the
+    /// project relation, the phase's own included: a rule's decoded handover holds it until the handover is released.
     pub(super) log: Vec<String>,
     /// Each occurrence's emit, or why the phase stopped it, as text.
     pub(super) outcomes: Vec<String>,
-    /// How many holders the phase's table of the project relation had when the batch ended, the phase's own included.
+    /// How many hold the phase's table of the project relation when the batch ended.
     pub(super) holders: usize,
-    /// Whether each rule's emit still held rows when the batch ended, by rule.
-    pub(super) emits: Vec<&'static str>,
+    /// Where each handover stands when the batch ended, by rule and readiness: released, proven, or handed with the coverage of
+    /// its file frontier.
+    pub(super) handovers: Vec<String>,
+    /// Whether each rule's emit and steps still hold rows when the batch ended, by rule.
+    pub(super) buffers: Vec<String>,
 }
 
-/// Runs `occurrences`, the phase's declared occurrences in order, as one batch, the store refusing `refused`; `uses` stands in
-/// for the count the phase's callers set from them, when given.
-pub(super) fn ran(
-    occurrences: &[RuleIndex],
-    uses: Option<RuleUses>,
-    refused: Option<Bucket>,
-) -> Ran {
-    let request = request();
+/// One file, the run's file 0.
+fn one_file() -> Vec<CorpusInput> {
+    vec![CorpusInput::Available(CorpusEntry {
+        executable: ExecutablePermission::Unknown,
+        path: FilePath("input.py".into()),
+        size: FileSize(3),
+        modified: Nanoseconds(0),
+    })]
+}
+
+/// Runs `occurrences`, the phase's declared occurrences in order, as one batch over `store`; `uses` stands in for the count
+/// the phase's callers set from them, when given. A store holding a frontier runs over one file, every other over none.
+pub(super) fn ran(occurrences: &[RuleIndex], uses: Option<RuleUses>, store: Store) -> Ran {
+    let corpus = match store {
+        Store::CoverageChanged => one_file(),
+        Store::Empty | Store::Refusing(_) | Store::OutsiderOnDecode => Vec::new(),
+    };
+    let request = request(&corpus);
     let log = Log::default();
-    let facts = LoggedKept { log: &log, refused };
+    let facts = LoggedKept { log: &log, store };
     let project_facts = ProjectFacts::new(PROJECT);
     let project_symbols = Symbols::default();
     let project = opened(
@@ -202,6 +190,7 @@ pub(super) fn ran(
         },
         project_reads(&request.pass, occurrences),
     );
+    let holders = || table_of(&project, PROJECT).map_or(0, Arc::strong_count);
     let inapplicable = [InapplicableFiles::default(), InapplicableFiles::default()];
     let refusals = [RefusedFiles::default(), RefusedFiles::default()];
     let stage = Arc::new(());
@@ -210,13 +199,13 @@ pub(super) fn ran(
         pass: &request.pass,
         execution: &request,
         scoping: PhaseScoping {
-            corpus: &[],
+            corpus: &corpus,
             covered: &[],
             skipped: &[],
             inapplicable: &inapplicable,
             refused: &refusals,
         },
-        first: &FIRST,
+        first: &FIRST_BUCKETS,
         facts: &facts,
         project: &project,
         arenas: &[],
@@ -250,7 +239,7 @@ pub(super) fn ran(
             })
         },
         |rule| {
-            log.push(format!("guard {}", rule.0));
+            log.push(format!("guard {} holders {}", rule.0, holders()));
             Ok(())
         },
         |_, outcome, _, _| Ok(described(&outcome.emit)),
@@ -268,24 +257,41 @@ pub(super) fn ran(
             })
             .collect(),
     };
-    let holders = table_of(&project, PROJECT).map_or(0, Arc::strong_count);
-    let emits = [RuleIndex(0), RuleIndex(1)]
+    let handovers = state
+        .handovers
+        .iter()
+        .map(|handover| {
+            let stands = match &handover.handed {
+                HandoverState::Released => "released".to_owned(),
+                HandoverState::Proven { .. } => "proven".to_owned(),
+                HandoverState::Handed(handed) => {
+                    format!("handed {:?}", handed_coverage(handed, InputNumber(0)))
+                }
+            };
+            format!("rule {} {stands}", handover.rule.0)
+        })
+        .collect();
+    let buffers = [RuleIndex(0), RuleIndex(1)]
         .iter()
         .map(|rule| {
-            match rule_nodes(&request.pass.program, *rule).map(|nodes| nodes.emit.clone()) {
-                Ok(Ok(node)) => match state.buffers.rows(node) {
-                    NodeRows::Materialized(_) => "held",
-                    NodeRows::Absent => "absent",
-                },
-                Ok(Err(_)) | Err(_) => "no node",
-            }
+            let held = rule_nodes(&request.pass.program, *rule).map_or(0, |nodes| {
+                nodes
+                    .steps
+                    .iter()
+                    .chain(std::iter::once(&nodes.emit))
+                    .flatten()
+                    .filter(|node| matches!(state.buffers.rows(**node), NodeRows::Materialized(_)))
+                    .count()
+            });
+            format!("rule {} holds {held}", rule.0)
         })
         .collect();
     Ran {
         log: log.events(),
         outcomes,
-        holders,
-        emits,
+        holders: holders(),
+        handovers,
+        buffers,
     }
 }
 
