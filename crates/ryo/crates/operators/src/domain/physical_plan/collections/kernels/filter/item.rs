@@ -63,23 +63,36 @@ pub(crate) struct FilterKernel<'f> {
     pub(crate) names: NameCount,
 }
 
-/// The filter of `select` over rows of `kinds`, its memo of each name's decisions readied for the open file.
+/// The filter of `select` over rows of `kinds`, against the open file's names as they are now. Its memo is readied once per
+/// node run (`readied`) and grown as the file's names grow (`grown`), never here.
 pub(crate) fn filter<'f>(
     select: &'f SelectParts,
     kinds: &'f [CellKind],
     texts: Texts<'f>,
-    decisions: &mut NodeDecisions,
 ) -> FilterKernel<'f> {
-    let names = NameCount(ryo_language::domain::names::service::name_count(texts.symbols).0);
-    decisions.memo.clear();
-    decisions
-        .memo
-        .resize(select.comparisons.len() * names.0, Memo::Unknown);
     FilterKernel {
         select,
         kinds,
         texts,
-        names,
+        names: NameCount(ryo_language::domain::names::service::name_count(texts.symbols).0),
+    }
+}
+
+/// Readies `decisions`' memo for one run of a filter of `select` over a file of `names` names: every decision forgotten,
+/// with room for each name's run of the select's comparisons.
+pub(crate) fn readied(select: &SelectParts, decisions: &mut NodeDecisions, names: NameCount) {
+    decisions.memo.clear();
+    decisions.memo.resize(
+        select.comparisons.len().saturating_mul(names.0),
+        Memo::Unknown,
+    );
+}
+
+/// Grows `decisions`' memo to room for `names` names, keeping every decision made: the file's names grew since it was readied.
+pub(crate) fn grown(select: &SelectParts, decisions: &mut NodeDecisions, names: NameCount) {
+    let room = select.comparisons.len().saturating_mul(names.0);
+    if decisions.memo.len() < room {
+        decisions.memo.resize(room, Memo::Unknown);
     }
 }
 

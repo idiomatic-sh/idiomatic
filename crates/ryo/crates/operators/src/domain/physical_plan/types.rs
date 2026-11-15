@@ -7,10 +7,13 @@ pub mod fact_rows;
 pub mod file_buffers;
 pub mod frontier_place;
 pub mod held_rows;
+pub(crate) mod keyed_rows;
 pub mod logical_program;
 pub(crate) mod lowering;
 pub mod physical_plan;
 pub mod rule_ordinal;
+pub(crate) mod stream_scratch;
+pub(crate) mod table_pool;
 
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::table_texts::types::Texts;
@@ -184,14 +187,20 @@ pub struct NodeTotal(pub usize);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct NodeReaders(pub(crate) u32);
 
-/// Whether a node's rows outlive its node readers.
+/// Whether a node's rows are held for its readers, or passed on, chunk by chunk, to its one reader as they are made, so the
+/// node never holds them: decided once by the planner, after the rewrites.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Retention {
-    /// Released when its last reader is done.
-    Released,
-    /// Kept until the engine releases it: a rule's emit or a held node.
-    Retained,
+pub(crate) enum NodeFlow {
+    /// Its rows are held until its last consumer is done.
+    Held,
+    /// Its rows stream into its one reader, a streaming stage that reads it first.
+    Streamed,
 }
+
+/// How many engine uses a node has, or has left in the open file: its entries in the program's emitted and held lists (seam
+/// D's own lists), each a rule that emits it or a consumer that holds it.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct EngineUses(pub(crate) u32);
 
 /// A `hash_index` shared by every reader of one source's key: built once per file for all of them.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -252,6 +261,11 @@ pub(crate) enum InputRows<'a> {
     Tree(&'a TreeRead<'a>),
     /// A table of rows.
     Table(&'a Table),
+    /// One row of a chain of streamed stages, read in place: its cells and what each holds.
+    Row(
+        &'a [Value],
+        &'a [ryo_relations::domain::relations::types::CellKind],
+    ),
 }
 
 /// Rows keyed by key columns: the rows and their key columns.
@@ -273,7 +287,7 @@ pub(crate) struct KeyedRowAt<'a> {
 }
 
 /// The place in a table's cells where the row being written starts.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct CellStart(pub(crate) usize);
 
 /// What a `text_map` stage does to each row: one text kind's per-row meaning, its parts built by the kind's own lowering.
@@ -295,6 +309,18 @@ pub(crate) enum RowMap {
     Rank(crate::domain::rank::types::RankParts),
     /// `fits-rendered`.
     FitsRendered(crate::domain::fits_rendered::types::FitsParts),
+}
+
+/// The tree nodes whose rows of a tree relation one node reads, before any elements are lent: the rows' form and kinds, and
+/// the nodes, in tree order.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct TreeRoots<'a> {
+    /// Which rows of the tree these are.
+    pub(crate) form: crate::domain::tree_cells::types::TreeForm,
+    /// What each column holds.
+    pub(crate) kinds: &'static [ryo_relations::domain::relations::types::CellKind],
+    /// The tree nodes whose rows these are, in tree order.
+    pub(crate) candidates: &'a [NodeId],
 }
 
 /// A tree relation's rows as one node reads them: the open file's elements at the tree nodes the engine named, in tree order.

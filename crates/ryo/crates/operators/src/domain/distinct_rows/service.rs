@@ -2,7 +2,7 @@
 //! a node's output.
 use crate::domain::physical_plan::collections::kernels::distinct::item::counted;
 use crate::domain::physical_plan::types::CellStart;
-use crate::domain::physical_plan::types::file_buffers::value::KeyedRows;
+use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::rows::types::{RowCount, Table};
 

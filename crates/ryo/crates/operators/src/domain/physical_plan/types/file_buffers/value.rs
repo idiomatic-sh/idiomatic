@@ -2,7 +2,9 @@
 //! their capacity kept across files.
 
 use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
-use crate::domain::physical_plan::types::{NodeFed, NodeReaders, NodeRows, PlanNodeId};
+use crate::domain::physical_plan::types::keyed_rows::value::{IndexKeyHash, IndexedRow, KeyedRows};
+use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+use crate::domain::physical_plan::types::{EngineUses, NodeFed, NodeReaders, NodeRows, PlanNodeId};
 use crate::domain::table_scratch::types::{LazyScratch, Memo, SelectScratch};
 use ryo_relations::domain::relations::types::{NodeId, Value};
 
@@ -26,6 +28,10 @@ pub struct FileBuffers {
     pub(crate) fed: Vec<NodeFed>,
     /// How many of each node's readers have not read it yet in this file, by node id.
     pub(crate) remaining: Vec<NodeReaders>,
+    /// How many of each node's engine uses are not done yet in this file, by node id.
+    pub(crate) engine_left: Vec<EngineUses>,
+    /// The emptied node tables kept for the next nodes, capped.
+    pub(crate) pool: crate::domain::physical_plan::types::table_pool::value::TablePool,
     /// Each filtering node's comparison scratch, by node id, kept across files.
     pub(crate) decisions: Vec<NodeDecisions>,
     /// The keyed-row table a node builds for itself: a probe's own index, a group's, or the lookups' while it answers them.
@@ -54,15 +60,66 @@ pub struct FileBuffers {
     pub(crate) found: Vec<NodeId>,
     /// Each probe index the plan shares, by its place, its capacity kept across files.
     pub(crate) shared: Vec<SharedIndex>,
+    /// The work of the chains of streamed stages, its capacity kept across nodes and files.
+    pub(crate) stream: crate::domain::physical_plan::types::stream_scratch::value::StreamScratch,
     /// How many times a probe built an index, its own or a shared one: what the sharing cases count.
     #[cfg(test)]
     pub(crate) builds: IndexBuilds,
+    /// Whether a stage of a chain handed on a chunk past its bound: what the cell-bound case reads.
+    #[cfg(test)]
+    pub(crate) chunks: ChunkMeter,
+    /// The node tables held: how many were formed, and the rows they held at once.
+    #[cfg(test)]
+    pub(crate) meter: TableMeter,
 }
 
 /// How many probe indexes a worker built.
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct IndexBuilds(pub(crate) usize);
+
+/// The node tables a worker held: how many it formed, the rows they hold now, and the most rows they held at once.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct TableMeter {
+    /// How many node tables were held.
+    pub(crate) formed: TablesFormed,
+    /// The rows the held node tables hold now.
+    pub(crate) live_rows: ryo_values::domain::rows::types::RowCount,
+    /// The most rows the held node tables held at once.
+    pub(crate) peak_rows: ryo_values::domain::rows::types::RowCount,
+}
+
+/// How many node tables a worker held.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct TablesFormed(pub(crate) u32);
+
+#[cfg(test)]
+impl TableMeter {
+    /// A node table of `rows` rows is held.
+    pub(crate) fn formed(&mut self, rows: ryo_values::domain::rows::types::RowCount) {
+        self.formed.0 += 1;
+        self.live_rows.0 += rows.0;
+        self.peak_rows.0 = self.peak_rows.0.max(self.live_rows.0);
+    }
+
+    /// A held node table of `rows` rows is dropped.
+    pub(crate) fn dropped(&mut self, rows: ryo_values::domain::rows::types::RowCount) {
+        self.live_rows.0 = self.live_rows.0.saturating_sub(rows.0);
+    }
+}
+
+/// Whether every chunk a worker's chains handed on held less than the bound before the input row that wrote its last rows.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum ChunkMeter {
+    /// Every chunk did.
+    #[default]
+    Within,
+    /// A chunk held the bound's cells or more before it.
+    Over,
+}
 
 /// A probe index the plan shares: built by the first of its probes in a file to read its rows, and emptied after the last,
 /// or when the engine releases its last probe at the file's end, so no file reads another file's index.
@@ -84,41 +141,6 @@ pub(crate) struct NodeDecisions {
     /// What each comparison decided about each name of the open file.
     pub(crate) memo: Vec<Memo>,
 }
-
-/// Rows keyed by the hash of their key, with no allocation per row and no key copied out: each key's first and last row and
-/// its row count in a hash table, and the next row of the same key in `next`, ascending, so a key's rows are read in source
-/// order. A key is one name column's text, or the cells of key columns, compared from the keyed rows' own cells.
-#[derive(Debug, Default)]
-pub(crate) struct KeyedRows {
-    /// Each key's hash, first row and last row.
-    pub(crate) keys: hashbrown::HashTable<KeyedRun>,
-    /// The next row of the same key after each row; `NO_ROW` after the last.
-    pub(crate) next: Vec<IndexedRow>,
-}
-
-/// One key of an index: its hash, the first and last of its rows and how many rows it has.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct KeyedRun {
-    /// The hash of the key: of its text for a name column, of its cells otherwise.
-    pub(crate) hash: IndexKeyHash,
-    /// Its first row.
-    pub(crate) first: IndexedRow,
-    /// Its last row.
-    pub(crate) last: IndexedRow,
-    /// How many rows it has.
-    pub(crate) rows: ryo_values::domain::rows::types::RowCount,
-}
-
-/// The hash of a key: of its text for a name column, of its cells otherwise.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct IndexKeyHash(pub(crate) u64);
-
-/// A row of an indexed relation, by its place in the relation's rows.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct IndexedRow(pub(crate) u32);
-
-/// The row after a key's last row.
-pub(crate) const NO_ROW: IndexedRow = IndexedRow(u32::MAX);
 
 impl FileBuffers {
     /// A node's rows, borrowed (cardinality included).
@@ -155,16 +177,6 @@ impl FileBuffers {
         usize::try_from(node.0).map_or(NodeFed::default(), |at| {
             self.fed.get(at).copied().unwrap_or_default()
         })
-    }
-
-    /// The nodes that hold rows: the buffer high-water of a run, for the cases that bound it.
-    #[cfg(test)]
-    pub(crate) fn held(&self) -> impl Iterator<Item = PlanNodeId> + '_ {
-        self.nodes
-            .iter()
-            .zip(0..)
-            .filter(|(held, _)| held.is_some())
-            .map(|(_, at)| PlanNodeId(at))
     }
 
     /// Keeps of `node`'s rows those `keep` holds for, in their order, and drops the rest. This is the engine's one
@@ -205,7 +217,40 @@ impl FileBuffers {
             }
         }
         table.cells.truncate(written);
+        #[cfg(test)]
+        self.meter
+            .dropped(ryo_values::domain::rows::types::RowCount(
+                table.count.0 - kept,
+            ));
         table.count = ryo_values::domain::rows::types::RowCount(kept);
+    }
+
+    /// One engine use of `node` is done: a rule that emits it, or a consumer that holds it, is finished with it. Its rows go
+    /// once no engine use and no node reader of it remains in the open file, whichever comes last.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    /// use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+    /// use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
+    /// let mut buffers = FileBuffers::default();
+    /// buffers.used(&PhysicalPlan::default(), PlanNodeId(0));
+    /// assert_eq!(buffers.rows(PlanNodeId(0)), NodeRows::Absent);
+    /// ```
+    pub fn used(&mut self, plan: &PhysicalPlan, node: PlanNodeId) {
+        let at = usize::try_from(node.0).unwrap_or(usize::MAX);
+        // A node of another plan has no engine use here.
+        if plan.nodes.get(at).is_none() {
+            return;
+        }
+        let Some(left) = self.engine_left.get_mut(at) else {
+            return;
+        };
+        left.0 = left.0.saturating_sub(1);
+        if left.0 == 0 && self.remaining.get(at).is_none_or(|readers| readers.0 == 0) {
+            self.release(node);
+        }
     }
 
     /// The node's last consumer is done: its buffer returns to the worker's pool. At the file's end, when the engine releases
@@ -229,12 +274,19 @@ impl FileBuffers {
         if let Ok(at) = usize::try_from(node.0)
             && let Some(held) = self.nodes.get_mut(at)
         {
-            *held = None;
+            if let Some(table) = held.take() {
+                #[cfg(test)]
+                self.meter.dropped(table.count);
+                self.pool.pooled(table);
+            }
             if let Some(pending) = self.pending.get_mut(at) {
                 *pending = None;
             }
             if let Some(fed) = self.fed.get_mut(at) {
                 *fed = NodeFed::default();
+            }
+            if let Some(left) = self.engine_left.get_mut(at) {
+                *left = EngineUses(0);
             }
         }
     }
@@ -252,8 +304,7 @@ impl SharedIndex {
 
     /// Empties the index for the next file, keeping its capacity.
     pub(crate) fn emptied(&mut self) {
-        self.rows.keys.clear();
-        self.rows.next.clear();
+        self.rows.cleared();
         self.remaining = NodeReaders(0);
     }
 }

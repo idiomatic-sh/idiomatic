@@ -35,7 +35,7 @@ impl KernelsItem for OrderedMatchItem {
 fn table_of<'a>(rows: InputRows<'a>, copy: &'a mut Table, row: &mut Vec<Value>) -> &'a Table {
     match rows {
         InputRows::Table(table) => table,
-        InputRows::Facts(_) | InputRows::Tree(_) => {
+        InputRows::Facts(_) | InputRows::Tree(_) | InputRows::Row(..) => {
             copy.kinds = kinds_of(rows).to_vec();
             copy.cells.clear();
             for at in 0..count_of(rows).0 {

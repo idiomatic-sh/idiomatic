@@ -6,9 +6,7 @@ use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem
 use crate::domain::physical_plan::service::indexes::service::shared_indexes;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
-use crate::domain::physical_plan::types::{
-    NodeReaders, PlanNodeId, ProbeIndex, Retention, RowSource,
-};
+use crate::domain::physical_plan::types::{NodeReaders, PlanNodeId, ProbeIndex, RowSource};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, JoinColumn, LiteralText, Operand, PlanComparison, QueryLiteral,
@@ -127,7 +125,8 @@ fn joined(relation: RowSource, right_on: &[u32], filter: &[PlanComparison]) -> P
             index: ProbeIndex::Own,
         },
         readers: NodeReaders(0),
-        retained: Retention::Retained,
+        engine: crate::domain::physical_plan::types::EngineUses(1),
+        flow: crate::domain::physical_plan::types::NodeFlow::Held,
     }
 }
 

@@ -4,13 +4,12 @@
 use super::super::kernels::service::kernels;
 use super::types::{KernelInputs, Reading};
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::collections::kernels::extend::item::resolved;
 use crate::domain::physical_plan::collections::kernels::lookup::item::lookups;
 use crate::domain::physical_plan::collections::kernels::ordered_walk::item::interned;
 use crate::domain::physical_plan::collections::kernels::scan_bound::item::scanned;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::count_of;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::hold;
-use crate::domain::physical_plan::service::indexes::service::{closed, opened, sized_shared};
+use crate::domain::physical_plan::service::indexes::service::sized_shared;
 use crate::domain::physical_plan::service::run::reading::service::{
     pending_of, reading, returned, rows_in,
 };
@@ -18,9 +17,9 @@ use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, Node
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    KernelRun, NodeFed, NodeReaders, NodeRows, PlanNodeId, ProbeIndex, RowSource,
+    EngineUses, KernelRun, NodeFed, NodeReaders, NodeRows, PlanNodeId, RowSource,
 };
-use ryo_values::domain::rows::types::{RowCount, Table};
+use ryo_values::domain::rows::types::RowCount;
 
 /// Makes `node`'s rows for the open file in `buffers`, and answers the fault it raised after them.
 ///
@@ -56,13 +55,14 @@ fn sized(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
         buffers.pending.resize_with(count, || None);
         buffers.fed.resize(count, NodeFed::default());
         buffers.remaining.resize(count, NodeReaders(0));
+        buffers.engine_left.resize(count, EngineUses(0));
         buffers.decisions.resize_with(count, NodeDecisions::default);
     }
     sized_shared(plan, buffers);
 }
 
 /// Runs an earlier node `source` reads when it holds no rows.
-fn ready(
+pub(super) fn ready(
     plan: &PhysicalPlan,
     run: &mut KernelRun<'_>,
     source: RowSource,
@@ -80,8 +80,8 @@ fn ready(
     }
 }
 
-/// Runs `node`'s kernels and holds its rows and pending fault; a lookup's build answers every lookup of its index. A probe of
-/// a shared index counts down its probes in the file whatever it answers, and the last empties the index.
+/// Runs `node`'s kernels and holds its rows and pending fault: a streaming stage through the chain of streamed stages that
+/// ends at it; a lookup's build answers every lookup of its index.
 fn materialize(
     plan: &PhysicalPlan,
     run: &mut KernelRun<'_>,
@@ -95,21 +95,19 @@ fn materialize(
         .get(place)
         .ok_or(PortableOperatorFault::WrongOperation)?
         .lowering;
-    let Lowering::Probe {
-        index: ProbeIndex::Shared(at),
-        ..
-    } = lowering
-    else {
-        return made(plan, run, node, lowering, buffers);
-    };
-    opened(plan, buffers, *at);
-    let answered = made(plan, run, node, lowering, buffers);
-    closed(buffers, *at);
-    answered
+    if let Lowering::Filter { .. }
+    | Lowering::Project { .. }
+    | Lowering::Extend { .. }
+    | Lowering::TextMap { .. }
+    | Lowering::Probe { .. } = lowering
+    {
+        return super::pipeline::service::streamed(plan, run, node, buffers, ready);
+    }
+    made(plan, run, node, lowering, buffers)
 }
 
 /// Runs the kernels of `node`, lowered to `lowering`, over its inputs, and holds its rows and pending fault.
-fn made(
+pub(super) fn made(
     plan: &PhysicalPlan,
     run: &mut KernelRun<'_>,
     node: PlanNodeId,
@@ -159,35 +157,9 @@ fn made(
     if let Some(third) = third {
         ready(plan, run, third, buffers)?;
     }
-    if let Lowering::TextMap { .. } | Lowering::Render { .. } = lowering {
+    if let Lowering::Render { .. } = lowering {
         return super::minted::service::minted(plan, run, node, lowering, first, buffers);
     }
-    // An extension's values are made before its rows are read: making a name changes the file's names, and reading reads them.
-    let resolution = match lowering {
-        Lowering::Extend { extension, .. } => resolved(
-            &extension.values,
-            &extension.bindings,
-            run.resources,
-            &mut buffers.values,
-        )
-        .err(),
-        Lowering::Filter { .. }
-        | Lowering::Project { .. }
-        | Lowering::Group { .. }
-        | Lowering::Probe { .. }
-        | Lowering::Distinct { .. }
-        | Lowering::Lookup { .. }
-        | Lowering::TextMap { .. }
-        | Lowering::OrderedMatch { .. }
-        | Lowering::Render { .. }
-        | Lowering::Reach { .. }
-        | Lowering::SeededReach { .. }
-        | Lowering::Axis { .. }
-        | Lowering::OrderedWalk { .. }
-        | Lowering::Components { .. }
-        | Lowering::ScanBound { .. }
-        | Lowering::Unlowered => None,
-    };
     let shared: &KernelRun<'_> = run;
     // A node read by several inputs is taken once and read by each of them, and gives back one read per input.
     let sources = [Some(first), second, third];
@@ -222,7 +194,7 @@ fn made(
             Err(fault) => {
                 for (slot, count) in slots.into_iter().zip(reads) {
                     if let Some(read) = slot {
-                        returned(plan, buffers, read, count);
+                        returned(buffers, read, count);
                     }
                 }
                 return Err(fault);
@@ -252,7 +224,7 @@ fn made(
     // A graph kernel reads every edge row before it walks: the edges' fault comes first, then an axis's domain's, then an
     // ordered walk's roots' (sorted before use).
     let blocked = match lowering {
-        Lowering::Probe { .. } | Lowering::SeededReach { .. } => right_fault.clone(),
+        Lowering::SeededReach { .. } => right_fault.clone(),
         Lowering::Group { .. }
         | Lowering::Render { .. }
         | Lowering::Reach { .. }
@@ -263,6 +235,7 @@ fn made(
         Lowering::Filter { .. }
         | Lowering::Project { .. }
         | Lowering::Extend { .. }
+        | Lowering::Probe { .. }
         | Lowering::Distinct { .. }
         | Lowering::TextMap { .. }
         | Lowering::Lookup { .. }
@@ -270,7 +243,8 @@ fn made(
         | Lowering::Unlowered => None,
     };
     let walked = matches!(lowering, Lowering::OrderedWalk { .. }) && blocked.is_none();
-    let mut output = Table::default();
+    // The node's table: one the worker's pool kept, its room reused.
+    let mut output = buffers.pool.fresh();
     let made = match blocked {
         Some(fault) => Ok(Some(fault)),
         None => {
@@ -285,20 +259,12 @@ fn made(
                 other: right_rows,
                 third: third_read.map(rows_in),
             };
-            kernels(
-                lowering,
-                shared,
-                node,
-                inputs,
-                resolution,
-                buffers,
-                &mut output,
-            )
+            kernels(lowering, shared, node, inputs, buffers, &mut output)
         }
     };
     for (slot, count) in slots.into_iter().zip(reads) {
         if let Some(read) = slot {
-            returned(plan, buffers, read, count);
+            returned(buffers, read, count);
         }
     }
     // Main's ordered walk interned the texts its keys met that the file did not hold yet, for the rest of the file: the

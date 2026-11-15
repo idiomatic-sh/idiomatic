@@ -11,14 +11,16 @@ pub(crate) struct NumberedComparison<'a> {
     pub number: ComparisonNumber,
     /// The comparison.
     pub comparison: &'a PlanComparison,
+    /// How many comparisons the select has: the length of one name's run of the memo.
+    pub comparisons: ComparisonCount,
 }
 
-/// What the cells of a row are, and how many names the file has.
+/// What the cells of a row are, and how many names the memo has room for.
 #[derive(Clone, Copy, Debug)]
 pub struct RowShape<'a> {
     /// The kind of each column of the row.
     pub kinds: &'a [CellKind],
-    /// How many names the file has: the length of a comparison's run of the memo.
+    /// How many names the memo has room for: a name past them is decided without it.
     pub names: NameCount,
 }
 
@@ -53,9 +55,13 @@ pub enum Family {
     Regex,
 }
 
-/// How many names a file has: the length of a comparison's run of the memo.
+/// How many names a file has: the number of runs of the memo, one run per name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NameCount(pub usize);
+
+/// How many comparisons a select has: the length of one name's run of the memo.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ComparisonCount(pub usize);
 
 /// A comparison of a `select`, by its place among the select's comparisons.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

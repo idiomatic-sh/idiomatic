@@ -4,7 +4,6 @@
 
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
-use super::super::scan_facts::item::{count_of, kinds_of, row_of};
 use crate::domain::capture::service::slot_count;
 use crate::domain::capture::types::{CaptureSlots, SlotPattern, SlotPlaces, SlotSubject};
 use crate::domain::contract::types::{
@@ -15,7 +14,7 @@ use crate::domain::patterns::types::PatternMatcher;
 use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
-use crate::domain::physical_plan::types::{InputRows, Resources, RowMap};
+use crate::domain::physical_plan::types::{Resources, RowMap};
 use crate::domain::rank::types::RankLayers;
 use crate::domain::replace::types::{ReplacedText, ReplacementText};
 use crate::domain::source_matches::types::{
@@ -30,7 +29,7 @@ use ryo_relations::domain::relations::types::{CellKind, Count, Value};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::row_texts::types::CellText;
-use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
+use ryo_values::domain::rows::types::{RowCount, Table};
 
 /// `text_map`, one item of the `kernels` collection.
 #[cfg(test)]
@@ -64,31 +63,20 @@ pub(crate) struct RowMapRun<'r> {
     pub(crate) output: &'r mut Table,
 }
 
-/// Runs every row of `input` through `map` into `run.output`, and answers the fault of the first row that raised one: the
-/// rows written before it stay. A kind of one row per row has its cells reserved once, not grown row by row.
-pub(crate) fn mapped(
-    map: &RowMap,
-    input: InputRows<'_>,
-    run: &mut RowMapRun<'_>,
-) -> Result<Option<PortableOperatorFault>, PortableOperatorFault> {
-    run.output.kinds = kinds_of(input).to_vec();
-    run.output.kinds.extend(appended_kinds(map));
-    let rows = count_of(input).0;
+/// The kinds of the rows `map` writes from rows of `input`: each input column, then the columns it appends.
+pub(crate) fn mapped_kinds(map: &RowMap, input: &[CellKind]) -> Vec<CellKind> {
+    let mut kinds = input.to_vec();
+    kinds.extend(appended_kinds(map));
+    kinds
+}
+
+/// Sizes `output` once for the rows `map` writes from `rows` input rows, when it writes one row per row read: a kind of one
+/// row per row has its cells reserved once, not grown row by row.
+pub(crate) fn reserved(map: &RowMap, rows: RowCount, output: &mut Table) {
     if matches!(map, RowMap::SpanBounds(_) | RowMap::SpanBetween(_)) {
-        run.output
-            .cells
-            .reserve_exact(rows.saturating_mul(run.output.kinds.len()));
+        let width = output.kinds.len();
+        output.cells.reserve_exact(rows.0.saturating_mul(width));
     }
-    for row in 0..rows {
-        let mut decode = std::mem::take(&mut run.scratch.other);
-        let cells = row_of(input, RowIndex(row), &mut decode);
-        let mapped_row = row_mapped(map, cells, run);
-        run.scratch.other = decode;
-        if let Err(fault) = mapped_row {
-            return Ok(Some(fault));
-        }
-    }
-    Ok(None)
 }
 
 /// The kinds of the columns `map` appends to each row.
@@ -138,12 +126,12 @@ fn text_into(resources: &dyn Resources, value: Value, into: &mut TextScratch) ->
     }
 }
 
-/// Runs one row through `map`, writing the rows it gives.
+/// Runs one row through `map`, writing the rows it gives to `run.output`.
 ///
 /// # Errors
 ///
 /// The row's fault at its first failing check, in the kind's order.
-fn row_mapped(
+pub(crate) fn row_mapped(
     map: &RowMap,
     row: &[Value],
     run: &mut RowMapRun<'_>,
