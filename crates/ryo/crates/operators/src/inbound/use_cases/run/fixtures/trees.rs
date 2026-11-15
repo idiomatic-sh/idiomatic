@@ -2,11 +2,15 @@
 //! token, and a file of only its root.
 use super::TextResources;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
-use ryo_language::domain::completion::service::{completion, name_kind};
+use ryo_language::domain::completion::service::{completion, name_field, name_kind, write_fields};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_relations::domain::relations::types::{FileId, KindBits, Offset};
+use ryo_relations::domain::relations::constants::NO_FIELD;
+use ryo_relations::domain::relations::types::{FieldId, FileId, KindBits, Offset};
 use ryo_relations::domain::terms::types::NameText;
+
+/// The role of the first child of each parent of the nested tree.
+const HEAD: FieldId = FieldId(1);
 
 impl TextResources {
     /// The resources of the file `abc` in file 0: a `file` node over the tokens `a` (a `word`), `b` (an `other`) and `c` (a
@@ -40,7 +44,8 @@ impl TextResources {
     }
 
     /// The resources of the file `abcd` in file 0: a `file` node over an `other` node over the tokens `a`, `b` and `c` (each
-    /// a `word`), at positions 1 to 4, then the token `d` (a `word`) at position 5.
+    /// a `word`), at positions 1 to 4, then the token `d` (a `word`) at position 5. The first child of each parent (the
+    /// `other` node and `a`) has the role `head`.
     #[must_use]
     pub fn nested_tree() -> Self {
         let source = b"abcd".to_vec();
@@ -58,6 +63,16 @@ impl TextResources {
             let mut names = completion(&mut tree, &mut symbols, ByteSlice(&source), FileId(0));
             name_kind(&mut names, KindBits(bits), NameText(name));
         }
+        // The first child of each parent, the `other` node and the token `a`, has the role `head`; the others have none.
+        let mut roles = completion(&mut tree, &mut symbols, ByteSlice(&source), FileId(0));
+        write_fields(&mut roles, |_, at| {
+            if matches!(at.0, 1 | 2) {
+                HEAD
+            } else {
+                NO_FIELD
+            }
+        });
+        name_field(&mut roles, HEAD, NameText("head"));
         Self {
             source,
             symbols,

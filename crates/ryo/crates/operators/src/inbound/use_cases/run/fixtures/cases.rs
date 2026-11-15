@@ -2,9 +2,13 @@
 //! over it; and the probes of the tree a rewrite case runs.
 use super::{TableInputs, TextResources, ran};
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem;
 use crate::domain::physical_plan::fixtures::Step;
+use crate::domain::physical_plan::types::ProbeIndex;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
+use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
     LogicalNode, NodeBindings, NodeRows, PlanInputList, PlanInputs, Resources, RuleOrdinal,
 };
@@ -140,23 +144,11 @@ pub(crate) fn input_of(from: PlanInput) -> StepInput {
 pub(crate) fn rewritten(
     steps: &[Step],
     emits: &[PlanNodeId],
-    rewrites: &[&dyn crate::domain::physical_plan::collections::rewrites::interface::RewritesItem],
+    rewrites: &[&dyn RewritesItem],
     inputs: &dyn PlanInputs,
     resources: &mut dyn Resources,
 ) -> Result<Vec<Table>, PortableOperatorFault> {
-    let mut program = LogicalProgram::new();
-    for step in steps {
-        let _id = program.node(LogicalNode {
-            operation: &step.operation,
-            inputs: PlanInputList(&step.inputs),
-            bindings: NodeBindings(&[]),
-            scope: StepScope::PerFile,
-        });
-    }
-    for (rule, node) in (0..).map(RuleOrdinal).zip(emits) {
-        program.emit(rule, *node);
-    }
-    let plan = crate::domain::physical_plan::service::plan_with(&program, rewrites)?;
+    let plan = planned_with(steps, emits, rewrites)?;
     let mut buffers = FileBuffers::default();
     emits
         .iter()
@@ -171,6 +163,71 @@ pub(crate) fn rewritten(
         .collect()
 }
 
+/// Whether the program of `steps` planned with every rewrite of `rewrites` probes the tree in each of its probes, having
+/// some, and `every`, what it answered, is `answer`: rows, not all empty, or that fault.
+///
+/// # Errors
+///
+/// The planner's shape fault.
+pub(crate) fn walks_and_answers(
+    steps: &[Step],
+    emits: &[PlanNodeId],
+    rewrites: &[&dyn RewritesItem],
+    every: &Result<Vec<Table>, PortableOperatorFault>,
+    answer: &TreeAnswer,
+) -> Result<bool, PortableOperatorFault> {
+    let plan = planned_with(steps, emits, rewrites)?;
+    let probes: Vec<&Lowering> = plan
+        .nodes
+        .iter()
+        .map(|node| &node.lowering)
+        .filter(|lowering| matches!(lowering, Lowering::Probe { .. }))
+        .collect();
+    let walks = !probes.is_empty()
+        && probes.iter().all(|lowering| {
+            matches!(
+                lowering,
+                Lowering::Probe {
+                    index: ProbeIndex::Tree,
+                    ..
+                }
+            )
+        });
+    let answered = match every {
+        Ok(tables) => tables
+            .iter()
+            .any(|table| table.count.0 > 0)
+            .then_some(TreeAnswer::Rows),
+        Err(fault) => Some(TreeAnswer::Fault(fault.clone())),
+    };
+    Ok(walks && answered.as_ref() == Some(answer))
+}
+
+/// The plan of the program of `steps`, each node of `emits` the emit of a rule of its own, with `rewrites` alone.
+///
+/// # Errors
+///
+/// The planner's shape fault.
+pub(crate) fn planned_with(
+    steps: &[Step],
+    emits: &[PlanNodeId],
+    rewrites: &[&dyn RewritesItem],
+) -> Result<PhysicalPlan, PortableOperatorFault> {
+    let mut program = LogicalProgram::new();
+    for step in steps {
+        let _id = program.node(LogicalNode {
+            operation: &step.operation,
+            inputs: PlanInputList(&step.inputs),
+            bindings: NodeBindings(&[]),
+            scope: StepScope::PerFile,
+        });
+    }
+    for (rule, node) in (0..).map(RuleOrdinal).zip(emits) {
+        program.emit(rule, *node);
+    }
+    crate::domain::physical_plan::service::plan_with(&program, rewrites)
+}
+
 /// One program a rewrite case runs: its steps, the nodes it emits, and what it reads.
 pub(crate) struct TreeRun {
     /// The steps.
@@ -181,6 +238,17 @@ pub(crate) struct TreeRun {
     pub(crate) inputs: TableInputs,
     /// The file it reads them in.
     pub(crate) resources: TextResources,
+    /// What it answers with every rewrite.
+    pub(crate) answer: TreeAnswer,
+}
+
+/// What a tree run answers: rows, some of them, or a fault.
+#[derive(Debug, PartialEq)]
+pub(crate) enum TreeAnswer {
+    /// Its emitted nodes' rows, not all empty.
+    Rows,
+    /// This fault.
+    Fault(PortableOperatorFault),
 }
 
 /// The join of `DEFINES`' column `left_on` with a tree relation's rows on `right_on`, answering `output`, its right rows kept
@@ -251,10 +319,12 @@ pub(crate) fn tree_probe_runs() -> Vec<TreeRun> {
                 .collect(),
         )
     };
-    let unnamed = compared(
-        Test::NotEqual,
+    // The edges of a parent's first child: an equality of the role with a written text, which cannot fail, and which drops
+    // every other edge a walk finds.
+    let heads = compared(
+        Test::Equal,
         Operand::Column(ColumnIndex(3)),
-        Operand::Literal(QueryLiteral::Text(LiteralText("zzz".into()))),
+        Operand::Literal(QueryLiteral::Text(LiteralText("head".into()))),
     );
     let pair = [(Side::Left, 0), (Side::Right, 1)];
     let probes = vec![
@@ -268,7 +338,7 @@ pub(crate) fn tree_probe_runs() -> Vec<TreeRun> {
         tree_join(0, (elements, 0), &pair, Vec::new()),
         tree_join(0, (edges, 0), &[(Side::Left, 0)], Vec::new()),
         tree_join(3, (edges, 0), &pair, Vec::new()),
-        tree_join(0, (edges, 0), &pair, vec![unnamed]),
+        tree_join(0, (edges, 0), &pair, vec![heads]),
         tree_antijoin(PlanInput::Relation(DEFINES), 0, (edges, 0)),
         tree_antijoin(PlanInput::Relation(DEFINES), 0, (edges, 1)),
         tree_antijoin(PlanInput::Relation(DEFINES), 0, (elements, 0)),
@@ -296,18 +366,23 @@ pub(crate) fn tree_probe_runs() -> Vec<TreeRun> {
             emits,
             inputs: reading(6),
             resources: nested,
+            answer: TreeAnswer::Rows,
         },
         TreeRun {
             steps: narrow(),
             emits: vec![PlanNodeId(1)],
             inputs: reading(6),
             resources: TextResources::nested_tree(),
+            answer: TreeAnswer::Fault(PortableOperatorFault::NoSuchColumn {
+                index: ColumnIndex(5),
+            }),
         },
         TreeRun {
             steps: narrow(),
             emits: vec![PlanNodeId(1)],
             inputs: reading(1),
             resources: TextResources::root_only(),
+            answer: TreeAnswer::Rows,
         },
     ]
 }

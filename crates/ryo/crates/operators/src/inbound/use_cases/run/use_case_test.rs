@@ -9,6 +9,7 @@ mod shared_index;
 mod text_map;
 use super::fixtures::cases::{
     DEFINES, TreeRun, defines, input_of, named, rewritten, select, self_matching, tree_probe_runs,
+    walks_and_answers,
 };
 use super::fixtures::{TableInputs, TextResources, emitted};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -133,17 +134,22 @@ impl RewritesItem for AntiAsSemi {
 /// `rewrites` and with each left out: inner probes and antijoins of the edges by parent and by child and of the elements by
 /// id, over left rows of a node of three children, the root, that node again, a node of another file, a node past the tree,
 /// and a token; an inner probe answering the same row for each child, one keyed on a column of no node, and one with a right
-/// filter that cannot fail. Then rows narrower than their key against the edges of the nested tree, which fault, and of a
-/// tree of only its root, which keep every row unread.
+/// filter that cannot fail and drops every edge but a parent's first. Then rows narrower than their key against the edges
+/// of the nested tree, which fault, and of a tree of only its root, which keep every row unread. Each run is planned with
+/// every probe walking the tree and answers what it says, so no run passes by faulting alike or by never walking.
 fn tree_probes_keep_rows(rewrites: &[&dyn RewritesItem]) -> Result<bool, Failure> {
     for TreeRun {
         steps,
         emits,
         inputs,
         mut resources,
+        answer,
     } in tree_probe_runs()
     {
         let every = rewritten(&steps, &emits, rewrites, &inputs, &mut resources);
+        if !walks_and_answers(&steps, &emits, rewrites, &every, &answer)? {
+            return Ok(false);
+        }
         for left_out in 0..rewrites.len() {
             let others: Vec<&dyn RewritesItem> = (0..rewrites.len())
                 .filter(|at| *at != left_out)
