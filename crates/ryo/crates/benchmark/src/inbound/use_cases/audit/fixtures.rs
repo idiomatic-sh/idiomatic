@@ -7,10 +7,6 @@ use ryo_benchmark_contracts::domain::workloads::types::Tool;
 ///
 /// Panics when fixed fixture artifacts cannot be created or validated.
 #[must_use]
-#[expect(
-    clippy::expect_used,
-    reason = "fixture artifact setup must succeed before testing the port"
-)]
 pub fn audited(complete: bool) -> crate::domain::suite::types::audit::value::Audit {
     audit_of("fixture", complete)
 }

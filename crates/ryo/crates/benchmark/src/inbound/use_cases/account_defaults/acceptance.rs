@@ -34,9 +34,12 @@ fn deferred_and_authored(world: &mut crate::Behavior) {
     let tool = deferring("eslint.no-with", "typescript_silent");
     let refused = AccountDefaultsUseCaseImpl::new()
         .account_defaults(&audit_of("eslint.no-with", true), &tool)
-        .expect_err("a deferred default that is authored is refused");
+        .err()
+        .map(|refusal| refusal.to_string());
     assert!(
-        refused.to_string().contains("invalid default deferral"),
-        "{refused}"
+        refused
+            .as_deref()
+            .is_some_and(|refusal| refusal.contains("invalid default deferral")),
+        "{refused:?}"
     );
 }
