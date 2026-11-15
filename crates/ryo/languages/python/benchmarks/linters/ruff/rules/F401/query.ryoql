@@ -1,4 +1,4 @@
-import scope_lookup from "python/ruff/scope-lookup-uses";
+import ordinary_uses_of from "python/ruff/ordinary-read-uses";
 import deferred_events from "python/ruff/deferred-read-events";
 import noqa_line_map from "python/ruff/noqa-line-map";
 import noqa_locations from "python/ruff/noqa-locations";
@@ -117,7 +117,7 @@ let lexical_use_rows = antijoin(left="binding-use", right=deferred_resolutions, 
 let lexical_uses = select reference, binding, file from lexical_use_rows;
 let read_ids = select occurrence as reference, file from events where kind = "read";
 let lexical_reads = antijoin(left=read_ids, right=deferred_resolutions, left-on=["reference", "file"], right-on=["reference", "file"]);
-let ordinary_uses = scope_lookup(reads=lexical_reads, uses=lexical_uses);
+let ordinary_uses = ordinary_uses_of(reads=lexical_reads, uses=lexical_uses);
 let ordinary_direct_uses = select binding from ordinary_uses;
 let deferred_points = select occurrence as binding, point from deferred_resolutions where kind = "bind";
 let deferred_binding_uses = select binding from deferred_points;

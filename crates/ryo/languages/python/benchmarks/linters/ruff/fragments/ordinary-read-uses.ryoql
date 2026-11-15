@@ -1,0 +1,17 @@
+import lookup_events from "python/ruff/lookup-read-events";
+input reads: relation<reference: node, file: file>;
+input uses: relation<reference: node, binding: node, file: file>;
+output relation<reference: node, binding: node, file: file>;
+let read_events = select occurrence as reference, scope as initial_scope, ordinal as point, file from "binding-event" where kind = "read";
+let read_contexts = select l.reference as context, r.initial_scope as initial_scope, r.point as point, l.file as file from reads as l join read_events as r on l.reference = r.reference and l.file = r.file;
+let timed_contexts = extend(from=read_contexts, values={header_point: 2147483647, stage: 2});
+let contexts = select context, initial_scope, point, header_point, stage, file from timed_contexts;
+let expressions = select reference as id, file from reads;
+let lookups = lookup_events(ordered_contexts=contexts, expressions=expressions);
+let own_lookups = select context as reference, occurrence, kind, file from lookups where context = expression;
+let looked_up = select reference, file from own_lookups;
+let lookup_binds = select reference, occurrence as binding, file from own_lookups where kind = "bind";
+let read_uses = select l.reference as reference, l.binding as binding, l.file as file from uses as l join reads as r on l.reference = r.reference and l.file = r.file;
+let provider_only = antijoin(left=read_uses, right=looked_up, left-on=["reference", "file"], right-on=["reference", "file"]);
+let result = union(left=provider_only, right=lookup_binds);
+return result;
