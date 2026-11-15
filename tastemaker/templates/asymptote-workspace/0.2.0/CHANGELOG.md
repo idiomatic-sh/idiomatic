@@ -1,5 +1,13 @@
 # asymptote-workspace
 
+## 0.2.0
+
+The root's tools move to root-only groups, which no product has: `repository` (tastemaker, taplo, yamllint, editorconfig, merge-conflict,
+typos, shellcheck, actionlint and commitizen) and `repository-check` (ci-tests). A check at the root of a group runs every member's tools of
+that group too, so the old `lint` and `check` groups ran every product's lint and test tools from the root job; now
+`asymptote check --root . --groups repository,repository-check` runs the repository's checks alone, and each product's `lint` group runs in
+that product's own job. The pre-commit hook runs `lint` and `repository`. Scenario ids are unchanged.
+
 ## 0.1.0
 
 `ci-tests` runs in the `check` group, the landing gate, beside the products' tests (`asymptote-config` 0.6.0's groups: lint, check, release and perf).

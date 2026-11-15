@@ -1,17 +1,18 @@
 description = "The repository root's asymptote configuration: the workspace whose members are the products, and the tools no product owns."
-why = "Makes the root the one place `asymptote check` starts from, in a git hook or in CI: it runs the checks of the repository's files, their text and the workflows, then every product, so a check that is not here or in a product runs nowhere."
+why = "Makes the root the one place the repository's own checks are declared: the checks of its files, their text and the workflows, in the root-only groups `repository` (the git hook and CI) and `repository-check` (CI), which no product has, so `asymptote check --groups repository,repository-check` at the root runs these tools and no product's, and a check that is not here or in a product runs nowhere."
 content = '''
 # The repository root is the asymptote workspace: its members are the products, each with an asymptote.toml and a lock of its own,
 # and its own tools are the checks no product owns: the files, their text and the workflows. A product runs from its own directory.
 members = ["crates/*"]
 
-# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the lint group, and CI runs every group.
+# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the products' lint groups and the
+# root's `repository` group; CI runs `repository` and `repository-check`, which no product has, in a job of their own.
 [hooks]
-pre-commit = ["lint"]
+pre-commit = ["lint", "repository"]
 
 [[tools]]
 id = "tastemaker"
-group = "lint"
+group = "repository"
 # The repository root is a Tastemaker workspace of its own, closed over every top-level file and directory beside the
 # products: the whole tree is its input.
 run = ["tm", "check", "--format", "sarif"]
@@ -21,7 +22,7 @@ inputs = ["."]
 
 [[tools]]
 id = "taplo"
-group = "lint"
+group = "repository"
 # Every TOML file parses and is formatted as taplo.toml says (taplo-cli, pinned in the root Cargo.toml).
 run = ["taplo", "fmt", "--check"]
 fix = ["taplo", "fmt"]
@@ -29,21 +30,21 @@ timeout-seconds = 600
 
 [[tools]]
 id = "yamllint"
-group = "lint"
+group = "repository"
 # Every YAML file parses (.yamllint.yaml).
 run = ["yamllint", "."]
 timeout-seconds = 600
 
 [[tools]]
 id = "editorconfig"
-group = "lint"
+group = "repository"
 # Every text file ends with a newline and has no trailing whitespace (.editorconfig, .editorconfig-checker.json).
 run = ["ec"]
 timeout-seconds = 600
 
 [[tools]]
 id = "merge-conflict"
-group = "lint"
+group = "repository"
 # No file holds a leftover conflict marker, tracked or not: `git grep --untracked` reads the files an add would stage as well as the
 # tracked ones, so a new file with a marker cannot pass and then be staged unchanged. Exit 1 is no match; any other exit is a failure.
 run = ["bash", "-c", "git grep -n -I --untracked -E '^(<{7}|>{7}|[|]{7})( |$)|^={7}$' -- . ':(exclude,glob)**/snapshots/**' ':(exclude,glob)**/resources/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/suite/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/corpus/**'; [ $? -eq 1 ]"]
@@ -51,7 +52,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "typos"
-group = "lint"
+group = "repository"
 # Spelling (_typos.toml).
 run = ["typos"]
 fix = ["typos", "--write-changes"]
@@ -59,7 +60,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "shellcheck"
-group = "lint"
+group = "repository"
 # Every tracked shell script. Exit 1 is a finding; shellcheck writes no SARIF, so the run passes only when it finds none.
 # shellcheck writes its messages as UTF-8 and fails under another locale.
 run = ["bash", "-c", "git ls-files -z -- '*.sh' | LC_ALL=C.UTF-8 xargs -0 -r shellcheck"]
@@ -67,7 +68,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "actionlint"
-group = "lint"
+group = "repository"
 # GitHub's own schema and expressions in the workflows.
 run = ["actionlint"]
 timeout-seconds = 600
@@ -75,7 +76,7 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "lint"
+group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
 run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
@@ -83,7 +84,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
-group = "check"
+group = "repository-check"
 # The CI code's own tests, which read the workflows and the products' manifests.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
@@ -101,13 +102,14 @@ given.files.'asymptote.toml' = '''
 # and its own tools are the checks no product owns: the files, their text and the workflows. A product runs from its own directory.
 members = ["crates/*"]
 
-# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the lint group, and CI runs every group.
+# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the products' lint groups and the
+# root's `repository` group; CI runs `repository` and `repository-check`, which no product has, in a job of their own.
 [hooks]
-pre-commit = ["lint"]
+pre-commit = ["lint", "repository"]
 
 [[tools]]
 id = "tastemaker"
-group = "lint"
+group = "repository"
 # The repository root is a Tastemaker workspace of its own, closed over every top-level file and directory beside the
 # products: the whole tree is its input.
 run = ["tm", "check", "--format", "sarif"]
@@ -117,7 +119,7 @@ inputs = ["."]
 
 [[tools]]
 id = "taplo"
-group = "lint"
+group = "repository"
 # Every TOML file parses and is formatted as taplo.toml says (taplo-cli, pinned in the root Cargo.toml).
 run = ["taplo", "fmt", "--check"]
 fix = ["taplo", "fmt"]
@@ -125,21 +127,21 @@ timeout-seconds = 600
 
 [[tools]]
 id = "yamllint"
-group = "lint"
+group = "repository"
 # Every YAML file parses (.yamllint.yaml).
 run = ["yamllint", "."]
 timeout-seconds = 600
 
 [[tools]]
 id = "editorconfig"
-group = "lint"
+group = "repository"
 # Every text file ends with a newline and has no trailing whitespace (.editorconfig, .editorconfig-checker.json).
 run = ["ec"]
 timeout-seconds = 600
 
 [[tools]]
 id = "merge-conflict"
-group = "lint"
+group = "repository"
 # No file holds a leftover conflict marker, tracked or not: `git grep --untracked` reads the files an add would stage as well as the
 # tracked ones, so a new file with a marker cannot pass and then be staged unchanged. Exit 1 is no match; any other exit is a failure.
 run = ["bash", "-c", "git grep -n -I --untracked -E '^(<{7}|>{7}|[|]{7})( |$)|^={7}$' -- . ':(exclude,glob)**/snapshots/**' ':(exclude,glob)**/resources/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/suite/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/corpus/**'; [ $? -eq 1 ]"]
@@ -147,7 +149,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "typos"
-group = "lint"
+group = "repository"
 # Spelling (_typos.toml).
 run = ["typos"]
 fix = ["typos", "--write-changes"]
@@ -155,7 +157,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "shellcheck"
-group = "lint"
+group = "repository"
 # Every tracked shell script. Exit 1 is a finding; shellcheck writes no SARIF, so the run passes only when it finds none.
 # shellcheck writes its messages as UTF-8 and fails under another locale.
 run = ["bash", "-c", "git ls-files -z -- '*.sh' | LC_ALL=C.UTF-8 xargs -0 -r shellcheck"]
@@ -163,7 +165,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "actionlint"
-group = "lint"
+group = "repository"
 # GitHub's own schema and expressions in the workflows.
 run = ["actionlint"]
 timeout-seconds = 600
@@ -171,7 +173,7 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "lint"
+group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
 run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
@@ -179,7 +181,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
-group = "check"
+group = "repository-check"
 # The CI code's own tests, which read the workflows and the products' manifests.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
@@ -200,13 +202,14 @@ given.files.'asymptote.toml' = '''
 # The repository root is the asymptote workspace: its members are the products, each with an asymptote.toml and a lock of its own,
 # and its own tools are the checks no product owns: the files, their text and the workflows. A product runs from its own directory.
 
-# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the lint group, and CI runs every group.
+# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the products' lint groups and the
+# root's `repository` group; CI runs `repository` and `repository-check`, which no product has, in a job of their own.
 [hooks]
-pre-commit = ["lint"]
+pre-commit = ["lint", "repository"]
 
 [[tools]]
 id = "tastemaker"
-group = "lint"
+group = "repository"
 # The repository root is a Tastemaker workspace of its own, closed over every top-level file and directory beside the
 # products: the whole tree is its input.
 run = ["tm", "check", "--format", "sarif"]
@@ -216,7 +219,7 @@ inputs = ["."]
 
 [[tools]]
 id = "taplo"
-group = "lint"
+group = "repository"
 # Every TOML file parses and is formatted as taplo.toml says (taplo-cli, pinned in the root Cargo.toml).
 run = ["taplo", "fmt", "--check"]
 fix = ["taplo", "fmt"]
@@ -224,21 +227,21 @@ timeout-seconds = 600
 
 [[tools]]
 id = "yamllint"
-group = "lint"
+group = "repository"
 # Every YAML file parses (.yamllint.yaml).
 run = ["yamllint", "."]
 timeout-seconds = 600
 
 [[tools]]
 id = "editorconfig"
-group = "lint"
+group = "repository"
 # Every text file ends with a newline and has no trailing whitespace (.editorconfig, .editorconfig-checker.json).
 run = ["ec"]
 timeout-seconds = 600
 
 [[tools]]
 id = "merge-conflict"
-group = "lint"
+group = "repository"
 # No file holds a leftover conflict marker, tracked or not: `git grep --untracked` reads the files an add would stage as well as the
 # tracked ones, so a new file with a marker cannot pass and then be staged unchanged. Exit 1 is no match; any other exit is a failure.
 run = ["bash", "-c", "git grep -n -I --untracked -E '^(<{7}|>{7}|[|]{7})( |$)|^={7}$' -- . ':(exclude,glob)**/snapshots/**' ':(exclude,glob)**/resources/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/suite/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/corpus/**'; [ $? -eq 1 ]"]
@@ -246,7 +249,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "typos"
-group = "lint"
+group = "repository"
 # Spelling (_typos.toml).
 run = ["typos"]
 fix = ["typos", "--write-changes"]
@@ -254,7 +257,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "shellcheck"
-group = "lint"
+group = "repository"
 # Every tracked shell script. Exit 1 is a finding; shellcheck writes no SARIF, so the run passes only when it finds none.
 # shellcheck writes its messages as UTF-8 and fails under another locale.
 run = ["bash", "-c", "git ls-files -z -- '*.sh' | LC_ALL=C.UTF-8 xargs -0 -r shellcheck"]
@@ -262,7 +265,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "actionlint"
-group = "lint"
+group = "repository"
 # GitHub's own schema and expressions in the workflows.
 run = ["actionlint"]
 timeout-seconds = 600
@@ -270,7 +273,7 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "lint"
+group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
 run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
@@ -278,7 +281,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
-group = "check"
+group = "repository-check"
 # The CI code's own tests, which read the workflows and the products' manifests.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
@@ -297,13 +300,14 @@ given.files.'asymptote.toml' = '''
 # and its own tools are the checks no product owns: the files, their text and the workflows. A product runs from its own directory.
 members = ["crates/*"]
 
-# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the lint group, and CI runs every group.
+# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the products' lint groups and the
+# root's `repository` group; CI runs `repository` and `repository-check`, which no product has, in a job of their own.
 [hooks]
-pre-commit = ["lint"]
+pre-commit = ["lint", "repository"]
 
 [[tools]]
 id = "taplo"
-group = "lint"
+group = "repository"
 # Every TOML file parses and is formatted as taplo.toml says (taplo-cli, pinned in the root Cargo.toml).
 run = ["taplo", "fmt", "--check"]
 fix = ["taplo", "fmt"]
@@ -311,21 +315,21 @@ timeout-seconds = 600
 
 [[tools]]
 id = "yamllint"
-group = "lint"
+group = "repository"
 # Every YAML file parses (.yamllint.yaml).
 run = ["yamllint", "."]
 timeout-seconds = 600
 
 [[tools]]
 id = "editorconfig"
-group = "lint"
+group = "repository"
 # Every text file ends with a newline and has no trailing whitespace (.editorconfig, .editorconfig-checker.json).
 run = ["ec"]
 timeout-seconds = 600
 
 [[tools]]
 id = "merge-conflict"
-group = "lint"
+group = "repository"
 # No file holds a leftover conflict marker, tracked or not: `git grep --untracked` reads the files an add would stage as well as the
 # tracked ones, so a new file with a marker cannot pass and then be staged unchanged. Exit 1 is no match; any other exit is a failure.
 run = ["bash", "-c", "git grep -n -I --untracked -E '^(<{7}|>{7}|[|]{7})( |$)|^={7}$' -- . ':(exclude,glob)**/snapshots/**' ':(exclude,glob)**/resources/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/suite/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/corpus/**'; [ $? -eq 1 ]"]
@@ -333,7 +337,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "typos"
-group = "lint"
+group = "repository"
 # Spelling (_typos.toml).
 run = ["typos"]
 fix = ["typos", "--write-changes"]
@@ -341,7 +345,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "shellcheck"
-group = "lint"
+group = "repository"
 # Every tracked shell script. Exit 1 is a finding; shellcheck writes no SARIF, so the run passes only when it finds none.
 # shellcheck writes its messages as UTF-8 and fails under another locale.
 run = ["bash", "-c", "git ls-files -z -- '*.sh' | LC_ALL=C.UTF-8 xargs -0 -r shellcheck"]
@@ -349,7 +353,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "actionlint"
-group = "lint"
+group = "repository"
 # GitHub's own schema and expressions in the workflows.
 run = ["actionlint"]
 timeout-seconds = 600
@@ -357,7 +361,7 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "lint"
+group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
 run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
@@ -365,7 +369,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
-group = "check"
+group = "repository-check"
 # The CI code's own tests, which read the workflows and the products' manifests.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
@@ -389,13 +393,14 @@ given.files.'asymptote.toml' = '''
 # and its own tools are the checks no product owns: the files, their text and the workflows. A product runs from its own directory.
 members = ["crates/*"]
 
-# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the lint group, and CI runs every group.
+# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the products' lint groups and the
+# root's `repository` group; CI runs `repository` and `repository-check`, which no product has, in a job of their own.
 [hooks]
-pre-commit = ["lint"]
+pre-commit = ["lint", "repository"]
 
 [[tools]]
 id = "tastemaker"
-group = "lint"
+group = "repository"
 # The repository root is a Tastemaker workspace of its own, closed over every top-level file and directory beside the
 # products: the whole tree is its input.
 run = ["tm", "check", "--format", "sarif"]
@@ -405,21 +410,21 @@ inputs = ["."]
 
 [[tools]]
 id = "yamllint"
-group = "lint"
+group = "repository"
 # Every YAML file parses (.yamllint.yaml).
 run = ["yamllint", "."]
 timeout-seconds = 600
 
 [[tools]]
 id = "editorconfig"
-group = "lint"
+group = "repository"
 # Every text file ends with a newline and has no trailing whitespace (.editorconfig, .editorconfig-checker.json).
 run = ["ec"]
 timeout-seconds = 600
 
 [[tools]]
 id = "merge-conflict"
-group = "lint"
+group = "repository"
 # No file holds a leftover conflict marker, tracked or not: `git grep --untracked` reads the files an add would stage as well as the
 # tracked ones, so a new file with a marker cannot pass and then be staged unchanged. Exit 1 is no match; any other exit is a failure.
 run = ["bash", "-c", "git grep -n -I --untracked -E '^(<{7}|>{7}|[|]{7})( |$)|^={7}$' -- . ':(exclude,glob)**/snapshots/**' ':(exclude,glob)**/resources/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/suite/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/corpus/**'; [ $? -eq 1 ]"]
@@ -427,7 +432,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "typos"
-group = "lint"
+group = "repository"
 # Spelling (_typos.toml).
 run = ["typos"]
 fix = ["typos", "--write-changes"]
@@ -435,7 +440,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "shellcheck"
-group = "lint"
+group = "repository"
 # Every tracked shell script. Exit 1 is a finding; shellcheck writes no SARIF, so the run passes only when it finds none.
 # shellcheck writes its messages as UTF-8 and fails under another locale.
 run = ["bash", "-c", "git ls-files -z -- '*.sh' | LC_ALL=C.UTF-8 xargs -0 -r shellcheck"]
@@ -443,7 +448,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "actionlint"
-group = "lint"
+group = "repository"
 # GitHub's own schema and expressions in the workflows.
 run = ["actionlint"]
 timeout-seconds = 600
@@ -451,7 +456,7 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "lint"
+group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
 run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
@@ -459,7 +464,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
-group = "check"
+group = "repository-check"
 # The CI code's own tests, which read the workflows and the products' manifests.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
@@ -482,13 +487,14 @@ given.files.'asymptote.toml' = '''
 # and its own tools are the checks no product owns: the files, their text and the workflows. A product runs from its own directory.
 members = ["crates/*"]
 
-# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the lint group, and CI runs every group.
+# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the products' lint groups and the
+# root's `repository` group; CI runs `repository` and `repository-check`, which no product has, in a job of their own.
 [hooks]
-pre-commit = ["lint"]
+pre-commit = ["lint", "repository"]
 
 [[tools]]
 id = "tastemaker"
-group = "lint"
+group = "repository"
 # The repository root is a Tastemaker workspace of its own, closed over every top-level file and directory beside the
 # products: the whole tree is its input.
 run = ["tm", "check", "--format", "sarif"]
@@ -498,7 +504,7 @@ inputs = ["."]
 
 [[tools]]
 id = "taplo"
-group = "lint"
+group = "repository"
 # Every TOML file parses and is formatted as taplo.toml says (taplo-cli, pinned in the root Cargo.toml).
 run = ["taplo", "fmt", "--check"]
 fix = ["taplo", "fmt"]
@@ -506,14 +512,14 @@ timeout-seconds = 600
 
 [[tools]]
 id = "editorconfig"
-group = "lint"
+group = "repository"
 # Every text file ends with a newline and has no trailing whitespace (.editorconfig, .editorconfig-checker.json).
 run = ["ec"]
 timeout-seconds = 600
 
 [[tools]]
 id = "merge-conflict"
-group = "lint"
+group = "repository"
 # No file holds a leftover conflict marker, tracked or not: `git grep --untracked` reads the files an add would stage as well as the
 # tracked ones, so a new file with a marker cannot pass and then be staged unchanged. Exit 1 is no match; any other exit is a failure.
 run = ["bash", "-c", "git grep -n -I --untracked -E '^(<{7}|>{7}|[|]{7})( |$)|^={7}$' -- . ':(exclude,glob)**/snapshots/**' ':(exclude,glob)**/resources/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/suite/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/corpus/**'; [ $? -eq 1 ]"]
@@ -521,7 +527,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "typos"
-group = "lint"
+group = "repository"
 # Spelling (_typos.toml).
 run = ["typos"]
 fix = ["typos", "--write-changes"]
@@ -529,7 +535,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "shellcheck"
-group = "lint"
+group = "repository"
 # Every tracked shell script. Exit 1 is a finding; shellcheck writes no SARIF, so the run passes only when it finds none.
 # shellcheck writes its messages as UTF-8 and fails under another locale.
 run = ["bash", "-c", "git ls-files -z -- '*.sh' | LC_ALL=C.UTF-8 xargs -0 -r shellcheck"]
@@ -537,7 +543,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "actionlint"
-group = "lint"
+group = "repository"
 # GitHub's own schema and expressions in the workflows.
 run = ["actionlint"]
 timeout-seconds = 600
@@ -545,7 +551,7 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "lint"
+group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
 run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
@@ -553,7 +559,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
-group = "check"
+group = "repository-check"
 # The CI code's own tests, which read the workflows and the products' manifests.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
@@ -573,13 +579,14 @@ given.files.'asymptote.toml' = '''
 # and its own tools are the checks no product owns: the files, their text and the workflows. A product runs from its own directory.
 members = ["crates/*"]
 
-# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the lint group, and CI runs every group.
+# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the products' lint groups and the
+# root's `repository` group; CI runs `repository` and `repository-check`, which no product has, in a job of their own.
 [hooks]
-pre-commit = ["lint"]
+pre-commit = ["lint", "repository"]
 
 [[tools]]
 id = "tastemaker"
-group = "lint"
+group = "repository"
 # The repository root is a Tastemaker workspace of its own, closed over every top-level file and directory beside the
 # products: the whole tree is its input.
 run = ["tm", "check", "--format", "sarif"]
@@ -589,7 +596,7 @@ inputs = ["."]
 
 [[tools]]
 id = "taplo"
-group = "lint"
+group = "repository"
 # Every TOML file parses and is formatted as taplo.toml says (taplo-cli, pinned in the root Cargo.toml).
 run = ["taplo", "fmt", "--check"]
 fix = ["taplo", "fmt"]
@@ -597,14 +604,14 @@ timeout-seconds = 600
 
 [[tools]]
 id = "yamllint"
-group = "lint"
+group = "repository"
 # Every YAML file parses (.yamllint.yaml).
 run = ["yamllint", "."]
 timeout-seconds = 600
 
 [[tools]]
 id = "merge-conflict"
-group = "lint"
+group = "repository"
 # No file holds a leftover conflict marker, tracked or not: `git grep --untracked` reads the files an add would stage as well as the
 # tracked ones, so a new file with a marker cannot pass and then be staged unchanged. Exit 1 is no match; any other exit is a failure.
 run = ["bash", "-c", "git grep -n -I --untracked -E '^(<{7}|>{7}|[|]{7})( |$)|^={7}$' -- . ':(exclude,glob)**/snapshots/**' ':(exclude,glob)**/resources/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/suite/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/corpus/**'; [ $? -eq 1 ]"]
@@ -612,7 +619,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "typos"
-group = "lint"
+group = "repository"
 # Spelling (_typos.toml).
 run = ["typos"]
 fix = ["typos", "--write-changes"]
@@ -620,7 +627,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "shellcheck"
-group = "lint"
+group = "repository"
 # Every tracked shell script. Exit 1 is a finding; shellcheck writes no SARIF, so the run passes only when it finds none.
 # shellcheck writes its messages as UTF-8 and fails under another locale.
 run = ["bash", "-c", "git ls-files -z -- '*.sh' | LC_ALL=C.UTF-8 xargs -0 -r shellcheck"]
@@ -628,7 +635,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "actionlint"
-group = "lint"
+group = "repository"
 # GitHub's own schema and expressions in the workflows.
 run = ["actionlint"]
 timeout-seconds = 600
@@ -636,7 +643,7 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "lint"
+group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
 run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
@@ -644,7 +651,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
-group = "check"
+group = "repository-check"
 # The CI code's own tests, which read the workflows and the products' manifests.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
@@ -663,13 +670,14 @@ given.files.'asymptote.toml' = '''
 # and its own tools are the checks no product owns: the files, their text and the workflows. A product runs from its own directory.
 members = ["crates/*"]
 
-# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the lint group, and CI runs every group.
+# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the products' lint groups and the
+# root's `repository` group; CI runs `repository` and `repository-check`, which no product has, in a job of their own.
 [hooks]
-pre-commit = ["lint"]
+pre-commit = ["lint", "repository"]
 
 [[tools]]
 id = "tastemaker"
-group = "lint"
+group = "repository"
 # The repository root is a Tastemaker workspace of its own, closed over every top-level file and directory beside the
 # products: the whole tree is its input.
 run = ["tm", "check", "--format", "sarif"]
@@ -679,7 +687,7 @@ inputs = ["."]
 
 [[tools]]
 id = "taplo"
-group = "lint"
+group = "repository"
 # Every TOML file parses and is formatted as taplo.toml says (taplo-cli, pinned in the root Cargo.toml).
 run = ["taplo", "fmt", "--check"]
 fix = ["taplo", "fmt"]
@@ -687,21 +695,21 @@ timeout-seconds = 600
 
 [[tools]]
 id = "yamllint"
-group = "lint"
+group = "repository"
 # Every YAML file parses (.yamllint.yaml).
 run = ["yamllint", "."]
 timeout-seconds = 600
 
 [[tools]]
 id = "editorconfig"
-group = "lint"
+group = "repository"
 # Every text file ends with a newline and has no trailing whitespace (.editorconfig, .editorconfig-checker.json).
 run = ["ec"]
 timeout-seconds = 600
 
 [[tools]]
 id = "typos"
-group = "lint"
+group = "repository"
 # Spelling (_typos.toml).
 run = ["typos"]
 fix = ["typos", "--write-changes"]
@@ -709,7 +717,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "shellcheck"
-group = "lint"
+group = "repository"
 # Every tracked shell script. Exit 1 is a finding; shellcheck writes no SARIF, so the run passes only when it finds none.
 # shellcheck writes its messages as UTF-8 and fails under another locale.
 run = ["bash", "-c", "git ls-files -z -- '*.sh' | LC_ALL=C.UTF-8 xargs -0 -r shellcheck"]
@@ -717,7 +725,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "actionlint"
-group = "lint"
+group = "repository"
 # GitHub's own schema and expressions in the workflows.
 run = ["actionlint"]
 timeout-seconds = 600
@@ -725,7 +733,7 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "lint"
+group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
 run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
@@ -733,7 +741,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
-group = "check"
+group = "repository-check"
 # The CI code's own tests, which read the workflows and the products' manifests.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
@@ -752,13 +760,14 @@ given.files.'asymptote.toml' = '''
 # and its own tools are the checks no product owns: the files, their text and the workflows. A product runs from its own directory.
 members = ["crates/*"]
 
-# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the lint group, and CI runs every group.
+# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the products' lint groups and the
+# root's `repository` group; CI runs `repository` and `repository-check`, which no product has, in a job of their own.
 [hooks]
-pre-commit = ["lint"]
+pre-commit = ["lint", "repository"]
 
 [[tools]]
 id = "tastemaker"
-group = "lint"
+group = "repository"
 # The repository root is a Tastemaker workspace of its own, closed over every top-level file and directory beside the
 # products: the whole tree is its input.
 run = ["tm", "check", "--format", "sarif"]
@@ -768,7 +777,7 @@ inputs = ["."]
 
 [[tools]]
 id = "taplo"
-group = "lint"
+group = "repository"
 # Every TOML file parses and is formatted as taplo.toml says (taplo-cli, pinned in the root Cargo.toml).
 run = ["taplo", "fmt", "--check"]
 fix = ["taplo", "fmt"]
@@ -776,21 +785,21 @@ timeout-seconds = 600
 
 [[tools]]
 id = "yamllint"
-group = "lint"
+group = "repository"
 # Every YAML file parses (.yamllint.yaml).
 run = ["yamllint", "."]
 timeout-seconds = 600
 
 [[tools]]
 id = "editorconfig"
-group = "lint"
+group = "repository"
 # Every text file ends with a newline and has no trailing whitespace (.editorconfig, .editorconfig-checker.json).
 run = ["ec"]
 timeout-seconds = 600
 
 [[tools]]
 id = "merge-conflict"
-group = "lint"
+group = "repository"
 # No file holds a leftover conflict marker, tracked or not: `git grep --untracked` reads the files an add would stage as well as the
 # tracked ones, so a new file with a marker cannot pass and then be staged unchanged. Exit 1 is no match; any other exit is a failure.
 run = ["bash", "-c", "git grep -n -I --untracked -E '^(<{7}|>{7}|[|]{7})( |$)|^={7}$' -- . ':(exclude,glob)**/snapshots/**' ':(exclude,glob)**/resources/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/suite/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/corpus/**'; [ $? -eq 1 ]"]
@@ -798,7 +807,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "shellcheck"
-group = "lint"
+group = "repository"
 # Every tracked shell script. Exit 1 is a finding; shellcheck writes no SARIF, so the run passes only when it finds none.
 # shellcheck writes its messages as UTF-8 and fails under another locale.
 run = ["bash", "-c", "git ls-files -z -- '*.sh' | LC_ALL=C.UTF-8 xargs -0 -r shellcheck"]
@@ -806,7 +815,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "actionlint"
-group = "lint"
+group = "repository"
 # GitHub's own schema and expressions in the workflows.
 run = ["actionlint"]
 timeout-seconds = 600
@@ -814,7 +823,7 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "lint"
+group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
 run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
@@ -822,7 +831,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
-group = "check"
+group = "repository-check"
 # The CI code's own tests, which read the workflows and the products' manifests.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
@@ -843,13 +852,14 @@ given.files.'asymptote.toml' = '''
 # and its own tools are the checks no product owns: the files, their text and the workflows. A product runs from its own directory.
 members = ["crates/*"]
 
-# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the lint group, and CI runs every group.
+# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the products' lint groups and the
+# root's `repository` group; CI runs `repository` and `repository-check`, which no product has, in a job of their own.
 [hooks]
-pre-commit = ["lint"]
+pre-commit = ["lint", "repository"]
 
 [[tools]]
 id = "tastemaker"
-group = "lint"
+group = "repository"
 # The repository root is a Tastemaker workspace of its own, closed over every top-level file and directory beside the
 # products: the whole tree is its input.
 run = ["tm", "check", "--format", "sarif"]
@@ -859,7 +869,7 @@ inputs = ["."]
 
 [[tools]]
 id = "taplo"
-group = "lint"
+group = "repository"
 # Every TOML file parses and is formatted as taplo.toml says (taplo-cli, pinned in the root Cargo.toml).
 run = ["taplo", "fmt", "--check"]
 fix = ["taplo", "fmt"]
@@ -867,21 +877,21 @@ timeout-seconds = 600
 
 [[tools]]
 id = "yamllint"
-group = "lint"
+group = "repository"
 # Every YAML file parses (.yamllint.yaml).
 run = ["yamllint", "."]
 timeout-seconds = 600
 
 [[tools]]
 id = "editorconfig"
-group = "lint"
+group = "repository"
 # Every text file ends with a newline and has no trailing whitespace (.editorconfig, .editorconfig-checker.json).
 run = ["ec"]
 timeout-seconds = 600
 
 [[tools]]
 id = "merge-conflict"
-group = "lint"
+group = "repository"
 # No file holds a leftover conflict marker, tracked or not: `git grep --untracked` reads the files an add would stage as well as the
 # tracked ones, so a new file with a marker cannot pass and then be staged unchanged. Exit 1 is no match; any other exit is a failure.
 run = ["bash", "-c", "git grep -n -I --untracked -E '^(<{7}|>{7}|[|]{7})( |$)|^={7}$' -- . ':(exclude,glob)**/snapshots/**' ':(exclude,glob)**/resources/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/suite/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/corpus/**'; [ $? -eq 1 ]"]
@@ -889,7 +899,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "typos"
-group = "lint"
+group = "repository"
 # Spelling (_typos.toml).
 run = ["typos"]
 fix = ["typos", "--write-changes"]
@@ -897,7 +907,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "shellcheck"
-group = "lint"
+group = "repository"
 # Every tracked shell script. Exit 1 is a finding; shellcheck writes no SARIF, so the run passes only when it finds none.
 # shellcheck writes its messages as UTF-8 and fails under another locale.
 run = ["bash", "-c", "git ls-files -z -- '*.sh' | LC_ALL=C.UTF-8 xargs -0 -r shellcheck"]
@@ -905,7 +915,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "commitizen"
-group = "lint"
+group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
 run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
@@ -913,7 +923,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
-group = "check"
+group = "repository-check"
 # The CI code's own tests, which read the workflows and the products' manifests.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
@@ -933,13 +943,14 @@ given.files.'asymptote.toml' = '''
 # and its own tools are the checks no product owns: the files, their text and the workflows. A product runs from its own directory.
 members = ["crates/*"]
 
-# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the lint group, and CI runs every group.
+# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the products' lint groups and the
+# root's `repository` group; CI runs `repository` and `repository-check`, which no product has, in a job of their own.
 [hooks]
-pre-commit = ["lint"]
+pre-commit = ["lint", "repository"]
 
 [[tools]]
 id = "tastemaker"
-group = "lint"
+group = "repository"
 # The repository root is a Tastemaker workspace of its own, closed over every top-level file and directory beside the
 # products: the whole tree is its input.
 run = ["tm", "check", "--format", "sarif"]
@@ -949,7 +960,7 @@ inputs = ["."]
 
 [[tools]]
 id = "taplo"
-group = "lint"
+group = "repository"
 # Every TOML file parses and is formatted as taplo.toml says (taplo-cli, pinned in the root Cargo.toml).
 run = ["taplo", "fmt", "--check"]
 fix = ["taplo", "fmt"]
@@ -957,21 +968,21 @@ timeout-seconds = 600
 
 [[tools]]
 id = "yamllint"
-group = "lint"
+group = "repository"
 # Every YAML file parses (.yamllint.yaml).
 run = ["yamllint", "."]
 timeout-seconds = 600
 
 [[tools]]
 id = "editorconfig"
-group = "lint"
+group = "repository"
 # Every text file ends with a newline and has no trailing whitespace (.editorconfig, .editorconfig-checker.json).
 run = ["ec"]
 timeout-seconds = 600
 
 [[tools]]
 id = "merge-conflict"
-group = "lint"
+group = "repository"
 # No file holds a leftover conflict marker, tracked or not: `git grep --untracked` reads the files an add would stage as well as the
 # tracked ones, so a new file with a marker cannot pass and then be staged unchanged. Exit 1 is no match; any other exit is a failure.
 run = ["bash", "-c", "git grep -n -I --untracked -E '^(<{7}|>{7}|[|]{7})( |$)|^={7}$' -- . ':(exclude,glob)**/snapshots/**' ':(exclude,glob)**/resources/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/suite/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/corpus/**'; [ $? -eq 1 ]"]
@@ -979,7 +990,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "typos"
-group = "lint"
+group = "repository"
 # Spelling (_typos.toml).
 run = ["typos"]
 fix = ["typos", "--write-changes"]
@@ -987,7 +998,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "actionlint"
-group = "lint"
+group = "repository"
 # GitHub's own schema and expressions in the workflows.
 run = ["actionlint"]
 timeout-seconds = 600
@@ -995,7 +1006,7 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "lint"
+group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
 run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
@@ -1003,7 +1014,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "ci-tests"
-group = "check"
+group = "repository-check"
 # The CI code's own tests, which read the workflows and the products' manifests.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
@@ -1022,13 +1033,14 @@ given.files.'asymptote.toml' = '''
 # and its own tools are the checks no product owns: the files, their text and the workflows. A product runs from its own directory.
 members = ["crates/*"]
 
-# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the lint group, and CI runs every group.
+# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the products' lint groups and the
+# root's `repository` group; CI runs `repository` and `repository-check`, which no product has, in a job of their own.
 [hooks]
-pre-commit = ["lint"]
+pre-commit = ["lint", "repository"]
 
 [[tools]]
 id = "tastemaker"
-group = "lint"
+group = "repository"
 # The repository root is a Tastemaker workspace of its own, closed over every top-level file and directory beside the
 # products: the whole tree is its input.
 run = ["tm", "check", "--format", "sarif"]
@@ -1038,7 +1050,7 @@ inputs = ["."]
 
 [[tools]]
 id = "taplo"
-group = "lint"
+group = "repository"
 # Every TOML file parses and is formatted as taplo.toml says (taplo-cli, pinned in the root Cargo.toml).
 run = ["taplo", "fmt", "--check"]
 fix = ["taplo", "fmt"]
@@ -1046,21 +1058,21 @@ timeout-seconds = 600
 
 [[tools]]
 id = "yamllint"
-group = "lint"
+group = "repository"
 # Every YAML file parses (.yamllint.yaml).
 run = ["yamllint", "."]
 timeout-seconds = 600
 
 [[tools]]
 id = "editorconfig"
-group = "lint"
+group = "repository"
 # Every text file ends with a newline and has no trailing whitespace (.editorconfig, .editorconfig-checker.json).
 run = ["ec"]
 timeout-seconds = 600
 
 [[tools]]
 id = "merge-conflict"
-group = "lint"
+group = "repository"
 # No file holds a leftover conflict marker, tracked or not: `git grep --untracked` reads the files an add would stage as well as the
 # tracked ones, so a new file with a marker cannot pass and then be staged unchanged. Exit 1 is no match; any other exit is a failure.
 run = ["bash", "-c", "git grep -n -I --untracked -E '^(<{7}|>{7}|[|]{7})( |$)|^={7}$' -- . ':(exclude,glob)**/snapshots/**' ':(exclude,glob)**/resources/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/suite/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/corpus/**'; [ $? -eq 1 ]"]
@@ -1068,7 +1080,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "typos"
-group = "lint"
+group = "repository"
 # Spelling (_typos.toml).
 run = ["typos"]
 fix = ["typos", "--write-changes"]
@@ -1076,7 +1088,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "shellcheck"
-group = "lint"
+group = "repository"
 # Every tracked shell script. Exit 1 is a finding; shellcheck writes no SARIF, so the run passes only when it finds none.
 # shellcheck writes its messages as UTF-8 and fails under another locale.
 run = ["bash", "-c", "git ls-files -z -- '*.sh' | LC_ALL=C.UTF-8 xargs -0 -r shellcheck"]
@@ -1084,7 +1096,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "actionlint"
-group = "lint"
+group = "repository"
 # GitHub's own schema and expressions in the workflows.
 run = ["actionlint"]
 timeout-seconds = 600
@@ -1092,7 +1104,7 @@ inputs = [".github"]
 
 [[tools]]
 id = "ci-tests"
-group = "check"
+group = "repository-check"
 # The CI code's own tests, which read the workflows and the products' manifests.
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
@@ -1111,13 +1123,14 @@ given.files.'asymptote.toml' = '''
 # and its own tools are the checks no product owns: the files, their text and the workflows. A product runs from its own directory.
 members = ["crates/*"]
 
-# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the lint group, and CI runs every group.
+# The git hooks `asymptote init` installs, each running the groups named: the commit gate is the products' lint groups and the
+# root's `repository` group; CI runs `repository` and `repository-check`, which no product has, in a job of their own.
 [hooks]
-pre-commit = ["lint"]
+pre-commit = ["lint", "repository"]
 
 [[tools]]
 id = "tastemaker"
-group = "lint"
+group = "repository"
 # The repository root is a Tastemaker workspace of its own, closed over every top-level file and directory beside the
 # products: the whole tree is its input.
 run = ["tm", "check", "--format", "sarif"]
@@ -1127,7 +1140,7 @@ inputs = ["."]
 
 [[tools]]
 id = "taplo"
-group = "lint"
+group = "repository"
 # Every TOML file parses and is formatted as taplo.toml says (taplo-cli, pinned in the root Cargo.toml).
 run = ["taplo", "fmt", "--check"]
 fix = ["taplo", "fmt"]
@@ -1135,21 +1148,21 @@ timeout-seconds = 600
 
 [[tools]]
 id = "yamllint"
-group = "lint"
+group = "repository"
 # Every YAML file parses (.yamllint.yaml).
 run = ["yamllint", "."]
 timeout-seconds = 600
 
 [[tools]]
 id = "editorconfig"
-group = "lint"
+group = "repository"
 # Every text file ends with a newline and has no trailing whitespace (.editorconfig, .editorconfig-checker.json).
 run = ["ec"]
 timeout-seconds = 600
 
 [[tools]]
 id = "merge-conflict"
-group = "lint"
+group = "repository"
 # No file holds a leftover conflict marker, tracked or not: `git grep --untracked` reads the files an add would stage as well as the
 # tracked ones, so a new file with a marker cannot pass and then be staged unchanged. Exit 1 is no match; any other exit is a failure.
 run = ["bash", "-c", "git grep -n -I --untracked -E '^(<{7}|>{7}|[|]{7})( |$)|^={7}$' -- . ':(exclude,glob)**/snapshots/**' ':(exclude,glob)**/resources/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/suite/**' ':(exclude,glob)crates/ryo/languages/*/tests/fixtures/corpus/**'; [ $? -eq 1 ]"]
@@ -1157,7 +1170,7 @@ timeout-seconds = 300
 
 [[tools]]
 id = "typos"
-group = "lint"
+group = "repository"
 # Spelling (_typos.toml).
 run = ["typos"]
 fix = ["typos", "--write-changes"]
@@ -1165,7 +1178,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "shellcheck"
-group = "lint"
+group = "repository"
 # Every tracked shell script. Exit 1 is a finding; shellcheck writes no SARIF, so the run passes only when it finds none.
 # shellcheck writes its messages as UTF-8 and fails under another locale.
 run = ["bash", "-c", "git ls-files -z -- '*.sh' | LC_ALL=C.UTF-8 xargs -0 -r shellcheck"]
@@ -1173,7 +1186,7 @@ timeout-seconds = 600
 
 [[tools]]
 id = "actionlint"
-group = "lint"
+group = "repository"
 # GitHub's own schema and expressions in the workflows.
 run = ["actionlint"]
 timeout-seconds = 600
@@ -1181,7 +1194,7 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "lint"
+group = "repository"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
 run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]

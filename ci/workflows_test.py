@@ -475,7 +475,7 @@ def test_only_the_release_job_that_uploads_is_handed_a_token_and_only_after_the_
     (checking,) = [step["run"] for step in workflow["jobs"]["check"]["steps"] if "asymptote check" in step.get("run", "")]
     assert checking == "asymptote check --root ${{ matrix.root || format('crates/{0}', inputs.product) }} --groups ${{ matrix.group }}"
     # Every product's release tools, one job per group: each group a product's asymptote.toml names beside lint, check, perf and
-    # build is a row of the matrix, and every row is a group some product names.
+    # build is a row of the matrix, and every row is a group some product names, or the root's `repository`.
     released = {
         tool["group"]
         for manifest in sorted(ROOT.glob("crates/*/asymptote.toml"))
@@ -483,9 +483,13 @@ def test_only_the_release_job_that_uploads_is_handed_a_token_and_only_after_the_
         if tool["group"].startswith("release")
     }
     rows = workflow["jobs"]["check"]["strategy"]["matrix"]["include"]
-    assert {row["group"] for row in rows} == released | {"lint", "clippy", "api", "check"}
-    # A hand run's check, the pull request gate's rows for its product: lint from the root, the tests on every machine.
-    assert [row.get("root") for row in rows if row["group"] == "lint"] == ["."]
+    assert {row["group"] for row in rows} == released | {"repository", "lint", "clippy", "api", "check"}
+    # A hand run's check, the pull request gate's rows for its product: its lint, the tests on every machine, and the root's
+    # `repository` group from the root, the one row with a root of its own.
+    assert [(row["group"], row.get("root")) for row in rows if "root" in row or row["group"] in {"lint", "repository"}] == [
+        ("repository", "."),
+        ("lint", None),
+    ]
     assert sorted(row["runner"] for row in rows if row["group"] == "check") == sorted(
         ["ubuntu-26.04", "ubuntu-26.04-arm", "macos-26", "windows-2025"]
     )
@@ -640,7 +644,7 @@ def test_a_pull_request_or_hand_run_checks_the_products_it_reaches_behind_one_ga
     assert checking == "asymptote check --root crates/${{ matrix.product }} --groups ${{ matrix.check.group }}"
     release = yaml.safe_load((DIRECTORY / "release.yml").read_text())["jobs"]["check"]["strategy"]["matrix"]["include"]
     assert check["strategy"]["matrix"]["check"] == [{"runner": row["runner"], "group": row["group"]} for row in release if row.get("root") != "."]
-    assert [row for row in release if row.get("root") == "."] == [{"runner": "ubuntu-26.04", "group": "lint", "root": "."}]
+    assert [row for row in release if row.get("root") == "."] == [{"runner": "ubuntu-26.04", "group": "repository", "root": "."}]
     # The same caches as the release's check: per machine, group and product, and the installed tools.
     (cache,) = [step for step in check["steps"] if step.get("uses", "").startswith("Swatinem/rust-cache@")]
     assert cache["with"]["shared-key"] == "${{ matrix.check.runner }}-${{ matrix.check.group }}-${{ matrix.product }}"
@@ -726,15 +730,20 @@ def test_the_repository_filter_is_everything_outside_the_products() -> None:
 
 
 def test_root_runs_on_every_event_and_its_groups_follow_the_repository_output() -> None:
-    """The root's lint group runs on every run, a hand run's too, and its check group (the ci/ tests) when a pull request changes
-    the repository's files."""
+    """The root's repository group runs on every run, a hand run's too, and its repository-check group (the ci/ tests) when a pull
+    request changes the repository's files: groups no product has, so the root job runs no product's tools."""
     jobs = yaml.safe_load((DIRECTORY / "check.yml").read_text())["jobs"]
     root = jobs["root"]
     assert "if" not in root and root["needs"] == "changes"
     assert [step["run"] for step in root["steps"] if "asymptote check" in step.get("run", "")] == [
-        "asymptote check --root . --groups ${{ needs.changes.outputs.repository == 'true' && 'lint,check' || 'lint' }}"
+        "asymptote check --root . --groups ${{ needs.changes.outputs.repository == 'true' && 'repository,repository-check' || 'repository' }}"
     ]
     assert "root" in jobs["gate"]["needs"] and "root" not in jobs["gate"]["steps"][0]["with"]["allowed-skips"].split(", ")
+    # A check at the root runs every member's tools of the groups it names: the root's groups are its own, so it runs none of them.
+    root_groups = {tool["group"] for tool in tomllib.loads((ROOT / "asymptote.toml").read_text())["tools"]}
+    assert {"repository", "repository-check"} <= root_groups
+    for manifest in sorted(ROOT.glob("crates/*/asymptote.toml")):
+        assert not root_groups & {tool["group"] for tool in tomllib.loads(manifest.read_text())["tools"]}, manifest
 
 
 def bench_correctness_required(workflow: dict) -> bool:

@@ -2,12 +2,12 @@
 # main reaches: a product's own directory, crates/<product>/, and the directory of every product its manifests path-depend on
 # (tastemaker patches ryo's crates, so a change to crates/ryo/ reaches tastemaker too; ci/workflows_test.py derives each filter from
 # the Cargo path dependencies and tastemaker.lock paths). A change to a file outside the products' directories (tools/, ci/, .github/,
-# tastemaker/, the root's configurations) is every product's, so it runs all three, and the `root` job's check group (the ci/ tests)
-# beside its lint group. For each product reached, the `check` job runs that product's whole check fan-out, the groups and machines
-# release.yml's own `check` job runs but its root lint row (`asymptote check --root crates/<product> --groups <group>`, one job per
-# group and machine): the tests on every machine the products ship to, the SDK's API on macOS, where cargo-public-api ships a
-# prebuilt, and every other group once, on Linux. The `root` job runs the repository root's lint group on every run, a hand run's
-# too: it runs the root's tools and every product's lint tools. A hand run checks the one product its `product` input names: the
+# tastemaker/, the root's configurations) is every product's, so it runs all three, and the `root` job's repository-check group
+# (the ci/ tests) beside its repository group. For each product reached, the `check` job runs that product's whole check fan-out,
+# the groups and machines release.yml's own `check` job runs but its root row (`asymptote check --root crates/<product> --groups
+# <group>`, one job per group and machine): its lint, the tests on every machine the products ship to, the SDK's API on macOS, where
+# cargo-public-api ships a prebuilt, and every other group once, on Linux. The `root` job runs the repository root's repository group
+# on every run, a hand run's too: groups no product has, so the root's tools alone. A hand run checks the one product its `product` input names: the
 # release pull request workflow (release-pr.yml) starts one on its branch, since a pull request a workflow opens starts no workflow.
 # Each job is a machine, the toolchains (every sample's among them: a sample whose toolchain is missing fails its test),
 # `tools/install.py`, which installs every tool the checks run at the version declared for it, prebuilt, and one `asymptote check`
@@ -15,7 +15,7 @@
 # failed or was cancelled; the Ruff authoring guard, ryo's alone, is skipped when ryo is not reached, which passes. `gate` is the
 # one verdict: a pull request merges only after the `gate` of a run on its head commit passed, by process (no repository rule
 # enforces it). The commit gate stays `asymptote check --hook pre-commit`, the git hook `asymptote init` installs, which runs the
-# `lint` group.
+# products' `lint` groups and the root's `repository` group.
 name: check
 on:
   pull_request:
@@ -66,8 +66,8 @@ jobs:
               - "!crates/ryo/**"
               - "!crates/tastemaker/**"
               - "!crates/asymptote/**"
-  # The repository root's lint group on every run, its check group too when a pull request changes the repository's files. A
-  # workspace's check runs its members' tools of the same groups too.
+  # The repository root's repository group on every run, its repository-check group too when a pull request changes the
+  # repository's files: groups no product has, so the root's tools alone.
   root:
     needs: changes
     runs-on: ubuntu-26.04
@@ -119,7 +119,7 @@ jobs:
         env:
           # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
           GH_TOKEN: ${{ github.token }}
-      - run: asymptote check --root . --groups ${{ needs.changes.outputs.repository == 'true' && 'lint,check' || 'lint' }}
+      - run: asymptote check --root . --groups ${{ needs.changes.outputs.repository == 'true' && 'repository,repository-check' || 'repository' }}
   ownership-contracts:
     runs-on: ubuntu-26.04
     steps:
@@ -172,11 +172,12 @@ jobs:
     name: check (${{ matrix.product }}, ${{ matrix.check.group }}, ${{ matrix.check.runner }})
     strategy:
       fail-fast: false
-      # Each product the run reaches, times release.yml's check rows but its root lint row, which the `root` job runs: one job per
+      # Each product the run reaches, times release.yml's check rows but its root row, which the `root` job runs: one job per
       # independent build, the tools of a group sharing one.
       matrix:
         product: ${{ fromJSON(needs.changes.outputs.products) }}
         check:
+          - { runner: ubuntu-26.04, group: lint }
           - { runner: ubuntu-26.04, group: clippy }
           - { runner: macos-26, group: api }
           - { runner: ubuntu-26.04, group: check }
