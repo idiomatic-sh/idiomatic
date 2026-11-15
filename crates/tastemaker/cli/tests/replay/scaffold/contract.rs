@@ -1,12 +1,7 @@
 //! Assertions for the generated language reader contract.
 
-use std::path::Path;
-
-/// Keep optional reader support explicitly unread in a newly generated language.
-pub(super) fn assert_contract(language: &Path) {
-    let contract =
-        std::fs::read_to_string(language.join("src/inbound/contracts/parse/contract.rs"))
-            .expect("the generated parse contract");
+/// Keep optional reader support explicitly unread in a newly generated language, given the text of its parse contract.
+pub(super) fn assert_contract(contract: &str) {
     assert!(
         contract.contains("fn capabilities(&self) -> &'static [languages::OptionalCapability] {\n        &[]\n    }"),
         "a fresh language must not advertise unimplemented optional capabilities"
