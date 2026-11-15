@@ -307,18 +307,47 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
-        name: CaseName(
-            "the_tokens_of_a_macro_the_language_does_not_read_as_expressions_are_no_references",
-        ),
+        name: CaseName("the_arguments_of_any_macro_are_expressions_whose_paths_are_references"),
         word: Word::Succeeds,
         input: || "fn f() { unknown!(a, b); }",
+        expect: Expect::Value(Reading {
+            rows: &[
+                &[
+                    want_node(17),
+                    want_node(1),
+                    want_name("unknown"),
+                    want_file(SHOWN),
+                    want_span((1, 10), (1, 17)),
+                ],
+                &[
+                    want_node(33),
+                    want_node(1),
+                    want_name("a"),
+                    want_file(SHOWN),
+                    want_span((1, 19), (1, 20)),
+                ],
+                &[
+                    want_node(38),
+                    want_node(1),
+                    want_name("b"),
+                    want_file(SHOWN),
+                    want_span((1, 22), (1, 23)),
+                ],
+            ],
+            causes: &[],
+        }),
+    },
+    Case {
+        name: CaseName("the_tokens_of_a_built_in_macro_that_takes_no_code_are_no_references"),
+        word: Word::Succeeds,
+        input: || "fn f() { stringify!(a, b); }",
         expect: Expect::Value(Reading {
             rows: &[&[
                 want_node(17),
                 want_node(1),
-                want_name("unknown"),
+                want_name("stringify"),
                 want_file(SHOWN),
-                want_span((1, 10), (1, 17)),
+                want_span((1, 10), (1, 19)),
             ]],
             causes: &[],
         }),

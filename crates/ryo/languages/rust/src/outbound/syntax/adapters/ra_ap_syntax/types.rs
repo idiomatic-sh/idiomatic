@@ -1,5 +1,6 @@
 //! The types of the `ra_ap_syntax` adapter: plain data, public fields and derives, with no constructor and no inherent impl.
 
+use crate::outbound::syntax::types::OpaqueMacros;
 use ra_ap_syntax::SyntaxKind;
 use ryo::languages::{Count, Flag, Offset, Position};
 
@@ -109,8 +110,10 @@ pub(crate) struct HeldMacro {
     pub start: Offset,
     /// How many nodes of it are open.
     pub depth: Count,
-    /// The steps taken so far.
-    pub steps: Vec<Step>,
+    /// The kind of its first token, when the token tree starts with one: its opening delimiter.
+    pub opening: Option<SyntaxKind>,
+    /// The kind of the last step written directly under it, when that step is a token: its closing delimiter, once it is whole.
+    pub closing: Option<SyntaxKind>,
 }
 
 /// The arguments of a macro call read again, to be added under the call.
@@ -120,4 +123,39 @@ pub(crate) struct Expansion {
     pub host: Position,
     /// The arguments.
     pub arguments: Vec<MacroArgument>,
+}
+
+/// The text an argument list is parsed from: the token tree, its delimiters replaced by those of a tuple or an array.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ArgumentList(pub String);
+
+/// The direct children of a node: each child node, with where its text starts, and the kinds of the tokens directly under it that are
+/// not white space or comments.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct NodeChildren {
+    /// The child nodes, in order.
+    pub nodes: Vec<MacroArgument>,
+    /// The kinds of the tokens directly under it, white space and comments aside.
+    pub tokens: Vec<SyntaxKind>,
+}
+
+/// Where a walk of a tree has come to, for finding the macro calls in it: the file's own tree, or the arguments read again of a call.
+#[derive(Debug)]
+pub(crate) struct Walker {
+    /// The built-in macros whose arguments are never read again.
+    pub opaque: OpaqueMacros<'static>,
+    /// Where the last name written starts.
+    pub name_from: Offset,
+    /// Where the last name written ends.
+    pub name_to: Offset,
+    /// Whether the token tree that follows is the arguments of a macro call: the last token was the `!` of a call.
+    pub armed: Flag,
+    /// The nodes open, with the place each has in the table.
+    pub open: Vec<Open>,
+    /// The token tree of a call being written, held until it is whole.
+    pub held: Option<HeldMacro>,
+    /// The calls whose arguments were read, in the order their token trees closed.
+    pub found: Vec<Expansion>,
+    /// The text an argument list is parsed from, kept between calls so it is made once.
+    pub buffer: ArgumentList,
 }
