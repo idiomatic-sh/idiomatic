@@ -132,16 +132,11 @@ let load_events = select occurrence as reference, ordinal from "binding-event" w
 let ordinary_loads = select l.binding as binding, r.ordinal as point from ordinary_uses as l join load_events as r on l.reference = r.reference;
 let resolved_loads = union(left=ordinary_loads, right=deferred_points);
 let alias_loads = select l.point as point, r.name as name, r.scope as scope, r.file as file from resolved_loads as l join alias_bound as r on l.binding = r.binding;
-let submodule_uses = select r.binding as binding, l.point as ordinal from alias_loads as l join submodule_bound as r on l.name = r.name and l.scope = r.scope and l.file = r.file where r.ordinal < l.point;
+let submodule_uses = select r.binding as binding from alias_loads as l join submodule_bound as r on l.name = r.name and l.scope = r.scope and l.file = r.file where r.ordinal < l.point;
 let submodule_bindings = select binding from submodule_uses;
 let direct_uses0 = union(left=ordinary_direct_uses, right=deferred_binding_uses);
 let direct_uses = union(left=direct_uses0, right=submodule_bindings);
-let read_events = select occurrence as reference, ordinal from "binding-event" where kind = "read" or kind = "delete";
-let ordinary_dated_uses = select l.binding as binding, r.ordinal as ordinal from ordinary_uses as l join read_events as r on l.reference = r.reference;
-let deferred_dated_uses = select binding, point as ordinal from deferred_points;
-let dated_uses0 = union(left=ordinary_dated_uses, right=deferred_dated_uses);
-let dated_uses = union(left=dated_uses0, right=submodule_uses);
-let copied_uses = select r.later as binding from dated_uses as l join local_replacements as r on l.binding = r.earlier where l.ordinal < r.ordinal;
+let copied_uses = select r.later as binding from direct_uses as l join local_replacements as r on l.binding = r.earlier;
 let inherited_uses = select r.later as binding from copied_uses as l join inherited as r on l.binding = r.earlier;
 let copied_and_inherited = union(left=copied_uses,right=inherited_uses);
 let used = union(left=direct_uses,right=copied_and_inherited);
