@@ -354,6 +354,16 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
             &projection.scoping,
             builder,
         );
+        // The parser accepts a file when neither it nor the semantic pass's syntax check reported an error and every byte was
+        // readable: the files oxlint lints, where it reports only the error for any other.
+        languages::set_syntax_acceptance(
+            builder,
+            if parsed.diagnostics.is_empty() && semantic.diagnostics.is_empty() && readable == length {
+                languages::SyntaxAcceptance::Accepted
+            } else {
+                languages::SyntaxAcceptance::Rejected
+            },
+        );
         for diagnostic in parsed.diagnostics.iter().chain(semantic.diagnostics.iter()) {
             let span = diagnostic
                 .labels
