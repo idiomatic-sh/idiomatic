@@ -15,7 +15,7 @@ pub(super) const WARM_ROUNDS: usize = 3;
 
 /// The logical CPUs a run is given, 0 through this many less one: the same allocation on every run, so a number is
 /// the engine's and not the machine's.
-pub(super) const WORKERS: usize = 4;
+pub(super) const WORKERS: usize = 10;
 
 /// The address space one run may take, in kibibytes (16 GiB): a runaway run fails instead
 /// of taking the machine with it.
@@ -66,28 +66,14 @@ pub(super) fn allocation() -> std::io::Result<()> {
     Ok(())
 }
 
-/// What one measured run reported, before its output is held to anything.
-struct Timed {
-    /// The run's wall seconds.
-    seconds: f64,
-    /// The run's user and system CPU seconds, its children's included.
-    cpu: f64,
-    /// The run's peak memory in bytes: the larger of the kernel's and the sampled tree's.
-    peak: u64,
-    /// The exit code the run ended with.
-    ended: Option<i32>,
-    /// The file the run's standard output went to.
-    printed: std::path::PathBuf,
-}
-
-/// Runs `command arguments` in `project` under hyperfine, on the fixed CPUs and under the address-space cap, and observes the sampled
-/// process-tree RSS.
-fn timed(
+/// Times the full command, holds its output to `expected`, and observes sampled
+/// process-tree RSS: its wall and CPU milliseconds and its peak bytes.
+pub(super) fn measure(
     command: &Path,
     project: &Path,
     scratch: &Path,
-    arguments: &str,
-) -> std::io::Result<Timed> {
+    expected: &Path,
+) -> std::io::Result<(u128, u128, u64)> {
     let workers = WORKERS;
     let printed = scratch.join("printed");
     let report = scratch.join("hyperfine.json");
@@ -101,7 +87,7 @@ fn timed(
         quoted(&pidfile),
         workers - 1,
         quoted(command),
-        arguments,
+        target_test::CHECK,
         quoted(&printed)
     );
     let child = Command::new("hyperfine")
@@ -135,9 +121,11 @@ fn timed(
     let peak = first("memory_usage_byte")
         .and_then(serde_json::Value::as_u64)
         .ok_or_else(|| missing("memory"))?;
+    // The command ends with the exit code its expected findings state.
     let ended = first("exit_codes")
         .and_then(serde_json::Value::as_i64)
         .and_then(|code| i32::try_from(code).ok());
+    let findings = target_test::hold(&std::fs::read(&printed)?, ended, expected)?;
     let user = result
         .get("user")
         .and_then(serde_json::Value::as_f64)
@@ -146,63 +134,20 @@ fn timed(
         .get("system")
         .and_then(serde_json::Value::as_f64)
         .ok_or_else(|| missing("system CPU"))?;
+    let duration =
+        |value| std::time::Duration::try_from_secs_f64(value).map_err(std::io::Error::other);
     writeln!(
         std::io::stderr().lock(),
-        "{arguments}: workers={workers} cpus=0-{} wall={seconds:.6}s user={user:.6}s system={system:.6}s kernel-max-rss={peak} sampled-tree-rss={} interval=5ms samples={} sampler-cpu={} longest-gap={}",
+        "workers={workers} cpus=0-{} wall={seconds:.6}s user={user:.6}s system={system:.6}s kernel-max-rss={peak} sampled-tree-rss={} interval=5ms samples={} sampler-cpu={} longest-gap={} findings={findings}",
         workers - 1,
         sampled.peak,
         sampled.samples,
         milliseconds(sampled.cpu),
         milliseconds(sampled.longest_gap)
     )?;
-    Ok(Timed {
-        seconds,
-        cpu: user + system,
-        peak: peak.max(sampled.peak),
-        ended,
-        printed,
-    })
-}
-
-/// A run's numbers as the bench keeps them: wall and CPU milliseconds, and the peak in bytes.
-fn numbers(run: &Timed) -> std::io::Result<(u128, u128, u64)> {
-    let duration =
-        |value| std::time::Duration::try_from_secs_f64(value).map_err(std::io::Error::other);
     Ok((
-        duration(run.seconds)?.as_millis(),
-        duration(run.cpu)?.as_millis(),
-        run.peak,
+        duration(seconds)?.as_millis(),
+        duration(user + system)?.as_millis(),
+        peak.max(sampled.peak),
     ))
-}
-
-/// Times the full command, holds its output to `expected`, and observes sampled
-/// process-tree RSS: its wall and CPU milliseconds and its peak bytes.
-pub(super) fn measure(
-    command: &Path,
-    project: &Path,
-    scratch: &Path,
-    expected: &Path,
-) -> std::io::Result<(u128, u128, u64)> {
-    let run = timed(command, project, scratch, target_test::CHECK)?;
-    // The command ends with the exit code its expected findings state.
-    let findings = target_test::hold(&std::fs::read(&run.printed)?, run.ended, expected)?;
-    writeln!(std::io::stderr().lock(), "findings={findings}")?;
-    numbers(&run)
-}
-
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
-pub(super) fn validate(
-    command: &Path,
-    project: &Path,
-    scratch: &Path,
-) -> std::io::Result<(u128, u128, u64)> {
-    let run = timed(command, project, scratch, "validate")?;
-    if run.ended != Some(0) {
-        return Err(std::io::Error::other(format!(
-            "`validate` ended with exit code {:?}: {}",
-            run.ended,
-            String::from_utf8_lossy(&std::fs::read(&run.printed)?)
-        )));
-    }
-    numbers(&run)
 }

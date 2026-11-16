@@ -1325,86 +1325,6 @@ def run_paths(run: list[str], cwd: Path, top: Path) -> set[str]:
     return found
 
 
-def benchy(tool: dict) -> bool:
-    """Whether a tool measures: a bench, perf or memory group. It reads its own product and pinned external targets alone, and what its
-    run builds; it runs no test, so it reads nothing at run time beyond that."""
-    group = tool.get("group", "")
-    return group in ("perf", "memory") or group.startswith("bench")
-
-
-# What a bench tool may name outside its product: the toolchain, and the helper that installs a pinned tool. The Tastemaker package of
-# benchmark rules, `tastemaker/benchmarks`, is the policy the pinned targets are checked with and is kept for no other purpose.
-BENCH_ALLOWED = {"rust-toolchain.toml", ".cargo", "clippy.toml", "rustfmt.toml", "tools/install.py", "tastemaker/benchmarks"}
-PRODUCTS_AT = ("crates/ryo", "crates/tastemaker", "crates/asymptote")
-# A distribution bench installs the Tastemaker command and prepares each target's policy with the Tastemaker package, and the one
-# release step that does so for ryo and asymptote has no pinned release of it yet: the two tools below may name those, and no other tool
-# and no other path (a follow-up pins the released command and the policy, and this entry goes).
-BENCH_READS_TASTEMAKER = {("crates/ryo", "performance-distribution"), ("crates/asymptote", "performance-distribution")}
-
-
-def bench_reaches(product: Path, top: Path = ROOT, tools: list[dict] | None = None) -> list[str]:
-    """Each path a bench, perf or memory tool of the asymptote.toml at `product` names in its inputs or its run that is not its own
-    product's, a package its build resolves, or one of `BENCH_ALLOWED`, `<tool>: <path>`: another product's directory, the repository's
-    root or its definitions. A measure over a repository's own tree is the workload this stops."""
-    at = Path(os.path.relpath(product, top)).as_posix()
-    own = local_packages(product)
-    packages = {Path(os.path.relpath(each, top)).as_posix() for each in own}
-    found = []
-    for tool in tools if tools is not None else tomllib.loads(read(product / "asymptote.toml"))["tools"]:
-        if not benchy(tool):
-            continue
-        pieces = (piece for argument in tool["run"] for piece in re.split(r"[\s'\"=,()\[\];|<>&$]+", argument))
-        # A word of the run names a path only when it is relative, has a directory and exists from the product's directory.
-        runs = [piece for piece in pieces if "/" in piece and not piece.startswith(("/", "-")) and "^" not in piece and (product / piece.split("{")[0]).exists()]
-        named_here = [*tool.get("inputs", ["."]), *runs]
-        for each in named_here:
-            if any(character in each for character in "{}*?:") or each.startswith("-"):
-                each = re.split(r"[{}*?:]", each)[0].rstrip("/") or "."
-            relative = Path(os.path.relpath(os.path.normpath(product / each), top)).as_posix()
-            relative = "" if relative == "." else relative
-            if relative.startswith(".."):
-                found.append(f"{tool['id']}: {each}")
-                continue
-            if relative == at or relative.startswith(at + "/") or any(relative == name or relative.startswith(name + "/") for name in BENCH_ALLOWED):
-                continue
-            if (at, tool["id"]) in BENCH_READS_TASTEMAKER and (relative in ("tastemaker", "crates/tastemaker") or relative.startswith(("tastemaker/", "crates/tastemaker/"))):
-                continue
-            other = next((name for name in PRODUCTS_AT if relative == name or relative.startswith(name + "/")), None)
-            inside_package = any(relative == each or relative.startswith(each + "/") for each in packages)
-            above_package = any(each.startswith(relative + "/") for each in packages)
-            if other is not None and relative != other and (inside_package or above_package):
-                continue
-            found.append(f"{tool['id']}: {relative or '.'}")
-    return sorted(set(found))
-
-
-@pytest.mark.parametrize("product", ["crates/ryo", "crates/tastemaker", "crates/asymptote"])
-def test_a_bench_tool_reads_only_its_own_product_and_pinned_targets(product: str) -> None:
-    """A product's bench, perf and memory tools measure its own directory and pinned external targets: none names another product,
-    the repository's root or its definitions in its inputs or its run, beyond the packages its own build resolves."""
-    assert bench_reaches(Path(os.path.normpath(ROOT / product))) == []
-
-
-def test_a_bench_tool_that_reaches_another_product_or_the_root_is_named() -> None:
-    """The reach this stops, planted on tools as they stood when Tastemaker's benches measured `tm` over ryo and the repository's own
-    definitions: each of the paths below is named, and a tool outside the bench groups is not held to it."""
-    tastemaker = ROOT / "crates/tastemaker"
-    before = {
-        "id": "memory-commands",
-        "group": "memory",
-        "run": ["taskset", "-c", "0-3", "cargo", "bench", "--package", "idiomatic-sh-tastemaker", "--bench", "commands", "--", "--memory"],
-        "inputs": [".", "../ryo", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../.."],
-    }
-    assert bench_reaches(tastemaker, tools=[before]) == ["memory-commands: .", "memory-commands: crates/ryo", "memory-commands: tastemaker"]
-    assert bench_reaches(tastemaker, tools=[{**before, "group": "check"}]) == []
-    ryo = ROOT / "crates/ryo"
-    measure = {"id": "bench-measure", "group": "bench-measure", "run": ["cargo", "run", "--", "measure-valid"], "inputs": [".", "../tastemaker", "../../tastemaker"]}
-    assert bench_reaches(ryo, tools=[measure]) == ["bench-measure: crates/tastemaker", "bench-measure: tastemaker"]
-    assert bench_reaches(ryo, tools=[{**measure, "run": ["cargo", "run", "--manifest-path", "../tastemaker/Cargo.toml"], "inputs": ["."]}]) == [
-        "bench-measure: crates/tastemaker/Cargo.toml"
-    ]
-
-
 def unnamed_inputs(product: Path, top: Path = ROOT, tools: list[dict] | None = None, reads: dict | None = None) -> list[str]:
     """Each path a tool of the asymptote.toml at `product` stands on that none of its literal inputs names, `<tool>: <path>`.
     Every tool: each file its run names. A tool that builds: every package cargo resolves for the workspace it builds, whatever
@@ -1431,7 +1351,7 @@ def unnamed_inputs(product: Path, top: Path = ROOT, tools: list[dict] | None = N
                 required |= {Path(os.path.relpath(each, top)).as_posix() for each in local_packages(workspace)}
                 if BUILDS.search(written):
                     required |= {"rust-toolchain.toml", ".cargo"}
-                if TESTS.search(written) and not benchy(tool):
+                if TESTS.search(written):
                     required |= set(reads.get(Path(os.path.relpath(workspace, top)).as_posix(), []))
         found += [f"{tool['id']}: {path or '.'}" for path in sorted(required) if not named(path, inputs)]
     return found
@@ -1488,6 +1408,11 @@ def test_a_tool_that_misses_what_it_runs_or_reads_is_named() -> None:
     (cli,) = [tool for tool in tomllib.loads(read(tastemaker / "asymptote.toml"))["tools"] if tool["id"] == "test-cli"]
     partial = unnamed_inputs(tastemaker, tools=[{**cli, "inputs": [".", "../ryo", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]}])
     assert partial == ["test-cli: ."]
+    # The commands bench copies the root's tastemaker/ and the command line's tests/fixtures (cli/benches/performance/use_case.rs
+    # `target()`): its inputs before name neither, and the guard names the tree its runs read.
+    (performance,) = [tool for tool in tomllib.loads(read(tastemaker / "asymptote.toml"))["tools"] if tool["id"] == "performance"]
+    before = [".", "../ryo", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
+    assert unnamed_inputs(tastemaker, tools=[{**performance, "inputs": before}]) == ["performance: ."]
     # `tm check` reads every tastemaker.lock: asymptote's tastemaker tool with its round-2 inputs misses the tree.
     asymptote = ROOT / "crates/asymptote"
     (checked,) = [tool for tool in tomllib.loads(read(asymptote / "asymptote.toml"))["tools"] if tool["id"] == "tastemaker"]

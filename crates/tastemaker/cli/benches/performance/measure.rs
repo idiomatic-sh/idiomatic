@@ -10,14 +10,19 @@ const ROUNDS: usize = 3;
 /// How many rounds a cold workload is taken over.
 pub(crate) const COLD_ROUNDS: usize = 5;
 
-/// The measure every workload reports.
+/// The measure of a workload that takes the CPU time of its run.
 const MEASURE: &str = "cpu-ms";
+
+/// The measure of a workload that takes the peak memory of a process it starts.
+const PEAK: &str = "peak-kib";
 
 /// A workload's id (`workspace/check`) and the CPU time of each of its rounds, in milliseconds.
 pub(crate) struct Measured {
     /// The benchmark's name in the document, the workload's command or use case (`workspace/check`).
     pub id: String,
-    /// The CPU time of each round, in milliseconds, in the order they ran.
+    /// The measure of the document it is reported as: `cpu-ms`, or `peak-kib` for a peak.
+    pub measure: &'static str,
+    /// The measure of each round, in the order they ran: milliseconds of CPU time, or kibibytes of memory.
     pub rounds: Vec<f64>,
 }
 
@@ -44,6 +49,40 @@ pub(crate) fn rounds_of<I>(
     .collect();
     Measured {
         id: id.to_owned(),
+        measure: MEASURE,
+        rounds,
+    }
+}
+
+/// The processors the memory workloads are taken on: the command line runs a worker for each processor it may use, and the lock holds
+/// no machine, so the run is held to four (`taskset -c 0-3`, the fewest a runner has), which this checks.
+const CPUS: usize = 4;
+
+/// Refuses a run that is not held to exactly [`CPUS`] processors.
+///
+/// # Panics
+///
+/// When the process may use any other number of processors.
+pub(crate) fn require_pinned() {
+    let processors = std::thread::available_parallelism().map_or(0, std::num::NonZero::get);
+    assert_eq!(
+        processors, CPUS,
+        "a memory workload is taken on {CPUS} processors, as `taskset -c 0-3 cargo bench ...` does; this process may use {processors}"
+    );
+}
+
+/// Runs `run` on the input `setup` makes, once per round, and takes the kibibytes of memory it answers: the peak of the
+/// process the run started. A setup or a run that fails panics, which fails the bench.
+pub(crate) fn peaks<I>(
+    id: &str,
+    count: usize,
+    mut setup: impl FnMut() -> I,
+    mut run: impl FnMut(I) -> f64,
+) -> Measured {
+    let rounds = std::iter::repeat_with(|| run(setup())).take(count).collect();
+    Measured {
+        id: id.to_owned(),
+        measure: PEAK,
         rounds,
     }
 }
@@ -83,14 +122,22 @@ pub(crate) fn print(measured: &[Measured]) {
         // The line is for a person; a stderr that refuses it leaves no one to tell.
         drop(writeln!(
             std::io::stderr(),
-            "{}: median CPU {median:.3} ms of {} rounds",
+            "{}: median {} {median:.3} of {} rounds",
             each.id,
+            each.measure,
             sorted.len()
         ));
-        document.extend([(
-            each.id.clone(),
-            serde_json::json!({ MEASURE: { "value": micro(*median), "lower_value": micro(*lower), "upper_value": micro(*upper) } }),
-        )]);
+        // A workload may report several measures: they share its id in the document.
+        if let Some(measures) = document
+            .entry(each.id.clone())
+            .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()))
+            .as_object_mut()
+        {
+            drop(measures.insert(
+                each.measure.to_owned(),
+                serde_json::json!({ "value": micro(*median), "lower_value": micro(*lower), "upper_value": micro(*upper) }),
+            ));
+        }
     }
     writeln!(std::io::stdout(), "{}", serde_json::Value::Object(document))
         .expect("stdout takes the document");

@@ -171,3 +171,39 @@ where
         .expect("the bench's command line parses");
     A::from_arg_matches(&matches).expect("the bench's arguments")
 }
+
+/// `from` copied to `to`, its build trees left out.
+///
+/// # Panics
+///
+/// When a directory cannot be read or a file cannot be copied.
+#[expect(
+    clippy::expect_used,
+    reason = "a benchmark's setup fails by panicking: a tree that cannot be copied is a broken benchmark, and the message names which"
+)]
+pub(crate) fn copy_tree(from: &std::path::Path, to: &std::path::Path) {
+    std::fs::create_dir_all(to).expect("the directory");
+    for entry in std::fs::read_dir(from)
+        .expect("the directory reads")
+        .flatten()
+    {
+        let name = entry.file_name();
+        if name == "target" || name == ".tastemaker_cache" || name == ".ryo_cache" {
+            continue;
+        }
+        let path = entry.path();
+        if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+            copy_tree(&path, &to.join(&name));
+        } else {
+            let _: u64 = std::fs::copy(&path, to.join(&name)).expect("the file copies");
+        }
+    }
+}
+
+/// The foreign package of tastemaker's replay fixtures, which the proofs of the package's rules read (the `collection-members`
+/// rule's foreign-package scenario): copied from the repository at `repository` to the same place in the copy at `copy`, so that a
+/// copy of the package validates.
+pub(crate) fn copy_roles(repository: &std::path::Path, copy: &std::path::Path) {
+    let roles = "crates/tastemaker/cli/tests/fixtures/replay/roles";
+    copy_tree(&repository.join(roles), &copy.join(roles));
+}
