@@ -67,7 +67,8 @@ impl VerifyReferenceCasesUseCase for VerifyReferenceCasesUseCaseImpl<'_> {
                 )
                 })?,
             ))?;
-        self.evidence.verification(&tool.tool, &verified.timings)?;
-        Ok(verified.count)
+        let (count, timings) = verified;
+        self.evidence.verification(&tool.tool, &timings)?;
+        Ok(count)
     }
 }

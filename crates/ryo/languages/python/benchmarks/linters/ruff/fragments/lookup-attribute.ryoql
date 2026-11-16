@@ -53,7 +53,9 @@ let non_comprehension_scopes = select id, file from nodes where kind = "module" 
 let walrus_lexical_owners = axis(from=walrus_events,relation="semantic-child",direction=nearest-ancestor,domain=non_comprehension_scopes);
 let walrus_body_events = select l.id as id, l.name as name, l.scope as scope, l.ordinal as ordinal, l.kind as kind, l.file as file, l.related as related from walrus_lexical_owners as l join event_body_owners as r on l.id = r.id and l.related = r.scope and l.file = r.file;
 let owned_namespace_events = union(left=lexical_body_events,right=walrus_body_events);
-let redirect_key_names = select scope, name, file from redirect_namespaces;
+let redirect_key_rows = select scope, name, file from redirect_namespaces;
+let redirect_key_names_counts = group-count(from=redirect_key_rows, keys=["scope","name","file"], count="count");
+let redirect_key_names = select scope, name, file from redirect_key_names_counts;
 let redirected_namespace_events = select l.id as occurrence, l.name as name, l.related as scope, l.ordinal as ordinal, l.kind as kind, l.file as file from owned_namespace_events as l join redirect_key_names as r on l.related = r.scope and l.name = r.name and l.file = r.file;
 let normal_namespace_rows = antijoin(left=raw_namespace_events,right=redirected_namespace_events,left-on=["id","file"],right-on=["occurrence","file"]);
 let normal_namespace_events = select id as occurrence, name, scope, ordinal, kind, file from normal_namespace_rows;

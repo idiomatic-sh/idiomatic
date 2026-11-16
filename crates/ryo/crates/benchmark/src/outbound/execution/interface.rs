@@ -14,17 +14,13 @@ pub trait ExecutionPort: Send + Sync {
 
     /// Exact execution mode and immutable instrumentation settings, without IO.
     fn profile(&self) -> ExecutionProfile;
-    /// Compile ahead of its first run the rules `invocation` would run, answering the time each rule took. An execution that
-    /// runs each invocation in a child compiles inside the child, so it answers none.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the invocation's request cannot be read or its rules cannot be loaded.
+    /// Compile ahead of its first run the rules `invocation` would run, answering the time each rule took; none when this
+    /// execution runs each invocation in a child, which compiles inside the child.
     fn compile(
         &self,
         _invocation: &Invocation,
-    ) -> Result<std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>, Error> {
-        Ok(std::collections::BTreeMap::new())
+    ) -> Option<std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>> {
+        None
     }
     /// Launch the child and capture its exit status, streams and elapsed wall time.
     ///

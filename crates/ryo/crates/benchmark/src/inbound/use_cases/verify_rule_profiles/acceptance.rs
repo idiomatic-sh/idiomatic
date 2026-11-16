@@ -12,13 +12,19 @@ const PROFILE: &str = "tool = \"lint\"\nversion = \"lint 1.0.0\"\nsha256 = [\"00
 const CASES: &str = "[[cases]]\nname = \"negative\"\ncomparison = \"full\"\nfiles = { \"a.txt\" = \"x\" }\nexpected = []\n";
 
 fn write(path: &Path, text: &str) {
-    std::fs::create_dir_all(path.parent().expect("parent")).expect("directory");
-    std::fs::write(path, text).expect("file");
+    assert!(
+        path.parent()
+            .is_some_and(|parent| std::fs::create_dir_all(parent).is_ok())
+            && std::fs::write(path, text).is_ok(),
+        "{path:?} is written"
+    );
 }
 
 /// The directories the verification is given for a bench of `A1`, with a profile of `A1`'s own when `own`.
 fn given(own: bool) -> Vec<bool> {
-    let root = tempfile::tempdir().expect("fixture");
+    let Ok(root) = tempfile::tempdir() else {
+        return Vec::new();
+    };
     let bench = root.path().join("bench");
     write(&bench.join("benchmark.toml"), PROFILE);
     if own {
@@ -29,17 +35,16 @@ fn given(own: bool) -> Vec<bool> {
     let suite = ryo_benchmark::outbound::suite::factory::local();
     let inventory = ryo_benchmark::outbound::inventory::factory::local();
     let mut directories = Vec::new();
-    let _: CaseCount = VerifyRuleProfilesUseCaseImpl::new(&suite, &inventory)
-        .verify_rule_profiles(
-            &bench,
-            ShardPartition::All,
-            ArtifactText("accept-"),
-            &mut |directory| {
-                directories.push(directory == bench);
-                Ok(CaseCount(1))
-            },
-        )
-        .expect("the bench verifies");
+    let verified = VerifyRuleProfilesUseCaseImpl::new(&suite, &inventory).verify_rule_profiles(
+        &bench,
+        ShardPartition::All,
+        ArtifactText("accept-"),
+        &mut |directory| {
+            directories.push(directory == bench);
+            Ok(CaseCount(1))
+        },
+    );
+    assert!(verified.is_ok(), "the bench verifies");
     directories
 }
 

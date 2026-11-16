@@ -7,11 +7,10 @@ use crate::domain::{
     binding_states::service::{clear as clear_environments, join, open},
     model::types::{
         ArmStart, BindingAction, BindingAnalysisIndex, BindingAnalysisState, BindingBranch,
-        BindingPhaseKind, Declarations,
+        BindingPhaseKind, Declarations, NameEventCount,
     },
 };
 use ryo::languages::{self, Integer, Position, Symbols, Tree};
-use std::collections::HashMap;
 
 /// Clear current-source observations while retaining every reusable buffer.
 pub(crate) fn clear(index: &mut BindingAnalysisIndex) {
@@ -40,30 +39,41 @@ pub(crate) fn build(
     build_within(tree, model, symbols, index, NAME_CHAIN_LIMIT);
 }
 
-/// The most events and reads of one name a file may hold. The ruff bench's `resolve-pointers` fragment follows a pointer
+/// The most events of one name (its reads included) a file may hold. The ruff bench's `resolve-pointers` fragment follows a pointer
 /// chain of one name through 20 doubling rounds, so a longer chain would resolve to nothing; a file over this limit is
 /// incomplete, and every rule that reads its binding facts answers Unknown for it, never "no finding".
 pub(crate) const NAME_CHAIN_LIMIT: NameChainLimit = NameChainLimit(1 << 20);
 
-/// Whether any one name has more events and reads than `limit` in the index built so far.
-fn name_load(index: &BindingAnalysisIndex, limit: NameChainLimit) -> NameLoad {
-    let mut counts: HashMap<languages::Symbol, usize> = HashMap::new();
-    let names = index
-        .events
-        .iter()
-        .map(|event| event.name)
-        .chain(index.reads.iter().map(|read| read.name));
-    for name in names {
-        let count = counts.entry(name).or_insert(0);
-        *count += 1;
-        if *count > limit.0 {
-            return NameLoad::Over;
+/// Whether any one name has more events than `limit` in the index built so far. The counts live in a scratch buffer the
+/// index keeps between files, so counting allocates nothing once the buffer has grown to the file's symbols.
+fn name_load(index: &mut BindingAnalysisIndex, limit: NameChainLimit) -> NameLoad {
+    if index.events.len() <= limit.0 {
+        // No name can hold more events than the file holds in all, so nothing is counted or allocated.
+        return NameLoad::Within;
+    }
+    let mut counts = std::mem::take(&mut index.name_counts);
+    counts.clear();
+    let mut load = NameLoad::Within;
+    for event in &index.events {
+        let Ok(slot) = usize::try_from(event.name.0) else {
+            continue;
+        };
+        if slot >= counts.len() {
+            counts.resize(slot + 1, NameEventCount::default());
+        }
+        if let Some(count) = counts.get_mut(slot) {
+            count.0 += 1;
+            if count.0 > limit.0 {
+                load = NameLoad::Over;
+                break;
+            }
         }
     }
-    NameLoad::Within
+    index.name_counts = counts;
+    load
 }
 
-/// Build one current-source index, incomplete when one name exceeds `limit` events and reads.
+/// Build one current-source index, incomplete when one name exceeds `limit` events.
 #[expect(
     clippy::too_many_lines,
     reason = "this function executes the single deterministic schedule state machine"

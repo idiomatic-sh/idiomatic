@@ -30,15 +30,7 @@ pub(crate) struct EngineLocalAdapter {
     frontend_diagnostic: Option<FrontendDiagnosticProjection>,
     /// What a verification keeps across its cases: the rules loaded once and one SDK engine, whose compiled plans every case
     /// shares. Absent for a run that is one child's only case.
-    retained: Option<Retained>,
-}
-/// The rules and the SDK engine one verification keeps across the cases of its profile.
-#[derive(Debug, Default)]
-struct Retained {
-    /// The rules loaded from the profile's query files.
-    rules: std::sync::OnceLock<BTreeMap<RuleId, Rule>>,
-    /// The SDK engine every case runs over.
-    linter: std::sync::OnceLock<linter::Linter>,
+    retained: Option<crate::outbound::engine::types::Retained>,
 }
 impl EngineLocalAdapter {
     /// Bind language support for a verification whose cases all run over one engine and one set of loaded rules.
@@ -51,36 +43,7 @@ impl EngineLocalAdapter {
             trace: None,
             diagnostic_events: None,
             frontend_diagnostic,
-            retained: Some(Retained::default()),
-        }
-    }
-    /// The rules of `request`: loaded from its query files, once when this adapter retains them.
-    fn rules(&self, request: &WorkerRequest) -> Result<BTreeMap<RuleId, Rule>, Error> {
-        let load = || {
-            super::schemas::load_rules(
-                &request.rules,
-                &request.query_modules,
-                &request.rule_applicability,
-                self.frontend_diagnostic.clone(),
-                match &request.rule_observations {
-                    ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(
-                        declared,
-                    ) => Some(declared),
-                    ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared => {
-                        None
-                    }
-                },
-            )
-        };
-        match &self.retained {
-            None => load(),
-            Some(retained) => {
-                if let Some(rules) = retained.rules.get() {
-                    return Ok(rules.clone());
-                }
-                let rules = load()?;
-                Ok(retained.rules.get_or_init(|| rules).clone())
-            }
+            retained: Some(crate::outbound::engine::types::Retained::default()),
         }
     }
     /// The pool the files of a run are read on: rayon's own size, `RAYON_NUM_THREADS` when the caller sets it.
@@ -143,7 +106,11 @@ impl EnginePort for EngineLocalAdapter {
         } else {
             None
         };
-        let rules = self.rules(request)?;
+        let rules = super::schemas::request_rules(
+            self.retained.as_ref(),
+            self.frontend_diagnostic.clone(),
+            request,
+        )?;
         Ok(LoadedEngineSession::new(
             request,
             rules,
@@ -157,27 +124,28 @@ impl EnginePort for EngineLocalAdapter {
             }),
         ))
     }
-    fn compile(
-        &self,
-        request: &WorkerRequest,
-    ) -> Result<BTreeMap<RuleId, std::time::Duration>, Error> {
-        let Some(retained) = &self.retained else {
-            return Ok(BTreeMap::new());
-        };
+    fn compile(&self, request: &WorkerRequest) -> Option<BTreeMap<RuleId, std::time::Duration>> {
+        let retained = self.retained.as_ref()?;
         let engine = match retained.linter.get() {
             Some(engine) => engine,
             None => {
                 let engine = linter::Linter::new(
                     self.languages.clone(),
-                    Self::pool()?,
+                    Self::pool().ok()?,
                     MemoryBudget::Machine,
                     Cache::None,
                 );
                 retained.linter.get_or_init(|| engine)
             }
         };
+        let rules = super::schemas::request_rules(
+            self.retained.as_ref(),
+            self.frontend_diagnostic.clone(),
+            request,
+        )
+        .ok()?;
         let mut compiled = BTreeMap::new();
-        for (id, rule) in self.rules(request)? {
+        for (id, rule) in rules {
             let started = std::time::Instant::now();
             // A rule that needs what only a run declares is compiled by the run: it has no time to report here.
             if engine
@@ -187,7 +155,7 @@ impl EnginePort for EngineLocalAdapter {
                 let _previous = compiled.insert(id, started.elapsed());
             }
         }
-        Ok(compiled)
+        Some(compiled)
     }
 }
 

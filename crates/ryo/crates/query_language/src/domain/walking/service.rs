@@ -6,7 +6,7 @@ use ryo_relations::domain::relations::collections::relations::syntax_child::item
 use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
 use ryo_relations::domain::relations::types::{Column, Relation};
 
-use super::types::{EdgeSource, ElementDemand, StartingRow};
+use super::types::{EdgeSource, ElementDemand};
 use crate::domain::rewriting::types::StepIndex;
 use crate::domain::widths::service::width_of;
 use crate::domain::widths::types::InputWidth;

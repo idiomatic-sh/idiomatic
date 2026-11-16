@@ -101,7 +101,9 @@ let potential_redefinitions1 = antijoin(left=potential_redefinitions01, right=fu
 let redirect_scope_nodes = select id, file from nodes where kind = "class-def" or kind = "function-def" or kind = "async-function-def" or kind = "lambda";
 let redirect_declarations = select occurrence as id, name, file from "binding-event" where kind = "global" or kind = "nonlocal";
 let redirect_declaration_owners = axis(from=redirect_declarations, relation="semantic-child", direction=nearest-ancestor, domain=redirect_scope_nodes);
-let redirect_homes = select r.related as home, l.name as name, l.file as file from redirect_declarations as l join redirect_declaration_owners as r on l.id = r.id;
+let redirect_home_rows = select r.related as home, l.name as name, l.file as file from redirect_declarations as l join redirect_declaration_owners as r on l.id = r.id;
+let redirect_home_counts = group-count(from=redirect_home_rows, keys=["home", "name", "file"], count="count");
+let redirect_homes = select home, name, file from redirect_home_counts;
 let redirect_bind_events = select occurrence as id, name, file from "binding-event" where kind = "bind";
 let redirect_bind_owners = axis(from=redirect_bind_events, relation="semantic-child", direction=nearest-ancestor, domain=redirect_scope_nodes);
 let redirect_bind_homes = select l.id as binding, l.name as name, r.related as home, l.file as file from redirect_bind_events as l join redirect_bind_owners as r on l.id = r.id;

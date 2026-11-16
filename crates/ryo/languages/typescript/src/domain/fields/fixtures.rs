@@ -1,6 +1,7 @@
 //! The test support of the `fields` cases: what a row is given and the one subject every table is run through.
 
 use super::service::role_of;
+use super::types::FirstMarkers;
 use crate::domain::syntax::service::{kind, parent};
 use crate::domain::syntax::types::Kind;
 use crate::inbound::contracts::parse::contract::ParseContract;
@@ -81,7 +82,10 @@ pub(super) fn subject(given: Edge) -> Result<&'static str, ()> {
         })
         .nth(given.nth)
         .ok_or(())?;
-    assert_eq!(role_of(&tree, found), languages::field_at(&elements, found));
+    assert_eq!(
+        role_of(&tree, found, &FirstMarkers::default()),
+        languages::field_at(&elements, found)
+    );
     let name = languages::text_of(
         &symbols,
         tree.source,

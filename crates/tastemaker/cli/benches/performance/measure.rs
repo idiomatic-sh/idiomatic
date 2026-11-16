@@ -54,6 +54,23 @@ pub(crate) fn rounds_of<I>(
     }
 }
 
+/// The processors the memory workloads are taken on: the command line runs a worker for each processor it may use, and the lock holds
+/// no machine, so the run is held to four (`taskset -c 0-3`, the fewest a runner has), which this checks.
+const CPUS: usize = 4;
+
+/// Refuses a run that is not held to exactly [`CPUS`] processors.
+///
+/// # Panics
+///
+/// When the process may use any other number of processors.
+pub(crate) fn require_pinned() {
+    let processors = std::thread::available_parallelism().map_or(0, std::num::NonZero::get);
+    assert_eq!(
+        processors, CPUS,
+        "a memory workload is taken on {CPUS} processors, as `taskset -c 0-3 cargo bench ...` does; this process may use {processors}"
+    );
+}
+
 /// Runs `run` on the input `setup` makes, once per round, and takes the kibibytes of memory it answers: the peak of the
 /// process the run started. A setup or a run that fails panics, which fails the bench.
 pub(crate) fn peaks<I>(
@@ -110,10 +127,17 @@ pub(crate) fn print(measured: &[Measured]) {
             each.measure,
             sorted.len()
         ));
-        document.extend([(
-            each.id.clone(),
-            serde_json::json!({ each.measure: { "value": micro(*median), "lower_value": micro(*lower), "upper_value": micro(*upper) } }),
-        )]);
+        // A workload may report several measures: they share its id in the document.
+        if let Some(measures) = document
+            .entry(each.id.clone())
+            .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()))
+            .as_object_mut()
+        {
+            drop(measures.insert(
+                each.measure.to_owned(),
+                serde_json::json!({ "value": micro(*median), "lower_value": micro(*lower), "upper_value": micro(*upper) }),
+            ));
+        }
     }
     writeln!(std::io::stdout(), "{}", serde_json::Value::Object(document))
         .expect("stdout takes the document");

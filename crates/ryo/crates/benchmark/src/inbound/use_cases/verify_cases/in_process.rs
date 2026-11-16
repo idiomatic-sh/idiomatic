@@ -1,4 +1,4 @@
-//! A worker request runs in this process; any other invocation runs as the process execution runs it.
+//! The execution of a candidate's worker request inside this process, over one engine every case shares.
 use crate::outbound::context::interface::ContextPort;
 use crate::outbound::engine::interface::EnginePort;
 use crate::outbound::execution::interface::ExecutionPort;
@@ -12,8 +12,8 @@ use ryo_benchmark_contracts::domain::requests::constants::RUN_RYO;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
-/// Runs the worker's request over the engine it was given, in this process.
-pub(crate) struct ExecutionInProcessAdapter {
+/// Runs the worker's request over the engine it was given, in this process; any other invocation runs on `process`.
+pub struct InProcessExecution {
     /// What every invocation but the worker's runs on.
     process: Box<dyn ExecutionPort>,
     /// The engine every worker request runs over.
@@ -21,9 +21,10 @@ pub(crate) struct ExecutionInProcessAdapter {
     /// Sealed project context validation and receipt boundary.
     context: Arc<dyn ContextPort + Send + Sync>,
 }
-impl ExecutionInProcessAdapter {
+impl InProcessExecution {
     /// Bind the process execution, the engine and the context.
-    pub(crate) fn new(
+    #[must_use]
+    pub fn new(
         process: Box<dyn ExecutionPort>,
         engine: Arc<dyn EnginePort + Send + Sync>,
         context: Arc<dyn ContextPort + Send + Sync>,
@@ -42,7 +43,7 @@ impl ExecutionInProcessAdapter {
         Some(std::path::PathBuf::from(arguments.next()?))
     }
 }
-impl std::fmt::Debug for ExecutionInProcessAdapter {
+impl std::fmt::Debug for InProcessExecution {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct(std::any::type_name::<Self>())
             .finish_non_exhaustive()
@@ -55,7 +56,7 @@ impl std::io::Write for Response {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
         self.0
             .lock()
-            .map_err(|_poisoned| std::io::Error::other("response lock poisoned"))?
+            .map_err(|_poisoned| std::io::Error::other(super::constants::RESPONSE_POISONED))?
             .extend_from_slice(bytes);
         Ok(bytes.len())
     }
@@ -63,7 +64,7 @@ impl std::io::Write for Response {
         Ok(())
     }
 }
-impl ExecutionPort for ExecutionInProcessAdapter {
+impl ExecutionPort for InProcessExecution {
     fn exit_observation(&self) -> crate::outbound::execution::types::ExitObservationMode {
         self.process.exit_observation()
     }
@@ -73,11 +74,11 @@ impl ExecutionPort for ExecutionInProcessAdapter {
     fn compile(
         &self,
         invocation: &Invocation,
-    ) -> Result<BTreeMap<ryo::linter::RuleId, std::time::Duration>, Error> {
-        let Some(path) = Self::request_file(invocation) else {
-            return Ok(BTreeMap::new());
-        };
-        let request = json(WorkerSource::Stored(path), Box::new(Response::default())).receive()?;
+    ) -> Option<BTreeMap<ryo::linter::RuleId, std::time::Duration>> {
+        let path = Self::request_file(invocation)?;
+        let request = json(WorkerSource::Stored(path), Box::new(Response::default()))
+            .receive()
+            .ok()?;
         self.engine.compile(&request)
     }
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
@@ -86,19 +87,21 @@ impl ExecutionPort for ExecutionInProcessAdapter {
         };
         let response = Response::default();
         let transport = json(WorkerSource::Stored(path), Box::new(response.clone()));
+        let engine: Arc<dyn EnginePort> = self.engine.clone();
+        let context: Arc<dyn ContextPort> = self.context.clone();
         let started = std::time::Instant::now();
-        let outcome = crate::inbound::use_cases::run_ryo::use_case::RunRyoUseCaseImpl::new(
-            Arc::clone(&self.engine) as Arc<dyn EnginePort>,
+        let worker = crate::inbound::use_cases::run_ryo::use_case::RunRyoUseCaseImpl::new(
+            engine,
             Arc::new(transport),
-            Arc::clone(&self.context) as Arc<dyn ContextPort>,
+            context,
         );
         let outcome =
-            crate::inbound::use_cases::run_ryo::interface::RunRyoUseCase::run_ryo(&outcome);
+            crate::inbound::use_cases::run_ryo::interface::RunRyoUseCase::run_ryo(&worker);
         let wall = started.elapsed();
         let stdout = response
             .0
             .lock()
-            .map_err(|_poisoned| Error::Invalid("response lock poisoned".into()))?
+            .map_err(|_poisoned| Error::Invalid(super::constants::RESPONSE_POISONED.into()))?
             .clone();
         let (status, stderr) = match outcome {
             Ok(()) => (0, Vec::new()),

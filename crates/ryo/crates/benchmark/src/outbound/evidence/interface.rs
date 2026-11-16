@@ -33,7 +33,7 @@ pub trait EvidencePort {
         linter: &ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName,
         timings: &std::collections::BTreeMap<
             ryo::linter::RuleId,
-            crate::domain::suite::types::RuleTiming,
+            crate::outbound::evidence::types::RuleTiming,
         >,
     ) -> Result<(), Error>;
     /// Publish the differing-rule and unaccepted-difference counts of a corpus parity as metrics, and its

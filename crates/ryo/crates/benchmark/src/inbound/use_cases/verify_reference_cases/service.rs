@@ -5,7 +5,7 @@ use crate::domain::discrepancy::service::judge;
 use crate::domain::discrepancy::types::Contestant;
 use crate::domain::process_failure::types::CaptureRecord;
 use crate::domain::suite::constants;
-use crate::domain::suite::types::RuleTiming;
+use crate::outbound::evidence::types::RuleTiming;
 use crate::outbound::host::interface::HostPort;
 use crate::outbound::receipts::interface::ReceiptsPort;
 use crate::outbound::{
@@ -24,12 +24,6 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::Instant;
 
-/// What a reference-only verification answered: the cases it matched and how long each rule's whole case set took.
-pub(crate) struct Verified {
-    pub(crate) count: ReferenceCaseCount,
-    pub(crate) timings: BTreeMap<ryo::linter::RuleId, RuleTiming>,
-}
-
 /// Execute admitted cases through the actual reference-only verification workflow.
 pub(super) fn verify_prepared_reference_cases(
     suite: &dyn SuitePort,
@@ -41,7 +35,13 @@ pub(super) fn verify_prepared_reference_cases(
     inventory: &dyn InventoryPort,
     rules: &Path,
     mut cases: Vec<PreparedCase>,
-) -> Result<Verified, Error> {
+) -> Result<
+    (
+        ReferenceCaseCount,
+        BTreeMap<ryo::linter::RuleId, RuleTiming>,
+    ),
+    Error,
+> {
     if cases.is_empty() {
         return Err(Error::Invalid(constants::NO_CASES.into()));
     }
@@ -68,10 +68,9 @@ pub(super) fn verify_prepared_reference_cases(
         let AttemptOutcome { result, capture } =
             run_case(suite, context, reference, execution, &case, rules);
         let elapsed = case_started.elapsed();
-        timings
-            .entry(case.rule.clone())
-            .or_default()
-            .record(elapsed);
+        let timing = timings.entry(case.rule.clone()).or_default();
+        timing.total += elapsed;
+        timing.slowest = timing.slowest.max(elapsed);
         match result {
             Ok(result) => {
                 let full_report = result.report.clone();
@@ -151,10 +150,7 @@ pub(super) fn verify_prepared_reference_cases(
         }
     }
     if failures.is_empty() {
-        Ok(Verified {
-            count: ReferenceCaseCount(count),
-            timings,
-        })
+        Ok((ReferenceCaseCount(count), timings))
     } else {
         Err(Error::Invalid(format!(
             "{count} reference-only cases checked; failures:\n{}",

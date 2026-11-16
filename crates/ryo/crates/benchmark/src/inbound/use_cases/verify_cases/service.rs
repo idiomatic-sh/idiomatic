@@ -9,7 +9,7 @@ use crate::domain::discrepancy::service::{describe_difference, judge};
 use crate::domain::discrepancy::types::Contestant;
 use crate::domain::process_failure::types::CaptureRecord;
 use crate::domain::suite::constants;
-use crate::domain::suite::types::RuleTiming;
+use crate::outbound::evidence::types::RuleTiming;
 use crate::outbound::host::interface::HostPort;
 use crate::outbound::receipts::interface::ReceiptsPort;
 use crate::outbound::{
@@ -29,12 +29,6 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::Instant;
 
-/// What a verification answered: the cases it checked and how long each rule's whole case set took.
-pub(crate) struct Verified {
-    pub(crate) count: CaseCount,
-    pub(crate) timings: BTreeMap<ryo::linter::RuleId, RuleTiming>,
-}
-
 /// Execute admitted materialized cases through the same verification workflow.
 #[expect(
     clippy::too_many_arguments,
@@ -52,7 +46,7 @@ pub(super) fn verify_prepared_shard(
     rules: &Path,
     mut cases: Vec<PreparedCase>,
     selection: CaseSelection,
-) -> Result<Verified, Error> {
+) -> Result<(CaseCount, BTreeMap<ryo::linter::RuleId, RuleTiming>), Error> {
     if cases.is_empty() {
         return Err(Error::Invalid(constants::NO_CASES.into()));
     }
@@ -86,7 +80,10 @@ pub(super) fn verify_prepared_shard(
     }
     let mut timings: BTreeMap<ryo::linter::RuleId, RuleTiming> = BTreeMap::new();
     // The rules compile once, ahead of the cases: an execution that keeps its plans reports what each rule took.
-    for (rule, elapsed) in execution.compile(&candidate.prepare(&first.request)?)? {
+    for (rule, elapsed) in execution
+        .compile(&candidate.prepare(&first.request)?)
+        .unwrap_or_default()
+    {
         timings.entry(rule).or_default().compile = elapsed;
     }
     let started = Instant::now();
@@ -203,20 +200,16 @@ pub(super) fn verify_prepared_shard(
             }
         }
         let elapsed = case_started.elapsed() + startup.take().unwrap_or_default();
-        timings
-            .entry(case.rule.clone())
-            .or_default()
-            .record(elapsed);
+        let timing = timings.entry(case.rule.clone()).or_default();
+        timing.total += elapsed;
+        timing.slowest = timing.slowest.max(elapsed);
     }
     if failures.is_empty() {
         debug_assert!(
             count <= global_count.0,
             "selected cases must belong to the audited inventory"
         );
-        Ok(Verified {
-            count: CaseCount(count),
-            timings,
-        })
+        Ok((CaseCount(count), timings))
     } else {
         Err(Error::Invalid(format!(
             "{count} cases checked; failures:\n{}",

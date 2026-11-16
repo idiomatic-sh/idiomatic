@@ -172,7 +172,7 @@ pub(crate) mod authored {
             rules,
             suite.prepared.clone(),
         )
-        .map(|verified| verified.count.0)
+        .map(|(count, _timings)| count.0)
     }
 }
 

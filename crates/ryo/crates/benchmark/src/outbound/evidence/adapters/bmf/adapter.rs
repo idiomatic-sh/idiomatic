@@ -56,10 +56,10 @@ impl EvidencePort for EvidenceBmfAdapter {
         linter: &ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName,
         timings: &std::collections::BTreeMap<
             ryo::linter::RuleId,
-            crate::domain::suite::types::RuleTiming,
+            crate::outbound::evidence::types::RuleTiming,
         >,
     ) -> Result<(), Error> {
-        let bytes = schemas::verification(linter, timings)?;
+        let bytes = super::verification::encode(linter, timings)?;
         let mut output = self
             .connection
             .output

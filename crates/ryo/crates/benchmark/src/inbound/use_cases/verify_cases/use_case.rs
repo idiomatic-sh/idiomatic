@@ -92,7 +92,8 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
                     ReportsError::Invalid(constants::MISSING_CASE_PROFILE_BOUNDARY.into())
                 })?,
             ))?;
-        self.evidence.verification(&tool.tool, &verified.timings)?;
-        Ok(verified.count)
+        let (count, timings) = verified;
+        self.evidence.verification(&tool.tool, &timings)?;
+        Ok(count)
     }
 }
